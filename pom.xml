@@ -7,7 +7,7 @@
     <groupId>org.esa.s1tbx</groupId>
     <artifactId>s1tbx</artifactId>
     <version>10.0.0-SNAPSHOT</version>
-    <name>Sentinel-1 Toolbox</name>
+    <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
     <description>Tools for SAR Earth Observation</description>
 
@@ -51,31 +51,31 @@
     <modules>
         <module>jlinda</module>
         <module>rstb</module>
-        <module>s1tbx-benchmark</module>
-        <module>s1tbx-cloud</module>
-        <module>s1tbx-commons</module>
-        <module>s1tbx-io</module>
-        <module>s1tbx-io-ephemeris</module>
-        <module>s1tbx-io-ephemeris-ui</module>
-        <module>s1tbx-op-analysis-ui</module>
-        <module>s1tbx-op-calibration</module>
-        <module>s1tbx-op-calibration-ui</module>
-        <module>s1tbx-op-feature-extraction</module>
-        <module>s1tbx-op-feature-extraction-ui</module>
-        <module>s1tbx-op-insar</module>
-        <module>s1tbx-op-insar-ui</module>
-        <module>s1tbx-op-ocean-ui</module>
-        <module>s1tbx-op-sar-processing</module>
-        <module>s1tbx-op-sar-processing-ui</module>
-        <module>s1tbx-op-sentinel1</module>
-        <module>s1tbx-op-sentinel1-ui</module>
-        <module>s1tbx-op-utilities</module>
-        <module>s1tbx-op-utilities-ui</module>
-        <module>s1tbx-rcp</module>
-        <module>s1tbx-test-stacks</module>
-        <module>snap_iceye_reader</module>
+        <module>microwavetbx-benchmark</module>
+        <module>microwavetbx-rcp</module>
+        <module>sar-cloud</module>
+        <module>sar-commons</module>
+        <module>sar-io</module>
+        <module>sar-io-ephemeris</module>
+        <module>sar-io-ephemeris-ui</module>
+        <module>sar-op-analysis-ui</module>
+        <module>sar-op-calibration</module>
+        <module>sar-op-calibration-ui</module>
+        <module>sar-op-feature-extraction</module>
+        <module>sar-op-feature-extraction-ui</module>
+        <module>sar-op-insar</module>
+        <module>sar-op-insar-ui</module>
+        <module>sar-op-ocean-ui</module>
+        <module>sar-op-sar-processing</module>
+        <module>sar-op-sar-processing-ui</module>
+        <module>sar-op-sentinel1</module>
+        <module>sar-op-sentinel1-ui</module>
+        <module>sar-op-utilities</module>
+        <module>sar-op-utilities-ui</module>
+        <module>sar-test-stacks</module>
+        <module>sar-io-iceye-reader</module>
 
-        <module>s1tbx-kit</module>
+        <module>microwavetbx-kit</module>
     </modules>
 
     <organization>
@@ -349,32 +349,32 @@
 
             <dependency>
                 <groupId>org.esa.s1tbx</groupId>
-                <artifactId>s1tbx-cloud</artifactId>
+                <artifactId>sar-cloud</artifactId>
                 <version>${s1tbx.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.esa.s1tbx</groupId>
-                <artifactId>s1tbx-commons</artifactId>
+                <artifactId>sar-commons</artifactId>
                 <version>${s1tbx.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.esa.s1tbx</groupId>
-                <artifactId>s1tbx-rcp</artifactId>
+                <artifactId>microwavetbx-rcp</artifactId>
                 <version>${s1tbx.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.esa.s1tbx</groupId>
-                <artifactId>s1tbx-op-calibration</artifactId>
+                <artifactId>sar-op-calibration</artifactId>
                 <version>${s1tbx.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.esa.s1tbx</groupId>
-                <artifactId>s1tbx-io</artifactId>
+                <artifactId>sar-io</artifactId>
                 <version>${s1tbx.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.esa.s1tbx</groupId>
-                <artifactId>s1tbx-op-insar</artifactId>
+                <artifactId>sar-op-insar</artifactId>
                 <version>${s1tbx.version}</version>
             </dependency>
 

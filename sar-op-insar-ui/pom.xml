@@ -14,33 +14,25 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
   -->
-<project
-        xmlns="http://maven.apache.org/POM/4.0.0"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project>
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.csa.rstb</groupId>
-        <artifactId>rstb</artifactId>
+        <groupId>org.esa.s1tbx</groupId>
+        <artifactId>s1tbx</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
-    <name>RSTB Classification Tools UI</name>
-    <artifactId>rstb-op-classification-ui</artifactId>
+    <artifactId>sar-op-insar-ui</artifactId>
+    <name>S1TBX InSAR Tools UI</name>
+    <description>S1TBX Interferometry Tools</description>
 
     <packaging>nbm</packaging>
-
+    
     <dependencies>
         <dependency>
-            <groupId>org.csa.rstb</groupId>
-            <artifactId>rstb-op-classification</artifactId>
-            <version>${rstb.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.csa.rstb</groupId>
-            <artifactId>rstb-op-polarimetric-tools</artifactId>
-            <version>${rstb.version}</version>
+            <groupId>org.esa.s1tbx</groupId>
+            <artifactId>sar-op-insar</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
@@ -48,15 +40,23 @@
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-ui</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
             <artifactId>ceres-glayer</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
+            <artifactId>ceres-binding</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>ceres-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
             <artifactId>snap-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-gpf</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
@@ -68,17 +68,66 @@
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
+            <artifactId>snap-tango</artifactId>
+            <version>${snap.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
             <artifactId>snap-engine-utilities</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-remote-products-repository</artifactId>
+            <version>${snap.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-product-library-v2</artifactId>
+            <version>${snap.version}</version>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-graph-builder</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-dem</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-product-library-ui-v2</artifactId>
+            <version>${snap.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.esa.s1tbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.esa.s1tbx</groupId>
+            <artifactId>microwavetbx-rcp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jlinda</groupId>
+            <artifactId>jlinda-core</artifactId>
+            <version>${jlinda.version}</version>
+        </dependency>
 
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-util</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-util-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-windows</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-util-lookup</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-netbeans-api-annotations-common</artifactId>
@@ -86,10 +135,6 @@
         <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-netbeans-modules-javahelp</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-util</artifactId>
         </dependency>
     </dependencies>
 
@@ -100,7 +145,7 @@
                 <artifactId>nbm-maven-plugin</artifactId>
                 <configuration>
                     <publicPackages>
-                        <publicPackage>org.csa.rstb.*</publicPackage>
+                        <publicPackage>org.esa.s1tbx.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

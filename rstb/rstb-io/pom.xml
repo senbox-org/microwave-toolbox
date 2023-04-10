@@ -45,11 +45,11 @@
         </dependency>
         <dependency>
             <groupId>org.esa.s1tbx</groupId>
-            <artifactId>s1tbx-commons</artifactId>
+            <artifactId>sar-commons</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.s1tbx</groupId>
-            <artifactId>s1tbx-io</artifactId>
+            <artifactId>sar-io</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

@@ -40,7 +40,7 @@
 
         <dependency>
             <groupId>org.esa.s1tbx</groupId>
-            <artifactId>s1tbx-commons</artifactId>
+            <artifactId>sar-commons</artifactId>
         </dependency>
         <dependency>
             <groupId>org.csa.rstb</groupId>
