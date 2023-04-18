@@ -22,11 +22,13 @@ import org.openide.awt.ActionReferences;
 import org.openide.util.NbBundle;
 import org.openide.windows.TopComponent;
 
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JScrollPane;
 import javax.swing.border.EmptyBorder;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.util.List;
 import java.util.Observer;
 
@@ -45,7 +47,7 @@ import java.util.Observer;
 )
 @ActionID(category = "Window", id = "org.esa.s1tbx.dat.toolviews.Projects.ProjectsToolView")
 @ActionReferences({
-        @ActionReference(path = "Menu/View/Tool Windows", position = 10),
+        @ActionReference(path = "Menu/View/Tool Windows", position = 80),
         @ActionReference(path = "Toolbars/Projects", position = 10)
 })
 @TopComponent.OpenActionRegistration(

@@ -19,7 +19,6 @@
 
     <folder name="Menu">
         <folder name="Radar">
-            <attr name="position" intvalue="510"/>
             <file name="org-esa-s1tbx-orbits-gpf-applyOrbitFile-Action.shadow">
                 <attr name="originalFile" stringvalue="Actions/Operators/org-esa-s1tbx-orbits-gpf-applyOrbitFile-Action.instance"/>
                 <attr name="position" intvalue="50"/>

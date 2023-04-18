@@ -109,7 +109,7 @@
                 <file name="org-esa-s1tbx-utilities-gpf-SetNoDataValueOp-Action.shadow">
                     <attr name="originalFile"
                           stringvalue="Actions/Operators/org-esa-s1tbx-utilities-gpf-SetNoDataValueOp-Action.instance"/>
-                    <attr name="position" intvalue="500"/>
+                    <attr name="position" intvalue="510"/>
                 </file>
             </folder>
         </folder>

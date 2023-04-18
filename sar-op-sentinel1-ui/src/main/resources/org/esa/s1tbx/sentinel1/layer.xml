@@ -185,7 +185,7 @@
 
     <folder name="Menu">
         <folder name="Radar">
-            <attr name="position" intvalue="510"/>
+            <attr name="position" intvalue="30"/>
             <folder name="Coregistration">
                 <attr name="position" intvalue="300"/>
                 <folder name="S1 TOPS Coregistration">
@@ -264,7 +264,7 @@
                 </file>
                 <file name="org-esa-s1tbx-sentinel1-gpf-TOPSARDerampDemodOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/org-esa-s1tbx-sentinel1-gpf-TOPSARDerampDemodOp-Action.instance"/>
-                    <attr name="position" intvalue="600"/>
+                    <attr name="position" intvalue="610"/>
                 </file>
             </folder>
 
