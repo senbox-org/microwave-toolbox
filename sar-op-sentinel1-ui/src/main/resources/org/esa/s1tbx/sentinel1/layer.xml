@@ -185,7 +185,7 @@
 
     <folder name="Menu">
         <folder name="Radar">
-            <attr name="position" intvalue="30"/>
+            <attr name="position" intvalue="510"/>
             <folder name="Coregistration">
                 <attr name="position" intvalue="300"/>
                 <folder name="S1 TOPS Coregistration">
