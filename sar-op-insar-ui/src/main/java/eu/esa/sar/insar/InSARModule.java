@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.sar;
+package eu.esa.sar.insar;
 
 import org.esa.snap.engine_utilities.util.ResourceUtils;
 import org.openide.modules.OnStart;
@@ -21,14 +21,14 @@ import org.openide.modules.OnStart;
 /**
  * Handle OnStart for module
  */
-public class S1tbxSARProcessingModule {
+public class InSARModule {
 
     @OnStart
     public static class StartOp implements Runnable {
 
         @Override
         public void run() {
-            ResourceUtils.installGraphs(this.getClass(), "eu/esa/sar/sar/graphs/");
+            ResourceUtils.installGraphs(this.getClass(), "eu/esa/sar/insar/graphs/");
         }
     }
 }
