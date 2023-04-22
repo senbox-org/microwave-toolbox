@@ -18,20 +18,20 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.esa.s1tbx</groupId>
-        <artifactId>s1tbx</artifactId>
+        <groupId>eu.esa.microwavetbx</groupId>
+        <artifactId>microwavetbx</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-insar-ui</artifactId>
-    <name>S1TBX InSAR Tools UI</name>
-    <description>S1TBX Interferometry Tools</description>
+    <name>SAR InSAR Tools UI</name>
+    <description>SAR Interferometry Tools</description>
 
     <packaging>nbm</packaging>
     
     <dependencies>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-insar</artifactId>
         </dependency>
         <dependency>
@@ -99,11 +99,11 @@
             <version>${snap.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>microwavetbx-rcp</artifactId>
         </dependency>
         <dependency>
@@ -145,7 +145,7 @@
                 <artifactId>nbm-maven-plugin</artifactId>
                 <configuration>
                     <publicPackages>
-                        <publicPackage>org.esa.s1tbx.*</publicPackage>
+                        <publicPackage>eu.esa.sar.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

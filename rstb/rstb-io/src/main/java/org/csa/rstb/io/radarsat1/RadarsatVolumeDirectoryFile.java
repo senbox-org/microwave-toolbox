@@ -1,8 +1,8 @@
 package org.csa.rstb.io.radarsat1;
 
-import org.esa.s1tbx.io.binary.BinaryDBReader;
-import org.esa.s1tbx.io.binary.BinaryFileReader;
-import org.esa.s1tbx.io.ceos.CEOSVolumeDirectoryFile;
+import eu.esa.sar.io.binary.BinaryDBReader;
+import eu.esa.sar.io.binary.BinaryFileReader;
+import eu.esa.sar.io.ceos.CEOSVolumeDirectoryFile;
 import org.jdom2.Document;
 
 import java.io.IOException;

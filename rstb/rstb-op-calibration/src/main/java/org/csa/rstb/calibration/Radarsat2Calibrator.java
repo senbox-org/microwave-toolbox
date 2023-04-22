@@ -17,8 +17,8 @@ package org.csa.rstb.calibration;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.apache.commons.math3.util.FastMath;
-import org.esa.s1tbx.calibration.gpf.support.BaseCalibrator;
-import org.esa.s1tbx.calibration.gpf.support.Calibrator;
+import eu.esa.sar.calibration.gpf.support.BaseCalibrator;
+import eu.esa.sar.calibration.gpf.support.Calibrator;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;

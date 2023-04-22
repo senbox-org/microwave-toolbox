@@ -16,8 +16,8 @@
 package org.csa.rstb.io.radarsat1;
 
 import com.bc.ceres.core.VirtualDir;
-import org.esa.s1tbx.io.ceos.CEOSProductDirectory;
-import org.esa.s1tbx.io.ceos.CEOSProductReader;
+import eu.esa.sar.io.ceos.CEOSProductDirectory;
+import eu.esa.sar.io.ceos.CEOSProductReader;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 

@@ -18,7 +18,7 @@ Building S1TBX from the source
 3. Clone the S1TBX source code and related repositories into SNAP/
 
     ```
-    git clone https://github.com/senbox-org/s1tbx.git
+    git clone https://github.com/senbox-org/microwave-toolbox.git
     git clone https://github.com/senbox-org/snap-desktop.git
     git clone https://github.com/senbox-org/snap-engine.git
     git clone https://github.com/senbox-org/snap-installer.git
@@ -64,7 +64,7 @@ Contributing
 ------------
 
     Fork it on github ( https://github.com/senbox-org/s1tbx/fork )
-    Clone it locally (git clone https://github.com/senbox-org/s1tbx.git)
+    Clone it locally (git clone https://github.com/senbox-org/microwave-toolbox.git)
     Create your feature branch (git checkout -b my-new-feature)
     Commit your changes (git commit -am 'Add some feature')
     Push to the branch (git push origin my-new-feature)

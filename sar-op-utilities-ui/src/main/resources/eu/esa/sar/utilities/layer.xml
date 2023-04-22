@@ -1,0 +1,141 @@
+
+<filesystem>
+
+    <folder name="Actions">
+        <folder name="Operators">
+            <file name="eu-esa-sar-utilities-gpf-OversampleOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Oversample"/>
+                <attr name="operatorName" stringvalue="Oversample"/>
+                <attr name="dialogTitle" stringvalue="Oversample"/>
+                <attr name="targetProductNameSuffix" stringvalue="_ovr"/>
+                <attr name="ShortDescription" stringvalue="Oversamples an image"/>
+                <attr name="helpId" stringvalue="OverSampleOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-utilities-gpf-UndersampleOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Undersample"/>
+                <attr name="operatorName" stringvalue="Undersample"/>
+                <attr name="dialogTitle" stringvalue="Undersample"/>
+                <attr name="targetProductNameSuffix" stringvalue="_und"/>
+                <attr name="ShortDescription" stringvalue="Undersamples an image"/>
+                <attr name="helpId" stringvalue="UnderSampleOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-utilities-gpf-BandSelectOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Band Select"/>
+                <attr name="operatorName" stringvalue="BandSelect"/>
+                <attr name="dialogTitle" stringvalue="Band Select"/>
+                <attr name="ShortDescription" stringvalue="Select a subset of bands"/>
+                <attr name="helpId" stringvalue="BandSelectOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-utilities-gpf-SetNoDataValueOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Set No-Data Value"/>
+                <attr name="operatorName" stringvalue="SetNoDataValue"/>
+                <attr name="dialogTitle" stringvalue="Set No-Data Value"/>
+                <attr name="ShortDescription" stringvalue="Set NoDataValueUsed flag and NoDataValue"/>
+                <attr name="helpId" stringvalue="SetNoDataValueOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-utilities-gpf-DemodulateOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Demodulate"/>
+                <attr name="operatorName" stringvalue="Demodulate"/>
+                <attr name="dialogTitle" stringvalue="Demodulate"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Demod"/>
+                <attr name="ShortDescription" stringvalue="Demodulation of an SLC"/>
+                <attr name="helpId" stringvalue="DemodulateOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-utilities-gpf-RemodulateOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Remodulate"/>
+                <attr name="operatorName" stringvalue="Remodulate"/>
+                <attr name="dialogTitle" stringvalue="Remodulate"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Remod"/>
+                <attr name="ShortDescription" stringvalue="Remodulation of an SLC"/>
+                <attr name="helpId" stringvalue="RemodulateOp"/>
+            </file>
+        </folder>
+    </folder>
+
+    <folder name="Menu">
+        <folder name="Radar">
+            <folder name="SAR Utilities">
+                <attr name="position" intvalue="1000"/>
+                <folder name="Resampling">
+                    <attr name="position" intvalue="50"/>
+                    <file name="eu-esa-sar-utilities-gpf-OversampleOp-Action.shadow">
+                        <attr name="originalFile"
+                              stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-OversampleOp-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="eu-esa-sar-utilities-gpf-UndersampleOp-Action.shadow">
+                        <attr name="originalFile"
+                              stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-UndersampleOp-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
+                    </file>
+                    <file name="eu-esa-sar-utilities-gpf-DemodulateOp-Action.shadow">
+                        <attr name="originalFile"
+                              stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-DemodulateOp-Action.instance"/>
+                        <attr name="position" intvalue="300"/>
+                    </file>
+                    <file name="eu-esa-sar-utilities-gpf-RemodulateOp-Action.shadow">
+                        <attr name="originalFile"
+                              stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-RemodulateOp-Action.instance"/>
+                        <attr name="position" intvalue="400"/>
+                    </file>
+                </folder>
+            </folder>
+        </folder>
+        <folder name="Raster">
+            <folder name="Data Conversion">
+                <attr name="position" intvalue="350"/>
+                <file name="eu-esa-sar-utilities-gpf-BandSelectOp-Action.shadow">
+                    <attr name="originalFile"
+                          stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-BandSelectOp-Action.instance"/>
+                    <attr name="position" intvalue="500"/>
+                </file>
+                <file name="eu-esa-sar-utilities-gpf-SetNoDataValueOp-Action.shadow">
+                    <attr name="originalFile"
+                          stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-SetNoDataValueOp-Action.instance"/>
+                    <attr name="position" intvalue="510"/>
+                </file>
+            </folder>
+        </folder>
+    </folder>
+
+    <folder name="OperatorUIs">
+        <file name="eu.esa.sar.utilities.gpf.ui.BandSelectOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.utilities.gpf.ui.BandSelectOpUI"/>
+            <attr name="operatorName" stringvalue="BandSelect"/>
+        </file>
+        <file name="eu.esa.sar.utilities.gpf.ui.TileWriterUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.utilities.gpf.ui.TileWriterUI"/>
+            <attr name="operatorName" stringvalue="TileWriter"/>
+        </file>
+        <file name="eu.esa.sar.utilities.gpf.ui.BandMergeOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.utilities.gpf.ui.BandMergeOpUI"/>
+            <attr name="operatorName" stringvalue="BandMerge"/>
+        </file>
+        <file name="eu.esa.sar.utilities.gpf.ui.OversamplingOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.utilities.gpf.ui.OversamplingOpUI"/>
+            <attr name="operatorName" stringvalue="Oversample"/>
+        </file>
+        <file name="eu.esa.sar.utilities.gpf.ui.UndersamplingOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.utilities.gpf.ui.UndersamplingOpUI"/>
+            <attr name="operatorName" stringvalue="Undersample"/>
+        </file>
+    </folder>
+
+</filesystem>

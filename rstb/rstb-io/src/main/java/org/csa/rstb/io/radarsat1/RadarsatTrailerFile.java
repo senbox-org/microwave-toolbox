@@ -15,10 +15,10 @@
  */
 package org.csa.rstb.io.radarsat1;
 
-import org.esa.s1tbx.io.binary.BinaryDBReader;
-import org.esa.s1tbx.io.binary.BinaryFileReader;
-import org.esa.s1tbx.io.binary.BinaryRecord;
-import org.esa.s1tbx.io.ceos.CEOSLeaderFile;
+import eu.esa.sar.io.binary.BinaryDBReader;
+import eu.esa.sar.io.binary.BinaryFileReader;
+import eu.esa.sar.io.binary.BinaryRecord;
+import eu.esa.sar.io.ceos.CEOSLeaderFile;
 import org.jdom2.Document;
 
 import javax.imageio.stream.ImageInputStream;

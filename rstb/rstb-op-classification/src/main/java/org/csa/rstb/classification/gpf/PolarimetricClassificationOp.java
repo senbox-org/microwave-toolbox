@@ -18,7 +18,7 @@ package org.csa.rstb.classification.gpf;
 import com.bc.ceres.core.ProgressMonitor;
 import org.csa.rstb.classification.gpf.classifiers.*;
 import org.csa.rstb.polarimetric.gpf.PolarimetricDecompositionOp;
-import org.esa.s1tbx.commons.polsar.PolBandUtils;
+import eu.esa.sar.commons.polsar.PolBandUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;

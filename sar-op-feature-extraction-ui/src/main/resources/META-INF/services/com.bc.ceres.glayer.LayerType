@@ -1,2 +1,2 @@
-org.esa.s1tbx.fex.rcp.layersrc.ObjectDetectionLayerType
-org.esa.s1tbx.fex.rcp.layersrc.WindFieldEstimationLayerType
+eu.esa.sar.fex.rcp.layersrc.ObjectDetectionLayerType
+eu.esa.sar.fex.rcp.layersrc.WindFieldEstimationLayerType

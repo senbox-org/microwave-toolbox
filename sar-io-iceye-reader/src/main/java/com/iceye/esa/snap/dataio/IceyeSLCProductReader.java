@@ -2,11 +2,11 @@ package com.iceye.esa.snap.dataio;
 
 import com.bc.ceres.core.ProgressMonitor;
 import com.iceye.esa.snap.dataio.util.IceyeXConstants;
-import org.esa.s1tbx.commons.io.SARReader;
-import org.esa.s1tbx.commons.product.Missions;
-import org.esa.s1tbx.io.netcdf.NetCDFReader;
-import org.esa.s1tbx.io.netcdf.NetCDFUtils;
-import org.esa.s1tbx.io.netcdf.NetcdfConstants;
+import eu.esa.sar.commons.io.SARReader;
+import eu.esa.sar.commons.product.Missions;
+import eu.esa.sar.io.netcdf.NetCDFReader;
+import eu.esa.sar.io.netcdf.NetCDFUtils;
+import eu.esa.sar.io.netcdf.NetcdfConstants;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.*;

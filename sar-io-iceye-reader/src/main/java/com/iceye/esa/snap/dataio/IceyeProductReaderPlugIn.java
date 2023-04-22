@@ -1,7 +1,7 @@
 package com.iceye.esa.snap.dataio;
 
 import com.iceye.esa.snap.dataio.util.IceyeXConstants;
-import org.esa.s1tbx.io.netcdf.NetCDFReaderPlugIn;
+import eu.esa.sar.io.netcdf.NetCDFReaderPlugIn;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;

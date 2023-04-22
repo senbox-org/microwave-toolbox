@@ -15,9 +15,9 @@
  */
 package org.csa.rstb.calibration;
 
-import org.esa.s1tbx.calibration.gpf.CalibrationOp;
-import org.esa.s1tbx.commons.test.S1TBXTests;
-import org.esa.s1tbx.commons.test.TestData;
+import eu.esa.sar.calibration.gpf.CalibrationOp;
+import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
@@ -47,7 +47,7 @@ public class TestCalibrationOp {
 
     @Before
     public void setUp() {
-        testProcessor = S1TBXTests.createS1TBXTestProcessor();
+        testProcessor = SARTests.createTestProcessor();
 
         // If any of the file does not exist: the test will be ignored
         assumeTrue(TestData.inputRS2_SQuad + "not found", TestData.inputRS2_SQuad.exists());
@@ -86,11 +86,11 @@ public class TestCalibrationOp {
     @Test
     @Ignore
     public void testProcessAllRadarsat1() throws Exception {
-        testProcessor.testProcessAllInPath(spi, S1TBXTests.rootPathsRadarsat1, "RADARSAT-1", productTypeExemptions, null);
+        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsRadarsat1, "RADARSAT-1", productTypeExemptions, null);
     }
 
     @Test
     public void testProcessAllRadarsat2() throws Exception {
-        testProcessor.testProcessAllInPath(spi, S1TBXTests.rootPathsRadarsat2, "RADARSAT-2", productTypeExemptions, null);
+        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsRadarsat2, "RADARSAT-2", productTypeExemptions, null);
     }
 }

@@ -21,12 +21,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.esa.s1tbx</groupId>
-        <artifactId>s1tbx</artifactId>
+        <groupId>eu.esa.microwavetbx</groupId>
+        <artifactId>microwavetbx</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
-    <name>S1TBX Ocean UI</name>
+    <name>SAR Ocean UI</name>
     <artifactId>sar-op-ocean-ui</artifactId>
 
     <packaging>nbm</packaging>
@@ -92,7 +92,7 @@
                 <artifactId>nbm-maven-plugin</artifactId>
                 <configuration>
                     <publicPackages>
-                        <publicPackage>org.esa.s1tbx.*</publicPackage>
+                        <publicPackage>eu.esa.sar.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

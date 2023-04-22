@@ -15,9 +15,9 @@
  */
 package com.iceye.esa.snap.dataio;
 
-import org.esa.s1tbx.commons.test.ProductValidator;
-import org.esa.s1tbx.commons.test.ReaderTest;
-import org.esa.s1tbx.commons.test.S1TBXTests;
+import eu.esa.sar.commons.test.ProductValidator;
+import eu.esa.sar.commons.test.ReaderTest;
+import eu.esa.sar.commons.test.SARTests;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Assert;
@@ -33,15 +33,15 @@ public class TestIceyeReader extends ReaderTest {
 
     public static final String TESTING_IMAGE_PATH = "/home/ahmad/Documents/Projects/snap/test";
 
-    private final static String inputIceyeFolder = S1TBXTests.inputPathProperty + S1TBXTests.sep + "SAR" + S1TBXTests.sep  + "Iceye" + S1TBXTests.sep ;
-    private final static File[] iceyeSLCFiles = S1TBXTests.loadFilePath(inputIceyeFolder + "SLC");
-    private final static File[] iceyeGRDFiles = S1TBXTests.loadFilePath(inputIceyeFolder + "GRD");
+    private final static String inputIceyeFolder = SARTests.inputPathProperty + SARTests.sep + "SAR" + SARTests.sep  + "Iceye" + SARTests.sep ;
+    private final static File[] iceyeSLCFiles = SARTests.loadFilePath(inputIceyeFolder + "SLC");
+    private final static File[] iceyeGRDFiles = SARTests.loadFilePath(inputIceyeFolder + "GRD");
 
-    private final static File SL_GRD_ImageFile = new File(S1TBXTests.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_GRD_Data_Jurong_Island_Singapore_SL_092019/ICEYE_GRD_SL_10402_20190920T075151.tif");
-    private final static File SL_SLC_ImageFile = new File(S1TBXTests.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_SLC_Data_Jurong_Island_Singapore_SL_092019/ICEYE_SLC_SL_10402_20190920T075151.h5");
+    private final static File SL_GRD_ImageFile = new File(SARTests.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_GRD_Data_Jurong_Island_Singapore_SL_092019/ICEYE_GRD_SL_10402_20190920T075151.tif");
+    private final static File SL_SLC_ImageFile = new File(SARTests.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_SLC_Data_Jurong_Island_Singapore_SL_092019/ICEYE_SLC_SL_10402_20190920T075151.h5");
 
-    private final static File SL_GRD_MetadataFile = new File(S1TBXTests.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_GRD_Data_Jurong_Island_Singapore_SL_092019/ICEYE_GRD_SL_10402_20190920T075151.xml");
-    private final static File SL_SLC_MetadataFile = new File(S1TBXTests.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_SLC_Data_Jurong_Island_Singapore_SL_092019/ICEYE_SLC_SL_10402_20190920T075151.xml");
+    private final static File SL_GRD_MetadataFile = new File(SARTests.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_GRD_Data_Jurong_Island_Singapore_SL_092019/ICEYE_GRD_SL_10402_20190920T075151.xml");
+    private final static File SL_SLC_MetadataFile = new File(SARTests.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_SLC_Data_Jurong_Island_Singapore_SL_092019/ICEYE_SLC_SL_10402_20190920T075151.xml");
 
     private String[] exceptionExemptions = {"not supported"};
 
@@ -75,7 +75,7 @@ public class TestIceyeReader extends ReaderTest {
      */
     @Test
     public void testTestServerOpenAllSLC() throws Exception {
-        TestProcessor testProcessor = S1TBXTests.createS1TBXTestProcessor();
+        TestProcessor testProcessor = SARTests.createTestProcessor();
         testProcessor.recurseReadFolder(this, iceyeSLCFiles, readerPlugIn, null, null, null);
     }
 
@@ -86,7 +86,7 @@ public class TestIceyeReader extends ReaderTest {
      */
     @Test
     public void testTestServerOpenAllGRD() throws Exception {
-        TestProcessor testProcessor = S1TBXTests.createS1TBXTestProcessor();
+        TestProcessor testProcessor = SARTests.createTestProcessor();
         testProcessor.recurseReadFolder(this, iceyeGRDFiles, readerPlugIn, null, null, null);
     }
 

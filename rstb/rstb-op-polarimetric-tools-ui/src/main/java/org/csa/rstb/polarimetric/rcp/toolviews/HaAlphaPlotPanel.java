@@ -22,7 +22,7 @@ import com.bc.ceres.core.ProgressMonitor;
 import com.bc.ceres.core.SubProgressMonitor;
 import com.bc.ceres.swing.binding.BindingContext;
 import org.csa.rstb.polarimetric.gpf.support.HaAlphaDescriptor;
-import org.esa.s1tbx.dat.graphics.Palette;
+import eu.esa.microwave.dat.graphics.Palette;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.barithm.BandArithmetic;
 import org.esa.snap.core.util.Debug;

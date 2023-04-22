@@ -15,7 +15,7 @@
  */
 package org.csa.rstb.classification.gpf;
 
-import org.esa.s1tbx.commons.test.TestData;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;

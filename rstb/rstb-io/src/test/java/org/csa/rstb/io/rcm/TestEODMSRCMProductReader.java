@@ -15,9 +15,9 @@
  */
 package org.csa.rstb.io.rcm;
 
-import org.esa.s1tbx.commons.test.ProductValidator;
-import org.esa.s1tbx.commons.test.ReaderTest;
-import org.esa.s1tbx.commons.test.S1TBXTests;
+import eu.esa.sar.commons.test.ProductValidator;
+import eu.esa.sar.commons.test.ReaderTest;
+import eu.esa.sar.commons.test.SARTests;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,24 +33,24 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestEODMSRCMProductReader extends ReaderTest {
 
-    private final static File eodmsGRDZip = new File(S1TBXTests.TEST_ROOT +"RCM/EODMS/GRD/RCM1_OK1024567_PK1025865_1_SC50MA_20191205_225938_HH_HV_GRD.zip");
-    private final static File eodmsGRDFolder = new File(S1TBXTests.TEST_ROOT +"RCM/EODMS/GRD/RCM1_OK1024567_PK1025865_1_SC50MA_20191205_225938_HH_HV_GRD");
-    private final static File eodmsGRDManifest = new File(S1TBXTests.TEST_ROOT +"RCM/EODMS/GRD/RCM1_OK1024567_PK1025865_1_SC50MA_20191205_225938_HH_HV_GRD/manifest.safe");
+    private final static File eodmsGRDZip = new File(SARTests.TEST_ROOT +"RCM/EODMS/GRD/RCM1_OK1024567_PK1025865_1_SC50MA_20191205_225938_HH_HV_GRD.zip");
+    private final static File eodmsGRDFolder = new File(SARTests.TEST_ROOT +"RCM/EODMS/GRD/RCM1_OK1024567_PK1025865_1_SC50MA_20191205_225938_HH_HV_GRD");
+    private final static File eodmsGRDManifest = new File(SARTests.TEST_ROOT +"RCM/EODMS/GRD/RCM1_OK1024567_PK1025865_1_SC50MA_20191205_225938_HH_HV_GRD/manifest.safe");
 
-    private final static File eodmsGRCZip = new File(S1TBXTests.TEST_ROOT +"RCM/EODMS/GCD/RCM2_OK1028884_PK1029284_2_16M12_20191214_111155_HH_HV_GCD.zip");
-    private final static File eodmsGRCFolder = new File(S1TBXTests.TEST_ROOT +"RCM/EODMS/GCD/RCM2_OK1028884_PK1029284_2_16M12_20191214_111155_HH_HV_GCD");
-    private final static File eodmsGRCManifest = new File(S1TBXTests.TEST_ROOT +"RCM/EODMS/GCD/RCM2_OK1028884_PK1029284_2_16M12_20191214_111155_HH_HV_GCD/manifest.safe");
+    private final static File eodmsGRCZip = new File(SARTests.TEST_ROOT +"RCM/EODMS/GCD/RCM2_OK1028884_PK1029284_2_16M12_20191214_111155_HH_HV_GCD.zip");
+    private final static File eodmsGRCFolder = new File(SARTests.TEST_ROOT +"RCM/EODMS/GCD/RCM2_OK1028884_PK1029284_2_16M12_20191214_111155_HH_HV_GCD");
+    private final static File eodmsGRCManifest = new File(SARTests.TEST_ROOT +"RCM/EODMS/GCD/RCM2_OK1028884_PK1029284_2_16M12_20191214_111155_HH_HV_GCD/manifest.safe");
 
-    private final static File eodmsScanSAR_CX_SLCZip = new File(S1TBXTests.TEST_ROOT +"RCM/EODMS/SLC/RCM1_OK1683816_PK1836418_1_SC30MCPB_20211026_112824_CH_CV_SLC.zip");
+    private final static File eodmsScanSAR_CX_SLCZip = new File(SARTests.TEST_ROOT +"RCM/EODMS/SLC/RCM1_OK1683816_PK1836418_1_SC30MCPB_20211026_112824_CH_CV_SLC.zip");
 
-    private final static File eodmsQP_SLCZip = new File(S1TBXTests.TEST_ROOT +"RCM/EODMS/SLC/RCM1_OK1925486_PK1946630_1_QP8_20220103_110328_HH_VV_HV_VH_SLC.zip");
+    private final static File eodmsQP_SLCZip = new File(SARTests.TEST_ROOT +"RCM/EODMS/SLC/RCM1_OK1925486_PK1946630_1_QP8_20220103_110328_HH_VV_HV_VH_SLC.zip");
 
-    private final static File inputQP_SLC = new File(S1TBXTests.TEST_ROOT + "RCM/OpenData/Quebec City/RCM3_OK1050546_PK1050547_1_QP8_20191229_110339_HH_VV_HV_VH_SLC");
+    private final static File inputQP_SLC = new File(SARTests.TEST_ROOT + "RCM/OpenData/Quebec City/RCM3_OK1050546_PK1050547_1_QP8_20191229_110339_HH_VV_HV_VH_SLC");
 
-    private final static File inputCP_SLC = new File(S1TBXTests.TEST_ROOT + "RCM/OpenData/Winnipeg/RCM1_OK1050595_PK1051816_1_3MCP24_20200219_123901_CH_CV_SLC");
-    private final static File inputCP_GCC = new File(S1TBXTests.TEST_ROOT + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052794_1_3MCP24_20200219_123901_CH_CV_GCC");
-    private final static File inputCP_GRC = new File(S1TBXTests.TEST_ROOT + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052795_1_3MCP24_20200219_123901_CH_CV_GRC");
-    private final static File inputCP_GRD = new File(S1TBXTests.TEST_ROOT + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052796_1_3MCP24_20200219_123901_CH_CV_GCD");
+    private final static File inputCP_SLC = new File(SARTests.TEST_ROOT + "RCM/OpenData/Winnipeg/RCM1_OK1050595_PK1051816_1_3MCP24_20200219_123901_CH_CV_SLC");
+    private final static File inputCP_GCC = new File(SARTests.TEST_ROOT + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052794_1_3MCP24_20200219_123901_CH_CV_GCC");
+    private final static File inputCP_GRC = new File(SARTests.TEST_ROOT + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052795_1_3MCP24_20200219_123901_CH_CV_GRC");
+    private final static File inputCP_GRD = new File(SARTests.TEST_ROOT + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052796_1_3MCP24_20200219_123901_CH_CV_GCD");
 
     public TestEODMSRCMProductReader() {
         super(new RCMProductReaderPlugIn());

@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
-OpenIDE-Module-Specification-Version: ${s1tbx.nbmSpecVersion}
-OpenIDE-Module-Implementation-Version: ${s1tbx.nbmImplVersion}
+OpenIDE-Module-Specification-Version: ${microwavetbx.nbmSpecVersion}
+OpenIDE-Module-Implementation-Version: ${microwavetbx.nbmImplVersion}
 AutoUpdate-Show-In-Client: false
 AutoUpdate-Essential-Module: false
-OpenIDE-Module-Layer: org/esa/s1tbx/io/layer.xml
+OpenIDE-Module-Layer: eu/esa/sar/io/layer.xml
 OpenIDE-Module-Java-Dependencies: Java > 1.8
 OpenIDE-Module-Display-Category: SNAP Toolboxes
 OpenIDE-Module-Long-Description: <p>SAR Product readers.</p><p><b>Vendor:</b> Array Systems Computing Inc</p><p>

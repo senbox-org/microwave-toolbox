@@ -21,7 +21,7 @@ import com.bc.ceres.swing.progress.ProgressMonitorSwingWorker;
 import org.csa.rstb.classification.rcp.dialogs.ProductGeometrySelectorDialog;
 import org.csa.rstb.polarimetric.gpf.support.DualPolProcessor;
 import org.csa.rstb.polarimetric.gpf.support.QuadPolProcessor;
-import org.esa.s1tbx.commons.polsar.PolBandUtils;
+import eu.esa.sar.commons.polsar.PolBandUtils;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Mask;
 import org.esa.snap.core.datamodel.Product;

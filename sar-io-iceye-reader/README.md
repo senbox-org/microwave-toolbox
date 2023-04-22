@@ -48,5 +48,5 @@ To build without testing
         
         
 * Useful urls
-    - Snap git hub:https://github.com/senbox-org/s1tbx
+    - Snap git hub:https://github.com/senbox-org/microwave-toolbox
 

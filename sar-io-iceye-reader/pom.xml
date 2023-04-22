@@ -4,8 +4,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.esa.s1tbx</groupId>
-        <artifactId>s1tbx</artifactId>
+        <groupId>eu.esa.microwavetbx</groupId>
+        <artifactId>microwavetbx</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
@@ -37,11 +37,11 @@
             <artifactId>snap-netcdf</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io</artifactId>
         </dependency>
     </dependencies>
@@ -63,7 +63,7 @@
                 <artifactId>nbm-maven-plugin</artifactId>
                 <configuration>
                     <publicPackages>
-                        <publicPackage>org.esa.s1tbx.*</publicPackage>
+                        <publicPackage>eu.esa.sar.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

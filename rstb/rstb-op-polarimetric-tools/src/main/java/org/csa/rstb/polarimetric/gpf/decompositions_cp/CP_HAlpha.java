@@ -19,7 +19,7 @@ import org.csa.rstb.polarimetric.gpf.support.CompactPolProcessor;
 import org.csa.rstb.polarimetric.gpf.support.StokesParameters;
 import org.csa.rstb.polarimetric.gpf.decompositions.EigenDecomposition;
 import org.csa.rstb.polarimetric.gpf.decompositions.HAlphaC2;
-import org.esa.s1tbx.commons.polsar.PolBandUtils;
+import eu.esa.sar.commons.polsar.PolBandUtils;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.Operator;

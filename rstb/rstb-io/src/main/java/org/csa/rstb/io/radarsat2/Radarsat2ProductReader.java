@@ -16,8 +16,8 @@
 package org.csa.rstb.io.radarsat2;
 
 import com.bc.ceres.core.ProgressMonitor;
-import org.esa.s1tbx.commons.io.ImageIOFile;
-import org.esa.s1tbx.commons.io.SARReader;
+import eu.esa.sar.commons.io.ImageIOFile;
+import eu.esa.sar.commons.io.SARReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataAttribute;

@@ -1,0 +1,61 @@
+
+<filesystem>
+
+    <folder name="Actions">
+        <folder name="Readers">
+            <file name="eu-esa-sar-io-importGenericComplex.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="eu.esa.microwave.generic.ImportParameterizedProductAction.create"/>
+                <attr name="displayName" stringvalue="Generic Complex"/>
+                <attr name="formatName" stringvalue="Complex Binary"/>
+                <attr name="useAllFileFilter" boolvalue="true"/>
+                <attr name="helpId" stringvalue="importGenericComplex"/>
+                <attr name="ShortDescription" stringvalue="Open Generic Complex product."/>
+            </file>
+            <file name="eu-esa-sar-io-importGenericBinary.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="eu.esa.microwave.generic.ImportParameterizedProductAction.create"/>
+                <attr name="displayName" stringvalue="Generic Binary"/>
+                <attr name="formatName" stringvalue="Generic Binary"/>
+                <attr name="useAllFileFilter" boolvalue="true"/>
+                <attr name="helpId" stringvalue="importGenericBinary"/>
+                <attr name="ShortDescription" stringvalue="Open Generic Binary product."/>
+            </file>
+        </folder>
+    </folder>
+
+    <folder name="Menu">
+        <folder name="File">
+            <folder name="Projects">
+                <attr name="position" intvalue="110"/>
+            </folder>
+            <folder name="Import">
+                <folder name="SAR Formats">
+                    <file name="eu-esa-sar-io-importGenericComplex.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-io-importGenericComplex.instance"/>
+                        <attr name="position" intvalue="400"/>
+                    </file>
+                    <file name="eu-esa-sar-io-importGenericBinary.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-io-importGenericBinary.instance"/>
+                        <attr name="position" intvalue="410"/>
+                    </file>
+                </folder>
+            </folder>
+        </folder>
+    </folder>
+
+    <folder name="LayerSources">
+        <file name="maptools-layer">
+            <attr name="displayName" stringvalue="Mapping Tools"/>
+            <attr name="description" stringvalue="Shows cartographic overlays"/>
+            <attr name="layerSourceClass" stringvalue="eu.esa.microwave.dat.layers.maptools.MapToolsLayerSource"/>
+        </file>
+    </folder>
+    <folder name="LayerEditors">
+        <file name="maptools-layer">
+            <attr name="layerClass" stringvalue="eu.esa.microwave.dat.layers.maptools.MapToolsLayer"/>
+            <attr name="editorClass" stringvalue="eu.esa.microwave.dat.layers.maptools.MapToolsLayerEditor"/>
+        </file>
+    </folder>
+
+</filesystem>

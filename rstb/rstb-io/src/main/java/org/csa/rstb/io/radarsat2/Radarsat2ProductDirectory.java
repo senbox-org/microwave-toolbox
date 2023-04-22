@@ -16,11 +16,11 @@
 package org.csa.rstb.io.radarsat2;
 
 import org.apache.commons.math3.util.FastMath;
-import org.esa.s1tbx.commons.io.ImageIOFile;
-import org.esa.s1tbx.commons.io.SARReader;
-import org.esa.s1tbx.commons.io.XMLProductDirectory;
-import org.esa.s1tbx.commons.product.Missions;
-import org.esa.s1tbx.io.geotiffxml.GeoTiffUtils;
+import eu.esa.sar.commons.io.ImageIOFile;
+import eu.esa.sar.commons.io.SARReader;
+import eu.esa.sar.commons.io.XMLProductDirectory;
+import eu.esa.sar.commons.product.Missions;
+import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.GeoPos;

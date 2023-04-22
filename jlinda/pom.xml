@@ -4,8 +4,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.esa.s1tbx</groupId>
-        <artifactId>s1tbx</artifactId>
+        <groupId>eu.esa.microwavetbx</groupId>
+        <artifactId>microwavetbx</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
     
@@ -20,7 +20,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javahelp.version>2.0.05</javahelp.version>
-        <brandingToken>s1tbx</brandingToken>
+        <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
     </properties>
 
@@ -115,7 +115,7 @@
                     <brandingToken>${brandingToken}</brandingToken>
                     <useOSGiDependencies>false</useOSGiDependencies>
                     <requiresRestart>true</requiresRestart>
-                    <keystore>${project.basedir}/../../keystore/s1tbx.ks</keystore>
+                    <keystore>${project.basedir}/../../keystore/microwavetbx.ks</keystore>
                     <keystorealias>snap</keystorealias>
                     <keystorepassword>snap-123</keystorepassword>
                     <sourceManifestFile>target/nbm/manifest.mf</sourceManifestFile>

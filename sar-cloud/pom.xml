@@ -4,13 +4,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.esa.s1tbx</groupId>
-        <artifactId>s1tbx</artifactId>
+        <groupId>eu.esa.microwavetbx</groupId>
+        <artifactId>microwavetbx</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-cloud</artifactId>
-    <name>S1TBX Cloud Tools</name>
+    <name>SAR Cloud Tools</name>
 	
     <packaging>nbm</packaging>
 
@@ -75,7 +75,7 @@
                 <artifactId>nbm-maven-plugin</artifactId>
                 <configuration>
                     <publicPackages>
-                        <publicPackage>org.esa.s1tbx.*</publicPackage>
+                        <publicPackage>eu.esa.sar.*</publicPackage>
                         <publicPackage>org.json.simple.*</publicPackage>
                         <publicPackage>com.fasterxml.jackson.*</publicPackage>
 						<publicPackage>javax.xml.stream.*</publicPackage>

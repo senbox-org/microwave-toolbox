@@ -15,7 +15,7 @@
  */
 package org.csa.rstb.io.radarsat1;
 
-import org.esa.s1tbx.io.ceos.CEOSProductReaderPlugIn;
+import eu.esa.sar.io.ceos.CEOSProductReaderPlugIn;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 

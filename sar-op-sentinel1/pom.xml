@@ -19,13 +19,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.esa.s1tbx</groupId>
-        <artifactId>s1tbx</artifactId>
+        <groupId>eu.esa.microwavetbx</groupId>
+        <artifactId>microwavetbx</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-sentinel1</artifactId>
-    <name>S1TBX Sentinel-1 Tools</name>
+    <name>SAR Sentinel-1 Tools</name>
 
     <packaging>nbm</packaging>
 
@@ -55,26 +55,26 @@
             <artifactId>snap-dem</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-cloud</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-insar</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-core</artifactId>
-            <version>${s1tbx.version}</version>
+            <version>${microwavetbx.version}</version>
         </dependency>
 
     </dependencies>
@@ -86,7 +86,7 @@
                 <artifactId>nbm-maven-plugin</artifactId>
                 <configuration>
                     <publicPackages>
-                        <publicPackage>org.esa.s1tbx.*</publicPackage>
+                        <publicPackage>eu.esa.sar.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

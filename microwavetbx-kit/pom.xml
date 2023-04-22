@@ -3,18 +3,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <artifactId>s1tbx</artifactId>
-        <groupId>org.esa.s1tbx</groupId>
+        <artifactId>microwavetbx</artifactId>
+        <groupId>eu.esa.microwavetbx</groupId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>microwavetbx-kit</artifactId>
     <packaging>nbm</packaging>
 
-    <name>Mircowave Toolbox Kit Module</name>
+    <name>Microwave Toolbox Kit Module</name>
     <description>
-        The Mircowave Toolbox is a SNAP extension dedicated to the exploitation of Sentinel-1 data and
-        data of other SAR sensors.
+        The Microwave Toolbox is a SNAP extension dedicated to the exploitation of microwave EO data.
     </description>
 
     <build>
@@ -69,102 +68,102 @@
             <version>${jlinda.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-cloud</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io-ephemeris</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io-ephemeris-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-analysis-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-calibration</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-calibration-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-feature-extraction</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-feature-extraction-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-insar</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-insar-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-ocean-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-sar-processing</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-sar-processing-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-sentinel1</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-sentinel1-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-utilities</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-utilities-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>microwavetbx-rcp</artifactId>
             <version>${project.version}</version>
         </dependency>

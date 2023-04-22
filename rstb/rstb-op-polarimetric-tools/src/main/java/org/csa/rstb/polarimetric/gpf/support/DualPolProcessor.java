@@ -1,6 +1,6 @@
 package org.csa.rstb.polarimetric.gpf.support;
 
-import org.esa.s1tbx.commons.polsar.PolBandUtils;
+import eu.esa.sar.commons.polsar.PolBandUtils;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;

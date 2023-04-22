@@ -4,8 +4,8 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.esa.s1tbx</groupId>
-    <artifactId>s1tbx</artifactId>
+    <groupId>eu.esa.microwavetbx</groupId>
+    <artifactId>microwavetbx</artifactId>
     <version>10.0.0-SNAPSHOT</version>
     <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
@@ -17,7 +17,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <netbeans.version>RELEASE82</netbeans.version>
         <javahelp.version>2.0.05</javahelp.version>
-        <brandingToken>s1tbx</brandingToken>
+        <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
 
         <skipTests>false</skipTests>
@@ -27,12 +27,12 @@
 
         <snap.version>10.0.0-SNAPSHOT</snap.version>
         <!--
-            s1tbx.version is the Maven module version.
-            s1tbx.nbmSpecVersion is the NetBeans module specification version.
+            microwavetbx.version is the Maven module version.
+            microwavetbx.nbmSpecVersion is the NetBeans module specification version.
             It is used to filter manifest.mf and set the manifest's "OpenIDE-Module-Specification-Version" header.
-            This is necessary to make NetBeans modules updatable and independent from the Maven version (= s1tbx.version).
+            This is necessary to make NetBeans modules updatable and independent from the Maven version (= microwavetbx.version).
         -->
-        <s1tbx.version>10.0.0-SNAPSHOT</s1tbx.version>
+        <microwavetbx.version>10.0.0-SNAPSHOT</microwavetbx.version>
         <rstb.version>10.0.0-SNAPSHOT</rstb.version>
         <jlinda.version>10.0.0-SNAPSHOT</jlinda.version>
         <iceye.version>10.0.0-SNAPSHOT</iceye.version>
@@ -51,8 +51,6 @@
     <modules>
         <module>jlinda</module>
         <module>rstb</module>
-        <module>microwavetbx-benchmark</module>
-        <module>microwavetbx-rcp</module>
         <module>sar-cloud</module>
         <module>sar-commons</module>
         <module>sar-io</module>
@@ -75,6 +73,8 @@
         <module>sar-test-stacks</module>
         <module>sar-io-iceye-reader</module>
 
+        <module>microwavetbx-benchmark</module>
+        <module>microwavetbx-rcp</module>
         <module>microwavetbx-kit</module>
     </modules>
 
@@ -102,8 +102,8 @@
     </issueManagement>
 
     <scm>
-        <connection>scm:git:git://github.com/senbox-org/s1tbx.git</connection>
-        <url>https://github.com/senbox-org/s1tbx.git</url>
+        <connection>scm:git:git://github.com/senbox-org/microwave-toolbox.git</connection>
+        <url>https://github.com/senbox-org/microwave-toolbox.git</url>
     </scm>
 
     <repositories>
@@ -345,37 +345,37 @@
                 <version>${jlinda.version}</version>
             </dependency>
 
-            <!-- S1TBX Modules ############################################# -->
+            <!-- Microwave Toolbox Modules ############################################# -->
 
             <dependency>
-                <groupId>org.esa.s1tbx</groupId>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-cloud</artifactId>
-                <version>${s1tbx.version}</version>
+                <version>${microwavetbx.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.esa.s1tbx</groupId>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-commons</artifactId>
-                <version>${s1tbx.version}</version>
+                <version>${microwavetbx.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.esa.s1tbx</groupId>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>microwavetbx-rcp</artifactId>
-                <version>${s1tbx.version}</version>
+                <version>${microwavetbx.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.esa.s1tbx</groupId>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-op-calibration</artifactId>
-                <version>${s1tbx.version}</version>
+                <version>${microwavetbx.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.esa.s1tbx</groupId>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-io</artifactId>
-                <version>${s1tbx.version}</version>
+                <version>${microwavetbx.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.esa.s1tbx</groupId>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-op-insar</artifactId>
-                <version>${s1tbx.version}</version>
+                <version>${microwavetbx.version}</version>
             </dependency>
 
             <!-- Apache ############################################# -->
@@ -569,7 +569,7 @@
                             <link>https://docs.oracle.com/javase/8/docs/api/</link>
                         </links>
                         <subpackages>
-                            org.esa.s1tbx:org.csa.rstb:org.esa.snap:org.esa.snap.core:org.esa.snap.util:org.esa.snap.visat:org.esa.snap.core.jexp
+                            eu.esa.microwavetbx:eu.esa.sar:org.csa.rstb:org.esa.snap:org.esa.snap.core:org.esa.snap.util:org.esa.snap.dat:org.esa.snap.core.jexp
                         </subpackages>
                         <quiet>false</quiet>
                     </configuration>
@@ -621,7 +621,7 @@
                         <brandingToken>${brandingToken}</brandingToken>
                         <useOSGiDependencies>false</useOSGiDependencies>
                         <requiresRestart>true</requiresRestart>
-                        <keystore>${project.basedir}/../keystore/s1tbx.ks</keystore>
+                        <keystore>${project.basedir}/../keystore/microwavetbx.ks</keystore>
                         <keystorealias>snap</keystorealias>
                         <keystorepassword>snap-123</keystorepassword>
                         <sourceManifestFile>target/nbm/manifest.mf</sourceManifestFile>
@@ -638,7 +638,7 @@
                                 <goal>regex-property</goal>
                             </goals>
                             <configuration>
-                                <name>s1tbx.nbmSpecVersion</name>
+                                <name>microwavetbx.nbmSpecVersion</name>
                                 <value>${project.version}</value>
                                 <regex>(-SNAPSHOT)|(-rc[0-9]+)</regex>
                                 <replacement>.0</replacement>
@@ -651,7 +651,7 @@
                                 <goal>regex-property</goal>
                             </goals>
                             <configuration>
-                                <name>s1tbx.nbmImplVersion</name>
+                                <name>microwavetbx.nbmImplVersion</name>
                                 <value>${project.version}</value>
                                 <regex>(-SNAPSHOT)|(-rc[0-9]+)</regex>
                                 <replacement>.${buildDate}</replacement>
@@ -870,7 +870,7 @@
         <profile>
             <id>benchmark</id>
             <modules>
-                <module>s1tbx-benchmark</module>
+                <module>microwavetbx-benchmark</module>
             </modules>
         </profile>
     </profiles>

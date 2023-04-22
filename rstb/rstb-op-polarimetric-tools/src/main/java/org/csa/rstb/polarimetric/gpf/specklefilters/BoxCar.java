@@ -19,7 +19,7 @@ import org.csa.rstb.polarimetric.gpf.support.DualPolProcessor;
 import org.csa.rstb.polarimetric.gpf.PolarimetricSpeckleFilterOp;
 import org.csa.rstb.polarimetric.gpf.support.PolarimetricSpeckleFilter;
 import org.csa.rstb.polarimetric.gpf.support.QuadPolProcessor;
-import org.esa.s1tbx.commons.polsar.PolBandUtils;
+import eu.esa.sar.commons.polsar.PolBandUtils;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;

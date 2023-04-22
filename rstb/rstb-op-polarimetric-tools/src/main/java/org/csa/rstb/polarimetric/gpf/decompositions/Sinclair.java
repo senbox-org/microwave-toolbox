@@ -16,7 +16,7 @@
 package org.csa.rstb.polarimetric.gpf.decompositions;
 
 import org.csa.rstb.polarimetric.gpf.support.QuadPolProcessor;
-import org.esa.s1tbx.commons.polsar.PolBandUtils;
+import eu.esa.sar.commons.polsar.PolBandUtils;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.Operator;

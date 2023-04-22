@@ -18,13 +18,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.esa.s1tbx</groupId>
-        <artifactId>s1tbx</artifactId>
+        <groupId>eu.esa.microwavetbx</groupId>
+        <artifactId>microwavetbx</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-calibration</artifactId>
-    <name>S1TBX Calibration</name>
+    <name>SAR Calibration</name>
     <description>Calibrates Sentinel-1, Radarsat-2, ENVISAT ASAR, ERS 1/2, ALOS Palsar, TerraSAR-X products</description>
 
     <packaging>nbm</packaging>
@@ -55,11 +55,11 @@
             <artifactId>snap-gpf</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.s1tbx</groupId>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io</artifactId>
             <scope>test</scope>
         </dependency>
@@ -72,7 +72,7 @@
                 <artifactId>nbm-maven-plugin</artifactId>
                 <configuration>
                     <publicPackages>
-                        <publicPackage>org.esa.s1tbx.*</publicPackage>
+                        <publicPackage>eu.esa.sar.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

@@ -15,7 +15,7 @@
  */
 package org.csa.rstb.io.radarsat1;
 
-import org.esa.s1tbx.io.ceos.CEOSConstants;
+import eu.esa.sar.io.ceos.CEOSConstants;
 
 /**
  * Several constants used for reading Radarsat products.
