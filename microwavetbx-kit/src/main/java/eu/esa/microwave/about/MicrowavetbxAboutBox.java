@@ -29,18 +29,15 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
-/**
- * @author Norman
- */
 @AboutBox(displayName = "MicrowaveTBX", position = 10)
-public class S1tbxAboutBox extends JPanel {
+public class MicrowavetbxAboutBox extends JPanel {
 
     private final static String releaseNotesHTTP = "https://github.com/senbox-org/microwave-toolbox/blob/master/ReleaseNotes.md";
 
-    public S1tbxAboutBox() {
+    public MicrowavetbxAboutBox() {
         super(new BorderLayout(4, 4));
         setBorder(new EmptyBorder(4, 4, 4, 4));
-        ImageIcon aboutImage = new ImageIcon(S1tbxAboutBox.class.getResource("S1_Toolbox.jpg"));
+        ImageIcon aboutImage = new ImageIcon(MicrowavetbxAboutBox.class.getResource("S1_Toolbox.jpg"));
         JLabel iconLabel = new JLabel(aboutImage);
         add(iconLabel, BorderLayout.CENTER);
         add(createVersionPanel(), BorderLayout.SOUTH);
@@ -51,8 +48,8 @@ public class S1tbxAboutBox extends JPanel {
         int year = utc.get(Calendar.YEAR);
         JLabel copyRightLabel = new JLabel("<html><b>© 2018-" + year + " SkyWatch, Sensar and contributors</b>", SwingConstants.CENTER);
 
-        final ModuleInfo moduleInfo = Modules.getDefault().ownerOf(S1tbxAboutBox.class);
-        JLabel versionLabel = new JLabel("<html><b>Sentinel-1 Toolbox (S1TBX) version " + moduleInfo.getImplementationVersion() + "</b>", SwingConstants.CENTER);
+        final ModuleInfo moduleInfo = Modules.getDefault().ownerOf(MicrowavetbxAboutBox.class);
+        JLabel versionLabel = new JLabel("<html><b>Microwave Toolbox version " + moduleInfo.getImplementationVersion() + "</b>", SwingConstants.CENTER);
 
         final JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));

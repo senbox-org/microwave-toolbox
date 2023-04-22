@@ -33,9 +33,9 @@ import java.beans.PropertyChangeSupport;
         "LBL_Sentinel1ToolboxOption_DisplayName=Sentinel-1 Toolbox",
         "LBL_Sentinel1ToolboxOption_Keywords=S1TBX"
 })
-public final class S1TBXOptionsPanelController extends OptionsPanelController {
+public final class MicrowaveTBXOptionsPanelController extends OptionsPanelController {
 
-    private S1TBXOptionsPanel panel;
+    private MicrowaveTBXOptionsPanel panel;
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
     private boolean changed;
 
@@ -79,9 +79,9 @@ public final class S1TBXOptionsPanelController extends OptionsPanelController {
         pcs.removePropertyChangeListener(l);
     }
 
-    private S1TBXOptionsPanel getPanel() {
+    private MicrowaveTBXOptionsPanel getPanel() {
         if (panel == null) {
-            panel = new S1TBXOptionsPanel(this);
+            panel = new MicrowaveTBXOptionsPanel(this);
         }
         return panel;
     }

@@ -21,7 +21,7 @@ import org.openide.modules.OnStart;
 /**
  * Handle OnStart for module
  */
-public class S1tbxSentinel1Module {
+public class SASRSentinel1Module {
 
     @OnStart
     public static class StartOp implements Runnable {

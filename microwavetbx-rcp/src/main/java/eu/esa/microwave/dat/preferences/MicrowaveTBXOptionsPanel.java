@@ -23,13 +23,13 @@ import org.openide.util.NbBundle;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
-final class S1TBXOptionsPanel extends javax.swing.JPanel {
+final class MicrowaveTBXOptionsPanel extends javax.swing.JPanel {
 
     private static String useFileCache = "s1tbx.readers.useFileCache";
 
     private javax.swing.JCheckBox useFileCacheCheckBox;
 
-    S1TBXOptionsPanel(final S1TBXOptionsPanelController controller) {
+    MicrowaveTBXOptionsPanel(final MicrowaveTBXOptionsPanelController controller) {
         initComponents();
         // listen to changes in form fields and call controller.changed()
         useFileCacheCheckBox.addItemListener(e -> controller.changed());
@@ -39,7 +39,7 @@ final class S1TBXOptionsPanel extends javax.swing.JPanel {
     private void initComponents() {
         useFileCacheCheckBox = new javax.swing.JCheckBox();
         Mnemonics.setLocalizedText(useFileCacheCheckBox,
-                                   NbBundle.getMessage(S1TBXOptionsPanel.class,
+                                   NbBundle.getMessage(MicrowaveTBXOptionsPanel.class,
                                                        "S1TBXOptionsPanel.useFileCacheCheckBox.text")); // NOI18N
 
 

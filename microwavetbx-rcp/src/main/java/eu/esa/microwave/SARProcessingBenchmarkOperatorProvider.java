@@ -21,17 +21,17 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Provides OperatorSpis from S1TBX that are suitable for the configuration optimizer benchmark
+ * Provides OperatorSpis that are suitable for the configuration optimizer benchmark
  *
  * @author Luis Veci
  */
-public class S1TBXSarProcessingBenchmarkOperatorProvider extends BenchmarkOperatorProvider {
+public class SARProcessingBenchmarkOperatorProvider extends BenchmarkOperatorProvider {
 
     @Override
     protected List<String> getBenchmarkOperatorAliases() {
-        String[] s1tbxBenchmarkOperatorNames = {"Terrain-Correction", "Speckle-Filter", "Multilook", "Calibration",
+        String[] benchmarkOperatorNames = {"Terrain-Correction", "Speckle-Filter", "Multilook", "Calibration",
                     "TOPSAR-Deburst", "Interferogram",
                     "Polarimetric-Decomposition", "Polarimetric-Speckle-Filter", "Polarimetric-Classification"};
-        return Arrays.asList(s1tbxBenchmarkOperatorNames);
+        return Arrays.asList(benchmarkOperatorNames);
     }
 }

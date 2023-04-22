@@ -21,7 +21,7 @@ import org.openide.modules.OnStart;
 /**
  * Handle OnStart for module
  */
-public class S1tbxRCPModule {
+public class MicrowavetbxRCPModule {
 
     @OnStart
     public static class StartOp implements Runnable {
