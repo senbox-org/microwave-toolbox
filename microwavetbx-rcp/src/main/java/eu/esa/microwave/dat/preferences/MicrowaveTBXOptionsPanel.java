@@ -40,7 +40,7 @@ final class MicrowaveTBXOptionsPanel extends javax.swing.JPanel {
         useFileCacheCheckBox = new javax.swing.JCheckBox();
         Mnemonics.setLocalizedText(useFileCacheCheckBox,
                                    NbBundle.getMessage(MicrowaveTBXOptionsPanel.class,
-                                                       "S1TBXOptionsPanel.useFileCacheCheckBox.text")); // NOI18N
+                                                       "MicrowaveTBXOptionsPanel.useFileCacheCheckBox.text")); // NOI18N
 
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);

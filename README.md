@@ -1,4 +1,4 @@
-The SENTINEL-1 Toolbox
+The SNAP Microwave Toolbox
 ======================
 
 [![Build Status](https://travis-ci.org/senbox-org/s1tbx.svg?branch=master)](https://travis-ci.org/senbox-org/s1tbx) 
@@ -6,7 +6,7 @@ The SENTINEL-1 Toolbox
 
 The project page of SNAP and the sentinel toolboxes can be found at http://step.esa.int. There you will find a tutorial about the usage of the application, a forum where you can ask questions and lots of other interesting things.
 
-Building S1TBX from the source
+Building Microwave Toolbox from the source
 ------------------------------
 
 1. Download and install the required build tools
@@ -15,7 +15,7 @@ Building S1TBX from the source
 	* Install git
 2. Add `$JAVA_HOME/bin` and `$MAVEN_HOME/bin` to your PATH.
 
-3. Clone the S1TBX source code and related repositories into SNAP/
+3. Clone the Microwave Toolbox source code and related repositories into SNAP/
 
     ```
     git clone https://github.com/senbox-org/microwave-toolbox.git
@@ -32,7 +32,7 @@ Building S1TBX from the source
 
    `mvn clean install`
 
-6. CD into SNAP/s1tbx:
+6. CD into SNAP/microwave-toolbox
 
    `mvn clean install`
    
@@ -45,7 +45,7 @@ Setting up IntelliJ IDEA
 
 1. Create an empty project with the `SNAP/` directory as project directory
 
-2. Import the pom.xml files of snap-engine, snap-desktop and s1tbx as modules. Ensure **not** to enable
+2. Import the pom.xml files of snap-engine, snap-desktop and microwave-toolbox as modules. Ensure **not** to enable
 the option *'Create module groups for multi-module Maven projects'*. Everything can be default values.
 
 3. Set the used SDK for the main project. A JDK 1.8 or later is needed.

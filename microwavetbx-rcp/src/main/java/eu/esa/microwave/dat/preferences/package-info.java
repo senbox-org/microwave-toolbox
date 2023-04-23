@@ -15,15 +15,15 @@
  */
 @OptionsPanelController.ContainerRegistration(
         id = "S1TBX",
-        categoryName = "#LBL_S1TBXOptionsCategory_Name",
+        categoryName = "#LBL_MicrowaveTBXOptionsCategory_Name",
         iconBase = "eu/esa/microwave/dat/icons/s1_32x.png",
-        keywords = "#LBL_S1TBXOptionsCategory_Keywords",
+        keywords = "#LBL_MicrowaveTBXOptionsCategory_Keywords",
         keywordsCategory = "S1TBX",
         position = 1000
 )
 @NbBundle.Messages(value = {
-    "LBL_S1TBXOptionsCategory_Name=S1TBX",
-    "LBL_S1TBXOptionsCategory_Keywords=s1tbx,sar"
+    "LBL_MicrowaveTBXOptionsCategory_Name=S1TBX",
+    "LBL_MicrowaveTBXOptionsCategory_Keywords=s1tbx,sar"
 })
 package eu.esa.microwave.dat.preferences;
 
