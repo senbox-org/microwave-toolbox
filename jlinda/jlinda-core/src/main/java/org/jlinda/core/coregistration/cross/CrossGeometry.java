@@ -1,6 +1,6 @@
 package org.jlinda.core.coregistration.cross;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.jblas.DoubleMatrix;
 import org.jlinda.core.SLCImage;

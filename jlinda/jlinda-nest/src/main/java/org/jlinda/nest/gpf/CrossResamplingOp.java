@@ -1,8 +1,13 @@
 package org.jlinda.nest.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
-import org.apache.commons.lang.ArrayUtils;
-import org.esa.snap.core.datamodel.*;
+import org.apache.commons.lang3.ArrayUtils;
+import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataElement;
+import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.TiePointGeoCoding;
+import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -17,14 +22,22 @@ import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
-import org.jlinda.core.*;
+import org.jlinda.core.Constants;
+import org.jlinda.core.GeoPoint;
+import org.jlinda.core.Orbit;
 import org.jlinda.core.Point;
+import org.jlinda.core.SLCImage;
 import org.jlinda.core.coregistration.LUT;
 import org.jlinda.core.coregistration.SimpleLUT;
 import org.jlinda.core.coregistration.cross.CrossGeometry;
 
-import javax.media.jai.*;
-import java.awt.*;
+import javax.media.jai.BorderExtender;
+import javax.media.jai.InterpolationTable;
+import javax.media.jai.JAI;
+import javax.media.jai.RenderedOp;
+import javax.media.jai.WarpGeneralPolynomial;
+import javax.media.jai.WarpPolynomial;
+import java.awt.Rectangle;
 import java.awt.geom.Point2D;
 import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
@@ -259,7 +272,7 @@ public class CrossResamplingOp extends Operator {
 
         // get LUT and cast it to float for JAI
         double[] lutArrayDoubles = lut.getKernelAsArray();
-        float lutArrayFloats[] = new float[lutArrayDoubles.length];
+        float[] lutArrayFloats = new float[lutArrayDoubles.length];
         int i = 0;
         for (double lutElement : lutArrayDoubles) {
             lutArrayFloats[i++] = (float) lutElement;

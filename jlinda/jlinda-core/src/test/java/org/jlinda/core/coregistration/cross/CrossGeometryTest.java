@@ -1,6 +1,6 @@
 package org.jlinda.core.coregistration.cross;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.jblas.DoubleMatrix;
 import org.jlinda.core.Window;
@@ -21,24 +21,25 @@ import static org.jlinda.core.utils.PolyUtils.*;
  * Time: 12:25 PM
  * Description: Unit test and prototypes for Cross Interferometry
  */
+@SuppressWarnings("UnnecessaryLocalVariable")
 public class CrossGeometryTest {
 
     // logger
     private static final Logger logger = SystemUtils.LOG;
 
     // data extent
-    private static long lineLo = 1;
-    private static long pixelLo = 1;
-    private static long lineHi = 27000;
-    private static long pixelHi = 5100;
+    private static final long lineLo = 1;
+    private static final long pixelLo = 1;
+    private static final long lineHi = 27000;
+    private static final long pixelHi = 5100;
 
     // ORIGINAL GEOMETRY : ENVISAT paramaters
-    private static double prfASAR = 1652.4156494140625; // [Hz]
-    private static double rsrASAR = 19.20768; // [MHz]
+    private static final double prfASAR = 1652.4156494140625; // [Hz]
+    private static final double rsrASAR = 19.20768; // [MHz]
 
     // TARGET GEOMETRY : ERS2 paramaters
-    private static double prfERS = 1679.902; // 1679.95828476786;  // [Hz]
-    private static double rsrERS = 18.962468; //18.96245929824155; // [MHz]
+    private static final double prfERS = 1679.902; // 1679.95828476786;  // [Hz]
+    private static final double rsrERS = 18.962468; //18.96245929824155; // [MHz]
 
     // Estimation Parameters
     private static final int NUM_OF_WINDOWS = 5000;
@@ -239,9 +240,9 @@ public class CrossGeometryTest {
 
 
         float preScaleX = 1.0F / xMax;
-        float postScaleX = (float) xMax;
+        float postScaleX = xMax;
         float preScaleY = 1.0F / yMax;
-        float postScaleY = (float) yMax;
+        float postScaleY = yMax;
             /* Note: Warp semantic (transforms coordinates from destination to srcArray) is the
              *       opposite of jLinda semantic (transforms coordinates from srcArray to
              *       destination). We have to interchange srcArray and destination arrays for the
