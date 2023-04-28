@@ -49,6 +49,8 @@ public class PyRateExportOp extends Operator {
     // useful if ifgs are already unwrapped and you are just testing later stages of the integration.
     boolean testingDisableUnwrapStep = true;
 
+    protected File snaphuProcessingLocation;
+
     @SourceProducts
     private Product [] sourceProducts;
 
@@ -63,7 +65,7 @@ public class PyRateExportOp extends Operator {
 
     // For downloading and running Snaphu.
     @Parameter(description = "SNAPHU binary folder", defaultValue = "/tmp/snaphuBinary")
-    private String snaphuInstallLocation = "/tmp/snaphuBinary";
+    protected String snaphuInstallLocation = "";
 
     // For re-adding the elevation band
     @Parameter(description = "Elevation band", defaultValue = "SRTM 3sec")
@@ -72,45 +74,45 @@ public class PyRateExportOp extends Operator {
 
     // For the SnaphuExportOp operator.
     @Parameter(description = "Directory to write SNAPHU configuration files, unwrapped interferograms, and PyRate inputs to", defaultValue = "/tmp/snaphuProcessing")
-    private String processingLocation = "/tmp/snaphuProcessing";
+    protected String processingLocation = "";
 
     @Parameter(valueSet = {"TOPO", "DEFO", "SMOOTH", "NOSTATCOSTS"},
             description = "Size of coherence estimation window in Azimuth direction",
             defaultValue = "TOPO",
             label = "Statistical-cost mode")
-    private String statCostMode = "TOPO";
+    protected String statCostMode = "TOPO";
 
     @Parameter(valueSet = {"MST", "MCF"},
             description = "Algorithm used for initialization of the wrapped phase values",
             defaultValue = "MST",
             label = "Initial method")
-    private String initMethod = "MST";
+    protected String initMethod = "MST";
 
     @Parameter(description = "Divide the image into tiles and process in parallel. Set to 1 for single tiled.",
             defaultValue = "10", label = "Number of Tile Rows")
-    private int numberOfTileRows = 10;
+    protected int numberOfTileRows = 10;
 
     @Parameter(description = "Divide the image into tiles and process in parallel. Set to 1 for single tiled.",
             defaultValue = "10", label = "Number of Tile Columns")
-    private int numberOfTileCols = 10;
+    protected int numberOfTileCols = 10;
 
     @Parameter(description = "Number of concurrent processing threads. Set to 1 for single threaded.",
             defaultValue = "4", label = "Number of Processors")
-    private int numberOfProcessors = 4;
+    protected int numberOfProcessors = 4;
 
     @Parameter(description = "Overlap, in pixels, between neighboring tiles.",
             defaultValue = "200", label = "Row Overlap")
-    private int rowOverlap = 200;
+    protected int rowOverlap = 200;
 
     @Parameter(description = "Overlap, in pixels, between neighboring tiles.",
             defaultValue = "200", label = "Column Overlap")
-    private int colOverlap = 200;
+    protected int colOverlap = 200;
 
     @Parameter(description = "Cost threshold to use for determining boundaries of reliable regions\n" +
             " (long, dimensionless; scaled according to other cost constants).\n" +
             " Larger cost threshold implies smaller regions---safer, but more expensive computationally.",
             defaultValue = "500", label = "Tile Cost Threshold")
-    private int tileCostThreshold = 500;
+    protected int tileCostThreshold = 500;
 
     @Override
     public void setSourceProduct(Product sourceProduct) {
@@ -171,7 +173,8 @@ public class PyRateExportOp extends Operator {
         if(!Files.isWritable(new File(processingLocation).toPath())){
             throw new OperatorException("Path provided for intermediary processing is not writeable.");
         }
-        if(!isSnaphuBinary(new File(snaphuInstallLocation)) && !Files.isWritable(new File(snaphuInstallLocation).toPath())){
+        if(!SnaphuHelperMethods.isSnaphuBinary(new File(snaphuInstallLocation)) &&
+                !Files.isWritable(new File(snaphuInstallLocation).toPath())){
             throw new OperatorException("Folder provided for SNAPHU installation is not writeable.");
         }
     }
@@ -188,7 +191,8 @@ public class PyRateExportOp extends Operator {
         5) Add an elevation band if not supplied in the original product.
         6) Write unwrapped interferograms, along with the coherence bands, to the input PyRATE directory.
         7) Generate the needed configuration files for PyRATE.
-        8) Create a shell script that allows the user to easily execute PyRATE given the input folder of data.
+
+        The user can then run `pyrate workflow -f input_parameters.conf` from processingLocation/sourceProductName dir.
      */
     private void process() throws Exception {
         // Processing location provided by user is the root directory. We want to save all data in a folder that is named
@@ -199,11 +203,11 @@ public class PyRateExportOp extends Operator {
         // Create sub folder for SNAPHU processing and intermediary files.
         new File(processingLocation, "snaphu").mkdirs();
 
-        File snaphuProcessingLocation = new File(processingLocation, "snaphu");
+        snaphuProcessingLocation = new File(processingLocation, "snaphu");
         snaphuProcessingLocation.mkdirs();
 
         // Unwrap interferograms and merge into one multi-band product.
-        Product unwrappedInterferograms = processSnaphu(snaphuProcessingLocation);
+        Product unwrappedInterferograms = SnaphuHelperMethods.processSnaphu(this, sourceProduct);
 
         // Snaphu import takes an array of the original product with wrapped interferograms, and a product with the unwrapped
         // interferograms. Put them into an array for input.
@@ -218,6 +222,8 @@ public class PyRateExportOp extends Operator {
         // Importing from snaphuImportOp does not preserve the coherence bands. Copy them over from source product.
         for (Band b : sourceProduct.getBands()){
             if (b.getUnit().contains(Unit.COHERENCE)){
+                ProductUtils.copyBand(b.getName(), sourceProduct, imported, true);
+            } else if (b.getName().contains("elevation")){
                 ProductUtils.copyBand(b.getName(), sourceProduct, imported, true);
             }
         }
@@ -254,16 +260,13 @@ public class PyRateExportOp extends Operator {
 
         File headerFileFolder = new File(processingLocation, "headers");
 
-
         String mainFileContents = configBuilder.createMainConfigFileContents();
 
         FileUtils.write(new File(processingLocation, "input_parameters.conf"), mainFileContents);
 
-
-
-        headerFileFolder.mkdirs();
         // PyRATE requires individual headers for each source image that goes into an interferogram image pair.
         PyRateGammaHeaderWriter gammaHeaderWriter = new PyRateGammaHeaderWriter(terrainCorrected);
+        headerFileFolder.mkdirs();
         gammaHeaderWriter.writeHeaderFiles(headerFileFolder, new File(processingLocation, configBuilder.headerFileList));
         bannedDates = gammaHeaderWriter.getBannedDates();
 
@@ -278,11 +281,12 @@ public class PyRateExportOp extends Operator {
         addElevationOp.setParameter("demName", "SRTM 3Sec");
         Product tcWithElevation = addElevationOp.getTargetProduct();
 
+
+        // Write out elevation band in GeoTIFF format.
+        writeElevationBand(tcWithElevation, configBuilder.demFile, "GeoTIFF");
+
         // Only write in GAMMA format to write out header. .rslc image data gets deleted.
         writeElevationBand(tcWithElevation, configBuilder.demFile, "Gamma");
-
-        // Write out geotiff image information
-        writeElevationBand(tcWithElevation, configBuilder.demFile, "GeoTIFF");
 
         // Populate files containing the coherence and interferograms.
         FileUtils.write(new File(processingLocation, configBuilder.coherenceFileList), coherenceFiles);
@@ -294,124 +298,6 @@ public class PyRateExportOp extends Operator {
 
     }
 
-    // All SNAPHU export & snaphu unwrapping method calls occurs in this method.
-    private Product processSnaphu( File snaphuProcessingLocation) throws IOException {
-        // Perform SNAPHU-Export
-        Product product = setupSnaphuExportOperator().getTargetProduct();
-
-        // Bands need to be read in fully  before writing out to avoid data access errors.
-        for(Band b: product.getBands()){
-            b.readRasterDataFully(ProgressMonitor.NULL);
-        }
-
-        // Write out product to the snaphu processing location folder for unwrapping.
-        ProductIO.writeProduct(product, snaphuProcessingLocation.getAbsolutePath(), "snaphu");
-
-        // Download, or locate the downloaded SNAPHU binary within the specified SNAPHU installation location.
-        File snaphuBinary = downloadSnaphu(snaphuInstallLocation);
-
-        // Find all SNAPHU configuration files and execute them.
-        String [] files = snaphuProcessingLocation.list();
-        for(String file: files){
-            File aFile = new File(snaphuProcessingLocation, file);
-            if(file.endsWith("snaphu.conf") && ! file.equals("snaphu.conf") && !testingDisableUnwrapStep){
-                callSnaphuUnwrap(snaphuBinary, aFile);
-            }
-        }
-
-        return assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
-    }
-
-    // Configure the SNAPHU Export operator in its own method to keep the processing method clean.
-    private SnaphuExportOp setupSnaphuExportOperator(){
-        SnaphuExportOp snaphuExportOp = new SnaphuExportOp();
-        snaphuExportOp.setParameter("statCostMode", statCostMode);
-        snaphuExportOp.setParameter("initMethod", initMethod);
-        snaphuExportOp.setParameter("numberOfTileRows", numberOfTileRows);
-        snaphuExportOp.setParameter("numberOfTileCols", numberOfTileCols);
-        snaphuExportOp.setParameter("numberOfProcessors", numberOfProcessors);
-        snaphuExportOp.setParameter("rowOverlap", rowOverlap);
-        snaphuExportOp.setParameter("colOverlap", colOverlap);
-        snaphuExportOp.setParameter("tileCostThreshold", tileCostThreshold);
-        snaphuExportOp.setParameter("targetFolder", processingLocation);
-        snaphuExportOp.setSourceProduct(sourceProduct);
-        return snaphuExportOp;
-
-    }
-
-    private File downloadSnaphu(String snaphuInstallLocation) throws IOException {
-        final String linuxDownloadPath = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
-        final String windowsDownloadPath = "http://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
-        final String windows32DownloadPath = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
-
-        File snaphuInstallDir = new File(snaphuInstallLocation);
-        boolean isDownloaded;
-        File snaphuBinaryLocation;
-
-        // Check if we have just been given the path to the SNAPHU binary
-        if (isSnaphuBinary(snaphuInstallDir)){
-            isDownloaded = true;
-            snaphuBinaryLocation = snaphuInstallDir;
-        }else{ // We haven't been just given the binary location.
-
-            // Get parent dir if passed in a file somehow
-            if(! snaphuInstallDir.isDirectory()){
-                snaphuInstallDir = snaphuInstallDir.getParentFile();
-            }
-            snaphuBinaryLocation = findSnaphuBinary(snaphuInstallDir);
-            isDownloaded = snaphuBinaryLocation != null;
-        }
-        if (! isDownloaded){
-            // We have checked the passed in folder and it does not contain the SNAPHU binary.
-            String operatingSystem = System.getProperty("os.name");
-            String downloadPath;
-
-            if(operatingSystem.toLowerCase().contains("windows")){
-                // Using Windows
-                boolean bitDepth64 = System.getProperty("os.arch").equals("amd64");
-                if(bitDepth64){
-                    downloadPath = windowsDownloadPath;
-                }else{
-                    downloadPath = windows32DownloadPath;
-                }
-            }
-            else{
-                // Using MacOS or Linux
-                downloadPath = linuxDownloadPath;
-            }
-            File zipFile = FileDownloader.downloadFile(new URL(downloadPath), snaphuInstallDir, null);
-            ZipUtils.unzip(zipFile.toPath(), snaphuInstallDir.toPath(), true);
-            snaphuBinaryLocation = findSnaphuBinary(snaphuInstallDir);
-        }
-
-        return snaphuBinaryLocation;
-    }
-
-    // Check to see if a passed in file is the SNAPHU executable.
-    private boolean isSnaphuBinary(File file){
-        if(System.getProperty("os.name").toLowerCase().startsWith("windows")){
-            return ! file.isDirectory() &&
-                    file.canExecute() &&
-                    file.getName().equals("snaphu.exe");
-        }else{
-            return ! file.isDirectory() &&
-                    file.canExecute() &&
-                    file.getName().startsWith("snaphu");
-        }
-    }
-
-    // Iterate through a given directory and locate the SNAPHU binary within it.
-    // Returns null if no SNAPHU binary is found.
-    private File findSnaphuBinary(File rootDir){
-        Collection<File> files = FileUtils.listFilesAndDirs(rootDir, TrueFileFilter.INSTANCE, DirectoryFileFilter.DIRECTORY );
-        for (File file : files){
-            if(isSnaphuBinary(file)){
-                return file;
-            }
-        }
-        return null;
-    }
-
     // Simple method to get the number of bands in a product with a specified band unit.
     private int getNumBands(Product product, String unit){
         int numBands = 0;
@@ -421,62 +307,6 @@ public class PyRateExportOp extends Operator {
             }
         }
         return numBands;
-    }
-
-    // Unwrap a singular interferogram given a SNAPHU config file and path to the SNAPHU binary.
-    private void callSnaphuUnwrap(File snaphuBinary, File configFile) throws IOException {
-        File workingDir = configFile.getParentFile();
-        String command = null;
-        try(BufferedReader in = new BufferedReader(new FileReader(configFile), 1024)){
-            // SNAPHU command is on the 7th line
-            for(int x = 0; x < 6; x++){
-                in.readLine();
-            }
-            command = in.readLine().substring(14);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        if (command != null){
-            Process proc = Runtime.getRuntime().exec(snaphuBinary.toString() + command, null, workingDir);
-            BufferedReader stdInput = new BufferedReader(new
-                    InputStreamReader(proc.getInputStream()));
-
-            BufferedReader stdError = new BufferedReader(new
-                    InputStreamReader(proc.getErrorStream()));
-
-            // Read the output from the command
-            System.out.println("Here is the standard output of the command:\n");
-            String s = null;
-            while ((s = stdInput.readLine()) != null) {
-                System.out.println(s);
-            }
-            // Read any errors from the attempted command
-            System.out.println("Here is the standard error of the command (if any):\n");
-            while ((s = stdError.readLine()) != null) {
-                System.out.println(s);
-            }
-        }
-    }
-
-    private Product assembleUnwrappedFilesIntoSingularProduct(File directory) throws IOException {
-        File [] fileNames = directory.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.startsWith("UnwPhase") && name.endsWith(".hdr");
-            }
-        });
-
-        Product [] enviProducts = new Product[fileNames.length];
-        EnviProductReaderPlugIn readerPlugIn = new EnviProductReaderPlugIn();
-        ProductReader enviProductReader = readerPlugIn.createReaderInstance();
-        enviProducts[0] = enviProductReader.readProductNodes(fileNames[0], null);
-        for (int x = 1; x < enviProducts.length; x++){
-            enviProducts[x] = enviProductReader.readProductNodes(fileNames[x], null);
-            ProductUtils.copyBand(enviProducts[x].getBands()[0].getName(), enviProducts[x], enviProducts[0], true);
-        }
-        return enviProducts[0];
     }
 
     private String writeBands(Product product, String format, String unit, ArrayList<String> bannedDates) throws IOException {
@@ -534,7 +364,7 @@ public class PyRateExportOp extends Operator {
     private void writeElevationBand(Product product, String name, String format) throws IOException {
         Product productSingleBand = new Product(product.getName(), product.getProductType(), product.getSceneRasterWidth(), product.getSceneRasterHeight());
         productSingleBand.setSceneGeoCoding(product.getSceneGeoCoding());
-        product.getBand("elevation").readRasterDataFully();
+        Band elevationBand = product.getBand("elevation");
         ProductUtils.copyBand("elevation", product, productSingleBand, true);
         String fileName = new File(processingLocation, name).getAbsolutePath();
         ProductIO.writeProduct(productSingleBand, fileName, format);
@@ -543,9 +373,5 @@ public class PyRateExportOp extends Operator {
             PyRateGammaHeaderWriter.adjustGammaHeader(productSingleBand, new File(processingLocation, "DEM.par"));
             new File(processingLocation, "elevation.rslc").delete();
         }
-
     }
-
-
-
 }
