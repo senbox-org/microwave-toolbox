@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>eu.esa.microwavetbx</groupId>
-    <artifactId>microwavetbx</artifactId>
+    <artifactId>microwave-toolbox</artifactId>
     <version>10.0.0-SNAPSHOT</version>
     <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
