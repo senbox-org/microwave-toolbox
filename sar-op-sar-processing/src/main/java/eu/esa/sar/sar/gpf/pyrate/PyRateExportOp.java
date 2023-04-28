@@ -1,12 +1,8 @@
 package eu.esa.sar.sar.gpf.pyrate;
 
-import com.bc.ceres.core.ProgressMonitor;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.DirectoryFileFilter;
-import org.apache.commons.io.filefilter.TrueFileFilter;
 import eu.esa.sar.sar.gpf.geometric.RangeDopplerGeocodingOp;
 import org.esa.snap.core.dataio.ProductIO;
-import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.core.gpf.Operator;
@@ -16,13 +12,9 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProducts;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
-import org.esa.snap.core.util.io.FileDownloader;
-import org.esa.snap.dataio.envi.EnviProductReaderPlugIn;
 import org.esa.snap.dem.gpf.AddElevationOp;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
-import org.esa.snap.engine_utilities.util.ZipUtils;
-import org.jlinda.nest.dataio.SnaphuExportOp;
 import org.jlinda.nest.dataio.SnaphuImportOp;
 
 import java.io.*;
@@ -275,10 +267,12 @@ public class PyRateExportOp extends Operator {
         String coherenceFiles = writeBands(terrainCorrected, "GeoTIFF", Unit.COHERENCE, bannedDates);
 
 
-
+        // Attempting to use an elevation band that was pre-existing seems to be an impossible feat.
+        // Writing out returns a "type not supported" error.
+        // Have to re-add an elevation band to properly run this workflow.
         AddElevationOp addElevationOp = new AddElevationOp();
         addElevationOp.setSourceProduct(terrainCorrected);
-        addElevationOp.setParameter("demName", "SRTM 3Sec");
+        addElevationOp.setParameter("demName", elevationSource);
         Product tcWithElevation = addElevationOp.getTargetProduct();
 
 

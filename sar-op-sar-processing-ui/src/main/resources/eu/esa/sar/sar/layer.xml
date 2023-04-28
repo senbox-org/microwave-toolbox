@@ -365,6 +365,10 @@
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.sar.gpf.ui.geometric.SRGROpUI"/>
             <attr name="operatorName" stringvalue="SRGR"/>
         </file>
+        <file name="eu.esa.sar.sar.gpf.ui.pyrate.PyRateExportUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.sar.gpf.ui.pyrate.PyRateExportUI"/>
+            <attr name="operatorName" stringvalue="PyrateExport"/>
+        </file>
     </folder>
 
 </filesystem>
