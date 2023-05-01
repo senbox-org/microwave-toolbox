@@ -18,20 +18,28 @@ package org.csa.rstb.soilmoisture.gpf.support;
 import au.com.bytecode.opencsv.CSVReader;
 import com.bc.ceres.core.ProgressMonitor;
 import net.sf.javaml.core.kdtree.KDTree;
-import org.apache.commons.lang.StringUtils;
-import org.esa.snap.core.datamodel.*;
+import org.apache.commons.lang3.StringUtils;
+import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataElement;
+import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.Stx;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.core.gpf.annotations.Parameter;
-import org.esa.snap.core.util.*;
+import org.esa.snap.core.util.DefaultPropertyMap;
+import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.PropertyMap;
+import org.esa.snap.core.util.ResourceInstaller;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.CommonReaders;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.util.Settings;
 import org.esa.snap.runtime.Config;
 
-import java.awt.*;
+import java.awt.Rectangle;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -71,7 +79,7 @@ public class IEMInverBase extends Operator {
     private final static String[] SIGMA_VV_BANDNAME_KEYWORDS = {"Sigma0_VV", "VV"};
     private final static String[] LIA_BANDNAME_KEYWORDS = {"incidenceAngle", "LIA"};
     private static final double underFlowFloat = 1.0e-30;
-    private static boolean doDebug = false;
+    private static final boolean doDebug = false;
     // Since both images are in one source product, then the sigmaHH band in one image must have a different
     // name than the sigmaHH band in the other image.
     // Index points to which image
@@ -313,9 +321,7 @@ public class IEMInverBase extends Operator {
     }
 
     private static double demoteToFloatPrecision(double a) {
-
-        final float b = (float) a;
-        return b;
+        return (float) a;
     }
 
     private static double[] demoteToFloatPrecision(double[] a) {
@@ -1061,12 +1067,8 @@ public class IEMInverBase extends Operator {
 
         final String[] sourceBandNames = sourceProduct.getBandNames();
 
-        String bandName = "";
-
         for (String s : sourceBandNames) {
-
             if (s.toLowerCase().contains("clay") || s.toLowerCase().contains("sand")) {
-
                 ProductUtils.copyBand(s, sourceProduct, targetProduct, true);
             }
         }
@@ -1176,7 +1178,7 @@ public class IEMInverBase extends Operator {
                     sigmaColIdx.length + " should be equal");
         }
 
-        KDTree kdTree = null;
+        KDTree kdTree;
 
         if (kdTreeMap == null) {
 
@@ -1228,7 +1230,7 @@ public class IEMInverBase extends Operator {
                     sigmaColIdx.length + " should be equal");
         }
 
-        KDTree kdTree = null;
+        KDTree kdTree;
 
         if (kdTreeMap == null) {
 
@@ -1441,17 +1443,14 @@ public class IEMInverBase extends Operator {
 
             final MetadataElement slvMetaData = AbstractMetadata.getSlaveMetadata(sourceProduct.getMetadataRoot());
 
-            if (slvMetaData != null) {
+            if (slvMetaData.getNumElements() > 0) {
 
-                if (slvMetaData.getNumElements() > 0) {
+                metadata2 = slvMetaData.getElementAt(0);
 
-                    metadata2 = slvMetaData.getElementAt(0);
+                if (metadata2 != null) {
 
-                    if (metadata2 != null) {
-
-                        minThetas[1] = metadata2.getAttributeDouble(AbstractMetadata.incidence_near, NO_DATA);
-                        maxThetas[1] = metadata2.getAttributeDouble(AbstractMetadata.incidence_far, NO_DATA);
-                    }
+                    minThetas[1] = metadata2.getAttributeDouble(AbstractMetadata.incidence_near, NO_DATA);
+                    maxThetas[1] = metadata2.getAttributeDouble(AbstractMetadata.incidence_far, NO_DATA);
                 }
             }
         }
@@ -1492,9 +1491,6 @@ public class IEMInverBase extends Operator {
         System.out.println("matlabParamLUT.length = " + matlabParamLUT.length);
 
         double[] maxParamDiff = new double[numParams];
-        for (int j = 0; j < numParams; j++) {
-            maxParamDiff[j] = 0.0d;
-        }
 
         for (int i = 0; i < NUM_ROWS_PER_ANGLE_DEGREE; i++) {
 
@@ -1621,11 +1617,11 @@ public class IEMInverBase extends Operator {
         }
 
         if (cnt > 0) {
-            otherAvg[0] = otherSums[0] / (double) cnt;
+            otherAvg[0] = otherSums[0] / cnt;
             if (otherAvg.length > 1) {
-                otherAvg[1] = otherSums[1] / (double) cnt;
+                otherAvg[1] = otherSums[1] / cnt;
             }
-            return sum / (double) cnt;
+            return sum / cnt;
         } else {
             otherAvg[0] = nearestNeighbours[x][y].rms.get(0);
             if (otherAvg.length > 1) {
