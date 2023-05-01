@@ -26,6 +26,7 @@ import org.esa.snap.dataio.netcdf.util.MetadataUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import ucar.ma2.Array;
 import ucar.ma2.InvalidRangeException;
+import ucar.nc2.Attribute;
 import ucar.nc2.Dimension;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
@@ -77,14 +78,7 @@ public class Sentinel1ETADNetCDFReader {
     }
 
     private String mode;
-
-    // For WV, there can be more than one MDS .nc file. See Table 4-3 in Product Spec v2/7 (S1-RS-MDA-52-7441).
-    // Each MDS has the same variables, so we want unique band names for variables of same name from different .nc file.
-    // Given a band name, we want to map back to the .nc file.
     private final Map<String, BandData> bandNameNCFileMap = new HashMap<>(1);
-
-    private int sceneWidth = -1;
-    private int sceneHeight = -1;
 
     private static class BandData {
         NetcdfFile netcdfFile;
@@ -110,22 +104,6 @@ public class Sentinel1ETADNetCDFReader {
         bandNCFileMap.put(imgNum, new NCFileData(name, netcdfFile));
     }
 
-    public int getSceneWidth() {
-        if (bandNCFileMap.size() == 1) {
-            return sceneWidth;
-        } else {
-            return -1;
-        }
-    }
-
-    public int getSceneHeight() {
-        if (bandNCFileMap.size() == 1) {
-            return sceneHeight;
-        } else {
-            return -1;
-        }
-    }
-
     public void addNetCDFMetadata(final MetadataElement annotationElement) {
 
         List<String> keys = new ArrayList<>(bandNCFileMap.keySet());
@@ -135,16 +113,15 @@ public class Sentinel1ETADNetCDFReader {
 
             final NCFileData data = bandNCFileMap.get(imgNum);
             final NetcdfFile netcdfFile = data.netcdfFile;
-            final String file = data.name;
 
             // Add Global Attributes as Metadata
-            final MetadataElement bandElem = NetCDFUtils.addAttributes(annotationElement,
-                                                                       file,
-                                                                       netcdfFile.getGlobalAttributes());
+            for (Attribute at : netcdfFile.getGlobalAttributes()) {
+                NetCDFUtils.createMetadataAttributes(annotationElement, at, at.getName());
+            }
 
             // Add dimensions as Metadata
             final MetadataElement dimElem = new MetadataElement("Dimensions");
-            bandElem.addElement(dimElem);
+            annotationElement.addElement(dimElem);
             List<Dimension> dimensionList = netcdfFile.getDimensions();
             for (Dimension d : dimensionList) {
                 ProductData productData;
@@ -152,18 +129,12 @@ public class Sentinel1ETADNetCDFReader {
                 productData.setElemUInt(d.getLength());
                 final MetadataAttribute metadataAttribute = new MetadataAttribute(d.getFullName(), productData, true);
                 dimElem.addAttribute(metadataAttribute);
-                if (metadataAttribute.getName().equals("owiRaSize")) {
-                    sceneWidth = metadataAttribute.getData().getElemInt(); // width = #columns
-                } else if (metadataAttribute.getName().equals("owiAzSize")) {
-                    sceneHeight = metadataAttribute.getData().getElemInt(); // height = #rows
-                }
             }
 
-            final List<Variable> variableList = netcdfFile.getVariables();
-
             // Add attributes inside variables as Metadata
+            final List<Variable> variableList = netcdfFile.getVariables();
             for (Variable variable : variableList) {
-                bandElem.addElement(MetadataUtils.createMetadataElement(variable, 10000));
+                NetCDFUtils.createMetadataElement(annotationElement, variable, 10000);
             }
 
             for (Variable variable : variableList) {
@@ -173,7 +144,7 @@ public class Sentinel1ETADNetCDFReader {
                     // If rank is 1 then it has already been taken care of by
                     // MetadataUtils.createMetadataElement()
 
-                    final MetadataElement elem = bandElem.getElement(variable.getFullName());
+                    final MetadataElement elem = annotationElement.getElement(variable.getFullName());
                     final MetadataElement valuesElem = new MetadataElement("Values");
                     elem.addElement(valuesElem);
                     MetadataUtils.addAttribute(variable, valuesElem, 1000);
