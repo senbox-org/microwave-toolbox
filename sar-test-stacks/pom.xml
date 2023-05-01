@@ -29,8 +29,6 @@
     <name>SAR Stack Integration Tests</name>
     <artifactId>sar-test-stacks</artifactId>
 
-    <packaging>jar</packaging>
-
     <dependencies>
         <dependency>
             <groupId>org.esa.snap</groupId>
