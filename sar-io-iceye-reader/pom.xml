@@ -6,12 +6,12 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>10.0.0-JDK11SHOT</version>
     </parent>
 
     <groupId>com.iceye.esa.snap</groupId>
     <artifactId>sar-io-iceye-reader</artifactId>
-    <version>10.0.0-SNAPSHOT</version>
+    <version>10.0.0-JDK11SHOT</version>
     <name>ICEYE Product readers</name>
     <packaging>nbm</packaging>
 
