@@ -15,10 +15,13 @@ import org.esa.snap.dataio.envi.EnviProductReaderPlugIn;
 import eu.esa.sar.io.gamma.GammaProductWriter;
 
 import org.esa.snap.engine_utilities.util.ZipUtils;
+import org.jlinda.core.utils.DateUtils;
 import org.jlinda.nest.dataio.SnaphuExportOp;
 
 import java.io.*;
 import java.net.URL;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 
 // Class to keep all SNAPHU related tasks in its own space without cluttering up the PyRate operator class.
@@ -45,12 +48,14 @@ public class SnaphuHelperMethods {
         // Download, or locate the downloaded SNAPHU binary within the specified SNAPHU installation location.
         File snaphuBinary = downloadSnaphu(pyRateExportOp.snaphuInstallLocation);
 
+        File snaphuLogFile = new File(pyRateExportOp.snaphuProcessingLocation, "snaphu-log-" +
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")) + ".log" );
         // Find all SNAPHU configuration files and execute them.
         String [] files = pyRateExportOp.snaphuProcessingLocation.list();
         for(String file: files){
             File aFile = new File(pyRateExportOp.snaphuProcessingLocation, file);
             if(file.endsWith("snaphu.conf") && ! file.equals("snaphu.conf") && !pyRateExportOp.testingDisableUnwrapStep){
-                callSnaphuUnwrap(snaphuBinary, aFile);
+                callSnaphuUnwrap(snaphuBinary, aFile, snaphuLogFile);
             }
         }
         // Read in the unwrapped phase bands and assemble back into one product.
@@ -75,26 +80,25 @@ public class SnaphuHelperMethods {
     }
 
     // Given an install location, download the SNAPHU binary and return the location of the executible.
-    private static File downloadSnaphu(String snaphuInstallLocation) throws IOException {
+    private static File downloadSnaphu(File snaphuInstallLocation) throws IOException {
         final String linuxDownloadPath = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
         final String windowsDownloadPath = "http://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
         final String windows32DownloadPath = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
 
-        File snaphuInstallDir = new File(snaphuInstallLocation);
         boolean isDownloaded;
         File snaphuBinaryLocation;
 
         // Check if we have just been given the path to the SNAPHU binary
-        if (isSnaphuBinary(snaphuInstallDir)){
+        if (isSnaphuBinary(snaphuInstallLocation)){
             isDownloaded = true;
-            snaphuBinaryLocation = snaphuInstallDir;
+            snaphuBinaryLocation = snaphuInstallLocation;
         }else{ // We haven't been just given the binary location.
 
             // Get parent dir if passed in a file somehow
-            if(! snaphuInstallDir.isDirectory()){
-                snaphuInstallDir = snaphuInstallDir.getParentFile();
+            if(! snaphuInstallLocation.isDirectory()){
+                snaphuInstallLocation = snaphuInstallLocation.getParentFile();
             }
-            snaphuBinaryLocation = findSnaphuBinary(snaphuInstallDir);
+            snaphuBinaryLocation = findSnaphuBinary(snaphuInstallLocation);
             isDownloaded = snaphuBinaryLocation != null;
         }
         if (! isDownloaded){
@@ -115,9 +119,9 @@ public class SnaphuHelperMethods {
                 // Using MacOS or Linux
                 downloadPath = linuxDownloadPath;
             }
-            File zipFile = FileDownloader.downloadFile(new URL(downloadPath), snaphuInstallDir, null);
-            ZipUtils.unzip(zipFile.toPath(), snaphuInstallDir.toPath(), true);
-            snaphuBinaryLocation = findSnaphuBinary(snaphuInstallDir);
+            File zipFile = FileDownloader.downloadFile(new URL(downloadPath), snaphuInstallLocation, null);
+            ZipUtils.unzip(zipFile.toPath(), snaphuInstallLocation.toPath(), true);
+            snaphuBinaryLocation = findSnaphuBinary(snaphuInstallLocation);
         }
 
         return snaphuBinaryLocation;
@@ -149,7 +153,7 @@ public class SnaphuHelperMethods {
     }
 
     // Unwrap a singular interferogram given a SNAPHU config file and path to the SNAPHU binary.
-    private static void callSnaphuUnwrap(File snaphuBinary, File configFile) throws IOException {
+    private static void callSnaphuUnwrap(File snaphuBinary, File configFile, File logFile) throws IOException {
         File workingDir = configFile.getParentFile();
         String command = null;
         try(BufferedReader in = new BufferedReader(new FileReader(configFile), 1024)){
@@ -171,15 +175,20 @@ public class SnaphuHelperMethods {
             BufferedReader stdError = new BufferedReader(new
                     InputStreamReader(proc.getErrorStream()));
 
+            if (!logFile.exists()){
+                FileUtils.write(logFile, "");
+            }
+
             // Read the output from the command
-            System.out.println("Here is the standard output of the command:\n");
             String s = null;
             while ((s = stdInput.readLine()) != null) {
+                FileUtils.write(logFile, FileUtils.readFileToString(logFile, "utf-8") + "\n" + s);
                 System.out.println(s);
             }
             // Read any errors from the attempted command
-            System.out.println("Here is the standard error of the command (if any):\n");
             while ((s = stdError.readLine()) != null) {
+
+                FileUtils.write(logFile, FileUtils.readFileToString(logFile, "utf-8") + "\n" + s);
                 System.out.println(s);
             }
         }

@@ -7,15 +7,15 @@ import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
-import org.esa.snap.core.gpf.annotations.OperatorMetadata;
-import org.esa.snap.core.gpf.annotations.Parameter;
-import org.esa.snap.core.gpf.annotations.SourceProducts;
-import org.esa.snap.core.gpf.annotations.TargetProduct;
+import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.*;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.dem.dataio.DEMFactory;
 import org.esa.snap.dem.gpf.AddElevationOp;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.jlinda.nest.dataio.SnaphuImportOp;
+import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 
 import java.io.*;
 import java.net.URL;
@@ -39,34 +39,55 @@ import java.util.Collection;
 public class PyRateExportOp extends Operator {
     // For testing purposes. Setting to true disables the external call to Snaphu unwrapping,
     // useful if ifgs are already unwrapped and you are just testing later stages of the integration.
-    boolean testingDisableUnwrapStep = true;
+    boolean testingDisableUnwrapStep = false;
+
+    protected double progressCount = 0.0;
+    protected String progressMsg = "";
 
     protected File snaphuProcessingLocation;
 
     @SourceProducts
     private Product [] sourceProducts;
 
+    @SourceProduct(alias = "source")
     private Product sourceProduct;
 
     @TargetProduct
     private Product targetProduct;
 
-    @Parameter(description = "The output folder to which the data product is written.")
-    private File targetFolder;
-
 
     // For downloading and running Snaphu.
-    @Parameter(description = "SNAPHU binary folder", defaultValue = "/tmp/snaphuBinary")
-    protected String snaphuInstallLocation = "";
-
-    // For re-adding the elevation band
-    @Parameter(description = "Elevation band", defaultValue = "SRTM 3sec")
-    private String elevationSource = "SRTM 3sec";
+    @Parameter(description = "SNAPHU binary folder", defaultValue = "",
+                label="SNAPHU binary folder")
+    protected File snaphuInstallLocation;
 
 
     // For the SnaphuExportOp operator.
-    @Parameter(description = "Directory to write SNAPHU configuration files, unwrapped interferograms, and PyRate inputs to", defaultValue = "/tmp/snaphuProcessing")
-    protected String processingLocation = "";
+    @Parameter(description = "Directory to write SNAPHU configuration files, unwrapped interferograms, and PyRate inputs to",
+            defaultValue = "",
+            label="Processing location")
+    protected File processingLocation;
+
+    // For re-adding the elevation band
+    @Parameter(valueSet = {"ACE2_5min", "ACE30", "ASTER 1sec",
+                           "CDEM", "Copernicus 30m Global DEM",
+                           "Copernicus 90m Global DEM",
+                           "GETASSE30", "SRTM 1Sec Grid",
+                           "SRTM 1Sec HGT", "SRTM 3Sec"},
+            description = "Elevation band", defaultValue = "SRTM 3Sec",
+            label="Elevation source")
+    private String elevationSource;
+
+    @Parameter(valueSet={ResamplingFactory.BILINEAR_INTERPOLATION_NAME,
+                        ResamplingFactory.BICUBIC_INTERPOLATION_NAME,
+                        ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME,
+                        ResamplingFactory.BISINC_11_POINT_INTERPOLATION_NAME,
+                        ResamplingFactory.CUBIC_CONVOLUTION_NAME,
+                        ResamplingFactory.NEAREST_NEIGHBOUR_NAME},
+                description="Resampling method for adding elevation",
+                defaultValue=ResamplingFactory.BICUBIC_INTERPOLATION_NAME,
+                label="Resampling method for elevation")
+    private String resamplingMethod;
 
     @Parameter(valueSet = {"TOPO", "DEFO", "SMOOTH", "NOSTATCOSTS"},
             description = "Size of coherence estimation window in Azimuth direction",
@@ -105,6 +126,10 @@ public class PyRateExportOp extends Operator {
             " Larger cost threshold implies smaller regions---safer, but more expensive computationally.",
             defaultValue = "500", label = "Tile Cost Threshold")
     protected int tileCostThreshold = 500;
+
+    public PyRateExportOp() {
+        elevationSource = "SRTM 3sec";
+    }
 
     @Override
     public void setSourceProduct(Product sourceProduct) {
@@ -150,23 +175,23 @@ public class PyRateExportOp extends Operator {
         }
 
         // Validate the folder locations provided
-        if (!Files.exists(new File(processingLocation).toPath())){
+        if (!Files.exists(processingLocation.toPath())){
             throw new OperatorException("Path provided for Snaphu processing location does not exist. Please provide a valid path.");
         }
-        if (!Files.isDirectory(new File(processingLocation).toPath())){
+        if (!Files.isDirectory(processingLocation.toPath())){
             throw new OperatorException("Path provided for Snaphu processing is not a folder. Please select a folder, not a file.");
         }
-        if (!Files.exists(new File(snaphuInstallLocation).toPath())){
+        if (!Files.exists(snaphuInstallLocation.toPath())){
             throw new OperatorException("Path provided for the Snaphu installation does not exist. Please provide an existing path.");
         }
-        if(!Files.exists(new File(processingLocation).toPath())){
+        if(!Files.exists(processingLocation.toPath())){
             throw new OperatorException("Path provided for the intermediary processing does not exist. Please provide an existing path.");
         }
-        if(!Files.isWritable(new File(processingLocation).toPath())){
+        if(!Files.isWritable(processingLocation.toPath())){
             throw new OperatorException("Path provided for intermediary processing is not writeable.");
         }
-        if(!SnaphuHelperMethods.isSnaphuBinary(new File(snaphuInstallLocation)) &&
-                !Files.isWritable(new File(snaphuInstallLocation).toPath())){
+        if(!SnaphuHelperMethods.isSnaphuBinary(snaphuInstallLocation) &&
+                !Files.isWritable(snaphuInstallLocation.toPath())){
             throw new OperatorException("Folder provided for SNAPHU installation is not writeable.");
         }
     }
@@ -189,8 +214,8 @@ public class PyRateExportOp extends Operator {
     private void process() throws Exception {
         // Processing location provided by user is the root directory. We want to save all data in a folder that is named
         // the source product to avoid data overwriting with different products.
-        processingLocation = new File(processingLocation, sourceProduct.getName()).getAbsolutePath();
-        new File(processingLocation).mkdirs();
+        processingLocation = new File(processingLocation, sourceProduct.getName());
+        processingLocation.mkdirs();
 
         // Create sub folder for SNAPHU processing and intermediary files.
         new File(processingLocation, "snaphu").mkdirs();
@@ -214,8 +239,6 @@ public class PyRateExportOp extends Operator {
         // Importing from snaphuImportOp does not preserve the coherence bands. Copy them over from source product.
         for (Band b : sourceProduct.getBands()){
             if (b.getUnit().contains(Unit.COHERENCE)){
-                ProductUtils.copyBand(b.getName(), sourceProduct, imported, true);
-            } else if (b.getName().contains("elevation")){
                 ProductUtils.copyBand(b.getName(), sourceProduct, imported, true);
             }
         }
@@ -273,6 +296,7 @@ public class PyRateExportOp extends Operator {
         AddElevationOp addElevationOp = new AddElevationOp();
         addElevationOp.setSourceProduct(terrainCorrected);
         addElevationOp.setParameter("demName", elevationSource);
+        addElevationOp.setParameter("demResamplingMethod", resamplingMethod);
         Product tcWithElevation = addElevationOp.getTargetProduct();
 
 
@@ -366,6 +390,23 @@ public class PyRateExportOp extends Operator {
             // Default GAMMA format writing doesn't add everything we need. Add the additional needed files.
             PyRateGammaHeaderWriter.adjustGammaHeader(productSingleBand, new File(processingLocation, "DEM.par"));
             new File(processingLocation, "elevation.rslc").delete();
+        }
+    }
+
+
+    /**
+     * The SPI is used to register this operator in the graph processing framework
+     * via the SPI configuration file
+     * {@code META-INF/services/org.esa.snap.core.gpf.OperatorSpi}.
+     * This class may also serve as a factory for new operator instances.
+     *
+     * @see OperatorSpi#createOperator()
+     * @see OperatorSpi#createOperator(java.util.Map, java.util.Map)
+     */
+    public static class Spi extends OperatorSpi {
+        public Spi() {
+
+            super(PyRateExportOp.class);
         }
     }
 }

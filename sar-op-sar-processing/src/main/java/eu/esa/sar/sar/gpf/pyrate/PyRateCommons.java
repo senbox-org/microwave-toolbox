@@ -1,5 +1,7 @@
 package eu.esa.sar.sar.gpf.pyrate;
 
+import org.esa.snap.dem.dataio.DEMFactory;
+
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalAccessor;
@@ -8,6 +10,9 @@ import java.util.Locale;
 // Common helper functions that are used across various parts of the SNAP/PyRATE integration.
 // Written by Alex McVittie April 2023.
 public class PyRateCommons {
+
+
+    public static DEMFactory demFactory = new DEMFactory();
 
     // Converts format of 14May2020 to 20200414. or 2020 04 14 depending on if forPARFile is set to true or not.
     public static String bandNameDateToPyRateDate(String bandNameDate, boolean forPARFile){
