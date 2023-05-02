@@ -199,6 +199,17 @@
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="BandPassFilterOp"/>
             </file>
+            <file name="eu-esa-sar-sar-gpf-pyrate-PyrateExport-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Export to Pyrate"/>
+                <attr name="operatorName" stringvalue="PyrateExport"/>
+                <attr name="dialogTitle" stringvalue="Export to PyRate"/>
+                <attr name="ShortDescription" stringvalue="Exports a stack of wrapped interferograms for PyRate processing."/>
+                <attr name="targetProductNameSuffix"  stringvalue="_pyrate"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+                <attr name="helpId" stringvalue="PyRateExportOp"/>
+            </file>
         </folder>
         <folder name="Wizards">
             <file name="eu-esa-sar-sar-wizards-MosaicWizard-Action.instance">
@@ -286,6 +297,17 @@
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sar-gpf-geometric-UpdateGeoRefOp-Action.instance"/>
                     <attr name="position" intvalue="550"/>
                 </file>
+            </folder>
+            <folder name="Interferometric">
+                <attr name="position" intvalue="700"/>
+                <folder name="PSI\SBAS">
+                    <attr name="position" intvalue="400">
+                        <file name="eu-esa-sar-sar-gpf-pyrate-PyrateExport-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sar-gpf-pyrate-PyrateExport-Action.instance"/>
+                            <attr name="position" intvalue="220"/>
+                        </file>
+                    </attr>
+                </folder>
             </folder>
             <folder name="ENVISAT ASAR">
                 <attr name="position" intvalue="800"/>
