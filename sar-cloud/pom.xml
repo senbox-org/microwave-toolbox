@@ -79,6 +79,8 @@
                         <publicPackage>org.json.simple.*</publicPackage>
                         <publicPackage>com.fasterxml.jackson.*</publicPackage>
 						<publicPackage>javax.xml.stream.*</publicPackage>
+                        <publicPackage>org.apache.olingo.odata2.*</publicPackage>
+                        <publicPackage>org.jasypt.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>
