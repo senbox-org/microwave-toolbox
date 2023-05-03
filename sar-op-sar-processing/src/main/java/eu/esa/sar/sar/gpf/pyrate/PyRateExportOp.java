@@ -1,5 +1,6 @@
 package eu.esa.sar.sar.gpf.pyrate;
 
+import com.bc.ceres.core.ProgressMonitor;
 import org.apache.commons.io.FileUtils;
 import eu.esa.sar.sar.gpf.geometric.RangeDopplerGeocodingOp;
 import org.esa.snap.core.dataio.ProductIO;
@@ -10,7 +11,6 @@ import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.core.gpf.annotations.*;
 import org.esa.snap.core.util.ProductUtils;
-import org.esa.snap.dem.dataio.DEMFactory;
 import org.esa.snap.dem.gpf.AddElevationOp;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
@@ -18,10 +18,9 @@ import org.jlinda.nest.dataio.SnaphuImportOp;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 
 import java.io.*;
-import java.net.URL;
 import java.nio.file.Files;
+import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Collection;
 
 /**
  * Export products into format suitable for import to PyRate.
@@ -128,7 +127,6 @@ public class PyRateExportOp extends Operator {
     protected int tileCostThreshold = 500;
 
     public PyRateExportOp() {
-        elevationSource = "SRTM 3sec";
     }
 
     @Override
@@ -141,12 +139,8 @@ public class PyRateExportOp extends Operator {
     public void initialize() throws OperatorException {
 
         runValidationChecks();
+        targetProduct = sourceProduct;
 
-        try{
-            process();
-        }catch (Exception e){
-            throw new OperatorException(e);
-        }
     }
     // Product and input variable validations.
     private void runValidationChecks() throws OperatorException {
@@ -211,7 +205,11 @@ public class PyRateExportOp extends Operator {
 
         The user can then run `pyrate workflow -f input_parameters.conf` from processingLocation/sourceProductName dir.
      */
-    private void process() throws Exception {
+    @Override
+    public void doExecute(ProgressMonitor pm) {
+        pm.beginTask("Starting PyRate export...", 100);
+
+
         // Processing location provided by user is the root directory. We want to save all data in a folder that is named
         // the source product to avoid data overwriting with different products.
         processingLocation = new File(processingLocation, sourceProduct.getName());
@@ -224,17 +222,26 @@ public class PyRateExportOp extends Operator {
         snaphuProcessingLocation.mkdirs();
 
         // Unwrap interferograms and merge into one multi-band product.
-        Product unwrappedInterferograms = SnaphuHelperMethods.processSnaphu(this, sourceProduct);
+        Product unwrappedInterferograms = null;
+        try {
+            pm.worked(1);
+            unwrappedInterferograms = SnaphuHelperMethods.processSnaphu(this, sourceProduct, pm);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         // Snaphu import takes an array of the original product with wrapped interferograms, and a product with the unwrapped
         // interferograms. Put them into an array for input.
         Product [] productPair = new Product[]{sourceProduct, unwrappedInterferograms};
-
+        pm.setTaskName("Importing unwrapped interferograms into stack...");
         SnaphuImportOp snaphuImportOp = new SnaphuImportOp();
         snaphuImportOp.setSourceProducts(productPair);
         snaphuImportOp.setParameter("doNotKeepWrapped", true);
 
         Product imported = snaphuImportOp.getTargetProduct();
+
+        pm.worked(10);
+        pm.setTaskName("Unwrapped interferograms imported into stack.");
 
         // Importing from snaphuImportOp does not preserve the coherence bands. Copy them over from source product.
         for (Band b : sourceProduct.getBands()){
@@ -255,6 +262,8 @@ public class PyRateExportOp extends Operator {
         RangeDopplerGeocodingOp rangeDopplerGeocodingOp = new RangeDopplerGeocodingOp();
         rangeDopplerGeocodingOp.setSourceProduct(imported);
         Product terrainCorrected = rangeDopplerGeocodingOp.getTargetProduct();
+
+        pm.worked(10);
 
 
         // Set up PyRATE output directory in our processing directory.
@@ -277,17 +286,39 @@ public class PyRateExportOp extends Operator {
 
         String mainFileContents = configBuilder.createMainConfigFileContents();
 
-        FileUtils.write(new File(processingLocation, "input_parameters.conf"), mainFileContents);
+        try {
+            FileUtils.write(new File(processingLocation, "input_parameters.conf"), mainFileContents);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         // PyRATE requires individual headers for each source image that goes into an interferogram image pair.
         PyRateGammaHeaderWriter gammaHeaderWriter = new PyRateGammaHeaderWriter(terrainCorrected);
         headerFileFolder.mkdirs();
-        gammaHeaderWriter.writeHeaderFiles(headerFileFolder, new File(processingLocation, configBuilder.headerFileList));
+        try {
+            gammaHeaderWriter.writeHeaderFiles(headerFileFolder, new File(processingLocation, configBuilder.headerFileList));
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         bannedDates = gammaHeaderWriter.getBannedDates();
 
         // Write coherence and phase bands out to individual GeoTIFFS
-        String interferogramFileList = writeBands(terrainCorrected, "GeoTIFF", Unit.PHASE, bannedDates);
-        String coherenceFiles = writeBands(terrainCorrected, "GeoTIFF", Unit.COHERENCE, bannedDates);
+        String interferogramFileList = null;
+        try {
+            interferogramFileList = writeBands(terrainCorrected, "GeoTIFF", Unit.PHASE, bannedDates);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        pm.worked(10);
+        String coherenceFiles = null;
+        try {
+            coherenceFiles = writeBands(terrainCorrected, "GeoTIFF", Unit.COHERENCE, bannedDates);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        pm.worked(10);
 
 
         // Attempting to use an elevation band that was pre-existing seems to be an impossible feat.
@@ -301,18 +332,38 @@ public class PyRateExportOp extends Operator {
 
 
         // Write out elevation band in GeoTIFF format.
-        writeElevationBand(tcWithElevation, configBuilder.demFile, "GeoTIFF");
+        try {
+            writeElevationBand(tcWithElevation, configBuilder.demFile, "GeoTIFF");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
 
         // Only write in GAMMA format to write out header. .rslc image data gets deleted.
-        writeElevationBand(tcWithElevation, configBuilder.demFile, "Gamma");
+        try {
+            writeElevationBand(tcWithElevation, configBuilder.demFile, "Gamma");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        pm.worked(10);
 
         // Populate files containing the coherence and interferograms.
-        FileUtils.write(new File(processingLocation, configBuilder.coherenceFileList), coherenceFiles);
-        FileUtils.write(new File(processingLocation, configBuilder.interferogramFileList), interferogramFileList);
+        try {
+            FileUtils.write(new File(processingLocation, configBuilder.coherenceFileList), coherenceFiles);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            FileUtils.write(new File(processingLocation, configBuilder.interferogramFileList), interferogramFileList);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         // Set the target output product to be the terrain corrected product
         // with elevation, coherence, and unwrapped phase bands.
         setTargetProduct(terrainCorrected);
+
+        pm.done();
 
     }
 

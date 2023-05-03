@@ -32,30 +32,50 @@ public class SnaphuHelperMethods {
     // wrapped interferograms.
     //
     // Returns an unwrapped stack of coregistered interferograms.
-    public static Product processSnaphu(PyRateExportOp pyRateExportOp, Product sourceProduct) throws IOException {
+    public static Product processSnaphu(PyRateExportOp pyRateExportOp, Product sourceProduct, ProgressMonitor pm) throws IOException {
         // Perform SNAPHU-Export
-        Product product = SnaphuHelperMethods.setupSnaphuExportOperator(pyRateExportOp, sourceProduct).getTargetProduct();
+        pm.setTaskName("Preparing SNAPHU export operator...");
 
         // Bands need to be read in fully before writing out to avoid data access errors.
+        int curBandNumber = 1;
+        Product product = SnaphuHelperMethods.setupSnaphuExportOperator(pyRateExportOp, sourceProduct).getTargetProduct();
         for(Band b: product.getBands()){
-            b.readRasterDataFully(ProgressMonitor.NULL);
+            pm.setTaskName("(" + curBandNumber + "/" + product.getBands().length + ") Preparing band " + b.getName());
+            b.readRasterDataFully();
+            curBandNumber++;
         }
+        pm.worked(1);
 
         // Write out product to the snaphu processing location folder for unwrapping.
         ProductIO.writeProduct(product, pyRateExportOp.snaphuProcessingLocation.getAbsolutePath(), "snaphu");
-
-
+        pm.worked(1);
+        pm.setTaskName("Downloading SNAPHU binary...");
         // Download, or locate the downloaded SNAPHU binary within the specified SNAPHU installation location.
         File snaphuBinary = downloadSnaphu(pyRateExportOp.snaphuInstallLocation);
+        pm.worked(2);
+
 
         File snaphuLogFile = new File(pyRateExportOp.snaphuProcessingLocation, "snaphu-log-" +
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")) + ".log" );
         // Find all SNAPHU configuration files and execute them.
         String [] files = pyRateExportOp.snaphuProcessingLocation.list();
+        int numConfigFiles = 0;
+
+        for(String file: files){
+            File aFile = new File(pyRateExportOp.snaphuProcessingLocation, file);
+            if(file.endsWith("snaphu.conf") && ! file.equals("snaphu.conf")){
+                numConfigFiles++;
+            }
+        }
+        pm.setTaskName("SNAPHU binary downloaded. Unwrapping " + numConfigFiles + " interferograms.");
+        int curFileNumber = 1;
         for(String file: files){
             File aFile = new File(pyRateExportOp.snaphuProcessingLocation, file);
             if(file.endsWith("snaphu.conf") && ! file.equals("snaphu.conf") && !pyRateExportOp.testingDisableUnwrapStep){
-                callSnaphuUnwrap(snaphuBinary, aFile, snaphuLogFile);
+                callSnaphuUnwrap(snaphuBinary, aFile, snaphuLogFile, pm, "( " + curFileNumber + " / " + numConfigFiles + " ): ");
+                int work = (int) ((1 / numConfigFiles) * 100 / 2);
+                pm.worked(work);
+                curFileNumber++;
             }
         }
         // Read in the unwrapped phase bands and assemble back into one product.
@@ -90,39 +110,30 @@ public class SnaphuHelperMethods {
 
         // Check if we have just been given the path to the SNAPHU binary
         if (isSnaphuBinary(snaphuInstallLocation)){
-            isDownloaded = true;
             snaphuBinaryLocation = snaphuInstallLocation;
-        }else{ // We haven't been just given the binary location.
-
-            // Get parent dir if passed in a file somehow
-            if(! snaphuInstallLocation.isDirectory()){
-                snaphuInstallLocation = snaphuInstallLocation.getParentFile();
-            }
-            snaphuBinaryLocation = findSnaphuBinary(snaphuInstallLocation);
-            isDownloaded = snaphuBinaryLocation != null;
+            return snaphuBinaryLocation;
         }
-        if (! isDownloaded){
-            // We have checked the passed in folder and it does not contain the SNAPHU binary.
-            String operatingSystem = System.getProperty("os.name");
-            String downloadPath;
+        // We have checked the passed in folder and it does not contain the SNAPHU binary.
+        String operatingSystem = System.getProperty("os.name");
+        String downloadPath;
 
-            if(operatingSystem.toLowerCase().contains("windows")){
-                // Using Windows
-                boolean bitDepth64 = System.getProperty("os.arch").equals("amd64");
-                if(bitDepth64){
-                    downloadPath = windowsDownloadPath;
-                }else{
-                    downloadPath = windows32DownloadPath;
-                }
+        if(operatingSystem.toLowerCase().contains("windows")){
+            // Using Windows
+            boolean bitDepth64 = System.getProperty("os.arch").equals("amd64");
+            if(bitDepth64){
+                downloadPath = windowsDownloadPath;
+            }else{
+                downloadPath = windows32DownloadPath;
             }
-            else{
-                // Using MacOS or Linux
-                downloadPath = linuxDownloadPath;
-            }
-            File zipFile = FileDownloader.downloadFile(new URL(downloadPath), snaphuInstallLocation, null);
-            ZipUtils.unzip(zipFile.toPath(), snaphuInstallLocation.toPath(), true);
-            snaphuBinaryLocation = findSnaphuBinary(snaphuInstallLocation);
         }
+        else{
+            // Using MacOS or Linux
+            downloadPath = linuxDownloadPath;
+        }
+        File zipFile = FileDownloader.downloadFile(new URL(downloadPath), snaphuInstallLocation, null);
+        ZipUtils.unzip(zipFile.toPath(), snaphuInstallLocation.toPath(), true);
+        snaphuBinaryLocation = findSnaphuBinary(snaphuInstallLocation);
+
 
         return snaphuBinaryLocation;
     }
@@ -153,7 +164,7 @@ public class SnaphuHelperMethods {
     }
 
     // Unwrap a singular interferogram given a SNAPHU config file and path to the SNAPHU binary.
-    private static void callSnaphuUnwrap(File snaphuBinary, File configFile, File logFile) throws IOException {
+    private static void callSnaphuUnwrap(File snaphuBinary, File configFile, File logFile, ProgressMonitor pm, String msgPrefix) throws IOException {
         File workingDir = configFile.getParentFile();
         String command = null;
         try(BufferedReader in = new BufferedReader(new FileReader(configFile), 1024)){
@@ -183,13 +194,13 @@ public class SnaphuHelperMethods {
             String s = null;
             while ((s = stdInput.readLine()) != null) {
                 FileUtils.write(logFile, FileUtils.readFileToString(logFile, "utf-8") + "\n" + s);
-                System.out.println(s);
+                pm.setTaskName(msgPrefix + s);
+
             }
             // Read any errors from the attempted command
             while ((s = stdError.readLine()) != null) {
 
                 FileUtils.write(logFile, FileUtils.readFileToString(logFile, "utf-8") + "\n" + s);
-                System.out.println(s);
             }
         }
     }
