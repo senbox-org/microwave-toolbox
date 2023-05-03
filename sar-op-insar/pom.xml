@@ -62,6 +62,14 @@
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.jblas</groupId>
+            <artifactId>jblas</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>edu.emory.mathcs</groupId>
+            <artifactId>JTransforms</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
