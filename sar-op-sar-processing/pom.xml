@@ -51,10 +51,6 @@
             <artifactId>snap-engine-utilities</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>snap-envi-reader</artifactId>
-        </dependency>
-        <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
@@ -65,14 +61,11 @@
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-insar</artifactId>
+            <version>${microwavetbx.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jlinda</groupId>
-            <artifactId>jlinda-nest</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
