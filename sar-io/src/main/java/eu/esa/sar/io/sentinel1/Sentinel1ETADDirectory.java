@@ -20,12 +20,17 @@ import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.dataop.downloadable.XMLSupport;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import org.jdom2.Document;
+import org.jdom2.Element;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * This class represents a product directory.
@@ -80,13 +85,29 @@ public class Sentinel1ETADDirectory extends XMLProductDirectory implements Senti
         safeManifest.addManifestMetadata(getProductName(), absRoot, origProdRoot, false);
         absRoot.setAttributeString(AbstractMetadata.PRODUCT_TYPE, "ETAD");
 
-        if (etadReader != null) {
-            MetadataElement annotationElement = origProdRoot.getElement("annotation");
-            if (annotationElement == null) {
-                annotationElement = new MetadataElement("annotation");
-                origProdRoot.addElement(annotationElement);
-            }
+        MetadataElement annotationElement = origProdRoot.getElement("annotation");
+        if (annotationElement == null) {
+            annotationElement = new MetadataElement("annotation");
+            origProdRoot.addElement(annotationElement);
+        }
 
+        final String annotationFolder = getRootFolder() + "annotation";
+        final String[] annotationFiles = listFiles(annotationFolder);
+        if (annotationFiles != null) {
+            for (String metadataFile : annotationFiles) {
+                if (metadataFile.startsWith("S1") && metadataFile.endsWith(".xml")) {
+
+                    final Document xmlDoc;
+                    try (final InputStream is = getInputStream(annotationFolder +'/'+ metadataFile)) {
+                        xmlDoc = XMLSupport.LoadXML(is);
+                    }
+                    final Element rootElement = xmlDoc.getRootElement();
+                    AbstractMetadataIO.AddXMLMetadata(rootElement, annotationElement);
+                }
+            }
+        }
+
+        if (etadReader != null) {
             // add netcdf metadata to product
             etadReader.addNetCDFMetadata(annotationElement);
         }
@@ -127,14 +148,8 @@ public class Sentinel1ETADDirectory extends XMLProductDirectory implements Senti
 
         final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
 
-        int sceneWidth = etadReader.getSceneWidth();
-        int sceneHeight = etadReader.getSceneHeight();
-        if (sceneWidth < 0) {
-            sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
-        }
-        if (sceneHeight < 0) {
-            sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
-        }
+        int sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
+        int sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
 
         final Product product = new Product(getProductName(), getProductType(), sceneWidth, sceneHeight);
         updateProduct(product, newRoot);

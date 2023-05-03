@@ -19,7 +19,7 @@
 
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
-        <artifactId>microwavetbx</artifactId>
+        <artifactId>microwave-toolbox</artifactId>
         <version>10.0.0-SNAPSHOT</version>
     </parent>
 
@@ -30,11 +30,6 @@
     <packaging>nbm</packaging>
     
     <dependencies>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-sar-processing</artifactId>
-            <version>${microwavetbx.version}</version>
-        </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io-ephemeris</artifactId>
@@ -69,20 +64,6 @@
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-calibration</artifactId>
-            <version>${microwavetbx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-insar</artifactId>
-            <version>${microwavetbx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>snap-dem</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>org.netbeans.api</groupId>
@@ -113,7 +94,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
-                    <useDefaultManifestFile>true</useDefaultManifestFile>
+                    <archive>
+                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+                    </archive>
                 </configuration>
             </plugin>
         </plugins>
