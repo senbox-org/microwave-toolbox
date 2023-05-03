@@ -172,11 +172,6 @@ public class UndersamplingOp extends Operator {
     @Override
     public void initialize() throws OperatorException {
 
-        GeoCoding sourceGeoCoding = sourceProduct.getSceneGeoCoding();
-        if (sourceGeoCoding instanceof CrsGeoCoding) {
-            throw new OperatorException("Undersampling is not intended for map projected products");
-        }
-
         sourceImageWidth = sourceProduct.getSceneRasterWidth();
         sourceImageHeight = sourceProduct.getSceneRasterHeight();
 
@@ -236,11 +231,12 @@ public class UndersamplingOp extends Operator {
 
             ProductUtils.copyMetadata(sourceProduct, targetProduct);
             ProductUtils.copyFlagCodings(sourceProduct, targetProduct);
-            ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
             targetProduct.setStartTime(sourceProduct.getStartTime());
             targetProduct.setEndTime(sourceProduct.getEndTime());
 
             updateTargetProductMetadata(subSamplingX, subSamplingY);
+
+            addGeoCoding();
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
