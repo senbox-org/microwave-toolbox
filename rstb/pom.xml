@@ -70,10 +70,6 @@
         <module>rstb-kit</module>
     </modules>
 
-    <repositories>
-
-    </repositories>
-
     <build>
         <plugins>
             <plugin>

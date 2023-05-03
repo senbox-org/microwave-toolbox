@@ -32,11 +32,6 @@
     <dependencies>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-sar-processing</artifactId>
-            <version>${microwavetbx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io-ephemeris</artifactId>
             <version>${microwavetbx.version}</version>
         </dependency>
@@ -68,20 +63,6 @@
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-calibration</artifactId>
-            <version>${microwavetbx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-insar</artifactId>
-            <version>${microwavetbx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>snap-dem</artifactId>
         </dependency>
 
         <dependency>

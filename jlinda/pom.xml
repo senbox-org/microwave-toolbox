@@ -44,10 +44,6 @@
         <module>jlinda-nest-ui</module>
     </modules>
 
-    <repositories>
-
-    </repositories>
-
     <build>
         <plugins>
             <plugin>
