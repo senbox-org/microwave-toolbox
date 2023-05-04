@@ -63,9 +63,6 @@ public class BatchSnaphuUnwrapOp extends Operator {
     protected File snaphuInstallLocation;
 
 
-    @TargetProduct
-    private Product targetProduct;
-
 
     @Override
     public void initialize() throws OperatorException {
@@ -256,7 +253,9 @@ public class BatchSnaphuUnwrapOp extends Operator {
             String trgBandName = enviProducts[x].getBands()[0].getName().replace(".snaphu.hdr", "");
             Band trgBand = getTargetProduct().getBand(trgBandName);
             System.out.println(trgBand.getName());
-            trgBand.setRasterData(enviProducts[x].getBands()[0].getRasterData());
+            Band enviBand = enviProducts[x].getBands()[0];
+            System.out.println(enviBand.getName());
+            trgBand.setRasterData(enviBand.createCompatibleRasterData());
         }
     }
 
