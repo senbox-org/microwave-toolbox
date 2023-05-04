@@ -40,7 +40,7 @@ public class PyRateExportOp extends Operator {
 
     @SourceProduct(alias = "source")
     private Product sourceProduct;
-    
+
     // For the SnaphuExportOp operator.
     @Parameter(description = "Directory to write SNAPHU configuration files, unwrapped interferograms, and PyRate inputs to",
             defaultValue = "",

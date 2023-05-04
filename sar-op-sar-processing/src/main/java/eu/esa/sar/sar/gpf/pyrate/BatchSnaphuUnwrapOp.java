@@ -102,6 +102,8 @@ public class BatchSnaphuUnwrapOp extends Operator {
             throw new OperatorException("Path provided for Snaphu install is not writeable.");
         }
 
+
+
         trgProduct = new Product(sourceProduct.getName(), sourceProduct.getProductType(), sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
         trgProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
         trgProduct.setName(sourceProduct.getName() + "_snaphu");

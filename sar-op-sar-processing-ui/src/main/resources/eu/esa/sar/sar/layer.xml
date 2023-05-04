@@ -201,7 +201,8 @@
             </file>
             <file name="eu-esa-sar-sar-gpf-pyrate-PyrateExport-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
-                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.GraphAction.create"/>
+                <attr name="graphFile" stringvalue="PyRateExportWorkflowGraph.xml"/>
                 <attr name="displayName" stringvalue="Export to Pyrate"/>
                 <attr name="operatorName" stringvalue="PyrateExport"/>
                 <attr name="dialogTitle" stringvalue="Export to PyRate"/>
@@ -217,7 +218,7 @@
                 <attr name="operatorName" stringvalue="BatchSnaphuUnwrapOp"/>
                 <attr name="dialogTitle" stringvalue="Batch Snaphu Unwrap"/>
                 <attr name="ShortDescription" stringvalue="Unwraps a folder of wrapped interferograms using Snaphu."/>
-                <attr name="targetProductNameSuffix"  stringvalue="_pyrate"/>
+                <attr name="targetProductNameSuffix"  stringvalue="_snaphuUnwrap"/>
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="BatchSnaphuUnwrapOp"/>
             </file>
