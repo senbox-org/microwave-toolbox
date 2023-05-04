@@ -99,6 +99,15 @@ public class BatchSnaphuUnwrapOp extends Operator {
             throw new OperatorException("Path provided for Snaphu install is not writeable.");
         }
 
+        Product trgProduct = new Product(sourceProduct.getName(), sourceProduct.getProductType(), sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
+        for (Band b: sourceProduct.getBands()){
+            if(b.getUnit().equals(Unit.PHASE)){
+                Band aBand = new Band("Unw" + b.getName(), b.getDataType(), b.getRasterWidth(), b.getRasterHeight());
+                trgProduct.addBand(aBand);
+            }
+        }
+        setTargetProduct(trgProduct);
+
 
 
 
@@ -230,7 +239,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
     }
 
 
-    Product assembleUnwrappedFilesIntoSingularProduct(File directory) throws IOException {
+    void assembleUnwrappedFilesIntoSingularProduct(File directory) throws IOException {
         File [] fileNames = directory.listFiles((dir, name) -> name.startsWith("UnwPhase") && name.endsWith(".hdr"));
         for (File file : fileNames){
             System.out.println(file.getAbsolutePath());
@@ -241,14 +250,14 @@ public class BatchSnaphuUnwrapOp extends Operator {
         EnviProductReaderPlugIn readerPlugIn = new EnviProductReaderPlugIn();
         ProductReader enviProductReader = readerPlugIn.createReaderInstance();
         System.out.println("Reading products....");
-        enviProducts[0] = enviProductReader.readProductNodes(fileNames[0], null);
-        System.out.println("Read in product 0");
-        for (int x = 1; x < enviProducts.length; x++){
+        for (int x = 0; x < enviProducts.length; x++){
             System.out.println("Reading envi product " + fileNames[x].getName());
             enviProducts[x] = enviProductReader.readProductNodes(fileNames[x], null);
-            ProductUtils.copyBand(enviProducts[x].getBands()[0].getName(), enviProducts[x], enviProducts[0], true);
+            String trgBandName = enviProducts[x].getBands()[0].getName().replace(".snaphu.hdr", "");
+            Band trgBand = getTargetProduct().getBand(trgBandName);
+            System.out.println(trgBand.getName());
+            trgBand.setRasterData(enviProducts[x].getBands()[0].getRasterData());
         }
-        return enviProducts[0];
     }
 
     @Override
@@ -275,8 +284,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 int work = (int) ((1.0 / configFiles.length) * 100) - 1;
                 pm.worked(work);
             }
-            Product assembled = assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
-            setTargetProduct(assembled);
+            assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
