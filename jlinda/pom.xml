@@ -15,13 +15,6 @@
 
     <packaging>pom</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-        </dependency>
-    </dependencies>
-
     <description>Java Library for Interferometric Data Analysis (jLinda)</description>
 
     <properties>
