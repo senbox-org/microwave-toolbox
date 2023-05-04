@@ -34,29 +34,21 @@ import java.util.ArrayList;
         version = "1.0",
         copyright = "Copyright (C) 2023 SkyWatch Space Applications Inc.",
         autoWriteDisabled = true,
-        description = "Export wrapped SBAS interferometric data for PyRate processing")
+        description = "Export unwrapped SBAS interferometric data for PyRate processing")
 
 public class PyRateExportOp extends Operator {
-    // For testing purposes. Setting to true disables the external call to Snaphu unwrapping,
-    // useful if ifgs are already unwrapped and you are just testing later stages of the integration.
-
-    protected File snaphuProcessingLocation;
-
-    @SourceProducts
-    private Product [] sourceProducts;
 
     @SourceProduct(alias = "source")
     private Product sourceProduct;
-
-    @TargetProduct
-    private Product targetProduct;
-
-
+    
     // For the SnaphuExportOp operator.
     @Parameter(description = "Directory to write SNAPHU configuration files, unwrapped interferograms, and PyRate inputs to",
             defaultValue = "",
             label="Processing location")
     protected File processingLocation;
+
+    @TargetProduct
+    private Product targetProduct;
 
     public PyRateExportOp() {
     }
@@ -70,19 +62,14 @@ public class PyRateExportOp extends Operator {
     @Override
     public void initialize() throws OperatorException {
 
-        runValidationChecks();
-        targetProduct = sourceProduct;
-
-    }
-    // Product and input variable validations.
-    private void runValidationChecks() throws OperatorException {
-
         // Validate the product
         if(sourceProduct == null){
             throw new OperatorException("Source product must not be null.");
         }
         InputProductValidator validator = new InputProductValidator(sourceProduct);
         validator.checkIfCoregisteredStack();
+        validator.checkIfMapProjected(true);
+
 
         // Validate that we have a good number of bands to process.
         int numPhaseBands = getNumBands(sourceProduct, Unit.PHASE);
@@ -110,6 +97,8 @@ public class PyRateExportOp extends Operator {
         if(!Files.isWritable(processingLocation.toPath())){
             throw new OperatorException("Path provided for intermediary processing is not writeable.");
         }
+        targetProduct = sourceProduct;
+
     }
 
     /*
@@ -129,20 +118,15 @@ public class PyRateExportOp extends Operator {
         processingLocation = new File(processingLocation, sourceProduct.getName());
         processingLocation.mkdirs();
 
-        pm.setTaskName("Unwrapped interferograms imported into stack.");
-
-        // Importing from snaphuImportOp does not preserve the coherence bands. Copy them over from source product.
-
         // Some products may be undesireable in PyRate processing. Store all dates that are undesireable in here
         // to prevent writing out and mucking up PyRate processing.
         ArrayList<String> bannedDates = new ArrayList<>();
 
 
-        pm.worked(10);
-
-
         // Set up PyRATE output directory in our processing directory.
         new File(processingLocation, "pyrateOutputs").mkdirs();
+
+        pm.worked(2);
 
         // Generate PyRATE configuration files
         PyRateConfigurationFileBuilder configBuilder = new PyRateConfigurationFileBuilder();
@@ -160,12 +144,14 @@ public class PyRateExportOp extends Operator {
         File headerFileFolder = new File(processingLocation, "headers");
 
         String mainFileContents = configBuilder.createMainConfigFileContents();
+        pm.worked(8);
 
         try {
             FileUtils.write(new File(processingLocation, "input_parameters.conf"), mainFileContents);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        pm.worked(15);
 
         // PyRATE requires individual headers for each source image that goes into an interferogram image pair.
         PyRateGammaHeaderWriter gammaHeaderWriter = new PyRateGammaHeaderWriter(sourceProduct);
@@ -177,7 +163,9 @@ public class PyRateExportOp extends Operator {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        pm.worked(15);
         bannedDates = gammaHeaderWriter.getBannedDates();
+
 
         // Write coherence and phase bands out to individual GeoTIFFS
         String interferogramFileList = null;
@@ -186,14 +174,14 @@ public class PyRateExportOp extends Operator {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        pm.worked(10);
+        pm.worked(20);
         String coherenceFiles = null;
         try {
             coherenceFiles = writeBands(sourceProduct, "GeoTIFF", Unit.COHERENCE, bannedDates);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        pm.worked(10);
+        pm.worked(20);
 
 
 
