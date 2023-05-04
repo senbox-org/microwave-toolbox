@@ -15,6 +15,8 @@ import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataAttribute;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -63,6 +65,10 @@ public class BatchSnaphuUnwrapOp extends Operator {
     protected File snaphuInstallLocation;
 
 
+    @TargetProduct
+    private Product trgProduct;
+
+
 
     @Override
     public void initialize() throws OperatorException {
@@ -96,11 +102,23 @@ public class BatchSnaphuUnwrapOp extends Operator {
             throw new OperatorException("Path provided for Snaphu install is not writeable.");
         }
 
-        Product trgProduct = new Product(sourceProduct.getName(), sourceProduct.getProductType(), sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
+        trgProduct = new Product(sourceProduct.getName(), sourceProduct.getProductType(), sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
+        trgProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
+        trgProduct.setName(sourceProduct.getName() + "_snaphu");
+        MetadataElement trgRoot = trgProduct.getMetadataRoot();
+        MetadataElement srcRoot = sourceProduct.getMetadataRoot();
+        for(MetadataElement me : srcRoot.getElements()){
+            trgRoot.addElement(me);
+        }
+        for(MetadataAttribute ma : srcRoot.getAttributes()){
+            trgRoot.addAttribute(ma);
+        }
         for (Band b: sourceProduct.getBands()){
             if(b.getUnit().equals(Unit.PHASE)){
                 Band aBand = new Band("Unw" + b.getName(), b.getDataType(), b.getRasterWidth(), b.getRasterHeight());
                 trgProduct.addBand(aBand);
+            }else{
+                ProductUtils.copyBand(b.getName(), sourceProduct, trgProduct, true);
             }
         }
         setTargetProduct(trgProduct);
@@ -275,12 +293,16 @@ public class BatchSnaphuUnwrapOp extends Operator {
             // Find all SNAPHU configuration files and execute them.
             File [] configFiles = getSnaphuConfigFiles(snaphuProcessingLocation);
 
+            // Move progress bar for each product processed.
+            int work = (int) ((1.0 / configFiles.length) * 100) - 1;
+
             for (int x = 0; x < configFiles.length; x++){
                 // Display current product indicator on the progress monitor.
                 int count = x + 1;
+                // Add prefix to progress monitor to indicate which product we are currently on.
                 String prefix = "(" + count + "/" + configFiles.length + "): ";
                 callSnaphuUnwrap(snaphuBinary, configFiles[x], snaphuLogFile, pm, prefix);
-                int work = (int) ((1.0 / configFiles.length) * 100) - 1;
+
                 pm.worked(work);
             }
             assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
