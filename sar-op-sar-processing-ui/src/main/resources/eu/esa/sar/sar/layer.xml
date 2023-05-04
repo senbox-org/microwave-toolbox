@@ -210,6 +210,17 @@
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="PyRateExportOp"/>
             </file>
+            <file name="eu-esa-sar-sar-gpf-pyrate-BatchSnaphuUnwrapOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Batch Snaphu Unwrap"/>
+                <attr name="operatorName" stringvalue="BatchSnaphuUnwrapOp"/>
+                <attr name="dialogTitle" stringvalue="Batch Snaphu Unwrap"/>
+                <attr name="ShortDescription" stringvalue="Unwraps a folder of wrapped interferograms using Snaphu."/>
+                <attr name="targetProductNameSuffix"  stringvalue="_pyrate"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+                <attr name="helpId" stringvalue="BatchSnaphuUnwrapOp"/>
+            </file>
         </folder>
         <folder name="Wizards">
             <file name="eu-esa-sar-sar-wizards-MosaicWizard-Action.instance">
@@ -308,6 +319,15 @@
                         </file>
                     </attr>
                 </folder>
+                <folder name="Unwrapping">
+                    <attr name="position" intvalue="300">
+                        <file name="eu-esa-sar-sar-gpf-pyrate-BatchSnaphuUnwrapOp-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sar-gpf-pyrate-BatchSnaphuUnwrapOp-Action.instance"/>
+                            <attr name="position" intvalue="320"/>
+                        </file>
+                    </attr>
+                </folder>
+
             </folder>
             <folder name="ENVISAT ASAR">
                 <attr name="position" intvalue="800"/>

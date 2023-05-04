@@ -28,7 +28,7 @@ import java.util.ArrayList;
  * Written by Alex McVittie April 2023.
  */
 @OperatorMetadata(alias = "PyrateExport",
-        category = "Radar/Interferometric/PSI \\ SBAS",
+        category = "Radar/Interferometric/Unwrapping",
         authors = "Alex McVittie",
         version = "1.0",
         copyright = "Copyright (C) 2023 SkyWatch Space Applications Inc.",

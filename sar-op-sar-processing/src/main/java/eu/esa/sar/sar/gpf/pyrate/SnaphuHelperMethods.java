@@ -22,6 +22,7 @@ import java.io.*;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 
 // Class to keep all SNAPHU related tasks in its own space without cluttering up the PyRate operator class.
@@ -82,6 +83,7 @@ public class SnaphuHelperMethods {
         return assembleUnwrappedFilesIntoSingularProduct(pyRateExportOp.snaphuProcessingLocation);
     }
 
+
     // Create a SNAPHU export operator, using parameters defined by PyRateExportOp.
     public static SnaphuExportOp setupSnaphuExportOperator(PyRateExportOp pyRateExportOp, Product sourceProduct){
         SnaphuExportOp snaphuExportOp = new SnaphuExportOp();
@@ -100,7 +102,7 @@ public class SnaphuHelperMethods {
     }
 
     // Given an install location, download the SNAPHU binary and return the location of the executible.
-    private static File downloadSnaphu(File snaphuInstallLocation) throws IOException {
+    public static File downloadSnaphu(File snaphuInstallLocation) throws IOException {
         final String linuxDownloadPath = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
         final String windowsDownloadPath = "http://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
         final String windows32DownloadPath = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
@@ -164,7 +166,7 @@ public class SnaphuHelperMethods {
     }
 
     // Unwrap a singular interferogram given a SNAPHU config file and path to the SNAPHU binary.
-    private static void callSnaphuUnwrap(File snaphuBinary, File configFile, File logFile, ProgressMonitor pm, String msgPrefix) throws IOException {
+    public static void callSnaphuUnwrap(File snaphuBinary, File configFile, File logFile, ProgressMonitor pm, String msgPrefix) throws IOException {
         File workingDir = configFile.getParentFile();
         String command = null;
         try(BufferedReader in = new BufferedReader(new FileReader(configFile), 1024)){
@@ -172,6 +174,7 @@ public class SnaphuHelperMethods {
             for(int x = 0; x < 6; x++){
                 in.readLine();
             }
+            // Start at 14th character to get rid of the binary prefix and comment symbol of the command
             command = in.readLine().substring(14);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
