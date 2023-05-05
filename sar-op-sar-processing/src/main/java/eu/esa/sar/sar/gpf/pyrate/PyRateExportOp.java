@@ -47,6 +47,31 @@ public class PyRateExportOp extends Operator {
             label="Processing location")
     protected File processingLocation;
 
+    @Parameter(description = "Number of cores to devote to PyRate",
+                defaultValue="4", label = "Number of cores")
+    protected int numberOfCores;
+
+    @Parameter(description = "Enable Coherence masking during prepifg",
+            defaultValue = "true",
+            label = "Enable coherence masking")
+    protected boolean applyCoherenceMasking = true;
+
+    @Parameter(description = "Enable orbital error correction during correct", defaultValue="true",
+    label = "Enable orbital correction")
+    protected boolean applyOrbitalErrorCorrection = true;
+
+    @Parameter(description = "Enable DEM error correction for residual topography during correct",
+    defaultValue = "true", label = "Enable DEM error correction")
+    protected boolean applyDEMCorrection = true;
+
+    @Parameter(description = "Enable phase closure correction during correct",
+    defaultValue = "true", label = "Enable phase closure correction")
+    protected boolean applyPhaseClosureCorrection;
+
+    @Parameter(description = "Enable APS correction using spatio-temporal filtering during correct",
+    defaultValue = "true", label = "Enable APS correction")
+    protected boolean applyAPSCorrection = true;
+
     @TargetProduct
     private Product targetProduct;
 
@@ -139,7 +164,16 @@ public class PyRateExportOp extends Operator {
         configBuilder.interferogramFileList = new File(processingLocation, "ifgFiles.txt").getName();
 
         configBuilder.outputDirectory = new File(processingLocation, "pyrateOutputs").getName();
-        configBuilder.parallel = false;
+        if(numberOfCores == 1){
+            configBuilder.parallel = false;
+        }else{
+            configBuilder.parallel = true;
+            configBuilder.numProcesses = numberOfCores;
+        }
+        configBuilder.apsCorrection = applyAPSCorrection;
+        configBuilder.phaseClosureCorrect = applyPhaseClosureCorrection;
+        configBuilder.orbitalErrorCorrect = applyOrbitalErrorCorrection;
+        configBuilder.demCorrect = applyDEMCorrection;
 
         File headerFileFolder = new File(processingLocation, "headers");
 
