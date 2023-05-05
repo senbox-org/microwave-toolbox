@@ -49,8 +49,8 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source11/source>
+                    <target11/target>
                     <!--<encoding>ISO-8859-1</encoding>-->
                     <encoding>UTF-8</encoding>
                     <optimize>true</optimize>
