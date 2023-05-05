@@ -49,7 +49,7 @@ import static org.esa.snap.core.gpf.internal.JaiHelper.createTargetProduct;
         version = "1.0",
         copyright = "Copyright (C) 2023 SkyWatch Space Applications Inc.",
         autoWriteDisabled = true,
-        description = "Downloads and executes SNAPHU on a ")
+        description = "Downloads and executes SNAPHU on a set of two or more interferograms.")
 
 public class BatchSnaphuUnwrapOp extends Operator {
 
