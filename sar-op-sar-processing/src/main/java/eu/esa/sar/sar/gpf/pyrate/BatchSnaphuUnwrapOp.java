@@ -103,7 +103,6 @@ public class BatchSnaphuUnwrapOp extends Operator {
         }
 
 
-
         trgProduct = new Product(sourceProduct.getName(), sourceProduct.getProductType(), sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
         trgProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
         trgProduct.setName(sourceProduct.getName() + "_snaphu");
@@ -123,6 +122,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 ProductUtils.copyBand(b.getName(), sourceProduct, trgProduct, true);
             }
         }
+        ProductUtils.copyProductNodes(sourceProduct, trgProduct);
         setTargetProduct(trgProduct);
 
 
@@ -272,10 +272,9 @@ public class BatchSnaphuUnwrapOp extends Operator {
             enviProducts[x] = enviProductReader.readProductNodes(fileNames[x], null);
             String trgBandName = enviProducts[x].getBands()[0].getName().replace(".snaphu.hdr", "");
             Band trgBand = getTargetProduct().getBand(trgBandName);
+            getTargetProduct().removeBand(trgBand);
+            ProductUtils.copyBand(trgBandName, enviProducts[x], getTargetProduct(), true);
             System.out.println(trgBand.getName());
-            Band enviBand = enviProducts[x].getBands()[0];
-            System.out.println(enviBand.getName());
-            trgBand.setRasterData(enviBand.createCompatibleRasterData());
         }
     }
 
@@ -303,11 +302,12 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 int count = x + 1;
                 // Add prefix to progress monitor to indicate which product we are currently on.
                 String prefix = "(" + count + "/" + configFiles.length + "): ";
-                callSnaphuUnwrap(snaphuBinary, configFiles[x], snaphuLogFile, pm, prefix);
+                //callSnaphuUnwrap(snaphuBinary, configFiles[x], snaphuLogFile, pm, prefix);
 
                 pm.worked(work);
             }
             assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

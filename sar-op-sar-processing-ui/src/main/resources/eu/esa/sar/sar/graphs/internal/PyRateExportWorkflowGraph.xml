@@ -66,23 +66,13 @@
       <externalAuxFile/>
     </parameters>
   </node>
-    <node id="PyrateExport">
-        <operator>PyrateExport</operator>
-        <sources>
-            <sourceProduct refid="Terrain-Correction"/>
-        </sources>
-        <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-            <processingLocation/>
-        </parameters>
-    </node>
   <node id="Write">
     <operator>Write</operator>
     <sources>
-      <sourceProduct refid="PyrateExport"/>
+      <sourceProduct refid="Terrain-Correction"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-      <file>C:\Users\alex\target.dim</file>
-      <formatName>BEAM-DIMAP</formatName>
+      <formatName>PyRate export</formatName>
     </parameters>
   </node>
   <applicationData id="Presentation">
@@ -96,9 +86,6 @@
     <node id="Terrain-Correction">
           <displayPosition x="269.0" y="98.0"/>
       </node>
-    <node id="PyrateExport">
-      <displayPosition x="404.0" y="98.0"/>
-    </node>
     <node id="Write">
             <displayPosition x="528.0" y="98.0"/>
     </node>

@@ -1,6 +1,20 @@
-package eu.esa.sar.sar.gpf.pyrate;
+/*
+ * Copyright (C) 2021 SkyWatch. https://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
+package eu.esa.sar.io.pyrate.pyrateheader;
 
-import eu.esa.sar.sar.gpf.pyrate.PyRateCommons;
 import org.apache.commons.io.FileUtils;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.MetadataElement;
@@ -15,19 +29,23 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoField;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 
 // Class & functions for writing out & modifying the GAMMA header files to work with the external PyRATE InSAR software
 // Written by Alex McVittie April 2023.
-public class PyRateGammaHeaderWriter {
+public class PyRateHeaderWriter {
 
-    private final Product srcProduct;
+    private Product srcProduct;
 
     private ArrayList<String> bannedDates = new ArrayList<>();
-    final MetadataElement[] roots;
-    public PyRateGammaHeaderWriter(Product product){
+    private MetadataElement[] roots;
+    public PyRateHeaderWriter(Product product){
         this.srcProduct = product;
         final MetadataElement[] secondaryS = srcProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElements();
         roots = new MetadataElement[secondaryS.length + 1];
@@ -36,6 +54,7 @@ public class PyRateGammaHeaderWriter {
             roots[x + 1] = secondaryS[x];
         }
     }
+
 
     // PyRate expects a couple extra pieces of metadata in the GAMMA headers. This method adjusts and adds these
     // missing fields.
@@ -52,9 +71,6 @@ public class PyRateGammaHeaderWriter {
         contents += "\npost_lon:\t" + geoPosLowerRight.lon + " decimal degrees";
         contents += "\nellipsoid_name:\t WGS84";
         FileUtils.write(gammaHeader, contents);
-
-
-
     }
 
     private Date parseDate(String utcDateString) throws ParseException {
@@ -158,14 +174,14 @@ public class PyRateGammaHeaderWriter {
                     root.getAttributeDouble("range_spacing") == mostConsistentRangePixelSpacingCountValue){
                 acceptableMetadataElements.add(root);
             }else{
-                bannedDates.add(PyRateCommons.bandNameDateToPyRateDate(root.getAttributeString("first_line_time").split(" ")[0].replace("-", ""), false));
+                bannedDates.add(bandNameDateToPyRateDate(root.getAttributeString("first_line_time").split(" ")[0].replace("-", ""), false));
             }
 
         }
 
         for(MetadataElement root : acceptableMetadataElements){
             String contents = convertMetadataRootToPyRateGamma(root);
-            String fileNameDate = PyRateCommons.bandNameDateToPyRateDate(root.getAttributeString("first_line_time").split(" ")[0].replace("-", ""), false);
+            String fileNameDate = bandNameDateToPyRateDate(root.getAttributeString("first_line_time").split(" ")[0].replace("-", ""), false);
             String fileName = fileNameDate + ".par";
             FileUtils.write(new File(destinationFolder, fileName), contents);
             allHeaderFiles.append(destinationFolder.getName() + "/" + fileName + "\n");
@@ -226,76 +242,76 @@ public class PyRateGammaHeaderWriter {
 
         // Initialize an array of strings for easy concatenation at the end.
         String [] contentLines = new String[]{
-                PyRateCommons.createTabbedVariableLine("title",root.getAttributeString("PRODUCT") ),
+                createTabbedVariableLine("title",root.getAttributeString("PRODUCT") ),
 
-                PyRateCommons.createTabbedVariableLine("sensor", getSensorName(root)),
+                createTabbedVariableLine("sensor", getSensorName(root)),
 
-                PyRateCommons.createTabbedVariableLine("date", PyRateCommons.bandNameDateToPyRateDate(date, true)),
+                createTabbedVariableLine("date", bandNameDateToPyRateDate(date, true)),
 
-                PyRateCommons.createTabbedVariableLine("start_time", utcDateToGAMMATime(root.getAttributeString("first_line_time"))),
+                createTabbedVariableLine("start_time", utcDateToGAMMATime(root.getAttributeString("first_line_time"))),
 
-                PyRateCommons.createTabbedVariableLine("center_time:",
+                createTabbedVariableLine("center_time:",
                         utcDateToGAMMATime(
                                 getMiddleDate(
                                         parseDate(root.getAttributeString("first_line_time")),
                                         parseDate(root.getAttributeString("last_line_time"))))),
 
-                PyRateCommons.createTabbedVariableLine("end_time", utcDateToGAMMATime(root.getAttributeString("last_line_time"))),
+                createTabbedVariableLine("end_time", utcDateToGAMMATime(root.getAttributeString("last_line_time"))),
 
-                PyRateCommons.createTabbedVariableLine("range_looks", String.valueOf(root.getAttributeInt("range_looks"))),
+                createTabbedVariableLine("range_looks", String.valueOf(root.getAttributeInt("range_looks"))),
 
-                PyRateCommons.createTabbedVariableLine("azimuth_looks", String.valueOf(root.getAttributeInt("azimuth_looks"))),
+                createTabbedVariableLine("azimuth_looks", String.valueOf(root.getAttributeInt("azimuth_looks"))),
 
-                PyRateCommons.createTabbedVariableLine("number_of_state_vectors", String.valueOf(numStateVectors)),
+                createTabbedVariableLine("number_of_state_vectors", String.valueOf(numStateVectors)),
 
-                PyRateCommons.createTabbedVariableLine("time_of_first_state_vector", firstStateVectorTime),
+                createTabbedVariableLine("time_of_first_state_vector", firstStateVectorTime),
 
-                PyRateCommons.createTabbedVariableLine("center_latitude", root.getAttributeString("centre_lat") + "\tdegrees"),
+                createTabbedVariableLine("center_latitude", root.getAttributeString("centre_lat") + "\tdegrees"),
 
-                PyRateCommons.createTabbedVariableLine("center_longitude", root.getAttributeString("centre_lon") + "\tdegrees"),
+                createTabbedVariableLine("center_longitude", root.getAttributeString("centre_lon") + "\tdegrees"),
 
-                PyRateCommons.createTabbedVariableLine("range_pixel_spacing", root.getAttributeString("range_spacing") + "\tm"),
+                createTabbedVariableLine("range_pixel_spacing", root.getAttributeString("range_spacing") + "\tm"),
 
-                PyRateCommons.createTabbedVariableLine("azimuth_pixel_spacing", root.getAttributeString("azimuth_spacing") + "\tm"),
+                createTabbedVariableLine("azimuth_pixel_spacing", root.getAttributeString("azimuth_spacing") + "\tm"),
 
-                PyRateCommons.createTabbedVariableLine("incidence_angle",
+                createTabbedVariableLine("incidence_angle",
                         (root.getAttributeDouble("incidence_near") +
                                 root.getAttributeDouble("incidence_far")) / 2 + "\tdegrees"), // Use average of near and far incidence angle.
 
 
 
-                PyRateCommons.createTabbedVariableLine("radar_frequency",
+                createTabbedVariableLine("radar_frequency",
                         root.getAttributeDouble("radar_frequency") * 1000000 + "\tHz"),    // Radar frequency is stored as MHz in abstracted metadata.
                 // Convert to Hz by multiplying by 1 million.
-                PyRateCommons.createTabbedVariableLine("adc_sampling_rate",
+                createTabbedVariableLine("adc_sampling_rate",
                         root.getAttributeDouble("range_sampling_rate") * 1000000 + "\tHz"),// See above - conversion from MHz to Hz.
 
-                PyRateCommons.createTabbedVariableLine("chirp_bandwidth",
+                createTabbedVariableLine("chirp_bandwidth",
                         root.getAttributeDouble("range_bandwidth") * 1000000 + "\tHz"),
 
-                PyRateCommons.createTabbedVariableLine("azimuth_proc_bandwidth",
+                createTabbedVariableLine("azimuth_proc_bandwidth",
                         root.getAttributeString("azimuth_bandwidth")),
 
-                PyRateCommons.createTabbedVariableLine("image_format", "FLOAT"), // Not sure if this should be constant.
+                createTabbedVariableLine("image_format", "FLOAT"), // Not sure if this should be constant.
                 // TODO determine if should be constant.
 
-                PyRateCommons.createTabbedVariableLine("heading", root.getAttributeString("centre_heading2") + "\tdegrees"),
+                createTabbedVariableLine("heading", root.getAttributeString("centre_heading2") + "\tdegrees"),
 
-                PyRateCommons.createTabbedVariableLine("azimuth_angle", antennaAngle + " degrees"),
+                createTabbedVariableLine("azimuth_angle", antennaAngle + " degrees"),
 
-                PyRateCommons.createTabbedVariableLine("range_samples", root.getAttributeString("num_samples_per_line")),
+                createTabbedVariableLine("range_samples", root.getAttributeString("num_samples_per_line")),
 
-                PyRateCommons.createTabbedVariableLine("azimuth_lines", root.getAttributeString("num_output_lines")),
+                createTabbedVariableLine("azimuth_lines", root.getAttributeString("num_output_lines")),
 
-                PyRateCommons.createTabbedVariableLine("prf", root.getAttributeString("pulse_repetition_frequency") + "\tHz"),
+                createTabbedVariableLine("prf", root.getAttributeString("pulse_repetition_frequency") + "\tHz"),
 
-                PyRateCommons.createTabbedVariableLine("near_range_slc", root.getAttributeString("slant_range_to_first_pixel") + "\tm"),
+                createTabbedVariableLine("near_range_slc", root.getAttributeString("slant_range_to_first_pixel") + "\tm"),
 
-                PyRateCommons.createTabbedVariableLine("earth_semi_major_axis", GeoUtils.WGS84.a + "\tm"),
+                createTabbedVariableLine("earth_semi_major_axis", GeoUtils.WGS84.a + "\tm"),
 
-                PyRateCommons.createTabbedVariableLine("earth_semi_minor_axis", GeoUtils.WGS84.b + "\tm"),
+                createTabbedVariableLine("earth_semi_minor_axis", GeoUtils.WGS84.b + "\tm"),
 
-                PyRateCommons.createTabbedVariableLine("sar_to_earth_center", getSatelliteToEarthCenterDistance(root) + "\tm")
+                createTabbedVariableLine("sar_to_earth_center", getSatelliteToEarthCenterDistance(root) + "\tm")
 
 
         };
@@ -310,5 +326,42 @@ public class PyRateGammaHeaderWriter {
 
     public ArrayList<String> getBannedDates() {
         return bannedDates;
+    }
+
+    public static String createTabbedVariableLine(String key, String value){
+        return key + ":\t" + value + "\n";
+    }
+
+    // wrapper for createTabbedVariableLine(String, String)
+    public static String createTabbedVariableLine(String key, int value){
+        return createTabbedVariableLine(key, String.valueOf(value));
+    }
+
+    // wrapper for createTabbedVariableLine(String, String)
+    public static String createTabbedVariableLine(String key, double value){
+        return createTabbedVariableLine(key, String.valueOf(value));
+    }
+
+    // Converts format of 14May2020 to 20200414. or 2020 04 14 depending on if forPARFile is set to true or not.
+    public static String bandNameDateToPyRateDate(String bandNameDate, boolean forPARFile){
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM").withLocale(Locale.ENGLISH);
+        TemporalAccessor accessor = formatter.parse(toSentenceCase(bandNameDate.substring(2, 5)));
+        int monthNumber = accessor.get(ChronoField.MONTH_OF_YEAR);
+        String month = String.valueOf(monthNumber);
+        if(monthNumber < 10){
+            month = "0" + month;
+        }
+        // Formatted as YYYYMMDD if for band/product names, YYYY MM DD if for GAMMA PAR file contents.
+        String delimiter = " ".substring(forPARFile ? 0: 1);
+        return bandNameDate.substring(5) + delimiter +
+                month + delimiter + bandNameDate.substring(0, 2);
+    }
+
+    // Makes first character upper case and the rest lowercase.
+    // Convert string from HELLO to Hello. or hello to Hello.
+    public static String toSentenceCase(String word){
+        String firstCharacter = word.substring(0, 1);
+        String rest = word.substring(1);
+        return firstCharacter.toUpperCase() + rest.toLowerCase();
     }
 }
