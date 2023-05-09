@@ -106,21 +106,12 @@ public class BatchSnaphuUnwrapOp extends Operator {
         trgProduct = new Product(sourceProduct.getName(), sourceProduct.getProductType(), sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
         trgProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
         trgProduct.setName(sourceProduct.getName() + "_snaphu");
-        MetadataElement trgRoot = trgProduct.getMetadataRoot();
-        MetadataElement srcRoot = sourceProduct.getMetadataRoot();
-        for(MetadataElement me : srcRoot.getElements()){
-            trgRoot.addElement(me);
-        }
-        for(MetadataAttribute ma : srcRoot.getAttributes()){
-            trgRoot.addAttribute(ma);
-        }
         for (Band b: sourceProduct.getBands()){
+            Band aBand = new Band(b.getName(), b.getDataType(), b.getRasterWidth(), b.getRasterHeight());
             if(b.getUnit().equals(Unit.PHASE)){
-                Band aBand = new Band("Unw" + b.getName(), b.getDataType(), b.getRasterWidth(), b.getRasterHeight());
-                trgProduct.addBand(aBand);
-            }else{
-                ProductUtils.copyBand(b.getName(), sourceProduct, trgProduct, true);
+                aBand.setName("Unw"+ b.getName());
             }
+            trgProduct.addBand(aBand);
         }
         ProductUtils.copyProductNodes(sourceProduct, trgProduct);
         setTargetProduct(trgProduct);
@@ -256,26 +247,19 @@ public class BatchSnaphuUnwrapOp extends Operator {
     }
 
 
-    void assembleUnwrappedFilesIntoSingularProduct(File directory) throws IOException {
+    Product assembleUnwrappedFilesIntoSingularProduct(File directory) throws IOException {
+        Product sourceProduct = getSourceProduct();
         File [] fileNames = directory.listFiles((dir, name) -> name.startsWith("UnwPhase") && name.endsWith(".hdr"));
-        for (File file : fileNames){
-            System.out.println(file.getAbsolutePath());
-
-        }
-
-        Product [] enviProducts = new Product[fileNames.length];
         EnviProductReaderPlugIn readerPlugIn = new EnviProductReaderPlugIn();
         ProductReader enviProductReader = readerPlugIn.createReaderInstance();
-        System.out.println("Reading products....");
-        for (int x = 0; x < enviProducts.length; x++){
-            System.out.println("Reading envi product " + fileNames[x].getName());
-            enviProducts[x] = enviProductReader.readProductNodes(fileNames[x], null);
-            String trgBandName = enviProducts[x].getBands()[0].getName().replace(".snaphu.hdr", "");
-            Band trgBand = getTargetProduct().getBand(trgBandName);
-            getTargetProduct().removeBand(trgBand);
-            ProductUtils.copyBand(trgBandName, enviProducts[x], getTargetProduct(), true);
-            System.out.println(trgBand.getName());
+        for (File fileName : fileNames){
+            Product enviProduct = enviProductReader.readProductNodes(fileName, null);
+            String unwrappedPhaseBandName = enviProduct.getBands()[0].getName().replace(".snaphu.hdr", "");
+            Band wrappedPhaseBand = sourceProduct.getBand(unwrappedPhaseBandName.substring(3));
+            sourceProduct.removeBand(wrappedPhaseBand);
+            ProductUtils.copyBand(unwrappedPhaseBandName, enviProduct, sourceProduct, true);
         }
+        return sourceProduct;
     }
 
     @Override
@@ -302,12 +286,19 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 int count = x + 1;
                 // Add prefix to progress monitor to indicate which product we are currently on.
                 String prefix = "(" + count + "/" + configFiles.length + "): ";
+                // TODO be sure to un-comment this once the writing out from this tool is fixed.
                 //callSnaphuUnwrap(snaphuBinary, configFiles[x], snaphuLogFile, pm, prefix);
 
                 pm.worked(work);
             }
-            assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
-
+            Product assembled = assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
+            Band [] emptyTrgProductBands = getTargetProduct().getBands();
+            for (Band b : emptyTrgProductBands){
+                getTargetProduct().removeBand(b);
+            }
+            for(Band b : assembled.getBands()){
+                getTargetProduct().addBand(b);
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
