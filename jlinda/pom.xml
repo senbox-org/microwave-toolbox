@@ -19,7 +19,6 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javahelp.version>2.0.05</javahelp.version>
         <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
     </properties>
@@ -96,13 +95,6 @@
                 <groupId>org.apache.netbeans.utilities</groupId>
                 <artifactId>nbm-maven-plugin</artifactId>
                 <extensions>true</extensions>
-                <dependencies>
-                    <dependency>
-                        <groupId>javax.help</groupId>
-                        <artifactId>javahelp</artifactId>
-                        <version>${javahelp.version}</version>
-                    </dependency>
-                </dependencies>
                 <configuration>
                     <moduleType>normal</moduleType>
                     <licenseName>GPL 3</licenseName>

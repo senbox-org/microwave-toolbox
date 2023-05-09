@@ -44,6 +44,10 @@
             <artifactId>snap-ui</artifactId>
         </dependency>
         <dependency>
+            <groupId>eu.esa.snap.netbeans</groupId>
+            <artifactId>snap-help-system</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-rcp</artifactId>
         </dependency>
