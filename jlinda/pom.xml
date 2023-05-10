@@ -6,7 +6,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>10.0.0-JDK11SHOT</version>
     </parent>
     
     <name>jLinda</name>
@@ -19,7 +19,6 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javahelp.version>2.0.05</javahelp.version>
         <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
     </properties>
@@ -49,8 +48,8 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>11</source>
+                    <target>11</target>
                     <!--<encoding>ISO-8859-1</encoding>-->
                     <encoding>UTF-8</encoding>
                     <optimize>true</optimize>
@@ -96,13 +95,6 @@
                 <groupId>org.apache.netbeans.utilities</groupId>
                 <artifactId>nbm-maven-plugin</artifactId>
                 <extensions>true</extensions>
-                <dependencies>
-                    <dependency>
-                        <groupId>javax.help</groupId>
-                        <artifactId>javahelp</artifactId>
-                        <version>${javahelp.version}</version>
-                    </dependency>
-                </dependencies>
                 <configuration>
                     <moduleType>normal</moduleType>
                     <licenseName>GPL 3</licenseName>
@@ -129,7 +121,7 @@
                             <configuration>
                                 <name>jlinda.nbmSpecVersion</name>
                                 <value>${project.version}</value>
-                                <regex>(-SNAPSHOT)|(-rc[0-9]+)</regex>
+                                <regex>(-JDK11SHOT)|(-SNAPSHOT)|(-rc[0-9]+)</regex>
                                 <replacement>.0</replacement>
                                 <failIfNoMatch>false</failIfNoMatch>
                             </configuration>
@@ -142,7 +134,7 @@
                             <configuration>
                                 <name>jlinda.nbmImplVersion</name>
                                 <value>${project.version}</value>
-                                <regex>(-SNAPSHOT)|(-rc[0-9]+)</regex>
+                                <regex>(-JDK11SHOT)|(-SNAPSHOT)|(-rc[0-9]+)</regex>
                                 <replacement>.${buildDate}</replacement>
                                 <failIfNoMatch>false</failIfNoMatch>
                             </configuration>

@@ -3,7 +3,7 @@ OpenIDE-Module-Specification-Version: ${microwavetbx.nbmSpecVersion}
 OpenIDE-Module-Implementation-Version: ${microwavetbx.nbmImplVersion}
 AutoUpdate-Show-In-Client: false
 AutoUpdate-Essential-Module: false
-OpenIDE-Module-Java-Dependencies: Java > 1.8
+OpenIDE-Module-Java-Dependencies: Java > 11
 OpenIDE-Module-Display-Category: SNAP Toolboxes
 OpenIDE-Module-Layer: eu/esa/sar/orbits/layer.xml
 OpenIDE-Module-Long-Description: <p>SAR Ephemeris Tools UI</p><p><b>Vendor:</b> SkyWatch Space Applications Inc</p><p>
