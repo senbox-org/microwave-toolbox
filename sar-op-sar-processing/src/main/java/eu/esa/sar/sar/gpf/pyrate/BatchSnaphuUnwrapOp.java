@@ -13,10 +13,9 @@ import com.bc.ceres.core.ProgressMonitor;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.MetadataAttribute;
-import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -40,15 +39,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.esa.snap.core.gpf.internal.JaiHelper.createTargetProduct;
-
 
 @OperatorMetadata(alias = "BatchSnaphuUnwrapOp",
         category = "Radar/Interferometric/Unwrapping",
         authors = "Alex McVittie",
         version = "1.0",
         copyright = "Copyright (C) 2023 SkyWatch Space Applications Inc.",
-        autoWriteDisabled = true,
         description = "Downloads and executes SNAPHU on a set of two or more interferograms.")
 
 public class BatchSnaphuUnwrapOp extends Operator {
@@ -297,7 +293,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 getTargetProduct().removeBand(b);
             }
             for(Band b : assembled.getBands()){
-                getTargetProduct().addBand(b);
+                ProductUtils.copyBand(b.getName(), assembled, getTargetProduct(), true);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
