@@ -26,6 +26,7 @@ import org.esa.snap.core.dataop.maptransf.MapInfo;
 import org.esa.snap.core.dataop.maptransf.MapProjection;
 import org.esa.snap.core.dataop.maptransf.MapProjectionRegistry;
 import org.esa.snap.core.util.Debug;
+import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dataio.netcdf.util.DataTypeUtils;
 import org.esa.snap.dataio.netcdf.util.MetadataUtils;
@@ -53,6 +54,9 @@ import java.util.Set;
  * Provides some NetCDF related utility methods.
  */
 public class NetCDFUtils {
+
+    private NetCDFUtils() {
+    }
 
     public static Band createBand(final Variable variable, final int rasterWidth, final int rasterHeight) {
         return createBand(variable, rasterWidth, rasterHeight, ProductData.TYPE_UNDEFINED);
@@ -272,6 +276,52 @@ public class NetCDFUtils {
         addAttributes(parentElem, parentGroup);
     }
 
+    public static void createMetadataElement(final MetadataElement parentElem, Variable variable, int maxNumValuesRead) {
+        final MetadataElement element = MetadataUtils.readAttributeList(variable.attributes(), variable.getFullName());
+        splitElement(parentElem, element);
+
+        if (variable.getRank() == 1) {
+            final MetadataElement valuesElem = new MetadataElement("Values");
+            element.addElement(valuesElem);
+            if (variable.getDataType() == DataType.STRUCTURE) {
+                final Structure structure = (Structure) variable;
+                final List<Variable> structVariables = structure.getVariables();
+                for (Variable structVariable : structVariables) {
+                    final String name = structVariable.getShortName();
+                    final MetadataElement structElem = new MetadataElement(name);
+                    valuesElem.addElement(structElem);
+                    MetadataUtils.addAttribute(structVariable, structElem, maxNumValuesRead);
+                }
+            } else {
+                MetadataUtils.addAttribute(variable, valuesElem, maxNumValuesRead);
+            }
+        }
+    }
+
+    private static void splitElement(final MetadataElement rootElem, final MetadataElement element) {
+        if(element.getName().contains("/")) {
+            String[] tokens = StringUtils.split(element.getName(), new char[] {'/'}, false);
+            MetadataElement parentElem = rootElem;
+            for(int i=0; i< tokens.length; i++) {
+                String token = tokens[i];
+                if(i == tokens.length-1) {
+                    element.setName(token);
+                    parentElem.addElement(element);
+                    break;
+                }
+                if(parentElem.containsElement(token)) {
+                    parentElem = parentElem.getElement(token);
+                } else {
+                    MetadataElement newElem = new MetadataElement(token);
+                    parentElem.addElement(newElem);
+                    parentElem = newElem;
+                }
+            }
+        } else {
+            rootElem.addElement(element);
+        }
+    }
+
     public static MetadataElement addAttributes(final MetadataElement parentElem, final String elemName,
                                                 final List<Attribute> attribList) {
         final MetadataElement globalElem = new MetadataElement(elemName);
@@ -362,7 +412,7 @@ public class NetCDFUtils {
         }
     }
 
-    private static void createMetadataAttributes(final MetadataElement parentElem, final Attribute attribute,
+    public static void createMetadataAttributes(final MetadataElement parentElem, final Attribute attribute,
                                                  final String name) {
         // todo - note that we still do not support NetCDF data type 'char' here!
 
@@ -486,13 +536,10 @@ public class NetCDFUtils {
         return ProductData.UTC.parse(dateTimeStr, ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss"));
     }
 
-    private NetCDFUtils() {
-    }
-
     public static Variable[] getRasterVariables(Map<NcRasterDim, List<Variable>> variableLists,
                                                 NcRasterDim rasterDim) {
         final List<Variable> list = variableLists.get(rasterDim);
-        return list.toArray(new Variable[list.size()]);
+        return list.toArray(new Variable[0]);
     }
 
     public static Variable[] getTiePointGridVariables(Map<NcRasterDim, List<Variable>> variableLists,
@@ -514,12 +561,12 @@ public class NetCDFUtils {
                 }
             }
         }
-        return tpgList.toArray(new Variable[tpgList.size()]);
+        return tpgList.toArray(new Variable[0]);
     }
 
     public static NcRasterDim getBestRasterDim(Map<NcRasterDim, List<Variable>> variableListMap) {
 
-        final NcRasterDim[] keys = variableListMap.keySet().toArray(new NcRasterDim[variableListMap.keySet().size()]);
+        final NcRasterDim[] keys = variableListMap.keySet().toArray(new NcRasterDim[0]);
         if (keys.length == 0) {
             return null;
         }
