@@ -23,13 +23,13 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-JDK11SHOT</version>
+        <version>10.0.0-SNAPSHOT</version>
     </parent>
 
     <name>RADARSAT Toolbox</name>
     <groupId>org.csa.rstb</groupId>
     <artifactId>rstb</artifactId>
-    <version>10.0.0-JDK11SHOT</version>
+    <version>10.0.0-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
@@ -119,7 +119,7 @@
                             <configuration>
                                 <name>rstb.nbmSpecVersion</name>
                                 <value>${project.version}</value>
-                                <regex>(-JDK11SHOT)|(-SNAPSHOT)|(-rc[0-9]+)</regex>
+                                <regex>(-SNAPSHOT)|(-rc[0-9]+)</regex>
                                 <replacement>.0</replacement>
                                 <failIfNoMatch>false</failIfNoMatch>
                             </configuration>
@@ -132,7 +132,7 @@
                         <configuration>
                             <name>rstb.nbmImplVersion</name>
                             <value>${project.version}</value>
-                            <regex>(-JDK11SHOT)|(-SNAPSHOT)|(-rc[0-9]+)</regex>
+                            <regex>(-SNAPSHOT)|(-rc[0-9]+)</regex>
                             <replacement>.${buildDate}</replacement>
                             <failIfNoMatch>false</failIfNoMatch>
                         </configuration>
