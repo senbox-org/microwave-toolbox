@@ -1,6 +1,7 @@
 package eu.esa.sar.io.pyrate;
 
 
+import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.io.pyrate.pyrateheader.PyRateHeaderWriter;
 import org.apache.commons.io.FileUtils;
 import org.esa.snap.core.dataio.ProductIO;
@@ -8,11 +9,15 @@ import org.esa.snap.core.dataio.ProductWriterPlugIn;
 
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.dataio.geotiff.GeoTiffBandWriter;
 import org.esa.snap.dataio.geotiff.GeoTiffProductWriter;
+import org.esa.snap.dataio.geotiff.internal.TiffIFD;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 
-
+import javax.imageio.stream.FileImageOutputStream;
+import javax.imageio.stream.ImageOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
@@ -20,11 +25,16 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Locale;
 
 public class PyRateProductWriter extends GeoTiffProductWriter {
 
     private File processingLocation;
+
+    private HashMap<String, GeoTiffBandWriter> bandWriterMap = new HashMap<>();
+
+    private final String BANNED = "BANNED_DATE";
 
 
     /**
@@ -38,6 +48,7 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
 
     @Override
     protected void writeProductNodesImpl() throws IOException {
+
 
         if (getOutput() instanceof String) {
             processingLocation = new File((String) getOutput()).getParentFile();
@@ -55,6 +66,8 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
 
         File geoTiffs = new File(processingLocation, "geoTiffs");
         geoTiffs.mkdirs();
+
+
 
         configBuilder.coherenceFileList = new File(processingLocation, "coherenceFiles.txt").getName();
 
@@ -81,17 +94,33 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
 
 
         ArrayList<String> bannedDates = gammaHeaderWriter.getBannedDates();
+        final TiffIFD ifd = new TiffIFD(getSourceProduct());
+        for (Band b: getSourceProduct().getBands()){
+            if(b.getUnit() != null && b.getUnit().contains(Unit.PHASE)){
+                File outputGeoTiff = new File(geoTiffs, createPyRateFileName(b.getName(), Unit.PHASE, bannedDates ) );
+                ImageOutputStream outputStream = new FileImageOutputStream(outputGeoTiff);
+                bandWriterMap.put(b.getName(), new GeoTiffBandWriter(ifd, outputStream, getSourceProduct()));
+            }else if(b.getUnit() != null && b.getUnit().contains(Unit.COHERENCE)){
+                File outputGeoTiff = new File(geoTiffs, createPyRateFileName(b.getName(), Unit.COHERENCE, bannedDates ) );
+                ImageOutputStream outputStream = new FileImageOutputStream(outputGeoTiff);
+                bandWriterMap.put(b.getName(), new GeoTiffBandWriter(ifd, outputStream, getSourceProduct()));
+            }else if(b.getName().equals("elevation")){
+                File outputGeoTiff = new File(processingLocation, "DEM.tif" );
+                ImageOutputStream outputStream = new FileImageOutputStream(outputGeoTiff);
+                bandWriterMap.put(b.getName(), new GeoTiffBandWriter(ifd, outputStream, getSourceProduct()));
+            }
+        }
 
         // Write coherence and phase bands out to individual GeoTIFFS
         String interferogramFileList = null;
         try {
-            interferogramFileList = writeBands(getSourceProduct(), "GeoTIFF", Unit.PHASE, bannedDates);
+            interferogramFileList = createBandFileList(getSourceProduct(), "GeoTIFF", Unit.PHASE, bannedDates);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         String coherenceFiles = null;
         try {
-            coherenceFiles = writeBands(getSourceProduct(), "GeoTIFF", Unit.COHERENCE, bannedDates);
+            coherenceFiles = createBandFileList(getSourceProduct(), "GeoTIFF", Unit.COHERENCE, bannedDates);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -124,43 +153,59 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
         }
 
     }
-    private String writeBands(Product product, String format, String unit, ArrayList<String> bannedDates) throws IOException {
+
+    private String createPyRateFileName(String bandName, String unit, ArrayList<String> bannedDates){
+
+        String [] name = bandName.split("_");
+        int y = 0;
+        String firstDate = "";
+        String secondDate = "";
+        for (String aname : name){
+            if (aname.length() == 9){
+                firstDate = aname;
+                secondDate = name[y + 1];
+                break;
+            }
+            y+= 1;
+        }
+
+        int firstDateNum = Integer.parseInt(bandNameDateToPyRateDate(firstDate, false));
+        int secondDateNum = Integer.parseInt(bandNameDateToPyRateDate(secondDate, false));
+        if(secondDateNum < firstDateNum ||
+                bannedDates.contains(bandNameDateToPyRateDate(firstDate, false)) ||
+                bannedDates.contains(bandNameDateToPyRateDate(secondDate, false))){
+            return BANNED;
+        }
+
+        String pyRateDate = bandNameDateToPyRateDate(firstDate, false) + "-" + bandNameDateToPyRateDate(secondDate, false);
+        String pyRateName = pyRateDate + "_" + unit;
+        return pyRateName;
+
+
+
+    }
+
+    // Writing out tifs from this method causes issues when run from a graph.
+    // All file writing operations accessing band data are removed and run during write raster band data method(s).
+    // Generates a string containing a list of file names, delimited by newlines.
+    private String createBandFileList(Product product, String format, String unit, ArrayList<String> bannedDates) throws IOException {
         String fileNames = "";
         int x = 0;
         for(Band b: product.getBands()){
-            if(b.getUnit().contains(unit)){
+            if(b.getUnit() != null && b.getUnit().contains(unit)){
                 Product productSingleBand = new Product(product.getName(), product.getProductType(), product.getSceneRasterWidth(), product.getSceneRasterHeight());
                 productSingleBand.setSceneGeoCoding(product.getSceneGeoCoding());
-                b.readRasterDataFully();
-                ProductUtils.copyBand(b.getName(), product, productSingleBand, true);
-                String [] name = b.getName().split("_");
-                int y = 0;
-                String firstDate = "";
-                String secondDate = "";
-                for (String aname : name){
-                    if (aname.length() == 9){
-                        firstDate = aname;
-                        secondDate = name[y + 1];
-                        break;
-                    }
-                    y+= 1;
-                }
-                int firstDateNum = Integer.parseInt(bandNameDateToPyRateDate(firstDate, false));
-                int secondDateNum = Integer.parseInt(bandNameDateToPyRateDate(secondDate, false));
-                // Secondary date cannot be before primary date. Don't write out band if so. Also do not write any ifg pairs
-                // that have been deemed as containing bad metadata.
-                if(secondDateNum < firstDateNum ||
-                        bannedDates.contains(bandNameDateToPyRateDate(firstDate, false)) ||
-                        bannedDates.contains(bandNameDateToPyRateDate(secondDate, false))){
+                //b.readRasterDataFully();
+                //ProductUtils.copyBand(b.getName(), product, productSingleBand, true);
+                String pyRateName = createPyRateFileName(b.getName(), unit, bannedDates);
+                if (pyRateName.equals(BANNED)){
                     continue;
                 }
-                String pyRateDate = bandNameDateToPyRateDate(firstDate, false) + "-" + bandNameDateToPyRateDate(secondDate, false);
-                String pyRateName = pyRateDate + "_" + unit;
                 String fileName = new File(new File(processingLocation, "geoTiffs"), pyRateName).getAbsolutePath();
                 productSingleBand.setName(pyRateName);
-                productSingleBand.getBands()[0].setName(pyRateName);
+                //productSingleBand.getBands()[0].setName(pyRateName);
 
-                ProductIO.writeProduct(productSingleBand, fileName, format);
+                //ProductIO.writeProduct(productSingleBand, fileName, format);
 
                 if(format.equals("GeoTIFF")){
                     fileName += ".tif";
@@ -208,6 +253,25 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
         String firstCharacter = word.substring(0, 1);
         String rest = word.substring(1);
         return firstCharacter.toUpperCase() + rest.toLowerCase();
+    }
+
+    @Override
+    public synchronized void writeBandRasterData(Band sourceBand,
+                             int sourceOffsetX, int sourceOffsetY,
+                             int sourceWidth, int sourceHeight,
+                             ProductData sourceBuffer,
+                             ProgressMonitor pm) throws IOException{
+
+        if(bandWriterMap.containsKey(sourceBand.getName())){
+            bandWriterMap.get(sourceBand.getName()).writeBandRasterData(sourceBand,
+                    sourceOffsetX, sourceOffsetY,
+                    sourceWidth, sourceHeight,
+                    sourceBuffer, pm);
+        }
+
+
+
+
     }
 
 

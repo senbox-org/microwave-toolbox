@@ -104,6 +104,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
         trgProduct.setName(sourceProduct.getName() + "_snaphu");
         for (Band b: sourceProduct.getBands()){
             Band aBand = new Band(b.getName(), b.getDataType(), b.getRasterWidth(), b.getRasterHeight());
+            aBand.setUnit(b.getUnit());
             if(b.getUnit().equals(Unit.PHASE)){
                 aBand.setName("Unw"+ b.getName());
             }
@@ -294,6 +295,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
             }
             for(Band b : assembled.getBands()){
                 ProductUtils.copyBand(b.getName(), assembled, getTargetProduct(), true);
+
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
