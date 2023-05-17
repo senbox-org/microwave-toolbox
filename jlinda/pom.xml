@@ -46,52 +46,6 @@
     <build>
         <plugins>
             <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>11</source>
-                    <target>11</target>
-                    <!--<encoding>ISO-8859-1</encoding>-->
-                    <encoding>UTF-8</encoding>
-                    <optimize>true</optimize>
-                    <debug>true</debug>
-                    <showWarnings>false</showWarnings>
-                    <showDeprecation>false</showDeprecation>
-                    <!-- <compilerArgs> -->
-                    <!--   <arg>-Xlint</arg> -->
-                    <!-- </compilerArgs> -->
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <!-- <parallel>methods</parallel> -->
-                    <!--<threadCount>4</threadCount>-->
-                    <!--<skip>false</skip>-->
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-release-plugin</artifactId>
-                <!--<configuration>-->
-                <!--<tagNameFormat>v@{project.version}</tagNameFormat>-->
-                <!--</configuration>-->
-            </plugin>
-
-            <plugin>
                 <groupId>org.apache.netbeans.utilities</groupId>
                 <artifactId>nbm-maven-plugin</artifactId>
                 <extensions>true</extensions>

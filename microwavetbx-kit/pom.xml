@@ -57,17 +57,17 @@
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-core</artifactId>
-            <version>${jlinda.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-nest</artifactId>
-            <version>${jlinda.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-nest-ui</artifactId>
-            <version>${jlinda.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
@@ -172,7 +172,7 @@
 		<dependency>
             <groupId>com.iceye.esa.snap</groupId>
             <artifactId>sar-io-iceye-reader</artifactId>
-            <version>${iceye.version}</version>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
