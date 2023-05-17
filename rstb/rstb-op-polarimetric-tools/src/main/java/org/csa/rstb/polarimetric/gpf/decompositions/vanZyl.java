@@ -24,15 +24,20 @@ import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
 import org.esa.snap.engine_utilities.datamodel.Unit;
-import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
 
 import java.awt.*;
 import java.util.Map;
 
 /**
- * Perform van Zyl decomposition for given tile.
+ * Perform van Zyl decomposition for the given image tile.
+ *
+ * Reference:
+ * [1] van Zyl, J. J. (1993). Application of Cloude's target decomposition theorem to polarimetric imaging
+ * radar data. In Proceedings of SPIE 1748, Radar Polarimetry, pp. 184-191. https://doi.org/10.1117/12.140615,
+ * (Event San Diego, USA, 1992).
  */
+
 public class vanZyl extends DecompositionBase implements Decomposition, QuadPolProcessor {
 
     public vanZyl(final PolBandUtils.PolSourceBand[] srcBandList, final MATRIX sourceProductType,
@@ -58,7 +63,7 @@ public class vanZyl extends DecompositionBase implements Decomposition, QuadPolP
      * @param targetBand     the new target band
      */
     public void setBandUnit(final String targetBandName, final Band targetBand) {
-        targetBand.setUnit(Unit.INTENSITY_DB);
+        targetBand.setUnit(Unit.INTENSITY);
     }
 
     /**
@@ -225,7 +230,7 @@ public class vanZyl extends DecompositionBase implements Decomposition, QuadPolP
         final double norm1 = 4.0 * rho2 / (tmp1)  + 1.0;
         final double norm2 = 4.0 * rho2 / (tmp2)  + 1.0;
 
-        // Combine the coefficients and norms computed above into the eigenvalues
+        // Combine the coefficients and norms computed above with the eigenvalues
         final double Lambda1 = lambda1 * kc1 * norm1;
         final double Lambda2 = lambda2 * kc2 * norm2;
 
