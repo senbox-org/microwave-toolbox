@@ -39,7 +39,7 @@ import org.jfree.chart.annotations.XYAnnotation;
 import org.jfree.chart.annotations.XYLineAnnotation;
 import org.jfree.chart.annotations.XYTextAnnotation;
 import org.jfree.chart.axis.NumberAxis;
-import org.jfree.ui.RectangleInsets;
+import org.jfree.chart.ui.RectangleInsets;
 import org.netbeans.api.progress.ProgressUtils;
 
 import javax.swing.*;
@@ -224,7 +224,7 @@ public class HaAlphaPlotPanel extends ChartPagePanel {
         rangeAxis.setUpperMargin(0);
         rangeAxis.setLowerMargin(0);
         plot.setNoDataMessage(NO_DATA_MESSAGE);
-        plot.getRenderer().setBaseToolTipGenerator(new XYPlotToolTipGenerator());
+        plot.getRenderer().setDefaultToolTipGenerator(new XYPlotToolTipGenerator());
         JFreeChart chart = new JFreeChart(CHART_TITLE, plot);
         ChartFactory.getChartTheme().apply(chart);
 

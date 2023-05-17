@@ -222,6 +222,7 @@
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="BatchSnaphuUnwrapOp"/>
             </file>
+
         </folder>
         <folder name="Wizards">
             <file name="eu-esa-sar-sar-wizards-MosaicWizard-Action.instance">
@@ -320,6 +321,7 @@
                         </file>
                     </attr>
                 </folder>
+
                 <folder name="Unwrapping">
                     <attr name="position" intvalue="300">
                         <file name="eu-esa-sar-sar-gpf-pyrate-BatchSnaphuUnwrapOp-Action.shadow">
@@ -328,6 +330,7 @@
                         </file>
                     </attr>
                 </folder>
+
 
             </folder>
             <folder name="ENVISAT ASAR">

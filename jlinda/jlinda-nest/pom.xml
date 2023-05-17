@@ -20,7 +20,7 @@
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-core</artifactId>
-            <version>${jlinda.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
@@ -53,7 +53,6 @@
         <dependency>
             <groupId>org.jblas</groupId>
             <artifactId>jblas</artifactId>
-            <version>${jblas.version}</version>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>

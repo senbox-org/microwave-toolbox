@@ -3,7 +3,7 @@ OpenIDE-Module-Specification-Version: ${jlinda.nbmSpecVersion}
 OpenIDE-Module-Implementation-Version: ${jlinda.nbmImplVersion}
 AutoUpdate-Show-In-Client: false
 AutoUpdate-Essential-Module: false
-OpenIDE-Module-Java-Dependencies: Java > 1.8
+OpenIDE-Module-Java-Dependencies: Java > 11
 OpenIDE-Module-Display-Category: SNAP Toolboxes
 OpenIDE-Module-Layer: org/jlinda/nest/layer.xml
 OpenIDE-Module-Long-Description: <p>JLinda InSAR Processing Tools</p><p><b>Vendor:</b> PPO.labs</p><p>

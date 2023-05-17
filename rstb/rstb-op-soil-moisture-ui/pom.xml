@@ -30,6 +30,10 @@
             <artifactId>snap-ui</artifactId>
         </dependency>
         <dependency>
+            <groupId>eu.esa.snap.netbeans</groupId>
+            <artifactId>snap-help-system</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-engine-utilities</artifactId>
         </dependency>
@@ -45,7 +49,7 @@
         <dependency>
             <groupId>org.csa.rstb</groupId>
             <artifactId>rstb-op-soil-moisture</artifactId>
-            <version>${rstb.version}</version>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
@@ -59,10 +63,6 @@
         <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-netbeans-api-annotations-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-netbeans-modules-javahelp</artifactId>
         </dependency>
     </dependencies>
 

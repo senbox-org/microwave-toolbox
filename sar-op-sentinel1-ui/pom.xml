@@ -55,13 +55,17 @@
             <groupId>org.esa.snap</groupId>
             <artifactId>ceres-binding</artifactId>
         </dependency>
-		<dependency>
+        <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>ceres-glayer</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>eu.esa.snap.netbeans</groupId>
+            <artifactId>snap-help-system</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
@@ -88,11 +92,6 @@
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-netbeans-api-annotations-common</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-netbeans-modules-javahelp</artifactId>
-        </dependency>
-
 
         <dependency>
             <groupId>de.sciss</groupId>

@@ -3,7 +3,7 @@ OpenIDE-Module-Specification-Version: ${rstb.nbmSpecVersion}
 OpenIDE-Module-Implementation-Version: ${rstb.nbmImplVersion}
 AutoUpdate-Show-In-Client: false
 AutoUpdate-Essential-Module: true
-OpenIDE-Module-Java-Dependencies: Java > 1.8
+OpenIDE-Module-Java-Dependencies: Java > 11
 OpenIDE-Module-Display-Category: SNAP Toolboxes
 OpenIDE-Module-Layer: org/csa/rstb/soilmoisture/layer.xml
 OpenIDE-Module-Long-Description: <p>RSTB Soil Moisture Toolkit</p><p><b>Vendor:</b> SkyWatch Space Applications Inc</p><p>

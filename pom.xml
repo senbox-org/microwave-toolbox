@@ -15,7 +15,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <netbeans.version>RELEASE82</netbeans.version>
+        <netbeans.version>RELEASE113</netbeans.version>
         <javahelp.version>2.0.05</javahelp.version>
         <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
@@ -26,6 +26,7 @@
         <surefire.jvm.args>${test.jvm.arguments} -enableassertions</surefire.jvm.args>
 
         <snap.version>10.0.0-SNAPSHOT</snap.version>
+        <snap-help-system.version>1.0.0</snap-help-system.version>
         <!--
             microwavetbx.version is the Maven module version.
             microwavetbx.nbmSpecVersion is the NetBeans module specification version.
@@ -33,16 +34,14 @@
             This is necessary to make NetBeans modules updatable and independent of the Maven version (= microwavetbx.version).
         -->
         <microwavetbx.version>10.0.0-SNAPSHOT</microwavetbx.version>
-        <rstb.version>10.0.0-SNAPSHOT</rstb.version>
-        <jlinda.version>10.0.0-SNAPSHOT</jlinda.version>
-        <iceye.version>10.0.0-SNAPSHOT</iceye.version>
-        <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
-        <buildDate>${maven.build.timestamp}</buildDate>
 
         <hdf.version>2.7.1</hdf.version>
         <netcdf.version>5.3.1</netcdf.version>
         <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
+
+        <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
+        <buildDate>${maven.build.timestamp}</buildDate>
         <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
         <sonar.java.binaries>**/classes</sonar.java.binaries>
         <sonar.exclusions>*/src</sonar.exclusions>
@@ -220,6 +219,11 @@
                 <artifactId>snap-ui</artifactId>
                 <version>${snap.version}</version>
             </dependency>
+            <dependency>
+                <groupId>eu.esa.snap.netbeans</groupId>
+                <artifactId>snap-help-system</artifactId>
+                <version>${snap-help-system.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.esa.snap</groupId>
@@ -320,21 +324,8 @@
             </dependency>
             <dependency>
                 <groupId>org.netbeans.api</groupId>
-                <artifactId>org-netbeans-modules-javahelp</artifactId>
-                <version>${netbeans.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.netbeans.api</groupId>
                 <artifactId>org-openide-windows</artifactId>
                 <version>${netbeans.version}</version>
-            </dependency>
-
-            <!-- jlinda Modules ############################################# -->
-
-            <dependency>
-                <groupId>org.jlinda</groupId>
-                <artifactId>jlinda-core</artifactId>
-                <version>${jlinda.version}</version>
             </dependency>
 
             <!-- Microwave Toolbox Modules ############################################# -->
@@ -367,6 +358,12 @@
             <dependency>
                 <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-op-insar</artifactId>
+                <version>${microwavetbx.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jlinda</groupId>
+                <artifactId>jlinda-core</artifactId>
                 <version>${microwavetbx.version}</version>
             </dependency>
 
@@ -466,8 +463,8 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.11.0</version>
                     <configuration>
-                        <source>1.8</source>
-                        <target>1.8</target>
+                        <source>11</source>
+                        <target>11</target>
                         <debug>true</debug>
                         <encoding>UTF-8</encoding>
                         <optimize>true</optimize>
@@ -650,6 +647,13 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
                     <version>3.3.0</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>test-jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -692,7 +696,7 @@
                                     <version>[3.2.5,)</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>1.8</version>
+                                    <version>11</version>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>
