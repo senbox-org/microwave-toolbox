@@ -37,12 +37,10 @@
         <dependency>
             <groupId>org.jblas</groupId>
             <artifactId>jblas</artifactId>
-            <version>${jblas.version}</version>
         </dependency>
         <dependency>
             <groupId>edu.emory.mathcs</groupId>
             <artifactId>JTransforms</artifactId>
-            <version>2.4</version>
         </dependency>        
     </dependencies>
     

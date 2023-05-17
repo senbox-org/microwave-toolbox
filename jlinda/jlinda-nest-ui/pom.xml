@@ -19,12 +19,12 @@
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-core</artifactId>
-            <version>${jlinda.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-nest</artifactId>
-            <version>${jlinda.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>

@@ -85,20 +85,20 @@
         <dependency>
             <groupId>com.iceye.esa.snap</groupId>
             <artifactId>sar-io-iceye-reader</artifactId>
-            <version>${iceye.version}</version>
+            <version>${microwavetbx.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.csa.rstb</groupId>
             <artifactId>rstb-io</artifactId>
-            <version>${rstb.version}</version>
+            <version>${microwavetbx.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.csa.rstb</groupId>
             <artifactId>rstb-op-polarimetric-tools</artifactId>
-            <version>${rstb.version}</version>
+            <version>${microwavetbx.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

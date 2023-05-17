@@ -35,12 +35,12 @@
         <dependency>
             <groupId>org.csa.rstb</groupId>
             <artifactId>rstb-op-classification</artifactId>
-            <version>${rstb.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.csa.rstb</groupId>
             <artifactId>rstb-op-polarimetric-tools</artifactId>
-            <version>${rstb.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
