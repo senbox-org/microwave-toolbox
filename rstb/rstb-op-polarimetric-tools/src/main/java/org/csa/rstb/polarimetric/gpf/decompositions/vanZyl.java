@@ -138,7 +138,6 @@ public class vanZyl extends DecompositionBase implements Decomposition, QuadPolP
             final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
             final double nodatavalue = bandList.srcBands[0].getNoDataValue();
 
-            double Ps, Pd, Pv;
             for (int y = y0; y < maxY; ++y) {
                 trgIndex.calculateStride(y);
                 srcIndex.calculateStride(y);
@@ -167,22 +166,15 @@ public class vanZyl extends DecompositionBase implements Decomposition, QuadPolP
 
                     final VDD data = getVanZylDecomposition(Cr, Ci);
 
-                    Ps = data.ps;
-                    Pd = data.pd;
-                    Pv = data.pv;
-//                    Ps = scaleDb(data.ps, bandList.spanMin, bandList.spanMax);
-//                    Pd = scaleDb(data.pd, bandList.spanMin, bandList.spanMax);
-//                    Pv = scaleDb(data.pv, bandList.spanMin, bandList.spanMax);
-
                     // save Pd as red, Pv as green and Ps as blue
                     for (TargetInfo target : targetInfo) {
 
                         if (target.colour == TargetBandColour.R) {
-                            target.dataBuffer.setElemFloatAt(trgIndex.getIndex(x), (float) Pd);
+                            target.dataBuffer.setElemFloatAt(trgIndex.getIndex(x), (float) data.pd);
                         } else if (target.colour == TargetBandColour.G) {
-                            target.dataBuffer.setElemFloatAt(trgIndex.getIndex(x), (float) Pv);
+                            target.dataBuffer.setElemFloatAt(trgIndex.getIndex(x), (float) data.pv);
                         } else if (target.colour == TargetBandColour.B) {
-                            target.dataBuffer.setElemFloatAt(trgIndex.getIndex(x), (float) Ps);
+                            target.dataBuffer.setElemFloatAt(trgIndex.getIndex(x), (float) data.ps);
                         }
                     }
                 }
@@ -227,8 +219,8 @@ public class vanZyl extends DecompositionBase implements Decomposition, QuadPolP
 
         // Compute the norm of the eigenvectors in Eq.(12) and (13) (not including the coefficients)
         // Again the norm square is computed to save some calculation
-        final double norm1 = 4.0 * rho2 / (tmp1)  + 1.0;
-        final double norm2 = 4.0 * rho2 / (tmp2)  + 1.0;
+        final double norm1 = 4.0 * rho2 / tmp1  + 1.0;
+        final double norm2 = 4.0 * rho2 / tmp2  + 1.0;
 
         // Combine the coefficients and norms computed above with the eigenvalues
         final double Lambda1 = lambda1 * kc1 * norm1;
