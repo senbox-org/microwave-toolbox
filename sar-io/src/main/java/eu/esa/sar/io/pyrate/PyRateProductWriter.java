@@ -278,7 +278,7 @@ public class PyRateProductWriter extends AbstractProductWriter {
         return firstCharacter.toUpperCase() + rest.toLowerCase();
     }
 
-    // Based off of BigGeotiffProductWriter
+    // Based off of GeotiffProductWriter
     @Override
     public synchronized void writeBandRasterData(Band sourceBand,
                              int sourceOffsetX, int sourceOffsetY,
@@ -346,6 +346,8 @@ public class PyRateProductWriter extends AbstractProductWriter {
 
 
     /**
+     * From GeoTiffProductWriter with some modifications.
+     *
      * Writes raster data from the given in-memory source buffer into the data sink specified by the given source band
      * and region.
      * <p>
@@ -369,6 +371,8 @@ public class PyRateProductWriter extends AbstractProductWriter {
      * @param regionY      the Y-offset in the band's raster co-ordinates
      * @param regionWidth  the width of region to be written given in the band's raster co-ordinates
      * @param regionHeight the height of region to be written given in the band's raster co-ordinates
+     * @param ios          image output stream to determine where on disk this band gets written to.
+     * @param ifd          TIFF IFD tag.
      * @throws java.io.IOException      if an I/O error occurs
      * @throws IllegalArgumentException if the number of elements source buffer not equals <code>sourceWidth *
      *                                  sourceHeight</code> or the source region is out of the band's raster
