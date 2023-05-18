@@ -81,6 +81,13 @@ public class BatchSnaphuUnwrapOp extends Operator {
         if(numCoherenceBands == 0){
             throw new OperatorException("PyRate requires coherence bands for processing.");
         }
+        if(snaphuProcessingLocation == null){
+            throw new OperatorException("SNAPHU processing location is null");
+        }
+        if(snaphuInstallLocation == null){
+            throw new OperatorException("SNAPHU install location is null");
+        }
+
 
         // Validate the folder locations provided
         if (!Files.exists(snaphuProcessingLocation.toPath())){
