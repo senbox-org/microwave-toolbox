@@ -60,7 +60,7 @@ public class PyRateProductWriterPlugIn extends GeoTiffProductWriterPlugIn {
      * @return the default file extensions for this product I/O plug-in, never <code>null</code>
      */
     public String[] getDefaultFileExtensions() {
-        return GammaProductReaderPlugIn.EXTs;
+        return new String[]{".conf"};
     }
 
     /**
