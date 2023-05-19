@@ -53,6 +53,8 @@ public class PyRateProductWriter extends AbstractProductWriter {
 
     private File processingLocation;
 
+    private HashMap<String, ProductWriter> bandProductWriterHashMap = new HashMap<>();
+
     private HashMap<String, GeoTiffBandWriter> bandWriterMap = new HashMap<>();
 
     private final String BANNED = "BANNED_DATE";
@@ -75,41 +77,32 @@ public class PyRateProductWriter extends AbstractProductWriter {
     @Override
     protected void writeProductNodesImpl() throws IOException {
 
-
         if (getOutput() instanceof String) {
             processingLocation = new File((String) getOutput()).getParentFile();
         } else {
             processingLocation = ((File) getOutput()).getParentFile();
         }
-        new File(processingLocation, "geoTiffs").mkdirs();
-        new File(processingLocation, "headers").mkdirs();
 
         // Set up PyRATE output directory in our processing directory.
         new File(processingLocation, "pyrateOutputs").mkdirs();
+        File geoTiffs = new File(processingLocation, "geoTiffs");
+        File headerFileFolder = new File(processingLocation, "headers");
+        geoTiffs.mkdirs();
+        headerFileFolder.mkdirs();
 
-
+        // Set up config builder object
         PyRateConfigurationFileBuilder configBuilder = new PyRateConfigurationFileBuilder();
 
-        File geoTiffs = new File(processingLocation, "geoTiffs");
-        geoTiffs.mkdirs();
-
-
-
         configBuilder.coherenceFileList = new File(processingLocation, "coherenceFiles.txt").getName();
-
         configBuilder.interferogramFileList = new File(processingLocation, "ifgFiles.txt").getName();
-
         configBuilder.outputDirectory = new File(processingLocation, "pyrateOutputs").getName();
 
-        File headerFileFolder = new File(processingLocation, "headers");
-
         String mainFileContents = configBuilder.createMainConfigFileContents();
-
         FileUtils.write(new File(processingLocation, "input_parameters.conf"), mainFileContents);
 
         PyRateHeaderWriter gammaHeaderWriter = new PyRateHeaderWriter(getSourceProduct());
 
-        headerFileFolder.mkdirs();
+        // Write the header files.
         try {
             gammaHeaderWriter.writeHeaderFiles(headerFileFolder, new File(processingLocation, configBuilder.headerFileList));
         } catch (ParseException e) {
@@ -118,23 +111,21 @@ public class PyRateProductWriter extends AbstractProductWriter {
             throw new RuntimeException(e);
         }
 
-
         ArrayList<String> bannedDates = gammaHeaderWriter.getBannedDates();
-        final TiffIFD ifd = new TiffIFD(getSourceProduct());
-        for (Band b: getSourceProduct().getBands()){
-            if(b.getUnit() != null && b.getUnit().contains(Unit.PHASE)){
-                File outputGeoTiff = new File(geoTiffs, createPyRateFileName(b.getName(), Unit.PHASE, bannedDates ) + ".tif" );
-                ImageOutputStream outputStream = new FileImageOutputStream(outputGeoTiff);
-                bandWriterMap.put(b.getName(), new GeoTiffBandWriter(ifd, outputStream, getSourceProduct()));
-            }else if(b.getUnit() != null && b.getUnit().contains(Unit.COHERENCE)){
-                File outputGeoTiff = new File(geoTiffs, createPyRateFileName(b.getName(), Unit.COHERENCE, bannedDates ) + ".tif" );
-                ImageOutputStream outputStream = new FileImageOutputStream(outputGeoTiff);
-                bandWriterMap.put(b.getName(), new GeoTiffBandWriter(ifd, outputStream, getSourceProduct()));
-            }else if(b.getName().equals("elevation")){
-                File outputGeoTiff = new File(processingLocation, "DEM.tif" );
-                ImageOutputStream outputStream = new FileImageOutputStream(outputGeoTiff);
-                bandWriterMap.put(b.getName(), new GeoTiffBandWriter(ifd, outputStream, getSourceProduct()));
+
+        // Create empty GeoTIFF files for writing to in write raster data.
+        for (Band b: getBandsToExport(getSourceProduct())){
+            File outputGeoTiff;
+            if(!b.getName().equals("elevation")){
+                outputGeoTiff = new File(geoTiffs, createPyRateFileName(b.getName(), b.getUnit(), bannedDates ) + ".tif" );
+            }else{
+                outputGeoTiff = new File(processingLocation, "DEM.tif" );
             }
+            bandProductWriterHashMap.put(b.getName(), new GeoTiffProductWriterPlugIn().createWriterInstance() );
+            Product singleBandProduct = new Product(b.getName(), getSourceProduct().getProductType(), getSourceProduct().getSceneRasterWidth(), getSourceProduct().getSceneRasterHeight());
+            ProductUtils.copyProductNodes(getSourceProduct(), singleBandProduct);
+            ProductUtils.copyBand(b.getName(), getSourceProduct(), singleBandProduct, true);
+            bandProductWriterHashMap.get(b.getName()).writeProductNodes(singleBandProduct, outputGeoTiff);
         }
 
         // Write coherence and phase bands out to individual GeoTIFFS
@@ -151,22 +142,7 @@ public class PyRateProductWriter extends AbstractProductWriter {
             throw new RuntimeException(e);
         }
 
-        // Write out elevation band in GeoTIFF format.
-        try {
-            writeElevationBand(getSourceProduct(), configBuilder.demFile, "GeoTIFF");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-
-        // Only write in GAMMA format to write out header. .rslc image data gets deleted.
-        try {
-            writeElevationBand(getSourceProduct(), configBuilder.demFile, "Gamma");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-
+        // Write file containing list of interferogam and coherence bands.
         try {
             FileUtils.write(new File(processingLocation, configBuilder.coherenceFileList), coherenceFiles);
         } catch (IOException e) {
@@ -223,7 +199,7 @@ public class PyRateProductWriter extends AbstractProductWriter {
                 productSingleBand.setSceneGeoCoding(product.getSceneGeoCoding());
                 //b.readRasterDataFully();
                 //ProductUtils.copyBand(b.getName(), product, productSingleBand, true);
-                String pyRateName = createPyRateFileName(b.getName(), unit, bannedDates);
+                String pyRateName = createPyRateFileName(b.getName(), b.getUnit(), bannedDates);
                 if (pyRateName.equals(BANNED)){
                     continue;
                 }
@@ -293,28 +269,13 @@ public class PyRateProductWriter extends AbstractProductWriter {
         final ArrayList<Band> bandsToExport = getBandsToExport(sourceProduct);
         if (bandsToExport.contains(sourceBand)){
 
-            GeoTiffProductWriterPlugIn bandWriterPlugIn = new GeoTiffProductWriterPlugIn();
-
-            ProductWriter bandWriter = bandWriterPlugIn.createWriterInstance();
-            //sourceBand.getProduct().setProductWriter(bandWriter);
-            Product singleBandProduct = new Product(sourceBand.getName(), sourceProduct.getProductType(), sourceBand.getRasterWidth(), sourceBand.getRasterHeight());
-            singleBandProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
-            ProductUtils.copyProductNodes(sourceProduct, singleBandProduct);
-            ProductUtils.copyBand(sourceBand.getName(), sourceProduct, singleBandProduct, true);
-
-            if(!sourceBand.getName().equals("elevation")){
-                File outputFile = new File(processingLocation, "geoTiffs/" + createPyRateFileName(sourceBand.getName(), sourceBand.getUnit(), new ArrayList<String>()) + ".tif");
-                bandWriter.writeProductNodes(singleBandProduct, outputFile);
-            }else{
-                File outputFile = new File(processingLocation, "DEM.tif");
-                bandWriter.writeProductNodes(singleBandProduct, outputFile);
-            }
-            bandWriter.writeBandRasterData(sourceBand,
+            bandProductWriterHashMap.get(sourceBand.getName()).writeBandRasterData(sourceBand,
                     sourceOffsetX, sourceOffsetY,
                     sourceWidth, sourceHeight,
                     sourceBuffer, pm);
-            bandWriter.flush();
-            bandWriter.close();
+
+            bandProductWriterHashMap.get(sourceBand.getName()).flush();
+            bandProductWriterHashMap.get(sourceBand.getName()).close();
         }
     }
 
