@@ -12,18 +12,21 @@ import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageWriter;
 import org.apache.commons.io.FileUtils;
 import org.esa.snap.core.dataio.AbstractProductWriter;
 import org.esa.snap.core.dataio.ProductIO;
+import org.esa.snap.core.dataio.ProductWriter;
 import org.esa.snap.core.dataio.ProductWriterPlugIn;
 
 import org.esa.snap.core.dataio.dimap.DimapHeaderWriter;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.ProductNode;
 import org.esa.snap.core.image.ImageManager;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.geotiff.GeoTIFF;
 import org.esa.snap.core.util.geotiff.GeoTIFFMetadata;
 import org.esa.snap.dataio.geotiff.GeoTiffBandWriter;
 import org.esa.snap.dataio.geotiff.GeoTiffProductWriter;
+import org.esa.snap.dataio.geotiff.GeoTiffProductWriterPlugIn;
 import org.esa.snap.dataio.geotiff.internal.*;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 
@@ -280,28 +283,48 @@ public class PyRateProductWriter extends AbstractProductWriter {
 
     // Based off of GeotiffProductWriter
     @Override
-    public synchronized void writeBandRasterData(Band sourceBand,
+    public void writeBandRasterData(Band sourceBand,
                              int sourceOffsetX, int sourceOffsetY,
                              int sourceWidth, int sourceHeight,
                              ProductData sourceBuffer,
                              ProgressMonitor pm) throws IOException{
+
+
         Product sourceProduct = sourceBand.getProduct();
         final ArrayList<Band> bandsToExport = getBandsToExport(sourceProduct);
         if (bandsToExport.contains(sourceBand)){
-            ImageOutputStream outputStream;
+
+            GeoTiffProductWriterPlugIn bandWriterPlugIn = new GeoTiffProductWriterPlugIn();
+
+            ProductWriter bandWriter = bandWriterPlugIn.createWriterInstance();
+            sourceBand.getProduct().setProductWriter(bandWriter);
+
+
+            //ImageOutputStream outputStream;
             if(!sourceBand.getName().equals("elevation")){
                 File outputFile = new File(processingLocation, "geoTiffs/" + createPyRateFileName(sourceBand.getName(), sourceBand.getUnit(), new ArrayList<String>()) + ".tif");
-                outputStream = new FileImageOutputStream(outputFile);
+                //outputStream = new FileImageOutputStream(outputFile);
+                bandWriter.writeProductNodes(sourceBand.getProduct(), outputFile);
             }else{
                 File outputFile = new File(processingLocation, "DEM.tif");
-                outputStream = new FileImageOutputStream(outputFile);
+                //outputStream = new FileImageOutputStream(outputFile);
+                bandWriter.writeProductNodes(sourceBand.getProduct(), outputFile);
             }
+            bandWriter.writeBandRasterData(sourceBand,
+                    sourceOffsetX, sourceOffsetY,
+                    sourceWidth, sourceHeight,
+                    sourceBuffer, pm);
 
-            TiffIFD ifd = new TiffIFD(sourceProduct);
-            writeBandRasterData(sourceBand, sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,sourceBuffer, outputStream, ifd, pm);
+            bandWriter.flush();
+            bandWriter.close();
+
+            //TiffIFD ifd = new TiffIFD(sourceProduct);
+            //writeBandRasterData(sourceBand, sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,sourceBuffer, outputStream, ifd, pm);
 
 
         }
+
+
     }
 
     private ArrayList<Band> getBandsToExport(Product sourceProduct){
@@ -378,7 +401,7 @@ public class PyRateProductWriter extends AbstractProductWriter {
      *                                  sourceHeight</code> or the source region is out of the band's raster
      * @see Band#getRasterWidth()
      * @see Band#getRasterHeight()
-     */
+     *
     public void writeBandRasterData(final Band sourceBand,
                                     final int regionX,
                                     final int regionY,
@@ -468,7 +491,7 @@ public class PyRateProductWriter extends AbstractProductWriter {
         } finally {
             pm.done();
         }
-    }
+    }*/
 
 
 }
