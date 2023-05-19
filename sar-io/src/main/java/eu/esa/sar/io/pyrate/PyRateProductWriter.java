@@ -281,7 +281,6 @@ public class PyRateProductWriter extends AbstractProductWriter {
         return firstCharacter.toUpperCase() + rest.toLowerCase();
     }
 
-    // Based off of GeotiffProductWriter
     @Override
     public void writeBandRasterData(Band sourceBand,
                              int sourceOffsetX, int sourceOffsetY,
@@ -297,34 +296,26 @@ public class PyRateProductWriter extends AbstractProductWriter {
             GeoTiffProductWriterPlugIn bandWriterPlugIn = new GeoTiffProductWriterPlugIn();
 
             ProductWriter bandWriter = bandWriterPlugIn.createWriterInstance();
-            sourceBand.getProduct().setProductWriter(bandWriter);
+            //sourceBand.getProduct().setProductWriter(bandWriter);
+            Product singleBandProduct = new Product(sourceBand.getName(), sourceProduct.getProductType(), sourceBand.getRasterWidth(), sourceBand.getRasterHeight());
+            singleBandProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
+            ProductUtils.copyProductNodes(sourceProduct, singleBandProduct);
+            ProductUtils.copyBand(sourceBand.getName(), sourceProduct, singleBandProduct, true);
 
-
-            //ImageOutputStream outputStream;
             if(!sourceBand.getName().equals("elevation")){
                 File outputFile = new File(processingLocation, "geoTiffs/" + createPyRateFileName(sourceBand.getName(), sourceBand.getUnit(), new ArrayList<String>()) + ".tif");
-                //outputStream = new FileImageOutputStream(outputFile);
-                bandWriter.writeProductNodes(sourceBand.getProduct(), outputFile);
+                bandWriter.writeProductNodes(singleBandProduct, outputFile);
             }else{
                 File outputFile = new File(processingLocation, "DEM.tif");
-                //outputStream = new FileImageOutputStream(outputFile);
-                bandWriter.writeProductNodes(sourceBand.getProduct(), outputFile);
+                bandWriter.writeProductNodes(singleBandProduct, outputFile);
             }
             bandWriter.writeBandRasterData(sourceBand,
                     sourceOffsetX, sourceOffsetY,
                     sourceWidth, sourceHeight,
                     sourceBuffer, pm);
-
             bandWriter.flush();
             bandWriter.close();
-
-            //TiffIFD ifd = new TiffIFD(sourceProduct);
-            //writeBandRasterData(sourceBand, sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,sourceBuffer, outputStream, ifd, pm);
-
-
         }
-
-
     }
 
     private ArrayList<Band> getBandsToExport(Product sourceProduct){
@@ -338,8 +329,8 @@ public class PyRateProductWriter extends AbstractProductWriter {
             if(b.getName().equals("elevation")){
                 bandsToWrite.add(b);
             }
-            else if((b.getUnit() != null && (b.getUnit().equals(Unit.COHERENCE) ||
-                                             b.getUnit().equals(Unit.PHASE)) )){
+            else if((b.getUnit() != null && (b.getUnit().contains(Unit.COHERENCE) ||
+                                             b.getUnit().contains(Unit.PHASE)) )){
                 for(String bannedDate :  headerWriter.getBannedDates()){
                     if(createPyRateFileName(b.getName(), "", new ArrayList<>()).contains(bannedDate)){
                         break;
