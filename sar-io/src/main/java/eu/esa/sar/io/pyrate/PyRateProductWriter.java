@@ -58,9 +58,9 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
 
         // Set up PyRATE output directory in our processing directory.
         new File(processingLocation, "pyrateOutputs").mkdirs();
-        File geoTiffs = new File(processingLocation, "geoTiffs");
+        File geoTiffFolder = new File(processingLocation, "geoTiffs");
         File headerFileFolder = new File(processingLocation, "headers");
-        geoTiffs.mkdirs();
+        geoTiffFolder.mkdirs();
         headerFileFolder.mkdirs();
 
         // Set up config builder object
@@ -90,7 +90,7 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
         for (Band b: getBandsToExport(getSourceProduct())){
             File outputGeoTiff;
             if(!b.getName().equals("elevation")){
-                outputGeoTiff = new File(geoTiffs, createPyRateFileName(b.getName(), b.getUnit(), bannedDates ) + ".tif" );
+                outputGeoTiff = new File(geoTiffFolder, createPyRateFileName(b.getName(), b.getUnit(), bannedDates ) + ".tif" );
             }else{
                 outputGeoTiff = new File(processingLocation, "DEM.tif" );
             }
