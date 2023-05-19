@@ -14,6 +14,7 @@ import org.esa.snap.core.datamodel.ProductData;
 
 import org.esa.snap.core.util.ProductUtils;
 
+import org.esa.snap.dataio.geotiff.GeoTiffProductWriter;
 import org.esa.snap.dataio.geotiff.GeoTiffProductWriterPlugIn;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 
@@ -27,7 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
-public class PyRateProductWriter extends AbstractProductWriter {
+public class PyRateProductWriter extends GeoTiffProductWriter {
 
     private File processingLocation;
 
@@ -266,26 +267,13 @@ public class PyRateProductWriter extends AbstractProductWriter {
                     }
                 }
                 bandsToWrite.add(b);
-
             }
         }
         return bandsToWrite;
     }
 
-    @Override
-    public void flush() throws IOException {
 
-    }
 
-    @Override
-    public void close() throws IOException {
-
-    }
-
-    @Override
-    public void deleteOutput() throws IOException {
-
-    }
 
 
 

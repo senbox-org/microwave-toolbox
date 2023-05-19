@@ -15,11 +15,9 @@
  */
 package eu.esa.sar.io.pyrate;
 
-import eu.esa.sar.io.gamma.GammaProductReaderPlugIn;
 import org.esa.snap.core.dataio.AbstractProductWriter;
 import org.esa.snap.core.dataio.EncodeQualification;
 import org.esa.snap.core.dataio.ProductWriter;
-import org.esa.snap.core.dataio.ProductWriterPlugIn;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.util.io.SnapFileFilter;
 import org.esa.snap.dataio.geotiff.GeoTiffProductWriterPlugIn;
@@ -96,7 +94,7 @@ public class PyRateProductWriterPlugIn extends GeoTiffProductWriterPlugIn {
      * @return a new instance of the <code>EnviProductWriter</code> class
      */
     public ProductWriter createWriterInstance() {
-        return new PyRateProductWriter(this);
+        return (ProductWriter) new PyRateProductWriter(this);
     }
 
     public SnapFileFilter getProductFileFilter() {
