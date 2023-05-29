@@ -29,7 +29,7 @@ import java.io.File;
 import java.util.Map;
 
 /**
- * User interface for RangeDopplerGeocodingOp
+ * User interface for ETADCorrectionOp
  */
 public class ETADCorrectionOpUI extends BaseOperatorUI {
 
@@ -45,7 +45,6 @@ public class ETADCorrectionOpUI extends BaseOperatorUI {
         initParameters();
 
         etadFile.setColumns(20);
-//        enableExternalAuxFile(true);
 
         etadFileBrowseButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -94,8 +93,4 @@ public class ETADCorrectionOpUI extends BaseOperatorUI {
         return contentPane;
     }
 
-//    private void enableExternalAuxFile(boolean flag) {
-//        DialogUtils.enableComponents(externalAuxFileLabel, externalAuxFile, flag);
-//        externalAuxFileBrowseButton.setVisible(flag);
-//    }
 }
