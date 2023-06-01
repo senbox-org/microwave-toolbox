@@ -164,8 +164,7 @@ public class CosmoSkymedReader extends SARReader {
 
     @Override
     public void close() throws IOException {
-        if (product != null) {
-            product = null;
+        if (netcdfFile != null) {
             variableMap.clear();
             variableMap = null;
             netcdfFile.close();
