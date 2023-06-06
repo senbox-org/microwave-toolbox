@@ -14,4 +14,3 @@ eu.esa.sar.sar.gpf.geometric.MultitemporalCompositingOp$Spi
 eu.esa.sar.sar.gpf.DeburstWSSOp$Spi
 eu.esa.sar.sar.gpf.MultilookOp$Spi
 eu.esa.sar.sar.gpf.BandPassFilterOp$Spi
-eu.esa.sar.sar.gpf.pyrate.PyRateExportOp$Spi
