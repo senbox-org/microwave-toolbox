@@ -15,7 +15,13 @@
  */
 package eu.esa.sar.insar.rcp.toolviews;
 
-import eu.esa.sar.insar.rcp.toolviews.insar_statistics.*;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.InSARStatistic;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatBaselines;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatBaselinesChart;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatESDHistogram;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatESDMeasure;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatInSARInfo;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatResiduals;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductManager;
 import org.esa.snap.core.datamodel.ProductNode;
@@ -23,16 +29,22 @@ import org.esa.snap.graphbuilder.rcp.utils.DialogUtils;
 import org.esa.snap.rcp.SnapApp;
 import org.esa.snap.rcp.util.SelectionSupport;
 import org.esa.snap.tango.TangoIcons;
+import org.esa.snap.ui.help.HelpDisplayer;
 import org.netbeans.api.annotations.common.NullAllowed;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
 import org.openide.awt.ActionReferences;
-import org.openide.util.HelpCtx;
 import org.openide.util.NbBundle;
 import org.openide.windows.TopComponent;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -147,8 +159,7 @@ public class InSARStatisticsTopComponent extends TopComponent {
             @Override
             public void actionPerformed(ActionEvent e) {
                 final InSARStatistic stat = statisticList.get(tabbedPane.getSelectedIndex());
-
-                new HelpCtx(stat.getHelpId()).display();
+                HelpDisplayer.show(stat.getHelpId());
             }
         });
 
