@@ -1,18 +1,23 @@
-package com.iceye.esa.snap.dataio;
+package eu.esa.sar.io.iceye;
 
 import com.bc.ceres.core.ProgressMonitor;
-import com.iceye.esa.snap.dataio.util.IceyeXConstants;
-import it.geosolutions.imageio.plugins.tiff.TIFFField;
-import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageMetadata;
-import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
-import org.apache.commons.math3.util.FastMath;
 import eu.esa.sar.commons.io.ImageIOFile;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.product.Missions;
 import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
+import eu.esa.sar.io.iceye.util.IceyeXConstants;
+import it.geosolutions.imageio.plugins.tiff.TIFFField;
+import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageMetadata;
+import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
+import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
-import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataAttribute;
+import org.esa.snap.core.datamodel.MetadataElement;
+import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -34,12 +39,21 @@ import java.awt.image.DataBuffer;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringReader;
 import java.nio.file.Path;
 import java.text.DateFormat;
 import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.*;
+import java.util.Map;
 
 /**
  * @author Ahmad Hamouda
@@ -786,7 +800,7 @@ public class IceyeGRDProductReader extends SARReader {
     }
 
     class CoefList {
-        final java.util.List<Double> coefficients = new ArrayList<>();
+        final List<Double> coefficients = new ArrayList<>();
         double utcSeconds = 0.0;
         double grOrigin = 0.0;
     }

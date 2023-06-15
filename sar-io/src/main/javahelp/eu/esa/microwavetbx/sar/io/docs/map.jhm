@@ -15,6 +15,7 @@
     <mapID target="importErsProduct" url="readers/ImportErs.html"/>
 	<mapID target="importErs2Product" url="readers/ImportErs2.html"/>
     <mapID target="ImportERSCeos" url="readers/ImportERSCeos.html"/>
+    <mapID target="importIceyeProduct" url="readers/ImportIceye.html"/>
     <mapID target="ImportJERSCeos" url="readers/ImportJERSCeos.html"/>
     <mapID target="ImportKompsat5" url="readers/ImportKompsat-5.html"/>
 	<mapID target="ImportPaz" url="readers/ImportPaz.html"/>

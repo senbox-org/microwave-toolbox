@@ -1,4 +1,4 @@
-package com.iceye.esa.snap.dataio.util;
+package eu.esa.sar.io.iceye.util;
 
 /**
  * @author Ahmad Hamouda
