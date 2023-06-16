@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -19,6 +19,7 @@ import eu.esa.sar.io.netcdf.NetCDFReaderPlugIn;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -27,9 +28,9 @@ import java.nio.file.Path;
 public class CosmoSkymedReaderPlugIn extends NetCDFReaderPlugIn {
 
     private final static String[] COSMO_FORMAT_NAMES = {"CosmoSkymed"};
-    private final static String[] COSMO_FORMAT_FILE_EXTENSIONS = {"h5"};
+    private final static String[] COSMO_FORMAT_FILE_EXTENSIONS = {".h5",".attribs.xml",".tif"};
     private final static String COSMO_PLUGIN_DESCRIPTION = "Cosmo-Skymed Products";
-    private final static String COSMO_FILE_PREFIX = "cs";
+    private final static String[] COSMO_FILE_PREFIXES = {"csk","csg"};
 
     public CosmoSkymedReaderPlugIn() {
         FORMAT_NAMES = COSMO_FORMAT_NAMES;
@@ -39,9 +40,17 @@ public class CosmoSkymedReaderPlugIn extends NetCDFReaderPlugIn {
 
     @Override
     protected DecodeQualification checkProductQualification(final Path path) {
-        final String fileName = path.getFileName().toString().toLowerCase();
-        if (fileName.endsWith(".h5") && fileName.startsWith(COSMO_FILE_PREFIX)) {
-            return DecodeQualification.INTENDED;
+        if(!Files.isDirectory(path) && Files.exists(path)) {
+            final String fileName = path.getFileName().toString().toLowerCase();
+            for(String prefix : COSMO_FILE_PREFIXES) {
+                if(fileName.startsWith(prefix)) {
+                    for(String ext : FORMAT_FILE_EXTENSIONS) {
+                        if(fileName.endsWith(ext)) {
+                            return DecodeQualification.INTENDED;
+                        }
+                    }
+                }
+            }
         }
         return DecodeQualification.UNABLE;
     }
