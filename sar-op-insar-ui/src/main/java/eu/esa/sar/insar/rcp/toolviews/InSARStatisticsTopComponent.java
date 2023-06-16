@@ -37,10 +37,10 @@ import org.openide.awt.ActionReferences;
 import org.openide.util.NbBundle;
 import org.openide.windows.TopComponent;
 
+import javax.swing.AbstractButton;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
-import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import java.awt.BorderLayout;
@@ -138,7 +138,7 @@ public class InSARStatisticsTopComponent extends TopComponent {
         final JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
 
-        final JButton copyBtn = DialogUtils.createButton("copyBtn", "Copy", copyIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
+        final AbstractButton copyBtn = DialogUtils.createButton("copyBtn", "Copy", copyIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
         copyBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -146,7 +146,7 @@ public class InSARStatisticsTopComponent extends TopComponent {
                 stat.copyToClipboard();
             }
         });
-        final JButton saveBtn = DialogUtils.createButton("saveBtn", "Save", saveIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
+        final AbstractButton saveBtn = DialogUtils.createButton("saveBtn", "Save", saveIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
         saveBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -154,7 +154,7 @@ public class InSARStatisticsTopComponent extends TopComponent {
                 stat.saveToFile();
             }
         });
-        final JButton helpBtn = DialogUtils.createButton("helpBtn", "Help", helpIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
+        final AbstractButton helpBtn = DialogUtils.createButton("helpBtn", "Help", helpIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
         helpBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {

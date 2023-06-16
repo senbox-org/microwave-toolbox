@@ -33,8 +33,15 @@ import org.esa.snap.ui.ModelessDialog;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.SLCImage;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
+import javax.swing.JCheckBox;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -61,7 +68,7 @@ public class InSARStackOverviewDialog extends ModelessDialog {
 
     private final Map<SLCImage, File> slcFileMap = new HashMap<>(10);
 
-    private JButton openBtn;
+    private AbstractButton openBtn;
     private final JCheckBox searchDBCheckBox = new JCheckBox("Search Product Library");
 
     public InSARStackOverviewDialog() {
@@ -88,7 +95,7 @@ public class InSARStackOverviewDialog extends ModelessDialog {
         final JPanel contentPane = new JPanel(new BorderLayout());
 
         final JPanel buttonPanel1 = new JPanel(new GridLayout(10, 1));
-        final JButton addAllBtn = DialogUtils.createButton("addAllBtn", "Add Opened", null, buttonPanel1, DialogUtils.ButtonStyle.Text);
+        final AbstractButton addAllBtn = DialogUtils.createButton("addAllBtn", "Add Opened", null, buttonPanel1, DialogUtils.ButtonStyle.Text);
         addAllBtn.addActionListener(new ActionListener() {
 
             public void actionPerformed(final ActionEvent e) {
@@ -98,7 +105,7 @@ public class InSARStackOverviewDialog extends ModelessDialog {
         });
         buttonPanel1.add(addAllBtn);
 
-        final JButton clearBtn = DialogUtils.createButton("clearBtn", "Clear", null, buttonPanel1, DialogUtils.ButtonStyle.Text);
+        final AbstractButton clearBtn = DialogUtils.createButton("clearBtn", "Clear", null, buttonPanel1, DialogUtils.ButtonStyle.Text);
         clearBtn.addActionListener(new ActionListener() {
 
             public void actionPerformed(final ActionEvent e) {

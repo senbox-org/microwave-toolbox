@@ -82,12 +82,6 @@
             <version>${microwavetbx.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.iceye.esa.snap</groupId>
-            <artifactId>sar-io-iceye-reader</artifactId>
-            <version>${microwavetbx.version}</version>
-            <scope>test</scope>
-        </dependency>
 
         <dependency>
             <groupId>org.csa.rstb</groupId>
