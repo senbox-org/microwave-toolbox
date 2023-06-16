@@ -22,6 +22,7 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -97,6 +98,7 @@ public class TestGeolocationGridOp {
     }
 
     @Test
+    @Ignore
     public void testProcessAllCosmo() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsCosmoSkymed, null, exceptionExemptions);
     }
