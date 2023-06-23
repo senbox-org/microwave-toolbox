@@ -566,9 +566,9 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     @Override
     public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
 
-        // Here the noise is output separately from the image using computeTile instead of computeTileStack is because
-        // we need to handle S1 SLC product in which the image bands from different sub-swaths have different size
-        // and computeTileStack cannot handle bands in different sizes properly
+        // Here the noise is output separately from the image. The reason that computeTile is used instead of
+        // computeTileStack is because we need to handle S-1 SLC product in which the image bands from different
+        // sub-swaths have different size and computeTileStack cannot handle bands in different sizes properly.
         final String targetBandName = targetBand.getName();
         if (!isNoiseBand(targetBandName)) {
             computeTileImage(targetBandName, targetTile, pm);
@@ -853,8 +853,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
         computeTileNoiseLUT(y, x0, w, noiseInfo, noiseLut);
 
         final double[] calLut = new double[w];
-        computeTileCalibrationLUTs(y, x0, w, calInfo, azT0, azT1,
-                vec0LUT, vec1LUT, vec0Pixels, pixelIdx0, calLut);
+        computeTileCalibrationLUTs(y, x0, w, calInfo, azT0, azT1, vec0LUT, vec1LUT, vec0Pixels, pixelIdx0, calLut);
 
         if (removeThermalNoise) {
             for (int i = 0; i < w; i++) {
@@ -934,11 +933,11 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     private static void computeTileNoiseLUT(final int y, final int x0, final int w,
                                             final ThermalNoiseInfo noiseInfo, final double[] lut) {
         try {
-            final int noiseVecIdx = getNoiseVectorIndex(y, noiseInfo);
+            final double azTime = noiseInfo.firstLineTime + y * noiseInfo.lineTimeInterval;
+            final int noiseVecIdx = getNoiseVectorIndex(azTime, noiseInfo);
             final Sentinel1Utils.NoiseVector noiseVector0 = noiseInfo.noiseVectorList[noiseVecIdx];
             final Sentinel1Utils.NoiseVector noiseVector1 = noiseInfo.noiseVectorList[noiseVecIdx + 1];
 
-            final double azTime = noiseInfo.firstLineTime + y * noiseInfo.lineTimeInterval;
             final double azT0 = noiseVector0.timeMJD;
             final double azT1 = noiseVector1.timeMJD;
             final double muY = (azTime - azT0) / (azT1 - azT0);
@@ -992,13 +991,13 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     /**
      * Get index of the noise vector in the list for a given line.
      *
-     * @param y         Line coordinate.
+     * @param azTime    Azimuth time.
      * @param noiseInfo Object of ThermalNoiseInfo class.
      * @return The noise vector index.
      */
-    private static int getNoiseVectorIndex(final int y, final ThermalNoiseInfo noiseInfo) {
+    private static int getNoiseVectorIndex(final double azTime, final ThermalNoiseInfo noiseInfo) {
         for (int i = 1; i < noiseInfo.count; i++) {
-            if (y < noiseInfo.noiseVectorList[i].line) {
+            if (azTime < noiseInfo.noiseVectorList[i].timeMJD) {
                 return i - 1;
             }
         }
@@ -1076,8 +1075,8 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             final MetadataElement burstListElem = swathTimingElem.getElement("burstList");
             final MetadataElement[] burstListArray = burstListElem.getElements();
             for (int i = 0; i < burstListArray.length; i++) {
-                final int burstCenterLine = i*linesPerBurst + linesPerBurst/2;
-                burstToRangeVectorMap.put("burst_" + i, getBurstRangeVector(burstCenterLine, noiseRangeVectors));
+                final double time = Sentinel1Utils.getTime(burstListArray[i], "azimuthTime").getMJD();
+                burstToRangeVectorMap.put("burst_" + i, getBurstRangeVectorByTime(time, noiseRangeVectors));
             }
         }
 
@@ -1096,6 +1095,20 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
         for (int j = 1; j < noiseRangeVectors.length; j++) {
             if (Math.abs(burstCenterLine - noiseRangeVectors[j].line) <
                     Math.abs(burstCenterLine - noiseRangeVectors[closest].line)) {
+                closest = j;
+            }
+        }
+
+        return noiseRangeVectors[closest];
+    }
+
+    private Sentinel1Utils.NoiseVector getBurstRangeVectorByTime(
+            final double burstTime, final Sentinel1Utils.NoiseVector[] noiseRangeVectors) {
+
+        int closest = 0;
+        for (int j = 1; j < noiseRangeVectors.length; j++) {
+            if (Math.abs(burstTime - noiseRangeVectors[j].timeMJD) <
+                    Math.abs(burstTime - noiseRangeVectors[closest].timeMJD)) {
                 closest = j;
             }
         }
@@ -1127,7 +1140,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                 interpolNoiseRangeVector(noiseRangeVector, x0, xMax, interpolatedRangeVector);
             }
 
-            for (int x = x0; x <= xMax; ++x) {
+             for (int x = x0; x <= xMax; ++x) {
                 final int xx = x - x0;
                 noiseMatrix[yy][xx] = interpolatedAzimuthVector[yy] * interpolatedRangeVector[xx];
             }
@@ -1220,10 +1233,10 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
         if (noiseRangeVecIndices != null && noiseRangeVecIndices.length > 0) {
 
             final double[][] interpolatedRangeVectors = new double[noiseRangeVecIndices.length][nxMax - nx0 + 1];
-            int noiseRangeVectorLine[] = new int[noiseRangeVecIndices.length];
+            final double[] noiseRangeVectorAzTime = new double[noiseRangeVecIndices.length];
             for (int j = 0; j < noiseRangeVecIndices.length; j++) {
 
-                noiseRangeVectorLine[j] = noiseRangeVectors[noiseRangeVecIndices[j]].line;
+                noiseRangeVectorAzTime[j] = noiseRangeVectors[noiseRangeVecIndices[j]].timeMJD;
 
                 interpolNoiseRangeVector(
                         noiseRangeVectors[noiseRangeVecIndices[j]], nx0, nxMax, interpolatedRangeVectors[j]);
@@ -1232,14 +1245,15 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             final double[] interpolatedAzimuthVector = new double[nyMax - ny0 + 1];
             interpolNoiseAzimuthVector(noiseAzimuthVector, ny0, nyMax, interpolatedAzimuthVector);
 
-            computeNoiseMatrix(x0, y0, nx0, nxMax, ny0, nyMax, noiseRangeVectorLine, interpolatedRangeVectors,
+            computeNoiseMatrix(x0, y0, nx0, nxMax, ny0, nyMax, timeMaps.t0Map.get(imageName),
+                    timeMaps.deltaTsMap.get(imageName), noiseRangeVectorAzTime, interpolatedRangeVectors,
                     interpolatedAzimuthVector, noiseMatrix);
 
         } else {
 
             for (int y = ny0; y <= nyMax; y++) {
                 for (int x = nx0; x <= nxMax; x++) {
-                    noiseMatrix[y - y0][x - x0] = 1.0;
+                    noiseMatrix[y - y0][x - x0] = 0.0;
                 }
             }
         }
@@ -1308,12 +1322,12 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
         }
     }
 
-    private void computeNoiseMatrix(final int x0, final int y0,
-                                    final int nx0, final int nxMax, final int ny0, final int nyMax,
-                                    final int[] noiseRangeVectorLine, final double[][] interpolatedRangeVectors,
+    private void computeNoiseMatrix(final int x0, final int y0, final int nx0, final int nxMax, final int ny0,
+                                    final int nyMax, final double t0, final double deltaTs,
+                                    final double[] noiseRangeVectorAzTime, final double[][] interpolatedRangeVectors,
                                     final double[] interpolatedAzimuthVector, final double[][] noiseMatrix) {
 
-        if (noiseRangeVectorLine.length == 1) {
+        if (noiseRangeVectorAzTime.length == 1) {
             for (int x = nx0; x <= nxMax; x++) {
                 final int xx = x - nx0;
                 for (int y = ny0; y <= nyMax; y++) {
@@ -1323,20 +1337,22 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
         } else {
 
-            final int line0Idx = getLineIndex(ny0, noiseRangeVectorLine);
+            final double time0 = t0 + deltaTs * ny0;
+            final int line0Idx = getLineIndexByTime(time0, noiseRangeVectorAzTime);
 
             for (int x = nx0; x <= nxMax; x++) {
                 final int xx = x - nx0;
                 int lineIdx = line0Idx;
 
                 for (int y = ny0; y <= nyMax; y++) {
-                    if (y > noiseRangeVectorLine[lineIdx + 1] && lineIdx < noiseRangeVectorLine.length - 2) {
+                    final double time = t0 + deltaTs * y;
+                    if (time > noiseRangeVectorAzTime[lineIdx + 1] && lineIdx < noiseRangeVectorAzTime.length - 2) {
                         lineIdx++;
                     }
 
                     noiseMatrix[y - y0][x - x0] = interpolatedAzimuthVector[y - ny0] *
-                            interpol(noiseRangeVectorLine[lineIdx], noiseRangeVectorLine[lineIdx + 1],
-                            interpolatedRangeVectors[lineIdx][xx], interpolatedRangeVectors[lineIdx + 1][xx], y);
+                            interpolByTime(noiseRangeVectorAzTime[lineIdx], noiseRangeVectorAzTime[lineIdx + 1],
+                            interpolatedRangeVectors[lineIdx][xx], interpolatedRangeVectors[lineIdx + 1][xx], time);
                 }
             }
         }
@@ -1350,6 +1366,16 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
         }
 
         return y1 + ((double)(x - x1)/(double)(x2 - x1))*(y2 - y1);
+    }
+
+    private static double interpolByTime(final double t1, final double t2, final double y1, final double y2, final double t) {
+
+        if (t1 == t2) { // should never happen
+            SystemUtils.LOG.warning("######### noise vector duplicate indices: t1 == t2  = " + t1);
+            return 0.0;
+        }
+
+        return y1 + ((t - t1)/(t2 - t1)) * (y2 - y1);
     }
 
     private int[] getNoiseRangeVectorIndices(final String pol, final String swath,
@@ -1517,6 +1543,20 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
         //System.out.println("getLineIndex: reach the end for line = " + line);
         return lines.length - 2;
+    }
+
+    private static int getLineIndexByTime(final double time, final double[] times) {
+
+        //  times.length is assumed to be >= 2
+
+        for (int i = 0; i < times.length; i++) {
+            if (time < times[i]) {
+                return (i > 0) ? i - 1 : 0;
+            }
+        }
+
+        //System.out.println("getLineIndexByTime: reach the end for time = " + time);
+        return times.length - 2;
     }
 
     private static int getSampleIndex(final int sample, final Sentinel1Utils.NoiseVector noiseRangeVector) {

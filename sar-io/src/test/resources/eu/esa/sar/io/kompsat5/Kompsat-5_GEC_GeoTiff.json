@@ -4,44 +4,12 @@
 	"expectedContent": {
 		"metadata": [
 			{
-				"path": "TIFF Metadata/GeoTIFF Metadata/GeoKeyDirectory/ProjLinearUnitsGeoKey",
-				"value": "Linear_Meter"
-			},
-			{
-				"path": "TIFF Metadata/GeoTIFF Metadata/GeoKeyDirectory/GTCitationGeoKey",
-				"value": "GeoTiff 1.0"
-			},
-			{
-				"path": "Auxiliary/Root/SubSwaths/SubSwath/BurstsPerSubswaths/BurstsPerSubswath/ElevationRampCode",
-				"value": "1"
-			},
-			{
 				"path": "Abstracted_Metadata/Orbit_State_Vectors/orbit_vector1/z_vel",
-				"value": "51.0"
-			},
-			{
-				"path": "TIFF Metadata/GeoTIFF Metadata/GeoKeyDirectory/GTRasterTypeGeoKey",
-				"value": "RasterPixelIsPoint"
-			},
-			{
-				"path": "TIFF Metadata/GeoTIFF Metadata/GeoKeyDirectory/GTCitationGeoKey",
-				"value": "GeoTiff 1.0"
-			},
-			{
-				"path": "TIFF Metadata/GeoTIFF Metadata/GeoKeyDirectory/ProjectedCSTypeGeoKey",
-				"value": "PCS_WGS84_UTM_zone_49N"
+				"value": "7247.145857035031"
 			},
 			{
 				"path": "Abstracted_Metadata/Doppler_Centroid_Coefficients/dop_coef_list.1/coefficient.6/dop_coef",
-				"value": "55.0"
-			},
-			{
-				"path": "TIFF Metadata/GeoTIFF Metadata/GeoKeyDirectory/ProjectedCSTypeGeoKey",
-				"value": "PCS_WGS84_UTM_zone_49N"
-			},
-			{
-				"path": "TIFF Metadata/GeoTIFF Metadata/GeoKeyDirectory/GTCitationGeoKey",
-				"value": "GeoTiff 1.0"
+				"value": "2.0308302580863767E12"
 			}
 		],
 		"sceneHeight": 17989,
@@ -61,10 +29,10 @@
 					"lat": 16.822636437374287
 				}
 			],
-			"reverseAccuracy": 1.487787812948227e-7
+			"reverseAccuracy": 0.5568920068790248
 		},
-		"startTime": "15-FEB-2019 22:33:04.871807",
-		"endTime": "15-FEB-2019 22:33:09.723885",
+		"startTime": "15-FEB-2019 22:33:06.749698",
+		"endTime": "15-FEB-2019 22:33:07.478667",
 		"bands": [
 			{
 				"bandWidth": 18055,

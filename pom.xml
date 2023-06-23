@@ -70,7 +70,6 @@
         <module>sar-op-utilities</module>
         <module>sar-op-utilities-ui</module>
         <module>sar-test-stacks</module>
-        <module>sar-io-iceye-reader</module>
 
         <module>microwavetbx-benchmark</module>
         <module>microwavetbx-rcp</module>

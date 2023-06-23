@@ -61,8 +61,8 @@
 					}
 				],
 				"name": "incident_angle",
-				"subSamplingY": "804.7999877929688",
-				"subSamplingX": "792.7000122070312"
+				"subSamplingY": "894.2222290039062",
+				"subSamplingX": "880.7777709960938"
 			},
 			{
 				"offsetX": "0.0",
@@ -80,12 +80,12 @@
 					}
 				],
 				"name": "slant_range_time",
-				"subSamplingY": "804.7999877929688",
-				"subSamplingX": "792.7000122070312"
+				"subSamplingY": "894.2222290039062",
+				"subSamplingX": "880.7777709960938"
 			},
 			{
-				"offsetX": "0.5",
-				"offsetY": "0.5",
+				"offsetX": "0.0",
+				"offsetY": "0.0",
 				"expectedPixels": [
 					{
 						"x": 4360,
@@ -103,8 +103,8 @@
 				"subSamplingX": "880.7777777777778"
 			},
 			{
-				"offsetX": "0.5",
-				"offsetY": "0.5",
+				"offsetX": "0.0",
+				"offsetY": "0.0",
 				"expectedPixels": [
 					{
 						"x": 1254,
