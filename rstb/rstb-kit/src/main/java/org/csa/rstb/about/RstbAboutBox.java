@@ -26,10 +26,7 @@ import java.awt.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-/**
- * @author Norman
- */
-@AboutBox(displayName = "RSTB", position = 100)
+//@AboutBox(displayName = "RSTB", position = 100)
 public class RstbAboutBox extends JPanel {
 
     private final static String releaseNotesHTTP = "https://github.com/senbox-org/microwave-toolbox/blob/master/ReleaseNotes.md";
