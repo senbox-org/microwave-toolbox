@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -29,7 +29,7 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
-@AboutBox(displayName = "MicrowaveTBX", position = 10)
+@AboutBox(displayName = "Microwave", position = 10)
 public class MicrowavetbxAboutBox extends JPanel {
 
     private final static String releaseNotesHTTP = "https://github.com/senbox-org/microwave-toolbox/blob/master/ReleaseNotes.md";
@@ -46,7 +46,7 @@ public class MicrowavetbxAboutBox extends JPanel {
     private JPanel createVersionPanel() {
         Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ENGLISH);
         int year = utc.get(Calendar.YEAR);
-        JLabel copyRightLabel = new JLabel("<html><b>© 2018-" + year + " SkyWatch, Sensar and contributors</b>", SwingConstants.CENTER);
+        JLabel copyRightLabel = new JLabel("<html><b>© 2018-" + year + " SkyWatch and contributors</b>", SwingConstants.CENTER);
 
         final ModuleInfo moduleInfo = Modules.getDefault().ownerOf(MicrowavetbxAboutBox.class);
         JLabel versionLabel = new JLabel("<html><b>Microwave Toolbox version " + moduleInfo.getImplementationVersion() + "</b>", SwingConstants.CENTER);
