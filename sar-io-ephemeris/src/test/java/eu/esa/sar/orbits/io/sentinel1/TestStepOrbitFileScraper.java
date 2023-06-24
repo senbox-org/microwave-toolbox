@@ -53,34 +53,38 @@ public class TestStepOrbitFileScraper {
 
     @Test
     public void testGetFileURLsPreciseOrbitFileS1A() {
-        final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.PRECISE);
+        try (final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.PRECISE)) {
 
-        OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1A", 2016, 2);
-        assertEquals(29, orbitFiles.length);
+            OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1A", 2016, 2);
+            assertEquals(29, orbitFiles.length);
+        }
     }
 
     @Test
     public void testGetFileURLsPreciseOrbitFileS1B() {
-        final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.PRECISE);
+        try (final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.PRECISE)) {
 
-        OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1B", 2016, 7);
-        assertEquals(31, orbitFiles.length);
+            OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1B", 2016, 7);
+            assertEquals(31, orbitFiles.length);
+        }
     }
 
     @Test
     public void testGetFileURLsRestituteOrbitFileS1A() {
-        final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.RESTITUTED);
+        try (final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.RESTITUTED)) {
 
-        OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1A", 2016, 2);
-        assertEquals(591, orbitFiles.length);
+            OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1A", 2016, 2);
+            assertEquals(591, orbitFiles.length);
+        }
     }
 
     @Test
     public void testGetFileURLsRestituteOrbitFileS1B() {
-        final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.RESTITUTED);
+        try (final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.RESTITUTED)) {
 
-        OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1B", 2016, 7);
-        assertEquals(592, orbitFiles.length);
+            OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1B", 2016, 7);
+            assertEquals(592, orbitFiles.length);
+        }
     }
 
     @Test
@@ -115,6 +119,7 @@ public class TestStepOrbitFileScraper {
 
         File orbitFile = scraper.download(localFolder,missionPrefix, orbitType,
                 year, month, day, stateVectorTime);
+        assertNotNull(orbitFile);
         assertTrue(orbitFile.exists());
         orbitFile.delete();
     }

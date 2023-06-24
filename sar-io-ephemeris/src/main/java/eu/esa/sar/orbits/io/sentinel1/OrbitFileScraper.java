@@ -19,12 +19,14 @@ package eu.esa.sar.orbits.io.sentinel1;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.dataop.downloadable.SSLUtil;
 import org.esa.snap.core.util.StringUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.download.DownloadableContentImpl;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.io.Closeable;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
@@ -33,7 +35,7 @@ import java.util.List;
 /**
  * Download orbit files directly from QC website
  */
-abstract class OrbitFileScraper {
+abstract class OrbitFileScraper implements Closeable {
 
     private static final String POEORB = "POEORB";
     private static final String RESORB = "RESORB";
@@ -41,10 +43,17 @@ abstract class OrbitFileScraper {
 
     protected String baseURL;
     protected final String orbitType;
+    private final SSLUtil ssl = new SSLUtil();
 
     protected OrbitFileScraper(final String orbitType) {
         this.orbitType = convertOrbitType(orbitType);
         System.setProperty("jsse.enableSNIExtension", "false");
+        ssl.disableSSLCertificateCheck();
+    }
+
+    @Override
+    public void close() {
+        ssl.enableSSLCertificateCheck();
     }
 
     abstract RemoteOrbitFile[] getFileURLs(final String mission, final int year, final int month);
@@ -102,8 +111,6 @@ abstract class OrbitFileScraper {
                                   final ProductData.UTC stateVectorTime) throws Exception {
 
         final OrbitFileScraper.RemoteOrbitFile[] orbitFiles = getFileURLs(missionPrefix, year, month);
-        final SSLUtil ssl = new SSLUtil();
-        ssl.disableSSLCertificateCheck();
 
         for (OrbitFileScraper.RemoteOrbitFile file : orbitFiles) {
             if (Sentinel1OrbitFileReader.isWithinRange(file.fileName, stateVectorTime)) {
@@ -112,8 +119,6 @@ abstract class OrbitFileScraper {
                 break;
             }
         }
-
-        ssl.enableSSLCertificateCheck();
     }
 
     protected List<RemoteOrbitFile> getFileURLs(final String remotePath) {
@@ -122,8 +127,8 @@ abstract class OrbitFileScraper {
             final Document doc = Jsoup.connect(remotePath).timeout(10*1000).get();
 
             findLinks(remotePath, doc, fileList);
-        } catch (Exception e) {
-            //SystemUtils.LOG.warning("Unable to connect to "+remotePath+ ": "+e.getMessage());
+        } catch (Throwable e) {
+            SystemUtils.LOG.warning("Unable to connect to "+remotePath+ ": "+e.getMessage());
         }
         return fileList;
     }
@@ -131,10 +136,10 @@ abstract class OrbitFileScraper {
     private void findLinks(final String remotePath, final Element elem, final List<RemoteOrbitFile> fileList) {
         Elements addrs = elem.getElementsByTag("a");
         for (Element addr : addrs) {
-            String link = addr.text();
+            String href = addr.attr("href");
             for(String ext : EXTS) {
-                if (link.toLowerCase().endsWith(ext)) {
-                    fileList.add(new RemoteOrbitFile(remotePath, addr.text()));
+                if (href.toLowerCase().endsWith(ext)) {
+                    fileList.add(new RemoteOrbitFile(remotePath, href));
                 }
             }
         }
