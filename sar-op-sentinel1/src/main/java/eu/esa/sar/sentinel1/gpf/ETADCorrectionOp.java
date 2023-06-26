@@ -17,11 +17,7 @@ package eu.esa.sar.sentinel1.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.SARGeocoding;
-import eu.esa.sar.commons.Sentinel1Utils;
-import eu.esa.sar.io.sentinel1.Sentinel1ETADDirectory;
-import eu.esa.sar.io.sentinel1.Sentinel1ETADNetCDFReader;
-import eu.esa.sar.io.sentinel1.Sentinel1ETADProductReader;
-import eu.esa.sar.io.sentinel1.Sentinel1ETADProductReaderPlugIn;
+import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
@@ -32,9 +28,7 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
-import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
-import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
 import org.esa.snap.engine_utilities.util.Maths;
@@ -161,14 +155,12 @@ public class ETADCorrectionOp extends Operator {
     private Product getETADProduct(final File etadFile) {
 
         try {
-            Sentinel1ETADProductReaderPlugIn plugin = new Sentinel1ETADProductReaderPlugIn();
-            Sentinel1ETADProductReader reader = (Sentinel1ETADProductReader)plugin.createReaderInstance();
-            return reader.readProductNodes(etadFile, null);
-
+            return ProductIO.readProduct(etadFile);
         } catch(Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
         return null;
+
     }
 
     private void validateETADProduct(final Product sourceProduct, final Product etadProduct) {
@@ -395,6 +387,7 @@ public class ETADCorrectionOp extends Operator {
     private void getAzTimeCorrectionForCurrentTile(final Rectangle srcRectangle, final double[] azTime,
                                                    final double[][] rgTime, final double[][] azTimeCorr) {
 
+        Map<String, double[][]> sumAzCorrectionMap = new HashMap<>(10);
         final int sx0 = srcRectangle.x;
         final int sy0 = srcRectangle.y;
         final int sw = srcRectangle.width;
@@ -406,7 +399,7 @@ public class ETADCorrectionOp extends Operator {
             final int i = y - sy0;
             for (int x = sx0; x <= sxMax; ++x) {
                 final int j = x - sx0;
-                final double corr = etadUtils.getCorrection("sumOfCorrectionsAz", azTime[i], rgTime[i][j]);
+                final double corr = getCorrection("sumOfCorrectionsAz", azTime[i], rgTime[i][j], sumAzCorrectionMap);
                 azTimeCorr[i][j] = azTime[i] - corr;
             }
         }
@@ -415,6 +408,7 @@ public class ETADCorrectionOp extends Operator {
     private void getRgTimeCorrectionForCurrentTile(final Rectangle srcRectangle, final double[] azTime,
                                                    final double[][] rgTime, final double[][] rgTimeCorr) {
 
+        Map<String, double[][]> sumRgCorrectionMap = new HashMap<>(10);
         final int sx0 = srcRectangle.x;
         final int sy0 = srcRectangle.y;
         final int sw = srcRectangle.width;
@@ -426,10 +420,37 @@ public class ETADCorrectionOp extends Operator {
             final int i = y - sy0;
             for (int x = sx0; x <= sxMax; ++x) {
                 final int j = x - sx0;
-                final double corr = etadUtils.getCorrection("sumOfCorrectionsRg", azTime[i], rgTime[i][j]);
+                final double corr = getCorrection("sumOfCorrectionsRg", azTime[i], rgTime[i][j], sumRgCorrectionMap);
                 rgTimeCorr[i][j] = rgTime[i][j] - corr;
             }
         }
+    }
+
+    private double getCorrection(final String layer, final double azimuthTime, final double slantRangeTime,
+                                 final Map<String, double[][]>layerCorrectionMap) {
+
+        ETADUtils.Burst burst = etadUtils.getBurst(azimuthTime, slantRangeTime);
+        if (burst == null) {
+            return 0.0;
+        }
+
+        final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
+        double[][] layerCorrection = layerCorrectionMap.get(bandName);
+        if (layerCorrection == null) {
+            layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
+            layerCorrectionMap.put(bandName, layerCorrection);
+        }
+        final double i = (azimuthTime - burst.azimuthTimeMin) / burst.gridSamplingAzimuth;
+        final double j = (slantRangeTime - burst.rangeTimeMin) / burst.gridSamplingRange;
+        final int i0 = (int)i;
+        final int i1 = i0 + 1;
+        final int j0 = (int)j;
+        final int j1 = j0 + 1;
+        final double c00 = layerCorrection[i0][j0];
+        final double c01 = layerCorrection[i0][j1];
+        final double c10 = layerCorrection[i1][j0];
+        final double c11 = layerCorrection[i1][j1];
+        return Maths.interpolationBiLinear(c00, c01, c10, c11, j - j0, i - i0);
     }
 
     private double IrregularGridBiLinearInterpolation(final double y, final double x, final double y1, final double x1,
@@ -461,7 +482,6 @@ public class ETADCorrectionOp extends Operator {
         private int numInputProducts = 0;
         private int numSubSwaths = 0;
         private InputProduct[] inputProducts = null;
-        private Map<String, double[][]> layerCorrectionMap = new HashMap<>(10);
 
         public ETADUtils(final Product ETADProduct) throws Exception {
 
@@ -657,37 +677,6 @@ public class ETADCorrectionOp extends Operator {
                 }
             }
             return -1;
-        }
-
-        public double getCorrection(final String layer, final double azimuthTime, final double slantRangeTime) {
-
-            final Burst burst = getBurst(azimuthTime, slantRangeTime);
-            if (burst == null) {
-                return 0.0;
-            }
-
-            final String bandName = createBandName(burst.swathID, burst.bIndex, layer);
-            double[][] layerCorrection = layerCorrectionMap.get(bandName);
-            if (layerCorrection == null) {
-                layerCorrection = getLayerCorrectionForCurrentBurst(burst, bandName);
-                synchronized(layerCorrectionMap) {
-                    layerCorrectionMap.put(bandName, layerCorrection);
-                    System.out.println("bandName = " + bandName);
-                }
-            }
-
-            final double i = (azimuthTime - burst.azimuthTimeMin) / burst.gridSamplingAzimuth;
-            final double j = (slantRangeTime - burst.rangeTimeMin) / burst.gridSamplingRange;
-            final int i0 = (int)i;
-            final int i1 = i0 + 1;
-            final int j0 = (int)j;
-            final int j1 = j0 + 1;
-            final double c00 = layerCorrection[i0][j0];
-            final double c01 = layerCorrection[i0][j1];
-            final double c10 = layerCorrection[i1][j0];
-            final double c11 = layerCorrection[i1][j1];
-
-            return Maths.interpolationBiLinear(c00, c01, c10, c11, j - j0, i - i0);
         }
 
         private Burst getBurst(final double azimuthTime, final double slantRangeTime) {

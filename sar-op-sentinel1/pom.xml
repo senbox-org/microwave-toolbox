@@ -69,7 +69,7 @@
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io</artifactId>
-            <!--scope>test</scope-->
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>
