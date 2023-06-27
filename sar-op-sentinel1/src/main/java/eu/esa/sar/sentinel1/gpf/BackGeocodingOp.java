@@ -1364,7 +1364,7 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
-    private static Band getBand(
+    public static Band getBand(
             final Product product, final String prefix, final String swathIndexStr, final String polarization) {
 
         final String[] bandNames = product.getBandNames();
