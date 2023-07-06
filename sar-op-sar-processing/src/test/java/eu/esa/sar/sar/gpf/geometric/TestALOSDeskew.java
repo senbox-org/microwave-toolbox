@@ -1,5 +1,6 @@
 package eu.esa.sar.sar.gpf.geometric;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
@@ -17,19 +18,21 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Created by lveci on 24/10/2014.
  */
-public class TestALOSDeskew {
+public class TestALOSDeskew extends ProcessorTest {
 
     private final static File inputFile = TestData.inputALOS1_1;
 
     @Before
-    public void setUp() {
-        // If the file does not exist: the test will be ignored
-        assumeTrue(inputFile + " not found", inputFile.exists());
+    public void setUp() throws Exception {
+        try {
+            // If the file does not exist: the test will be ignored
+            assumeTrue(inputFile + " not found", inputFile.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new ALOSDeskewingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 

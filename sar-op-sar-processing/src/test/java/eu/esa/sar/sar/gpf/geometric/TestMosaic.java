@@ -1,5 +1,6 @@
 package eu.esa.sar.sar.gpf.geometric;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -15,7 +16,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Created by lveci on 24/10/2014.
  */
-public class TestMosaic {
+public class TestMosaic extends ProcessorTest {
 
     private final static OperatorSpi spi = new MosaicOp.Spi();
 
@@ -23,10 +24,15 @@ public class TestMosaic {
     private final static File inputFile2 = TestData.inputASAR_IMMSub;
 
     @Before
-    public void setUp() {
-        // If any of the file does not exist: the test will be ignored
-        assumeTrue(inputFile1 + " not found", inputFile1.exists());
-        assumeTrue(inputFile2 + " not found", inputFile2.exists());
+    public void setUp() throws Exception {
+        try {
+            // If any of the file does not exist: the test will be ignored
+            assumeTrue(inputFile1 + " not found", inputFile1.exists());
+            assumeTrue(inputFile2 + " not found", inputFile2.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
     /**

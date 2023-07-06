@@ -1,16 +1,27 @@
-package eu.esa.sar.sar.gpf.geometric;
+/*
+ * Copyright (C) 2023 SkyWatch Space Applications Inc. https://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
+package eu.esa.sar.sar.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
-import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
+import eu.esa.sar.sar.gpf.filtering.SpeckleFilterOp;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.GeoCoding;
-import org.esa.snap.core.datamodel.GeoPos;
-import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
-import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,11 +34,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Created by lveci on 24/10/2014.
+ * Unit test for BandPassFilter Operator.
  */
-public class TestUpdateGeoRef extends ProcessorTest {
+public class TestBandPassFilterOp extends ProcessorTest {
 
-    private final static File inputFile = TestData.inputASAR_WSM;
+    private final static File inputFile = TestData.inputStackIMS;
 
     @Before
     public void setUp() throws Exception {
@@ -40,20 +51,25 @@ public class TestUpdateGeoRef extends ProcessorTest {
         }
     }
 
-    private final static OperatorSpi spi = new UpdateGeoRefOp.Spi();
+    private final static OperatorSpi spi = new BandPassFilterOp.Spi();
 
-    private String[] exceptionExemptions = {};
+    @Test
+    public void testBandPass() throws Exception {
+        final float[] expected = new float[] { -29.0f, -26.0f, -6.0f, -6.0f };
+        process(inputFile, SpeckleFilterOp.BOXCAR_SPECKLE_FILTER, expected);
+    }
 
     /**
      * Processes a product and compares it to processed product known to be correct
      *
+     * @param inputFile    the path to the input product
      * @throws Exception general exception
      */
-    @Test
-    public void testProcessing() throws Exception {
+    public void process(final File inputFile, final String filter, final float[] expected) throws Exception {
+
         final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
 
-        final UpdateGeoRefOp op = (UpdateGeoRefOp) spi.createOperator();
+        final BandPassFilterOp op = (BandPassFilterOp) spi.createOperator();
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);
 
@@ -69,18 +85,6 @@ public class TestUpdateGeoRef extends ProcessorTest {
         band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
         // compare with expected outputs:
-        final float[] expected = new float[] { 446224.0f, 318096.0f, 403225.0f, 330625.0f };
         assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
-
-        final GeoCoding geoCoding = targetProduct.getSceneGeoCoding();
-        final GeoPos geoPos = geoCoding.getGeoPos(new PixelPos(100, 100), null);
-        //assertEquals(46.72579102050234, geoPos.getLat(), 0.00001);
-        //assertEquals(10.359693240977476, geoPos.getLon(), 0.00001);
-    }
-
-    @Test
-    public void testProcessAllALOS() throws Exception {
-        TestProcessor testProcessor = SARTests.createTestProcessor();
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsALOS, "ALOS PALSAR CEOS", null, exceptionExemptions);
     }
 }

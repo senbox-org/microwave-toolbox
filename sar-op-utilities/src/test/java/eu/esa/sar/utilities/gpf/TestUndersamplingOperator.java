@@ -127,8 +127,8 @@ public class TestUndersamplingOperator {
      * Tests high pass kernel filtering in undersampling operator with a 6x12 "DETECTED" test product.
      * @throws Exception general exception
      */
-    // @Test
-  /*  public void testUndersamplingWithHighPassKernel() throws Exception {
+    @Test
+    public void testUndersamplingWithHighPassKernel() throws Exception {
 
         Product sourceProduct = createTestProduct(12, 6);
 
@@ -138,7 +138,7 @@ public class TestUndersamplingOperator {
 
         op.setUndersamplingMethod(op.KERNEL_FILTERING);
         op.setFilterType(op.HIGH_PASS);
-        op.setFilterSize(op.FILTER_SIZE_3x3);
+        op.setFilterSize(FilterWindow.SIZE_3x3);
         op.setOutputImageBy(op.IMAGE_SIZE);
         op.setOutputImageSize(2, 4);
 
@@ -163,13 +163,14 @@ public class TestUndersamplingOperator {
         TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 6.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.03);
         TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:30:46.900682");
-    }     */
+    }
 
     /**
      * Tests edge detect kernel filtering in undersampling operator with a 6x12 "DETECTED" test product.
      * @throws Exception general exception
      */
- /*   public void testUndersamplingWithEdgeDetectKernel() throws Exception {
+    @Test
+    public void testUndersamplingWithEdgeDetectKernel() throws Exception {
 
         Product sourceProduct = createTestProduct(12, 6);
 
@@ -179,7 +180,7 @@ public class TestUndersamplingOperator {
 
         op.setUndersamplingMethod(op.KERNEL_FILTERING);
         op.setFilterType(op.EDGE_DETECT);
-        op.setFilterSize(op.FILTER_SIZE_3x3);
+        op.setFilterSize(FilterWindow.SIZE_3x3);
         op.setOutputImageBy(op.IMAGE_SIZE);
         op.setOutputImageSize(2, 4);
 
@@ -204,13 +205,14 @@ public class TestUndersamplingOperator {
         TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 6.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.03);
         TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:30:46.900682");
-    }         */
+    }
 
     /**
      * Tests edge enhance kernel filtering in undersampling operator with a 6x12 "DETECTED" test product.
      * @throws Exception general exception
      */
-  /*  public void testUndersamplingWithEdgeEnhanceKernel() throws Exception {
+    @Test
+    public void testUndersamplingWithEdgeEnhanceKernel() throws Exception {
 
         Product sourceProduct = createTestProduct(12, 6);
 
@@ -220,7 +222,7 @@ public class TestUndersamplingOperator {
 
         op.setUndersamplingMethod(op.KERNEL_FILTERING);
         op.setFilterType(op.EDGE_ENHANCEMENT);
-        op.setFilterSize(op.FILTER_SIZE_3x3);
+        op.setFilterSize(FilterWindow.SIZE_3x3);
         op.setOutputImageBy(op.IMAGE_SIZE);
         op.setOutputImageSize(2, 4);
 
@@ -245,7 +247,7 @@ public class TestUndersamplingOperator {
         TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 6.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.03);
         TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:30:46.900682");
-    }          */
+    }
 
     /**
      * Tests horizontal kernel filtering in undersampling operator with a 6x12 "DETECTED" test product.

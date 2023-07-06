@@ -15,8 +15,11 @@
  */
 package eu.esa.sar.sar.gpf.geometric;
 
+import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
+import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
@@ -26,26 +29,30 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Unit test for Geolocation Grid.
  */
-public class TestGeolocationGridOp {
+public class TestGeolocationGridOp extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
     @Before
-    public void setUp() {
-        // If the file does not exist: the test will be ignored
-        assumeTrue(inputFile + " not found", inputFile.exists());
+    public void setUp() throws Exception {
+        try {
+            // If the file does not exist: the test will be ignored
+            assumeTrue(inputFile + " not found", inputFile.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new GeolocationGridGeocodingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
@@ -70,6 +77,16 @@ public class TestGeolocationGridOp {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[4];
+        band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expected = new float[] { 2356.043f, 2176.3665f, 2261.298f, 1921.2916f };
+        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
     }
 
     @Test

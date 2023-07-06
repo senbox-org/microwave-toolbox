@@ -1,5 +1,6 @@
 package eu.esa.sar.sar.gpf.geometric;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.GeoCoding;
@@ -20,8 +21,8 @@ import java.util.Locale;
 
 import static org.junit.Assert.assertEquals;
 
-@Ignore("Different values depending on the download of the DEM")
-public class TestDEM2 {
+//@Ignore("Different values depending on the download of the DEM")
+public class TestDEM2 extends ProcessorTest {
 
     private static int productWidth;
     private static int productHeight;
@@ -30,7 +31,7 @@ public class TestDEM2 {
     private static ElevationModel srtmDem;
 
     @BeforeClass
-    public static void setUp() {
+    public static void setUp() throws Exception {
         productWidth = 10;
         productHeight = 10;
         sourceProduct = TestUtils.createProduct("GRD", productWidth, productHeight);
@@ -44,7 +45,7 @@ public class TestDEM2 {
      *
      * @throws Exception general exception
      */
-    @Test
+    //@Test
     public void testPositionsUsingDEM() throws Exception {
 
 
@@ -67,7 +68,7 @@ public class TestDEM2 {
 
     }
 
-    @Test
+    //@Test
     public void testPositionsUsingProductReader() throws Exception {
 
         // trigger download of DEM file if not yet local
@@ -99,7 +100,7 @@ public class TestDEM2 {
 
     }
 
-    @Test
+    //@Test
     public void testPositionsUsingProductReader_OtherLocation() throws Exception {
 
         // trigger download of DEM file if not yet local

@@ -73,6 +73,38 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
         final SpeckleFilterOp op = (SpeckleFilterOp) spi.createOperator();
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);
+        op.SetFilter("Mean");
+
+        // get targetProduct gets initialize to be executed
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true);
+
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[16];
+        band.readPixels(0, 0, 4, 4, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expectedValues = {3.5f, 4.0f, 5.0f, 5.5f, 5.5f, 6.0f, 7.0f, 7.5f, 9.5f, 10.0f, 11.0f, 11.5f,
+                11.5f, 12.0f, 13.0f, 13.5f
+        };
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
+    }
+
+    /**
+     * Tests Mean speckle filter with a 4-by-4 test product.
+     *
+     * @throws Exception The exception.
+     */
+    @Test
+    public void testBoxCarFilter() throws Exception {
+        final Product sourceProduct = createTestProduct(4, 4);
+
+        final SpeckleFilterOp op = (SpeckleFilterOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
         op.SetFilter("Boxcar");
 
         // get targetProduct gets initialize to be executed
@@ -282,6 +314,37 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
                 120.008255f, 114.69612f, 106.46667f, 106.02027f, 98.75016f, 78.02842f, 85.9f,
                 121.4375f, 119.85731f, 107.083336f, 106.53835f, 97.693275f, 88.09068f, 83.8125f
         };
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
+    }
+
+    /**
+     * Tests None filter with a 4-by-4 test product.
+     *
+     * @throws Exception anything
+     */
+    @Test
+    public void testNoneFilter() throws Exception {
+        final Product sourceProduct = createTestProduct(4, 4);
+
+        final SpeckleFilterOp op = (SpeckleFilterOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
+        op.SetFilter("None");
+
+        // get targetProduct gets initialize to be executed
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true);
+
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[16];
+        band.readPixels(0, 0, 4, 4, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs
+        final float[] expectedValues = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f,
+                11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
         assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 

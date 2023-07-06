@@ -154,7 +154,9 @@ public class SpeckleFilterOp extends Operator {
                 s.equals(LEE_SPECKLE_FILTER) ||
                 s.equals(LEE_REFINED_FILTER) ||
                 s.equals(LEE_SIGMA_FILTER) ||
-                s.equals(IDAN_FILTER)) {
+                s.equals(IDAN_FILTER) ||
+                s.equals(MEAN_SPECKLE_FILTER) ||
+                s.equals(NONE)) {
             filter = s;
         } else {
             throw new OperatorException(s + " is an invalid filter name.");

@@ -153,6 +153,28 @@ public class MultiTemporalSpeckleFilterOp extends Operator {
     }
 
     /**
+     * Set speckle filter. This function is used by unit test only.
+     *
+     * @param s The filter name.
+     */
+    public void setFilter(String s) {
+
+        if (s.equals(SpeckleFilterOp.BOXCAR_SPECKLE_FILTER) ||
+                s.equals(SpeckleFilterOp.MEDIAN_SPECKLE_FILTER) ||
+                s.equals(SpeckleFilterOp.FROST_SPECKLE_FILTER) ||
+                s.equals(SpeckleFilterOp.GAMMA_MAP_SPECKLE_FILTER) ||
+                s.equals(SpeckleFilterOp.LEE_SPECKLE_FILTER) ||
+                s.equals(SpeckleFilterOp.LEE_REFINED_FILTER) ||
+                s.equals(SpeckleFilterOp.LEE_SIGMA_FILTER) ||
+                s.equals(SpeckleFilterOp.IDAN_FILTER) ||
+                s.equals(SpeckleFilterOp.NONE)) {
+            filter = s;
+        } else {
+            throw new OperatorException(s + " is an invalid filter name.");
+        }
+    }
+
+    /**
      * Initializes this operator and sets the one and only target product.
      * <p>The target product can be either defined by a field of type {@link Product} annotated with the
      * {@link TargetProduct TargetProduct} annotation or
