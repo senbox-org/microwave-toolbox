@@ -1,7 +1,9 @@
 package eu.esa.sar.sar.gpf.geometric;
 
+import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
+import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -9,7 +11,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -53,5 +57,16 @@ public class TestMosaic extends ProcessorTest {
         // get targetProduct: execute initialize()
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, false, true, true);
+
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[4];
+        band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expected = new float[] { 1.3692834f, 1.1364064f, 1.5000299f, 1.4998151f };
+        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
     }
 }
