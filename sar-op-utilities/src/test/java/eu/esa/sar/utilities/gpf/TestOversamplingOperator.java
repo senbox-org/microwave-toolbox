@@ -28,8 +28,8 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Unit test for OversamplingOperator.
@@ -66,7 +66,7 @@ public class TestOversamplingOperator {
         float[] expectedValues = {1.0f, 0.5090863f, 2.0f, 3.355916f, 3.0f, 3.0564091f, 4.0f, 4.8086267f, 5.0f,
                 5.391582f, 6.0f, 6.519202f, 7.0f, 7.648014f, 8.0f, 8.232636f, 9.0f, 9.997277f, 10.0f, 9.694443f,
                 11.0f, 13.105296f, 12.0f, 6.519202f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
 

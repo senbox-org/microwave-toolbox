@@ -31,8 +31,6 @@ import java.io.File;
  */
 public class TestIceyeReader extends ReaderTest {
 
-    public static final String TESTING_IMAGE_PATH = "/home/ahmad/Documents/Projects/snap/test";
-
     private final static String inputIceyeFolder = SARTests.inputPathProperty + SARTests.sep + "SAR" + SARTests.sep  + "Iceye" + SARTests.sep ;
     private final static File[] iceyeSLCFiles = SARTests.loadFilePath(inputIceyeFolder + "SLC");
     private final static File[] iceyeGRDFiles = SARTests.loadFilePath(inputIceyeFolder + "GRD");
@@ -56,11 +54,9 @@ public class TestIceyeReader extends ReaderTest {
      */
     @Test
     public void testOpenAll() {
-        TestProcessor testProcessor = new TestProcessor(100, 100, 100, 100, 1, true, false);
+        TestProcessor testProcessor = new TestProcessor(100, 100, 100, 100, 100, true, false);
 
-        File file = new File(TESTING_IMAGE_PATH);
-        File[] folderPaths = new File[1];
-        folderPaths[0] = file;
+        File[] folderPaths = new File[] {new File(inputIceyeFolder)};
         try {
             testProcessor.recurseReadFolder(this, folderPaths, readerPlugIn, reader, null, exceptionExemptions);
         } catch (Exception e) {

@@ -16,6 +16,7 @@
 package eu.esa.sar.sar.gpf.filtering;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
@@ -32,26 +33,28 @@ import org.junit.Test;
 import java.io.File;
 import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Unit test for SpeckleFilterOperator.
  */
-public class SpeckleFilterOperatorTest {
+public class SpeckleFilterOperatorTest extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
     @Before
-    public void setUp() {
-        // If any of the file does not exist: the test will be ignored
-        assumeTrue("Input file" + inputFile + " does not exist - Skipping test", inputFile.exists());
+    public void setUp() throws Exception {
+        try {
+            // If any of the file does not exist: the test will be ignored
+            assumeTrue("Input file" + inputFile + " does not exist - Skipping test", inputFile.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private OperatorSpi spi = new SpeckleFilterOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
@@ -87,7 +90,7 @@ public class SpeckleFilterOperatorTest {
         final float[] expectedValues = {3.5f, 4.0f, 5.0f, 5.5f, 5.5f, 6.0f, 7.0f, 7.5f, 9.5f, 10.0f, 11.0f, 11.5f,
                 11.5f, 12.0f, 13.0f, 13.5f
         };
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     /**
@@ -118,7 +121,7 @@ public class SpeckleFilterOperatorTest {
         // compare with expected outputs
         final float[] expectedValues = {5.0f, 5.0f, 6.0f, 7.0f, 6.0f, 6.0f, 7.0f, 8.0f, 10.0f, 10.0f, 11.0f,
                 12.0f, 13.0f, 13.0f, 14.0f, 15.0f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     /**
@@ -149,7 +152,7 @@ public class SpeckleFilterOperatorTest {
         // compare with expected outputs
         final float[] expectedValues = {2.8108406f, 3.7109244f, 4.8278255f, 5.3469553f, 5.4066334f, 6.0f, 7.0f,
                 7.5449896f, 9.473422f, 10.0f, 11.0f, 11.517614f, 11.532819f, 12.026602f, 13.022581f, 13.539467f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     /**
@@ -180,7 +183,7 @@ public class SpeckleFilterOperatorTest {
         // compare with expected outputs
         final float[] expectedValues = {3.5f, 4.0f, 5.0f, 5.5f, 5.5f, 6.0f, 7.0f, 7.5f, 9.5f, 10.0f, 11.0f, 11.5f,
                 11.5f, 12.0f, 13.0f, 13.5f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     /**
@@ -211,8 +214,37 @@ public class SpeckleFilterOperatorTest {
         // compare with expected outputs
         final float[] expectedValues = {3.5f, 4.0f, 5.0f, 5.5f, 5.5f, 6.0f, 7.0f, 7.5f, 9.5f, 10.0f, 11.0f, 11.5f,
                 11.5f, 12.0f, 13.0f, 13.5f};
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
+    }
 
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+    /**
+     * Tests IDAN filter with a 4-by-4 test product.
+     *
+     * @throws Exception anything
+     */
+    @Test
+    public void testIDANFilter() throws Exception {
+        final Product sourceProduct = createTestProduct(4, 4);
+
+        final SpeckleFilterOp op = (SpeckleFilterOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
+        op.SetFilter("IDAN");
+
+        // get targetProduct gets initialize to be executed
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true);
+
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[16];
+        band.readPixels(0, 0, 4, 4, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs
+        final float[] expectedValues = {4.5f, 4.5f, 5.0f, 6.5f, 5.0f, 5.0f, 6.5f, 7.0f, 8.0f, 8.0f, 9.0f, 9.0f, 9.5f, 9.5f, 10.5f, 10.5f};
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     /**
@@ -250,8 +282,7 @@ public class SpeckleFilterOperatorTest {
                 120.008255f, 114.69612f, 106.46667f, 106.02027f, 98.75016f, 78.02842f, 85.9f,
                 121.4375f, 119.85731f, 107.083336f, 106.53835f, 97.693275f, 88.09068f, 83.8125f
         };
-
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     /**

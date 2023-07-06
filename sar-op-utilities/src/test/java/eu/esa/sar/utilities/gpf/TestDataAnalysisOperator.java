@@ -21,8 +21,8 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Unit test for SingleTileOperator.
@@ -62,13 +62,13 @@ public class TestDataAnalysisOperator {
         System.out.println("std = " + op.getStd(0));
         System.out.println("var = " + op.getVarCoef(0));
         System.out.println("enl = " + op.getENL(0));
-        assertTrue(op.getNumOfBands() == 1);
-        assertTrue(Double.compare(op.getMin(0), 1.0) == 0);
-        assertTrue(Double.compare(op.getMax(0), 16.0) == 0);
-        assertTrue(Double.compare(op.getMean(0), 8.5) == 0);
-        assertTrue(Double.compare(op.getStd(0), 4.6097722286464435) == 0);
-        assertTrue(Double.compare(op.getVarCoef(0), 0.8621574728675674) == 0);
-        assertTrue(Double.compare(op.getENL(0), 1.3453237410071943) == 0);
+        assertEquals(1, op.getNumOfBands());
+        assertEquals(0, Double.compare(op.getMin(0), 1.0));
+        assertEquals(0, Double.compare(op.getMax(0), 16.0));
+        assertEquals(0, Double.compare(op.getMean(0), 8.5));
+        assertEquals(0, Double.compare(op.getStd(0), 4.6097722286464435));
+        assertEquals(0, Double.compare(op.getVarCoef(0), 0.8621574728675674));
+        assertEquals(0, Double.compare(op.getENL(0), 1.3453237410071943));
     }
 
     private static Product createTestProduct(int w, int h) {

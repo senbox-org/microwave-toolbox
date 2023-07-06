@@ -17,6 +17,7 @@ package eu.esa.sar.sar.gpf.geometric;
 
 
 import eu.esa.sar.calibration.gpf.CalibrationOp;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -32,7 +33,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit test for Range Doppler.
  */
-public class TestTerrainFlatteningOp {
+public class TestTerrainFlatteningOp extends ProcessorTest {
 
     private final static File inputFile1 = TestData.inputASAR_WSM;
     private final static File inputFile2 = TestData.inputASAR_IMS;
@@ -40,17 +41,19 @@ public class TestTerrainFlatteningOp {
     private final static File inputFile4 = TestData.inputASAR_APM;
 
     @Before
-    public void setUp() {
-        // If any of the file does not exist: the test will be ignored
-        assumeTrue(inputFile1 + " not found", inputFile1.exists());
-        assumeTrue(inputFile2 + " not found", inputFile2.exists());
-        assumeTrue(inputFile3 + " not found", inputFile3.exists());
-        assumeTrue(inputFile4 + " not found", inputFile4.exists());
+    public void setUp() throws Exception {
+        try {
+            // If any of the file does not exist: the test will be ignored
+            assumeTrue(inputFile1 + " not found", inputFile1.exists());
+            assumeTrue(inputFile2 + " not found", inputFile2.exists());
+            assumeTrue(inputFile3 + " not found", inputFile3.exists());
+            assumeTrue(inputFile4 + " not found", inputFile4.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new TerrainFlatteningOp.Spi();
 
     /**

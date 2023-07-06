@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Random;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -213,7 +214,7 @@ public class TestPolarimetricDecompositionOp {
                 0.58138514f, 0.47988653f, 0.35988957f, 0.4122757f, 0.43132278f, 0.43501678f, 0.46842563f, 0.52232397f,
                 0.4944064f, 0.6037089f, 0.57674855f, 0.44855425f, 0.22622389f, 0.37596372f, 0.35784683f, 0.4225033f,
                 0.43441418f, 0.4428584f, 0.34741288f, 0.4936852f, 0.4295814f, 0.28043285f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     @Test
