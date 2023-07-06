@@ -13,16 +13,16 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.sar.gpf;
+package eu.esa.sar.utilities.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -33,11 +33,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Unit test for BandPassFilter Operator.
+ * Unit test for DemodulateOp Operator.
  */
-public class TestBandPassFilterOp extends ProcessorTest {
+public class TestDemodulateOp {
 
     private final static File inputFile = TestData.inputStackIMS;
+
+    private final static OperatorSpi spi = new DemodulateOp.Spi();
 
     @Before
     public void setUp() throws Exception {
@@ -50,11 +52,9 @@ public class TestBandPassFilterOp extends ProcessorTest {
         }
     }
 
-    private final static OperatorSpi spi = new BandPassFilterOp.Spi();
-
     @Test
-    public void testBandPass() throws Exception {
-        final float[] expected = new float[] { -29.0f, -26.0f, -6.0f, -6.0f };
+    public void testIMS() throws Exception {
+        final float[] expected = new float[] { -0.0f, -0.0f, -0.42140472f, -0.42140472f };
         process(inputFile, expected);
     }
 
@@ -68,7 +68,10 @@ public class TestBandPassFilterOp extends ProcessorTest {
 
         final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
 
-        final BandPassFilterOp op = (BandPassFilterOp) spi.createOperator();
+        final float[] origValues = new float[4];
+        sourceProduct.getBandAt(2).readPixels(0, 0, 2, 2, origValues, ProgressMonitor.NULL);
+
+        final DemodulateOp op = (DemodulateOp) spi.createOperator();
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);
 
@@ -76,7 +79,7 @@ public class TestBandPassFilterOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
+        final Band band = targetProduct.getBandAt(4);
         assertNotNull(band);
 
         // readPixels gets computeTiles to be executed

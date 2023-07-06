@@ -13,64 +13,38 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.sar.gpf;
+package eu.esa.sar.utilities.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.test.ProcessorTest;
-import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assume.assumeTrue;
 
 /**
- * Unit test for BandPassFilter Operator.
+ * Unit test for SetNoDataValueOp Operator.
  */
-public class TestBandPassFilterOp extends ProcessorTest {
+public class TestSetNoDataValueOp {
 
-    private final static File inputFile = TestData.inputStackIMS;
-
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If the file does not exist: the test will be ignored
-            assumeTrue(inputFile + " not found", inputFile.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
-
-    private final static OperatorSpi spi = new BandPassFilterOp.Spi();
+    private final static OperatorSpi spi = new SetNoDataValueOp.Spi();
 
     @Test
-    public void testBandPass() throws Exception {
-        final float[] expected = new float[] { -29.0f, -26.0f, -6.0f, -6.0f };
-        process(inputFile, expected);
-    }
+    public void testSetNoData() throws Exception {
 
-    /**
-     * Processes a product and compares it to processed product known to be correct
-     *
-     * @param inputFile    the path to the input product
-     * @throws Exception general exception
-     */
-    private void process(final File inputFile, final float[] expected) throws Exception {
+        final Product sourceProduct = TestUtils.createProduct("type", 10, 10);
+        TestUtils.createBand(sourceProduct, "band", 10, 10);
 
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
-
-        final BandPassFilterOp op = (BandPassFilterOp) spi.createOperator();
+        final SetNoDataValueOp op = (SetNoDataValueOp) spi.createOperator();
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);
+        op.setParameter("noDataValue", 5.0);
 
         // get targetProduct: execute initialize()
         final Product targetProduct = op.getTargetProduct();
@@ -78,12 +52,14 @@ public class TestBandPassFilterOp extends ProcessorTest {
 
         final Band band = targetProduct.getBandAt(0);
         assertNotNull(band);
+        assertEquals(5.0, band.getNoDataValue(), 0.0f);
 
         // readPixels gets computeTiles to be executed
         final float[] floatValues = new float[4];
         band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
         // compare with expected outputs:
+        final float[] expected = new float[] { 1.0f, 2.0f, 11.0f, 12.0f };
         assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
     }
 }

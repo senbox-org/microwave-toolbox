@@ -88,6 +88,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);
         op.setApplyRadiometricCalibration(true);
+        op.setParameter("saveLayoverShadowMask", true);
         String[] bandNames = {"Amplitude"};
         op.setSourceBandNames(bandNames);
 

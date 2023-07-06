@@ -93,6 +93,31 @@ public class TestSARSimulationOp extends ProcessorTest {
     }
 
     @Test
+    public void testLayoverShadow() throws Exception {
+        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+
+        final SARSimulationOp op = (SARSimulationOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
+        op.setParameter("saveLayoverShadowMask", true);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true, true);
+
+        final Band band = targetProduct.getBandAt(3);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[4];
+        band.readPixels(500, 500, 2, 2, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expected = new float[] { 0.0f, 0.0f, 0.0f, 0.0f };
+        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+    }
+
+    @Test
     public void testProcessAllASAR() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsASAR, productTypeExemptions, exceptionExemptions);
     }

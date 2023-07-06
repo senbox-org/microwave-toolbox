@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.sar.gpf;
+package eu.esa.sar.utilities.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
@@ -23,6 +23,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -33,11 +34,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Unit test for BandPassFilter Operator.
+ * Unit test for RemodulateOp Operator.
  */
-public class TestBandPassFilterOp extends ProcessorTest {
+public class TestRemodulateOp extends ProcessorTest {
 
     private final static File inputFile = TestData.inputStackIMS;
+
+    private final static OperatorSpi spi = new RemodulateOp.Spi();
 
     @Before
     public void setUp() throws Exception {
@@ -50,11 +53,9 @@ public class TestBandPassFilterOp extends ProcessorTest {
         }
     }
 
-    private final static OperatorSpi spi = new BandPassFilterOp.Spi();
-
     @Test
-    public void testBandPass() throws Exception {
-        final float[] expected = new float[] { -29.0f, -26.0f, -6.0f, -6.0f };
+    public void testIMS() throws Exception {
+        final float[] expected = new float[] { 38.999535f, 2.8585785E-4f, 5.197046E-4f, -45.999943f };
         process(inputFile, expected);
     }
 
@@ -68,20 +69,41 @@ public class TestBandPassFilterOp extends ProcessorTest {
 
         final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
 
-        final BandPassFilterOp op = (BandPassFilterOp) spi.createOperator();
+        final float[] origValues = new float[4];
+        sourceProduct.getBandAt(2).readPixels(500, 500, 2, 2, origValues, ProgressMonitor.NULL);
+
+        final DemodulateOp dmodOp = (DemodulateOp) new DemodulateOp.Spi().createOperator();
+        assertNotNull(dmodOp);
+        dmodOp.setSourceProduct(sourceProduct);
+
+        // get targetProduct: execute initialize()
+        final Product dmodProduct = dmodOp.getTargetProduct();
+        TestUtils.verifyProduct(dmodProduct, true, true, true);
+
+        final Band dmodSlvBand = dmodProduct.getBandAt(2);
+        assertNotNull(dmodSlvBand);
+
+        final float[] dmodExpected = new float[] { -23.118227f, -9.201061f, 52.344772f, 42.925545f };
+        final float[] dmodValues = new float[4];
+        dmodSlvBand.readPixels(500, 500, 2, 2, dmodValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        assertArrayEquals(Arrays.toString(dmodValues), dmodExpected, dmodValues, 0.0001f);
+
+        final RemodulateOp op = (RemodulateOp) spi.createOperator();
         assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+        op.setSourceProduct(dmodProduct);
 
         // get targetProduct: execute initialize()
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
+        final Band band = targetProduct.getBandAt(2);
         assertNotNull(band);
 
         // readPixels gets computeTiles to be executed
         final float[] floatValues = new float[4];
-        band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+        band.readPixels(500, 500, 2, 2, floatValues, ProgressMonitor.NULL);
 
         // compare with expected outputs:
         assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);

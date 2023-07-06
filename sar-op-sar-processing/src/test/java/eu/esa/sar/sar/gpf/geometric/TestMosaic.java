@@ -5,6 +5,7 @@ import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
@@ -45,7 +46,30 @@ public class TestMosaic extends ProcessorTest {
      * @throws Exception general exception
      */
     @Test
-    public void testProcessing() throws Exception {
+    public void testAllOff() throws Exception {
+        final float[] expected = new float[] { 1288.0f, 1241.0f, 1309.0f, 1279.0f };
+        process(false, false, false, expected);
+    }
+
+    @Test
+    public void testAverage() throws Exception {
+        final float[] expected = new float[] { 1238.0f, 1202.0f, 1303.0f, 1254.0f };
+        process(true, false, false, expected);
+    }
+
+    @Test
+    public void testAverageNormalized() throws Exception {
+        final float[] expected = new float[] { 1.2861735f, 1.1919507f, 1.4611204f, 1.3296762f };
+        process(true, true, false, expected);
+    }
+
+    @Test
+    public void testGradientDomain() throws Exception {
+        final float[] expected = new float[] { 1234.8408f, 1200.0745f, 1301.8884f, 1252.1249f };
+        process(false, false, true, expected);
+    }
+
+    private void process(boolean average, boolean normalizeByMean, boolean gradientDomain, final float[] expected) throws Exception {
 
         final Product sourceProduct1 = TestUtils.readSourceProduct(inputFile1);
         final Product sourceProduct2 = TestUtils.readSourceProduct(inputFile2);
@@ -53,6 +77,10 @@ public class TestMosaic extends ProcessorTest {
         final MosaicOp op = (MosaicOp) spi.createOperator();
         assertNotNull(op);
         op.setSourceProducts(sourceProduct1,sourceProduct2);
+        op.setParameter("average", average);
+        op.setParameter("normalizeByMean", normalizeByMean);
+        op.setParameter("gradientDomainMosaic", gradientDomain);
+        op.setParameter("resamplingMethod", ResamplingFactory.BILINEAR_INTERPOLATION_NAME);
 
         // get targetProduct: execute initialize()
         final Product targetProduct = op.getTargetProduct();
@@ -66,7 +94,6 @@ public class TestMosaic extends ProcessorTest {
         band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
 
         // compare with expected outputs:
-        final float[] expected = new float[] { 1.3692834f, 1.1364064f, 1.5000299f, 1.4998151f };
         assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
     }
 }

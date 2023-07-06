@@ -31,6 +31,33 @@ public class TestDataAnalysisOperator {
 
     private final static OperatorSpi spi = new DataAnalysisOp.Spi();
 
+//    @Test
+//    public void testDataAnalysis() throws Exception {
+//
+//        final Product sourceProduct = TestUtils.createProduct("type", 10, 10);
+//        TestUtils.createBand(sourceProduct, "band", 10, 10);
+//
+//        final DataAnalysisOp op = (DataAnalysisOp) spi.createOperator();
+//        assertNotNull(op);
+//        op.setSourceProduct(sourceProduct);
+//        op.setParameter("noDataValue", 5.0);
+//
+//        // get targetProduct: execute initialize()
+//        final Product targetProduct = op.getTargetProduct();
+//        TestUtils.verifyProduct(targetProduct, true, true, true);
+//
+//        final Band band = targetProduct.getBandAt(0);
+//        assertNotNull(band);
+//
+//        // readPixels gets computeTiles to be executed
+//        final float[] floatValues = new float[4];
+//        band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+//
+//        // compare with expected outputs:
+//        final float[] expected = new float[] { 1.0f, 2.0f, 11.0f, 12.0f };
+//        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+//    }
+
     @Test
     public void testSampleOperator() throws Exception {
 
