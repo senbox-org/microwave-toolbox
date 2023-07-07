@@ -31,7 +31,6 @@ import java.util.Random;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -50,14 +49,14 @@ public class TestPolarimetricDecompositionOp {
     private final static String inputC3Stack = TestData.inputSAR + "/QuadPolStack/RS2-C3-Stack.dim";
     private final static String inputT3Stack = TestData.inputSAR + "/QuadPolStack/RS2-T3-Stack.dim";
 
-    private final static String expectedSinclair = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Sinclair.dim";
-    private final static String expectedPauli = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Pauli.dim";
-    private final static String expectedFreeman = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_FreemanDurden.dim";
-    private final static String expectedYamaguchi = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Yamaguchi.dim";
-    private final static String expectedVanZyl = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_VanZyl.dim";
-    private final static String expectedCloude = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Cloude.dim";
-    private final static String expectedHaAlpha = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_HaAlpha.dim";
-    private final static String expectedTouzi = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Touzi.dim";
+    private final static String expectedSinclair = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Sinclair.dim";
+    private final static String expectedPauli = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Pauli.dim";
+    private final static String expectedFreeman = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_FreemanDurden.dim";
+    private final static String expectedYamaguchi = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Yamaguchi.dim";
+    private final static String expectedVanZyl = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_VanZyl.dim";
+    private final static String expectedCloude = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Cloude.dim";
+    private final static String expectedHaAlpha = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_HaAlpha.dim";
+    private final static String expectedTouzi = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Touzi.dim";
 
 
     @Before

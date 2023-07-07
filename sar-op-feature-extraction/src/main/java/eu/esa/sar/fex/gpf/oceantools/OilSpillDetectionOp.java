@@ -52,8 +52,8 @@ import java.util.List;
  */
 
 // Need to update the following graphs:
-//    C:\ESA\snap-gpt-tests\gpt-tests-resources\graphs\s1tbx\FeatureExtraction
-//    C:\ESA\s1tbx\s1tbx-op-feature-extraction-ui\src\main\resources\org\esa\s1tbx\fex\graphs\Radar\SAR Applications
+//    snap-gpt-tests\gpt-tests-resources\graphs\s1tbx\FeatureExtraction
+//    sar-op-feature-extraction-ui\src\main\resources\eu\esa\sar\fex\graphs\Radar\SAR Applications
 
 @OperatorMetadata(alias = "Oil-Spill-Detection",
         category = "Radar/SAR Applications/Ocean Applications/Oil Spill Detection",

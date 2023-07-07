@@ -45,7 +45,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
     public final static File inputSC_GeoTiff_GEC_tif = new File(TestData.inputSAR + "Cosmo/SCANSAR-1/HH_Level_1C_GeoTIFF/CSG_SSAR1_GEC_B_0301_SC1_001_HH_RA_F_20200923102555_20200923102610_1_F_41N_Z18_N00.IMG.tif");
 
 
-    private final static String inputCosmo = SARTests.inputPathProperty + SARTests.sep + "SAR" + SARTests.sep  + "Cosmo" + SARTests.sep ;
+    private final static String inputCosmo = SARTests.inputPathProperty + "SAR/Cosmo/";
     private final static File[] rootPathsCosmoSkymed = SARTests.loadFilePath(inputCosmo);
 
     private String[] exceptionExemptions = {"not supported"};

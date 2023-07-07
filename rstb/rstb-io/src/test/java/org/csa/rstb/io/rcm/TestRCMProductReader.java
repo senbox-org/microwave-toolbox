@@ -18,6 +18,7 @@ package org.csa.rstb.io.rcm;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,21 +34,21 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestRCMProductReader extends ReaderTest {
 
-    private final static File inputGRDZip = new File(SARTests.TEST_ROOT +"RCM/QP/RCM1_OK21594_PK225278_4_QP15_20110624_225945_HH_VV_HV_VH_GRD.zip");
-    private final static File inputGRDFolder = new File(SARTests.TEST_ROOT +"RCM/QP/RCM1_OK21594_PK225278_4_QP15_20110624_225945_HH_VV_HV_VH_GRD");
-    private final static File inputGRDManifest = new File(SARTests.TEST_ROOT +"RCM/QP/RCM1_OK21594_PK225278_4_QP15_20110624_225945_HH_VV_HV_VH_GRD/manifest.safe");
+    private final static File inputGRDZip = new File(TestData.inputSAR +"RCM/QP/RCM1_OK21594_PK225278_4_QP15_20110624_225945_HH_VV_HV_VH_GRD.zip");
+    private final static File inputGRDFolder = new File(TestData.inputSAR +"RCM/QP/RCM1_OK21594_PK225278_4_QP15_20110624_225945_HH_VV_HV_VH_GRD");
+    private final static File inputGRDManifest = new File(TestData.inputSAR +"RCM/QP/RCM1_OK21594_PK225278_4_QP15_20110624_225945_HH_VV_HV_VH_GRD/manifest.safe");
 
-    private final static File inputGRCFolder = new File(SARTests.TEST_ROOT +"RCM/QP/RCM1_OK21594_PK225278_6_QP15_20110624_225945_HH_VV_HV_VH_GRC");
-    private final static File inputGRCManifest = new File(SARTests.TEST_ROOT +"RCM/QP/RCM1_OK21594_PK225278_6_QP15_20110624_225945_HH_VV_HV_VH_GRC/manifest.safe");
+    private final static File inputGRCFolder = new File(TestData.inputSAR +"RCM/QP/RCM1_OK21594_PK225278_6_QP15_20110624_225945_HH_VV_HV_VH_GRC");
+    private final static File inputGRCManifest = new File(TestData.inputSAR +"RCM/QP/RCM1_OK21594_PK225278_6_QP15_20110624_225945_HH_VV_HV_VH_GRC/manifest.safe");
 
-    //private final static File inputSLCZip = new File(S1TBXTests.TEST_ROOT +"RCM/QP/RCM1_OK77686_PK688502_2_3M26_20130822_020936_HH_SLC.zip");
-    private final static File inputSLCFolder = new File(SARTests.TEST_ROOT +"RCM/QP/RCM1_OK21594_PK225278_2_QP15_20110624_225945_HH_VV_HV_VH_SLC");
-    private final static File inputSLCManifest = new File(SARTests.TEST_ROOT +"RCM/QP/RCM1_OK21594_PK225278_2_QP15_20110624_225945_HH_VV_HV_VH_SLC/manifest.safe");
+    //private final static File inputSLCZip = new File(TestData.inputSAR +"RCM/QP/RCM1_OK77686_PK688502_2_3M26_20130822_020936_HH_SLC.zip");
+    private final static File inputSLCFolder = new File(TestData.inputSAR +"RCM/QP/RCM1_OK21594_PK225278_2_QP15_20110624_225945_HH_VV_HV_VH_SLC");
+    private final static File inputSLCManifest = new File(TestData.inputSAR +"RCM/QP/RCM1_OK21594_PK225278_2_QP15_20110624_225945_HH_VV_HV_VH_SLC/manifest.safe");
 
-    private final static File inputCPSLC = new File(SARTests.TEST_ROOT +"RCM/CP/RCM1_OK21594_PK225278_2_16MCP9_20110624_225945_CH_CV_SLC");
-    private final static File inputCPGRC = new File(SARTests.TEST_ROOT +"RCM/CP/RCM1_OK21594_PK225278_6_16MCP9_20110624_225945_CH_CV_GRC");
-    private final static File inputCPGRD = new File(SARTests.TEST_ROOT +"RCM/CP/RCM1_OK21594_PK225278_4_16MCP9_20110624_225945_CH_CV_GRD");
-    private final static File inputCPGRCZip = new File(SARTests.TEST_ROOT +"RCM/CP/RCM1_OK21594_PK225278_6_16MCP9_20110624_225945_CH_CV_GRC.zip");
+    private final static File inputCPSLC = new File(TestData.inputSAR +"RCM/CP/RCM1_OK21594_PK225278_2_16MCP9_20110624_225945_CH_CV_SLC");
+    private final static File inputCPGRC = new File(TestData.inputSAR +"RCM/CP/RCM1_OK21594_PK225278_6_16MCP9_20110624_225945_CH_CV_GRC");
+    private final static File inputCPGRD = new File(TestData.inputSAR +"RCM/CP/RCM1_OK21594_PK225278_4_16MCP9_20110624_225945_CH_CV_GRD");
+    private final static File inputCPGRCZip = new File(TestData.inputSAR +"RCM/CP/RCM1_OK21594_PK225278_6_16MCP9_20110624_225945_CH_CV_GRC.zip");
 
     public TestRCMProductReader() {
         super(new RCMProductReaderPlugIn());

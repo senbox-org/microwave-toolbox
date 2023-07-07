@@ -34,8 +34,8 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestSeaSatProductReader extends ReaderTest {
 
-    private final static File metadataFile = new File(SARTests.inputPathProperty + SARTests.sep +"SAR/Seasat/SS_00263_STD_F0886_tif/SS_00263_STD_F0886.xml");
-    private final static File zipFile = new File(SARTests.inputPathProperty + SARTests.sep +"SAR/Seasat/SS_00263_STD_F0886_tif.zip");
+    private final static File metadataFile = new File(SARTests.inputPathProperty + "SAR/Seasat/SS_00263_STD_F0886_tif/SS_00263_STD_F0886.xml");
+    private final static File zipFile = new File(SARTests.inputPathProperty + "SAR/Seasat/SS_00263_STD_F0886_tif.zip");
 
     final static MetadataValidator.Options options = new MetadataValidator.Options();
 

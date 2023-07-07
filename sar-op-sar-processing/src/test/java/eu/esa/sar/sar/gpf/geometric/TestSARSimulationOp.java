@@ -56,9 +56,6 @@ public class TestSARSimulationOp extends ProcessorTest {
     private final static OperatorSpi spi = new SARSimulationOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private final static String inputPathWSM = TestData.inputSAR + "/subset_1_of_ENVISAT-ASA_WSM_1PNPDE20080119_093446_000000852065_00165_30780_2977.dim";
-    private final static String expectedPathWSM = TestData.input + "/expected/subset_1_of_ENVISAT-ASA_WSM_1PNPDE20080119_093446_000000852065_00165_30780_2977_SIM.dim";
-
     private String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX"};
     private String[] exceptionExemptions = {"not supported", "not be map projected", "outside of SRTM valid area",
                 "Source product should first be deburst"};

@@ -1,7 +1,7 @@
 package eu.esa.sar.teststacks.coregistration;
 
 import eu.esa.sar.commons.test.ProcessorTest;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
 import eu.esa.sar.insar.gpf.coregistration.CrossCorrelationOp;
 import eu.esa.sar.insar.gpf.coregistration.WarpOp;
@@ -24,8 +24,8 @@ import static org.junit.Assume.assumeTrue;
 @RunWith(LongTestRunner.class)
 public class TestCrossCorrelationCoregistrationStack extends ProcessorTest {
 
-    private final static File asarSantoriniFolder = new File(SARTests.inputPathProperty + "/SAR/ASAR/Santorini");
-    private final static File rs2ManitobaFolder = new File(SARTests.inputPathProperty + "/SAR/RS2/Manitoba");
+    private final static File asarSantoriniFolder = new File(TestData.inputSAR + "ASAR/Santorini");
+    private final static File rs2ManitobaFolder = new File(TestData.inputSAR + "RS2/Manitoba");
 
     @Before
     public void setUp() {

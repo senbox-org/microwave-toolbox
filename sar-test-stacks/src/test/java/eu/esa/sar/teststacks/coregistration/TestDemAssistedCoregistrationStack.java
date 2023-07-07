@@ -1,7 +1,7 @@
 package eu.esa.sar.teststacks.coregistration;
 
 import eu.esa.sar.commons.test.ProcessorTest;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.DEMAssistedCoregistrationOp;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Product;
@@ -15,7 +15,7 @@ import static org.junit.Assume.assumeTrue;
 
 public class TestDemAssistedCoregistrationStack extends ProcessorTest {
 
-    private final static File asarSantoriniFolder = new File(SARTests.inputPathProperty + "/SAR/ASAR/Santorini");
+    private final static File asarSantoriniFolder = new File(TestData.inputSAR + "ASAR/Santorini");
 
     @Before
     public void setUp() {

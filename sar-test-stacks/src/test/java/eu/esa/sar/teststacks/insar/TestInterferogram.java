@@ -1,7 +1,7 @@
 package eu.esa.sar.teststacks.insar;
 
 import eu.esa.sar.commons.test.ProcessorTest;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.InterferogramOp;
 import eu.esa.sar.teststacks.coregistration.TestCrossCorrelationCoregistrationStack;
 import org.esa.snap.core.dataio.ProductIO;
@@ -19,7 +19,7 @@ import static org.junit.Assume.assumeTrue;
 @RunWith(LongTestRunner.class)
 public class TestInterferogram extends ProcessorTest {
 
-    private final static File asarSantoriniFolder = new File(SARTests.inputPathProperty + "/SAR/ASAR/Santorini");
+    private final static File asarSantoriniFolder = new File(TestData.inputSAR + "ASAR/Santorini");
 
     @Before
     public void setUp() {

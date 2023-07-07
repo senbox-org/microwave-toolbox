@@ -32,7 +32,7 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestJERSProductReader extends ReaderTest {
 
-    public final static String inputJERS = SARTests.inputPathProperty + SARTests.sep + "SAR" + SARTests.sep  + "JERS" + SARTests.sep ;
+    public final static String inputJERS = SARTests.inputPathProperty + "SAR/JERS/";
     public final static File[] rootPathsJERS = SARTests.loadFilePath(inputJERS);
 
     @Before
