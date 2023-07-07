@@ -2,7 +2,13 @@
 include:
   - 'https://gitlab.com/senbox-org/snap-engine/raw/master/.gitlab-ci.yml'
 
+.add_libs: &add_libs
+  - apt-get -qq update && apt-get -qq -y install libgfortran5
+
 mvn-build:
+  before_script:
+    - *add_libs
+    - !reference [".mvn-base", "before_script"]
   artifacts:
     paths:
       - "${MAVEN_PROJECT_DIR}/**/target/*.jar"
