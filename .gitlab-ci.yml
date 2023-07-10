@@ -5,7 +5,9 @@ include:
 .add_libs: &add_libs
   - apt-get -qq update && apt-get -qq -y install libgfortran5
 
+
 mvn-build:
+  # Override .mvn-base > before_script to add 1 more line
   before_script:
     - *add_libs
     - !reference [".mvn-base", "before_script"]
@@ -16,3 +18,13 @@ mvn-build:
       - "${MAVEN_PROJECT_DIR}/**/target/*.nbm"
       - "${MAVEN_PROJECT_DIR}/microwavetbx-kit/target/netbeans_clusters/microwavetbx"
       - "${MAVEN_PROJECT_DIR}/microwavetbx-kit/target/netbeans_clusters/rstb"
+
+mvn-deploy-snapshot:
+  before_script:
+    - *add_libs
+    - !reference [".mvn-base", "before_script"]
+
+mvn-deploy-release:
+  before_script:
+    - *add_libs
+    - !reference [".mvn-base", "before_script"]
