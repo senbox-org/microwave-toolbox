@@ -16,3 +16,5 @@ mvn-build:
       - "${MAVEN_PROJECT_DIR}/**/target/*.nbm"
       - "${MAVEN_PROJECT_DIR}/microwavetbx-kit/target/netbeans_clusters/microwavetbx"
       - "${MAVEN_PROJECT_DIR}/microwavetbx-kit/target/netbeans_clusters/rstb"
+      - "${MAVEN_PROJECT_DIR}/**/target/site"
+      - "${MAVEN_PROJECT_DIR}/**/target/surefire-reports"
