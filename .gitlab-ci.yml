@@ -14,7 +14,7 @@ variables:
 
 .add_libs_and_data: &add_libs_and_data
   - apt-get -qq update && apt-get -qq -y install libgfortran5
-  - apt-get install python3-pip
+  - apt-get -qq -y install python3-pip
   - pip3 install awscli
   - aws s3 sync s3://$S3_BUCKET/testData/SAR/unittests $TEST_DATA_DIR/SAR/unittests $S3_ARGS
 
