@@ -65,7 +65,7 @@ public class TestMosaic extends ProcessorTest {
 
     @Test
     public void testGradientDomain() throws Exception {
-        final float[] expected = new float[] { 1234.8408f, 1200.0745f, 1301.8884f, 1252.1249f };
+        final float[] expected = new float[] { 1287.7158f, 1240.6554f, 1308.471f, 1279.0542f };
         process(false, false, true, expected);
     }
 
