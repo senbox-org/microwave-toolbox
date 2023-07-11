@@ -2,6 +2,12 @@
 include:
   - 'https://gitlab.com/senbox-org/snap-engine/raw/master/.gitlab-ci.yml'
 
+default:
+  cache:
+    paths:
+      # $CI_PROJECT_DIR is /builds/senbox-org/microwave-toolbox/ on ci
+      - "${CI_PROJECT_DIR}/testData"
+
 .add_libs: &add_libs
   - apt-get -qq update && apt-get -qq -y install libgfortran5
 
