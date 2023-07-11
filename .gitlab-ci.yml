@@ -8,12 +8,17 @@ default:
       # $CI_PROJECT_DIR is /builds/senbox-org/microwave-toolbox/ on ci
       - "${CI_PROJECT_DIR}/testData"
 
-.add_libs: &add_libs
+variables:
+  TEST_DATA_DIR: "${CI_PROJECT_DIR}/testData"
+  S3_ARGS: --endpoint-url $S3_ENDPOINT --region sbg --no-progress
+
+.add_libs_and_data: &add_libs_and_data
   - apt-get -qq update && apt-get -qq -y install libgfortran5
+  - aws s3 sync s3://$S3_BUCKET/testData/SAR/unittests $TEST_DATA_DIR/SAR/unittests $S3_ARGS
 
 mvn-build:
   before_script:
-    - *add_libs
+    - *add_libs_and_data
     - !reference [".mvn-base", "before_script"]
   artifacts:
     paths:
@@ -24,3 +29,4 @@ mvn-build:
       - "${MAVEN_PROJECT_DIR}/microwavetbx-kit/target/netbeans_clusters/rstb"
       - "${MAVEN_PROJECT_DIR}/**/target/site"
       - "${MAVEN_PROJECT_DIR}/**/target/surefire-reports"
+
