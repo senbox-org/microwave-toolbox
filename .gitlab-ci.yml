@@ -15,8 +15,8 @@ variables:
 .add_libs_and_data: &add_libs_and_data
   - apt-get -qq update && apt-get -qq -y install libgfortran5
   - apt-get -qq -y install python3-pip
-  - pip3 install awscliv2
-  - ~/.local/bin/aws s3 sync s3://snap-s3/testData/SAR/unittests $TEST_DATA_DIR/SAR/unittests $S3_ARGS
+  - pip3 install awscli
+  - /usr/local/bin/aws s3 sync s3://snap-s3/testData/SAR/unittests $TEST_DATA_DIR/SAR/unittests $S3_ARGS
 
 mvn-build:
   before_script:
@@ -31,4 +31,3 @@ mvn-build:
       - "${MAVEN_PROJECT_DIR}/microwavetbx-kit/target/netbeans_clusters/rstb"
       - "${MAVEN_PROJECT_DIR}/**/target/site"
       - "${MAVEN_PROJECT_DIR}/**/target/surefire-reports"
-
