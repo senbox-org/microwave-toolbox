@@ -36,10 +36,10 @@ mvn-build:
 
 mvn-deploy-snapshot:
   before_script:
-    - *add_libs
+    - *add_libs_and_data
     - !reference [".mvn-base", "before_script"]
 
 mvn-deploy-release:
   before_script:
-    - *add_libs
+    - *add_libs_and_data
     - !reference [".mvn-base", "before_script"]
