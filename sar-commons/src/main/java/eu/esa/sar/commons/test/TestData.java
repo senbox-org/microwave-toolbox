@@ -24,7 +24,7 @@ import java.io.File;
  */
 public class TestData {
 
-    public final static String inputSAR = TestUtils.TEST_ROOT;
+    public final static String inputSAR = TestUtils.TESTDATA_ROOT;
 
     //ASAR
     public final static File inputASAR_IMM = new File(inputSAR + "ASAR/ASA_IMM.zip");
