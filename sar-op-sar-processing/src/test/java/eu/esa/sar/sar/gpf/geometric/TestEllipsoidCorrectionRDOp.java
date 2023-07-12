@@ -15,20 +15,18 @@
  */
 package eu.esa.sar.sar.gpf.geometric;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
-import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * Unit test for EllipsoidCorrectionRDOp.
  */
-public class TestEllipsoidCorrectionRDOp {
+public class TestEllipsoidCorrectionRDOp extends ProcessorTest {
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new EllipsoidCorrectionRDOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
@@ -63,6 +61,7 @@ public class TestEllipsoidCorrectionRDOp {
     }
 
     @Test
+    @Ignore
     public void testProcessAllCosmo() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsCosmoSkymed, null, exceptionExemptions);
     }

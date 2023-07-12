@@ -16,6 +16,8 @@
 package eu.esa.sar.utilities.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
@@ -24,19 +26,35 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Unit test for OversamplingOperator.
  */
-public class TestOversamplingOperator {
+public class TestOversamplingOperator extends ProcessorTest {
+
+    private final static File inputFile = TestData.inputStackIMS;
 
     private OperatorSpi spi = new OversamplingOp.Spi();
+
+    @Before
+    public void setUp() throws Exception {
+        try {
+            // If the file does not exist: the test will be ignored
+            assumeTrue(inputFile + " not found", inputFile.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
+    }
 
     /**
      * Tests undersampling operator with a 6x12 "DETECTED" test product.
@@ -66,7 +84,7 @@ public class TestOversamplingOperator {
         float[] expectedValues = {1.0f, 0.5090863f, 2.0f, 3.355916f, 3.0f, 3.0564091f, 4.0f, 4.8086267f, 5.0f,
                 5.391582f, 6.0f, 6.519202f, 7.0f, 7.648014f, 8.0f, 8.232636f, 9.0f, 9.997277f, 10.0f, 9.694443f,
                 11.0f, 13.105296f, 12.0f, 6.519202f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
 
@@ -108,5 +126,40 @@ public class TestOversamplingOperator {
                 AbstractMetadata.parseUTC("10-MAY-2008 20:32:46.885684"));
 
         return testProduct;
+    }
+
+    @Test
+    public void testIMS() throws Exception {
+        final float[] expected = new float[] { 4.0f, 27.14455f, 22.259079f, 40.433357f };
+        process(inputFile, expected);
+    }
+
+    /**
+     * Processes a product and compares it to processed product known to be correct
+     *
+     * @param inputFile    the path to the input product
+     * @throws Exception general exception
+     */
+    private void process(final File inputFile, final float[] expected) throws Exception {
+
+        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+
+        final OversamplingOp op = (OversamplingOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true, true);
+
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[4];
+        band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
     }
 }

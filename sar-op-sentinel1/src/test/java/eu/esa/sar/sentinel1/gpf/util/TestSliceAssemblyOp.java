@@ -15,8 +15,8 @@
  */
 package eu.esa.sar.sentinel1.gpf.util;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.sentinel1.gpf.SliceAssemblyOp;
-import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -33,17 +33,12 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit test for MultilookOperator.
  */
-public class TestSliceAssemblyOp {
+public class TestSliceAssemblyOp extends ProcessorTest {
 
-    private final static String sep = SARTests.sep;
-
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new SliceAssemblyOp.Spi();
 
-    private final File slice1File = new File(SARTests.inputSAR + sep + "S1" + sep + "GRD" + sep + "Hawaii_slices" + sep + "S1A_IW_GRDH_1SDV_20180514T043029_20180514T043054_021896_025D31_BBDA.zip");
-    private final File slice2File = new File(SARTests.inputSAR + sep + "S1" + sep + "GRD" + sep + "Hawaii_slices" + sep + "S1A_IW_GRDH_1SDV_20180514T043054_20180514T043119_021896_025D31_27FE.zip");
+    private final File slice1File = new File(TestData.inputSAR + "S1/GRD/Hawaii_slices/S1A_IW_GRDH_1SDV_20180514T043029_20180514T043054_021896_025D31_BBDA.zip");
+    private final File slice2File = new File(TestData.inputSAR + "S1/GRD/Hawaii_slices/S1A_IW_GRDH_1SDV_20180514T043054_20180514T043119_021896_025D31_27FE.zip");
 
     private final File nonSliceFile = TestData.inputS1_GRD;
 

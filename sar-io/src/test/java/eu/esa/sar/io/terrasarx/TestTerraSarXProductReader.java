@@ -18,6 +18,7 @@ package eu.esa.sar.io.terrasarx;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Before;
@@ -34,10 +35,10 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestTerraSarXProductReader extends ReaderTest {
 
-    private final static File mgdMetadataFile = new File(SARTests.inputPathProperty + SARTests.sep +"SAR/TerraSAR-X/Oslo_StaringSpotlight/TSX1_SAR__MGD_SE___ST_S_SRA_20130410T165445_20130410T165446/TSX1_SAR__MGD_SE___ST_S_SRA_20130410T165445_20130410T165446.xml");
-    private final static File sscMetadataFile = new File(SARTests.inputPathProperty + SARTests.sep +"SAR/TerraSAR-X/Sendai_D_Orbit042_20101020/dims_op_oc_dfd2_338933326_1/TSX-1.SAR.L1B/TSX1_SAR__SSC______SM_S_SRA_20101020T204312_20101020T204320\\TSX1_SAR__SSC______SM_S_SRA_20101020T204312_20101020T204320.xml");
+    private final static File mgdMetadataFile = new File(TestData.inputSAR + "TerraSAR-X/Oslo_StaringSpotlight/TSX1_SAR__MGD_SE___ST_S_SRA_20130410T165445_20130410T165446/TSX1_SAR__MGD_SE___ST_S_SRA_20130410T165445_20130410T165446.xml");
+    private final static File sscMetadataFile = new File(TestData.inputSAR + "TerraSAR-X/Sendai_D_Orbit042_20101020/dims_op_oc_dfd2_338933326_1/TSX-1.SAR.L1B/TSX1_SAR__SSC______SM_S_SRA_20101020T204312_20101020T204320\\TSX1_SAR__SSC______SM_S_SRA_20101020T204312_20101020T204320.xml");
 
-    private final static String inputTerraSarX = SARTests.inputPathProperty + SARTests.sep + "SAR/TerraSAR-X/";
+    private final static String inputTerraSarX = TestData.inputSAR + "TerraSAR-X/";
     private final static File[] rootPathsTerraSarX = SARTests.loadFilePath(inputTerraSarX);
 
     @Before

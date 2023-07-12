@@ -16,16 +16,11 @@
 package eu.esa.sar.orbits.io.sentinel1;
 
 import eu.esa.sar.cloud.opendata.OpenData;
-import eu.esa.sar.orbits.io.sentinel1.GnssOrbitFileDownloader;
-import eu.esa.sar.orbits.io.sentinel1.OpenSearch;
-import eu.esa.sar.orbits.io.sentinel1.Sentinel1OrbitFileReader;
-import eu.esa.sar.orbits.io.sentinel1.SentinelPODOrbitFile;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.ZipUtils;
 import org.junit.Assume;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -117,26 +112,6 @@ public class TestGnssOrbitFileDownloader {
         final int month = 1;
         final int day = 28;
         final ProductData.UTC stateVectorTime = ProductData.UTC.parse("2021-01-28 15:19:21.698661", Sentinel1OrbitFileReader.orbitDateFormat);
-        final File localFolder = SentinelPODOrbitFile.getDestFolder(missionPrefix, orbitType, year, month);
-
-        final GnssOrbitFileDownloader gnssDownloader = new GnssOrbitFileDownloader();
-
-        File orbitFile = gnssDownloader.download(localFolder, mission, missionPrefix, orbitType,
-                year, month, day, stateVectorTime);
-        assertTrue(orbitFile.exists());
-        orbitFile.delete();
-    }
-
-    @Test
-    @Ignore("RESBORBs removed from GNSS hub")
-    public void testDownloadRestituteOrbitFileS1B() throws Exception {
-        final String mission = "Sentinel-1";
-        final String missionPrefix = "S1B";
-        final String orbitType = SentinelPODOrbitFile.RESTITUTED;
-        final int year = 2021;
-        final int month = 2;
-        final int day = 14;
-        final ProductData.UTC stateVectorTime = ProductData.UTC.parse("2021-02-15 15:19:21.698661", Sentinel1OrbitFileReader.orbitDateFormat);
         final File localFolder = SentinelPODOrbitFile.getDestFolder(missionPrefix, orbitType, year, month);
 
         final GnssOrbitFileDownloader gnssDownloader = new GnssOrbitFileDownloader();

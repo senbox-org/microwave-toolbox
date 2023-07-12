@@ -7,6 +7,11 @@
             <attr name="showInWorldMapToolView" stringvalue="false"/>
             <attr name="showIn3DToolView" stringvalue="true"/>
         </file>
+        <file name="ETADProductLayer">
+            <attr name="WWLayerClass" stringvalue="eu.esa.sar.ocean.worldwind.layers.ETADProductLayer"/>
+            <attr name="showInWorldMapToolView" stringvalue="true"/>
+            <attr name="showIn3DToolView" stringvalue="false"/>
+        </file>
     </folder>
 
 </filesystem>

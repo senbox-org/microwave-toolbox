@@ -21,8 +21,8 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Unit test for SingleTileOperator.
@@ -30,6 +30,33 @@ import static org.junit.Assert.assertTrue;
 public class TestDataAnalysisOperator {
 
     private final static OperatorSpi spi = new DataAnalysisOp.Spi();
+
+//    @Test
+//    public void testDataAnalysis() throws Exception {
+//
+//        final Product sourceProduct = TestUtils.createProduct("type", 10, 10);
+//        TestUtils.createBand(sourceProduct, "band", 10, 10);
+//
+//        final DataAnalysisOp op = (DataAnalysisOp) spi.createOperator();
+//        assertNotNull(op);
+//        op.setSourceProduct(sourceProduct);
+//        op.setParameter("noDataValue", 5.0);
+//
+//        // get targetProduct: execute initialize()
+//        final Product targetProduct = op.getTargetProduct();
+//        TestUtils.verifyProduct(targetProduct, true, true, true);
+//
+//        final Band band = targetProduct.getBandAt(0);
+//        assertNotNull(band);
+//
+//        // readPixels gets computeTiles to be executed
+//        final float[] floatValues = new float[4];
+//        band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+//
+//        // compare with expected outputs:
+//        final float[] expected = new float[] { 1.0f, 2.0f, 11.0f, 12.0f };
+//        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+//    }
 
     @Test
     public void testSampleOperator() throws Exception {
@@ -62,13 +89,13 @@ public class TestDataAnalysisOperator {
         System.out.println("std = " + op.getStd(0));
         System.out.println("var = " + op.getVarCoef(0));
         System.out.println("enl = " + op.getENL(0));
-        assertTrue(op.getNumOfBands() == 1);
-        assertTrue(Double.compare(op.getMin(0), 1.0) == 0);
-        assertTrue(Double.compare(op.getMax(0), 16.0) == 0);
-        assertTrue(Double.compare(op.getMean(0), 8.5) == 0);
-        assertTrue(Double.compare(op.getStd(0), 4.6097722286464435) == 0);
-        assertTrue(Double.compare(op.getVarCoef(0), 0.8621574728675674) == 0);
-        assertTrue(Double.compare(op.getENL(0), 1.3453237410071943) == 0);
+        assertEquals(1, op.getNumOfBands());
+        assertEquals(0, Double.compare(op.getMin(0), 1.0));
+        assertEquals(0, Double.compare(op.getMax(0), 16.0));
+        assertEquals(0, Double.compare(op.getMean(0), 8.5));
+        assertEquals(0, Double.compare(op.getStd(0), 4.6097722286464435));
+        assertEquals(0, Double.compare(op.getVarCoef(0), 0.8621574728675674));
+        assertEquals(0, Double.compare(op.getENL(0), 1.3453237410071943));
     }
 
     private static Product createTestProduct(int w, int h) {

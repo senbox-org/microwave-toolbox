@@ -19,6 +19,7 @@ import eu.esa.sar.commons.test.MetadataValidator;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,9 +35,9 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestCapellaSpotProductReader extends ReaderTest {
 
-    final static File inputSpotSLCMeta = new File(SARTests.inputPathProperty + "/SAR/Capella/Spot/SLC/CAPELLA_C02_SP_SLC_HH_20201209213329_20201209213332.json");
-    final static File inputSpotSLCTif = new File(SARTests.inputPathProperty + "/SAR/Capella/Spot/SLC/CAPELLA_C02_SP_SLC_HH_20201209213329_20201209213332.tif");
-    final static File inputSpotSLCFolder = new File(SARTests.inputPathProperty + "/SAR/Capella/Spot/SLC");
+    final static File inputSpotSLCMeta = new File(TestData.inputSAR + "Capella/Spot/SLC/CAPELLA_C02_SP_SLC_HH_20201209213329_20201209213332.json");
+    final static File inputSpotSLCTif = new File(TestData.inputSAR + "Capella/Spot/SLC/CAPELLA_C02_SP_SLC_HH_20201209213329_20201209213332.tif");
+    final static File inputSpotSLCFolder = new File(TestData.inputSAR + "Capella/Spot/SLC");
 
     final static MetadataValidator.Options options = new MetadataValidator.Options();
 

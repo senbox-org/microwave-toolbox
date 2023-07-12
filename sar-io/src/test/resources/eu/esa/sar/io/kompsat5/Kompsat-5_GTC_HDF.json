@@ -28,14 +28,6 @@
 				"value": "1"
 			},
 			{
-				"path": "Original_Product_Metadata/GIM/Layover_Pixel_Percentage",
-				"value": "0.0"
-			},
-			{
-				"path": "Original_Product_Metadata/GIM/Shadowing_Pixel_Value",
-				"value": "255"
-			},
-			{
 				"path": "Original_Product_Metadata/SBI/Bottom_Left_East-North",
 				"value": "682524.0,3884249.0"
 			},
@@ -61,8 +53,8 @@
 					}
 				],
 				"name": "incident_angle",
-				"subSamplingY": "1784.800048828125",
-				"subSamplingX": "1788.699951171875"
+				"subSamplingY": "1983.111083984375",
+				"subSamplingX": "1987.4444580078125"
 			},
 			{
 				"offsetX": "0.0",
@@ -80,12 +72,12 @@
 					}
 				],
 				"name": "slant_range_time",
-				"subSamplingY": "1784.800048828125",
-				"subSamplingX": "1788.699951171875"
+				"subSamplingY": "1983.111083984375",
+				"subSamplingX": "1987.4444580078125"
 			},
 			{
-				"offsetX": "0.5",
-				"offsetY": "0.5",
+				"offsetX": "0.0",
+				"offsetY": "0.0",
 				"expectedPixels": [
 					{
 						"x": 9838,
@@ -103,8 +95,8 @@
 				"subSamplingX": "1987.4444444444443"
 			},
 			{
-				"offsetX": "0.5",
-				"offsetY": "0.5",
+				"offsetX": "0.0",
+				"offsetY": "0.0",
 				"expectedPixels": [
 					{
 						"x": 2830,
@@ -144,28 +136,6 @@
 		"startTime": "25-JAN-2017 11:12:24.275254",
 		"endTime": "25-JAN-2017 11:12:25.007531",
 		"bands": [
-			{
-				"bandWidth": 17887,
-				"noDataValueUsed": "true",
-				"bandHeight": 17848,
-				"expectedPixels": [
-					{
-						"x": 13525,
-						"y": 8649,
-						"value": 178.0
-					},
-					{
-						"x": 16696,
-						"y": 8671,
-						"value": 175.0
-					}
-				],
-				"spectralWavelength": "0.0",
-				"spectralBandwidth": "0.0",
-				"name": "GIM",
-				"noDataValue": "255.0",
-				"geophysicalUnit": "deg"
-			},
 			{
 				"bandWidth": 17887,
 				"noDataValueUsed": "true",

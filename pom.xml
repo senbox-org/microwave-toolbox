@@ -36,7 +36,7 @@
         <microwavetbx.version>10.0.0-SNAPSHOT</microwavetbx.version>
 
         <hdf.version>2.7.1</hdf.version>
-        <netcdf.version>5.3.1</netcdf.version>
+        <netcdf.version>5.3.3</netcdf.version>
         <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
 
@@ -70,7 +70,6 @@
         <module>sar-op-utilities</module>
         <module>sar-op-utilities-ui</module>
         <module>sar-test-stacks</module>
-        <module>sar-io-iceye-reader</module>
 
         <module>microwavetbx-benchmark</module>
         <module>microwavetbx-rcp</module>
@@ -377,7 +376,7 @@
             <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.10</version>
+                <version>1.15</version>
             </dependency>
             <dependency>
                 <groupId>commons-net</groupId>
@@ -393,7 +392,7 @@
             <dependency>
                 <groupId>commons-cli</groupId>
                 <artifactId>commons-cli</artifactId>
-                <version>1.2</version>
+                <version>1.5.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -431,7 +430,7 @@
             <dependency>
                 <groupId>org.jsoup</groupId>
                 <artifactId>jsoup</artifactId>
-                <version>1.15.3</version>
+                <version>1.16.1</version>
             </dependency>
 
             <dependency>

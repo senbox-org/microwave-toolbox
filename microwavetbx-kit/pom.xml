@@ -169,11 +169,6 @@
             <artifactId>microwavetbx-rcp</artifactId>
             <version>${project.version}</version>
         </dependency>
-		<dependency>
-            <groupId>com.iceye.esa.snap</groupId>
-            <artifactId>sar-io-iceye-reader</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 
         <dependency>
             <groupId>org.esa.snap</groupId>

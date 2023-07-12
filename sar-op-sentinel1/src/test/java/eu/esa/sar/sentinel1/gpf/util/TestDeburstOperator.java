@@ -16,13 +16,13 @@
 package eu.esa.sar.sentinel1.gpf.util;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.sentinel1.gpf.TOPSARDeburstOp;
-import eu.esa.sar.commons.test.SARTests;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -32,14 +32,9 @@ import static org.junit.Assert.assertNotNull;
 /**
  * Unit test for TOPSARDeburst Operator.
  */
-public class TestDeburstOperator {
+public class TestDeburstOperator extends ProcessorTest {
 
-    private final File inputFile = new File(SARTests.inputSAR, "S1/SLC/Etna-DLR/S1A_IW_SLC__1SDV_20140809T165546_20140809T165613_001866_001C20_088B.zip");
-
-    @Before
-    public void setUp() {
-        TestUtils.initTestEnvironment();
-    }
+    private final File inputFile = new File(TestData.inputSAR, "S1/SLC/Etna-DLR/S1A_IW_SLC__1SDV_20140809T165546_20140809T165613_001866_001C20_088B.zip");
 
     /**
      * Processes a product and compares it to processed product known to be correct

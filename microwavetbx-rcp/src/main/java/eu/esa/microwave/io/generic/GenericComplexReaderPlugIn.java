@@ -15,7 +15,6 @@
  */
 package eu.esa.microwave.io.generic;
 
-import eu.esa.microwave.generic.GenericComplexReader;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;

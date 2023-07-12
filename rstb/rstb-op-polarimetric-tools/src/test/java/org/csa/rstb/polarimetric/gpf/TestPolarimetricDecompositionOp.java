@@ -15,15 +15,21 @@
  */
 package org.csa.rstb.polarimetric.gpf;
 
+import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.TestData;
-import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.Random;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -43,14 +49,14 @@ public class TestPolarimetricDecompositionOp {
     private final static String inputC3Stack = TestData.inputSAR + "/QuadPolStack/RS2-C3-Stack.dim";
     private final static String inputT3Stack = TestData.inputSAR + "/QuadPolStack/RS2-T3-Stack.dim";
 
-    private final static String expectedSinclair = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Sinclair.dim";
-    private final static String expectedPauli = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Pauli.dim";
-    private final static String expectedFreeman = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_FreemanDurden.dim";
-    private final static String expectedYamaguchi = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Yamaguchi.dim";
-    private final static String expectedVanZyl = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_VanZyl.dim";
-    private final static String expectedCloude = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Cloude.dim";
-    private final static String expectedHaAlpha = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_HaAlpha.dim";
-    private final static String expectedTouzi = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Touzi.dim";
+    private final static String expectedSinclair = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Sinclair.dim";
+    private final static String expectedPauli = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Pauli.dim";
+    private final static String expectedFreeman = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_FreemanDurden.dim";
+    private final static String expectedYamaguchi = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Yamaguchi.dim";
+    private final static String expectedVanZyl = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_VanZyl.dim";
+    private final static String expectedCloude = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Cloude.dim";
+    private final static String expectedHaAlpha = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_HaAlpha.dim";
+    private final static String expectedTouzi = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_Touzi.dim";
 
 
     @Before
@@ -69,6 +75,18 @@ public class TestPolarimetricDecompositionOp {
         assumeTrue(expectedCloude + " not found", new File(expectedCloude).exists());
         assumeTrue(expectedHaAlpha + " not found", new File(expectedHaAlpha).exists());
         assumeTrue(expectedTouzi + " not found", new File(expectedTouzi).exists());
+    }
+
+    private Product runDecomposition(final PolarimetricDecompositionOp op,
+                                     final String decompositionName, final Product sourceProduct) throws Exception {
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
+        op.SetDecomposition(decompositionName);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, false, false);
+        return targetProduct;
     }
 
     private Product runDecomposition(final PolarimetricDecompositionOp op,
@@ -169,11 +187,33 @@ public class TestPolarimetricDecompositionOp {
     @Test
     public void testVanZylDecomposition() throws Exception {
 
+        final Product sourceProduct = createTestC3Product(10, 10);
         final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
         final Product targetProduct = runDecomposition(op,
-                PolarimetricDecompositionOp.VANZYL_DECOMPOSITION, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedVanZyl, null);
+                PolarimetricDecompositionOp.VANZYL_DECOMPOSITION, sourceProduct);
+
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[100];
+        band.readPixels(0, 0, 10, 10, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expectedValues = {0.3352742f, 0.46784493f, 0.44862446f, 0.40875262f, 0.3036448f, 0.38027877f,
+                0.25553876f, 0.27621624f, 0.3889112f, 0.39162698f, 0.49740696f, 0.5315601f, 0.50541216f, 0.4528281f,
+                0.37095192f, 0.4760012f, 0.3552928f, 0.4424209f, 0.51719195f, 0.55584365f, 0.5812638f, 0.6154853f,
+                0.57704693f, 0.53179526f, 0.41812962f, 0.5363548f, 0.41915277f, 0.4925977f, 0.5248552f, 0.5053506f,
+                0.62536377f, 0.7389454f, 0.6492092f, 0.5890301f, 0.4909914f, 0.5707106f, 0.44424757f, 0.50344014f,
+                0.52650046f, 0.5568196f, 0.6524977f, 0.7001816f, 0.64607877f, 0.5434106f, 0.5132085f, 0.61678004f,
+                0.57415015f, 0.61086273f, 0.5711422f, 0.58777225f, 0.5232767f, 0.6036279f, 0.58228236f, 0.5193582f,
+                0.5382116f, 0.64840996f, 0.57401884f, 0.58385557f, 0.5057045f, 0.49801853f, 0.4830593f, 0.5798051f,
+                0.57090926f, 0.53432566f, 0.5362130f, 0.6116159f, 0.53054947f, 0.55362135f, 0.5388208f, 0.47885248f,
+                0.41896993f, 0.48561466f, 0.49204364f, 0.48023382f, 0.4964855f, 0.5486218f, 0.5057795f, 0.5838198f,
+                0.58138514f, 0.47988653f, 0.35988957f, 0.4122757f, 0.43132278f, 0.43501678f, 0.46842563f, 0.52232397f,
+                0.4944064f, 0.6037089f, 0.57674855f, 0.44855425f, 0.22622389f, 0.37596372f, 0.35784683f, 0.4225033f,
+                0.43441418f, 0.4428584f, 0.34741288f, 0.4936852f, 0.4295814f, 0.28043285f};
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     @Test
@@ -287,5 +327,54 @@ public class TestPolarimetricDecompositionOp {
                 PolarimetricDecompositionOp.YAMAGUCHI_DECOMPOSITION, inputC3Stack);
         runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
                 PolarimetricDecompositionOp.YAMAGUCHI_DECOMPOSITION, inputT3Stack);
+    }
+    
+    private Product createTestC3Product(final int w, final int h) {
+
+        final Product testProduct = new Product("name", "SLC", w, h);
+        final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(testProduct.getMetadataRoot());
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency, 5404.999242769673);
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, "COMPLEX");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, "RS2");
+
+        final Band[] bands = new Band[9];
+        bands[0] = testProduct.addBand("C11", ProductData.TYPE_FLOAT32);
+        bands[0].setUnit(Unit.INTENSITY);
+        bands[1] = testProduct.addBand("C12_real", ProductData.TYPE_FLOAT32);
+        bands[1].setUnit(Unit.REAL);
+        bands[2] = testProduct.addBand("C12_imag", ProductData.TYPE_FLOAT32);
+        bands[2].setUnit(Unit.IMAGINARY);
+        bands[3] = testProduct.addBand("C13_real", ProductData.TYPE_FLOAT32);
+        bands[3].setUnit(Unit.REAL);
+        bands[4] = testProduct.addBand("C13_imag", ProductData.TYPE_FLOAT32);
+        bands[4].setUnit(Unit.IMAGINARY);
+        bands[5] = testProduct.addBand("C22", ProductData.TYPE_FLOAT32);
+        bands[5].setUnit(Unit.INTENSITY);
+        bands[6] = testProduct.addBand("C23_real", ProductData.TYPE_FLOAT32);
+        bands[6].setUnit(Unit.REAL);
+        bands[7] = testProduct.addBand("C23_imag", ProductData.TYPE_FLOAT32);
+        bands[7].setUnit(Unit.IMAGINARY);
+        bands[8] = testProduct.addBand("C33", ProductData.TYPE_FLOAT32);
+        bands[8].setUnit(Unit.INTENSITY);
+
+        final double[] bandSTDs = new double[]{2.55, 0.2664, 0.1631, 0.8338, 0.5407, 0.0862, 0.1209, 0.0979, 0.6073};
+
+        long seed = 1234;
+        Random random = new Random(seed);
+        for (int i = 0; i < bands.length; ++i) {
+            final float[] values = new float[w * h];
+            if (bands[i].getUnit().equals(Unit.INTENSITY)) {
+                for (int j = 0; j < w * h; j++) {
+                    values[j] = (float)(Math.abs(random.nextGaussian() * bandSTDs[i]));
+                }
+            } else {
+                for (int j = 0; j < w * h; j++) {
+                    values[j] = (float)(random.nextGaussian() * bandSTDs[i]);
+                }
+            }
+            bands[i].setData(ProductData.createInstance(values));
+        }
+
+        return testProduct;
     }
 }

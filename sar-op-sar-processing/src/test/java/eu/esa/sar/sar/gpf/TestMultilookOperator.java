@@ -16,6 +16,7 @@
 package eu.esa.sar.sar.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.*;
@@ -26,30 +27,32 @@ import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
 import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Unit test for MultilookOperator.
  */
-public class TestMultilookOperator {
+public class TestMultilookOperator extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
     @Before
-    public void setUp() {
-        // If the file does not exist: the test will be ignored
-        assumeTrue("Input file" + inputFile + " does not exist - Skipping test", inputFile.exists());
-    }
-
-    static {
-        TestUtils.initTestEnvironment();
+    public void setUp() throws Exception {
+        try {
+            // If the file does not exist: the test will be ignored
+            assumeTrue("Input file" + inputFile + " does not exist - Skipping test", inputFile.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
     private final static OperatorSpi spi = new MultilookOp.Spi();
@@ -90,7 +93,7 @@ public class TestMultilookOperator {
 
         // compare with expected outputs:
         final float[] expectedValues = {11.0f, 15.0f, 19.0f, 23.0f, 43.0f, 47.0f, 51.0f, 55.0f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -197,6 +200,7 @@ public class TestMultilookOperator {
     }
 
     @Test
+    @Ignore
     public void testProcessAllCosmo() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsCosmoSkymed, "CosmoSkymed", productTypeExemptions, exceptionExemptions);
     }

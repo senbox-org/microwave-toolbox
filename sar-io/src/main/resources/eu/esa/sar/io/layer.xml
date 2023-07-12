@@ -220,6 +220,15 @@
                 <attr name="helpId" stringvalue="importStriX"/>
                 <attr name="ShortDescription" stringvalue="Open StriX data product."/>
             </file>
+            <file name="eu-esa-sar-io-importIceyeProduct.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
+                <attr name="displayName" stringvalue="ICEYE"/>
+                <attr name="formatName" stringvalue="IceyeProduct"/>
+                <attr name="useAllFileFilter" boolvalue="true"/>
+                <attr name="helpId" stringvalue="importIceyeProduct"/>
+                <attr name="ShortDescription" stringvalue="Open ICEYE slc product."/>
+            </file>
         </folder>
         <folder name="Writers">
             <file name="eu-esa-sar-io-exportPolSARPro.instance">
@@ -292,6 +301,11 @@
                     <file name="eu-esa-sar-io-importGaofen3.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-io-importGaofen3.instance"/>
                         <attr name="position" intvalue="550"/>
+                    </file>
+                    <file name="eu-esa-sar-io-importIceyeProduct.shadow">
+                        <attr name="originalFile"
+                              stringvalue="Actions/Readers/eu-esa-sar-io-importIceyeProduct.instance"/>
+                        <attr name="position" intvalue="570"/>
                     </file>
                     <file name="eu-esa-sar-io-ceos-importJERSCEOSProduct.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/Ceos/eu-esa-sar-io-ceos-importJERSCEOSProduct.instance"/>
@@ -386,12 +400,12 @@
         </folder>
     </folder>
 
-    <!--folder name="Services">
+    <folder name="Services">
         <folder name="JavaHelp">
-            <file name="eu-esa-sar-io-helpset.xml" url="helpset.xml">
+            <file name="eu-esa-microwavetbx-sar-io-helpset.xml" url="helpset.xml">
                 <attr name="position" intvalue="5110"/>
             </file>
         </folder>
-    </folder-->
+    </folder>
 
 </filesystem>

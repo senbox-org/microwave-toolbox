@@ -82,9 +82,6 @@ public class K5GeoTiff implements K5Format {
         if (files != null) {
             for (final File file : files) {
                 final String name = file.getName().toUpperCase();
-                if (name.endsWith(".XML")) {
-                    product.setName(name.toUpperCase().replace("_AUX.XML", ""));
-                }
                 if (name.contains("I_SCS") || name.contains("I_01_SCS")) {
                     final String polarization = getPolarization(name);
                     product = geoTiffReader.readProductNodes(file, null);
@@ -624,11 +621,8 @@ public class K5GeoTiff implements K5Format {
         return bandElem;
     }
 
-    public void close() {
-        if (product != null) {
-            product.dispose();
-            product = null;
-        }
+    public void close() throws IOException {
+        geoTiffReader.close();
     }
 
     public void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,

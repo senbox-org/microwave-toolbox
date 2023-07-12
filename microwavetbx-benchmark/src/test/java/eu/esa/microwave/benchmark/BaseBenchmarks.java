@@ -16,7 +16,7 @@
 package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
@@ -28,8 +28,8 @@ import java.io.IOException;
 
 public class BaseBenchmarks {
 
-    protected final static File grdFile = new File(SARTests.inputPathProperty +"/SAR/S1/AWS/S1A_IW_GRDH_1SDV_20180719T002854_20180719T002919_022856_027A78_042A/manifest.safe");
-    protected final static File qpFile = new File(SARTests.inputPathProperty +"/SAR/RS2/RS2_OK2084_PK24911_DK25857_FQ14_20080802_225909_HH_VV_HV_VH_SLC/product.xml");
+    protected final static File grdFile = new File(TestData.inputSAR +"S1/AWS/S1A_IW_GRDH_1SDV_20180719T002854_20180719T002919_022856_027A78_042A/manifest.safe");
+    protected final static File qpFile = new File(TestData.inputSAR +"RS2/RS2_OK2084_PK24911_DK25857_FQ14_20080802_225909_HH_VV_HV_VH_SLC/product.xml");
 
     protected final static Rectangle rect = new Rectangle(0, 0, 5000, 5000);
 

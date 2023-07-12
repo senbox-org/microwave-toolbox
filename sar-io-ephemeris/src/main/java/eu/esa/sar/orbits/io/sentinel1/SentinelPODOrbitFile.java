@@ -89,11 +89,15 @@ public class SentinelPODOrbitFile extends BaseOrbitFile implements OrbitFile {
             }
         }
         if (orbitFile == null) {
+            OrbitFileScraper scraper = null;
             try {
-                final OrbitFileScraper scraper = new OrbitFileScraper.Step(orbitType);
+                scraper = new OrbitFileScraper.Step(orbitType);
                 orbitFile = scraper.download(localFolder, missionPrefix, orbitType, year, month, day, stateVectorTime);
             } catch(Exception e) {
                 // try next
+            } finally {
+                if(scraper != null)
+                    scraper.close();
             }
         }
 

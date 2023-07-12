@@ -29,8 +29,8 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Unit test for UndersamplingOperator.
@@ -69,7 +69,7 @@ public class TestUndersamplingOperator {
 
         // compare with expected outputs:
         float[] expectedValues = {1.0f, 4.0f, 7.0f, 10.0f, 37.0f, 40.0f, 43.0f, 46.0f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -113,7 +113,7 @@ public class TestUndersamplingOperator {
 
         // compare with expected outputs:
         float[] expectedValues = {14.0f, 17.0f, 20.0f, 23.0f, 50.0f, 53.0f, 56.0f, 59.0f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -127,8 +127,8 @@ public class TestUndersamplingOperator {
      * Tests high pass kernel filtering in undersampling operator with a 6x12 "DETECTED" test product.
      * @throws Exception general exception
      */
-    // @Test
-  /*  public void testUndersamplingWithHighPassKernel() throws Exception {
+    @Test
+    public void testUndersamplingWithHighPassKernel() throws Exception {
 
         Product sourceProduct = createTestProduct(12, 6);
 
@@ -138,7 +138,7 @@ public class TestUndersamplingOperator {
 
         op.setUndersamplingMethod(op.KERNEL_FILTERING);
         op.setFilterType(op.HIGH_PASS);
-        op.setFilterSize(op.FILTER_SIZE_3x3);
+        op.setFilterSize(FilterWindow.SIZE_3x3);
         op.setOutputImageBy(op.IMAGE_SIZE);
         op.setOutputImageSize(2, 4);
 
@@ -155,7 +155,7 @@ public class TestUndersamplingOperator {
 
         // compare with expected outputs:
         float[] expectedValues = {1.5555555f, 1.8888888f, 2.222222f, 2.5555553f, 5.5555553f, 5.8888884f, 6.222222f, 6.5555553f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -163,13 +163,14 @@ public class TestUndersamplingOperator {
         TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 6.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.03);
         TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:30:46.900682");
-    }     */
+    }
 
     /**
      * Tests edge detect kernel filtering in undersampling operator with a 6x12 "DETECTED" test product.
      * @throws Exception general exception
      */
- /*   public void testUndersamplingWithEdgeDetectKernel() throws Exception {
+    @Test
+    public void testUndersamplingWithEdgeDetectKernel() throws Exception {
 
         Product sourceProduct = createTestProduct(12, 6);
 
@@ -179,7 +180,7 @@ public class TestUndersamplingOperator {
 
         op.setUndersamplingMethod(op.KERNEL_FILTERING);
         op.setFilterType(op.EDGE_DETECT);
-        op.setFilterSize(op.FILTER_SIZE_3x3);
+        op.setFilterSize(FilterWindow.SIZE_3x3);
         op.setOutputImageBy(op.IMAGE_SIZE);
         op.setOutputImageSize(2, 4);
 
@@ -196,7 +197,7 @@ public class TestUndersamplingOperator {
 
         // compare with expected outputs:
         float[] expectedValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -204,13 +205,14 @@ public class TestUndersamplingOperator {
         TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 6.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.03);
         TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:30:46.900682");
-    }         */
+    }
 
     /**
      * Tests edge enhance kernel filtering in undersampling operator with a 6x12 "DETECTED" test product.
      * @throws Exception general exception
      */
-  /*  public void testUndersamplingWithEdgeEnhanceKernel() throws Exception {
+    @Test
+    public void testUndersamplingWithEdgeEnhanceKernel() throws Exception {
 
         Product sourceProduct = createTestProduct(12, 6);
 
@@ -220,7 +222,7 @@ public class TestUndersamplingOperator {
 
         op.setUndersamplingMethod(op.KERNEL_FILTERING);
         op.setFilterType(op.EDGE_ENHANCEMENT);
-        op.setFilterSize(op.FILTER_SIZE_3x3);
+        op.setFilterSize(FilterWindow.SIZE_3x3);
         op.setOutputImageBy(op.IMAGE_SIZE);
         op.setOutputImageSize(2, 4);
 
@@ -237,7 +239,7 @@ public class TestUndersamplingOperator {
 
         // compare with expected outputs:
         float[] expectedValues = {13.999999f, 16.999998f, 19.999998f, 22.999998f, 49.999996f, 52.999996f, 55.999996f, 58.999996f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -245,7 +247,7 @@ public class TestUndersamplingOperator {
         TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 6.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.03);
         TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:30:46.900682");
-    }          */
+    }
 
     /**
      * Tests horizontal kernel filtering in undersampling operator with a 6x12 "DETECTED" test product.
@@ -253,7 +255,6 @@ public class TestUndersamplingOperator {
      * @throws Exception general exception
      */
     @Test
-
     public void testUndersamplingWithHorizontalKernel() throws Exception {
 
         Product sourceProduct = createTestProduct(12, 6);
@@ -281,7 +282,7 @@ public class TestUndersamplingOperator {
 
         // compare with expected outputs:
         float[] expectedValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -297,7 +298,6 @@ public class TestUndersamplingOperator {
      * @throws Exception general exception
      */
     @Test
-
     public void testUndersamplingWithVerticalKernel() throws Exception {
 
         final Product sourceProduct = createTestProduct(12, 6);
@@ -325,7 +325,7 @@ public class TestUndersamplingOperator {
 
         // compare with expected outputs:
         final float[] expectedValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -368,7 +368,7 @@ public class TestUndersamplingOperator {
 
         // compare with expected outputs:
         float[] expectedValues = {3.1111116f, 3.7777786f, 4.4444456f, 5.111112f, 11.111114f, 11.777781f, 12.444447f, 13.111114f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);

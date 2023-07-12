@@ -18,6 +18,7 @@ package eu.esa.sar.io.terrasarx;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Before;
@@ -34,8 +35,8 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestTanDEMXProductReader extends ReaderTest {
 
-    private final static File metadataFile = new File(SARTests.inputPathProperty + SARTests.sep +"SAR/TanDEM-X/HintonTDX_20110829/TDM1_SAR__COS_BIST_SM_S_SRA_20110829T013013_20110829T013021.xml");
-    private final static String inputTanDEMX = SARTests.inputPathProperty + SARTests.sep + "SAR/TanDEM-X/";
+    private final static File metadataFile = new File(TestData.inputSAR + "TanDEM-X/HintonTDX_20110829/TDM1_SAR__COS_BIST_SM_S_SRA_20110829T013013_20110829T013021.xml");
+    private final static String inputTanDEMX = TestData.inputSAR + "TanDEM-X/";
     private final static File[] rootPathsTanDEMX = SARTests.loadFilePath(inputTanDEMX);
 
     @Before
