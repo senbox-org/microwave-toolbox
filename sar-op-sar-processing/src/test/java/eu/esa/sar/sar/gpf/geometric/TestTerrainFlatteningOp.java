@@ -17,6 +17,7 @@ package eu.esa.sar.sar.gpf.geometric;
 
 
 import eu.esa.sar.calibration.gpf.CalibrationOp;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -32,7 +33,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit test for Range Doppler.
  */
-public class TestTerrainFlatteningOp {
+public class TestTerrainFlatteningOp extends ProcessorTest {
 
     private final static File inputFile1 = TestData.inputASAR_WSM;
     private final static File inputFile2 = TestData.inputASAR_IMS;
@@ -40,17 +41,19 @@ public class TestTerrainFlatteningOp {
     private final static File inputFile4 = TestData.inputASAR_APM;
 
     @Before
-    public void setUp() {
-        // If any of the file does not exist: the test will be ignored
-        assumeTrue(inputFile1 + " not found", inputFile1.exists());
-        assumeTrue(inputFile2 + " not found", inputFile2.exists());
-        assumeTrue(inputFile3 + " not found", inputFile3.exists());
-        assumeTrue(inputFile4 + " not found", inputFile4.exists());
+    public void setUp() throws Exception {
+        try {
+            // If any of the file does not exist: the test will be ignored
+            assumeTrue(inputFile1 + " not found", inputFile1.exists());
+            assumeTrue(inputFile2 + " not found", inputFile2.exists());
+            assumeTrue(inputFile3 + " not found", inputFile3.exists());
+            assumeTrue(inputFile4 + " not found", inputFile4.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new TerrainFlatteningOp.Spi();
 
     /**
@@ -77,6 +80,50 @@ public class TestTerrainFlatteningOp {
 
         final float[] expected = new float[] { 0.63482225f, 0.79944354f, 0.16941425f, 0.069053054f };
         TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 200, 200, expected);
+    }
+
+    @Test
+    public void testProcessWSM_SimulatedImage() throws Exception {
+        final Product sourceProduct = TestUtils.readSourceProduct(inputFile1);
+
+        final CalibrationOp calOp = new CalibrationOp();
+        calOp.setSourceProduct(sourceProduct);
+        calOp.setParameter("outputBetaBand", true);
+        calOp.setParameter("createBetaBand", true);
+
+        final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(calOp.getTargetProduct());
+        op.setParameter("outputSimulatedImage", true);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true, true);
+
+        final float[] expected = new float[] { 2.8804061f, 3.2362542f, 5.3450675f, 14.397888f };
+        TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
+    }
+
+    @Test
+    public void testProcessWSM_SigmaNaught() throws Exception {
+        final Product sourceProduct = TestUtils.readSourceProduct(inputFile1);
+
+        final CalibrationOp calOp = new CalibrationOp();
+        calOp.setSourceProduct(sourceProduct);
+        calOp.setParameter("outputBetaBand", true);
+        calOp.setParameter("createBetaBand", true);
+
+        final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(calOp.getTargetProduct());
+        op.setParameter("outputSigma0", true);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true, true);
+
+        final float[] expected = new float[] { 0.5285274f, 0.68505365f, 0.15497166f, 0.06574185f };
+        TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
     }
 
     /**

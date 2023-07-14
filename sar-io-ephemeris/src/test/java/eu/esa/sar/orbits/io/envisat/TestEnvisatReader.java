@@ -16,6 +16,7 @@
 package eu.esa.sar.orbits.io.envisat;
 
 import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.dataio.envisat.EnvisatProductReaderPlugIn;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
@@ -48,7 +49,7 @@ public class TestEnvisatReader {
         reader = readerPlugin.createReaderInstance();
     }
 
-    private final static String inputASAR = SARTests.inputPathProperty + SARTests.sep + "SAR" + SARTests.sep  + "ASAR" + SARTests.sep ;
+    private final static String inputASAR = TestData.inputSAR + "ASAR/";
     private final static File[] rootPathsASAR = SARTests.loadFilePath(inputASAR);
 
     @Before

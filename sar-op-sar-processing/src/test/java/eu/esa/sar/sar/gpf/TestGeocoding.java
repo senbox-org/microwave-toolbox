@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sar.gpf;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.GeoCoding;
 import org.esa.snap.core.datamodel.GeoPos;
@@ -30,7 +31,7 @@ import java.io.File;
 /**
  * Unit test for Geocoding.
  */
-public class TestGeocoding {
+public class TestGeocoding extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
@@ -39,7 +40,7 @@ public class TestGeocoding {
     }
 
     @Before
-    public void setup() {
+    public void setup() throws Exception {
         // If the file does not exist: the test will be ignored
         Assume.assumeTrue("Input file " + inputFile + "does not exist - Skipping test", inputFile.exists());
     }

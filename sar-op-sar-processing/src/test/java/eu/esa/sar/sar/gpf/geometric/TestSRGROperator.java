@@ -16,29 +16,27 @@
 package eu.esa.sar.sar.gpf.geometric;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
-import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Unit test for SRGROperator.
  */
-public class TestSRGROperator {
+public class TestSRGROperator extends ProcessorTest {
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new SRGROp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
@@ -78,10 +76,10 @@ public class TestSRGROperator {
             assertTrue(Math.abs(expectedWarpCoeff[i] - warpPolynomialCoef[i]) < 0.000001);
         }
         // compare with expected outputs:
-        float[] expectedValues = {1.0f, 3.0221484f, 5.0534487f, 7.0752897f, 9.097291f, 11.119023f, 13.130011f, 17.0f,
-                19.022148f, 21.053448f, 23.07529f, 25.09729f, 27.119024f, 29.13001f, 33.0f, 35.02215f, 37.053448f, 39.07529f,
-                41.09729f, 43.119022f, 45.130013f, 49.0f, 51.02215f, 53.053448f, 55.07529f, 57.09729f, 59.119022f, 61.130013f};
-        //assertTrue(Arrays.equals(expectedValues, floatValues));
+        float[] expectedValues = {1.0f, 3.0179837f, 5.045191f, 7.0629215f, 9.080787f, 11.098432f, 13.1055355f, 17.0f,
+                19.017984f, 21.04519f, 23.062922f, 25.080788f, 27.098433f, 29.105536f, 33.0f, 35.017982f, 37.045193f,
+                39.06292f, 41.080788f, 43.09843f, 45.105537f, 49.0f, 51.017982f, 53.045193f, 55.06292f, 57.080788f, 59.09843f, 61.105537f};
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);

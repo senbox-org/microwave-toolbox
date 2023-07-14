@@ -15,6 +15,7 @@
  */
 package org.csa.rstb.classification.gpf;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -30,7 +31,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit test for PolarimetricClassification.
  */
-public class TestClassifcationOp {
+public class TestClassifcationOp extends ProcessorTest {
 
     private static File inputQuadFile;
     private static File inputQuadFullStackFile;
@@ -38,23 +39,24 @@ public class TestClassifcationOp {
     private static File inputT3StackFile;
 
     @Before
-    public void setUp() {
-        // If any of the file does not exist: the test will be ignored
-        inputQuadFile = TestData.inputQuad;
-        assumeTrue(inputQuadFile + " not found", inputQuadFile.exists());
+    public void setUp() throws Exception {
+        try {
+            // If any of the file does not exist: the test will be ignored
+            inputQuadFile = TestData.inputQuad;
+            assumeTrue(inputQuadFile + " not found", inputQuadFile.exists());
 
-        inputQuadFullStackFile = TestData.inputQuadFullStack;
-        assumeTrue(inputQuadFullStackFile + " not found", inputQuadFullStackFile.exists());
+            inputQuadFullStackFile = TestData.inputQuadFullStack;
+            assumeTrue(inputQuadFullStackFile + " not found", inputQuadFullStackFile.exists());
 
-        inputC3StackFile = TestData.inputC3Stack;
-        assumeTrue(inputC3StackFile + " not found", inputC3StackFile.exists());
+            inputC3StackFile = TestData.inputC3Stack;
+            assumeTrue(inputC3StackFile + " not found", inputC3StackFile.exists());
 
-        inputT3StackFile = TestData.inputT3Stack;
-        assumeTrue(inputT3StackFile + " not found", inputT3StackFile.exists());
-    }
-
-    static {
-        TestUtils.initTestEnvironment();
+            inputT3StackFile = TestData.inputT3Stack;
+            assumeTrue(inputT3StackFile + " not found", inputT3StackFile.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
     private final static OperatorSpi spi = new PolarimetricClassificationOp.Spi();

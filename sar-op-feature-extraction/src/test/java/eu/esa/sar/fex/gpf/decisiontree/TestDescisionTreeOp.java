@@ -52,7 +52,7 @@ public class TestDescisionTreeOp extends TestCase {
 
         // compare with expected outputs:
         final float[] expectedValues = {10.5f, 14.5f, 18.5f, 22.5f, 42.5f, 46.5f, 50.5f, 54.5f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);

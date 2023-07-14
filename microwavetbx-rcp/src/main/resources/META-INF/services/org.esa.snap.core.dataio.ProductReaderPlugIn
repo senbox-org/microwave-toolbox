@@ -1,2 +1,2 @@
-eu.esa.microwave.generic.GenericComplexReaderPlugIn
-eu.esa.microwave.generic.GenericReaderPlugIn
+eu.esa.microwave.io.generic.GenericComplexReaderPlugIn
+eu.esa.microwave.io.generic.GenericReaderPlugIn

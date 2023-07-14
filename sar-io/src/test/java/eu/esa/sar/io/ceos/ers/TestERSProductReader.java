@@ -17,7 +17,7 @@ package eu.esa.sar.io.ceos.ers;
 
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,10 +33,10 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestERSProductReader extends ReaderTest {
 
-    final static File ers1_ceos_vmp_slc = new File(SARTests.inputPathProperty +
-            "/SAR/ERS/ERS_Tandem_Etna/ERS1_SLCI_VMP_CEOS_01081995_orbit 21159 frame 0747_IPAF/SCENE1/VDF_DAT.001");
-    final static File ers2_ceos_pri = new File(SARTests.inputPathProperty +
-            "/SAR/ERS/ERS2.SAR.PRI_29JAN1996_orbit04055_frame2714/SCENE1/VDF_DAT.001");
+    final static File ers1_ceos_vmp_slc = new File(TestData.inputSAR +
+            "ERS/ERS_Tandem_Etna/ERS1_SLCI_VMP_CEOS_01081995_orbit 21159 frame 0747_IPAF/SCENE1/VDF_DAT.001");
+    final static File ers2_ceos_pri = new File(TestData.inputSAR +
+            "ERS/ERS2.SAR.PRI_29JAN1996_orbit04055_frame2714/SCENE1/VDF_DAT.001");
 
     @Before
     public void setUp() {

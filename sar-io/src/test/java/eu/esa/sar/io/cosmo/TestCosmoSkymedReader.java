@@ -44,7 +44,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
     public final static File inputSC_SCS_H5 = new File(TestData.inputSAR + "Cosmo/SCANSAR-1/HH_Level_1A_hdf5/CSG_SSAR1_SCS_B_0101_SC1_001_HH_RA_F_20200923102555_20200923102610_1_F_41N_Z18_N00.h5");
     public final static File inputSC_DGM_H5 = new File(TestData.inputSAR + "Cosmo/SCANSAR-1/HH_Level_1B_hdf5/CSG_SSAR1_DGM_B_0301_SC1_001_HH_RA_F_20200923102555_20200923102610_1_F_41N_Z18_N00.h5");
 
-    public final static String inputCosmo = SARTests.inputPathProperty + SARTests.sep + "SAR" + SARTests.sep  + "Cosmo" + SARTests.sep ;
+    public final static String inputCosmo = SARTests.inputPathProperty + "SAR/Cosmo/";
     public final static File[] rootPathsCosmoSkymed = SARTests.loadFilePath(inputCosmo);
 
     private String[] exceptionExemptions = {"not supported"};

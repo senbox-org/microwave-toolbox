@@ -9,8 +9,6 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.dem.gpf.AddElevationOp;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -18,7 +16,7 @@ import static org.junit.Assert.assertNotNull;
 /**
  * Created by lveci on 24/10/2014.
  */
-@Ignore("Different values on lin/win coming from geotiff reader")
+//@Ignore("Different values on lin/win coming from geotiff reader")
 public class TestDEM {
 
     private final static OperatorSpi spi = new AddElevationOp.Spi();
@@ -36,7 +34,7 @@ public class TestDEM {
      *
      * @throws Exception general exception
      */
-    @Test
+    //@Test
     public void testProcessing() throws Exception {
         int w = 10, h = 10;
         final Product sourceProduct = TestUtils.createProduct("GRD", w,h);

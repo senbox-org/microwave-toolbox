@@ -17,7 +17,7 @@ package eu.esa.sar.teststacks.coregistration;
 
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.ProductValidator;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Product;
@@ -41,9 +41,9 @@ import static org.junit.Assume.assumeTrue;
 @RunWith(LongTestRunner.class)
 public class TestCreateStackOp extends ProcessorTest {
 
-    private final static File asarBamFile1 = new File(SARTests.inputPathProperty + "/SAR/ASAR/Bam/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099.N1");
-    private final static File asarBamFile2 = new File(SARTests.inputPathProperty + "/SAR/ASAR/Bam/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013.N1");
-    private final static File asarSantoriniFolder = new File(SARTests.inputPathProperty + "/SAR/ASAR/Santorini");
+    private final static File asarBamFile1 = new File(TestData.inputSAR + "ASAR/Bam/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099.N1");
+    private final static File asarBamFile2 = new File(TestData.inputSAR + "ASAR/Bam/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013.N1");
+    private final static File asarSantoriniFolder = new File(TestData.inputSAR + "ASAR/Santorini");
 
     @Before
     public void setUp() {

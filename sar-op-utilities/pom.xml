@@ -51,6 +51,10 @@
             <artifactId>snap-gpf</artifactId>
         </dependency>
         <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-commons</artifactId>
+        </dependency>
+        <dependency>
             <groupId>edu.emory.mathcs</groupId>
             <artifactId>JTransforms</artifactId>
         </dependency>        

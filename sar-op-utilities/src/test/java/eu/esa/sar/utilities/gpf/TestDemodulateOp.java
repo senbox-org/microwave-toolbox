@@ -1,18 +1,28 @@
-package eu.esa.sar.sar.gpf.geometric;
+/*
+ * Copyright (C) 2023 SkyWatch Space Applications Inc. https://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
+package eu.esa.sar.utilities.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.test.ProcessorTest;
-import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.GeoCoding;
-import org.esa.snap.core.datamodel.GeoPos;
-import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
-import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -23,11 +33,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Created by lveci on 24/10/2014.
+ * Unit test for DemodulateOp Operator.
  */
-public class TestUpdateGeoRef extends ProcessorTest {
+public class TestDemodulateOp {
 
-    private final static File inputFile = TestData.inputASAR_WSM;
+    private final static File inputFile = TestData.inputStackIMS;
+
+    private final static OperatorSpi spi = new DemodulateOp.Spi();
 
     @Before
     public void setUp() throws Exception {
@@ -40,20 +52,26 @@ public class TestUpdateGeoRef extends ProcessorTest {
         }
     }
 
-    private final static OperatorSpi spi = new UpdateGeoRefOp.Spi();
-
-    private String[] exceptionExemptions = {};
+    @Test
+    public void testIMS() throws Exception {
+        final float[] expected = new float[] { -0.0f, -0.0f, -0.42140472f, -0.42140472f };
+        process(inputFile, expected);
+    }
 
     /**
      * Processes a product and compares it to processed product known to be correct
      *
+     * @param inputFile    the path to the input product
      * @throws Exception general exception
      */
-    @Test
-    public void testProcessing() throws Exception {
+    private void process(final File inputFile, final float[] expected) throws Exception {
+
         final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
 
-        final UpdateGeoRefOp op = (UpdateGeoRefOp) spi.createOperator();
+        final float[] origValues = new float[4];
+        sourceProduct.getBandAt(2).readPixels(0, 0, 2, 2, origValues, ProgressMonitor.NULL);
+
+        final DemodulateOp op = (DemodulateOp) spi.createOperator();
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);
 
@@ -61,7 +79,7 @@ public class TestUpdateGeoRef extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
+        final Band band = targetProduct.getBandAt(4);
         assertNotNull(band);
 
         // readPixels gets computeTiles to be executed
@@ -69,18 +87,6 @@ public class TestUpdateGeoRef extends ProcessorTest {
         band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
         // compare with expected outputs:
-        final float[] expected = new float[] { 446224.0f, 318096.0f, 403225.0f, 330625.0f };
         assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
-
-        final GeoCoding geoCoding = targetProduct.getSceneGeoCoding();
-        final GeoPos geoPos = geoCoding.getGeoPos(new PixelPos(100, 100), null);
-        //assertEquals(46.72579102050234, geoPos.getLat(), 0.00001);
-        //assertEquals(10.359693240977476, geoPos.getLon(), 0.00001);
-    }
-
-    @Test
-    public void testProcessAllALOS() throws Exception {
-        TestProcessor testProcessor = SARTests.createTestProcessor();
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsALOS, "ALOS PALSAR CEOS", null, exceptionExemptions);
     }
 }

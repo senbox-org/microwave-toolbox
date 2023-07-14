@@ -43,9 +43,9 @@ public class TestPolarimetricSpeckleFilterOp {
     private final static String inputC3Stack = TestData.inputSAR + "/QuadPolStack/RS2-C3-Stack.dim";
     private final static String inputT3Stack = TestData.inputSAR + "/QuadPolStack/RS2-T3-Stack.dim";
 
-    private final static String expectedBoxCar = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_BoxCar.dim";
-    private final static String expectedRefinedLee = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_RefinedLee.dim";
-    private final static String expectedIDAN = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_IDAN.dim";
+    private final static String expectedBoxCar = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_BoxCar.dim";
+    private final static String expectedRefinedLee = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_RefinedLee.dim";
+    private final static String expectedIDAN = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_IDAN.dim";
 
     @Before
     public void setUp() {

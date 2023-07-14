@@ -16,8 +16,6 @@
 package eu.esa.sar.orbits.io.sentinel1;
 
 import eu.esa.sar.commons.test.TestData;
-import eu.esa.sar.orbits.io.sentinel1.Sentinel1OrbitFileReader;
-import eu.esa.sar.orbits.io.sentinel1.SentinelPODOrbitFile;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
@@ -31,7 +29,6 @@ import org.junit.Test;
 import java.io.File;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -39,8 +36,7 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestSentinelPODOrbitFile {
 
-    private final static File orbitFile = new File(TestData.inputSAR+"Orbits"+TestData.sep+
-            "S1A_OPER_AUX_RESORB_OPOD_20140611T152302_V20140525T151921_20140525T183641.EOF");
+    private final static File orbitFile = new File(TestData.inputSAR+"Orbits/S1A_OPER_AUX_RESORB_OPOD_20140611T152302_V20140525T151921_20140525T183641.EOF");
 
     final File sourceFile = TestData.inputS1_GRDSubset;
 

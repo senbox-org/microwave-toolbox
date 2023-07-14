@@ -16,7 +16,6 @@
 package eu.esa.sar.io.imageio;
 
 import eu.esa.sar.commons.test.TestData;
-import eu.esa.sar.io.imageio.ImageIOReaderPlugIn;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -42,7 +41,7 @@ public class TestImageIOReader {
     ImageIOReaderPlugIn readerPlugin;
     ProductReader reader;
 
-    String filePath = TestData.inputSAR+"image"+TestData.sep+"PNG"+TestData.sep+"s1_64x.png";
+    String filePath = TestData.inputSAR+"image/PNG/s1_64x.png";
 
     @Before
     public void setUp() {

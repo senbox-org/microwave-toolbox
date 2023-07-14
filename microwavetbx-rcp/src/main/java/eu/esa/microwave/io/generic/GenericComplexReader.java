@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.microwave.generic;
+package eu.esa.microwave.io.generic;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.microwave.io.generic.GenericReader;

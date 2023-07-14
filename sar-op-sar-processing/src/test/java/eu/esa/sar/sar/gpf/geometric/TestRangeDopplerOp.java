@@ -15,10 +15,13 @@
  */
 package eu.esa.sar.sar.gpf.geometric;
 
+import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.dataio.ProductReader;
+import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.GeoCoding;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.PixelPos;
@@ -35,14 +38,16 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Unit test for Range Doppler.
  */
-public class TestRangeDopplerOp {
+public class TestRangeDopplerOp extends ProcessorTest {
 
     private final static File inputFile1 = TestData.inputASAR_WSM;
     private final static File inputFile2 = TestData.inputASAR_IMM;
@@ -50,17 +55,19 @@ public class TestRangeDopplerOp {
     private final static File inputFile4 = TestData.inputASAR_APM;
 
     @Before
-    public void setUp() {
-        // If any of the file does not exist: the test will be ignored
-        assumeTrue(inputFile1 + " not found", inputFile1.exists());
-        assumeTrue(inputFile2 + " not found", inputFile2.exists());
-        assumeTrue(inputFile3 + " not found", inputFile3.exists());
-        assumeTrue(inputFile4 + " not found", inputFile4.exists());
+    public void setUp() throws Exception {
+        try {
+            // If any of the file does not exist: the test will be ignored
+            assumeTrue(inputFile1 + " not found", inputFile1.exists());
+            assumeTrue(inputFile2 + " not found", inputFile2.exists());
+            assumeTrue(inputFile3 + " not found", inputFile3.exists());
+            assumeTrue(inputFile4 + " not found", inputFile4.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new RangeDopplerGeocodingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
@@ -81,6 +88,7 @@ public class TestRangeDopplerOp {
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);
         op.setApplyRadiometricCalibration(true);
+        op.setParameter("saveLayoverShadowMask", true);
         String[] bandNames = {"Amplitude"};
         op.setSourceBandNames(bandNames);
 
@@ -88,8 +96,16 @@ public class TestRangeDopplerOp {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[] { 0.7511386f, 0.6357209f, 0.47358283f };
-        //TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 500, 500, expected);
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[4];
+        band.readPixels(200, 200, 2, 2, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expected = new float[] { 0.12189214f, 0.12721543f, 0.13359734f, 0.12150828f };
+        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
     }
 
     @Test
@@ -137,8 +153,16 @@ public class TestRangeDopplerOp {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[] { 0.049838014f, 0.14067075f, 0.07676794f  };
-        //TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), expected);
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[4];
+        band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expected = new float[] { 0.050986305f, 0.15979816f, 0.017083498f, 0.10548973f };
+        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
     }
 
     /**
@@ -161,8 +185,16 @@ public class TestRangeDopplerOp {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true);
 
-        final float[] expected = new float[] { 0.08568143f, 0.086232476f, 0.09995785f };
-        //TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 500, 500, expected);
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels gets computeTiles to be executed
+        final float[] floatValues = new float[4];
+        band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expected = new float[] { 0.2688405f, 0.2265824f, 0.18008466f, 0.17219248f };
+        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
     }
 
     @Test

@@ -18,7 +18,7 @@ package eu.esa.sar.io.capella;
 import eu.esa.sar.commons.test.MetadataValidator;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,13 +34,13 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestCapellaStripProductReader extends ReaderTest {
 
-    final static File inputSMGEOMeta = new File(SARTests.inputPathProperty + "/SAR/Capella/Strip/GEO/CAPELLA_C02_SM_GEO_HH_20201118185123_20201118185127.json");
-    final static File inputSMGEOTif = new File(SARTests.inputPathProperty + "/SAR/Capella/Strip/GEO/CAPELLA_C02_SM_GEO_HH_20201118185123_20201118185127.tif");
-    final static File inputSMGEOFolder = new File(SARTests.inputPathProperty + "/SAR/Capella/Strip/GEO");
+    final static File inputSMGEOMeta = new File(TestData.inputSAR + "Capella/Strip/GEO/CAPELLA_C02_SM_GEO_HH_20201118185123_20201118185127.json");
+    final static File inputSMGEOTif = new File(TestData.inputSAR + "Capella/Strip/GEO/CAPELLA_C02_SM_GEO_HH_20201118185123_20201118185127.tif");
+    final static File inputSMGEOFolder = new File(TestData.inputSAR + "Capella/Strip/GEO");
 
-    final static File inputSMSLCMeta = new File(SARTests.inputPathProperty + "/SAR/Capella/Strip/SLC/CAPELLA_C02_SM_SLC_HH_20201118185123_20201118185127.json");
-    final static File inputSMSLCTif = new File(SARTests.inputPathProperty + "/SAR/Capella/Strip/SLC/CAPELLA_C02_SM_SLC_HH_20201118185123_20201118185127.tif");
-    final static File inputSMSLCFolder = new File(SARTests.inputPathProperty + "/SAR/Capella/Strip/SLC");
+    final static File inputSMSLCMeta = new File(TestData.inputSAR + "Capella/Strip/SLC/CAPELLA_C02_SM_SLC_HH_20201118185123_20201118185127.json");
+    final static File inputSMSLCTif = new File(TestData.inputSAR + "Capella/Strip/SLC/CAPELLA_C02_SM_SLC_HH_20201118185123_20201118185127.tif");
+    final static File inputSMSLCFolder = new File(TestData.inputSAR + "Capella/Strip/SLC");
 
     final static MetadataValidator.Options options = new MetadataValidator.Options();
 

@@ -2,7 +2,32 @@
 include:
   - 'https://gitlab.com/senbox-org/snap-engine/raw/master/.gitlab-ci.yml'
 
+default:
+  cache:
+    paths:
+      # $CI_PROJECT_DIR is /builds/senbox-org/microwave-toolbox/ on ci
+      - "${CI_PROJECT_DIR}/testData"
+
+variables:
+  TEST_DATA_DIR: "${CI_PROJECT_DIR}/testData"
+  S3_ARGS: --endpoint-url https://s3.sbg.io.cloud.ovh.net --region sbg --no-progress
+
+.add_libs_and_data: &add_libs_and_data
+  - apt-get -qq update && apt-get -qq -y install libgfortran5
+  - apt-get -qq -y install python3-pip
+  - pip3 install awscli
+  - /usr/local/bin/aws s3 sync s3://snap-s3/testData/SAR/unittests $TEST_DATA_DIR/SAR/unittests $S3_ARGS
+
+
 mvn-build:
+  # Override .mvn-base > before_script to add 1 more line
+  before_script:
+    - *add_libs_and_data
+    - !reference [".mvn-base", "before_script"]
+    - echo MAVEN_CLI_OPTS=$MAVEN_CLI_OPTS
+    - echo mvn_settings_opt=$mvn_settings_opt
+    - echo java_proxy_args=$java_proxy_args
+    - echo MAVEN_BUILD_ARGS=$MAVEN_BUILD_ARGS
   artifacts:
     paths:
       - "${MAVEN_PROJECT_DIR}/**/target/*.jar"
@@ -10,3 +35,15 @@ mvn-build:
       - "${MAVEN_PROJECT_DIR}/**/target/*.nbm"
       - "${MAVEN_PROJECT_DIR}/microwavetbx-kit/target/netbeans_clusters/microwavetbx"
       - "${MAVEN_PROJECT_DIR}/microwavetbx-kit/target/netbeans_clusters/rstb"
+      - "${MAVEN_PROJECT_DIR}/**/target/site"
+      - "${MAVEN_PROJECT_DIR}/**/target/surefire-reports"
+
+mvn-deploy-snapshot:
+  before_script:
+    - *add_libs_and_data
+    - !reference [".mvn-base", "before_script"]
+
+mvn-deploy-release:
+  before_script:
+    - *add_libs_and_data
+    - !reference [".mvn-base", "before_script"]
