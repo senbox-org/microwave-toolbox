@@ -171,6 +171,8 @@ public class InterferogramOp extends Operator {
     private org.jlinda.core.Point[] mstSceneCentreXYZ = null;
     private int subSwathIndex = 0;
     private MetadataElement mstRoot = null;
+    private boolean subtractETADPhase = false;
+    private double readrFrequency = 0.0;
 
     private static final boolean CREATE_VIRTUAL_BAND = true;
     private static final boolean OUTPUT_PHASE = false;
@@ -181,6 +183,9 @@ public class InterferogramOp extends Operator {
     private static final String ELEVATION = "elevation";
     private static final String LATITUDE = " orthorectifiedLat";
     private static final String LONGITUDE = "orthorectifiedLon";
+    private static final String INSAR_RANGE_CORRECTION = "inSARRangeCorrection";
+    private static final String MASTER_TAG = "mst";
+    private static final String SLAVE_TAG = "slv";
 
     /**
      * Initializes this operator and sets the one and only target product.
@@ -200,10 +205,8 @@ public class InterferogramOp extends Operator {
         try {
             if(AbstractMetadata.getAbstractedMetadata(sourceProduct).containsAttribute("multimaster_split")){
                 mstRoot = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(0);
-            }
-            else{
+            } else{
                 mstRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-
             }
 
             checkUserInput();
@@ -214,6 +217,8 @@ public class InterferogramOp extends Operator {
             if (subtractTopographicPhase) {
                 defineDEM();
             }
+
+            checkETADCorrection();
 
             createTargetProduct();
 
@@ -269,12 +274,10 @@ public class InterferogramOp extends Operator {
 
     public static String[] getPolsSharedByMstSlv(final Product sourceProduct, final String[] polarisationsInBandNames) {
 
-        final String masterTag = "mst";
-        final String slaveTag = "slv";
         final List<String> polarisations = new ArrayList<>();
 
         for (String pol : polarisationsInBandNames) {
-            if (checkPolarisation(sourceProduct, masterTag, pol) && checkPolarisation(sourceProduct, slaveTag, pol)) {
+            if (checkPolarisation(sourceProduct, MASTER_TAG, pol) && checkPolarisation(sourceProduct, SLAVE_TAG, pol)) {
                 polarisations.add(pol);
             }
         }
@@ -394,16 +397,12 @@ public class InterferogramOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        // define sourceMaster/sourceSlave name tags
-        final String masterTag = "mst";
-        final String slaveTag = "slv";
-
         // get sourceMaster & sourceSlave MetadataElement
         final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
 
         // organize metadata
         // put sourceMaster metadata into the masterMap
-        metaMapPut(masterTag, mstRoot, sourceProduct, masterMap);
+        metaMapPut(MASTER_TAG, mstRoot, sourceProduct, masterMap);
 
         // put sourceSlave metadata into slaveMap
         MetadataElement slaveElem = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot);
@@ -413,7 +412,7 @@ public class InterferogramOp extends Operator {
         MetadataElement[] slaveRoot = slaveElem.getElements();
         for (MetadataElement meta : slaveRoot) {
             if (!meta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                metaMapPut(slaveTag, meta, sourceProduct, slaveMap);
+                metaMapPut(SLAVE_TAG, meta, sourceProduct, slaveMap);
         }
     }
 
@@ -461,6 +460,22 @@ public class InterferogramOp extends Operator {
                 }
             }
         }
+    }
+
+    private void checkETADCorrection() {
+
+        boolean hasMstETADBand = false;
+        boolean hasSlvETADBand = false;
+        for (String bandName : sourceProduct.getBandNames()) {
+            if (bandName.contains(INSAR_RANGE_CORRECTION) && bandName.contains(MASTER_TAG)) {
+                hasMstETADBand = true;
+            }
+            if (bandName.contains(INSAR_RANGE_CORRECTION) && bandName.contains(SLAVE_TAG)) {
+                hasSlvETADBand = true;
+            }
+        }
+        subtractETADPhase = hasMstETADBand & hasSlvETADBand;
+        readrFrequency = mstRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // in Hz
     }
 
     private void createTargetProduct() throws Exception {
@@ -1406,6 +1421,18 @@ public class InterferogramOp extends Operator {
                     }
                 }
 
+                if (subtractETADPhase) {
+                    final double[][] etadPhase = computeETADPhase(targetRectangle);
+
+                    if (etadPhase != null) {
+                        final ComplexDoubleMatrix ComplexETADPhase = new ComplexDoubleMatrix(
+                                MatrixFunctions.cos(new DoubleMatrix(etadPhase)),
+                                MatrixFunctions.sin(new DoubleMatrix(etadPhase)));
+
+                        dataSlave.muli(ComplexETADPhase);
+                    }
+                }
+
                 dataMaster.muli(dataSlave.conji());
 
                 saveInterferogram(dataMaster, product, targetTileMap, targetRectangle);
@@ -1517,6 +1544,60 @@ public class InterferogramOp extends Operator {
         matrix.divi(0.25 * (max - min));
         return matrix;
     }
+
+    private double[][] computeETADPhase(final Rectangle rectangle) {
+
+        final int x0 = rectangle.x;
+        final int y0 = rectangle.y;
+        final int w = rectangle.width;
+        final int h = rectangle.height;
+        final int xMax = x0 + w;
+        final int yMax = y0 + h;
+
+        Band mstETADBand = null;
+        Band slvETADBand = null;
+        for (Band band : sourceProduct.getBands()) {
+            final String bandName = band.getName();
+            if (bandName.contains(INSAR_RANGE_CORRECTION) && bandName.contains(MASTER_TAG)) {
+                mstETADBand = band;
+            }
+            if (bandName.contains(INSAR_RANGE_CORRECTION) && bandName.contains(SLAVE_TAG)) {
+                slvETADBand = band;
+            }
+        }
+
+        if (mstETADBand == null || slvETADBand == null) {
+            return null;
+        }
+
+        final Tile mstETADTile = getSourceTile(mstETADBand, rectangle);
+        final ProductData mstETADData = mstETADTile.getDataBuffer();
+        final TileIndex mstIndex = new TileIndex(mstETADTile);
+
+        final Tile slvETADTile = getSourceTile(slvETADBand, rectangle);
+        final ProductData slvETADData = slvETADTile.getDataBuffer();
+        final TileIndex slvIndex = new TileIndex(slvETADTile);
+
+        final double[][] etadPhase = new double[h][w];
+        for (int y = y0; y < yMax; ++y) {
+            mstIndex.calculateStride(y);
+            slvIndex.calculateStride(y);
+            final int yy = y - y0;
+
+            for (int x = x0; x < xMax; ++x) {
+                final int mstIdx = mstIndex.getIndex(x);
+                final int slvIdx = slvIndex.getIndex(x);
+                final int xx = x - x0;
+
+                final double mstETADCorr = mstETADData.getElemDoubleAt(mstIdx);
+                final double slvETADCorr = slvETADData.getElemDoubleAt(slvIdx);
+                final double deltaDelay = mstETADCorr - slvETADCorr;
+                etadPhase[yy][xx] = -2.0 * Constants.PI * deltaDelay * readrFrequency;
+            }
+        }
+        return etadPhase;
+    }
+
 
     /**
      * The SPI is used to register this operator in the graph processing framework
