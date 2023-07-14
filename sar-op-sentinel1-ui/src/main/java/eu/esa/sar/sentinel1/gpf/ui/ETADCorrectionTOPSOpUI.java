@@ -26,6 +26,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.io.File;
 import java.util.Map;
 
@@ -38,7 +40,28 @@ public class ETADCorrectionTOPSOpUI extends BaseOperatorUI {
     private final JTextField etadFile = new JTextField("");
     private final JButton etadFileBrowseButton = new JButton("...");
     private final JComboBox resamplingType = new JComboBox(ResamplingFactory.resamplingNames);
-    
+    final JCheckBox troposphericCorrectionRgCheckBox = new JCheckBox("Tropospheric Correction (Range)");
+    final JCheckBox ionosphericCorrectionRgCheckBox = new JCheckBox("Ionospheric Correction (Range)");
+    final JCheckBox geodeticCorrectionRgCheckBox = new JCheckBox("Tropospheric Correction (Range)");
+    final JCheckBox dopplerShiftCorrectionRgCheckBox = new JCheckBox("Doppler Shift Correction (Range)");
+    final JCheckBox geodeticCorrectionAzCheckBox = new JCheckBox("Geodetic Correction (Azimuth)");
+    final JCheckBox bistaticShiftCorrectionAzCheckBox = new JCheckBox("Bistatic Shift Correction (Azimuth)");
+    final JCheckBox fmMismatchCorrectionAzCheckBox = new JCheckBox("FM Mismatch Correction (Azimuth)");
+    final JCheckBox sumOfAzimuthCorrectionsCheckBox = new JCheckBox("Sum Of Azimuth Corrections");
+    final JCheckBox sumOfRangeCorrectionsCheckBox = new JCheckBox("Sum Of Range Corrections");
+    final JCheckBox interferometricPhaseCorrectionRgCheckBox = new JCheckBox("Interferometric Phase Correction (Range)");
+
+    private Boolean troposphericCorrectionRg = false;
+    private Boolean ionosphericCorrectionRg = false;
+    private Boolean geodeticCorrectionRg = false;
+    private Boolean dopplerShiftCorrectionRg = false;
+    private Boolean geodeticCorrectionAz = false;
+    private Boolean bistaticShiftCorrectionAz = false;
+    private Boolean fmMismatchCorrectionAz = false;
+    private Boolean sumOfAzimuthCorrections = false;
+    private Boolean sumOfRangeCorrections = false;
+    private Boolean interferometricPhaseCorrectionRg = false;
+
     @Override
     public JComponent CreateOpTab(String operatorName, Map<String, Object> parameterMap, AppContext appContext) {
 
@@ -56,6 +79,66 @@ public class ETADCorrectionTOPSOpUI extends BaseOperatorUI {
             }
         });
 
+        troposphericCorrectionRgCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                troposphericCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        ionosphericCorrectionRgCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                ionosphericCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        geodeticCorrectionRgCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                geodeticCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        dopplerShiftCorrectionRgCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                dopplerShiftCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        geodeticCorrectionAzCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                geodeticCorrectionAz = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        bistaticShiftCorrectionAzCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                bistaticShiftCorrectionAz = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        fmMismatchCorrectionAzCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                fmMismatchCorrectionAz = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        sumOfAzimuthCorrectionsCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                sumOfAzimuthCorrections = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        sumOfRangeCorrectionsCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                sumOfRangeCorrections = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        interferometricPhaseCorrectionRgCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                interferometricPhaseCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
         return panel;
     }
 
@@ -68,6 +151,57 @@ public class ETADCorrectionTOPSOpUI extends BaseOperatorUI {
         }
 
         resamplingType.setSelectedItem(paramMap.get("resamplingType"));
+
+        troposphericCorrectionRg = (Boolean)paramMap.get("troposphericCorrectionRg");
+        ionosphericCorrectionRg = (Boolean)paramMap.get("ionosphericCorrectionRg");
+        geodeticCorrectionRg = (Boolean)paramMap.get("geodeticCorrectionRg");
+        dopplerShiftCorrectionRg = (Boolean)paramMap.get("dopplerShiftCorrectionRg");
+        geodeticCorrectionAz = (Boolean)paramMap.get("geodeticCorrectionAz");
+        bistaticShiftCorrectionAz = (Boolean)paramMap.get("bistaticShiftCorrectionAz");
+        fmMismatchCorrectionAz = (Boolean)paramMap.get("fmMismatchCorrectionAz");
+        sumOfAzimuthCorrections = (Boolean)paramMap.get("sumOfAzimuthCorrections");
+        sumOfRangeCorrections = (Boolean)paramMap.get("sumOfRangeCorrections");
+        interferometricPhaseCorrectionRg = (Boolean)paramMap.get("interferometricPhaseCorrectionRg");
+
+        if(troposphericCorrectionRg != null) {
+            troposphericCorrectionRgCheckBox.setSelected(troposphericCorrectionRg);
+        }
+
+        if(ionosphericCorrectionRg != null) {
+            ionosphericCorrectionRgCheckBox.setSelected(ionosphericCorrectionRg);
+        }
+
+        if(geodeticCorrectionRg != null) {
+            geodeticCorrectionRgCheckBox.setSelected(geodeticCorrectionRg);
+        }
+
+        if(dopplerShiftCorrectionRg != null) {
+            dopplerShiftCorrectionRgCheckBox.setSelected(dopplerShiftCorrectionRg);
+        }
+
+        if(geodeticCorrectionAz != null) {
+            geodeticCorrectionAzCheckBox.setSelected(geodeticCorrectionAz);
+        }
+
+        if(bistaticShiftCorrectionAz != null) {
+            bistaticShiftCorrectionAzCheckBox.setSelected(bistaticShiftCorrectionAz);
+        }
+
+        if(fmMismatchCorrectionAz != null) {
+            fmMismatchCorrectionAzCheckBox.setSelected(fmMismatchCorrectionAz);
+        }
+
+        if(sumOfAzimuthCorrections != null) {
+            sumOfAzimuthCorrectionsCheckBox.setSelected(sumOfAzimuthCorrections);
+        }
+
+        if(sumOfRangeCorrections != null) {
+            sumOfRangeCorrectionsCheckBox.setSelected(sumOfRangeCorrections);
+        }
+
+        if(interferometricPhaseCorrectionRg != null) {
+            interferometricPhaseCorrectionRgCheckBox.setSelected(interferometricPhaseCorrectionRg);
+        }
     }
 
     @Override
@@ -84,6 +218,17 @@ public class ETADCorrectionTOPSOpUI extends BaseOperatorUI {
         }
 
         paramMap.put("resamplingType", resamplingType.getSelectedItem());
+
+        paramMap.put("troposphericCorrectionRg", troposphericCorrectionRg);
+        paramMap.put("ionosphericCorrectionRg", ionosphericCorrectionRg);
+        paramMap.put("geodeticCorrectionRg", geodeticCorrectionRg);
+        paramMap.put("dopplerShiftCorrectionRg", dopplerShiftCorrectionRg);
+        paramMap.put("geodeticCorrectionAz", geodeticCorrectionAz);
+        paramMap.put("bistaticShiftCorrectionAz", bistaticShiftCorrectionAz);
+        paramMap.put("fmMismatchCorrectionAz", fmMismatchCorrectionAz);
+        paramMap.put("sumOfAzimuthCorrections", sumOfAzimuthCorrections);
+        paramMap.put("sumOfRangeCorrections", sumOfRangeCorrections);
+        paramMap.put("interferometricPhaseCorrectionRg", interferometricPhaseCorrectionRg);
     }
 
     private JComponent createPanel() {
@@ -96,6 +241,44 @@ public class ETADCorrectionTOPSOpUI extends BaseOperatorUI {
         DialogUtils.addComponent(contentPane, gbc, "Resampling Type:", resamplingType);
         gbc.gridy++;
         DialogUtils.addInnerPanel(contentPane, gbc, etadFileLabel, etadFile, etadFileBrowseButton);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        final JPanel correctionLayerSelectionPanel = new JPanel(new GridBagLayout());
+        final GridBagConstraints gbc2 = DialogUtils.createGridBagConstraints();
+        correctionLayerSelectionPanel.setBorder(BorderFactory.createTitledBorder("Select correction layers:"));
+
+        gbc2.gridx = 0;
+        correctionLayerSelectionPanel.add(troposphericCorrectionRgCheckBox, gbc2);
+        gbc2.gridx = 1;
+        correctionLayerSelectionPanel.add(geodeticCorrectionAzCheckBox, gbc2);
+
+        gbc2.gridy++;
+        gbc2.gridx = 0;
+        correctionLayerSelectionPanel.add(ionosphericCorrectionRgCheckBox, gbc2);
+        gbc2.gridx = 1;
+        correctionLayerSelectionPanel.add(bistaticShiftCorrectionAzCheckBox, gbc2);
+
+        gbc2.gridy++;
+        gbc2.gridx = 0;
+        correctionLayerSelectionPanel.add(geodeticCorrectionRgCheckBox, gbc2);
+        gbc2.gridx = 1;
+        correctionLayerSelectionPanel.add(fmMismatchCorrectionAzCheckBox, gbc2);
+
+        gbc2.gridy++;
+        gbc2.gridx = 0;
+        correctionLayerSelectionPanel.add(dopplerShiftCorrectionRgCheckBox, gbc2);
+        gbc2.gridx = 1;
+        correctionLayerSelectionPanel.add(sumOfAzimuthCorrectionsCheckBox, gbc2);
+
+        gbc2.gridy++;
+        gbc2.gridx = 0;
+        correctionLayerSelectionPanel.add(sumOfRangeCorrectionsCheckBox, gbc2);
+        gbc2.gridx = 1;
+        correctionLayerSelectionPanel.add(interferometricPhaseCorrectionRgCheckBox, gbc2);
+
+        gbc.gridwidth = 2;
+        contentPane.add(correctionLayerSelectionPanel, gbc);
 
         DialogUtils.fillPanel(contentPane, gbc);
 
