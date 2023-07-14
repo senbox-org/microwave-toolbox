@@ -24,6 +24,10 @@ mvn-build:
   before_script:
     - *add_libs_and_data
     - !reference [".mvn-base", "before_script"]
+    - echo MAVEN_CLI_OPTS=$MAVEN_CLI_OPTS
+    - echo mvn_settings_opt=$mvn_settings_opt
+    - echo java_proxy_args=$java_proxy_args
+    - echo MAVEN_BUILD_ARGS=$MAVEN_BUILD_ARGS
   artifacts:
     paths:
       - "${MAVEN_PROJECT_DIR}/**/target/*.jar"
