@@ -24,6 +24,9 @@ public class BandUtils {
 
     public static Band createBandFromVirtualBand(final VirtualBand band){
         final Band trgBand = new Band(band.getName(), band.getDataType(), band.getRasterWidth(), band.getRasterHeight());
+        trgBand.setNoDataValueUsed(band.isNoDataValueUsed());
+        trgBand.setNoDataValue(band.getNoDataValue());
+        trgBand.setUnit(band.getUnit());
 
         final ProductData data = band.createCompatibleRasterData(band.getRasterWidth(), band.getRasterHeight());
         trgBand.setRasterData(data);
