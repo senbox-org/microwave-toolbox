@@ -1,0 +1,96 @@
+<graph id="Graph">
+  <version>1.0</version>
+  <node id="Read">
+    <operator>Read</operator>
+    <sources/>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <useAdvancedOptions>false</useAdvancedOptions>
+      <file>${inputProduct}</file>
+      <copyMetadata>true</copyMetadata>
+      <bandNames/>
+      <pixelRegion>0,0,20442,11912</pixelRegion>
+      <maskNames/>
+    </parameters>
+  </node>
+   <node id="AddElevation">
+    <operator>AddElevation</operator>
+    <sources>
+      <sourceProduct refid="Read"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <demName>SRTM 3Sec</demName>
+      <demResamplingMethod>BICUBIC_INTERPOLATION</demResamplingMethod>
+      <externalDEMFile/>
+      <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
+      <elevationBandName>elevation</elevationBandName>
+    </parameters>
+  </node>
+  
+  <node id="MultiMasterInSAR">
+    <operator>MultiMasterInSAR</operator>
+    <sources>
+      <sourceProduct refid="AddElevation"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <orbitDegree>4</orbitDegree>
+      <pairs/>
+      
+      <includeWavenumber>false</includeWavenumber>
+      <includeIncidenceAngle>false</includeIncidenceAngle>
+      <includeLatLon>false</includeLatLon>
+      <cohWindowAz>10</cohWindowAz>
+      <cohWindowRg>10</cohWindowRg>
+    </parameters>
+  </node>
+  <node id="TOPSAR-Deburst">
+    <operator>TOPSAR-Deburst</operator>
+    <sources>
+      <sourceProduct refid="MultiMasterInSAR"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <selectedPolarisations/>
+    </parameters>
+  </node>
+  <node id="Subset">
+    <operator>Subset</operator>
+    <sources>
+      <sourceProduct refid="TOPSAR-Deburst"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <tiePointGrids/>
+      <region>${xmin},${ymin},${xmax},${ymax}</region>
+      <referenceBand/>
+      <geoRegion/>
+      <subSamplingX>1</subSamplingX>
+      <subSamplingY>1</subSamplingY>
+      <fullSwath>false</fullSwath>
+      <copyMetadata>true</copyMetadata>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Subset"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>${outputProduct}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+  <applicationData id="Presentation">
+    <Description/>
+    <node id="ProductSet-Reader">
+      <displayPosition x="41.0" y="130.0"/>
+    </node>
+    <node id="Back-Geocoding">
+      <displayPosition x="204.0" y="129.0"/>
+    </node>
+    <node id="MultiMasterInSAR">
+      <displayPosition x="347.0" y="130.0"/>
+    </node>
+    <node id="Write">
+      <displayPosition x="514.0" y="132.0"/>
+    </node>
+  </applicationData>
+</graph>

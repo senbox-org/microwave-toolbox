@@ -88,7 +88,6 @@ public class BatchSnaphuUnwrapOp extends Operator {
             throw new OperatorException("SNAPHU install location is null");
         }
 
-
         // Validate the folder locations provided
         if (!Files.exists(snaphuProcessingLocation.toPath())){
             throw new OperatorException("Path provided for Snaphu processing location does not exist. Please provide a valid path.");
@@ -105,7 +104,6 @@ public class BatchSnaphuUnwrapOp extends Operator {
             throw new OperatorException("Path provided for Snaphu install is not writeable.");
         }
 
-
         trgProduct = new Product(sourceProduct.getName(), sourceProduct.getProductType(), sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
         trgProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
         trgProduct.setName(sourceProduct.getName() + "_snaphu");
@@ -119,9 +117,6 @@ public class BatchSnaphuUnwrapOp extends Operator {
         }
         ProductUtils.copyProductNodes(sourceProduct, trgProduct);
         setTargetProduct(trgProduct);
-
-
-
 
     }
 
@@ -290,20 +285,22 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 int count = x + 1;
                 // Add prefix to progress monitor to indicate which product we are currently on.
                 String prefix = "(" + count + "/" + configFiles.length + "): ";
-                // TODO be sure to un-comment this once the writing out from this tool is fixed.
-                //callSnaphuUnwrap(snaphuBinary, configFiles[x], snaphuLogFile, pm, prefix);
-
+                callSnaphuUnwrap(snaphuBinary, configFiles[x], snaphuLogFile, pm, prefix);
                 pm.worked(work);
             }
+            // Place all unwrapped bands into a single product.
             Product assembled = assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
             Band [] emptyTrgProductBands = getTargetProduct().getBands();
+
             for (Band b : emptyTrgProductBands){
                 getTargetProduct().removeBand(b);
             }
-            for(Band b : assembled.getBands()){
-                ProductUtils.copyBand(b.getName(), assembled, getTargetProduct(), true);
 
+            for(Band b : assembled.getBands()){
+                b.readRasterDataFully();
+                ProductUtils.copyBand(b.getName(), assembled, getTargetProduct(), true);
             }
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -321,7 +318,6 @@ public class BatchSnaphuUnwrapOp extends Operator {
      */
     public static class Spi extends OperatorSpi {
         public Spi() {
-
             super(BatchSnaphuUnwrapOp.class);
         }
     }

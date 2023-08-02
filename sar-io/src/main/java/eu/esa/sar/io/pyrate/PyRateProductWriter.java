@@ -4,7 +4,7 @@ package eu.esa.sar.io.pyrate;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.io.pyrate.pyrateheader.PyRateHeaderWriter;
 import org.apache.commons.io.FileUtils;
-import org.esa.snap.core.dataio.AbstractProductWriter;
+import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.dataio.ProductWriter;
 import org.esa.snap.core.dataio.ProductWriterPlugIn;
 
@@ -78,9 +78,7 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
         // Write the header files.
         try {
             gammaHeaderWriter.writeHeaderFiles(headerFileFolder, new File(processingLocation, configBuilder.headerFileList));
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
+        } catch (ParseException | IOException e) {
             throw new RuntimeException(e);
         }
 
@@ -92,14 +90,16 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
             if(!b.getName().equals("elevation")){
                 outputGeoTiff = new File(geoTiffFolder, createPyRateFileName(b.getName(), b.getUnit(), bannedDates ) + ".tif" );
             }else{
-                outputGeoTiff = new File(processingLocation, "DEM.tif" );
+                outputGeoTiff = new File(processingLocation, "DEM.tif");
             }
             bandProductWriterHashMap.put(b.getName(), new GeoTiffProductWriterPlugIn().createWriterInstance() );
             Product singleBandProduct = new Product(b.getName(), getSourceProduct().getProductType(), getSourceProduct().getSceneRasterWidth(), getSourceProduct().getSceneRasterHeight());
             ProductUtils.copyProductNodes(getSourceProduct(), singleBandProduct);
             ProductUtils.copyBand(b.getName(), getSourceProduct(), singleBandProduct, true);
             bandProductWriterHashMap.get(b.getName()).writeProductNodes(singleBandProduct, outputGeoTiff);
+            ProductIO.writeProduct(singleBandProduct, outputGeoTiff, "GeoTIFF", false);
         }
+
 
         // Write coherence and phase bands out to individual GeoTIFFS
         String interferogramFileList = null;
@@ -226,6 +226,8 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
         return firstCharacter.toUpperCase() + rest.toLowerCase();
     }
 
+    // Writing occurs within writeProductNodesImpl(). Overriding with a blank method to ensure
+    // duplicate band writing is avoided.
     @Override
     public void writeBandRasterData(Band sourceBand,
                              int sourceOffsetX, int sourceOffsetY,
@@ -233,19 +235,6 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
                              ProductData sourceBuffer,
                              ProgressMonitor pm) throws IOException{
 
-
-        Product sourceProduct = sourceBand.getProduct();
-        final ArrayList<Band> bandsToExport = getBandsToExport(sourceProduct);
-        if (bandsToExport.contains(sourceBand)){
-
-            bandProductWriterHashMap.get(sourceBand.getName()).writeBandRasterData(sourceBand,
-                    sourceOffsetX, sourceOffsetY,
-                    sourceWidth, sourceHeight,
-                    sourceBuffer, pm);
-
-            bandProductWriterHashMap.get(sourceBand.getName()).flush();
-            bandProductWriterHashMap.get(sourceBand.getName()).close();
-        }
     }
 
     private ArrayList<Band> getBandsToExport(Product sourceProduct){
@@ -271,10 +260,4 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
         }
         return bandsToWrite;
     }
-
-
-
-
-
-
 }
