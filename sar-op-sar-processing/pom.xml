@@ -71,6 +71,12 @@
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-dem</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

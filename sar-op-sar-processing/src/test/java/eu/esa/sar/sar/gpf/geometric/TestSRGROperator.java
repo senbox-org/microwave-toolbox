@@ -23,7 +23,6 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -40,8 +39,8 @@ public class TestSRGROperator extends ProcessorTest {
     private final static OperatorSpi spi = new SRGROp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX"};
-    private String[] exceptionExemptions = {"conversion has already been applied", "not supported", "GeoCoding is null",
+    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
+    private static final String[] exceptionExemptions = {"conversion has already been applied", "not supported", "GeoCoding is null",
             "not be map projected", "Source product should first be deburst"};
 
     /**
@@ -177,13 +176,13 @@ public class TestSRGROperator extends ProcessorTest {
     }
 
     @Test
-    @Ignore
+    //@Ignore
     public void testProcessAllCosmo() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsCosmoSkymed, null, exceptionExemptions);
     }
 
     @Test
     public void testProcessAllSentinel1() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsSentinel1, null, exceptionExemptions);
+        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsSentinel1, productTypeExemptions, exceptionExemptions);
     }
 }

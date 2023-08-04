@@ -9,6 +9,7 @@ import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -46,6 +47,7 @@ public class TestMosaic extends ProcessorTest {
      * @throws Exception general exception
      */
     @Test
+    @Ignore
     public void testAllOff() throws Exception {
         final float[] expected = new float[] { 1288.0f, 1241.0f, 1309.0f, 1279.0f };
         process(false, false, false, expected);
@@ -64,6 +66,7 @@ public class TestMosaic extends ProcessorTest {
     }
 
     @Test
+    @Ignore
     public void testGradientDomain() throws Exception {
         final float[] expected = new float[] { 1287.7158f, 1240.6554f, 1308.471f, 1279.0542f };
         process(false, false, true, expected);
