@@ -1,3 +1,12 @@
+#New in Microwave Toolbox 10.0
+
+* Refactoring from s1tbx to microwave toolbox
+* Support for updated Sentinel-1 format
+* Support for Cosmo Skymed Second Generation
+* Updated support for ALOS-2
+* Updated support for SAOCOM
+* ETAD product reading and viewing
+* Application of ETAD corrections for GRD and SM SLC
 
 #Update 9.0.3
 https://senbox.atlassian.net/projects/SNAP/versions/12822/tab/release-report-all-issues
