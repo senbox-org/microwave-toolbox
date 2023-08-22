@@ -9,7 +9,7 @@ import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
-import org.esa.snap.test.LongTestRunner;
+import com.bc.ceres.test.LongTestRunner;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
