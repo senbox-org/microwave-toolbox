@@ -34,7 +34,6 @@ import static org.junit.Assume.assumeTrue;
  *
  * @author lveci
  */
-@STTM("SNAP-2602")
 public class TestCosmoSkymedGeotiffReader extends ReaderTest {
 
     public final static File inputSM_GeoTiff_1B_tif = new File(TestData.inputSAR + "Cosmo/STRIPMAP/HH_Level_1B_TIFF/CSG_SSAR1_DGM_B_0101_STR_012_HH_RD_F_20200921215026_20200921215032_1_F_09S_Z19_N00.IMG.tif");
@@ -66,6 +65,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
     }
 
     @Test
+    @STTM("SNAP-2602")
     public void testOpeningSM_GeoTiff_1B_tif() throws Exception {
         Product prod = testReader(inputSM_GeoTiff_1B_tif.toPath());
 
@@ -76,6 +76,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
     }
 
     @Test
+    @STTM("SNAP-2602")
     public void testOpeningSM_GeoTiff_1B_xml() throws Exception {
         Product prod = testReader(inputSM_GeoTiff_1B_xml.toPath());
 
@@ -86,6 +87,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
     }
 
     @Test
+    @STTM("SNAP-2602")
     public void testOpeningSM_GeoTiff_1C_tif() throws Exception {
         Product prod = testReader(inputSM_GeoTiff_1C_tif.toPath());
 
@@ -97,6 +99,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
 
 
     @Test
+    @STTM("SNAP-2602")
     public void testOpeningSC_GeoTiff_DGM_tif() throws Exception {
         Product prod = testReader(inputSC_GeoTiff_DGM_tif.toPath());
 
@@ -107,6 +110,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
     }
 
     @Test
+    @STTM("SNAP-2602")
     public void testOpeningSC_GeoTiff_GEC_tif() throws Exception {
         Product prod = testReader(inputSC_GeoTiff_GEC_tif.toPath());
 
@@ -122,6 +126,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
      * @throws Exception anything
      */
     @Test
+    @STTM("SNAP-2602")
     public void testOpenAll() throws Exception {
         TestProcessor testProcessor = SARTests.createTestProcessor();
         testProcessor.recurseReadFolder(this, rootPathsCosmoSkymed, readerPlugIn, reader, null, exceptionExemptions);
