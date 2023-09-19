@@ -1,69 +1,24 @@
-
 package eu.esa.sar.fex.gpf.decisiontree;
 
-import junit.framework.TestCase;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.util.Arrays;
+
+import static org.junit.Assert.assertNotNull;
 
 /**
  * Unit test for DecisionTreeOp.
  */
-public class TestDescisionTreeOp extends TestCase {
+public class TestDescisionTreeOp {
 
     private OperatorSpi spi;
-
-    @Override
-    protected void setUp() {
-        spi = new DecisionTreeOp.Spi();
-    }
-
-    public void testMultilookOfRealImage() throws Exception {
-
-        final Product sourceProduct = createTestProduct(16, 4);
-
-        final DecisionTreeOp op = (DecisionTreeOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
-
-
-
-     /*   op.setNumRangeLooks(4);
-        MultilookOp.DerivedParams param = new MultilookOp.DerivedParams();
-        param.nRgLooks = 4;
-        op.getDerivedParameters(sourceProduct, param);
-        op.setNumAzimuthLooks(param.nAzLooks);
-
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true);
-
-        final Band band = targetProduct.getBandAt(0);
-        assertNotNull(band);
-
-        // readPixels: execute computeTiles()
-        final float[] floatValues = new float[8];
-        band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
-
-        // compare with expected outputs:
-        final float[] expectedValues = {10.5f, 14.5f, 18.5f, 22.5f, 42.5f, 46.5f, 50.5f, 54.5f};
-        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
-
-        // compare updated metadata
-        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
-
-        TestUtils.attributeEquals(abs, AbstractMetadata.azimuth_looks, 2.0);
-        TestUtils.attributeEquals(abs, AbstractMetadata.range_looks, 4.0);
-        TestUtils.attributeEquals(abs, AbstractMetadata.azimuth_spacing, 4.0);
-        TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 2.0);
-        TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.02);
-        TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:32:46.890683");      */
-    }
 
     /**
      * Creates a 4-by-16 test product as shown below:
@@ -110,4 +65,51 @@ public class TestDescisionTreeOp extends TestCase {
         return testProduct;
     }
 
+    @Before
+    public void setUp() {
+        spi = new DecisionTreeOp.Spi();
+    }
+
+    @Test
+    public void testMultilookOfRealImage() {
+
+        final Product sourceProduct = createTestProduct(16, 4);
+
+        final DecisionTreeOp op = (DecisionTreeOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
+
+
+
+     /*   op.setNumRangeLooks(4);
+        MultilookOp.DerivedParams param = new MultilookOp.DerivedParams();
+        param.nRgLooks = 4;
+        op.getDerivedParameters(sourceProduct, param);
+        op.setNumAzimuthLooks(param.nAzLooks);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true);
+
+        final Band band = targetProduct.getBandAt(0);
+        assertNotNull(band);
+
+        // readPixels: execute computeTiles()
+        final float[] floatValues = new float[8];
+        band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+
+        // compare with expected outputs:
+        final float[] expectedValues = {10.5f, 14.5f, 18.5f, 22.5f, 42.5f, 46.5f, 50.5f, 54.5f};
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
+
+        // compare updated metadata
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
+
+        TestUtils.attributeEquals(abs, AbstractMetadata.azimuth_looks, 2.0);
+        TestUtils.attributeEquals(abs, AbstractMetadata.range_looks, 4.0);
+        TestUtils.attributeEquals(abs, AbstractMetadata.azimuth_spacing, 4.0);
+        TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 2.0);
+        TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.02);
+        TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:32:46.890683");      */
+    }
 }
