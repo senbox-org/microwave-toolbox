@@ -15,64 +15,29 @@
  */
 package eu.esa.sar.io.ceos.records;
 
-import junit.framework.TestCase;
 import eu.esa.sar.io.binary.BinaryDBReader;
 import eu.esa.sar.io.binary.BinaryFileReader;
 import eu.esa.sar.io.binary.BinaryRecord;
-import eu.esa.sar.io.binary.IllegalBinaryFormatException;
 import eu.esa.sar.io.ceos.CeosTestHelper;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.jdom2.Document;
+import org.junit.Before;
+import org.junit.Test;
 
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-public class VolumeDescriptorRecordTest extends TestCase {
+import static org.junit.Assert.assertEquals;
 
+public class VolumeDescriptorRecordTest {
+
+    private static final String mission = "ers";
+    private static final String volume_desc_recordDefinitionFile = "volume_descriptor.xml";
+    private final static Document volDescXML = BinaryDBReader.loadDefinitionFile(mission, volume_desc_recordDefinitionFile);
     private MemoryCacheImageOutputStream _ios;
     private String _prefix;
     private BinaryFileReader _reader;
-
-    private static String mission = "ers";
-    private static String volume_desc_recordDefinitionFile = "volume_descriptor.xml";
-
-    private final static Document volDescXML = BinaryDBReader.loadDefinitionFile(mission, volume_desc_recordDefinitionFile);
-
-
-    protected void setUp() throws Exception {
-        final ByteArrayOutputStream os = new ByteArrayOutputStream(24);
-        _ios = new MemoryCacheImageOutputStream(os);
-        _prefix = "VolumeDescriptorRecordTest_prefix";
-        _ios.writeBytes(_prefix);
-        writeRecordData(_ios);
-        _ios.writeBytes("VolumeDescriptorRecordTest_suffix"); // suffix
-        _reader = new BinaryFileReader(_ios);
-    }
-
-    public void testInit_SimpleConstructor() throws IOException, IllegalBinaryFormatException {
-        _reader.seek(_prefix.length());
-        final BinaryRecord record = new BinaryRecord(_reader, -1, volDescXML, volume_desc_recordDefinitionFile);
-
-        assertRecord(record);
-    }
-
-    public void testInit() throws IOException, IllegalBinaryFormatException {
-        final BinaryRecord record = new BinaryRecord(_reader, _prefix.length(), volDescXML, volume_desc_recordDefinitionFile);
-
-        assertRecord(record);
-    }
-
-    public void testAssignMetadata() throws IOException, IllegalBinaryFormatException {
-        final BinaryRecord record = new BinaryRecord(_reader, _prefix.length(), volDescXML, volume_desc_recordDefinitionFile);
-        final MetadataElement volumeMetadata = new MetadataElement("VOLUME_DESCRIPTOR");
-
-        record.assignMetadataTo(volumeMetadata);
-
-        assertEquals(21, volumeMetadata.getNumAttributes());
-        assertEquals(0, volumeMetadata.getNumElements());
-        assertMetadata(volumeMetadata);
-    }
 
     private static void assertMetadata(final MetadataElement elem) {
         BaseRecordTest.assertMetadata(elem);
@@ -122,6 +87,44 @@ public class VolumeDescriptorRecordTest extends TestCase {
         ios.writeBytes("5678"); // nuberOfRecords // I4
         ios.writeBytes("5"); // Total number of logical volume set // I4
         CeosTestHelper.writeBlanks(ios, 192); // blank
+    }
+
+    @Before
+    public void setUp() throws Exception {
+        final ByteArrayOutputStream os = new ByteArrayOutputStream(24);
+        _ios = new MemoryCacheImageOutputStream(os);
+        _prefix = "VolumeDescriptorRecordTest_prefix";
+        _ios.writeBytes(_prefix);
+        writeRecordData(_ios);
+        _ios.writeBytes("VolumeDescriptorRecordTest_suffix"); // suffix
+        _reader = new BinaryFileReader(_ios);
+    }
+
+    @Test
+    public void testInit_SimpleConstructor() throws IOException {
+        _reader.seek(_prefix.length());
+        final BinaryRecord record = new BinaryRecord(_reader, -1, volDescXML, volume_desc_recordDefinitionFile);
+
+        assertRecord(record);
+    }
+
+    @Test
+    public void testInit() throws IOException {
+        final BinaryRecord record = new BinaryRecord(_reader, _prefix.length(), volDescXML, volume_desc_recordDefinitionFile);
+
+        assertRecord(record);
+    }
+
+    @Test
+    public void testAssignMetadata() throws IOException {
+        final BinaryRecord record = new BinaryRecord(_reader, _prefix.length(), volDescXML, volume_desc_recordDefinitionFile);
+        final MetadataElement volumeMetadata = new MetadataElement("VOLUME_DESCRIPTOR");
+
+        record.assignMetadataTo(volumeMetadata);
+
+        assertEquals(21, volumeMetadata.getNumAttributes());
+        assertEquals(0, volumeMetadata.getNumElements());
+        assertMetadata(volumeMetadata);
     }
 
     private void assertRecord(final BinaryRecord record) throws IOException {

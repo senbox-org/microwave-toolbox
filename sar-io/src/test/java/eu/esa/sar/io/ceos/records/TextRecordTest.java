@@ -15,56 +15,32 @@
  */
 package eu.esa.sar.io.ceos.records;
 
-import junit.framework.TestCase;
 import eu.esa.sar.io.binary.BinaryDBReader;
 import eu.esa.sar.io.binary.BinaryFileReader;
 import eu.esa.sar.io.binary.BinaryRecord;
-import eu.esa.sar.io.binary.IllegalBinaryFormatException;
 import eu.esa.sar.io.ceos.CeosTestHelper;
 import org.jdom2.Document;
+import org.junit.Before;
+import org.junit.Test;
 
 import javax.imageio.stream.ImageOutputStream;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
+
 /**
  * @noinspection OctalInteger
  */
-public class TextRecordTest extends TestCase {
-
-    private MemoryCacheImageOutputStream _ios;
-    private String _prefix;
-    private BinaryFileReader _reader;
+public class TextRecordTest {
 
     private final static String mission = "ers";
     private final static String text_recordDefinitionFile = "text_record.xml";
-
     private final static Document textRecXML = BinaryDBReader.loadDefinitionFile(mission, text_recordDefinitionFile);
-
-    @Override
-    protected void setUp() throws Exception {
-        final ByteArrayOutputStream os = new ByteArrayOutputStream(24);
-        _ios = new MemoryCacheImageOutputStream(os);
-        _prefix = "TextRecordTest_prefix";
-        _ios.writeBytes(_prefix);
-        writeRecordData(_ios);
-        _ios.writeBytes("TextRecordTest_suffix"); // as suffix
-        _reader = new BinaryFileReader(_ios);
-    }
-
-    public void testInit_SimpleConstructor() throws IOException, IllegalBinaryFormatException {
-        _reader.seek(_prefix.length());
-        final BinaryRecord textRecord = new BinaryRecord(_reader, -1, textRecXML, text_recordDefinitionFile);
-
-        assertRecord(textRecord);
-    }
-
-    public void testInit() throws IOException, IllegalBinaryFormatException {
-        final BinaryRecord textRecord = new BinaryRecord(_reader, _prefix.length(), textRecXML, text_recordDefinitionFile);
-
-        assertRecord(textRecord);
-    }
+    private MemoryCacheImageOutputStream _ios;
+    private String _prefix;
+    private BinaryFileReader _reader;
 
     private static void writeRecordData(final ImageOutputStream ios) throws IOException {
         BaseRecordTest.writeRecordData(ios);
@@ -81,6 +57,32 @@ public class TextRecordTest extends TestCase {
         CeosTestHelper.writeBlanks(ios, 200);
     }
 
+    @Before
+    public void setUp() throws Exception {
+        final ByteArrayOutputStream os = new ByteArrayOutputStream(24);
+        _ios = new MemoryCacheImageOutputStream(os);
+        _prefix = "TextRecordTest_prefix";
+        _ios.writeBytes(_prefix);
+        writeRecordData(_ios);
+        _ios.writeBytes("TextRecordTest_suffix"); // as suffix
+        _reader = new BinaryFileReader(_ios);
+    }
+
+    @Test
+    public void testInit_SimpleConstructor() throws IOException {
+        _reader.seek(_prefix.length());
+        final BinaryRecord textRecord = new BinaryRecord(_reader, -1, textRecXML, text_recordDefinitionFile);
+
+        assertRecord(textRecord);
+    }
+
+    @Test
+    public void testInit() throws IOException {
+        final BinaryRecord textRecord = new BinaryRecord(_reader, _prefix.length(), textRecXML, text_recordDefinitionFile);
+
+        assertRecord(textRecord);
+    }
+
     private void assertRecord(final BinaryRecord record) throws IOException {
         BaseRecordTest.assertRecord(record);
         assertEquals(_prefix.length(), record.getStartPos());
@@ -90,6 +92,5 @@ public class TextRecordTest extends TestCase {
         assertEquals("PRODUCT:O1B2R_UB                        ", record.getAttributeString("Product type specifier"));
         assertEquals("PROCESS:JAPAN-JAXA-EOC-ALOS-DPS  20060410075225             ",
                 record.getAttributeString("Location and datetime of product creation"));
-
     }
 }
