@@ -846,7 +846,8 @@ public class RCMProductDirectory extends XMLProductDirectory {
 
         product.addTiePointGrid(incidentAngleGrid);
 
-        //addSlantRangeTime(product, imageGenerationParameters);
+        final MetadataElement imageGenerationParameters = productElem.getElement("imageGenerationParameters");
+        addSlantRangeTime(product, imageGenerationParameters);
     }
 
     private void addSlantRangeTime(final Product product, final MetadataElement imageGenerationParameters) {
