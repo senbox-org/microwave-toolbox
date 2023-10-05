@@ -35,7 +35,6 @@
         -->
         <microwavetbx.version>10.0.0-SNAPSHOT</microwavetbx.version>
 
-        <hdf.version>2.7.2</hdf.version>
         <netcdf.version>5.3.3</netcdf.version>
         <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
@@ -264,12 +263,6 @@
                 <groupId>org.esa.snap</groupId>
                 <artifactId>snap-rcp</artifactId>
                 <version>${snap.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>ncsa.hdf</groupId>
-                <artifactId>lib-hdf</artifactId>
-                <version>${hdf.version}</version>
             </dependency>
 
             <dependency>
