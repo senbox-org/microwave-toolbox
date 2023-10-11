@@ -1,19 +1,14 @@
 package org.jlinda.core.unwrapping.snaphu;
-
 import org.jlinda.core.*;
-
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Formatter;
 import java.util.Locale;
-
 public class SnaphuConfigFile {
-
     DecimalFormat format3 = new DecimalFormat("#.###");
     DecimalFormat format7 = new DecimalFormat("#.#######");
-
     static final float N_CORR_LOOKS = 23.8f;
 //    static final String TAB_STRING = "\t\t";
 
@@ -23,15 +18,11 @@ public class SnaphuConfigFile {
     private Orbit slaveOrbit;
     private Window dataWindow;
     private int size;
-
     private SnaphuParameters parameters;
-
     private StringBuffer configFileBuffer = new StringBuffer();
     private Formatter formattedConfig = new Formatter(configFileBuffer, Locale.US);
-
     public SnaphuConfigFile() {
     }
-
     public SnaphuConfigFile(SLCImage masterSLC, SLCImage slaveSLC,
                             Orbit masterOrbit, Orbit slaveOrbit,
                             Window dataWindow,
@@ -45,40 +36,29 @@ public class SnaphuConfigFile {
         this.parameters = parameters;
         this.size = size;
     }
-
     public void setMasterSLC(SLCImage masterSLC) {
         this.masterSLC = masterSLC;
     }
-
     public void setSlaveSLC(SLCImage slaveSLC) {
         this.slaveSLC = slaveSLC;
     }
-
     public void setMasterOrbit(Orbit masterOrbit) {
         this.masterOrbit = masterOrbit;
     }
-
     public void setSlaveOrbit(Orbit slaveOrbit) {
         this.slaveOrbit = slaveOrbit;
     }
-
     public void setDataWindow(Window dataWindow) {
         this.dataWindow = dataWindow;
     }
-
-
     public StringBuffer getConfigFileBuffer() {
         return configFileBuffer;
     }
-
     public void buildConfFile(String phaseName) throws Exception {
-
         // Mid point
         final double lineMid = 0.5d * dataWindow.lines() + 0.5;
         final double pixelMid = 0.5d * dataWindow.pixels() + 0.5;
-
         Point pointSAR = new Point(pixelMid, lineMid, 0);
-
         final double earthRadius = masterOrbit.computeEarthRadius(pointSAR, masterSLC);
         final double orbitRadius = masterOrbit.computeOrbitRadius(pointSAR, masterSLC);
         final double rangeNear = masterSLC.pix2range(dataWindow.pixlo);
@@ -86,17 +66,13 @@ public class SnaphuConfigFile {
         final double rangeResolution = masterSLC.computeRangeResolution(pointSAR);
         final double azimuthDelta = masterOrbit.computeAzimuthDelta(pointSAR, masterSLC);
         final double azimuthResolution = masterOrbit.computeAzimuthResolution(pointSAR, masterSLC);
-
         //// baseline parametrization
         final Baseline baseline = new Baseline();
         baseline.model(masterSLC, slaveSLC, masterOrbit, slaveOrbit);
         final double baselineTotal = baseline.getB(pointSAR);
         final double baselineAlpha = baseline.getAlpha(pointSAR);
-
-
         String DIMENSIONS = Long.toString(size); // account for zeros
         String IN_FILE_NAME = parameters.phaseFileName;
-
         formattedConfig.format("# CONFIG FOR SNAPHU\n");
         formattedConfig.format("# ---------------------------------------------------------------- \n");
         formattedConfig.format("# Created by SNAP software on: " + printCurrentTimeDate() + "\n");
@@ -105,7 +81,6 @@ public class SnaphuConfigFile {
         formattedConfig.format("# \n");
         formattedConfig.format("#       snaphu -f " + phaseName + "snaphu.conf " + IN_FILE_NAME + " " + DIMENSIONS + "\n");
         formattedConfig.format("\n");
-
         formattedConfig.format("#########################\n");
         formattedConfig.format("# Unwrapping parameters #\n");
         formattedConfig.format("#########################\n");
@@ -114,14 +89,12 @@ public class SnaphuConfigFile {
         formattedConfig.format("INITMETHOD  \t %s %n", parameters.snaphuInit.toUpperCase());
         formattedConfig.format("VERBOSE \t %s %n", parameters.verbosityFlag.toUpperCase());
         formattedConfig.format("\n");
-
         formattedConfig.format("###############\n");
         formattedConfig.format("# Input files #\n");
         formattedConfig.format("###############\n");
         formattedConfig.format("\n");
         formattedConfig.format("CORRFILE \t\t" + parameters.coherenceFileName + "\n");
         formattedConfig.format("\n");
-
         formattedConfig.format("################\n");
         formattedConfig.format("# Output files #\n");
         formattedConfig.format("################\n");
@@ -129,7 +102,6 @@ public class SnaphuConfigFile {
         formattedConfig.format("OUTFILE \t\t" + parameters.outFileName + "\n");
         formattedConfig.format("LOGFILE \t\t" + parameters.logFileName + "\n");
         formattedConfig.format("\n");
-
         formattedConfig.format("################\n");
         formattedConfig.format("# File formats #\n");
         formattedConfig.format("################\n");
@@ -139,7 +111,6 @@ public class SnaphuConfigFile {
         formattedConfig.format("CORRFILEFORMAT \t" + "FLOAT_DATA\n");
         formattedConfig.format("OUTFILEFORMAT \t" + "FLOAT_DATA\n");
         formattedConfig.format("\n");
-
         formattedConfig.format("###############################\n");
         formattedConfig.format("# SAR and geometry parameters #\n");
         formattedConfig.format("###############################\n");
@@ -147,12 +118,29 @@ public class SnaphuConfigFile {
         formattedConfig.format("TRANSMITMODE \t" + "REPEATPASS\n");
         formattedConfig.format("\n");
         formattedConfig.format("ORBITRADIUS \t" + doubleToString(orbitRadius, format3) + "\n");
-        formattedConfig.format("EARTHRADIUS \t" + doubleToString(earthRadius, format3) + "\n");
+
+        try{
+            formattedConfig.format("EARTHRADIUS \t" + doubleToString(earthRadius, format3) + "\n");
+        }catch (NumberFormatException e){
+            System.err.println("INFO: EarthRadius is NaN. Skipping from Snaphu config file.");
+        }
+
         formattedConfig.format("\n");
         formattedConfig.format("LAMBDA \t\t\t" + doubleToString(masterSLC.getRadarWavelength(), format7) + "\n");
         formattedConfig.format("\n");
-        formattedConfig.format("BASELINE \t\t" + doubleToString(baselineTotal, format3) + "\n");
-        formattedConfig.format("BASELINEANGLE_RAD \t" + doubleToString(baselineAlpha, format3) + "\n");
+
+        try{
+            formattedConfig.format("BASELINE \t\t" + doubleToString(baselineTotal, format3) + "\n");
+        }catch(NumberFormatException e){
+            System.err.println("INFO: BaselineTotal is NaN. Skipping from Snaphu config file.");
+        }
+
+        try{
+            formattedConfig.format("BASELINEANGLE_RAD \t" + doubleToString(baselineAlpha, format3) + "\n");
+        }catch(NumberFormatException e){
+            System.err.println("INFO: BaselineAlpha is NaN. Skipping from Snaphu config file.");
+        }
+
         formattedConfig.format("\n");
         formattedConfig.format("NEARRANGE \t\t" + doubleToString(rangeNear, format7) + "\n");
         formattedConfig.format("\n");
@@ -171,13 +159,9 @@ public class SnaphuConfigFile {
                 + "#     times the number of real looks for ERS data processed\n"
                 + "#     without windowing.\n");
         formattedConfig.format("NCORRLOOKS \t\t" + Float.toString(N_CORR_LOOKS) + "\n");
-
         tileControlFlags();
-
         formattedConfig.format("# End of snaphu configuration file");
-
     }
-
     // these are flags for controlling parallel processing with Snaphu -> be careful with COST Threshold for TILES
     private void tileControlFlags() {
         configFileBuffer.append("\n"
@@ -196,15 +180,12 @@ public class SnaphuConfigFile {
                 + "TILECOSTTHRESH   "+ parameters.tileCostThreshold +"\n"
                 + "\n");
     }
-
     private String printCurrentTimeDate() {
         DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
         Date date = new Date();
         return dateFormat.format(date);
     }
-
     private String doubleToString(final double value, final DecimalFormat format) {
         return Double.valueOf(format.format(value)).toString();
     }
-
 }

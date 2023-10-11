@@ -3,4 +3,4 @@ eu.esa.sar.io.polsarpro.PolsarProProductWriterPlugIn
 eu.esa.sar.io.gamma.GammaProductWriterPlugIn
 eu.esa.sar.io.geotiffxml.GeoTiffXMLProductWriterPlugIn
 eu.esa.sar.io.generic.GenericBSQWriterPlugIn
-eu.esa.sar.io.gamma.pyrate.PyRateGammaProductWriterPlugIn
+eu.esa.sar.io.pyrate.PyRateProductWriterPlugIn

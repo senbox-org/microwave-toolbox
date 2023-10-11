@@ -73,6 +73,15 @@
         </dependency>
 
         <dependency>
+            <groupId>org.jlinda</groupId>
+            <artifactId>jlinda-nest</artifactId>
+            <version>${microwavetbx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-envi-reader</artifactId>
+        </dependency>
+        <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io</artifactId>
             <scope>test</scope>

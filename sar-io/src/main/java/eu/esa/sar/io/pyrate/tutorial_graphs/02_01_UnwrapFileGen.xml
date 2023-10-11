@@ -1,0 +1,41 @@
+<graph id="Graph">
+  <version>1.0</version>
+  <node id="Read">
+    <operator>Read</operator>
+    <sources/>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <useAdvancedOptions>false</useAdvancedOptions>
+      <file>${inputProduct}</file>
+      <copyMetadata>true</copyMetadata>
+      <bandNames/>
+      <pixelRegion>0,0,842,752</pixelRegion>
+      <maskNames/>
+    </parameters>
+  </node>
+  <node id="SnaphuExport">
+    <operator>SnaphuExport</operator>
+    <sources>
+      <sourceProduct refid="Read"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <targetFolder>${snaphuFolder}</targetFolder>
+      <statCostMode>DEFO</statCostMode>
+      <initMethod>MCF</initMethod>
+      <numberOfTileRows>20</numberOfTileRows>
+      <numberOfTileCols>20</numberOfTileCols>
+      <numberOfProcessors>4</numberOfProcessors>
+      <rowOverlap>10</rowOverlap>
+      <colOverlap>10</colOverlap>
+      <tileCostThreshold>1000</tileCostThreshold>
+    </parameters>
+  </node>
+  <applicationData id="Presentation">
+    <Description/>
+    <node id="Read">
+            <displayPosition x="37.0" y="134.0"/>
+    </node>
+    <node id="SnaphuExport">
+      <displayPosition x="193.0" y="131.0"/>
+    </node>
+  </applicationData>
+</graph>

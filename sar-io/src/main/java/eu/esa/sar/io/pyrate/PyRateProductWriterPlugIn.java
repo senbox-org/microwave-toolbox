@@ -13,15 +13,14 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.io.gamma.pyrate;
+package eu.esa.sar.io.pyrate;
 
-import eu.esa.sar.io.gamma.GammaProductReaderPlugIn;
 import org.esa.snap.core.dataio.AbstractProductWriter;
 import org.esa.snap.core.dataio.EncodeQualification;
 import org.esa.snap.core.dataio.ProductWriter;
-import org.esa.snap.core.dataio.ProductWriterPlugIn;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.util.io.SnapFileFilter;
+import org.esa.snap.dataio.geotiff.GeoTiffProductWriterPlugIn;
 
 import java.io.File;
 import java.util.Locale;
@@ -29,13 +28,13 @@ import java.util.Locale;
 /**
  * The Gamma writer
  */
-public class PyRateGammaProductWriterPlugIn implements ProductWriterPlugIn {
+public class PyRateProductWriterPlugIn extends GeoTiffProductWriterPlugIn {
 
     private final SnapFileFilter fileFilter = new SnapFileFilter(getFormatNames()[0], getDefaultFileExtensions(), getDescription(null));
     /**
      * Constructs a new Gamma product writer plug-in instance.
      */
-    public PyRateGammaProductWriterPlugIn() {
+    public PyRateProductWriterPlugIn() {
     }
 
     @Override
@@ -47,7 +46,7 @@ public class PyRateGammaProductWriterPlugIn implements ProductWriterPlugIn {
      * Returns a string array containing the single entry.
      */
     public String[] getFormatNames() {
-        return new String[]{"Gamma for PyRate"};
+        return new String[]{"PyRate export"};
     }
 
     /**
@@ -59,7 +58,7 @@ public class PyRateGammaProductWriterPlugIn implements ProductWriterPlugIn {
      * @return the default file extensions for this product I/O plug-in, never <code>null</code>
      */
     public String[] getDefaultFileExtensions() {
-        return GammaProductReaderPlugIn.EXTs;
+        return new String[]{".conf"};
     }
 
     /**
@@ -95,7 +94,7 @@ public class PyRateGammaProductWriterPlugIn implements ProductWriterPlugIn {
      * @return a new instance of the <code>EnviProductWriter</code> class
      */
     public ProductWriter createWriterInstance() {
-        return new PyRateGammaProductWriter(this);
+        return (ProductWriter) new PyRateProductWriter(this);
     }
 
     public SnapFileFilter getProductFileFilter() {

@@ -17,6 +17,12 @@
             <tocitem text="Coregistration">
             </tocitem>
             <tocitem text="Interferometric">
+                <tocitem text = "Unwrapping">
+                    <tocitem text="Batch Snaphu Unwrap" target="BatchSnaphuUnwrapOp" />
+                </tocitem>
+                <tocitem text = "PSI/SBAS">
+                    <tocitem text="PyRate Export Workflow" target="PyRateExportOp" />
+                </tocitem>
             </tocitem>
             <tocitem text="Polarimetric">
             </tocitem>
