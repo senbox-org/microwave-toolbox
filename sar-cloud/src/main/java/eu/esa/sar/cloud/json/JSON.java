@@ -81,6 +81,10 @@ public interface JSON {
             return (int) (long) o;
         } else if (o instanceof Integer) {
             return (Integer) o;
+        } else if (o instanceof Double) {
+            return ((Double) o).intValue();
+        } else if (o instanceof Float) {
+            return ((Float) o).intValue();
         }
         return Integer.parseInt((String) o);
     }
@@ -90,6 +94,10 @@ public interface JSON {
             return (Long) o;
         } else if (o instanceof Integer) {
             return (Integer) o;
+        } else if (o instanceof Double) {
+            return ((Double) o).longValue();
+        } else if (o instanceof Float) {
+            return ((Float) o).longValue();
         }
         return Long.parseLong((String) o);
     }

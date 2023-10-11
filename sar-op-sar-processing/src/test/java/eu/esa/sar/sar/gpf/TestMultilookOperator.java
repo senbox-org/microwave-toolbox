@@ -27,7 +27,6 @@ import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -58,8 +57,9 @@ public class TestMultilookOperator extends ProcessorTest {
     private final static OperatorSpi spi = new MultilookOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private String[] productTypeExemptions = {"-","_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX"};
-    private String[] exceptionExemptions = {"not supported", "not intended", "not be map projected", "first be deburst"};
+    private static final String[] productTypeExemptions = {"-","_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
+    private static final String[] exceptionExemptions = {"not supported", "not intended", "not be map projected",
+            "first be deburst","has no bands"};
 
     /**
      * Tests multi-look operator with a 4x16 "DETECTED" test product.
@@ -200,7 +200,6 @@ public class TestMultilookOperator extends ProcessorTest {
     }
 
     @Test
-    @Ignore
     public void testProcessAllCosmo() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsCosmoSkymed, "CosmoSkymed", productTypeExemptions, exceptionExemptions);
     }

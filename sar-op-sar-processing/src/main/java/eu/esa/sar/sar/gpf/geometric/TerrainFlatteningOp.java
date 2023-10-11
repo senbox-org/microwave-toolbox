@@ -184,6 +184,7 @@ public final class TerrainFlatteningOp extends Operator {
             if (sourceProductType.equals(PolBandUtils.MATRIX.T3) || sourceProductType.equals(PolBandUtils.MATRIX.C3)
                     || sourceProductType.equals(PolBandUtils.MATRIX.C2)) {
                 isPolSar = true;
+                newSourceProduct = sourceProduct;
             } else if (!validator.isCalibrated()) {
                 final  OperatorSpi spi = new CalibrationOp.Spi();
                 final CalibrationOp op = (CalibrationOp) spi.createOperator();

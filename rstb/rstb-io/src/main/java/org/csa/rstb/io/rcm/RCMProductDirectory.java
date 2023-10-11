@@ -355,9 +355,9 @@ public class RCMProductDirectory extends XMLProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks, sarProcessingInformation.getAttributeDouble("numberOfRangeLooks"));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks, sarProcessingInformation.getAttributeDouble("numberOfAzimuthLooks"));
 
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, getDataType(rasterAttributes));
-        final String aquisitionMode = radarParameters.getAttributeString("acquisitionType", defStr);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, aquisitionMode);
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, getDataType());
+        final String aquisitionType = radarParameters.getAttributeString("acquisitionType", defStr);
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, getSensorMode(aquisitionType));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.BEAMS, radarParameters.getAttributeString("beams", defStr));
         final MetadataElement radarCenterFrequency = radarParameters.getElement("radarCenterFrequency");
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency,
@@ -404,7 +404,7 @@ public class RCMProductDirectory extends XMLProductDirectory {
         final MetadataElement adcSamplingRate = radarParameters.getElement("adcSamplingRate");
         double rangeSamplingRate = adcSamplingRate.getAttributeDouble("adcSamplingRate", defInt) / Constants.oneMillion;
 
-        if (aquisitionMode.equalsIgnoreCase("UltraFine")) {
+        if (aquisitionType.equalsIgnoreCase("UltraFine")) {
             prf *= 2.0;
             rangeSamplingRate *= 2.0;
         }
@@ -485,8 +485,19 @@ public class RCMProductDirectory extends XMLProductDirectory {
         }
     }
 
-    private String getDataType(final MetadataElement rasterAttributes) {
-        //final String dataType = rasterAttributes.getAttributeString("dataType", AbstractMetadata.NO_METADATA_STRING).toUpperCase();
+    private String getSensorMode(final String acquisitionType) {
+        String type = acquisitionType.toLowerCase();
+        if(type.contains("spotlight")) {
+            return "Spotlight";
+        } else if(type.contains("quad")
+                || type.contains("16 meters") || type.contains("5 meters") || type.contains("3 meters")
+                || type.contains("16m") || type.contains("5m") || type.contains("3m")) {
+            return "Stripmap";
+        }
+        return "ScanSAR";
+    }
+
+    private String getDataType() {
         if (isSLC())
             return "COMPLEX";
         return "DETECTED";
@@ -835,7 +846,8 @@ public class RCMProductDirectory extends XMLProductDirectory {
 
         product.addTiePointGrid(incidentAngleGrid);
 
-        //addSlantRangeTime(product, imageGenerationParameters);
+        final MetadataElement imageGenerationParameters = productElem.getElement("imageGenerationParameters");
+        addSlantRangeTime(product, imageGenerationParameters);
     }
 
     private void addSlantRangeTime(final Product product, final MetadataElement imageGenerationParameters) {

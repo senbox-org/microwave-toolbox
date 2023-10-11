@@ -15,16 +15,20 @@
  */
 package org.csa.rstb.io.rcm;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -178,6 +182,7 @@ public class TestEODMSRCMProductReader extends ReaderTest {
     }
 
     @Test
+    @STTM("SNAP-3547")
     public void testOpeningCP_GRC() throws Exception {
         Product prod = testReader(inputCP_GRC.toPath());
 
@@ -185,6 +190,10 @@ public class TestEODMSRCMProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_RCH","q_RCH","Intensity_RCH","i_RCV","q_RCV","Intensity_RCV"});
+
+        MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(prod);
+        String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+        assertEquals("Stripmap", mode);
     }
 
     @Test

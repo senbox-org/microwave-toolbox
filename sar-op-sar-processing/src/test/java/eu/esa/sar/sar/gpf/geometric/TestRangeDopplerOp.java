@@ -34,7 +34,6 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -71,9 +70,9 @@ public class TestRangeDopplerOp extends ProcessorTest {
     private final static OperatorSpi spi = new RangeDopplerGeocodingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX"};
-    private String[] exceptionExemptions = {"not supported", "not be map projected", "outside of SRTM valid area",
-                                "Source product should first be deburst"};
+    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
+    private static final String[] exceptionExemptions = {"not supported", "not be map projected", "outside of SRTM valid area",
+                                "Source product should first be deburst","has no bands","numbands is zero"};
 
     /**
      * Processes a WSM product and compares it to processed product known to be correct
@@ -224,13 +223,12 @@ public class TestRangeDopplerOp extends ProcessorTest {
     }
 
     @Test
-    @Ignore
     public void testProcessAllCosmo() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsCosmoSkymed, null, exceptionExemptions);
     }
 
     @Test
     public void testProcessAllSentinel1() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsSentinel1, null, exceptionExemptions);
+        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsSentinel1, productTypeExemptions, exceptionExemptions);
     }
 }
