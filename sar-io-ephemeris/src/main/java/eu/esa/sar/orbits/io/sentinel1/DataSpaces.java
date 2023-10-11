@@ -103,7 +103,7 @@ public class DataSpaces {
         ODataClient client = ODataClientFactory.getClient();
 
         EdmMetadataRequest request
-                = client.getRetrieveRequestFactory().getMetadataRequest(odataRoot+ "$metadata");
+                = client.getRetrieveRequestFactory().getMetadataRequest(odataRoot);
         request.setFormat(ContentType.APPLICATION_JSON);
 
         // Set the authentication token
