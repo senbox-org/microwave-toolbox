@@ -21,6 +21,7 @@ import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.ZipUtils;
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -101,6 +102,23 @@ public class TestGnssOrbitFileDownloader {
                 year, month, day, stateVectorTime);
         assertTrue(orbitFile.exists());
         orbitFile.delete();
+    }
+
+    @Test
+    @Ignore("This test is used to scrape all the precise orbit files for a given year and month")
+    public void testScrapePreciseOrbitFiles() throws Exception {
+        final String mission = "Sentinel-1";
+        final String missionPrefix = "S1A";
+        final String orbitType = SentinelPODOrbitFile.PRECISE;
+        final int year = 2023;
+
+        for(int month = 1; month <= 12; month++) {
+            System.out.println(mission +" "+ missionPrefix +" "+ orbitType +" "+ year +" "+ month);
+            final File localFolder = SentinelPODOrbitFile.getDestFolder(missionPrefix, orbitType, year, month);
+
+            final GnssOrbitFileDownloader gnssDownloader = new GnssOrbitFileDownloader();
+            gnssDownloader.scrape(localFolder, mission, missionPrefix, orbitType, year, month);
+        }
     }
 
     @Test
