@@ -37,7 +37,6 @@ import static org.junit.Assert.assertTrue;
 /**
  * Unit test for IEMHybridInverOperator.
  */
-@Ignore
 public class TestIEMHybridInverOp {
 
     private final static OperatorSpi spi = new IEMHybridInverOp.Spi();
@@ -45,6 +44,18 @@ public class TestIEMHybridInverOp {
 
     final private int rows = 3;
     final private int cols = 2;
+
+    @Test
+    public void testCreate() {
+        Product srcProduct = createOneTestProduct(10, 10, false, false);
+
+        IEMHybridInverOp op = (IEMHybridInverOp) spi.createOperator();
+        op.setSourceProduct(srcProduct);
+        Product trgProduct = op.getTargetProduct();
+
+        assertNotNull(trgProduct);
+        assertTrue(trgProduct.containsBand("RDC"));
+    }
 
     private static boolean almostEqual(final double a, final double b, final double epsilon) {
         return Math.abs(a - b) < epsilon;
@@ -229,6 +240,7 @@ public class TestIEMHybridInverOp {
      * @throws Exception general exception
      */
     @Test
+    @Ignore
     public void testIEMHybridInversionOfRealImage() throws Exception {
 
         myTest(false, false); // no clay, no sand
