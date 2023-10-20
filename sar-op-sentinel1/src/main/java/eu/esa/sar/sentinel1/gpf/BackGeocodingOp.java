@@ -1127,7 +1127,7 @@ public final class BackGeocodingOp extends Operator {
     /**
      * Get the source rectangle in slave image that contains all the given pixels.
      */
-    private Rectangle getBoundingBox(
+    public static Rectangle getBoundingBox(
             final PixelPos[][] slavePixPos, final int margin, final int subSwathIndex, final int sBurstIndex,
             Sentinel1Utils.SubSwathInfo[] sSubswath) {
 
@@ -1364,7 +1364,7 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
-    private static Band getBand(
+    public static Band getBand(
             final Product product, final String prefix, final String swathIndexStr, final String polarization) {
 
         final String[] bandNames = product.getBandNames();
@@ -1504,7 +1504,7 @@ public final class BackGeocodingOp extends Operator {
         double rangeIndex;
     }
 
-    private static class ResamplingRaster implements Resampling.Raster {
+    public static class ResamplingRaster implements Resampling.Raster {
 
         private final Tile tile;
         private final double[][] data;
