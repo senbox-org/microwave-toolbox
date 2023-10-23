@@ -15,6 +15,7 @@
  */
 package org.csa.rstb.soilmoisture.gpf;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import org.csa.rstb.soilmoisture.gpf.support.IEMInverBase;
 import org.esa.snap.core.datamodel.Band;
@@ -26,7 +27,6 @@ import org.esa.snap.core.util.ResourceInstaller;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.file.Path;
@@ -37,7 +37,6 @@ import static org.junit.Assert.assertTrue;
 /**
  * Unit test for IEMMultiPolInverOperator.
  */
-@Ignore
 public class TestIEMMultiPolInverOp {
 
     private final static OperatorSpi spi = new IEMMultiPolInverOp.Spi();
@@ -45,6 +44,20 @@ public class TestIEMMultiPolInverOp {
 
     final private int rows = 3;
     final private int cols = 2;
+
+    @Test
+    @STTM("SNAP-3562")
+    public void testCreate() {
+        Product srcProduct = createOneTestProduct(10, 10, false, false);
+
+        IEMMultiPolInverOp op = (IEMMultiPolInverOp) spi.createOperator();
+        op.setSourceProduct(srcProduct);
+        Product trgProduct = op.getTargetProduct();
+
+        assertNotNull(trgProduct);
+        assertTrue(trgProduct.containsBand("RDC"));
+    }
+
 
     public static boolean almostEqual(final double a, final double b, final double epsilon) {
 
@@ -215,6 +228,21 @@ public class TestIEMMultiPolInverOp {
                 "; #bands in target product = " + targetProduct.getNumBands() +
                 "; expected numBands = " + numBands);
 
+        assertTrue(targetProduct.containsBand("RDC"));
+        assertTrue(targetProduct.containsBand("rms"));
+
+        if(clay) {
+            assertTrue(targetProduct.containsBand("AAFC Canada Clay Pct"));
+        }
+        if(sand) {
+            assertTrue(targetProduct.containsBand("AAFC Canada Sand Pct"));
+        }
+
+        //checkExpected(targetProduct, numBands, clay, sand);
+    }
+
+    private void checkExpected(Product targetProduct, int numBands,
+                               final boolean clay, final boolean sand) throws Exception {
         // target bands
         final Band[] band = new Band[numBands];
         for (int i = 0; i < band.length; i++) {

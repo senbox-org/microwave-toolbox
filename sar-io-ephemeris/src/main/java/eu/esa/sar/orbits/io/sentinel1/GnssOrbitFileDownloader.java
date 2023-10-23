@@ -19,6 +19,8 @@ import eu.esa.sar.cloud.opendata.OpenData;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.dataop.downloadable.SSLUtil;
 import org.esa.snap.core.util.StringUtils;
+import org.esa.snap.core.util.ThreadExecutor;
+import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.ZipUtils;
 
@@ -64,6 +66,29 @@ public class GnssOrbitFileDownloader {
         }
 
         return null;
+    }
+
+    public void scrape(final File localFolder, final String mission, final String missionPrefix,
+                         final String orbitType, int year, int month) throws Exception {
+
+        final OpenSearch openSearch = new OpenSearch(GnssOrbitFileDownloader.COPERNICUS_HOST,
+                GnssOrbitFileDownloader.USER_NAME, GnssOrbitFileDownloader.PASSWORD);
+
+        String query = constructQuery(mission, missionPrefix, orbitType, year, month, 0);
+        OpenSearch.PageResult pageResult = openSearch.getPages(query);
+        OpenSearch.SearchResult[] searchResults = openSearch.getSearchResults(pageResult);
+
+        final ThreadExecutor executor = new ThreadExecutor();
+        for(OpenSearch.SearchResult searchResult : searchResults) {
+            ThreadRunnable runnable = new ThreadRunnable() {
+                @Override
+                public void process() throws Exception {
+                    download(localFolder, searchResult);
+                }
+            };
+            executor.execute(runnable);
+        }
+        executor.complete();
     }
 
     private File download(final File localFolder, final OpenSearch.SearchResult searchResult) throws Exception {
