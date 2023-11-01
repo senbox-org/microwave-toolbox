@@ -108,9 +108,9 @@ public class DataSpaces {
 
         // Set the authentication token
         String auth = username + ":" + password;
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
-        request.addCustomHeader("Authorization", "Basic " + encodedAuth);
-        //request.addCustomHeader("Authorization", token);
+        //String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
+        //request.addCustomHeader("Authorization", "Basic " + encodedAuth);
+        request.addCustomHeader("Authorization", token);
 
         ODataRetrieveResponse<Edm> response = request.execute();
 
