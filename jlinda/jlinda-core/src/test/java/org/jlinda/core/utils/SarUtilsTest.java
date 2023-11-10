@@ -3,7 +3,6 @@ package org.jlinda.core.utils;
 import org.jblas.ComplexDoubleMatrix;
 import org.jblas.DoubleMatrix;
 import org.jblas.FloatMatrix;
-import org.jlinda.core.simulation.Simulation;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -11,6 +10,8 @@ import org.junit.Test;
 
 import java.nio.ByteOrder;
 
+import static org.jblas.MatrixFunctions.cos;
+import static org.jblas.MatrixFunctions.sin;
 import static org.jlinda.core.io.DataReader.*;
 
 @Ignore
@@ -33,7 +34,7 @@ public class SarUtilsTest {
         final int numFringes = 10;
         final boolean noiseFlag = false;
         final double noiseLevel = 0;
-        cplxData = Simulation.simulateIFG(nRows, nCols, numFringes, noiseFlag, noiseLevel);
+        cplxData = simulateIFG(nRows, nCols, numFringes, noiseFlag, noiseLevel);
 
     }
 
@@ -219,21 +220,19 @@ public class SarUtilsTest {
         Assert.assertEquals(DoubleMatrix.ones(cplxData.rows, cplxData.columns), magnitude_ACTUAL);
     }
 
-    /*
-    // declared after test as private
-    @Test
-    public void testCoherenceProduct() throws Exception {
-        ComplexDouble power = new ComplexDouble(982009.812, 1363626);
-        ComplexDouble sum = new ComplexDouble(-4075.92822, 798659.5);
-        double p = power.real() * power.imag(); // 1.33909407e+12
-        double norm_sum = Math.pow(sum.abs(), 2);
-        double norm_sum_p = norm_sum / p;
-        double sqrt_norm_sum_p = Math.sqrt(norm_sum_p);
+    private static ComplexDoubleMatrix simulateIFG(final int nRows, final int nCols, final int numFringes, boolean noiseFlag, final double noiseLevel) {
 
-        double productValue_ACTUAL = SarUtils.coherenceProduct(sum, power);
+        DoubleMatrix phaseMatrix = MathUtils.ramp(nRows, nCols).mul(2 * Math.PI).mul(numFringes);
+        DoubleMatrix magMatrix = DoubleMatrix.ones(nRows, nCols);
 
-        Assert.assertEquals(sqrt_norm_sum_p, productValue_ACTUAL, DELTA_08);
+        if (noiseFlag) {
+            phaseMatrix.addi(DoubleMatrix.randn(nRows, nCols).mmuli(noiseLevel * Math.PI));
+            magMatrix.addi(DoubleMatrix.randn(nRows, nCols).mmuli(noiseLevel*2));
+        }
+
+        ComplexDoubleMatrix temp1 = new ComplexDoubleMatrix(magMatrix);
+        ComplexDoubleMatrix temp2 = new ComplexDoubleMatrix(cos(phaseMatrix), sin(phaseMatrix));
+        return temp1.mul(temp2);
     }
-*/
 
 }
