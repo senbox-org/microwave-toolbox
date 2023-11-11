@@ -269,10 +269,10 @@ public class CoherenceOpUI extends BaseOperatorUI {
         paramMap.put("subtractFlatEarthPhase", subtractFlatEarthPhase);
 
         if (subtractFlatEarthPhase) {
-			paramMap.put("srpPolynomialDegree", srpPolynomialDegreeStr.getSelectedItem());
+            paramMap.put("srpPolynomialDegree", srpPolynomialDegreeStr.getSelectedItem());
             paramMap.put("srpNumberPoints", srpNumberPointsStr.getSelectedItem());
-			paramMap.put("orbitDegree", orbitDegreeStr.getSelectedItem());
-		}
+            paramMap.put("orbitDegree", orbitDegreeStr.getSelectedItem());
+        }
 
         paramMap.put("singleMaster", singleReference);
 

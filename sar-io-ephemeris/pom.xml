@@ -11,8 +11,8 @@
 
     <artifactId>sar-io-ephemeris</artifactId>
     <name>SAR IO Orbit Ephemeris</name>
-	<description>Orbit Ephemeris</description>
-	
+    <description>Orbit Ephemeris</description>
+    
     <packaging>nbm</packaging>
 
     <properties>

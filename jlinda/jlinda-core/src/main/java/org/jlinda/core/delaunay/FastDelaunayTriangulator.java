@@ -181,18 +181,18 @@ public final class FastDelaunayTriangulator {
     /**
      * If t0 and t1 are two triangles sharing a common edge AB,
      * the method replaces ABC and BAD triangles by DCA and DBC, respectively.
-     *          B                      B       
-     *          *                      *       
-     *        / | \                  /   \     
-     *      /   |   \              /       \   
-     *     /    |    \            /         \  
+     *          B                      B
+     *          *                      *
+     *        / | \                  /   \
+     *      /   |   \              /       \
+     *     /    |    \            /         \
      *  C *     |     * D      C *-----------* D
-     *     \    |    /            \         /  
-     *      \   |   /              \       /   
-     *       \  |  /                \     /    
-     *        \ | /                  \   /     
-     *          *                      *       
-     *          A                      A       
+     *     \    |    /            \         /
+     *      \   |   /              \       /
+     *       \  |  /                \     /
+     *        \ | /                  \   /
+     *          *                      *
+     *          A                      A
      * To be fast, this method supposed that input triangles share a common
      * edge and that this common edge is known.
      * A check may be performed to ensure these conditions are verified.

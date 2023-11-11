@@ -53,9 +53,9 @@ import java.util.Map;
  *          should be modified. See comments embedded.
  *
  * Reference:
- * [1] D. Mandal et al., "A Radar Vegetation Index for Crop Monitoring Using Compact Polarimetric SAR Data," 
-		in IEEE Transactions on Geoscience and Remote Sensing, vol. 58, no. 9, pp. 6321-6335, Sept. 2020, 
-		doi: 10.1109/TGRS.2020.2976661.
+ * [1] D. Mandal et al., "A Radar Vegetation Index for Crop Monitoring Using Compact Polarimetric SAR Data,"
+        in IEEE Transactions on Geoscience and Remote Sensing, vol. 58, no. 9, pp. 6321-6335, Sept. 2020,
+        doi: 10.1109/TGRS.2020.2976661.
  */
 
 @OperatorMetadata(alias = "Compactpol-Radar-Vegetation-Index",
@@ -179,15 +179,15 @@ public final class CPRVIOp extends Operator implements CompactPolProcessor {
 
         final double[][] Cr = new double[2][2]; // real part of covariance matrix
         final double[][] Ci = new double[2][2]; // imaginary part of covariance matrix
-		final double[] g = new double[4];       // Stokes vector
-		final double[][] K_T = new double[4][4]; // 4x4 Kennaugh matrix
-		
-		final double[][] K_depol = { //Random target & Ideal Depolarizer
-							{ 1, 0, 0, 0 },
-							{ 0, 0, 0, 0 },
-							{ 0, 0, 0, 0 },
-							{ 0, 0, 0, 0 }
-						};
+        final double[] g = new double[4];       // Stokes vector
+        final double[][] K_T = new double[4][4]; // 4x4 Kennaugh matrix
+
+        final double[][] K_depol = { //Random target & Ideal Depolarizer
+                            { 1, 0, 0, 0 },
+                            { 0, 0, 0, 0 },
+                            { 0, 0, 0, 0 },
+                            { 0, 0, 0, 0 }
+                        };
 
         for (final PolBandUtils.PolSourceBand bandList : srcBandList) {
             try {
@@ -222,71 +222,71 @@ public final class CPRVIOp extends Operator implements CompactPolProcessor {
                         // Comment out the following two lines and use the line below them, i.e. getCovarianceMatrixC2
                         getMeanCovarianceMatrixC2(x, y, halfWindowSize, halfWindowSize, sourceImageWidth,
                                 sourceImageHeight, sourceProductType, sourceTiles, dataBuffers, Cr, Ci);
-								
-						// Compute Stokes vector
-						StokesParameters.computeCompactPolStokesVector(Cr, Ci, g);
-						
-						// Compute Kennaugh matrix
-						K_T[0][0] = 0.5*g[0]; 
-						K_T[0][1] = 0.5*0;
-						K_T[0][2] = 0.5*g[2];
-						K_T[0][3] = 0.5*0;
-						
-						K_T[1][0] = 0.5*K_T[0][1]; 
-						K_T[1][1] = 0.5*0;
-						K_T[1][2] = 0.5*0;
-						K_T[1][3] = 0.5*g[1];
-						
-						K_T[2][0] = 0.5*K_T[0][2]; 
-						K_T[2][1] = 0.5*K_T[1][2];
-						K_T[2][2] = 0.5*0;
-						K_T[2][3] = 0.5*0;
-						
-						K_T[3][0] = 0.5*K_T[0][3]; 
-						K_T[3][1] = 0.5*K_T[1][3];
-						K_T[3][2] = 0.5*K_T[2][3];
-						K_T[3][3] = 0.5*g[3];
-						
-						// Compute Geodesic distance between K_T and K_depol
-						final double[][] K_TT = new double[4][4];
-						final double[][] K_depolT = new double[4][4];
-						final double[][] num1 = new double[4][4];
-						
-						matrixtranspose(K_T,K_TT);
-						matrixmultiply(K_TT,K_depol,num1);
-						final double num = num1[0][0] + num1[1][1] + num1[2][2] + num1[3][3]; //trace of matrix
-																		
-						final double[][] num2 = new double[4][4];
-						matrixmultiply(K_TT,K_T,num2);
-						final double num3 = num2[0][0] + num2[1][1] + num2[2][2] + num2[3][3]; //trace of matrix
-						final double den1 = Math.sqrt(Math.abs(num3));
-						
-						final double[][] num4 = new double[4][4];
-						matrixtranspose(K_depol,K_depolT);
-						matrixmultiply(K_depolT,K_depol,num4);
-						final double num5 = num4[0][0] + num4[1][1] + num4[2][2] + num4[3][3]; //trace of matrix
-						final double den2 = Math.sqrt(Math.abs(num5));
-						
-						final double den = den1*den2;
-						final double tempaa = 2*FastMath.acos(num/den)*180/Math.PI;
-						final double GD_t1_depol = tempaa/180;
-						
-						//-----------
-						// Modulating factor calculation
-						final double SC = (g[0] - g[3])/2;
-						final double OC = (g[0] + g[3])/2;
-						final double min_sc_oc = Math.min(SC,OC);
-						final double max_sc_oc = Math.max(SC,OC);
-						
-						final double lambda = (3.0/2.0)*GD_t1_depol;
-						final double fp22 = (min_sc_oc/max_sc_oc);
-						
-						// CpRVI final calculation
-						final double cpRVI = (1 - lambda) * FastMath.pow(fp22, 2*lambda);
-						
-						
-		
-		
+
+                        // Compute Stokes vector
+                        StokesParameters.computeCompactPolStokesVector(Cr, Ci, g);
+
+                        // Compute Kennaugh matrix
+                        K_T[0][0] = 0.5*g[0];
+                        K_T[0][1] = 0.5*0;
+                        K_T[0][2] = 0.5*g[2];
+                        K_T[0][3] = 0.5*0;
+
+                        K_T[1][0] = 0.5*K_T[0][1];
+                        K_T[1][1] = 0.5*0;
+                        K_T[1][2] = 0.5*0;
+                        K_T[1][3] = 0.5*g[1];
+
+                        K_T[2][0] = 0.5*K_T[0][2];
+                        K_T[2][1] = 0.5*K_T[1][2];
+                        K_T[2][2] = 0.5*0;
+                        K_T[2][3] = 0.5*0;
+
+                        K_T[3][0] = 0.5*K_T[0][3];
+                        K_T[3][1] = 0.5*K_T[1][3];
+                        K_T[3][2] = 0.5*K_T[2][3];
+                        K_T[3][3] = 0.5*g[3];
+
+                        // Compute Geodesic distance between K_T and K_depol
+                        final double[][] K_TT = new double[4][4];
+                        final double[][] K_depolT = new double[4][4];
+                        final double[][] num1 = new double[4][4];
+
+                        matrixtranspose(K_T,K_TT);
+                        matrixmultiply(K_TT,K_depol,num1);
+                        final double num = num1[0][0] + num1[1][1] + num1[2][2] + num1[3][3]; //trace of matrix
+
+                        final double[][] num2 = new double[4][4];
+                        matrixmultiply(K_TT,K_T,num2);
+                        final double num3 = num2[0][0] + num2[1][1] + num2[2][2] + num2[3][3]; //trace of matrix
+                        final double den1 = Math.sqrt(Math.abs(num3));
+
+                        final double[][] num4 = new double[4][4];
+                        matrixtranspose(K_depol,K_depolT);
+                        matrixmultiply(K_depolT,K_depol,num4);
+                        final double num5 = num4[0][0] + num4[1][1] + num4[2][2] + num4[3][3]; //trace of matrix
+                        final double den2 = Math.sqrt(Math.abs(num5));
+
+                        final double den = den1*den2;
+                        final double tempaa = 2*FastMath.acos(num/den)*180/Math.PI;
+                        final double GD_t1_depol = tempaa/180;
+
+                        //-----------
+                        // Modulating factor calculation
+                        final double SC = (g[0] - g[3])/2;
+                        final double OC = (g[0] + g[3])/2;
+                        final double min_sc_oc = Math.min(SC,OC);
+                        final double max_sc_oc = Math.max(SC,OC);
+
+                        final double lambda = (3.0/2.0)*GD_t1_depol;
+                        final double fp22 = (min_sc_oc/max_sc_oc);
+
+                        // CpRVI final calculation
+                        final double cpRVI = (1 - lambda) * FastMath.pow(fp22, 2*lambda);
+
+
+
+
                         for (final TileData tileData : tileDataList) {
                             // Can add more indices here
                             if (tileData.bandName.contains(COMPACT_POL_RVI)) {

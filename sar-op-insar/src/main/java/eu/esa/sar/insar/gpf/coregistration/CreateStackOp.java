@@ -300,7 +300,7 @@ public class CreateStackOp extends Operator {
                         }
 
                         fixDependencies(targetBand, slaveBandList, suffix);
-                        
+
                         // Disable using of no data value in slave so that valid 0s will be used in the interpolation
                         srcBand.setNoDataValueUsed(false);
                     }

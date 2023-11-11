@@ -104,7 +104,7 @@ public class PhaseFilterOp extends Operator {
     }
 
     private void checkUserInput() {
-        
+
         if (!isPower2(blockSize)) {
             System.out.println("BlockSize is not power of two!");
         }

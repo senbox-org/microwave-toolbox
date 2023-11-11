@@ -26,8 +26,8 @@ import java.util.Map;
 
 public class GRVIOpUI extends BaseOperatorUI {
 
-    
-	private final JComboBox<String> windowSize =
+
+    private final JComboBox<String> windowSize =
             new JComboBox(new String[]{"3", "5", "7", "9", "11", "13", "15", "17", "19"});
 
 
@@ -37,7 +37,7 @@ public class GRVIOpUI extends BaseOperatorUI {
         initializeOperatorUI(operatorName, parameterMap);
         final JComponent panel = createPanel();
 
-        
+
         initParameters();
 
         return panel;
@@ -48,7 +48,7 @@ public class GRVIOpUI extends BaseOperatorUI {
 
         windowSize.setSelectedItem(paramMap.get("windowSize"));
         /* targetWindowSize.setSelectedItem(paramMap.get("targetWindowSizeStr")); */
-        
+
     }
 
     @Override
@@ -62,7 +62,7 @@ public class GRVIOpUI extends BaseOperatorUI {
 
         paramMap.put("windowSize", windowSize.getSelectedItem());
 /*         paramMap.put("targetWindowSizeStr", targetWindowSize.getSelectedItem()); */
-        
+
     }
 
     private JComponent createPanel() {
@@ -73,7 +73,7 @@ public class GRVIOpUI extends BaseOperatorUI {
         DialogUtils.addComponent(contentPane, gbc, "windowSize", windowSize);
 
 
-        
+
 
         DialogUtils.fillPanel(contentPane, gbc);
 

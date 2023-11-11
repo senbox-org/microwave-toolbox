@@ -16,7 +16,6 @@
 package eu.esa.microwave.io.generic;
 
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.microwave.io.generic.GenericReader;
 import eu.esa.sar.commons.io.FileImageInputStreamExtImpl;
 import eu.esa.microwave.dat.dialogs.ComplexBinaryDialog;
 import eu.esa.sar.io.binary.BinaryFileReader;

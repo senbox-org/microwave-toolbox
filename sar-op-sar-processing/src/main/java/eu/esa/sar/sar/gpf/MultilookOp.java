@@ -138,7 +138,7 @@ public final class MultilookOp extends Operator {
                 getDerivedParameters(sourceProduct, param);
                 setNumAzimuthLooks(param.nAzLooks);
             }
-            
+
             createTargetProduct();
 
         } catch (Throwable e) {

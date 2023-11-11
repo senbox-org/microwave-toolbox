@@ -69,7 +69,7 @@
             <artifactId>rstb-op-polarimetric-tools-ui</artifactId>
             <version>${project.version}</version>
         </dependency>
-		<dependency>
+        <dependency>
             <groupId>org.csa.rstb</groupId>
             <artifactId>rstb-op-soil-moisture</artifactId>
             <version>${project.version}</version>

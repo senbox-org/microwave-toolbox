@@ -328,7 +328,7 @@ public class TestPolarimetricDecompositionOp {
         runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
                 PolarimetricDecompositionOp.YAMAGUCHI_DECOMPOSITION, inputT3Stack);
     }
-    
+
     private Product createTestC3Product(final int w, final int h) {
 
         final Product testProduct = new Product("name", "SLC", w, h);

@@ -38,7 +38,7 @@ public class DelftOrbitFile extends BaseOrbitFile {
 
     public DelftOrbitFile(final MetadataElement absRoot, final Product sourceProduct) {
         super(absRoot);
-        this.sourceProduct = sourceProduct;        
+        this.sourceProduct = sourceProduct;
     }
 
     public String[] getAvailableOrbitTypes() {

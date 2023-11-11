@@ -43,8 +43,8 @@ public class NonLocal implements PolarimetricSpeckleFilter, DualPolProcessor, Qu
     private final PolBandUtils.PolSourceBand[] srcBandList;
     private final int numLooks;
     private final int windowSize, halfWindowSize;
-	private final int patchSize, halfPatchSize;
-	private final int scaleSize;
+    private final int patchSize, halfPatchSize;
+    private final int scaleSize;
     private final int sourceImageWidth;
     private final int sourceImageHeight;
     private final int matrixSize; // D
@@ -60,16 +60,16 @@ public class NonLocal implements PolarimetricSpeckleFilter, DualPolProcessor, Qu
         this.sourceProduct = srcProduct;
         this.targetProduct = trgProduct;
         this.srcBandList = srcBandList;
-		this.numLooks = numLooks;
+        this.numLooks = numLooks;
         this.windowSize = searchWindowSize;
         this.halfWindowSize = searchWindowSize / 2;
-		this.patchSize = patchSize;
-		this.halfPatchSize = patchSize / 2;
-		this.scaleSize = scaleSize;
+        this.patchSize = patchSize;
+        this.halfPatchSize = patchSize / 2;
+        this.scaleSize = scaleSize;
 
         sourceImageWidth = sourceProduct.getSceneRasterWidth();
         sourceImageHeight = sourceProduct.getSceneRasterHeight();
-		
+
         if (patchSize >= windowSize) {
             throw new OperatorException("Patch size should always be smaller than the search window size");
         }
@@ -86,7 +86,7 @@ public class NonLocal implements PolarimetricSpeckleFilter, DualPolProcessor, Qu
             throw new OperatorException("Expecting a C2 or C3 matrix");
         }
 
-		if (numLooks >= matrixSize) {
+        if (numLooks >= matrixSize) {
             throw new OperatorException("Number of looks should always be smaller than the covariance matrix size");
         }
 

@@ -121,7 +121,7 @@ public final class BackGeocodingOp extends Operator {
     private double demSamplingLon = 0.0;
     private double noDataValue = 0.0;
 
-	private int subSwathIndex = 0;
+    private int subSwathIndex = 0;
     private boolean burstOffsetComputed = false;
     private String swathIndexStr = null;
 
@@ -181,8 +181,8 @@ public final class BackGeocodingOp extends Operator {
             outputToFile("c:\\output\\sSensorPosition.dat", sSU.getOrbit().sensorPosition);
             outputToFile("c:\\output\\sSensorVelocity.dat", sSU.getOrbit().sensorVelocity);
             */
-			
-			final String[] mSubSwathNames = mSU.getSubSwathNames();
+
+            final String[] mSubSwathNames = mSU.getSubSwathNames();
             final String[] mPolarizations = mSU.getPolarizations();
 
             for(SlaveData slaveData : slaveDataList) {
@@ -201,7 +201,7 @@ public final class BackGeocodingOp extends Operator {
                 }
             }
 
-			subSwathIndex = 1; // subSwathIndex is always 1 because of split product
+            subSwathIndex = 1; // subSwathIndex is always 1 because of split product
             swathIndexStr = mSubSwathNames[0].substring(2);
 
             if (externalDEMFile == null) {
@@ -498,8 +498,8 @@ public final class BackGeocodingOp extends Operator {
                     continue;
                 }
 
-				final int ntx0 = tx0;
-				final int ntw = tw;
+                final int ntx0 = tx0;
+                final int ntw = tw;
                 final int nty0 = Math.max(ty0, firstLineIdx);
                 final int ntyMax = Math.min(tyMax, lastLineIdx + 1);
                 final int nth = ntyMax - nty0;

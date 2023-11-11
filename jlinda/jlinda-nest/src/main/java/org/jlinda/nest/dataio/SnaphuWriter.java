@@ -589,7 +589,7 @@ for(MetadataElement secondaryRoot : secondaryS){
                             }
                         }else{
 Expand All
-	@@ -454,7 +643,7 @@ private void createSnaphuConfFile() throws IOException {
+    @@ -454,7 +643,7 @@ private void createSnaphuConfFile() throws IOException {
                         String [] curSplit = curPhaseName.split("_");
                         if(curSplit.length >=4){
                             String date = curSplit[3];
@@ -599,7 +599,7 @@ Expand All
                         }else{
 Expand Down
 Expand Up
-	@@ -488,40 +677,21 @@ private void createSnaphuConfFile() throws IOException {
+    @@ -488,40 +677,21 @@ private void createSnaphuConfFile() throws IOException {
             }
             Window dataWindow = new Window(primaryMetadata.getCurrentWindow());
             int size = 0;
@@ -633,7 +633,7 @@ Expand Up
                     BufferedWriter out2 = new BufferedWriter(new FileWriter(_outputDir + "/" + SNAPHU_CONFIG_FILE));
                     out2.write(snaphuConfigFile.getConfigFileBuffer().toString());
 Expand All
-	@@ -556,8 +726,34 @@ private void createSnaphuConfFile() throws IOException {
+    @@ -556,8 +726,34 @@ private void createSnaphuConfFile() throws IOException {
                 e.printStackTrace();
             }
         }

@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.orbits.io.sentinel1;
 
-import eu.esa.sar.orbits.io.sentinel1.OpenSearch;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

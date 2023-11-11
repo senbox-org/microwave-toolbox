@@ -15,9 +15,6 @@
  */
 package eu.esa.sar.orbits.io.sentinel1;
 
-import eu.esa.sar.orbits.io.sentinel1.OrbitFileScraper;
-import eu.esa.sar.orbits.io.sentinel1.Sentinel1OrbitFileReader;
-import eu.esa.sar.orbits.io.sentinel1.SentinelPODOrbitFile;
 import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Assume;
 import org.junit.BeforeClass;
