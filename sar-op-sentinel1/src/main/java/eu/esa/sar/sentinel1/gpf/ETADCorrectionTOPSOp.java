@@ -45,8 +45,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The operator performs ETAD correction for split S-1 TOPS SLC products.
- * The reason that the operator cannot take the original S-1 product with 3 sub-swaths as input is because
+ * The operator performs ETAD correction for split Sentinel-1 TOPS SLC products.
+ * The reason that the operator cannot take the original Sentinel-1 product with 3 sub-swaths as input is because
  * 1. computeTileStack cannot handle 3 sub-swathes with different dimensions,
  * 2. if computeTile is used, then the i-band and q-band must be processed twice in order to output i and q bands separately.
  * Note: All times used in this operator are in seconds unless specified.
@@ -237,9 +237,6 @@ public class ETADCorrectionTOPSOp extends Operator {
      */
     public Product createTargetProduct() {
 
-        sourceImageWidth = sourceProduct.getSceneRasterWidth();
-        sourceImageHeight = sourceProduct.getSceneRasterHeight();
-
         targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
                 sourceProduct.getProductType(), sourceImageWidth, sourceImageHeight);
 
@@ -248,7 +245,9 @@ public class ETADCorrectionTOPSOp extends Operator {
                 continue;
             }
 
-            final Band targetBand = new Band(srcBand.getName(), srcBand.getDataType(),//ProductData.TYPE_FLOAT32,
+//            final Band targetBand = new Band(srcBand.getName(), srcBand.getDataType(),
+//                    srcBand.getRasterWidth(), srcBand.getRasterHeight());
+            final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
                     srcBand.getRasterWidth(), srcBand.getRasterHeight());
 
             targetBand.setUnit(srcBand.getUnit());
