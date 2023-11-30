@@ -73,6 +73,7 @@
         <module>microwavetbx-benchmark</module>
         <module>microwavetbx-rcp</module>
         <module>microwavetbx-kit</module>
+        <module>sar-io-stac</module>
     </modules>
 
     <organization>
