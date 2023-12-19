@@ -164,55 +164,6 @@ public class SarUtils {
         return phaseData;
     }
 
-    @Deprecated
-    public static DoubleMatrix coherence(final ComplexDoubleMatrix inputMatrix, final ComplexDoubleMatrix normsMatrix, final int winL, final int winP) {
-
-//        logger.info("coherence ver #2");
-//        if (!(winL >= winP)) {
-//            logger.warning("coherence: estimator window size L<P not very efficiently programmed.");
-//        }
-//
-//        if (inputMatrix.rows != normsMatrix.rows || inputMatrix.rows != inputMatrix.rows) {
-//            logger.severe("coherence: not same dimensions.");
-//            throw new IllegalArgumentException("coherence: not the same dimensions.");
-//        }
-
-        // allocate output :: account for window overlap
-        DoubleMatrix outputMatrix = new DoubleMatrix(inputMatrix.rows - winL + 1, inputMatrix.columns);
-
-        // temp variables
-        int i, j, k, l;
-        ComplexDouble sum;
-        ComplexDouble power;
-        int leadingZeros = (winP - 1) / 2;  // number of pixels=0 floor...
-        int trailingZeros = (winP) / 2;     // floor...
-
-        for (j = leadingZeros; j < outputMatrix.columns - trailingZeros; j++) {
-
-            sum = new ComplexDouble(0);
-            power = new ComplexDouble(0);
-
-            //// Compute sum over first data block ////
-            for (k = 0; k < winL; k++) {
-                for (l = j - leadingZeros; l < j - leadingZeros + winP; l++) {
-                    sum.addi(inputMatrix.get(k, l));
-                    power.addi(normsMatrix.get(k, l));
-                }
-            }
-            outputMatrix.put(0, j, coherenceProduct(sum, power));
-
-            //// Compute (relatively) sum over rest of data blocks ////
-            for (i = 0; i < outputMatrix.rows - 1; i++) {
-                for (l = j - leadingZeros; l < j - leadingZeros + winP; l++) {
-                    sum.addi(inputMatrix.get(i + winL, l).sub(inputMatrix.get(i, l)));
-                    power.addi(normsMatrix.get(i + winL, l).sub(normsMatrix.get(i, l)));
-                }
-                outputMatrix.put(i + 1, j, coherenceProduct(sum, power));
-            }
-        }
-        return outputMatrix;
-    }
-
     public static DoubleMatrix coherence2(final ComplexDoubleMatrix input, final ComplexDoubleMatrix norms, final int winL, final int winP) {
 
 //        logger.info("coherence ver #2");
@@ -275,72 +226,10 @@ public class SarUtils {
         return result;
     }
 
-    public static ComplexDoubleMatrix cplxCoherence(
-            final ComplexDoubleMatrix input, final ComplexDoubleMatrix norms, final int winL, final int winP) {
-
-//        logger.info("cplx coherence");
-//        if (!(winL >= winP)) {
-//            logger.warning("coherence: estimator window size L<P not very efficiently programmed.");
-//        }
-//
-//        if (input.rows != norms.rows) {
-//            logger.severe("coherence: not same dimensions.");
-//            throw new IllegalArgumentException("coherence: not the same dimensions.");
-//        }
-
-        final int extent_RG = input.columns;
-        final int extent_AZ = input.rows - winL + 1;
-        final ComplexDoubleMatrix result = new ComplexDoubleMatrix(input.rows - winL + 1, input.columns - winP + 1);
-
-        int i, j, k, l;
-        ComplexDouble sum;
-        ComplexDouble power;
-        final int leadingZeros = (winP - 1) / 2;
-        final int trailingZeros = (winP) / 2;
-
-        for (j = leadingZeros; j < extent_RG - trailingZeros; j++) {
-
-            sum = new ComplexDouble(0);
-            power = new ComplexDouble(0);
-
-            int minL = j - leadingZeros;
-            int maxL = minL + winP;
-            for (k = 0; k < winL; k++) {
-                for (l = minL; l < maxL; l++) {
-                    int inI = 2 * input.index(k, l);
-                    sum.set(sum.real() + input.data[inI], sum.imag() + input.data[inI+1]);
-                    power.set(power.real() + norms.data[inI], power.imag() + norms.data[inI+1]);
-                }
-            }
-            result.put(0, minL, cplxCoherenceProduct(sum, power));
-
-            final int maxI = extent_AZ - 1;
-            for (i = 0; i < maxI; i++) {
-                final int iwinL = i + winL;
-                for (l = minL; l < maxL; l++) {
-
-                    int inI = 2 * input.index(i, l);
-                    int inWinL = 2 * input.index(iwinL, l);
-                    sum.set(sum.real() + (input.data[inWinL] - input.data[inI]),
-                            sum.imag() + (input.data[inWinL+1] - input.data[inI+1]));
-                    power.set(power.real() + (norms.data[inWinL] - norms.data[inI]),
-                            power.imag() + (norms.data[inWinL+1] - norms.data[inI+1]));
-                }
-                result.put(i + 1, j - leadingZeros, cplxCoherenceProduct(sum, power));
-            }
-        }
-        return result;
-    }
-
     static double coherenceProduct(final ComplexDouble sum, final ComplexDouble power) {
         final double product = power.real() * power.imag();
 //        return (product > 0.0) ? Math.sqrt(Math.pow(sum.abs(),2) / product) : 0.0;
         return (product > 0.0) ? sum.abs() / Math.sqrt(product) : 0.0;
-    }
-
-    static ComplexDouble cplxCoherenceProduct(final ComplexDouble sum, final ComplexDouble power) {
-        final double product = power.real() * power.imag();
-        return (product > 0.0) ? sum.div(Math.sqrt(product)) : new ComplexDouble(0.0, 0.0);
     }
 
     public static ComplexDoubleMatrix multilook(final ComplexDoubleMatrix inputMatrix, final int factorRow, final int factorColumn) {
@@ -376,10 +265,6 @@ public class SarUtils {
 
     public static ComplexDoubleMatrix computeIfg(final ComplexDoubleMatrix masterData, final ComplexDoubleMatrix slaveData) throws Exception {
         return LinearAlgebraUtils.dotmult(masterData, slaveData.conj());
-    }
-
-    public static void computeIfg_inplace(final ComplexDoubleMatrix masterData, final ComplexDoubleMatrix slaveData) throws Exception {
-        LinearAlgebraUtils.dotmult_inplace(masterData, slaveData);
     }
 
     public static ComplexDoubleMatrix computeIfg(final ComplexDoubleMatrix masterData, final ComplexDoubleMatrix slaveData,
