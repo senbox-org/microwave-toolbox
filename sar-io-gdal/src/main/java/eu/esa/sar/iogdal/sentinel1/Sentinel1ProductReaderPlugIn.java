@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.io.sentinel1;
+package eu.esa.sar.iogdal.sentinel1;
 
 import eu.esa.sar.commons.io.SARFileFilter;
 import eu.esa.sar.commons.io.SARProductReaderPlugIn;
@@ -24,7 +24,6 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.esa.snap.engine_utilities.util.ZipUtils;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -34,9 +33,9 @@ import java.util.Locale;
  */
 public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
 
-    private final static String[] FORMAT_NAMES = new String[]{"SENTINEL-1"};
+    private final static String[] FORMAT_NAMES = new String[]{"SENTINEL-1 COG"};
     private final static String[] FORMAT_FILE_EXTENSIONS = new String[]{".safe", ".zip"};
-    private final static String PLUGIN_DESCRIPTION = "SENTINEL-1 Products";      /*I18N*/
+    private final static String PLUGIN_DESCRIPTION = "SENTINEL-1 COG Products";      /*I18N*/
 
     private final static String PRODUCT_PREFIX = "MANIFEST";
     final static String PRODUCT_HEADER_NAME = "manifest.safe";
@@ -70,23 +69,23 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
             if(path.getFileName() != null) {
                 final String filename = path.getFileName().toString().toLowerCase();
                 if (filename.equals(PRODUCT_HEADER_NAME)) {
-                    if(isETAD(path) || isCOG(path)) {
+                    if(isETAD(path)) {
                         return DecodeQualification.UNABLE;
                     }
-                    if (isLevel1(path) || isLevel2(path) || isLevel0(path)) {
+                    if (isLevel1(path) && isCOG(path)) {
                         return DecodeQualification.INTENDED;
                     }
                 }
                 if (filename.endsWith(".zip") && filename.startsWith("s1") && !filename.contains("_eta_") &&
                         (ZipUtils.findInZip(path.toFile(), "s1", PRODUCT_HEADER_NAME) ||
                                 ZipUtils.findInZip(path.toFile(), "rs2", PRODUCT_HEADER_NAME)) &&
-                        !ZipUtils.findInZip(path.toFile(), "s1", "cog.tiff")) {
+                        ZipUtils.findInZip(path.toFile(), "s1", "cog.tiff")) {
                     return DecodeQualification.INTENDED;
                 }
                 if (filename.startsWith("s1") && filename.endsWith(".safe") && Files.isDirectory(path)) {
                     Path manifest = path.resolve(PRODUCT_HEADER_NAME);
-                    if (Files.exists(manifest) && !isCOG(manifest)) {
-                        if (isLevel1(manifest) || isLevel2(manifest) || isLevel0(manifest)) {
+                    if (Files.exists(manifest)) {
+                        if (isLevel1(manifest) && isCOG(manifest)) {
                             return DecodeQualification.INTENDED;
                         }
                     }
@@ -115,41 +114,12 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
         }
     }
 
-    static boolean isLevel2(final Path path) {
-        if (ZipUtils.isZip(path)) {
-            return ZipUtils.findInZip(path.toFile(), "s1", ".nc");
-        } else {
-            final File measurementFolder = path.getParent().resolve(MEASUREMENT).toFile();
-            return measurementFolder.exists() && checkFolder(measurementFolder, ".nc");
-        }
-    }
-
-    static boolean isLevel0(final Path path) {
-        if (ZipUtils.isZip(path)) {
-            return ZipUtils.findInZip(path.toFile(), "s1", ".dat");
-        } else {
-            return checkFolder(path.getParent().toFile(), ".dat");
-        }
-    }
-
     static boolean isCOG(final Path path) {
         if (ZipUtils.isZip(path)) {
             return ZipUtils.findInZip(path.toFile(), "s1", "_cog.tiff");
         } else {
             final File measurementFolder = path.getParent().resolve(MEASUREMENT).toFile();
             return measurementFolder.exists() && checkFolder(measurementFolder, "cog.tiff");
-        }
-    }
-
-    static void validateInput(final Path path) throws IOException {
-        if (ZipUtils.isZip(path)) {
-            if(!ZipUtils.findInZip(path.toFile(), "s1", ".tiff")) {
-                throw new IOException("measurement folder is missing in product");
-            }
-        } else {
-            if (!Files.exists(path.getParent().resolve(ANNOTATION))) {
-                throw new IOException("annotation folder is missing in product");
-            }
         }
     }
 
