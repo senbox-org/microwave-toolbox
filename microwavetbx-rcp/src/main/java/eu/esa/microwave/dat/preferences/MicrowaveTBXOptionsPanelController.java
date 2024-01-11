@@ -24,14 +24,14 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 
 @OptionsPanelController.SubRegistration(
-        location = "S1TBX",
+        location = "Microwave",
         displayName = "#LBL_MicrowaveToolboxOption_DisplayName",
         keywords = "#LBL_MicrowaveToolboxOption_Keywords",
-        keywordsCategory = "S1TBX"
+        keywordsCategory = "MicrowaveTBX"
 )
 @org.openide.util.NbBundle.Messages({
         "LBL_MicrowaveToolboxOption_DisplayName=Microwave Toolbox",
-        "LBL_MicrowaveToolboxOption_Keywords=S1TBX"
+        "LBL_MicrowaveToolboxOption_Keywords=MicrowaveTBX"
 })
 public final class MicrowaveTBXOptionsPanelController extends OptionsPanelController {
 
