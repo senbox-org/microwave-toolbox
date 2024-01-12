@@ -38,6 +38,7 @@
         <netcdf.version>5.3.3</netcdf.version>
         <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
+        <json-simple.version>1.1.1</json-simple.version>
 
         <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
         <buildDate>${maven.build.timestamp}</buildDate>
@@ -54,6 +55,7 @@
         <module>sar-io</module>
         <module>sar-io-ephemeris</module>
         <module>sar-io-ephemeris-ui</module>
+        <module>sar-io-gdal</module>
         <module>sar-op-analysis-ui</module>
         <module>sar-op-calibration</module>
         <module>sar-op-calibration-ui</module>
