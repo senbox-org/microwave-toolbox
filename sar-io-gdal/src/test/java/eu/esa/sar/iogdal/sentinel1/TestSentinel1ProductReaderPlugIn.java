@@ -15,12 +15,12 @@
  */
 package eu.esa.sar.iogdal.sentinel1;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.iogdal.AbstractProductReaderPlugInTest;
 import org.esa.snap.core.dataio.ProductReader;
 import org.junit.Test;
 
-import static eu.esa.sar.iogdal.sentinel1.TestSentinel1ProductReader.inputGRDFolder;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -40,7 +40,7 @@ public class TestSentinel1ProductReaderPlugIn extends AbstractProductReaderPlugI
 
     @Test
     public void testGetFormatNames() {
-        assertArrayEquals(new String[]{"SENTINEL-1"}, plugin.getFormatNames());
+        assertArrayEquals(new String[]{"SENTINEL-1 COG"}, plugin.getFormatNames());
     }
 
     @Test
@@ -59,10 +59,13 @@ public class TestSentinel1ProductReaderPlugIn extends AbstractProductReaderPlugI
     }
 
     @Test
+    @STTM("SNAP-3588")
     public void testValidDecodeQualification() {
-        isValidDecodeQualification(TestData.inputS1_GRD);
-        isValidDecodeQualification(inputGRDFolder);
+        isInValidDecodeQualification(TestData.inputS1_GRD);
+        isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD);
+        isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD_ZIP);
+        isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD_COMPRESSED_ZIP);
 
-        isValidDecodeQualification(TestData.inputS1_SLC);
+        isInValidDecodeQualification(TestData.inputS1_SLC);
     }
 }

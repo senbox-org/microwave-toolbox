@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.iogdal.sentinel1;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
@@ -35,35 +36,24 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestSentinel1ProductReader extends ReaderTest {
 
-    public final static File inputS1_AnnotGRD = new File(TestData.inputSAR+"S1/S1A_IW_GRDH_1ADV_20140819T224528_20140819T224546_002015_001F3B_979A.SAFE");
-    public final static File inputS1_AnnotGRDZip = new File(TestData.inputSAR+"S1/S1A_IW_GRDH_1ADV_20140819T224528_20140819T224546_002015_001F3B_979A.zip");
-    public final static File inputS1_meta1GRD = new File(TestData.inputSAR+"S1/bandless1/manifest.safe");
-    public final static File inputS1_meta2GRD = new File(TestData.inputSAR+"S1/bandless2/manifest.safe");
-
-    public final static File inputGRDFolder = new File(TestData.inputSAR + "S1/AWS/S1A_IW_GRDH_1SDV_20180719T002854_20180719T002919_022856_027A78_042A");
+    public final static File inputS1_COGGRD = new File(TestData.inputSAR+"S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE/manifest.safe");
+    public final static File inputS1_COGGRD_ZIP = new File(TestData.inputSAR+"S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE.zip");
+    public final static File inputGRDFolder = new File(TestData.inputSAR+"S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE");
+    public final static File inputS1_COGGRD_COMPRESSED_ZIP = new File(TestData.inputSAR+"S1/COG/S1A_IW_GRDH_1SDV_20231030T181230_20231030T181255_050998_062611_D4AC_COG.SAFE.zip");
 
     private final String[] productTypeExemptions = {"RAW","OCN"};
 
     private final static String inputS1 = SARTests.inputPathProperty + "/SAR/S1/";
     private final static File[] rootPathsSentinel1 = SARTests.loadFilePath(inputS1);
 
-    private final static File inputS1_GRDFile = TestData.inputS1_GRD;
-
     final static ProductValidator.Options productOptions = new ProductValidator.Options();
 
     @Before
     public void setUp() {
         // If the file does not exist: the test will be ignored
-        assumeTrue(inputS1_GRDFile + " not found", inputS1_GRDFile.exists());
-        assumeTrue(inputS1_AnnotGRD + " not found", inputS1_AnnotGRD.exists());
-        assumeTrue(inputS1_meta1GRD + " not found", inputS1_meta1GRD.exists());
-        assumeTrue(inputS1_meta2GRD + " not found", inputS1_meta2GRD.exists());
-        assumeTrue(inputS1_AnnotGRDZip + " not found", inputS1_AnnotGRDZip.exists());
-        assumeTrue(inputGRDFolder + " not found", inputGRDFolder.exists());
-
-        for (File file : rootPathsSentinel1) {
-            assumeTrue(file + " not found", file.exists());
-        }
+        assumeTrue(inputS1_COGGRD + " not found", inputS1_COGGRD.exists());
+        assumeTrue(inputS1_COGGRD_ZIP + " not found", inputS1_COGGRD_ZIP.exists());
+        assumeTrue(inputS1_COGGRD_COMPRESSED_ZIP + " not found", inputS1_COGGRD_COMPRESSED_ZIP.exists());
 
         productOptions.verifyBands = false;
     }
@@ -85,62 +75,33 @@ public class TestSentinel1ProductReader extends ReaderTest {
 
     @Test
     public void testOpeningFile() throws Exception {
-        Product prod = testReader(inputS1_AnnotGRD.toPath().resolve("manifest.safe"));
+        Product prod = testReader(inputS1_COGGRD.toPath());
 
         final ProductValidator validator = new ProductValidator(prod, productOptions);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {});
-    }
-
-    @Test
-    public void testOpeningBandlessMetadataFile1() throws Exception {
-        Product prod = testReader(inputS1_meta1GRD.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod, productOptions);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {});
-    }
-
-    @Test
-    public void testOpeningBandlessMetadataFile2() throws Exception {
-        Product prod = testReader(inputS1_meta2GRD.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod, productOptions);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {});
-    }
-
-    @Test
-    public void testOpeningAnnotFolder() throws Exception {
-        Product prod = testReader(inputS1_AnnotGRD.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod, productOptions);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {});
+        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
     }
 
     @Test
     public void testOpeningZip() throws Exception {
-        Product prod = testReader(inputS1_GRDFile.toPath());
+        Product prod = testReader(inputS1_COGGRD_ZIP.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV","Amplitude_VH","Intensity_VH"});
+        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
     }
 
     @Test
-    public void testOpeningAnnotationProduct() throws Exception {
-        Product prod = testReader(inputS1_AnnotGRDZip.toPath());
+    @STTM("SNAP-3588")
+    public void testOpeningCompressedZip() throws Exception {
+        Product prod = testReader(inputS1_COGGRD_COMPRESSED_ZIP.toPath());
 
-        final ProductValidator validator = new ProductValidator(prod, productOptions);
+        final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {});
+        validator.validateBands(new String[] {"Amplitude_VV", "Intensity_VV", "Amplitude_VH", "Intensity_VH"});
     }
 
     @Test
@@ -150,6 +111,6 @@ public class TestSentinel1ProductReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV","Amplitude_VH","Intensity_VH"});
+        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
     }
 }
