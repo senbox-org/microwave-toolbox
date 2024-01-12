@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
