@@ -15,6 +15,7 @@
  */
 package eu.esa.microwave.about;
 
+import com.bc.ceres.core.runtime.Version;
 import org.esa.snap.rcp.about.AboutBox;
 import org.esa.snap.rcp.util.BrowserUtils;
 import org.openide.modules.ModuleInfo;
@@ -23,8 +24,11 @@ import org.openide.modules.Modules;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
@@ -32,7 +36,10 @@ import java.util.TimeZone;
 @AboutBox(displayName = "Microwave", position = 10)
 public class MicrowavetbxAboutBox extends JPanel {
 
-    private final static String releaseNotesHTTP = "https://github.com/senbox-org/microwave-toolbox/blob/master/ReleaseNotes.md";
+    private final static String defaultReleaseNotesHTTP = "https://github.com/senbox-org/microwave-toolbox/blob/master/ReleaseNotes.md";
+    private final static String stepReleaseNotesHTTP = "https://step.esa.int/main/wp-content/releasenotes/Microwave/Microwave_<version>.html";
+    private static String releaseNotesHTTP = defaultReleaseNotesHTTP;
+
 
     public MicrowavetbxAboutBox() {
         super(new BorderLayout(4, 4));
@@ -50,6 +57,10 @@ public class MicrowavetbxAboutBox extends JPanel {
 
         final ModuleInfo moduleInfo = Modules.getDefault().ownerOf(MicrowavetbxAboutBox.class);
         JLabel versionLabel = new JLabel("<html><b>Microwave Toolbox version " + moduleInfo.getImplementationVersion() + "</b>", SwingConstants.CENTER);
+        Version specVersion = Version.parseVersion(moduleInfo.getImplementationVersion() );
+        String versionString = String.format("%s.%s.%s", specVersion.getMajor(), specVersion.getMinor(), specVersion.getMicro());
+        String changelogUrl = getReleaseNotesURLString(versionString);
+        releaseNotesHTTP = getReleaseNotesURLString(versionString);
 
         final JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
@@ -74,5 +85,22 @@ public class MicrowavetbxAboutBox extends JPanel {
         } catch (URISyntaxException e) {
             return null;
         }
+    }
+
+    private String getReleaseNotesURLString(String versionString){
+        String changelogUrl = stepReleaseNotesHTTP.replace("<version>", versionString);
+        try {
+            URL url = new URL(changelogUrl);
+            HttpURLConnection huc = (HttpURLConnection) url.openConnection();
+            huc.setRequestMethod("HEAD");
+
+            int responseCode = huc.getResponseCode();
+            if(responseCode != HttpURLConnection.HTTP_OK) {
+                changelogUrl = stepReleaseNotesHTTP + versionString;
+            }
+        } catch (IOException e) {
+            changelogUrl = stepReleaseNotesHTTP + versionString;
+        }
+        return changelogUrl;
     }
 }
