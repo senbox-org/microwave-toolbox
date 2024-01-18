@@ -91,7 +91,7 @@ public class ETADCorrectionTOPSOp extends Operator {
     private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private double noDataValue = 0.0;
-    private boolean outputETADLayers = true;
+    private boolean outputETADLayers = false;
 
     protected static final String PRODUCT_SUFFIX = "_etad";
 
@@ -408,7 +408,6 @@ public class ETADCorrectionTOPSOp extends Operator {
                 final int j = x - x0;
                 final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
 
-                // Compute the azimuth and range time ETAD corrections
                 final ETADUtils.Burst burst = etadUtils.getBurst(azTime, prodSubswathIndex, prodBurstIndex);
                 if (burst == null) {
                     azCorr = 0.0;
@@ -418,11 +417,9 @@ public class ETADCorrectionTOPSOp extends Operator {
                     rgCorr = getCorrection("sumOfCorrectionsRg", azTime, rgTime, burst, sumRgCorrectionMap);
                 }
 
-                // Correct the azimuth and range times
-                final double azCorrTime = azTime - azCorr;
-                final double rgCorrTime = rgTime - rgCorr;
+                final double azCorrTime = azTime + azCorr;
+                final double rgCorrTime = rgTime + rgCorr;
 
-                // Convert the corrected azimuth and range times to (x, y)
                 final double yCorr = prodBurstIndex * subSwath.linesPerBurst +
                         (azCorrTime - subSwath.burstFirstLineTime[prodBurstIndex]) / subSwath.azimuthTimeInterval;
 
