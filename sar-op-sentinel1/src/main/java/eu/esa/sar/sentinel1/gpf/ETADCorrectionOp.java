@@ -211,6 +211,8 @@ public class ETADCorrectionOp extends Operator {
             final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
                     srcBand.getRasterWidth(), srcBand.getRasterHeight());
 
+            targetBand.setUnit(srcBand.getUnit());
+            targetBand.setDescription(srcBand.getDescription());
             targetProduct.addBand(targetBand);
         }
 
@@ -469,7 +471,7 @@ public class ETADCorrectionOp extends Operator {
         final double t = (y - y12) / (y34 - y12);
         return v12 + t * (v34 - v12);
     }
-
+    
     public static class ETADUtils {
 
         private Product etadProduct = null;
@@ -493,7 +495,7 @@ public class ETADCorrectionOp extends Operator {
 
             getInputProductMetadata();
         }
-
+        
         private void getMetadataRoot() throws IOException {
 
             final MetadataElement root = etadProduct.getMetadataRoot();
