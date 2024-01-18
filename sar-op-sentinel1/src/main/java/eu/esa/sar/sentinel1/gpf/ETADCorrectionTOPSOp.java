@@ -82,17 +82,16 @@ public class ETADCorrectionTOPSOp extends Operator {
     private int sourceImageHeight = 0;
     private double firstLineTime = 0.0;
     private double lastLineTime = 0.0;
-    private double lineTimeInterval = 0.0;
-    private double slantRangeToFirstPixel = 0.0;
-    private double rangeSpacing = 0.0;
     private Product etadProduct = null;
     private ETADUtils etadUtils = null;
 
     private Sentinel1Utils mSU = null;
     private Sentinel1Utils.SubSwathInfo[] mSubSwath = null;
+    Sentinel1Utils.SubSwathInfo subSwath = null;
     private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private double noDataValue = 0.0;
+    private boolean outputETADLayers = true;
 
     protected static final String PRODUCT_SUFFIX = "_etad";
 
@@ -139,9 +138,9 @@ public class ETADCorrectionTOPSOp extends Operator {
                 throw new OperatorException("Split product is expected.");
             }
             
-            final String[] mPolarizations = mSU.getPolarizations();
             subSwathIndex = 1; // subSwathIndex is always 1 because of split product
             swathIndexStr = mSubSwathNames[0].substring(2);
+            subSwath = mSubSwath[subSwathIndex - 1];
 
             getSourceProductMetadata();
 
@@ -181,9 +180,6 @@ public class ETADCorrectionTOPSOp extends Operator {
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
             firstLineTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time).getMJD() * Constants.secondsInDay;
             lastLineTime = absRoot.getAttributeUTC(AbstractMetadata.last_line_time).getMJD() * Constants.secondsInDay;
-            lineTimeInterval = (lastLineTime - firstLineTime) / (sourceImageHeight - 1);
-            slantRangeToFirstPixel = absRoot.getAttributeDouble(AbstractMetadata.slant_range_to_first_pixel);
-            rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
 
         } catch(Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
@@ -245,8 +241,6 @@ public class ETADCorrectionTOPSOp extends Operator {
                 continue;
             }
 
-//            final Band targetBand = new Band(srcBand.getName(), srcBand.getDataType(),
-//                    srcBand.getRasterWidth(), srcBand.getRasterHeight());
             final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
                     srcBand.getRasterWidth(), srcBand.getRasterHeight());
 
@@ -259,6 +253,17 @@ public class ETADCorrectionTOPSOp extends Operator {
                 ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
             }
 
+        }
+
+        if (outputETADLayers) {
+            final Band sumOfCorrectionsRgBand = new Band("sumOfCorrectionsRg", ProductData.TYPE_FLOAT32,
+                    sourceImageWidth, sourceImageHeight);
+
+            final Band sumOfCorrectionsAzBand = new Band("sumOfCorrectionsAz", ProductData.TYPE_FLOAT32,
+                    sourceImageWidth, sourceImageHeight);
+
+            targetProduct.addBand(sumOfCorrectionsRgBand);
+            targetProduct.addBand(sumOfCorrectionsAzBand);
         }
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
@@ -298,9 +303,9 @@ public class ETADCorrectionTOPSOp extends Operator {
             final int txMax = tx0 + tw;
 //            System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 
-            for (int burstIndex = 0; burstIndex < mSubSwath[subSwathIndex - 1].numOfBursts; burstIndex++) {
-                final int firstLineIdx = burstIndex * mSubSwath[subSwathIndex - 1].linesPerBurst;
-                final int lastLineIdx = firstLineIdx + mSubSwath[subSwathIndex - 1].linesPerBurst - 1;
+            for (int burstIndex = 0; burstIndex < subSwath.numOfBursts; burstIndex++) {
+                final int firstLineIdx = burstIndex * subSwath.linesPerBurst;
+                final int lastLineIdx = firstLineIdx + subSwath.linesPerBurst - 1;
 
                 if (tyMax <= firstLineIdx || ty0 > lastLineIdx) {
                     continue;
@@ -326,7 +331,12 @@ public class ETADCorrectionTOPSOp extends Operator {
 
         try {
             final PixelPos[][] slavePixPos = new PixelPos[h][w];
-            computeETADCorrPixPos(x0, y0, w, h, slavePixPos);
+            final PixelPos[][] azRgCorr = new PixelPos[h][w];
+            computeETADCorrPixPos(x0, y0, w, h, mBurstIndex, slavePixPos, azRgCorr);
+
+            if (outputETADLayers) {
+                outputSumOfAzimuthRangeCorrections(x0, y0, w, h, targetTileMap, azRgCorr);
+            }
 
             final int margin = selectedResampling.getKernelSize();
             final Rectangle sourceRectangle = BackGeocodingOp.getBoundingBox(slavePixPos, margin, subSwathIndex,
@@ -363,7 +373,6 @@ public class ETADCorrectionTOPSOp extends Operator {
 
                 PerformETADCorrection(x0, y0, w, h, sourceRectangle, masterTileI, masterTileQ, targetTileI,
                         targetTileQ, mstDerampDemodPhase, mstDerampDemodI, mstDerampDemodQ, slavePixPos);
-
             }
 
         } catch (Throwable e) {
@@ -371,8 +380,17 @@ public class ETADCorrectionTOPSOp extends Operator {
         }
     }
 
-    private void computeETADCorrPixPos(final int x0, final int y0, final int w, final int h,
-                                       final PixelPos[][] slavePixPos) {
+    private void computeETADCorrPixPos(final int x0, final int y0, final int w, final int h, final int prodBurstIndex,
+                                       final PixelPos[][] slavePixPos, final PixelPos[][] azRgCorr) {
+
+        int prodSubswathIndex = -1;
+        if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
+            prodSubswathIndex = 1;
+        } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
+            prodSubswathIndex = 2;
+        } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
+            prodSubswathIndex = 3;
+        }
 
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
@@ -380,32 +398,44 @@ public class ETADCorrectionTOPSOp extends Operator {
         Map<String, double[][]> sumAzCorrectionMap = new HashMap<>(10);
         Map<String, double[][]> sumRgCorrectionMap = new HashMap<>(10);
 
+        double azCorr, rgCorr;
         for (int y = y0; y <= yMax; ++y) {
             final int i = y - y0;
-            final double azTime = firstLineTime + y * lineTimeInterval;
+            final double azTime = subSwath.burstFirstLineTime[prodBurstIndex] +
+                    (y - prodBurstIndex * subSwath.linesPerBurst) * subSwath.azimuthTimeInterval;
 
             for (int x = x0; x <= xMax; ++x) {
                 final int j = x - x0;
-                final double rgTime = (slantRangeToFirstPixel + x * rangeSpacing) / Constants.halfLightSpeed;
+                final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
 
-                final double azCorr = getCorrection("sumOfCorrectionsAz", azTime, rgTime, sumAzCorrectionMap);
-                final double rgCorr = getCorrection("sumOfCorrectionsRg", azTime, rgTime, sumRgCorrectionMap);
+                // Compute the azimuth and range time ETAD corrections
+                final ETADUtils.Burst burst = etadUtils.getBurst(azTime, prodSubswathIndex, prodBurstIndex);
+                if (burst == null) {
+                    azCorr = 0.0;
+                    rgCorr = 0.0;
+                } else {
+                    azCorr = getCorrection("sumOfCorrectionsAz", azTime, rgTime, burst, sumAzCorrectionMap);
+                    rgCorr = getCorrection("sumOfCorrectionsRg", azTime, rgTime, burst, sumRgCorrectionMap);
+                }
+
+                // Correct the azimuth and range times
                 final double azCorrTime = azTime - azCorr;
                 final double rgCorrTime = rgTime - rgCorr;
-                final double yCorr = (azCorrTime - firstLineTime) / lineTimeInterval;
-                final double xCorr = (rgCorrTime * Constants.halfLightSpeed - slantRangeToFirstPixel) / rangeSpacing;
+
+                // Convert the corrected azimuth and range times to (x, y)
+                final double yCorr = prodBurstIndex * subSwath.linesPerBurst +
+                        (azCorrTime - subSwath.burstFirstLineTime[prodBurstIndex]) / subSwath.azimuthTimeInterval;
+
+                final double xCorr = (rgCorrTime * 0.5 - subSwath.slrTimeToFirstPixel) * Constants.lightSpeed / mSU.rangeSpacing;
+
                 slavePixPos[i][j] = new PixelPos(xCorr, yCorr);
+                azRgCorr[i][j] = new PixelPos(rgCorr, azCorr);
             }
         }
     }
 
     private double getCorrection(final String layer, final double azimuthTime, final double slantRangeTime,
-                                 final Map<String, double[][]>layerCorrectionMap) {
-
-        ETADCorrectionTOPSOp.ETADUtils.Burst burst = etadUtils.getBurst(azimuthTime, slantRangeTime);
-        if (burst == null) {
-            return 0.0;
-        }
+                                 final ETADUtils.Burst burst, final Map<String, double[][]>layerCorrectionMap) {
 
         final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
         double[][] layerCorrection = layerCorrectionMap.get(bandName);
@@ -495,6 +525,36 @@ public class ETADCorrectionTOPSOp extends Operator {
             }
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException("PerformETADCorrection", e);
+        }
+    }
+
+    private void outputSumOfAzimuthRangeCorrections(final int x0, final int y0, final int w, final int h,
+                                                    final Map<Band, Tile> targetTileMap, final PixelPos[][] azRgCorr) {
+
+        final Band sumOfCorrectionsAzBand = targetProduct.getBand("sumOfCorrectionsAz");
+        final Band sumOfCorrectionsRgBand = targetProduct.getBand("sumOfCorrectionsRg");
+        final Tile sumOfCorrectionsAzTile = targetTileMap.get(sumOfCorrectionsAzBand);
+        final Tile sumOfCorrectionsRgTile = targetTileMap.get(sumOfCorrectionsRgBand);
+        final ProductData sumOfCorrectionsAzData = sumOfCorrectionsAzTile.getDataBuffer();
+        final ProductData sumOfCorrectionsRgData = sumOfCorrectionsRgTile.getDataBuffer();
+        final TileIndex tgtIndex = new TileIndex(sumOfCorrectionsAzTile);
+
+        for (int y = y0; y < y0 + h; y++) {
+            tgtIndex.calculateStride(y);
+            final int yy = y - y0;
+
+            for (int x = x0; x < x0 + w; x++) {
+                final int tgtIdx = tgtIndex.getIndex(x);
+                final int xx = x - x0;
+
+                if (azRgCorr[yy][xx] == null) {
+                    sumOfCorrectionsAzData.setElemFloatAt(tgtIdx, (float) noDataValue);
+                    sumOfCorrectionsRgData.setElemFloatAt(tgtIdx, (float) noDataValue);
+                } else {
+                    sumOfCorrectionsAzData.setElemFloatAt(tgtIdx, (float)(azRgCorr[yy][xx].y)); // azCorr
+                    sumOfCorrectionsRgData.setElemFloatAt(tgtIdx, (float)(azRgCorr[yy][xx].x*1e8)); // rgCorr
+                }
+            }
         }
     }
     
@@ -741,6 +801,17 @@ public class ETADCorrectionTOPSOp extends Operator {
             }
 
             return inputProducts[pIndex - 1].swathArray[sIndex - 1].burstMap.get(bIndex);
+        }
+
+        private Burst getBurst(final double azimuthTime, final int prodSubswathIndex, final int prodBurstIndex) {
+
+            final int pIndex = getProductIndex(azimuthTime);
+            if (pIndex == -1) {
+                return null;
+            }
+
+            int bIndex = prodSubswathIndex + 3*prodBurstIndex;
+            return inputProducts[pIndex - 1].swathArray[prodSubswathIndex - 1].burstMap.get(bIndex);
         }
 
         private double[][] getLayerCorrectionForCurrentBurst(final Burst burst, final String bandName) {
