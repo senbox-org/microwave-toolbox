@@ -20,4 +20,5 @@
 	<mapID target="TOPSARDerampDemodOp" url="operators/TOPSARDerampDemodOp.html"/>
     <mapID target="AzimuthShiftEstimationUsingESDOp" url="operators/AzimuthShiftEstimationUsingESDOp.html"/>
     <mapID target="ETADCorrectionOp" url="operators/ETADCorrectionOp.html"/>
+    <mapID target="ETADCorrectionTOPSOp" url="operators/ETADCorrectionTOPSOp.html"/>
 </map>
