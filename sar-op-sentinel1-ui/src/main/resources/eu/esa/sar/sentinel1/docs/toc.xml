@@ -25,6 +25,7 @@
 				<tocitem text="EAP Phase Correction" target="EAPPhaseCorrection"/>
                 <tocitem text="TOPSAR Deramp Demod" target="TOPSARDerampDemodOp"/>
                 <tocitem text="ETAD Correction for GRD product" target="ETADCorrectionOp"/>
+                <tocitem text="ETAD Correction for SLC TOPS product" target="ETADCorrectionTOPSOp"/>
             </tocitem>
         </tocitem>
     </tocitem>
