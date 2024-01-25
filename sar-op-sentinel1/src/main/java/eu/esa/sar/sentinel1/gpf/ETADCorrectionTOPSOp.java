@@ -80,8 +80,6 @@ public class ETADCorrectionTOPSOp extends Operator {
     private Resampling selectedResampling = null;
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
-    private double firstLineTime = 0.0;
-    private double lastLineTime = 0.0;
     private Product etadProduct = null;
     private ETADUtils etadUtils = null;
 
@@ -93,6 +91,8 @@ public class ETADCorrectionTOPSOp extends Operator {
     private double noDataValue = 0.0;
     private boolean outputETADLayers = false;
 
+    protected static final String SUM_OF_CORRECTIONS_RG = "sumOfCorrectionsRg";
+    protected static final String SUM_OF_CORRECTIONS_AZ = "sumOfCorrectionsAz";
     protected static final String PRODUCT_SUFFIX = "_etad";
 
 
@@ -142,21 +142,17 @@ public class ETADCorrectionTOPSOp extends Operator {
             swathIndexStr = mSubSwathNames[0].substring(2);
             subSwath = mSubSwath[subSwathIndex - 1];
 
-            getSourceProductMetadata();
+            sourceImageWidth = sourceProduct.getSceneRasterWidth();
+            sourceImageHeight = sourceProduct.getSceneRasterHeight();
 
-            // Get ETAD product
             etadProduct = getETADProduct(etadFile);
 
-            // Check if the ETAD product matches the SLC product
             validateETADProduct(sourceProduct, etadProduct);
 
-            // Get ETAD product metadata
             etadUtils = new ETADUtils(etadProduct);
 
-            // Create target product that has the same dimension and same bands as the source product does
             createTargetProduct();
 
-            // Set flag indicating that ETAD correction has been applied
             updateTargetProductMetadata();
 
             final Band masterBandI = BackGeocodingOp.getBand(sourceProduct, "i_", swathIndexStr, mSU.getPolarizations()[0]);
@@ -167,21 +163,6 @@ public class ETADCorrectionTOPSOp extends Operator {
             // todo Should create different correctors for GRD, SM and TOPS products similar to the calibrator for calibrationOp
 
         } catch (Throwable e) {
-            OperatorUtils.catchOperatorException(getId(), e);
-        }
-    }
-
-    private void getSourceProductMetadata() {
-
-        try {
-            sourceImageWidth = sourceProduct.getSceneRasterWidth();
-            sourceImageHeight = sourceProduct.getSceneRasterHeight();
-
-            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-            firstLineTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time).getMJD() * Constants.secondsInDay;
-            lastLineTime = absRoot.getAttributeUTC(AbstractMetadata.last_line_time).getMJD() * Constants.secondsInDay;
-
-        } catch(Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
     }
@@ -206,8 +187,8 @@ public class ETADCorrectionTOPSOp extends Operator {
             }
             final MetadataElement srcProdElem = srcAnnotation.getElements()[0].getElement("product");
             final MetadataElement adsHeaderElem = srcProdElem.getElement("adsHeader");
-            final double srcStartTime = ETADUtils.getTime(adsHeaderElem, "startTime").getMJD()* Constants.secondsInDay;
-            final double srcStopTime = ETADUtils.getTime(adsHeaderElem, "stopTime").getMJD()* Constants.secondsInDay;
+            final double srcStartTime = ETADUtils.getTime(adsHeaderElem, "startTime").getMJD() * Constants.secondsInDay;
+            final double srcStopTime = ETADUtils.getTime(adsHeaderElem, "stopTime").getMJD() * Constants.secondsInDay;
 
             final MetadataElement etadOrigProdRoot = AbstractMetadata.getOriginalProductMetadata(etadProduct);
             final MetadataElement etadAnnotation = etadOrigProdRoot.getElement("annotation");
@@ -216,8 +197,8 @@ public class ETADCorrectionTOPSOp extends Operator {
             }
             final MetadataElement etadProdElem = etadAnnotation.getElement("etadProduct");
             final MetadataElement etadHeaderElem = etadProdElem.getElement("etadHeader");
-            final double etadStartTime = ETADUtils.getTime(etadHeaderElem, "startTime").getMJD()* Constants.secondsInDay;
-            final double etadStopTime = ETADUtils.getTime(etadHeaderElem, "stopTime").getMJD()* Constants.secondsInDay;
+            final double etadStartTime = ETADUtils.getTime(etadHeaderElem, "startTime").getMJD() * Constants.secondsInDay;
+            final double etadStopTime = ETADUtils.getTime(etadHeaderElem, "stopTime").getMJD() * Constants.secondsInDay;
 
             if (srcStartTime < etadStartTime || srcStopTime > etadStopTime) {
                 throw new OperatorException("The selected ETAD product does not match the source product");
@@ -252,14 +233,14 @@ public class ETADCorrectionTOPSOp extends Operator {
                 int idx = targetProduct.getBandIndex(targetBand.getName());
                 ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
             }
-
         }
 
+        // For debugging only
         if (outputETADLayers) {
-            final Band sumOfCorrectionsRgBand = new Band("sumOfCorrectionsRg", ProductData.TYPE_FLOAT32,
+            final Band sumOfCorrectionsRgBand = new Band(SUM_OF_CORRECTIONS_RG, ProductData.TYPE_FLOAT32,
                     sourceImageWidth, sourceImageHeight);
 
-            final Band sumOfCorrectionsAzBand = new Band("sumOfCorrectionsAz", ProductData.TYPE_FLOAT32,
+            final Band sumOfCorrectionsAzBand = new Band(SUM_OF_CORRECTIONS_AZ, ProductData.TYPE_FLOAT32,
                     sourceImageWidth, sourceImageHeight);
 
             targetProduct.addBand(sumOfCorrectionsRgBand);
@@ -413,8 +394,8 @@ public class ETADCorrectionTOPSOp extends Operator {
                     azCorr = 0.0;
                     rgCorr = 0.0;
                 } else {
-                    azCorr = getCorrection("sumOfCorrectionsAz", azTime, rgTime, burst, sumAzCorrectionMap);
-                    rgCorr = getCorrection("sumOfCorrectionsRg", azTime, rgTime, burst, sumRgCorrectionMap);
+                    azCorr = getCorrection(SUM_OF_CORRECTIONS_AZ, azTime, rgTime, burst, sumAzCorrectionMap);
+                    rgCorr = getCorrection(SUM_OF_CORRECTIONS_RG, azTime, rgTime, burst, sumRgCorrectionMap);
                 }
 
                 final double azCorrTime = azTime + azCorr;
@@ -528,8 +509,8 @@ public class ETADCorrectionTOPSOp extends Operator {
     private void outputSumOfAzimuthRangeCorrections(final int x0, final int y0, final int w, final int h,
                                                     final Map<Band, Tile> targetTileMap, final PixelPos[][] azRgCorr) {
 
-        final Band sumOfCorrectionsAzBand = targetProduct.getBand("sumOfCorrectionsAz");
-        final Band sumOfCorrectionsRgBand = targetProduct.getBand("sumOfCorrectionsRg");
+        final Band sumOfCorrectionsAzBand = targetProduct.getBand(SUM_OF_CORRECTIONS_AZ);
+        final Band sumOfCorrectionsRgBand = targetProduct.getBand(SUM_OF_CORRECTIONS_RG);
         final Tile sumOfCorrectionsAzTile = targetTileMap.get(sumOfCorrectionsAzBand);
         final Tile sumOfCorrectionsRgTile = targetTileMap.get(sumOfCorrectionsRgBand);
         final ProductData sumOfCorrectionsAzData = sumOfCorrectionsAzTile.getDataBuffer();
