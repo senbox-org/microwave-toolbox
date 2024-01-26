@@ -364,51 +364,57 @@ public class ETADCorrectionTOPSOp extends Operator {
     private void computeETADCorrPixPos(final int x0, final int y0, final int w, final int h, final int prodBurstIndex,
                                        final PixelPos[][] slavePixPos, final PixelPos[][] azRgCorr) {
 
-        int prodSubswathIndex = -1;
-        if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
-            prodSubswathIndex = 1;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
-            prodSubswathIndex = 2;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
-            prodSubswathIndex = 3;
-        }
-
-        final int xMax = x0 + w - 1;
-        final int yMax = y0 + h - 1;
-
-        Map<String, double[][]> sumAzCorrectionMap = new HashMap<>(10);
-        Map<String, double[][]> sumRgCorrectionMap = new HashMap<>(10);
-
-        double azCorr, rgCorr;
-        for (int y = y0; y <= yMax; ++y) {
-            final int i = y - y0;
-            final double azTime = subSwath.burstFirstLineTime[prodBurstIndex] +
-                    (y - prodBurstIndex * subSwath.linesPerBurst) * subSwath.azimuthTimeInterval;
-
-            for (int x = x0; x <= xMax; ++x) {
-                final int j = x - x0;
-                final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
-
-                final ETADUtils.Burst burst = etadUtils.getBurst(azTime, prodSubswathIndex, prodBurstIndex);
-                if (burst == null) {
-                    azCorr = 0.0;
-                    rgCorr = 0.0;
-                } else {
-                    azCorr = getCorrection(SUM_OF_CORRECTIONS_AZ, azTime, rgTime, burst, sumAzCorrectionMap);
-                    rgCorr = getCorrection(SUM_OF_CORRECTIONS_RG, azTime, rgTime, burst, sumRgCorrectionMap);
-                }
-
-                final double azCorrTime = azTime + azCorr;
-                final double rgCorrTime = rgTime + rgCorr;
-
-                final double yCorr = prodBurstIndex * subSwath.linesPerBurst +
-                        (azCorrTime - subSwath.burstFirstLineTime[prodBurstIndex]) / subSwath.azimuthTimeInterval;
-
-                final double xCorr = (rgCorrTime * 0.5 - subSwath.slrTimeToFirstPixel) * Constants.lightSpeed / mSU.rangeSpacing;
-
-                slavePixPos[i][j] = new PixelPos(xCorr, yCorr);
-                azRgCorr[i][j] = new PixelPos(rgCorr, azCorr);
+        try {
+            int prodSubswathIndex = -1;
+            if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
+                prodSubswathIndex = 1;
+            } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
+                prodSubswathIndex = 2;
+            } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
+                prodSubswathIndex = 3;
             }
+
+            final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
+            final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, prodBurstIndex);
+
+            final int xMax = x0 + w - 1;
+            final int yMax = y0 + h - 1;
+
+            Map<String, double[][]> sumAzCorrectionMap = new HashMap<>(10);
+            Map<String, double[][]> sumRgCorrectionMap = new HashMap<>(10);
+
+            double azCorr, rgCorr;
+            for (int y = y0; y <= yMax; ++y) {
+                final int i = y - y0;
+                final double azTime = subSwath.burstFirstLineTime[prodBurstIndex] +
+                        (y - prodBurstIndex * subSwath.linesPerBurst) * subSwath.azimuthTimeInterval;
+
+                for (int x = x0; x <= xMax; ++x) {
+                    final int j = x - x0;
+                    final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
+
+                    if (burst == null) {
+                        azCorr = 0.0;
+                        rgCorr = 0.0;
+                    } else {
+                        azCorr = getCorrection(SUM_OF_CORRECTIONS_AZ, azTime, rgTime, burst, sumAzCorrectionMap);
+                        rgCorr = getCorrection(SUM_OF_CORRECTIONS_RG, azTime, rgTime, burst, sumRgCorrectionMap);
+                    }
+
+                    final double azCorrTime = azTime + azCorr;
+                    final double rgCorrTime = rgTime + rgCorr;
+
+                    final double yCorr = prodBurstIndex * subSwath.linesPerBurst +
+                            (azCorrTime - subSwath.burstFirstLineTime[prodBurstIndex]) / subSwath.azimuthTimeInterval;
+
+                    final double xCorr = (rgCorrTime * 0.5 - subSwath.slrTimeToFirstPixel) * Constants.lightSpeed / mSU.rangeSpacing;
+
+                    slavePixPos[i][j] = new PixelPos(xCorr, yCorr);
+                    azRgCorr[i][j] = new PixelPos(rgCorr, azCorr);
+                }
+            }
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
         }
     }
 
@@ -608,6 +614,7 @@ public class ETADCorrectionTOPSOp extends Operator {
             final MetadataElement[] inputProductElemArray = inputProductListElem.getElements();
             for (int p = 0; p < numInputProducts; ++p) {
                 inputProducts[p] = new InputProduct();
+                inputProducts[p].productID = inputProductElemArray[p].getAttributeString("productID");
                 inputProducts[p].startTime = getTime(inputProductElemArray[p], "startTime").getMJD()*Constants.secondsInDay;
                 inputProducts[p].stopTime = getTime(inputProductElemArray[p], "stopTime").getMJD()*Constants.secondsInDay;
                 inputProducts[p].pIndex = Integer.parseInt(inputProductElemArray[p].getAttributeString("pIndex"));
@@ -723,6 +730,17 @@ public class ETADCorrectionTOPSOp extends Operator {
             return -1;
         }
 
+        public int getProductIndex(final String ProductName) {
+
+            final String productSensingStartStopTime = ProductName.substring(17, 55).toLowerCase();
+            for (InputProduct prod : inputProducts) {
+                if (prod.productID.toLowerCase().contains(productSensingStartStopTime)) {
+                    return prod.pIndex;
+                }
+            }
+            return -1;
+        }
+
         public int getSwathIndex(final int pIndex, final double slantRangeTime) {
 
             final SubSwath[] swathArray = inputProducts[pIndex - 1].swathArray;
@@ -781,15 +799,11 @@ public class ETADCorrectionTOPSOp extends Operator {
             return inputProducts[pIndex - 1].swathArray[sIndex - 1].burstMap.get(bIndex);
         }
 
-        private Burst getBurst(final double azimuthTime, final int prodSubswathIndex, final int prodBurstIndex) {
+        private Burst getBurst(final int pIndex, final int sIndex, final int prodBurstIndex) {
 
-            final int pIndex = getProductIndex(azimuthTime);
-            if (pIndex == -1) {
-                return null;
-            }
-
-            int bIndex = prodSubswathIndex + 3*prodBurstIndex;
-            return inputProducts[pIndex - 1].swathArray[prodSubswathIndex - 1].burstMap.get(bIndex);
+            final int[] bIndexArray = inputProducts[pIndex - 1].swathArray[sIndex - 1].bIndexArray;
+            final int bIndex = bIndexArray[prodBurstIndex];
+            return inputProducts[pIndex - 1].swathArray[sIndex - 1].burstMap.get(bIndex);
         }
 
         private double[][] getLayerCorrectionForCurrentBurst(final Burst burst, final String bandName) {
@@ -817,6 +831,7 @@ public class ETADCorrectionTOPSOp extends Operator {
             public double startTime;
             public double stopTime;
             public int pIndex;
+            public String productID;
             public SubSwath[] swathArray;
         }
 
