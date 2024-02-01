@@ -17,8 +17,11 @@ package eu.esa.sar.sentinel1.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.SARGeocoding;
+import eu.esa.sar.insar.gpf.coregistration.DEMAssistedCoregistrationOp;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.dataop.resamp.Resampling;
+import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -28,6 +31,7 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
@@ -39,6 +43,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringTokenizer;
 
 /**
  * The operator performs ETAD correction for S-1 GRD products.
@@ -65,6 +70,12 @@ public class ETADCorrectionOp extends Operator {
     @Parameter(label = "ETAD product")
     private File etadFile = null;
 
+    @Parameter(defaultValue = ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME,
+            description = "The method to be used for resampling the image from the un-corrected grid to the etad-corrected grid.",
+            label = "Resampling Type")
+    private String resamplingType = ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME;
+
+    private Resampling selectedResampling = null;
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
     private double firstLineTime = 0.0;
@@ -73,8 +84,12 @@ public class ETADCorrectionOp extends Operator {
     private double slantRangeTimeToFirstPixel = 0.0;
     private double groundRangeSpacing = 0.0;
     private Product etadProduct = null;
-    private AbstractMetadata.SRGRCoefficientList[] srgrConvParams = null;
+    private SRGRCoefficientList[] srgrConvParams = null;
+    private GRSRCoefficientList[] grsrConvParams = null;
     private ETADUtils etadUtils = null;
+
+    protected static final String SUM_OF_CORRECTIONS_RG = "sumOfCorrectionsRg";
+    protected static final String SUM_OF_CORRECTIONS_AZ = "sumOfCorrectionsAz";
     protected static final String PRODUCT_SUFFIX = "_etad";
 
 
@@ -105,21 +120,21 @@ public class ETADCorrectionOp extends Operator {
             validator.checkIfSentinel1Product();
             validator.checkIfGRD();
 
+            selectedResampling = ResamplingFactory.createResampling(resamplingType);
+            if(selectedResampling == null) {
+                throw new OperatorException("Resampling method "+ resamplingType + " is invalid");
+            }
+
             getSourceProductMetadata();
 
-            // Get ETAD product
             etadProduct = getETADProduct(etadFile);
 
-            // Check if the ETAD product matches the GRD product
             validateETADProduct(sourceProduct, etadProduct);
 
-            // Get ETAD product metadata
             etadUtils = new ETADUtils(etadProduct);
 
-            // Create target product that has the same dimension and same bands as the source product does
             createTargetProduct();
 
-            // Set flag indicating that ETAD correction has been applied
             updateTargetProductMetadata();
 
             // todo Should create different correctors for GRD, SM and TOPS products similar to the calibrator for calibrationOp
@@ -142,7 +157,19 @@ public class ETADCorrectionOp extends Operator {
 
             slantRangeTimeToFirstPixel = absRoot.getAttributeDouble(AbstractMetadata.slant_range_to_first_pixel) / Constants.halfLightSpeed;
             groundRangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
-            srgrConvParams = AbstractMetadata.getSRGRCoefficients(absRoot);
+
+            final MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(sourceProduct);
+            final MetadataElement annotationElem = origProdRoot.getElement("annotation");
+            final MetadataElement imgElem = annotationElem.getElementAt(0);
+            final MetadataElement productElem = imgElem.getElement("product");
+            final MetadataElement coordConvElem = productElem.getElement("coordinateConversion");
+            final MetadataElement grsrCoefficientsElem = addGRSRCoefficients(coordConvElem);
+            final MetadataElement srgrCoefficientsElem = addSRGRCoefficients(coordConvElem);
+            grsrConvParams = getGRSRCoefficients(grsrCoefficientsElem);
+            srgrConvParams = getSRGRCoefficients(srgrCoefficientsElem);
+            if (grsrConvParams == null || grsrConvParams.length == 0) {
+                throw new OperatorException("Invalid GRSR Coefficients for product " + sourceProduct.getName());
+            }
             if (srgrConvParams == null || srgrConvParams.length == 0) {
                 throw new OperatorException("Invalid SRGR Coefficients for product " + sourceProduct.getName());
             }
@@ -245,32 +272,18 @@ public class ETADCorrectionOp extends Operator {
         try {
             // Get source tile which is larger than the target tile
             final Rectangle targetRectangle = targetTile.getRectangle();
-            final int tx0 = targetRectangle.x;
-            final int ty0 = targetRectangle.y;
-            final int tw = targetRectangle.width;
-            final int th = targetRectangle.height;
-            final int txMax = tx0 + tw - 1;
-            final int tyMax = ty0 + th - 1;
+            final int x0 = targetRectangle.x;
+            final int y0 = targetRectangle.y;
+            final int w = targetRectangle.width;
+            final int h = targetRectangle.height;
+            final int xMax = x0 + w - 1;
+            final int yMax = y0 + h - 1;
 
-            final Rectangle srcRectangle = getSourceRectangle(tx0, ty0, tw, th);
-            final int sx0 = srcRectangle.x;
-            final int sy0 = srcRectangle.y;
-            final int sw = srcRectangle.width;
-            final int sh = srcRectangle.height;
-            final int sxMax = sx0 + sw - 1;
-            final int syMax = sy0 + sh - 1;
+            final PixelPos[][] slavePixPos = new PixelPos[h][w];
+            computeETADCorrPixPos(x0, y0, w, h, slavePixPos);
 
-            // Compute range/azimuth corrections for the source tile using bi-linear interpolation
-            final double[] azTime = new double[sh];
-            final double[][] rgTime = new double[sh][sw];
-            computeAzRgTimesForCurrentTile(srcRectangle, azTime, rgTime);
-
-            final double[][] azTimeCorr = new double[sh][sw];
-            final double[][] rgTimeCorr = new double[sh][sw];
-            getAzTimeCorrectionForCurrentTile(srcRectangle, azTime, rgTime, azTimeCorr);
-            getRgTimeCorrectionForCurrentTile(srcRectangle, azTime, rgTime, rgTimeCorr);
-
-            // Resample the source tile image to target tile
+            final int margin = selectedResampling.getKernelSize();
+            final Rectangle srcRectangle = getSourceRectangle(x0, y0, w, h, margin);
             final Band srcBand = sourceProduct.getBand(targetBand.getName());
             final Tile srcTile = getSourceTile(srcBand, srcRectangle);
             final ProductData srcData = srcTile.getDataBuffer();
@@ -279,60 +292,23 @@ public class ETADCorrectionOp extends Operator {
             final TileIndex srcIndex = new TileIndex(srcTile);
             final TileIndex tgtIndex = new TileIndex(targetTile);
 
-            int y0, y1, x0, x1, i0, i1, j0, j1;
-            for (int y = ty0; y <= tyMax; ++y) {
+            final ResamplingRaster slvResamplingRaster = new ResamplingRaster(srcTile, srcData);
+            final Resampling.Index resamplingIndex = selectedResampling.createIndex();
+
+            for (int y = y0; y <= yMax; ++y) {
                 tgtIndex.calculateStride(y);
                 srcIndex.calculateStride(y);
-                final int i = y - sy0;
+                final int yy = y - y0;
 
-                for (int x = tx0; x <= txMax; ++ x) {
+                for (int x = x0; x <= xMax; ++ x) {
                     final int tgtIdx = tgtIndex.getIndex(x);
+                    final int xx = x - x0;
+                    final PixelPos slavePixelPos = slavePixPos[yy][xx];
 
-                    final int j = x - sx0;
-                    final double at = azTime[i];
-                    final double rt = rgTime[i][j];
-                    final double atc = azTimeCorr[i][j];
-                    final double rtc = rgTimeCorr[i][j];
-                    if (at > atc) {
-                        i1 = Math.min(i + 1, sh - 1);
-                        i0 = i1 - 1;
-                        y1 = Math.min(y + 1, syMax);
-                        y0 = y1 - 1;
-                    } else {
-                        i0 = Math.max(i - 1, 0);
-                        i1 = i0 + 1;
-                        y0 = Math.max(y - 1, 0);
-                        y1 = y0 + 1;
-                    }
+                    selectedResampling.computeCornerBasedIndex(slavePixelPos.x, slavePixelPos.y,
+                            sourceImageWidth, sourceImageHeight, resamplingIndex);
 
-                    if (rt > rtc) {
-                        j1 = Math.min(j + 1, sw - 1);
-                        j0 = j1 - 1;
-                        x1 = Math.min(x + 1, sxMax);
-                        x0 = x1 - 1;
-                    } else {
-                        j0 = Math.max(j - 1, 0);
-                        j1 = j0 + 1;
-                        x0 = Math.max(x - 1, 0);
-                        x1 = x0 + 1;
-                    }
-
-                    final double v00 = getPixelValue(x0, y0, srcIndex, srcData);
-                    final double v01 = getPixelValue(x1, y0, srcIndex, srcData);
-                    final double v10 = getPixelValue(x0, y1, srcIndex, srcData);
-                    final double v11 = getPixelValue(x1, y1, srcIndex, srcData);
-                    final double atc00 = azTimeCorr[i0][j0];
-                    final double rtc00 = rgTimeCorr[i0][j0];
-                    final double atc01 = azTimeCorr[i0][j1];
-                    final double rtc01 = rgTimeCorr[i0][j1];
-                    final double atc10 = azTimeCorr[i1][j0];
-                    final double rtc10 = rgTimeCorr[i1][j0];
-                    final double atc11 = azTimeCorr[i1][j1];
-                    final double rtc11 = rgTimeCorr[i1][j1];
-
-                    final double v = IrregularGridBiLinearInterpolation(
-                            at, rt, atc00, rtc00, atc01, rtc01, atc10, rtc10, atc11, rtc11, v00, v01, v10, v11);
-
+                    final double v = selectedResampling.resample(slvResamplingRaster, resamplingIndex);
                     tgtData.setElemDoubleAt(tgtIdx, v);
                 }
             }
@@ -342,9 +318,44 @@ public class ETADCorrectionOp extends Operator {
         }
     }
 
-    private Rectangle getSourceRectangle(final int tx0, final int ty0, final int tw, final int th) {
+    private void computeETADCorrPixPos(final int x0, final int y0, final int w, final int h,
+                                       final PixelPos[][] slavePixPos) throws Exception {
 
-        final int margin = 1;
+        Map<String, double[][]> sumAzCorrectionMap = new HashMap<>(10);
+        Map<String, double[][]> sumRgCorrectionMap = new HashMap<>(10);
+
+        for (int y = y0; y < y0 + h; ++y) {
+            final int yy = y - y0;
+            final double azTime = firstLineTime + y * lineTimeInterval;
+            final double azimuthTimeInDays = azTime / Constants.secondsInDay;
+            final double[] grsrCoefficients = getGRSRCoefficients(azimuthTimeInDays, grsrConvParams);
+            final double[] srgrCoefficients = getSRGRCoefficients(azimuthTimeInDays, srgrConvParams);
+
+            for (int x = x0; x < x0 + w; ++x) {
+                final int xx = x - x0;
+                final double groundRange = x * groundRangeSpacing;
+                final double slantRange = Maths.computePolynomialValue(
+                        groundRange - grsrConvParams[0].ground_range_origin, grsrCoefficients);
+                final double rgTime = slantRange / Constants.halfLightSpeed;
+
+                final double azCorr = getCorrection(SUM_OF_CORRECTIONS_AZ, azTime, rgTime, sumAzCorrectionMap);
+                final double rgCorr = getCorrection(SUM_OF_CORRECTIONS_RG, azTime, rgTime, sumRgCorrectionMap);
+                final double azCorrTime = azTime + azCorr;
+                final double rgCorrTime = rgTime + rgCorr;
+                final double slantRangeCorr = rgCorrTime * Constants.halfLightSpeed;
+                final double groundRangeCorr = Maths.computePolynomialValue(
+                        slantRangeCorr - srgrConvParams[0].slant_range_origin, srgrCoefficients);
+
+                final double yCorr = (azCorrTime - firstLineTime) / lineTimeInterval;
+                final double xCorr = groundRangeCorr / groundRangeSpacing;
+                slavePixPos[yy][xx] = new PixelPos(xCorr, yCorr);
+            }
+        }
+    }
+
+
+    private Rectangle getSourceRectangle(final int tx0, final int ty0, final int tw, final int th, final int margin) {
+
         final int x0 = Math.max(0, tx0 - margin);
         final int y0 = Math.max(0, ty0 - margin);
         final int xMax = Math.min(tx0 + tw - 1 + margin, sourceImageWidth - 1);
@@ -352,80 +363,6 @@ public class ETADCorrectionOp extends Operator {
         final int w = xMax - x0 + 1;
         final int h = yMax - y0 + 1;
         return new Rectangle(x0, y0, w, h);
-    }
-
-    private double getPixelValue(final int x, final int y, final TileIndex srcIndex, final ProductData srcData) {
-
-        srcIndex.calculateStride(y);
-        final int srcIdx = srcIndex.getIndex(x);
-        return srcData.getElemDoubleAt(srcIdx);
-    }
-
-    private void computeAzRgTimesForCurrentTile(
-            final Rectangle srcRectangle, final double[] azTime, final double[][] rgTime) throws Exception {
-
-        final int sx0 = srcRectangle.x;
-        final int sy0 = srcRectangle.y;
-        final int sw = srcRectangle.width;
-        final int sh = srcRectangle.height;
-        final int sxMax = sx0 + sw - 1;
-        final int syMax = sy0 + sh - 1;
-
-        for (int y = sy0; y <= syMax; ++y) {
-            final int j = y - sy0;
-            azTime[j] = firstLineTime + y * lineTimeInterval;
-            final double azimuthTimeInDays = azTime[j] / Constants.secondsInDay;
-            final double[] srgrCoefficients = SARGeocoding.getSRGRCoefficients(azimuthTimeInDays, srgrConvParams);
-
-            for (int x = sx0; x <= sxMax; ++x) {
-                final int i = x - sx0;
-                final double groundRange = x * groundRangeSpacing;
-                final double slantRange = Maths.computePolynomialValue(groundRange, srgrCoefficients);
-                rgTime[j][i] = slantRange / Constants.halfLightSpeed;
-            }
-        }
-    }
-
-    private void getAzTimeCorrectionForCurrentTile(final Rectangle srcRectangle, final double[] azTime,
-                                                   final double[][] rgTime, final double[][] azTimeCorr) {
-
-        Map<String, double[][]> sumAzCorrectionMap = new HashMap<>(10);
-        final int sx0 = srcRectangle.x;
-        final int sy0 = srcRectangle.y;
-        final int sw = srcRectangle.width;
-        final int sh = srcRectangle.height;
-        final int sxMax = sx0 + sw - 1;
-        final int syMax = sy0 + sh - 1;
-
-        for (int y = sy0; y <= syMax; ++y) {
-            final int i = y - sy0;
-            for (int x = sx0; x <= sxMax; ++x) {
-                final int j = x - sx0;
-                final double corr = getCorrection("sumOfCorrectionsAz", azTime[i], rgTime[i][j], sumAzCorrectionMap);
-                azTimeCorr[i][j] = azTime[i] - corr;
-            }
-        }
-    }
-
-    private void getRgTimeCorrectionForCurrentTile(final Rectangle srcRectangle, final double[] azTime,
-                                                   final double[][] rgTime, final double[][] rgTimeCorr) {
-
-        Map<String, double[][]> sumRgCorrectionMap = new HashMap<>(10);
-        final int sx0 = srcRectangle.x;
-        final int sy0 = srcRectangle.y;
-        final int sw = srcRectangle.width;
-        final int sh = srcRectangle.height;
-        final int sxMax = sx0 + sw - 1;
-        final int syMax = sy0 + sh - 1;
-
-        for (int y = sy0; y <= syMax; ++y) {
-            final int i = y - sy0;
-            for (int x = sx0; x <= sxMax; ++x) {
-                final int j = x - sx0;
-                final double corr = getCorrection("sumOfCorrectionsRg", azTime[i], rgTime[i][j], sumRgCorrectionMap);
-                rgTimeCorr[i][j] = rgTime[i][j] - corr;
-            }
-        }
     }
 
     private double getCorrection(final String layer, final double azimuthTime, final double slantRangeTime,
@@ -455,23 +392,6 @@ public class ETADCorrectionOp extends Operator {
         return Maths.interpolationBiLinear(c00, c01, c10, c11, j - j0, i - i0);
     }
 
-    private double IrregularGridBiLinearInterpolation(final double y, final double x, final double y1, final double x1,
-                                                      final double y2, final double x2, final double y3, final double x3,
-                                                      final double y4, final double x4, final double v1, final double v2,
-                                                      final double v3, final double v4) {
-
-        final double t12 = (x - x1) / (x2 - x1);
-        final double y12 = y1 + t12 * (y2 - y1);
-        final double v12 = v1 + t12 * (v2 - v1);
-
-        final double t34 = (x - x3) / (x4 - x3);
-        final double y34 = y3 + t34 * (y4 - y3);
-        final double v34 = v3 + t34 * (v4 - v3);
-
-        final double t = (y - y12) / (y34 - y12);
-        return v12 + t * (v34 - v12);
-    }
-    
     public static class ETADUtils {
 
         private Product etadProduct = null;
@@ -768,6 +688,270 @@ public class ETADCorrectionOp extends Operator {
             public int azimuthExtent;
             public int rangeExtent;
         }
+    }
+
+    private static class ResamplingRaster implements Resampling.Raster {
+
+        private final Tile tile;
+        private final ProductData dataBuffer;
+
+        private ResamplingRaster(final Tile tile, final ProductData dataBuffer) {
+            this.tile = tile;
+            this.dataBuffer = dataBuffer;
+        }
+
+        public final int getWidth() {
+            return tile.getWidth();
+        }
+
+        public final int getHeight() {
+            return tile.getHeight();
+        }
+
+        public boolean getSamples(final int[] x, final int[] y, final double[][] samples) throws Exception {
+            boolean allValid = true;
+
+            try {
+                final TileIndex index = new TileIndex(tile);
+                final int maxX = x.length;
+                for (int i = 0; i < y.length; i++) {
+                    index.calculateStride(y[i]);
+                    for (int j = 0; j < maxX; j++) {
+                        double v = dataBuffer.getElemDoubleAt(index.getIndex(x[j]));
+                        samples[i][j] = v;
+                    }
+                }
+
+            } catch (Exception e) {
+                SystemUtils.LOG.severe(e.getMessage());
+                allValid = false;
+            }
+
+            return allValid;
+        }
+    }
+
+    // todo: The following code should eventually moved into SARGeocoding and AbstractedMetadata
+    private MetadataElement addGRSRCoefficients(final MetadataElement coordinateConversion) {
+
+        DateFormat sentinelDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        if (coordinateConversion == null)
+            return null;
+
+        final MetadataElement coordinateConversionList = coordinateConversion.getElement("coordinateConversionList");
+        if (coordinateConversionList == null)
+            return null;
+
+        final MetadataElement grsrCoefficientsElem = new MetadataElement("GRSR_Coefficients");
+
+        int listCnt = 1;
+        for (MetadataElement elem : coordinateConversionList.getElements()) {
+            final MetadataElement grsrListElem = new MetadataElement("grsr_coef_list" + '.' + listCnt);
+            grsrCoefficientsElem.addElement(grsrListElem);
+            ++listCnt;
+
+            final ProductData.UTC utcTime = ReaderUtils.getTime(elem, "azimuthTime", sentinelDateFormat);
+            grsrListElem.setAttributeUTC("zero_doppler_time", utcTime);
+
+            final double grOrigin = elem.getAttributeDouble("gr0", 0);
+            AbstractMetadata.addAbstractedAttribute(grsrListElem, "ground_range_origin",
+                    ProductData.TYPE_FLOAT64, "m", "Ground Range Origin");
+            AbstractMetadata.setAttribute(grsrListElem, "ground_range_origin", grOrigin);
+
+            final String coeffStr = elem.getElement("grsrCoefficients").getAttributeString("grsrCoefficients", "");
+            if (!coeffStr.isEmpty()) {
+                final StringTokenizer st = new StringTokenizer(coeffStr);
+                int cnt = 1;
+                while (st.hasMoreTokens()) {
+                    final double coefValue = Double.parseDouble(st.nextToken());
+
+                    final MetadataElement coefElem = new MetadataElement("coefficient" + '.' + cnt);
+                    grsrListElem.addElement(coefElem);
+                    ++cnt;
+                    AbstractMetadata.addAbstractedAttribute(coefElem, "grsr_coef",
+                            ProductData.TYPE_FLOAT64, "", "GRSR Coefficient");
+                    AbstractMetadata.setAttribute(coefElem, "grsr_coef", coefValue);
+                }
+            }
+        }
+        return grsrCoefficientsElem;
+    }
+
+    private MetadataElement addSRGRCoefficients(final MetadataElement coordinateConversion) {
+
+        DateFormat sentinelDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        if (coordinateConversion == null)
+            return null;
+
+        final MetadataElement coordinateConversionList = coordinateConversion.getElement("coordinateConversionList");
+        if (coordinateConversionList == null)
+            return null;
+
+        final MetadataElement srgrCoefficientsElem = new MetadataElement("SRGR_Coefficients");
+
+        int listCnt = 1;
+        for (MetadataElement elem : coordinateConversionList.getElements()) {
+            final MetadataElement srgrListElem = new MetadataElement("srgr_coef_list" + '.' + listCnt);
+            srgrCoefficientsElem.addElement(srgrListElem);
+            ++listCnt;
+
+            final ProductData.UTC utcTime = ReaderUtils.getTime(elem, "azimuthTime", sentinelDateFormat);
+            srgrListElem.setAttributeUTC("zero_doppler_time", utcTime);
+
+            final double srOrigin = elem.getAttributeDouble("sr0", 0);
+            AbstractMetadata.addAbstractedAttribute(srgrListElem, "slant_range_origin",
+                    ProductData.TYPE_FLOAT64, "m", "Slant Range Origin");
+            AbstractMetadata.setAttribute(srgrListElem, "slant_range_origin", srOrigin);
+
+            final String coeffStr = elem.getElement("srgrCoefficients").getAttributeString("srgrCoefficients", "");
+            if (!coeffStr.isEmpty()) {
+                final StringTokenizer st = new StringTokenizer(coeffStr);
+                int cnt = 1;
+                while (st.hasMoreTokens()) {
+                    final double coefValue = Double.parseDouble(st.nextToken());
+
+                    final MetadataElement coefElem = new MetadataElement("coefficient" + '.' + cnt);
+                    srgrListElem.addElement(coefElem);
+                    ++cnt;
+                    AbstractMetadata.addAbstractedAttribute(coefElem, "srgr_coef",
+                            ProductData.TYPE_FLOAT64, "", "SRGR Coefficient");
+                    AbstractMetadata.setAttribute(coefElem, "srgr_coef", coefValue);
+                }
+            }
+        }
+        return srgrCoefficientsElem;
+    }
+
+    private static GRSRCoefficientList[] getGRSRCoefficients(final MetadataElement grsrCoefficientsElem) {
+
+        if(grsrCoefficientsElem != null) {
+            final MetadataElement[] grsr_coef_listElem = grsrCoefficientsElem.getElements();
+            final GRSRCoefficientList[] grsrCoefficientList = new GRSRCoefficientList[grsr_coef_listElem.length];
+            int k = 0;
+            for (MetadataElement listElem : grsr_coef_listElem) {
+                final GRSRCoefficientList grsrList = new GRSRCoefficientList();
+                grsrList.time = listElem.getAttributeUTC("zero_doppler_time");
+                grsrList.timeMJD = grsrList.time.getMJD();
+                grsrList.ground_range_origin = listElem.getAttributeDouble("ground_range_origin");
+
+                final int numSubElems = listElem.getNumElements();
+                grsrList.coefficients = new double[numSubElems];
+                for (int i = 0; i < numSubElems; ++i) {
+                    final MetadataElement coefElem = listElem.getElementAt(i);
+                    grsrList.coefficients[i] = coefElem.getAttributeDouble("grsr_coef", 0.0);
+                }
+                grsrCoefficientList[k++] = grsrList;
+            }
+            return grsrCoefficientList;
+        }
+        return null;
+    }
+
+    private static SRGRCoefficientList[] getSRGRCoefficients(final MetadataElement srgrCoefficientsElem) {
+
+        if(srgrCoefficientsElem != null) {
+            final MetadataElement[] srgr_coef_listElem = srgrCoefficientsElem.getElements();
+            final SRGRCoefficientList[] srgrCoefficientList = new SRGRCoefficientList[srgr_coef_listElem.length];
+            int k = 0;
+            for (MetadataElement listElem : srgr_coef_listElem) {
+                final SRGRCoefficientList srgrList = new SRGRCoefficientList();
+                srgrList.time = listElem.getAttributeUTC("zero_doppler_time");
+                srgrList.timeMJD = srgrList.time.getMJD();
+                srgrList.slant_range_origin = listElem.getAttributeDouble("slant_range_origin");
+
+                final int numSubElems = listElem.getNumElements();
+                srgrList.coefficients = new double[numSubElems];
+                for (int i = 0; i < numSubElems; ++i) {
+                    final MetadataElement coefElem = listElem.getElementAt(i);
+                    srgrList.coefficients[i] = coefElem.getAttributeDouble("srgr_coef", 0.0);
+                }
+                srgrCoefficientList[k++] = srgrList;
+            }
+            return srgrCoefficientList;
+        }
+        return null;
+    }
+
+    private static double[] getGRSRCoefficients(final double zeroDopplerTime,
+                                                final GRSRCoefficientList[] grsrConvParams) throws Exception {
+
+        if(grsrConvParams == null || grsrConvParams.length == 0) {
+            throw new Exception("SARGeoCoding: grsrConvParams not set");
+        }
+
+        final double[] grsrCoefficients = new double[grsrConvParams[0].coefficients.length];
+
+        int idx = 0;
+        if (grsrConvParams.length == 1) {
+            System.arraycopy(grsrConvParams[0].coefficients, 0, grsrCoefficients, 0, grsrConvParams[0].coefficients.length);
+        } else {
+            for (int i = 0; i < grsrConvParams.length && zeroDopplerTime >= grsrConvParams[i].timeMJD; i++) {
+                idx = i;
+            }
+
+            if (idx == grsrConvParams.length - 1) {
+                idx--;
+            }
+
+            final double mu = (zeroDopplerTime - grsrConvParams[idx].timeMJD) /
+                    (grsrConvParams[idx + 1].timeMJD - grsrConvParams[idx].timeMJD);
+
+            for (int i = 0; i < grsrCoefficients.length; i++) {
+                grsrCoefficients[i] = Maths.interpolationLinear(grsrConvParams[idx].coefficients[i],
+                        grsrConvParams[idx + 1].coefficients[i], mu);
+            }
+        }
+
+        return grsrCoefficients;
+    }
+
+    private static double[] getSRGRCoefficients(final double zeroDopplerTime,
+                                                final SRGRCoefficientList[] srgrConvParams) throws Exception {
+
+        if(srgrConvParams == null || srgrConvParams.length == 0) {
+            throw new Exception("SARGeoCoding: srgrConvParams not set");
+        }
+
+        final double[] srgrCoefficients = new double[srgrConvParams[0].coefficients.length];
+
+        int idx = 0;
+        if (srgrConvParams.length == 1) {
+            System.arraycopy(srgrConvParams[0].coefficients, 0, srgrCoefficients, 0, srgrConvParams[0].coefficients.length);
+        } else {
+            for (int i = 0; i < srgrConvParams.length && zeroDopplerTime >= srgrConvParams[i].timeMJD; i++) {
+                idx = i;
+            }
+
+            if (idx == srgrConvParams.length - 1) {
+                idx--;
+            }
+
+            final double mu = (zeroDopplerTime - srgrConvParams[idx].timeMJD) /
+                    (srgrConvParams[idx + 1].timeMJD - srgrConvParams[idx].timeMJD);
+
+            for (int i = 0; i < srgrCoefficients.length; i++) {
+                srgrCoefficients[i] = Maths.interpolationLinear(srgrConvParams[idx].coefficients[i],
+                        srgrConvParams[idx + 1].coefficients[i], mu);
+            }
+        }
+
+        return srgrCoefficients;
+    }
+
+    public static class GRSRCoefficientList {
+        public ProductData.UTC time = null;
+        public double timeMJD = 0;
+        public double ground_range_origin = 0.0;
+        public double[] coefficients = null;
+    }
+
+    public static class SRGRCoefficientList {
+        public ProductData.UTC time = null;
+        public double timeMJD = 0;
+        public double slant_range_origin = 0.0;
+        public double[] coefficients = null;
     }
 
 

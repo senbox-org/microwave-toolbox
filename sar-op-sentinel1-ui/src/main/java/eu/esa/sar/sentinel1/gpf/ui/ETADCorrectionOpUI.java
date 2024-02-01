@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sentinel1.gpf.ui;
 
+import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.graphbuilder.gpf.ui.BaseOperatorUI;
 import org.esa.snap.graphbuilder.gpf.ui.UIValidation;
 import org.esa.snap.graphbuilder.rcp.utils.DialogUtils;
@@ -36,6 +37,7 @@ public class ETADCorrectionOpUI extends BaseOperatorUI {
     private final JLabel etadFileLabel = new JLabel("ETAD File:");
     private final JTextField etadFile = new JTextField("");
     private final JButton etadFileBrowseButton = new JButton("...");
+    private final JComboBox resamplingType = new JComboBox(ResamplingFactory.resamplingNames);
 
     @Override
     public JComponent CreateOpTab(String operatorName, Map<String, Object> parameterMap, AppContext appContext) {
@@ -63,6 +65,8 @@ public class ETADCorrectionOpUI extends BaseOperatorUI {
         if (extFile != null) {
             etadFile.setText(extFile.getAbsolutePath());
         }
+
+        resamplingType.setSelectedItem(paramMap.get("resamplingType"));
     }
 
     @Override
@@ -77,6 +81,8 @@ public class ETADCorrectionOpUI extends BaseOperatorUI {
         if (!etadFileStr.isEmpty()) {
             paramMap.put("etadFile", new File(etadFileStr));
         }
+
+        paramMap.put("resamplingType", resamplingType.getSelectedItem());
     }
 
     private JComponent createPanel() {
@@ -86,11 +92,12 @@ public class ETADCorrectionOpUI extends BaseOperatorUI {
 
         gbc.gridx = 0;
         gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Resampling Type:", resamplingType);
+        gbc.gridy++;
         DialogUtils.addInnerPanel(contentPane, gbc, etadFileLabel, etadFile, etadFileBrowseButton);
 
         DialogUtils.fillPanel(contentPane, gbc);
 
         return contentPane;
     }
-
 }
