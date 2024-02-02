@@ -150,7 +150,7 @@ public class CapellaProductReader extends SARReader {
         } else {
             for (int i = 0; i < numElems; ++i) {
                 if (srcArray[i] != nodatavalue) {
-                    elems[i] = (float) Math.sqrt(srcArray[i] * scaleFactor);
+                    elems[i] = (float) (srcArray[i] * scaleFactor);
                 } else {
                     elems[i] = nodatavalue;
                 }

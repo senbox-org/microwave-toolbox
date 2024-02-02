@@ -30,15 +30,15 @@ import java.io.File;
 import java.util.Map;
 
 /**
- * User interface for ETADCorrectionOp
+ * User interface for ETADCorrectionTOPSOp
  */
-public class ETADCorrectionOpUI extends BaseOperatorUI {
+public class ETADCorrectionTOPSOpUI extends BaseOperatorUI {
 
     private final JLabel etadFileLabel = new JLabel("ETAD File:");
     private final JTextField etadFile = new JTextField("");
     private final JButton etadFileBrowseButton = new JButton("...");
     private final JComboBox resamplingType = new JComboBox(ResamplingFactory.resamplingNames);
-
+    
     @Override
     public JComponent CreateOpTab(String operatorName, Map<String, Object> parameterMap, AppContext appContext) {
 
