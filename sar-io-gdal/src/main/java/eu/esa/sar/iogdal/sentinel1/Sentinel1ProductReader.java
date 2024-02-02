@@ -34,7 +34,6 @@ import java.nio.file.Path;
 public class Sentinel1ProductReader extends SARReader {
 
     private Sentinel1ProductDirectory dataDir;
-    private final SARProductReaderPlugIn readerPlugIn;
 
     /**
      * Constructs a new abstract product reader.
@@ -44,7 +43,6 @@ public class Sentinel1ProductReader extends SARReader {
      */
     public Sentinel1ProductReader(final SARProductReaderPlugIn readerPlugIn) {
         super(readerPlugIn);
-        this.readerPlugIn = readerPlugIn;
     }
 
     @Override
