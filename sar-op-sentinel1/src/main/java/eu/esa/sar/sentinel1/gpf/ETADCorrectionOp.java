@@ -261,17 +261,18 @@ public class ETADCorrectionOp extends Operator {
      * Called by the framework in order to compute a tile for the given target band.
      * <p>The default implementation throws a runtime exception with the message "not implemented".</p>
      *
-     * @param targetBand The target band.
-     * @param targetTile The current tile associated with the target band to be computed.
-     * @param pm         A progress monitor which should be used to determine computation cancellation requests.
-     * @throws OperatorException If an error occurs during computation of the target raster.
+     * @param targetTileMap   The target tiles associated with all target bands to be computed.
+     * @param targetRectangle The rectangle of target tile.
+     * @param pm              A progress monitor which should be used to determine computation cancelation requests.
+     * @throws OperatorException
+     *          If an error occurs during computation of the target raster.
      */
     @Override
-    public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
+    public void computeTileStack(Map<Band, Tile> targetTileMap, Rectangle targetRectangle, ProgressMonitor pm)
+            throws OperatorException {
 
         try {
             // Get source tile which is larger than the target tile
-            final Rectangle targetRectangle = targetTile.getRectangle();
             final int x0 = targetRectangle.x;
             final int y0 = targetRectangle.y;
             final int w = targetRectangle.width;
@@ -284,32 +285,36 @@ public class ETADCorrectionOp extends Operator {
 
             final int margin = selectedResampling.getKernelSize();
             final Rectangle srcRectangle = getSourceRectangle(x0, y0, w, h, margin);
-            final Band srcBand = sourceProduct.getBand(targetBand.getName());
-            final Tile srcTile = getSourceTile(srcBand, srcRectangle);
-            final ProductData srcData = srcTile.getDataBuffer();
 
-            final ProductData tgtData = targetTile.getDataBuffer();
-            final TileIndex srcIndex = new TileIndex(srcTile);
-            final TileIndex tgtIndex = new TileIndex(targetTile);
+            for (Band tgtBand : targetProduct.getBands()) {
+                final Band srcBand = sourceProduct.getBand(tgtBand.getName());
+                final Tile srcTile = getSourceTile(srcBand, srcRectangle);
+                final ProductData srcData = srcTile.getDataBuffer();
 
-            final ResamplingRaster slvResamplingRaster = new ResamplingRaster(srcTile, srcData);
-            final Resampling.Index resamplingIndex = selectedResampling.createIndex();
+                final Tile tgtTile = targetTileMap.get(tgtBand);
+                final ProductData tgtData = tgtTile.getDataBuffer();
+                final TileIndex srcIndex = new TileIndex(srcTile);
+                final TileIndex tgtIndex = new TileIndex(tgtTile);
 
-            for (int y = y0; y <= yMax; ++y) {
-                tgtIndex.calculateStride(y);
-                srcIndex.calculateStride(y);
-                final int yy = y - y0;
+                final ResamplingRaster slvResamplingRaster = new ResamplingRaster(srcTile, srcData);
+                final Resampling.Index resamplingIndex = selectedResampling.createIndex();
 
-                for (int x = x0; x <= xMax; ++ x) {
-                    final int tgtIdx = tgtIndex.getIndex(x);
-                    final int xx = x - x0;
-                    final PixelPos slavePixelPos = slavePixPos[yy][xx];
+                for (int y = y0; y <= yMax; ++y) {
+                    tgtIndex.calculateStride(y);
+                    srcIndex.calculateStride(y);
+                    final int yy = y - y0;
 
-                    selectedResampling.computeCornerBasedIndex(slavePixelPos.x, slavePixelPos.y,
-                            sourceImageWidth, sourceImageHeight, resamplingIndex);
+                    for (int x = x0; x <= xMax; ++ x) {
+                        final int tgtIdx = tgtIndex.getIndex(x);
+                        final int xx = x - x0;
+                        final PixelPos slavePixelPos = slavePixPos[yy][xx];
 
-                    final double v = selectedResampling.resample(slvResamplingRaster, resamplingIndex);
-                    tgtData.setElemDoubleAt(tgtIdx, v);
+                        selectedResampling.computeCornerBasedIndex(slavePixelPos.x, slavePixelPos.y,
+                                sourceImageWidth, sourceImageHeight, resamplingIndex);
+
+                        final double v = selectedResampling.resample(slvResamplingRaster, resamplingIndex);
+                        tgtData.setElemDoubleAt(tgtIdx, v);
+                    }
                 }
             }
 
@@ -731,7 +736,7 @@ public class ETADCorrectionOp extends Operator {
         }
     }
 
-    // todo: The following code should eventually moved into SARGeocoding and AbstractedMetadata
+    // todo: The following code should eventually be moved into SARGeocoding and AbstractedMetadata
     private MetadataElement addGRSRCoefficients(final MetadataElement coordinateConversion) {
 
         DateFormat sentinelDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
