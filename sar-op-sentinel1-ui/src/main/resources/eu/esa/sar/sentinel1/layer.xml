@@ -180,7 +180,29 @@
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="AzimuthShiftEstimationUsingESDOp"/>
             </file>
-            <file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionTOPSOp-Action.instance">
+            <file name="eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="S-1 ETAD Correction"/>
+                <attr name="operatorName" stringvalue="S1-ETAD-Correction"/>
+                <attr name="dialogTitle" stringvalue="S-1 ETAD Correction"/>
+                <attr name="ShortDescription" stringvalue="S-1 ETAD Correction"/>
+                <attr name="targetProductNameSuffix" stringvalue="_etad"/>
+                <attr name="helpId" stringvalue="S1ETADCorrectionOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <!--file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="S-1 ETAD Correction GRD"/>
+                <attr name="operatorName" stringvalue="ETAD-Correction"/>
+                <attr name="dialogTitle" stringvalue="S-1 ETAD Correction GRD"/>
+                <attr name="ShortDescription" stringvalue="ETAD Correction GRD"/>
+                <attr name="targetProductNameSuffix" stringvalue="_etad"/>
+                <attr name="helpId" stringvalue="ETADCorrectionOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file-->
+            <!--file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionTOPSOp-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
                 <attr name="displayName" stringvalue="S-1 ETAD Correction TOPS"/>
@@ -190,7 +212,7 @@
                 <attr name="targetProductNameSuffix" stringvalue="_etad"/>
                 <attr name="helpId" stringvalue="ETADCorrectionTOPSOp"/>
                 <attr name="icon" stringvalue="esaIcon"/>
-            </file>
+            </file-->
             <!--file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionSMOp-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
@@ -288,13 +310,21 @@
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-TOPSARDerampDemodOp-Action.instance"/>
                     <attr name="position" intvalue="610"/>
                 </file>
-                <file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionTOPSOp-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADCorrectionTOPSOp-Action.instance"/>
+                <file name="eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.instance"/>
+                    <attr name="position" intvalue="810"/>
+                </file>
+                <!--file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADCorrectionOp-Action.instance"/>
                     <attr name="position" intvalue="820"/>
                 </file>
-                <!--file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionSMOp-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADCorrectionSMOp-Action.instance"/>
+                <file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionTOPSOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADCorrectionTOPSOp-Action.instance"/>
                     <attr name="position" intvalue="830"/>
+                </file>
+                <file name="eu-esa-sar-sentinel1-gpf-ETADCorrectionSMOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADCorrectionSMOp-Action.instance"/>
+                    <attr name="position" intvalue="840"/>
                 </file-->
             </folder>
 
@@ -330,10 +360,22 @@
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.sentinel1.gpf.ui.TOPSARMergeOpUI"/>
             <attr name="operatorName" stringvalue="TOPSAR-Merge"/>
         </file>
+        <file name="eu.esa.sar.sentinel1.gpf.ui.S1ETADCorrectionOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.sentinel1.gpf.ui.S1ETADCorrectionOpUI"/>
+            <attr name="operatorName" stringvalue="S1-ETAD-Correction"/>
+        </file>
+        <!--file name="eu.esa.sar.sentinel1.gpf.ui.ETADCorrectionOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.sentinel1.gpf.ui.ETADCorrectionOpUI"/>
+            <attr name="operatorName" stringvalue="ETAD-Correction"/>
+        </file>
+        <file name="eu.esa.sar.sentinel1.gpf.ui.ETADCorrectionSMOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.sentinel1.gpf.ui.ETADCorrectionSMOpUI"/>
+            <attr name="operatorName" stringvalue="ETAD-Correction-SM"/>
+        </file>
         <file name="eu.esa.sar.sentinel1.gpf.ui.ETADCorrectionTOPSOpUI">
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.sentinel1.gpf.ui.ETADCorrectionTOPSOpUI"/>
             <attr name="operatorName" stringvalue="ETAD-Correction-TOPS"/>
-        </file>
+        </file-->
     </folder>
 
 </filesystem>
