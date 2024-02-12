@@ -60,8 +60,8 @@ public class TestSentinel1ProductReaderPlugIn extends AbstractProductReaderPlugI
 
     @Test
     public void testValidDecodeQualification() {
-        isValidDecodeQualification(TestData.inputS1_GRD);
-        isValidDecodeQualification(inputGRDFolder);
+        isInValidDecodeQualification(TestData.inputS1_GRD);
+        isInValidDecodeQualification(inputGRDFolder);
 
         isValidDecodeQualification(TestData.inputS1_SLC);
 

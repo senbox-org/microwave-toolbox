@@ -72,20 +72,20 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
                     if(isETAD(path)) {
                         return DecodeQualification.UNABLE;
                     }
-                    if (isLevel1(path) && isCOG(path)) {
+                    if (isLevel1(path) && isGRD(path)) {
                         return DecodeQualification.INTENDED;
                     }
                 }
                 if (filename.endsWith(".zip") && filename.startsWith("s1") && !filename.contains("_eta_") &&
                         (ZipUtils.findInZip(path.toFile(), "s1", PRODUCT_HEADER_NAME) ||
                                 ZipUtils.findInZip(path.toFile(), "rs2", PRODUCT_HEADER_NAME)) &&
-                                isCOG(path)) {
+                        isGRD(path)) {
                     return DecodeQualification.INTENDED;
                 }
                 if (filename.startsWith("s1") && filename.endsWith(".safe") && Files.isDirectory(path)) {
                     Path manifest = path.resolve(PRODUCT_HEADER_NAME);
                     if (Files.exists(manifest)) {
-                        if (isLevel1(manifest) && isCOG(manifest)) {
+                        if (isLevel1(manifest) && isGRD(manifest)) {
                             return DecodeQualification.INTENDED;
                         }
                     }
@@ -112,6 +112,10 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
             final File annotationFolder = path.getParent().resolve(ANNOTATION).toFile();
             return annotationFolder.exists() && checkFolder(annotationFolder, ".xml");
         }
+    }
+
+    static boolean isGRD(final Path path) {
+        return path.toString().toUpperCase().contains("_GRD");
     }
 
     static boolean isCOG(final Path path) {

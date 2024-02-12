@@ -61,7 +61,7 @@ public class TestSentinel1ProductReaderPlugIn extends AbstractProductReaderPlugI
     @Test
     @STTM("SNAP-3588")
     public void testValidDecodeQualification() {
-        isInValidDecodeQualification(TestData.inputS1_GRD);
+        isValidDecodeQualification(TestData.inputS1_GRD);
         isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD);
         isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD_ZIP);
         isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD_COMPRESSED_ZIP);

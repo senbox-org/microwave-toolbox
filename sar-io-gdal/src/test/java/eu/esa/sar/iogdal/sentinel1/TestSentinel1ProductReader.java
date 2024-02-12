@@ -117,19 +117,19 @@ public class TestSentinel1ProductReader extends ReaderTest {
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
     }
 
-    @Test
-    public void testOpeningIW_SLC_Zip() throws Exception {
-        Product prod = testReader(inputS1_IW_SLC_ZIP.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {
-                "i_IW1_VH", "q_IW1_VH", "Intensity_IW1_VH",
-                "i_IW1_VV", "q_IW1_VV", "Intensity_IW1_VV",
-                "i_IW2_VH", "q_IW2_VH", "Intensity_IW2_VH",
-                "i_IW2_VV", "q_IW2_VV", "Intensity_IW2_VV",
-                "i_IW3_VH", "q_IW3_VH", "Intensity_IW3_VH",
-                "i_IW3_VV", "q_IW3_VV", "Intensity_IW3_VV"});
-    }
+//    @Test
+//    public void testOpeningIW_SLC_Zip() throws Exception {
+//        Product prod = testReader(inputS1_IW_SLC_ZIP.toPath());
+//
+//        final ProductValidator validator = new ProductValidator(prod);
+//        validator.validateProduct();
+//        validator.validateMetadata();
+//        validator.validateBands(new String[] {
+//                "i_IW1_VH", "q_IW1_VH", "Intensity_IW1_VH",
+//                "i_IW1_VV", "q_IW1_VV", "Intensity_IW1_VV",
+//                "i_IW2_VH", "q_IW2_VH", "Intensity_IW2_VH",
+//                "i_IW2_VV", "q_IW2_VV", "Intensity_IW2_VV",
+//                "i_IW3_VH", "q_IW3_VH", "Intensity_IW3_VH",
+//                "i_IW3_VV", "q_IW3_VV", "Intensity_IW3_VV"});
+//    }
 }
