@@ -42,7 +42,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
     private final JComboBox resamplingType = new JComboBox(ResamplingFactory.resamplingNames);
     final JCheckBox troposphericCorrectionRgCheckBox = new JCheckBox("Tropospheric Correction (Range)");
     final JCheckBox ionosphericCorrectionRgCheckBox = new JCheckBox("Ionospheric Correction (Range)");
-    final JCheckBox geodeticCorrectionRgCheckBox = new JCheckBox("Tropospheric Correction (Range)");
+    final JCheckBox geodeticCorrectionRgCheckBox = new JCheckBox("Geodetic Correction (Range)");
     final JCheckBox dopplerShiftCorrectionRgCheckBox = new JCheckBox("Doppler Shift Correction (Range)");
     final JCheckBox geodeticCorrectionAzCheckBox = new JCheckBox("Geodetic Correction (Azimuth)");
     final JCheckBox bistaticShiftCorrectionAzCheckBox = new JCheckBox("Bistatic Shift Correction (Azimuth)");
@@ -82,7 +82,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
                 if (troposphericCorrectionRg) {
                     sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                } else {
+                } else if (!isIndividualRangeCorrectionLayerSelected()) {
                     sumOfRangeCorrectionsCheckBox.setEnabled(true);
                 }
             }
@@ -94,7 +94,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
                 if (ionosphericCorrectionRg) {
                     sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                } else {
+                } else if (!isIndividualRangeCorrectionLayerSelected()) {
                     sumOfRangeCorrectionsCheckBox.setEnabled(true);
                 }
             }
@@ -106,7 +106,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
                 if (geodeticCorrectionRg) {
                     sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                } else {
+                } else if (!isIndividualRangeCorrectionLayerSelected()) {
                     sumOfRangeCorrectionsCheckBox.setEnabled(true);
                 }
             }
@@ -118,7 +118,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
                 if (dopplerShiftCorrectionRg) {
                     sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                } else {
+                } else if (!isIndividualRangeCorrectionLayerSelected()) {
                     sumOfRangeCorrectionsCheckBox.setEnabled(true);
                 }
             }
@@ -130,7 +130,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
                 if (geodeticCorrectionAz) {
                     sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
-                } else {
+                } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
                     sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
                 }
             }
@@ -142,7 +142,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
                 if (bistaticShiftCorrectionAz) {
                     sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
-                } else {
+                } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
                     sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
                 }
             }
@@ -154,7 +154,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
                 if (fmMismatchCorrectionAz) {
                     sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
-                } else {
+                } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
                     sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
                 }
             }
@@ -195,6 +195,19 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         });
 
         return panel;
+    }
+
+    private boolean isIndividualRangeCorrectionLayerSelected() {
+        return (troposphericCorrectionRg != null && troposphericCorrectionRg) ||
+                (ionosphericCorrectionRg != null && ionosphericCorrectionRg) ||
+                (geodeticCorrectionRg != null && geodeticCorrectionRg) ||
+                (dopplerShiftCorrectionRg != null && dopplerShiftCorrectionRg);
+    }
+
+    private boolean isIndividualAzimuthCorrectionLayerSelected() {
+        return (geodeticCorrectionAz != null && geodeticCorrectionAz) ||
+                (bistaticShiftCorrectionAz != null && bistaticShiftCorrectionAz) ||
+                (fmMismatchCorrectionAz != null && fmMismatchCorrectionAz);
     }
 
     @Override
@@ -333,9 +346,4 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
         return contentPane;
     }
-
-//    private void enableExternalAuxFile(boolean flag) {
-//        DialogUtils.enableComponents(externalAuxFileLabel, externalAuxFile, flag);
-//        externalAuxFileBrowseButton.setVisible(flag);
-//    }
 }
