@@ -33,13 +33,12 @@ import java.util.Map;
     protected static final String TROPOSPHERIC_CORRECTION_RG = "troposphericCorrectionRg";
     protected static final String IONOSPHERIC_CORRECTION_RG = "ionosphericCorrectionRg";
     protected static final String GEODETIC_CORRECTION_RG = "geodeticCorrectionRg";
+    protected static final String DOPPLER_RANGE_SHIFT_RG = "dopplerRangeShiftRg";
     protected static final String GEODETIC_CORRECTION_AZ = "geodeticCorrectionAz";
     protected static final String BISTATIC_CORRECTION_AZ = "bistaticCorrectionAz";
-    protected static final String DOPPLER_RANGE_SHIFT_RG = "dopplerRangeShiftRg";
     protected static final String FM_MISMATCH_CORRECTION_AZ = "fmMismatchCorrectionAz";
     protected static final String SUM_OF_CORRECTIONS_RG = "sumOfCorrectionsRg";
     protected static final String SUM_OF_CORRECTIONS_AZ = "sumOfCorrectionsAz";
-    protected static final String PRODUCT_SUFFIX = "_etad";
 
 
     /**
