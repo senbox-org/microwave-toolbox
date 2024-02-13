@@ -1175,7 +1175,7 @@ public final class BackGeocodingOp extends Operator {
         return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 
-    static void performDerampDemod(final Tile tileI, final Tile tileQ,
+    public static void performDerampDemod(final Tile tileI, final Tile tileQ,
                                    final Rectangle rectangle, final double[][] derampDemodPhase,
                                    final double[][] derampDemodI, final double[][] derampDemodQ) {
 
@@ -1511,7 +1511,7 @@ public final class BackGeocodingOp extends Operator {
         private final boolean usesNoData;
         private final double noDataValue;
 
-        ResamplingRaster(final Tile tile, final double[][] data) {
+        public ResamplingRaster(final Tile tile, final double[][] data) {
             this.tile = tile;
             this.data = data;
             final RasterDataNode rasterDataNode = tile.getRasterDataNode();
