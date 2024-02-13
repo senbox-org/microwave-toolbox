@@ -145,16 +145,12 @@ public class S1ETADCorrectionOp extends Operator {
             validator.checkIfSARProduct();
             validator.checkIfSentinel1Product();
 
-            if ((troposphericCorrectionRg || ionosphericCorrectionRg || geodeticCorrectionRg ||
-                    dopplerShiftCorrectionRg) && sumOfRangeCorrections) {
-                throw new OperatorException("Sum Of Range Corrections cannot be selected at the same time with other"
-                        + " range corrections");
+            if (etadFile == null) {
+                throw new OperatorException("ETAD product is not available");
             }
 
-            if ((geodeticCorrectionAz || bistaticShiftCorrectionAz || fmMismatchCorrectionAz) &&
-                    sumOfAzimuthCorrections) {
-                throw new OperatorException("Sum Of Azimuth Corrections cannot be selected at the same time with other"
-                        + " azimuth corrections");
+            if (noCorrectionLayerSelected()) {
+                throw new OperatorException("No correction layer is selected");
             }
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
@@ -190,7 +186,13 @@ public class S1ETADCorrectionOp extends Operator {
             OperatorUtils.catchOperatorException(getId(), e);
         }
     }
-	
+
+    private boolean noCorrectionLayerSelected() {
+        return !troposphericCorrectionRg && !ionosphericCorrectionRg && !geodeticCorrectionRg &&
+                !dopplerShiftCorrectionRg && !geodeticCorrectionAz && !bistaticShiftCorrectionAz &&
+                !fmMismatchCorrectionAz && !sumOfAzimuthCorrections && !sumOfRangeCorrections;
+    }
+
 	private Corrector createETADCorrector() {
 		
 		final String productType = absRoot.getAttributeString(AbstractMetadata.PRODUCT_TYPE);
