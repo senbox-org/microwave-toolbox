@@ -444,8 +444,8 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         gbc.gridy++;
         contentPane.add(outputInSARPhaseCorrectionsCheckBox, gbc);
         gbc.gridy++;
-        contentPane.add(new JTextArea("PhaseDelayCorrection = troposphericCorrectionRg - ionosphericCorrectionRg" +
-                " \n                                        + geodeticCorrectionRg" +
+        contentPane.add(new JTextArea("PhaseDelayCorrection = troposphericCorrectionRg + geodeticCorrectionRg" +
+                " \n                                        - ionosphericCorrectionRg + instrumentTimingCalibrationRange" +
                 "\nNote: this option is for TOPS InSAR application only."), gbc);
 
         DialogUtils.fillPanel(contentPane, gbc);
