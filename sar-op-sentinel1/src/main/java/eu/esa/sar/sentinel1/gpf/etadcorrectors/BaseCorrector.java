@@ -214,21 +214,11 @@ import java.util.Map;
     }
 
     protected double getInstrumentAzimuthTimeCalibration(final String swathID) {
-
-        if(geodeticCorrectionAz || bistaticShiftCorrectionAz || fmMismatchCorrectionAz) {
-            return etadUtils.getAzimuthCalibration(swathID);
-        } else {
-            return 0.0;
-        }
+        return etadUtils.getAzimuthCalibration(swathID);
     }
 
     protected double getInstrumentRangeTimeCalibration(final String swathID) {
-
-        if(troposphericCorrectionRg || ionosphericCorrectionRg || geodeticCorrectionRg || dopplerShiftCorrectionRg) {
-            return etadUtils.getRangeCalibration(swathID);
-        } else {
-            return 0.0;
-        }
+        return etadUtils.getRangeCalibration(swathID);
     }
 
     protected Rectangle getSourceRectangle(final int tx0, final int ty0, final int tw, final int th, final int margin) {
