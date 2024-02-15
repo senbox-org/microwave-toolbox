@@ -35,7 +35,6 @@
         -->
         <microwavetbx.version>10.0.0-SNAPSHOT</microwavetbx.version>
 
-        <netcdf.version>5.3.3</netcdf.version>
         <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
         <json-simple.version>1.1.1</json-simple.version>
@@ -265,12 +264,6 @@
                 <groupId>org.esa.snap</groupId>
                 <artifactId>snap-rcp</artifactId>
                 <version>${snap.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>edu.ucar</groupId>
-                <artifactId>netcdfAll</artifactId>
-                <version>${netcdf.version}</version>
             </dependency>
 
             <dependency>
