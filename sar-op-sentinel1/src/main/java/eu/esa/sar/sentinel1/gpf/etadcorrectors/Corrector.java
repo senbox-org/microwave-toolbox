@@ -2,6 +2,7 @@ package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
@@ -24,6 +25,9 @@ public interface Corrector {
     void setFmMismatchCorrectionAz(final boolean flag);
     void setSumOfAzimuthCorrections(final boolean flag);
     void setSumOfRangeCorrections(final boolean flag);
+    void setResamplingImage(final boolean flag);
+    void setOutputInSARPhaseCorrections(final boolean flag);
+    Product createTargetProduct();
 
     /**
      * Called by the framework in order to compute a tile for the given target band.
