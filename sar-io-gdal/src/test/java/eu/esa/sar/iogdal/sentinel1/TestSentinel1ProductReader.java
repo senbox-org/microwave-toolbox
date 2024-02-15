@@ -97,7 +97,6 @@ public class TestSentinel1ProductReader extends ReaderTest {
     }
 
     @Test
-    @Ignore
     @STTM("SNAP-3588")
     public void testOpeningCompressedZip() throws Exception {
         Product prod = testReader(inputS1_COGGRD_COMPRESSED_ZIP.toPath());
