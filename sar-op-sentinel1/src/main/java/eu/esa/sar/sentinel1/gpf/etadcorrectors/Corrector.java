@@ -26,7 +26,7 @@ public interface Corrector {
     void setSumOfAzimuthCorrections(final boolean flag);
     void setSumOfRangeCorrections(final boolean flag);
     void setResamplingImage(final boolean flag);
-    void setOutputInSARPhaseCorrections(final boolean flag);
+    void setOutputPhaseCorrections(final boolean flag);
     Product createTargetProduct();
 
     /**

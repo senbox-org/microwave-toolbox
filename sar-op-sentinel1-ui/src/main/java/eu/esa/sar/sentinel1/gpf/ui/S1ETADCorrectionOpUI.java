@@ -40,8 +40,8 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
     private final JTextField etadFile = new JTextField("");
     private final JButton etadFileBrowseButton = new JButton("...");
     private final JCheckBox resamplingImageCheckBox = new JCheckBox("Option 1: Resampling Image");
-    private final JCheckBox outputInSARPhaseCorrectionsCheckBox =
-            new JCheckBox("Option 2: Output Interferometric Phase Correction (Range)");
+    private final JCheckBox outputPhaseCorrectionsCheckBox =
+            new JCheckBox("Option 2: Output Phase Correction (Range)");
     private final JComboBox resamplingType = new JComboBox(ResamplingFactory.resamplingNames);
     final JCheckBox troposphericCorrectionRgCheckBox = new JCheckBox("Tropospheric Correction (Range)");
     final JCheckBox ionosphericCorrectionRgCheckBox = new JCheckBox("Ionospheric Correction (Range)");
@@ -54,7 +54,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
     final JCheckBox sumOfRangeCorrectionsCheckBox = new JCheckBox("Sum Of Range Corrections");
 
     private Boolean resamplingImage = true;
-    private Boolean outputInSARPhaseCorrections = false;
+    private Boolean outputPhaseCorrections = false;
     private Boolean troposphericCorrectionRg = false;
     private Boolean ionosphericCorrectionRg = false;
     private Boolean geodeticCorrectionRg = false;
@@ -87,21 +87,21 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
                 if (resamplingImage) {
                     resamplingType.setEnabled(true);
-                    outputInSARPhaseCorrectionsCheckBox.setSelected(false);
-                    outputInSARPhaseCorrections = false;
+                    outputPhaseCorrectionsCheckBox.setSelected(false);
+                    outputPhaseCorrections = false;
                 } else {
                     resamplingType.setEnabled(false);
-                    outputInSARPhaseCorrectionsCheckBox.setSelected(true);
-                    outputInSARPhaseCorrections = true;
+                    outputPhaseCorrectionsCheckBox.setSelected(true);
+                    outputPhaseCorrections = true;
                 }
             }
         });
 
-        outputInSARPhaseCorrectionsCheckBox.addItemListener(new ItemListener() {
+        outputPhaseCorrectionsCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
-                outputInSARPhaseCorrections = (e.getStateChange() == ItemEvent.SELECTED);
+                outputPhaseCorrections = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (outputInSARPhaseCorrections) {
+                if (outputPhaseCorrections) {
                     resamplingImageCheckBox.setSelected(false);
                     resamplingType.setEnabled(false);
                     resamplingImage = false;
@@ -307,12 +307,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
         resamplingType.setSelectedItem(paramMap.get("resamplingType"));
         resamplingImage = (Boolean)paramMap.get("resamplingImage");
-        outputInSARPhaseCorrections = (Boolean)paramMap.get("outputInSARPhaseCorrections");
+        outputPhaseCorrections = (Boolean)paramMap.get("outputPhaseCorrections");
         if(resamplingImage != null) {
             resamplingImageCheckBox.setSelected(resamplingImage);
         }
-        if(outputInSARPhaseCorrections != null) {
-            outputInSARPhaseCorrectionsCheckBox.setSelected(outputInSARPhaseCorrections);
+        if(outputPhaseCorrections != null) {
+            outputPhaseCorrectionsCheckBox.setSelected(outputPhaseCorrections);
         }
 
         troposphericCorrectionRg = (Boolean)paramMap.get("troposphericCorrectionRg");
@@ -377,7 +377,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
         paramMap.put("resamplingType", resamplingType.getSelectedItem());
         paramMap.put("resamplingImage", resamplingImage);
-        paramMap.put("outputInSARPhaseCorrections", outputInSARPhaseCorrections);
+        paramMap.put("outputPhaseCorrections", outputPhaseCorrections);
 
         paramMap.put("troposphericCorrectionRg", troposphericCorrectionRg);
         paramMap.put("ionosphericCorrectionRg", ionosphericCorrectionRg);
@@ -442,11 +442,11 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
         gbc.gridx = 0;
         gbc.gridy++;
-        contentPane.add(outputInSARPhaseCorrectionsCheckBox, gbc);
+        contentPane.add(outputPhaseCorrectionsCheckBox, gbc);
         gbc.gridy++;
-        contentPane.add(new JTextArea("PhaseDelayCorrection = troposphericCorrectionRg + geodeticCorrectionRg" +
-                " \n                                        - ionosphericCorrectionRg + instrumentTimingCalibrationRange" +
-                "\nNote: this option is for TOPS InSAR application only."), gbc);
+        contentPane.add(new JTextArea("PhaseCorrection = -2 * \u03c0 * f * (troposphericCorrectionRg + geodeticCorrectionRg" +
+                " \n                               - ionosphericCorrectionRg + instrumentTimingCalibrationRange)" +
+                "\nwhere f is the radar frequency. Note this option is for TOPS InSAR application only."), gbc);
 
         DialogUtils.fillPanel(contentPane, gbc);
 

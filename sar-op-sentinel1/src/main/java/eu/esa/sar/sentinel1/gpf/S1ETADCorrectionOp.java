@@ -77,9 +77,9 @@ public class S1ETADCorrectionOp extends Operator {
             label = "Resampling Image")
     private boolean resamplingImage = true;
 
-    @Parameter(description = "Output Interferometric Phase Corrections", defaultValue = "false",
-            label = "Output Interferometric Phase Corrections")
-    private boolean outputInSARPhaseCorrections = false;
+    @Parameter(description = "Output Phase Corrections", defaultValue = "false",
+            label = "Output Phase Corrections")
+    private boolean outputPhaseCorrections = false;
 
     @Parameter(description = "Tropospheric Correction (Range)", defaultValue = "false",
             label = "Tropospheric Correction (Range)")
@@ -184,7 +184,7 @@ public class S1ETADCorrectionOp extends Operator {
             throw new OperatorException("No correction layer is selected");
         }
 
-        if (outputInSARPhaseCorrections && !(acquisitionMode.equals("IW") && productType.equals("SLC"))) {
+        if (outputPhaseCorrections && !(acquisitionMode.equals("IW") && productType.equals("SLC"))) {
             throw new OperatorException("Option 2 is for Sentinel-1 TOPS SLC product only");
         }
     }
@@ -222,7 +222,7 @@ public class S1ETADCorrectionOp extends Operator {
         etadCorrector.setSumOfAzimuthCorrections(sumOfAzimuthCorrections);
         etadCorrector.setSumOfRangeCorrections(sumOfRangeCorrections);
         etadCorrector.setResamplingImage(resamplingImage);
-        etadCorrector.setOutputInSARPhaseCorrections(outputInSARPhaseCorrections);
+        etadCorrector.setOutputPhaseCorrections(outputPhaseCorrections);
         etadCorrector.initialize();
         targetProduct = etadCorrector.createTargetProduct();
     }

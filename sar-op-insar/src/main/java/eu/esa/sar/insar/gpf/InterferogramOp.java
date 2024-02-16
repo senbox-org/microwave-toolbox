@@ -172,7 +172,6 @@ public class InterferogramOp extends Operator {
     private int subSwathIndex = 0;
     private MetadataElement mstRoot = null;
     private boolean subtractETADPhase = false;
-    private double radarFrequency = 0.0;
 
     private static final boolean CREATE_VIRTUAL_BAND = true;
     private static final boolean OUTPUT_PHASE = false;
@@ -183,7 +182,7 @@ public class InterferogramOp extends Operator {
     private static final String ELEVATION = "elevation";
     private static final String LATITUDE = " orthorectifiedLat";
     private static final String LONGITUDE = "orthorectifiedLon";
-    private static final String INSAR_RANGE_CORRECTION = "inSARRangeCorrection";
+    private static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
     private static final String MASTER_TAG = "mst";
     private static final String SLAVE_TAG = "slv";
 
@@ -467,15 +466,14 @@ public class InterferogramOp extends Operator {
         boolean hasMstETADBand = false;
         boolean hasSlvETADBand = false;
         for (String bandName : sourceProduct.getBandNames()) {
-            if (bandName.contains(INSAR_RANGE_CORRECTION) && bandName.contains(MASTER_TAG)) {
+            if (bandName.contains(ETAD_PHASE_CORRECTION) && bandName.contains(MASTER_TAG)) {
                 hasMstETADBand = true;
             }
-            if (bandName.contains(INSAR_RANGE_CORRECTION) && bandName.contains(SLAVE_TAG)) {
+            if (bandName.contains(ETAD_PHASE_CORRECTION) && bandName.contains(SLAVE_TAG)) {
                 hasSlvETADBand = true;
             }
         }
         subtractETADPhase = hasMstETADBand & hasSlvETADBand;
-        radarFrequency = mstRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // in Hz
     }
 
     private void createTargetProduct() throws Exception {
@@ -1558,10 +1556,10 @@ public class InterferogramOp extends Operator {
         Band slvETADBand = null;
         for (Band band : sourceProduct.getBands()) {
             final String bandName = band.getName();
-            if (bandName.contains(INSAR_RANGE_CORRECTION) && bandName.contains(MASTER_TAG)) {
+            if (bandName.contains(ETAD_PHASE_CORRECTION) && bandName.contains(MASTER_TAG)) {
                 mstETADBand = band;
             }
-            if (bandName.contains(INSAR_RANGE_CORRECTION) && bandName.contains(SLAVE_TAG)) {
+            if (bandName.contains(ETAD_PHASE_CORRECTION) && bandName.contains(SLAVE_TAG)) {
                 slvETADBand = band;
             }
         }
@@ -1591,8 +1589,7 @@ public class InterferogramOp extends Operator {
 
                 final double mstETADCorr = mstETADData.getElemDoubleAt(mstIdx);
                 final double slvETADCorr = slvETADData.getElemDoubleAt(slvIdx);
-                final double deltaDelay = mstETADCorr - slvETADCorr;
-                etadPhase[yy][xx] = -2.0 * Constants.PI * deltaDelay * radarFrequency;
+                etadPhase[yy][xx] = mstETADCorr - slvETADCorr;
             }
         }
         return etadPhase;

@@ -131,7 +131,7 @@ public final class BackGeocodingOp extends Operator {
 
     private static final double invalidIndex = -9999.0;
 
-    private static final String INSAR_RANGE_CORRECTION = "inSARRangeCorrection";
+    private static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
     private static final String PRODUCT_SUFFIX = "_Stack";
 
     private boolean outputDEM = false;
@@ -357,7 +357,7 @@ public final class BackGeocodingOp extends Operator {
                     continue;
                 }
 
-                if (bandName.contains(INSAR_RANGE_CORRECTION)) {
+                if (bandName.contains(ETAD_PHASE_CORRECTION)) {
                     slaveData.foundETADCorrection = true;
                 }
 
@@ -1384,7 +1384,7 @@ public final class BackGeocodingOp extends Operator {
             throws OperatorException {
 
         try {
-            final String etadCorrBandName = INSAR_RANGE_CORRECTION + "_" + swathID; // add polarization if needed
+            final String etadCorrBandName = ETAD_PHASE_CORRECTION + "_" + swathID; // add polarization if needed
             final Band slaveETADCorrBand = slaveData.slaveProduct.getBand(etadCorrBandName);
             final Tile slaveETADCorrTile = getSourceTile(slaveETADCorrBand, sourceRectangle);
             final double[][] inSARRangeCorrection = getETADCorrection(slaveETADCorrTile, sourceRectangle);

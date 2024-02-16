@@ -33,7 +33,7 @@ import java.util.Map;
     protected boolean sumOfAzimuthCorrections = false;
     protected boolean sumOfRangeCorrections = false;
     protected boolean resamplingImage = false;
-    protected boolean outputInSARPhaseCorrections = false;
+    protected boolean outputPhaseCorrections = false;
 
     protected static final String TROPOSPHERIC_CORRECTION_RG = "troposphericCorrectionRg";
     protected static final String IONOSPHERIC_CORRECTION_RG = "ionosphericCorrectionRg";
@@ -44,9 +44,9 @@ import java.util.Map;
     protected static final String FM_MISMATCH_CORRECTION_AZ = "fmMismatchCorrectionAz";
     protected static final String SUM_OF_CORRECTIONS_RG = "sumOfCorrectionsRg";
     protected static final String SUM_OF_CORRECTIONS_AZ = "sumOfCorrectionsAz";
-    protected static final String INSAR_RANGE_CORRECTION = "inSARRangeCorrection";
-    protected static final String RANGE_CORRECTION = "rangeCorrection";
-    protected static final String AZIMUTH_CORRECTION = "azimuthCorrection";
+    protected static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
+    protected static final String ETAD_RANGE_CORRECTION = "etadRangeCorrection";
+    protected static final String ETAAD_AZIMUTH_CORRECTION = "etadAzimuthCorrection";
     protected static final String PRODUCT_SUFFIX = "_etad";
 
 
@@ -102,8 +102,8 @@ import java.util.Map;
         resamplingImage = flag;
     }
 
-    public void setOutputInSARPhaseCorrections(final boolean flag) {
-        outputInSARPhaseCorrections = flag;
+    public void setOutputPhaseCorrections(final boolean flag) {
+        outputPhaseCorrections = flag;
     }
 
     public Product createTargetProduct() {

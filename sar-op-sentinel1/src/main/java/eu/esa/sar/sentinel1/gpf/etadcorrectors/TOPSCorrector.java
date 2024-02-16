@@ -11,6 +11,7 @@ import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
@@ -34,6 +35,7 @@ import java.util.Map;
     private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private double noDataValue = 0.0;
+    private double radarFrequency = 0.0;
 
 
     /**
@@ -65,6 +67,9 @@ import java.util.Map;
             if(masterBandI != null && masterBandI.isNoDataValueUsed()) {
                 noDataValue = masterBandI.getNoDataValue();
             }
+
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            radarFrequency = absRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // in Hz
         } catch (Throwable e) {
             throw new OperatorException(e);
         }
@@ -76,7 +81,7 @@ import java.util.Map;
         targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX, sourceProduct.getProductType(),
                 sourceImageWidth, sourceImageHeight);
 
-        if (outputInSARPhaseCorrections) {
+        if (outputPhaseCorrections) {
 
             for (Band srcBand : sourceProduct.getBands()) {
                 if (srcBand instanceof VirtualBand) {
@@ -91,9 +96,9 @@ import java.util.Map;
                 }
             }
 
-            final String bandName = INSAR_RANGE_CORRECTION + "_" + subSwath.subSwathName;
+            final String bandName = ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName;
             final Band targetBand = new Band(bandName, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
-            targetBand.setUnit("s");
+            targetBand.setUnit(Unit.RADIANS);
             targetProduct.addBand(targetBand);
 
         } else { // resampling image
@@ -180,7 +185,7 @@ import java.util.Map;
             getInSARRangeTimeCorrectionForCurrentTile(x0, y0, w, h, mBurstIndex, correction);
             final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
 
-            final String targetBandName = INSAR_RANGE_CORRECTION + "_" + subSwath.subSwathName;
+            final String targetBandName = ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName;
             final Band targetBand = targetProduct.getBand(targetBandName);
             final Tile targetTile = targetTileMap.get(targetBand);
             final ProductData tgtData = targetTile.getDataBuffer();
@@ -196,7 +201,9 @@ import java.util.Map;
                     final int tgtIdx = tgtIndex.getIndex(x);
                     final int xx = x - x0;
 
-                    tgtData.setElemDoubleAt(tgtIdx, correction[yy][xx] + rangeTimeCalibration);
+                    final double delay = correction[yy][xx] + rangeTimeCalibration;
+                    final double phase = -2.0 * Constants.PI * delay * radarFrequency; // delay time (s) to phase (radian)
+                    tgtData.setElemDoubleAt(tgtIdx, phase);
                 }
             }
 
