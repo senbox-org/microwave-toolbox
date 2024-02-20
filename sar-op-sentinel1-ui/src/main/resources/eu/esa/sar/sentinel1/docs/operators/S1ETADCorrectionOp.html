@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Sentinel-1</title>
+
+
+    <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+    <link href="../style.css" rel="stylesheet"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; ETAD Correction for Sentinel-1 Products<br>
+        </td>
+        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+<h3>ETAD Correction for Sentinel-1 Products</h3>
+<p> The operator applies the ETAD correction to Sentinel-1&nbsp;TOPS
+SLC, Stripmap and GRD products.
+The Extended Timing Annotation Dataset (ETAD) for Copernicus Sentinel-1
+is a new auxiliary product developed by ESA (with DLR as contractor),
+providing users with corrections to improve geometric accuracy of
+Sentinel-1 Products. For Sentinel-1 TOPS SLC images, the&nbsp;geometric
+accuracy can be improved to centimetric levels. The product contains
+analysis-ready layers for removing the atmospheric path delays, the
+solid Earth tidal deformation, and the Sentinel-1 system specific
+effects related to the IPF SAR processor.&nbsp;</p><p>The&nbsp;operator currently performs the ETAD correction in two ways:</p><ol><li>Compute
+for each pixel the range and azimuth offsets based on the user selected
+ETAD correction layers, then resample the image based on the range and
+azimuth offsets;&nbsp;</li><li>Compute for each pixel the&nbsp;ETAD
+correction using the phase delay range layers, converts them to phase
+corrections and saves them as phase correction band.&nbsp;</li></ol><p>
+The second option above is for&nbsp;TOPS SLC product only and for InSAR
+application. The phase correction is computed by the following
+equation:&nbsp;</p><p style="margin-left: 40px;">PhaseCorrection = -2 *
+&#960; * f * (troposphericCorrectionRg + geodeticCorrectionRg -
+ionosphericCorrectionRg + instrumentTimingCalibrationRange)</p><p>where
+f is the radar frequency. With this option, the ETAD correction is
+converted to phase correction and output as a band. Users can perform
+the ETAD correction to both the reference and secondary images, then
+coregister them by running Back Geocoding operator where the phase
+correction band is also resampled to the reference image grid. Finally
+users can generate the interferogram by running Interferogram Formation
+operator where the differential phase correction is computed and applied in the calculation of interferogram. <br></p><h4>Input</h4>
+<ul>
+    <li>The input to this operator could be the split Sentinel-1 TOPS SLC product, Stripmap SLC product or GRD product.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li>The output of the operator is the ETAD corrected product.</li>
+</ul>
+
+
+<h4>Parameters Used</h4>
+<ul>
+    <li>ETAD File: The ETAD product&nbsp;provided in a SAFE product container.</li><li>Resampling Type: Interpolation methods for resampling the image. </li><li>Option 1: Checkbox for image resampling selection.&nbsp;</li><li>Option 2: Checkbox for output phase correction selection.&nbsp; </li>
+</ul>
+
+
+<br>
+<p><img style="width: 478px; height: 444px;" alt="" src="images/S1ETADCorrectionOp.jpg"><br></p><br>
+<h3>Reference:</h3>
+<p>[1] S1-ETAD Project: Product definition Document, Doc. ID ETAD-DLR-PS-0002, Issue 2.4, Date 06.03.2023, Page 1 of 37.</p><p>[2] S1-ETAD: Product Format Specification Document, Doc. ID ETAD-DLR-PS-0014, Issue 1.8, Date 06.03.2023, Page 1 of 63.</p>
+
+<hr>
+</body></html>
