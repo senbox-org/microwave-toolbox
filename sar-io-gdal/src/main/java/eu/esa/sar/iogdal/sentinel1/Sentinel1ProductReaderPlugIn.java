@@ -72,20 +72,20 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
                     if(isETAD(path)) {
                         return DecodeQualification.UNABLE;
                     }
-                    if (isLevel1(path) && isCOG(path)) {
+                    if (isLevel1(path) && isGRD(path)) {
                         return DecodeQualification.INTENDED;
                     }
                 }
                 if (filename.endsWith(".zip") && filename.startsWith("s1") && !filename.contains("_eta_") &&
                         (ZipUtils.findInZip(path.toFile(), "s1", PRODUCT_HEADER_NAME) ||
                                 ZipUtils.findInZip(path.toFile(), "rs2", PRODUCT_HEADER_NAME)) &&
-                        ZipUtils.findInZip(path.toFile(), "s1", "cog.tiff")) {
+                        isGRD(path)) {
                     return DecodeQualification.INTENDED;
                 }
                 if (filename.startsWith("s1") && filename.endsWith(".safe") && Files.isDirectory(path)) {
                     Path manifest = path.resolve(PRODUCT_HEADER_NAME);
                     if (Files.exists(manifest)) {
-                        if (isLevel1(manifest) && isCOG(manifest)) {
+                        if (isLevel1(manifest) && isGRD(manifest)) {
                             return DecodeQualification.INTENDED;
                         }
                     }
@@ -114,13 +114,18 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
         }
     }
 
+    static boolean isGRD(final Path path) {
+        return path.toString().toUpperCase().contains("_GRD");
+    }
+
     static boolean isCOG(final Path path) {
-        if (ZipUtils.isZip(path)) {
-            return ZipUtils.findInZip(path.toFile(), "s1", "_cog.tiff");
-        } else {
-            final File measurementFolder = path.getParent().resolve(MEASUREMENT).toFile();
-            return measurementFolder.exists() && checkFolder(measurementFolder, "cog.tiff");
-        }
+        return true;
+//        if (ZipUtils.isZip(path)) {
+//            return ZipUtils.findInZip(path.toFile(), "s1", "cog.tiff");
+//        } else {
+//            final File measurementFolder = path.getParent().resolve(MEASUREMENT).toFile();
+//            return measurementFolder.exists() && checkFolder(measurementFolder, "cog.tiff");
+//        }
     }
 
     private static boolean checkFolder(final File folder, final String extension) {
