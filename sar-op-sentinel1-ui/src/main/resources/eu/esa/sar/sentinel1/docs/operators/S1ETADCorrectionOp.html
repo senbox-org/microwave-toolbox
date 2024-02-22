@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Sentinel-1</title>
+
+
+    <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+    <link href="../style.css" rel="stylesheet"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; ETAD Correction for Sentinel-1 Products<br>
+        </td>
+        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+<h3>ETAD Correction for Sentinel-1 Products</h3>
+<p> The operator applies the ETAD correction to Sentinel-1&nbsp;TOPS
+SLC, Stripmap and GRD products.
+The Extended Timing Annotation Dataset (ETAD) for Copernicus Sentinel-1
+is a new auxiliary product developed by ESA (with DLR as contractor),
+providing users with corrections to improve the geometric accuracy of
+Sentinel-1 Products. For Sentinel-1 TOPS SLC images, the&nbsp;geometric
+accuracy can be improved to centimetric levels. The product contains
+analysis-ready layers for removing the atmospheric path delays, the
+solid Earth tidal deformation, and the Sentinel-1 system specific
+effects related to the IPF SAR processor.&nbsp;The&nbsp;operator computes
+for all pixels the range and azimuth offsets based on the user selected
+ETAD correction layers, then resamples the image based on the computed range and
+azimuth offsets.&nbsp;</p><p>For
+TOPS SLC product,&nbsp;the&nbsp;operator currently requires the users
+split the product into sub-swathes and applies the ETAD correction to
+the split product. It also requires the users to provide the ETAD
+product correspondingto the Sentinel-1 product. In future, the ETAD product will be downloaded automatically. </p><h4>Input</h4>
+<ul>
+    <li>The input to this operator could be the split Sentinel-1 TOPS SLC product, Stripmap SLC product or GRD product.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li>The output of the operator is the ETAD corrected product.</li>
+</ul>
+
+
+<h4>Parameters Used</h4>
+<ul>
+    <li>Resampling Type: The interpolation methods used for resampling the image. </li><li>ETAD File: The ETAD product&nbsp;provided in a SAFE product container.</li><li>ETAD
+Correction Layers: The range and azimuth correction layers available
+for ETAD correction. Note that the "Sum Of Range Corrections" layer
+contains all the individual range correction layers in it, and the "Sum
+Of Azimuth Corrections" contains all the individual azimuth correction
+layers. Therefore, they should not be selected together with any of the
+individual layers.</li></ul>
+<p><img style="width: 449px; height: 446px;" alt="" src="images/S1ETADCorrectionOp.jpg"><br></p><br>
+<h3>Reference:</h3>
+<p>[1] S1-ETAD Project: Product definition Document, Doc. ID ETAD-DLR-PS-0002, Issue 2.4, Date 06.03.2023, Page 1 of 37.</p><p>[2] S1-ETAD: Product Format Specification Document, Doc. ID ETAD-DLR-PS-0014, Issue 1.8, Date 06.03.2023, Page 1 of 63.</p>
+
+<hr>
+</body></html>
