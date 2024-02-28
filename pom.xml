@@ -124,7 +124,7 @@
         </repository>
     </repositories>
 
-    <pluginRepositories>
+    <!-- <pluginRepositories>
         <pluginRepository>
             <id>snap-repo-public</id>
             <name>Public Maven Repository for SNAP</name>
@@ -138,7 +138,7 @@
                 <checksumPolicy>warn</checksumPolicy>
             </snapshots>
         </pluginRepository>
-    </pluginRepositories>
+    </pluginRepositories> -->
 
     <distributionManagement>
         <repository>
