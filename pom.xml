@@ -6,7 +6,7 @@
 
     <groupId>eu.esa.microwavetbx</groupId>
     <artifactId>microwave-toolbox</artifactId>
-    <version>10.0.0-SNAPSHOT</version>
+    <version>11.0.0-SNAPSHOT</version>
     <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
     <description>Tools for SAR Earth Observation</description>
@@ -25,7 +25,7 @@
         <test.jvm.arguments>-Xmx${test.jvm.maxheapsize}</test.jvm.arguments>
         <surefire.jvm.args>${test.jvm.arguments} -enableassertions</surefire.jvm.args>
 
-        <snap.version>10.0.0-SNAPSHOT</snap.version>
+        <snap.version>11.0.0-SNAPSHOT</snap.version>
         <snap-help-system.version>1.0.0</snap-help-system.version>
         <!--
             microwavetbx.version is the Maven module version.
@@ -33,7 +33,7 @@
             It is used to filter manifest.mf and set the manifest's "OpenIDE-Module-Specification-Version" header.
             This is necessary to make NetBeans modules updatable and independent of the Maven version (= microwavetbx.version).
         -->
-        <microwavetbx.version>10.0.0-SNAPSHOT</microwavetbx.version>
+        <microwavetbx.version>11.0.0-SNAPSHOT</microwavetbx.version>
 
         <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
