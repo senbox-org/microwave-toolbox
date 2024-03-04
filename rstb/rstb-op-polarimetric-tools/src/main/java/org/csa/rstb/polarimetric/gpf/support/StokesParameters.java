@@ -97,7 +97,7 @@ public class StokesParameters {
         g[0] = kr[0] * kr[0] + ki[0] * ki[0] + kr[1] * kr[1] + ki[1] * ki[1];
         g[1] = kr[0] * kr[0] + ki[0] * ki[0] - kr[1] * kr[1] - ki[1] * ki[1];
         g[2] = 2 * (kr[0] * kr[1] + ki[0] * ki[1]);
-        g[3] = -2 * (ki[0] * kr[0] - kr[0] * ki[1]);
+        g[3] = 2 * (ki[0] * kr[1] - kr[0] * ki[1]);
     }
 
     /**
