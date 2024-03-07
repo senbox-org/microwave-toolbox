@@ -299,10 +299,11 @@ public class GeneralWishart extends PolClassifierBase implements PolClassifier, 
 
         final StatusProgressMonitor status = new StatusProgressMonitor(StatusProgressMonitor.TYPE.SUBTASK);
         status.beginTask("Creating Initial Clusters... ", tileRectangles.length);
-        final ThreadExecutor executor = new ThreadExecutor();
 
         final int[] counter = new int[numCategories + 1]; // number of pixels in all categories, last category for mixed
         final double[][] pwr = new double[numCategories + 1][srcHeight * srcWidth];
+
+        final ThreadExecutor executor = new ThreadExecutor();
 
         try {
             for (final Rectangle rectangle : tileRectangles) {
@@ -532,9 +533,6 @@ public class GeneralWishart extends PolClassifierBase implements PolClassifier, 
                     final Tile[] sourceTiles = new Tile[srcBandList.srcBands.length];
                     final ProductData[] dataBuffers = new ProductData[srcBandList.srcBands.length];
 
-                    final double[][] Tr = new double[3][3];
-                    final double[][] Ti = new double[3][3];
-
                     @Override
                     public void process() {
                         final int x0 = rectangle.x;
@@ -549,6 +547,9 @@ public class GeneralWishart extends PolClassifierBase implements PolClassifier, 
                             sourceTiles[i] = op.getSourceTile(srcBandList.srcBands[i], rectangle);
                             dataBuffers[i] = sourceTiles[i].getDataBuffer();
                         }
+
+                        final double[][] Tr = new double[3][3];
+                        final double[][] Ti = new double[3][3];
 
                         final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
                         for (int y = y0; y < yMax; ++y) {
@@ -756,8 +757,6 @@ public class GeneralWishart extends PolClassifierBase implements PolClassifier, 
         final StatusProgressMonitor status = new StatusProgressMonitor(StatusProgressMonitor.TYPE.SUBTASK);
         status.beginTask("Computing Final Cluster Centres... ", tileRectangles.length * maxIterations);
 
-        final ThreadExecutor executor = new ThreadExecutor();
-
         try {
             for (int it = 0; (it < maxIterations && !endIteration); ++it) {
                 //System.out.println("Iteration: " + it);
@@ -775,15 +774,14 @@ public class GeneralWishart extends PolClassifierBase implements PolClassifier, 
                     newClusterCenters.add(newCenters);
                 }
 
+                final ThreadExecutor executor = new ThreadExecutor();
+
                 for (final Rectangle rectangle : tileRectangles) {
 
                     final ThreadRunnable worker = new ThreadRunnable() {
 
                         final Tile[] sourceTiles = new Tile[srcBandList.srcBands.length];
                         final ProductData[] dataBuffers = new ProductData[srcBandList.srcBands.length];
-
-                        final double[][] Tr = new double[3][3];
-                        final double[][] Ti = new double[3][3];
 
                         @Override
                         public void process() {
@@ -802,6 +800,9 @@ public class GeneralWishart extends PolClassifierBase implements PolClassifier, 
                                 dataBuffers[i] = sourceTiles[i].getDataBuffer();
                             }
                             final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
+
+                            final double[][] Tr = new double[3][3];
+                            final double[][] Ti = new double[3][3];
 
                             for (int y = y0; y < yMax; ++y) {
                                 for (int x = x0; x < xMax; ++x) {
