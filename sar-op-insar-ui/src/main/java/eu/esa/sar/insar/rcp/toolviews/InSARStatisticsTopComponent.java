@@ -22,6 +22,7 @@ import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatESDHistogram;
 import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatESDMeasure;
 import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatInSARInfo;
 import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatResiduals;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatETADMeasure;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductManager;
 import org.esa.snap.core.datamodel.ProductNode;
@@ -124,6 +125,7 @@ public class InSARStatisticsTopComponent extends TopComponent {
         statisticList.add(new StatESDHistogram(this));
         statisticList.add(new StatBaselines(this));
         statisticList.add(new StatBaselinesChart(this));
+        statisticList.add(new StatETADMeasure(this));
 
         for (InSARStatistic statistic : statisticList) {
             tabbedPane.add(statistic.getName(), statistic.createPanel());
