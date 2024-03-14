@@ -304,7 +304,7 @@ public final class TerrainFlatteningOp extends Operator {
 
         final String mission = RangeDopplerGeocodingOp.getMissionType(absRoot);
         final String pass = absRoot.getAttributeString(AbstractMetadata.PASS);
-        if (mission.equals("RS2") && pass.contains("DESCENDING")) {
+        if ((mission.equals("RS2") || mission.equals("RCM")) && pass.contains("DESCENDING")) {
             nearRangeOnLeft = false;
         }
 
