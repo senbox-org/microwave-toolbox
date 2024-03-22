@@ -40,6 +40,7 @@ public class Missions {
     public static final String WORLDVIEW2 = "WorldView-2";
     public static final String WORLDVIEW3 = "WorldView-3";
     public static final String WORLDVIEW4 = "WorldView-4";
+    public static final String NISAR = "NISAR";
 
     public static String[] getList() {
         return new String[]{
