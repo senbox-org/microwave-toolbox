@@ -50,6 +50,7 @@ public class Missions {
                 KOMPSAT3,
                 KOMPSAT5,
                 LANDSAT8,
+                NISAR,
                 PLANETSCOPE,
                 PLEIADES,
                 RADARSAT1,

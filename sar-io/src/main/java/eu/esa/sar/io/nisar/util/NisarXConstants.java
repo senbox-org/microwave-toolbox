@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
 package eu.esa.sar.io.nisar.util;
 
 public class NisarXConstants {
@@ -99,8 +114,8 @@ public class NisarXConstants {
     public static final String COMPLEX = "COMPLEX";
     public static final String DETECTED = "DETECTED";
     //    NisarProductReaderPlugIn
-    private static final String NISAR_FORMAT_NAMES = "NisarProduct";
-    private static final String NISAR_FORMAT_FILE_EXTENSIONS = "h5";
+    private static final String NISAR_FORMAT_NAMES = "NISAR";
+    private static final String NISAR_FORMAT_FILE_EXTENSIONS = ".h5";
 
     private NisarXConstants() {
         //not allowed to instantiated
