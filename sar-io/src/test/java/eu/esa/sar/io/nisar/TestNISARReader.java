@@ -79,7 +79,7 @@ public class TestNISARReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         //validator.validateProduct();
         //validator.validateMetadata();
-        validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateBands(new String[] {"correlationSurfacePeak_HH", "i_ifg_HH", "q_ifg_HH", "slantRangeOffset_HH", "coherenceMagnitude_HH", "alongTrackOffset_HH"});
     }
 
     @Test

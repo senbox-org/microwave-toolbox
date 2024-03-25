@@ -30,7 +30,6 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class NisarProductReader extends SARReader {
 

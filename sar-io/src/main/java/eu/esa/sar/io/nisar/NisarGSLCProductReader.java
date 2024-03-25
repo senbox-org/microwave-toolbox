@@ -18,7 +18,6 @@ package eu.esa.sar.io.nisar;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.netcdf.NcAttributeMap;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
 import eu.esa.sar.io.netcdf.NetCDFReader;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
@@ -37,9 +36,7 @@ import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.ma2.Array;
-import ucar.ma2.IndexIterator;
 import ucar.ma2.StructureData;
-import ucar.ma2.StructureDataIterator;
 import ucar.nc2.*;
 
 import java.io.File;

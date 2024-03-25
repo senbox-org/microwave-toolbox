@@ -18,7 +18,6 @@ package eu.esa.sar.io.nisar;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.netcdf.NcAttributeMap;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
 import eu.esa.sar.io.netcdf.NetCDFReader;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
@@ -310,8 +309,7 @@ public class NisarRIFGProductReader extends SARReader {
 
     @Override
     public void close() throws IOException {
-        if (product != null) {
-            product = null;
+        if (netcdfFile != null) {
             netcdfFile.close();
             netcdfFile = null;
         }
