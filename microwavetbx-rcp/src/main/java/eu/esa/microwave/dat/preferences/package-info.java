@@ -16,7 +16,7 @@
 @OptionsPanelController.ContainerRegistration(
         id = "Microwave",
         categoryName = "#LBL_MicrowaveTBXOptionsCategory_Name",
-        iconBase = "eu/esa/microwave/dat/icons/s1_32x.png",
+        iconBase = "eu/esa/microwave/dat/icons/microwave_icon_32.png",
         keywords = "#LBL_MicrowaveTBXOptionsCategory_Keywords",
         keywordsCategory = "MicrowaveTBX",
         position = 1000
