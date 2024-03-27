@@ -15,8 +15,8 @@
  */
 package eu.esa.sar.io.nisar;
 
-import eu.esa.sar.io.nisar.util.NisarXConstants;
 import eu.esa.sar.io.netcdf.NetCDFReaderPlugIn;
+import eu.esa.sar.io.nisar.util.NisarXConstants;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;

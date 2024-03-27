@@ -17,8 +17,14 @@ package eu.esa.sar.io.nisar;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
+import eu.esa.sar.io.nisar.subreaders.NisarGCOVProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarGSLCProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarRIFGProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarROFFProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarRSLCProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarSubReader;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
-import org.esa.snap.core.dataio.ProductReader;
+import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
@@ -26,6 +32,7 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import ucar.nc2.NetcdfFile;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,9 +40,7 @@ import java.nio.file.Path;
 
 public class NisarProductReader extends SARReader {
 
-    private String productType = null;
-    private ProductReader reader;
-    private boolean isSLC = false;
+    private NisarSubReader subReader;
 
     /**
      * Constructs a new abstract product reader.
@@ -73,27 +78,42 @@ public class NisarProductReader extends SARReader {
                 }
 
                 if (fileName.contains("_rslc_")) {
-                    productType = "RSLC";
-                    isSLC = true;
-                    reader = new NisarRSLCProductReader(getReaderPlugIn());
+                    subReader = new NisarRSLCProductReader();
                 } else if (fileName.contains("_roff_")) {
-                    productType = "ROFF";
-                    reader = new NisarROFFProductReader(getReaderPlugIn());
+                    subReader = new NisarROFFProductReader();
                 } else if (fileName.contains("_rifg_")) {
-                    productType = "RIFG";
-                    reader = new NisarRIFGProductReader(getReaderPlugIn());
+                    subReader = new NisarRIFGProductReader();
                 } else if (fileName.contains("_gslc_")) {
-                    productType = "GSLC";
-                    reader = new NisarGSLCProductReader(getReaderPlugIn());
+                    subReader = new NisarGSLCProductReader();
                 } else if (fileName.contains("_gcov_")) {
-                    productType = "GCOV";
-                    reader = new NisarGCOVProductReader(getReaderPlugIn());
+                    subReader = new NisarGCOVProductReader();
                 }
             }
-            if(reader == null) {
+            if(subReader == null) {
                 throw new Exception("NISAR product type not supported: " + fileName);
             }
-            return reader.readProductNodes(inputFile, getSubsetDef());
+
+            final NetcdfFile netcdfFile = NetcdfFile.open(inputFile.getPath());
+            if (netcdfFile == null) {
+                close();
+                throw new IllegalFileFormatException(inputFile.getName() +
+                        " Could not be interpreted by the reader.");
+            }
+
+            if (netcdfFile.getRootGroup().getGroups().isEmpty()) {
+                close();
+                throw new IllegalFileFormatException("No netCDF groups found.");
+            }
+
+            Product product = subReader.readProduct(this, netcdfFile, inputFile);
+
+            addCommonSARMetadata(product);
+            setQuicklookBandName(product);
+
+            product.getGcpGroup();
+            product.setModified(false);
+
+            return product;
         } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
         }
@@ -102,8 +122,8 @@ public class NisarProductReader extends SARReader {
 
     @Override
     public void close() throws IOException {
-        if (reader != null) {
-            reader.close();
+        if (subReader != null) {
+            subReader.close();
         }
         super.close();
     }
@@ -116,12 +136,8 @@ public class NisarProductReader extends SARReader {
                                           int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
                                           int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
                                           ProgressMonitor pm) throws IOException {
-        if(isSLC) {
-            ((NisarRSLCProductReader)reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
+
+        subReader.readBandRasterDataImpl(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
                     sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer, pm);
-        } else if(productType.equals("ROFF")) {
-            ((NisarROFFProductReader)reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
-                    sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer, pm);
-        }
     }
 }
