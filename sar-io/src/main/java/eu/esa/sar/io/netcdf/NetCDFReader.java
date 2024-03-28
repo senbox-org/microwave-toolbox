@@ -19,6 +19,7 @@ import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
+import org.esa.snap.core.dataio.geocoding.GeoCodingFactory;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.util.Guardian;
 import org.esa.snap.core.util.SystemUtils;
@@ -242,9 +243,7 @@ public class NetCDFReader extends SARReader {
                 break;
         }
         if (latBand != null && lonBand != null) {
-            product.setSceneGeoCoding(new PixelGeoCoding(latBand, lonBand,
-                    latBand.getValidPixelExpression(),
-                    5, ProgressMonitor.NULL));
+            product.setSceneGeoCoding(GeoCodingFactory.createPixelGeoCoding(latBand, lonBand));
         }
     }
 
