@@ -145,14 +145,6 @@ public class S1ETADCorrectionOp extends Operator {
             validator.checkIfSARProduct();
             validator.checkIfSentinel1Product();
 
-            if (etadFile == null) {
-                throw new OperatorException("ETAD product is not available");
-            }
-
-            if (noCorrectionLayerSelected()) {
-                throw new OperatorException("No correction layer is selected");
-            }
-
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
             selectedResampling = ResamplingFactory.createResampling(resamplingType);
@@ -160,11 +152,13 @@ public class S1ETADCorrectionOp extends Operator {
                 throw new OperatorException("Resampling method "+ resamplingType + " is invalid");
             }
 
-            etadProduct = getETADProduct(etadFile);
+            if (etadFile != null) {
+                etadProduct = getETADProduct(etadFile);
 
-            validateETADProduct(sourceProduct, etadProduct);
+                validateETADProduct(sourceProduct, etadProduct);
 
-            etadUtils = new ETADUtils(etadProduct);
+                etadUtils = new ETADUtils(etadProduct);
+            }
 
             createTargetProduct();
 
@@ -305,6 +299,14 @@ public class S1ETADCorrectionOp extends Operator {
     @Override
     public void computeTileStack(Map<Band, Tile> targetTileMap, Rectangle targetRectangle, ProgressMonitor pm)
             throws OperatorException {
+
+        if (etadFile == null) {
+            throw new OperatorException("ETAD product is not available");
+        }
+
+        if (noCorrectionLayerSelected()) {
+            throw new OperatorException("No correction layer is selected");
+        }
 
         try {
             etadCorrector.computeTileStack(targetTileMap, targetRectangle, pm, this);
