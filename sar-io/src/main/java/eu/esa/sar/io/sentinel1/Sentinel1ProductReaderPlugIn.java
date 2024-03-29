@@ -132,15 +132,6 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
         }
     }
 
-    static boolean isCOG(final Path path) {
-        if (ZipUtils.isZip(path)) {
-            return ZipUtils.findInZip(path.toFile(), "s1", "_cog.tiff");
-        } else {
-            final File measurementFolder = path.getParent().resolve(MEASUREMENT).toFile();
-            return measurementFolder.exists() && checkFolder(measurementFolder, "cog.tiff");
-        }
-    }
-
     static boolean isGRD(final Path path) {
         return path.toString().toUpperCase().contains("_GRD");
     }

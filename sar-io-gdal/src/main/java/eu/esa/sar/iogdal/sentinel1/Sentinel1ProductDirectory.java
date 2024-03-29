@@ -64,6 +64,7 @@ public class Sentinel1ProductDirectory extends XMLProductDirectory {
 
     private static final GTiffDriverProductReaderPlugIn readerPlugin = new GTiffDriverProductReaderPlugIn();
     private final Map<String, ReaderData> bandProductMap = new HashMap<>();
+    private final Map<String, ReaderData> bandNameReaderDataMap = new HashMap<>();
 
     private final Map<Band, TiePointGeoCoding> bandGeocodingMap = new HashMap<>(5);
     private final transient Map<String, String> imgBandMetadataMap = new HashMap<>(4);
@@ -72,14 +73,19 @@ public class Sentinel1ProductDirectory extends XMLProductDirectory {
 
     private final static Double NoDataValue = 0.0;//-9999.0;
 
-    private static class ReaderData {
+    public static class ReaderData {
         ProductReader reader;
         Product bandProduct;
         Dimension bandDimensions;
     }
 
+    public ReaderData getReaderData(final String bandName) {
+        return bandNameReaderDataMap.get(bandName);
+    }
+
     @Override
     public void close() throws IOException {
+        super.close();
         for (ReaderData data : bandProductMap.values()) {
             if (data.bandProduct != null) {
                 data.bandProduct.dispose();
@@ -156,40 +162,39 @@ public class Sentinel1ProductDirectory extends XMLProductDirectory {
                 if (isSLC()) {
                     String unit;
 
-//                    for (int b = 0; b < img.getNumBands(); ++b) {
-//                        if (real) {
-//                            bandName = "i" + '_' + suffix;
-//                            unit = Unit.REAL;
-//                        } else {
-//                            bandName = "q" + '_' + suffix;
-//                            unit = Unit.IMAGINARY;
-//                        }
-//
-//                        final Band band = new Band(bandName, ProductData.TYPE_INT16, width, height);
-//                        band.setUnit(unit);
-//                        band.setNoDataValueUsed(true);
-//                        band.setNoDataValue(NoDataValue);
-//
-//                        product.addBand(band);
-//                        final ImageIOFile.BandInfo bandInfo = new ImageIOFile.BandInfo(band, img, i, b);
-//                        bandMap.put(band, bandInfo);
-//                        AbstractMetadata.addBandToBandMap(bandMetadata, bandName);
-//
-//                        if (real) {
-//                            lastRealBand = band;
-//                        } else {
-//                            ReaderUtils.createVirtualIntensityBand(product, lastRealBand, band, '_' + suffix);
-//                            bandInfo.setRealBand(lastRealBand);
-//                            bandMap.get(lastRealBand).setImaginaryBand(band);
-//                        }
-//                        real = !real;
-//
-//                        // add tiepointgrids and geocoding for band
-//                        addTiePointGrids(product, band, imgName, tpgPrefix);
-//
-//                        // reset to null so it doesn't adopt a geocoding from the bands
-//                        product.setSceneGeoCoding(null);
-//                    }
+                    for(Band band : img.bandProduct.getBands()) {
+                        if (real) {
+                            bandName = "i" + '_' + suffix;
+                            unit = Unit.REAL;
+                        } else {
+                            bandName = "q" + '_' + suffix;
+                            unit = Unit.IMAGINARY;
+                        }
+
+                        final Band newBand = new Band(bandName, ProductData.TYPE_INT16, width, height);
+                        newBand.setUnit(unit);
+                        newBand.setNoDataValueUsed(true);
+                        newBand.setNoDataValue(NoDataValue);
+                        //newBand.setSourceImage(band.getSourceImage());
+
+                        bandNameReaderDataMap.put(bandName, img);
+
+                        product.addBand(newBand);
+                        AbstractMetadata.addBandToBandMap(bandMetadata, bandName);
+
+                        if (real) {
+                            lastRealBand = newBand;
+                        } else {
+                            ReaderUtils.createVirtualIntensityBand(product, lastRealBand, newBand, '_' + suffix);
+                        }
+                        real = !real;
+
+                        // add tiepointgrids and geocoding for band
+                        addTiePointGrids(product, newBand, imgName, tpgPrefix);
+
+                        // reset to null so it doesn't adopt a geocoding from the bands
+                        product.setSceneGeoCoding(null);
+                    }
                 } else {
                     for(Band band : img.bandProduct.getBands()) {
                         bandName = "Amplitude" + '_' + suffix;
@@ -705,7 +710,7 @@ public class Sentinel1ProductDirectory extends XMLProductDirectory {
                 final String annotFolder = getRootFolder() + "annotation";
                 final String[] filenames = listFiles(annotFolder);
 
-                addTiePointGrids(product, null, filenames[0], "");
+                //addTiePointGrids(product, null, filenames[0], "");
 
                 latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
                 lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
