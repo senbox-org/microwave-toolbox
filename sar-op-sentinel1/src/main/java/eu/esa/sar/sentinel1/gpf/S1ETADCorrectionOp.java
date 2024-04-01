@@ -101,13 +101,13 @@ public class S1ETADCorrectionOp extends Operator {
             label = "FM Mismatch Correction (Azimuth)")
     private boolean fmMismatchCorrectionAz = false;
 
-    @Parameter(description = "Sum Of Azimuth Corrections", defaultValue = "false",
+    @Parameter(description = "Sum Of Azimuth Corrections", defaultValue = "true",
             label = "Sum Of Azimuth Corrections")
-    private boolean sumOfAzimuthCorrections = false;
+    private boolean sumOfAzimuthCorrections = true;
 
-    @Parameter(description = "Sum Of Range Corrections", defaultValue = "false",
+    @Parameter(description = "Sum Of Range Corrections", defaultValue = "true",
             label = "Sum Of Range Corrections")
-    private boolean sumOfRangeCorrections = false;
+    private boolean sumOfRangeCorrections = true;
 
     private Corrector etadCorrector;
     private MetadataElement absRoot = null;

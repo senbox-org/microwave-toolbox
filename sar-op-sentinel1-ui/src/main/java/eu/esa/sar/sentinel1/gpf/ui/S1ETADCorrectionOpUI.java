@@ -260,10 +260,21 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
         if(sumOfAzimuthCorrections != null) {
             sumOfAzimuthCorrectionsCheckBox.setSelected(sumOfAzimuthCorrections);
+            if (sumOfAzimuthCorrections) {
+                geodeticCorrectionAzCheckBox.setEnabled(false);
+                bistaticShiftCorrectionAzCheckBox.setEnabled(false);
+                fmMismatchCorrectionAzCheckBox.setEnabled(false);
+            }
         }
 
         if(sumOfRangeCorrections != null) {
             sumOfRangeCorrectionsCheckBox.setSelected(sumOfRangeCorrections);
+            if (sumOfRangeCorrections) {
+                troposphericCorrectionRgCheckBox.setEnabled(false);
+                ionosphericCorrectionRgCheckBox.setEnabled(false);
+                geodeticCorrectionRgCheckBox.setEnabled(false);
+                dopplerShiftCorrectionRgCheckBox.setEnabled(false);
+            }
         }
     }
 
@@ -311,6 +322,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         correctionLayerSelectionPanel.setBorder(BorderFactory.createTitledBorder("Select correction layers:"));
 
         gbc2.gridx = 0;
+        correctionLayerSelectionPanel.add(sumOfRangeCorrectionsCheckBox, gbc2);
+        gbc2.gridx = 1;
+        correctionLayerSelectionPanel.add(sumOfAzimuthCorrectionsCheckBox, gbc2);
+
+        gbc2.gridy++;
+        gbc2.gridx = 0;
         correctionLayerSelectionPanel.add(troposphericCorrectionRgCheckBox, gbc2);
         gbc2.gridx = 1;
         correctionLayerSelectionPanel.add(geodeticCorrectionAzCheckBox, gbc2);
@@ -330,12 +347,6 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         gbc2.gridy++;
         gbc2.gridx = 0;
         correctionLayerSelectionPanel.add(dopplerShiftCorrectionRgCheckBox, gbc2);
-        gbc2.gridx = 1;
-        correctionLayerSelectionPanel.add(sumOfAzimuthCorrectionsCheckBox, gbc2);
-
-        gbc2.gridy++;
-        gbc2.gridx = 0;
-        correctionLayerSelectionPanel.add(sumOfRangeCorrectionsCheckBox, gbc2);
         gbc2.gridx = 1;
 //        correctionLayerSelectionPanel.add(interferometricPhaseCorrectionRgCheckBox, gbc2);
 
