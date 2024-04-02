@@ -262,6 +262,8 @@ public class S1ETADCorrectionOp extends Operator {
             final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
                     srcBand.getRasterWidth(), srcBand.getRasterHeight());
 
+            targetBand.setNoDataValueUsed(true);
+            targetBand.setNoDataValue(srcBand.getNoDataValue());
             targetBand.setUnit(srcBand.getUnit());
             targetBand.setDescription(srcBand.getDescription());
             targetProduct.addBand(targetBand);
