@@ -31,9 +31,9 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestSentinel1ETADProductReader extends ReaderTest {
 
-    public final static File inputS1ETAD_IW = new File(TestData.inputSAR+"S1_ETAD/ETAD/IW-Philippines/S1A_IW_ETA__AXSV_20200124T095712_20200124T095837_030941_038D5C_270C.SAFE/manifest.safe");
-    public final static File inputS1ETAD_SM = new File(TestData.inputSAR+"S1_ETAD/ETAD/SM-Nigeria/S1A_S6_ETA__AXDV_20190810T044708_20190810T044822_028502_0338D0_985E.SAFE/manifest.safe");
-    public final static File inputS1ETAD_SM_ZIP = new File(TestData.inputSAR+"S1_ETAD/ETAD/S1A_S6_ETA__AXDV_20190810T044708_20190810T044822_028502_0338D0_985E.SAFE.zip");
+    public final static File inputS1ETAD_IW = new File(TestData.inputSAR+"S1/ETAD/IW-Philippines/S1A_IW_ETA__AXSV_20200124T095712_20200124T095837_030941_038D5C_270C.SAFE/manifest.safe");
+    public final static File inputS1ETAD_SM = new File(TestData.inputSAR+"S1/ETAD/SM-Nigeria/S1A_S6_ETA__AXDV_20190810T044708_20190810T044822_028502_0338D0_985E.SAFE/manifest.safe");
+    public final static File inputS1ETAD_SM_ZIP = new File(TestData.inputSAR+"S1/ETAD/S1A_S6_ETA__AXDV_20190810T044708_20190810T044822_028502_0338D0_985E.SAFE.zip");
 
     public TestSentinel1ETADProductReader() {
         super(new Sentinel1ETADProductReaderPlugIn());
