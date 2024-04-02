@@ -933,40 +933,40 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier, "ESA ALOS IPF");
 /*		AbstractMetadata.setAttribute(absRoot, AbstractMetadata.percent_RFI_power_rejected,
                         sceneRec.getAttributeDouble("RFI %power rejected"));
-		int fmethod = sceneRec.getAttributeInt("Faraday rotation method flag");
+        int fmethod = sceneRec.getAttributeInt("Faraday rotation method flag");
 
-		if(!(fmethod==0)) {
-			AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_rotation_angle,
+        if(!(fmethod==0)) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_rotation_angle,
                         sceneRec.getAttributeDouble("Faraday rotation angle"));
-		}
-		if(fmethod==2) {
-			AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_angle_estimation_method,"FROM PLR PRODUCT");
-		}
-		else if(fmethod==1) {
-			AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_angle_estimation_method,"FROM TEC DATA");
-		}
-		if(fmethod==2) {
-			int val = sceneRec.getAttributeInt("Faraday correction applied flag");
-			if(val==1) AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_correction_applied,"TRUE");
-			else AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_correction_applied,"FALSE");
-			val = sceneRec.getAttributeInt("Crosstalk correction applied flag");
-			if(val==1) AbstractMetadata.setAttribute(absRoot, AbstractMetadata.cross_talk_correction_applied,"TRUE");
+        }
+        if(fmethod==2) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_angle_estimation_method,"FROM PLR PRODUCT");
+        }
+        else if(fmethod==1) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_angle_estimation_method,"FROM TEC DATA");
+        }
+        if(fmethod==2) {
+            int val = sceneRec.getAttributeInt("Faraday correction applied flag");
+            if(val==1) AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_correction_applied,"TRUE");
+            else AbstractMetadata.setAttribute(absRoot, AbstractMetadata.Faraday_correction_applied,"FALSE");
+            val = sceneRec.getAttributeInt("Crosstalk correction applied flag");
+            if(val==1) AbstractMetadata.setAttribute(absRoot, AbstractMetadata.cross_talk_correction_applied,"TRUE");
                         else AbstractMetadata.setAttribute(absRoot, AbstractMetadata.cross_talk_correction_applied,"FALSE");
-			val = sceneRec.getAttributeInt("Channel imbalance correction applied flag");
+            val = sceneRec.getAttributeInt("Channel imbalance correction applied flag");
                         if(val==1) AbstractMetadata.setAttribute(absRoot, AbstractMetadata.channel_imbalance_correction_applied,"TRUE");
                         else AbstractMetadata.setAttribute(absRoot, AbstractMetadata.channel_imbalance_correction_applied,"FALSE");
-			val = sceneRec.getAttributeInt("Channel symmetrisation applied flag");
+            val = sceneRec.getAttributeInt("Channel symmetrisation applied flag");
                         if(val==1) AbstractMetadata.setAttribute(absRoot, AbstractMetadata.symmetrisation_applied,"TRUE");
                         else AbstractMetadata.setAttribute(absRoot, AbstractMetadata.symmetrisation_applied,"FALSE");
-		}
+        }
 
-		AbstractMetadata.setAttribute(absRoot, AbstractMetadata.irsr_const,
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.irsr_const,
                         sceneRec.getAttributeDouble("Image range to slant constant term"));
-		AbstractMetadata.setAttribute(absRoot, AbstractMetadata.irsr_lin,
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.irsr_lin,
                         sceneRec.getAttributeDouble("Image range to slant linear term"));
-		AbstractMetadata.setAttribute(absRoot, AbstractMetadata.irsr_quad,
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.irsr_quad,
                         sceneRec.getAttributeDouble("Image range to slant quadratic term"));
-		AbstractMetadata.setAttribute(absRoot, AbstractMetadata.irsr_cubic,
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.irsr_cubic,
                         sceneRec.getAttributeDouble("Image range to slant cubic term"));
 */
         } else {
@@ -1158,7 +1158,7 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
                         sb.append(secondStr);
                         sb.append("000"); // a 'quirk' of UTC.parse is that it wants msec of day (which it rounds to
 //					     integer seconds) - it will take a period '.' followed by the fractional
-//					     time in msecs (or microsecs) ... 
+//					     time in msecs (or microsecs) ...
                         sb.append('.');
 
                         String millisecondStr = String.valueOf(milliseconds);
@@ -1384,7 +1384,7 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
             for (int c = 0; c < gridWidth; c++) {
                 int x;
                 x = (c * isubSamplingX);
-// Tie-point grid needs lat/long at top left corner of pixel - public getPixelDouble returns the tie point value 
+// Tie-point grid needs lat/long at top left corner of pixel - public getPixelDouble returns the tie point value
 // corresponding to x+0.5, y+0.5
 //
                 final double slrgTime = 0.5 * (slantRangeTime.getPixelFloat(x - 1, y - 1) + slantRangeTime.getPixelFloat(x, y)) / Constants.oneBillion; // ns to s;

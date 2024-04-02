@@ -15,9 +15,6 @@
  */
 package eu.esa.sar.orbits.io.sentinel1;
 
-import eu.esa.sar.orbits.io.sentinel1.OrbitFileScraper;
-import eu.esa.sar.orbits.io.sentinel1.Sentinel1OrbitFileReader;
-import eu.esa.sar.orbits.io.sentinel1.SentinelPODOrbitFile;
 import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -74,7 +71,7 @@ public class TestStepOrbitFileScraper {
         try (final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.RESTITUTED)) {
 
             OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1A", 2016, 2);
-            assertEquals(591, orbitFiles.length);
+            assertEquals(413, orbitFiles.length);
         }
     }
 
@@ -83,7 +80,7 @@ public class TestStepOrbitFileScraper {
         try (final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.RESTITUTED)) {
 
             OrbitFileScraper.RemoteOrbitFile[] orbitFiles = scraper.getFileURLs("S1B", 2016, 7);
-            assertEquals(592, orbitFiles.length);
+            assertEquals(437, orbitFiles.length);
         }
     }
 

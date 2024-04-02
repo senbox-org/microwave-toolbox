@@ -44,7 +44,7 @@ public class Sentinel1ProductReader extends SARReader {
 
     protected Sentinel1Directory dataDir = null;
     private final DataCache cache;
-    private final boolean useCache = true;
+    private final boolean useCache = false;
 
     /**
      * Constructs a new abstract product reader.

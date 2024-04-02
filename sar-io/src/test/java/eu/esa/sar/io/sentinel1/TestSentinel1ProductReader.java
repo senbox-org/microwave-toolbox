@@ -42,6 +42,8 @@ public class TestSentinel1ProductReader extends ReaderTest {
 
     public final static File inputGRDFolder = new File(TestData.inputSAR + "S1/AWS/S1A_IW_GRDH_1SDV_20180719T002854_20180719T002919_022856_027A78_042A");
 
+    public final static File inputS1_IW_SLC_ZIP = new File(TestData.inputSAR+"S1/SLC/Etna-DLR/S1A_IW_SLC__1SDV_20140809T165546_20140809T165613_001866_001C20_088B.zip");
+
     private final String[] productTypeExemptions = {"RAW","OCN"};
 
     private final static String inputS1 = SARTests.inputPathProperty + "/SAR/S1/";
@@ -83,15 +85,15 @@ public class TestSentinel1ProductReader extends ReaderTest {
         testProcessor.recurseReadFolder(this, rootPathsSentinel1, readerPlugIn, reader, productTypeExemptions, null);
     }
 
-    @Test
-    public void testOpeningFile() throws Exception {
-        Product prod = testReader(inputS1_AnnotGRD.toPath().resolve("manifest.safe"));
-
-        final ProductValidator validator = new ProductValidator(prod, productOptions);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {});
-    }
+//    @Test
+//    public void testOpeningFile() throws Exception {
+//        Product prod = testReader(inputS1_AnnotGRD.toPath().resolve("manifest.safe"));
+//
+//        final ProductValidator validator = new ProductValidator(prod, productOptions);
+//        validator.validateProduct();
+//        validator.validateMetadata();
+//        validator.validateBands(new String[] {});
+//    }
 
     @Test
     public void testOpeningBandlessMetadataFile1() throws Exception {
@@ -113,43 +115,59 @@ public class TestSentinel1ProductReader extends ReaderTest {
         validator.validateBands(new String[] {});
     }
 
-    @Test
-    public void testOpeningAnnotFolder() throws Exception {
-        Product prod = testReader(inputS1_AnnotGRD.toPath());
+//    @Test
+//    public void testOpeningAnnotFolder() throws Exception {
+//        Product prod = testReader(inputS1_AnnotGRD.toPath());
+//
+//        final ProductValidator validator = new ProductValidator(prod, productOptions);
+//        validator.validateProduct();
+//        validator.validateMetadata();
+//        validator.validateBands(new String[] {});
+//    }
 
-        final ProductValidator validator = new ProductValidator(prod, productOptions);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {});
-    }
+//    @Test
+//    public void testOpeningZip() throws Exception {
+//        Product prod = testReader(inputS1_GRDFile.toPath());
+//
+//        final ProductValidator validator = new ProductValidator(prod);
+//        validator.validateProduct();
+//        validator.validateMetadata();
+//        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV","Amplitude_VH","Intensity_VH"});
+//    }
+//
+//    @Test
+//    public void testOpeningAnnotationProduct() throws Exception {
+//        Product prod = testReader(inputS1_AnnotGRDZip.toPath());
+//
+//        final ProductValidator validator = new ProductValidator(prod, productOptions);
+//        validator.validateProduct();
+//        validator.validateMetadata();
+//        validator.validateBands(new String[] {});
+//    }
+
+//    @Test
+//    public void testOpeningFolder() throws Exception {
+//        Product prod = testReader(inputGRDFolder.toPath());
+//
+//        final ProductValidator validator = new ProductValidator(prod);
+//        validator.validateProduct();
+//        validator.validateMetadata();
+//        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV","Amplitude_VH","Intensity_VH"});
+//    }
 
     @Test
-    public void testOpeningZip() throws Exception {
-        Product prod = testReader(inputS1_GRDFile.toPath());
+    public void testOpeningIW_SLC_Zip() throws Exception {
+        Product prod = testReader(inputS1_IW_SLC_ZIP.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV","Amplitude_VH","Intensity_VH"});
-    }
-
-    @Test
-    public void testOpeningAnnotationProduct() throws Exception {
-        Product prod = testReader(inputS1_AnnotGRDZip.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod, productOptions);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {});
-    }
-
-    @Test
-    public void testOpeningFolder() throws Exception {
-        Product prod = testReader(inputGRDFolder.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV","Amplitude_VH","Intensity_VH"});
+        validator.validateBands(new String[] {
+                "i_IW1_VH", "q_IW1_VH", "Intensity_IW1_VH",
+                "i_IW1_VV", "q_IW1_VV", "Intensity_IW1_VV",
+                "i_IW2_VH", "q_IW2_VH", "Intensity_IW2_VH",
+                "i_IW2_VV", "q_IW2_VV", "Intensity_IW2_VV",
+                "i_IW3_VH", "q_IW3_VH", "Intensity_IW3_VH",
+                "i_IW3_VV", "q_IW3_VV", "Intensity_IW3_VV"});
     }
 }

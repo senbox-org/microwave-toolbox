@@ -17,7 +17,6 @@ package eu.esa.sar.io.TAXI;
 
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.TestData;
-import eu.esa.sar.io.TAXI.TAXIParameterFileReader;
 import eu.esa.sar.io.terrasarx.TerraSarXProductReaderPlugIn;
 import org.junit.Before;
 import org.junit.Test;

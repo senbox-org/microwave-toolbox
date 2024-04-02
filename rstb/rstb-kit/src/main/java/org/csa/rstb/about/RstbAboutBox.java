@@ -15,7 +15,6 @@
  */
 package org.csa.rstb.about;
 
-import org.esa.snap.rcp.about.AboutBox;
 import org.esa.snap.rcp.util.BrowserUtils;
 import org.openide.modules.ModuleInfo;
 import org.openide.modules.Modules;

@@ -6,12 +6,12 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>11.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-cloud</artifactId>
     <name>SAR Cloud Tools</name>
-	
+    
     <packaging>nbm</packaging>
 
     <properties>
@@ -78,7 +78,7 @@
                         <publicPackage>eu.esa.sar.*</publicPackage>
                         <publicPackage>org.json.simple.*</publicPackage>
                         <publicPackage>com.fasterxml.jackson.*</publicPackage>
-						<publicPackage>javax.xml.stream.*</publicPackage>
+                        <publicPackage>javax.xml.stream.*</publicPackage>
                         <publicPackage>org.apache.olingo.odata2.*</publicPackage>
                         <publicPackage>org.jasypt.*</publicPackage>
                     </publicPackages>

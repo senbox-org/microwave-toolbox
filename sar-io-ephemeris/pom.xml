@@ -6,13 +6,13 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>11.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-io-ephemeris</artifactId>
     <name>SAR IO Orbit Ephemeris</name>
-	<description>Orbit Ephemeris</description>
-	
+    <description>Orbit Ephemeris</description>
+    
     <packaging>nbm</packaging>
 
     <properties>

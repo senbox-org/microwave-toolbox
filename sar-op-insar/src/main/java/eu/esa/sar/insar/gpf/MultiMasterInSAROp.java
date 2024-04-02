@@ -78,7 +78,7 @@ public class MultiMasterInSAROp extends Operator {
 
     @Parameter(description = "List of interferometric pairs", label = "InSAR pairs")
     private String[] pairs; // {"ddMMMyyyy-ddMMMyyyy", "ddMMMyyyy-ddMMMyyyy", ...,"ddMMMyyyy-ddMMMyyyy"}
-    private String[][] parsedPairs; // {{"ddMMMyyyy", "ddMMMyyyy"}, {"ddMMMyyyy", "ddMMMyyyy"}, ...,{"ddMMMyyyy", "ddMMMyyyy"}}
+    String[][] parsedPairs; // {{"ddMMMyyyy", "ddMMMyyyy"}, {"ddMMMyyyy", "ddMMMyyyy"}, ...,{"ddMMMyyyy", "ddMMMyyyy"}}
 
     @Parameter(defaultValue = "true", label = "Include wavenumber")
     private boolean includeWavenumber = true;
@@ -117,21 +117,21 @@ public class MultiMasterInSAROp extends Operator {
     private Band targetBandLongitude;
 
     // These apply per interferometric pair
-    private Map<Band, List<Band>> interferogramPairMap = new HashMap<>(10);
-    private Map<Band, List<Band>> interferogramMap = new HashMap<>(10);
-    private Map<Band, Band> complexInterferogramMap = new HashMap<>(10);
-    private Map<Band, List<Band>> coherenceMap = new HashMap<>(10);
+    private final Map<Band, List<Band>> interferogramPairMap = new HashMap<>(10);
+    private final Map<Band, List<Band>> interferogramMap = new HashMap<>(10);
+    private final Map<Band, Band> complexInterferogramMap = new HashMap<>(10);
+    private final Map<Band, List<Band>> coherenceMap = new HashMap<>(10);
 
     // Constants
     private static final String WAVENUMBER_BAND_NAME_PREFIX = "wavenumber";
 
-    private static final String DEM_BAND_NAME_PREFIX = "elevation";
-    private static final String INCIDENCE_ANGLE_BAND_NAME = "incidenceAngle";
-    private static final String LAT_BAND_NAME = "lat";
-    private static final String LON_BAND_NAME = "lon";
+    static final String DEM_BAND_NAME_PREFIX = "elevation";
+    static final String INCIDENCE_ANGLE_BAND_NAME = "incidenceAngle";
+    static final String LAT_BAND_NAME = "lat";
+    static final String LON_BAND_NAME = "lon";
 
-    private static final String IFG_BAND_NAME_TAG = "ifg";
-    private static final String COHERENCE_BAND_NAME_PREFIX = "coh";
+    static final String IFG_BAND_NAME_TAG = "ifg";
+    static final String COHERENCE_BAND_NAME_PREFIX = "coh";
 
     private static final String PRODUCT_SUFFIX = "_mmifg";
 
@@ -186,22 +186,25 @@ public class MultiMasterInSAROp extends Operator {
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
         // Define source bands
-        Band sourceBandI = null;
-        Band sourceBandQ = null;
+        Band refSourceBandI = null;
+        Band refSourceBandQ = null;
 
         // Get source I/Q bands (master); skip if not in any pair
         final String[] masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
         for (String bandName : masterBandNames) {
             if (bandName.contains("i_")) {
-                sourceBandI = sourceProduct.getBand(bandName);
+                refSourceBandI = sourceProduct.getBand(bandName);
             } else {
-                sourceBandQ = sourceProduct.getBand(bandName);
+                refSourceBandQ = sourceProduct.getBand(bandName);
+            }
+            if(refSourceBandI != null && refSourceBandQ != null) {
+                break;
             }
         }
         for (String date : datesInPairsList) {
             final Band sourceBandToCheck = dateMap.get(date);
-            if (sourceBandI == sourceBandToCheck) {
-                complexSrcMap.put(sourceBandI, sourceBandQ); // (source I: source Q) band pairs
+            if (refSourceBandI == sourceBandToCheck) {
+                complexSrcMap.put(refSourceBandI, refSourceBandQ); // (source I: source Q) band pairs
                 datesInPairsList.remove(date);
                 break;
             }
@@ -210,27 +213,33 @@ public class MultiMasterInSAROp extends Operator {
         // Get source I/Q bands (slaves) and create wavenumber band; skip if not in any pair
         final String[] slaveProductNames = StackUtils.getSlaveProductNames(sourceProduct);
         for (String slaveProductName : slaveProductNames) {
+            Band secSourceBandI = null;
+            Band secSourceBandQ = null;
+
             final String[] slvBandNames = StackUtils.getSlaveBandNames(sourceProduct, slaveProductName);
             for (String bandName : slvBandNames) {
                 if (bandName.contains("i_")) {
-                    sourceBandI = sourceProduct.getBand(bandName);
+                    secSourceBandI = sourceProduct.getBand(bandName);
                 } else {
-                    sourceBandQ = sourceProduct.getBand(bandName);
+                    secSourceBandQ = sourceProduct.getBand(bandName);
+                }
+                if(secSourceBandI != null && secSourceBandQ != null) {
+                    break;
                 }
             }
             for (String date : datesInPairsList) {
                 final Band sourceBandToCheck = dateMap.get(date);
-                if (sourceBandI == sourceBandToCheck) {
-                    complexSrcMap.put(sourceBandI, sourceBandQ); // (source I: source Q) band pairs
+                if (secSourceBandI == sourceBandToCheck) {
+                    complexSrcMap.put(secSourceBandI, secSourceBandQ); // (source I: source Q) band pairs
                     if (includeWavenumber) {
                         // Add wavenumber band to targetProduct
-                        final String wavenumberBandName = WAVENUMBER_BAND_NAME_PREFIX + StackUtils.getBandSuffix(sourceBandI.getName());
+                        final String wavenumberBandName = WAVENUMBER_BAND_NAME_PREFIX + StackUtils.getBandSuffix(secSourceBandI.getName());
                         final Band targetBandWavenumber = targetProduct.addBand(wavenumberBandName, ProductData.TYPE_FLOAT32);
                         targetBandWavenumber.setUnit("radians/meter");
                         targetBandWavenumber.setDescription("Vertical wavenumber");
 
                         // Store in a HashMap
-                        wavenumberMap.put(sourceBandI, targetBandWavenumber); // (source I: wavenumber) band pairs
+                        wavenumberMap.put(secSourceBandI, targetBandWavenumber); // (source I: wavenumber) band pairs
                     }
                     datesInPairsList.remove(date);
                     break;
@@ -239,7 +248,7 @@ public class MultiMasterInSAROp extends Operator {
         }
 
         // Check if there are invalid pairs (i.e., pairs whose dates are not found in the source product)
-        if (datesInPairsList.size() > 0) {
+        if (!datesInPairsList.isEmpty()) {
             throw new OperatorException("Check pairs. Invalid dates found: " + datesInPairsList.toString());
         }
 
@@ -299,14 +308,14 @@ public class MultiMasterInSAROp extends Operator {
         Band sourceBandI1;
         Band sourceBandQ1;
 
-        for (int i = 0; i < parsedPairs.length; i++) {
+        for (String[] parsedPair : parsedPairs) {
             // Get source bands (I and Q) for each image in the pair
-            sourceBandI0 = dateMap.get(parsedPairs[i][0]);
+            sourceBandI0 = dateMap.get(parsedPair[0]);
             sourceBandQ0 = complexSrcMap.get(sourceBandI0);
-            sourceBandI1 = dateMap.get(parsedPairs[i][1]);
+            sourceBandI1 = dateMap.get(parsedPair[1]);
 
             // Add interferometric I/Q bands to targetProduct
-            final String pairDates = String.join("_", parsedPairs[i]);
+            final String pairDates = String.join("_", parsedPair);
 
             final String ifgBandNameI = String.join("_", "i", IFG_BAND_NAME_TAG, pairDates);
             final Band targetBandIfgI = targetProduct.addBand(ifgBandNameI, ProductData.TYPE_FLOAT32);
@@ -398,7 +407,7 @@ public class MultiMasterInSAROp extends Operator {
     /**
      * Get InSAR pairs
      */
-    private List<String> getPairs() throws Exception {
+    List<String> getPairs() throws Exception {
         // If no pairs have been provided, define sequential pairs
         if (pairs != null && pairs.length > 0) {
             parsedPairs = new String[pairs.length][2];
@@ -428,9 +437,9 @@ public class MultiMasterInSAROp extends Operator {
 
         // Get list of (unique) dates present in pairs
         final List<String> datesInPairsList = new ArrayList<>();
-        for (int i = 0; i < parsedPairs.length; i++) {
-            datesInPairsList.add(parsedPairs[i][0]);
-            datesInPairsList.add(parsedPairs[i][1]);
+        for (String[] parsedPair : parsedPairs) {
+            datesInPairsList.add(parsedPair[0]);
+            datesInPairsList.add(parsedPair[1]);
         }
         return datesInPairsList.stream().distinct().collect(Collectors.toList());
     }

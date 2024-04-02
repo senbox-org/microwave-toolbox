@@ -285,7 +285,7 @@ public class CPM implements PolynomialModel {
 
 //                System.out.println("i = " + i + " -- " + refXYZ_0 + " -- " + refXYZ_H + " -- " + line + ", " + pixel + ", " + height);
             }
-            
+
             double deltaY = delta.y;
             double deltaX = delta.x;
 

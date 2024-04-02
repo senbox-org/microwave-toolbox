@@ -18,7 +18,6 @@ package eu.esa.sar.calibration.rcp;
 import eu.esa.sar.calibration.gpf.Sentinel1RemoveThermalNoiseOp;
 import eu.esa.sar.calibration.gpf.calibrators.Sentinel1Calibrator;
 import eu.esa.sar.commons.Sentinel1Utils;
-import eu.esa.sar.calibration.rcp.Bundle;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;

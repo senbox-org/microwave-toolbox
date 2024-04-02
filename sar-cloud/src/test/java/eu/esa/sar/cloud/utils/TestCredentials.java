@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.cloud.utils;
 
-import eu.esa.sar.cloud.utils.Credentials;
 import org.junit.Test;
 
 import static junit.framework.TestCase.assertEquals;

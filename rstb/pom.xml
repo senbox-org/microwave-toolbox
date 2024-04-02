@@ -8,13 +8,13 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>11.0.0-SNAPSHOT</version>
     </parent>
 
     <name>RADARSAT Toolbox</name>
     <groupId>org.csa.rstb</groupId>
     <artifactId>rstb</artifactId>
-    <version>10.0.0-SNAPSHOT</version>
+    <version>11.0.0-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
@@ -24,7 +24,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <brandingToken>rstb</brandingToken>
         <user.language>en</user.language>
-		<maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
+        <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
         <buildDate>${maven.build.timestamp}</buildDate>
     </properties>
 
@@ -43,15 +43,15 @@
     </licenses>
 
     <modules>
-	    <module>rstb-io</module>
-		<module>rstb-op-calibration</module>
+        <module>rstb-io</module>
+        <module>rstb-op-calibration</module>
         <module>rstb-op-classification</module>
         <module>rstb-op-classification-ui</module>
         <module>rstb-op-polarimetric-tools</module>
         <module>rstb-op-polarimetric-tools-ui</module>
         <module>rstb-op-soil-moisture</module>
         <module>rstb-op-soil-moisture-ui</module>
-		
+        
         <module>rstb-kit</module>
     </modules>
 
@@ -128,7 +128,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
             </plugin>
-			<plugin>
+            <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
                 <configuration>
                     <encoding>UTF-8</encoding>

@@ -54,7 +54,7 @@ public final class TOPSARDerampDemodOp extends Operator {
 
     private Sentinel1Utils su = null;
     private Sentinel1Utils.SubSwathInfo[] subSwath = null;
-	private int subSwathIndex = 0;
+    private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
@@ -94,9 +94,9 @@ public final class TOPSARDerampDemodOp extends Operator {
             su.computeDopplerRate();
             su.computeReferenceTime();
 
-			final String[] mSubSwathNames = su.getSubSwathNames();
+            final String[] mSubSwathNames = su.getSubSwathNames();
 
-			subSwathIndex = 1; // subSwathIndex is always 1 because of split product
+            subSwathIndex = 1; // subSwathIndex is always 1 because of split product
             swathIndexStr = mSubSwathNames[0].substring(2);
             sourceImageWidth = sourceProduct.getSceneRasterWidth();
             sourceImageHeight = sourceProduct.getSceneRasterHeight();
@@ -139,7 +139,7 @@ public final class TOPSARDerampDemodOp extends Operator {
                 sourceImageHeight);
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
-        
+
         final String[] sourceBandNames = sourceProduct.getBandNames();
         for (String bandName : sourceBandNames) {
             final Band srcBand = sourceProduct.getBand(bandName);
@@ -205,8 +205,8 @@ public final class TOPSARDerampDemodOp extends Operator {
                     continue;
                 }
 
-				final int nx0 = x0;
-				final int nw = w;
+                final int nx0 = x0;
+                final int nw = w;
                 final int ny0 = Math.max(y0, firstLineIdx);
                 final int nyMax = Math.min(yMax, lastLineIdx + 1);
                 final int nth = nyMax - ny0;

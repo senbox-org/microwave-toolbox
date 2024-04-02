@@ -6,12 +6,12 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>11.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-io</artifactId>
     <name>SAR IO</name>
-	
+    
     <packaging>nbm</packaging>
 
     <dependencies>
@@ -85,7 +85,7 @@
                         <publicPackage>eu.esa.sar.*</publicPackage>
                         <publicPackage>org.joda.*</publicPackage>
                         <publicPackage>org.slf4j.*</publicPackage>
-						<publicPackage>com.google.common.*</publicPackage>
+                        <publicPackage>com.google.common.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

@@ -253,9 +253,9 @@ public final class ForestAreaClassificationOp extends Operator {
 
         final int[] counter = new int[numClasses]; // number of pixels in each class
 
-        final ThreadExecutor executor = new ThreadExecutor();
-
         final double[][] clusterSum = new double[numClasses][numSrcBands - 1];
+
+        final ThreadExecutor executor = new ThreadExecutor();
 
         try {
             for (final Rectangle rectangle : tileRectangles) {
@@ -383,9 +383,9 @@ public final class ForestAreaClassificationOp extends Operator {
 
         final int numSrcBands = srcBandNames.length;
 
-        final ThreadExecutor executor = new ThreadExecutor();
-
         final double[][][] clusterCov = new double[numClasses][numSrcBands - 1][numSrcBands - 1];
+
+        final ThreadExecutor executor = new ThreadExecutor();
 
         try {
             for (final Rectangle rectangle : tileRectangles) {
@@ -395,8 +395,6 @@ public final class ForestAreaClassificationOp extends Operator {
 
                     final Tile[] sourceTiles = new Tile[numSrcBands];
                     final ProductData[] dataBuffers = new ProductData[numSrcBands];
-                    final double[][] C = new double[numSrcBands - 1][numSrcBands - 1];
-                    final double[] u = new double[numSrcBands - 1];
 
                     @Override
                     public void process() {
@@ -414,6 +412,8 @@ public final class ForestAreaClassificationOp extends Operator {
                         }
 
                         final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
+                        final double[][] C = new double[numSrcBands - 1][numSrcBands - 1];
+                        final double[] u = new double[numSrcBands - 1];
 
                         for (int y = y0; y < yMax; ++y) {
                             srcIndex.calculateStride(y);
@@ -479,8 +479,6 @@ public final class ForestAreaClassificationOp extends Operator {
         final int[] clusterPixelChangeCounter = new int[numClasses];
         final double[][] clusterSum = new double[numClasses][numSrcBands - 1];
 
-        final ThreadExecutor executor = new ThreadExecutor();
-
         try {
             for (int it = 0; it < maxIterations; ++it) {
 
@@ -490,14 +488,14 @@ public final class ForestAreaClassificationOp extends Operator {
                     java.util.Arrays.fill(row, 0.0);
                 }
 
+                final ThreadExecutor executor = new ThreadExecutor();
+
                 for (final Rectangle rectangle : tileRectangles) {
 
                     final ThreadRunnable worker = new ThreadRunnable() {
 
                         final Tile[] sourceTiles = new Tile[numSrcBands];
                         final ProductData[] dataBuffers = new ProductData[numSrcBands];
-
-                        final double[] u = new double[numSrcBands - 1];
 
                         @Override
                         public void process() {
@@ -515,6 +513,8 @@ public final class ForestAreaClassificationOp extends Operator {
                                 dataBuffers[i] = sourceTiles[i].getDataBuffer();
                             }
                             final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
+
+                            final double[] u = new double[numSrcBands - 1];
 
                             for (int y = y0; y < yMax; ++y) {
                                 srcIndex.calculateStride(y);

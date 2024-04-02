@@ -121,7 +121,7 @@ public final class BackGeocodingOp extends Operator {
     private double demSamplingLon = 0.0;
     private double noDataValue = 0.0;
 
-	private int subSwathIndex = 0;
+    private int subSwathIndex = 0;
     private boolean burstOffsetComputed = false;
     private String swathIndexStr = null;
 
@@ -181,8 +181,8 @@ public final class BackGeocodingOp extends Operator {
             outputToFile("c:\\output\\sSensorPosition.dat", sSU.getOrbit().sensorPosition);
             outputToFile("c:\\output\\sSensorVelocity.dat", sSU.getOrbit().sensorVelocity);
             */
-			
-			final String[] mSubSwathNames = mSU.getSubSwathNames();
+
+            final String[] mSubSwathNames = mSU.getSubSwathNames();
             final String[] mPolarizations = mSU.getPolarizations();
 
             for(SlaveData slaveData : slaveDataList) {
@@ -201,7 +201,7 @@ public final class BackGeocodingOp extends Operator {
                 }
             }
 
-			subSwathIndex = 1; // subSwathIndex is always 1 because of split product
+            subSwathIndex = 1; // subSwathIndex is always 1 because of split product
             swathIndexStr = mSubSwathNames[0].substring(2);
 
             if (externalDEMFile == null) {
@@ -498,8 +498,8 @@ public final class BackGeocodingOp extends Operator {
                     continue;
                 }
 
-				final int ntx0 = tx0;
-				final int ntw = tw;
+                final int ntx0 = tx0;
+                final int ntw = tw;
                 final int nty0 = Math.max(ty0, firstLineIdx);
                 final int ntyMax = Math.min(tyMax, lastLineIdx + 1);
                 final int nth = ntyMax - nty0;
@@ -1127,7 +1127,7 @@ public final class BackGeocodingOp extends Operator {
     /**
      * Get the source rectangle in slave image that contains all the given pixels.
      */
-    private Rectangle getBoundingBox(
+    public static Rectangle getBoundingBox(
             final PixelPos[][] slavePixPos, final int margin, final int subSwathIndex, final int sBurstIndex,
             Sentinel1Utils.SubSwathInfo[] sSubswath) {
 
@@ -1175,7 +1175,7 @@ public final class BackGeocodingOp extends Operator {
         return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 
-    static void performDerampDemod(final Tile tileI, final Tile tileQ,
+    public static void performDerampDemod(final Tile tileI, final Tile tileQ,
                                    final Rectangle rectangle, final double[][] derampDemodPhase,
                                    final double[][] derampDemodI, final double[][] derampDemodQ) {
 
@@ -1364,7 +1364,7 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
-    private static Band getBand(
+    public static Band getBand(
             final Product product, final String prefix, final String swathIndexStr, final String polarization) {
 
         final String[] bandNames = product.getBandNames();
@@ -1504,14 +1504,14 @@ public final class BackGeocodingOp extends Operator {
         double rangeIndex;
     }
 
-    private static class ResamplingRaster implements Resampling.Raster {
+    public static class ResamplingRaster implements Resampling.Raster {
 
         private final Tile tile;
         private final double[][] data;
         private final boolean usesNoData;
         private final double noDataValue;
 
-        ResamplingRaster(final Tile tile, final double[][] data) {
+        public ResamplingRaster(final Tile tile, final double[][] data) {
             this.tile = tile;
             this.data = data;
             final RasterDataNode rasterDataNode = tile.getRasterDataNode();

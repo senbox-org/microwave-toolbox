@@ -14,16 +14,16 @@
  * with this program; if not, see http://www.gnu.org/licenses/
  */
 @OptionsPanelController.ContainerRegistration(
-        id = "S1TBX",
+        id = "Microwave",
         categoryName = "#LBL_MicrowaveTBXOptionsCategory_Name",
-        iconBase = "eu/esa/microwave/dat/icons/s1_32x.png",
+        iconBase = "eu/esa/microwave/dat/icons/microwave_icon_32.png",
         keywords = "#LBL_MicrowaveTBXOptionsCategory_Keywords",
-        keywordsCategory = "S1TBX",
+        keywordsCategory = "MicrowaveTBX",
         position = 1000
 )
 @NbBundle.Messages(value = {
-    "LBL_MicrowaveTBXOptionsCategory_Name=S1TBX",
-    "LBL_MicrowaveTBXOptionsCategory_Keywords=s1tbx,sar"
+    "LBL_MicrowaveTBXOptionsCategory_Name=Microwave",
+    "LBL_MicrowaveTBXOptionsCategory_Keywords=MicrowaveTBX,sar"
 })
 package eu.esa.microwave.dat.preferences;
 

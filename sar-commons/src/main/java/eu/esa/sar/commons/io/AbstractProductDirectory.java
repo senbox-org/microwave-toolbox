@@ -341,7 +341,7 @@ public abstract class AbstractProductDirectory {
         final GeoCoding geoCoding = product.getSceneGeoCoding();
         if(geoCoding != null) {
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-            
+
             final GeoPos geoPos = new GeoPos();
             final int w = product.getSceneRasterWidth();
             final int h = product.getSceneRasterHeight();

@@ -3,7 +3,7 @@
  *
  * Authored by: Subhadip Dey
  * Email: sdey2307@gmail.com
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3 of the License, or (at your option)
@@ -19,9 +19,9 @@
 
 /*
     Reference:
-    Dey, S., Bhattacharya, A., Ratha, D., Mandal, D. and Frery, A.C., 2020. Target 
-    characterization and scattering power decomposition for full and compact 
-    polarimetric SAR data. IEEE Transactions on Geoscience and Remote Sensing, 
+    Dey, S., Bhattacharya, A., Ratha, D., Mandal, D. and Frery, A.C., 2020. Target
+    characterization and scattering power decomposition for full and compact
+    polarimetric SAR data. IEEE Transactions on Geoscience and Remote Sensing,
     59(5), pp.3981-3998.
 */
 package org.csa.rstb.polarimetric.gpf.decompositions_cp;

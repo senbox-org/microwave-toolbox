@@ -393,12 +393,6 @@ public final class Orbit {
         return Ellipsoid.xyz2ell(lph2xyz(sarPixel.x, sarPixel.y, height, slcimage));
     }
 
-    // TODO: legacy support, implementation from baseline class
-    @Deprecated
-    public void computeBaseline() {
-
-    }
-
     public Point getXYZ(final double azTime) {
 
         //if (azTime < time[0] || azTime > time[numStateVectors - 1]) {

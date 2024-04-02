@@ -169,15 +169,15 @@ public final class Triangle {
     public void setBAO(Triangle BAO) {
         this.BAO = BAO;
     }
-    
+
     public void setCBO(Triangle CBO) {
         this.CBO = CBO;
     }
-    
+
     public void setACO(Triangle ACO) {
         this.ACO = ACO;
     }
-    
+
     public void setNeighbour(int side, Triangle t) {
         if (side == 0) this.BAO = t;
         else if (side == 1) this.CBO = t;

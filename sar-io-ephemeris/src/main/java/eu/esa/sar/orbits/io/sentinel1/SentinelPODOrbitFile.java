@@ -80,15 +80,6 @@ public class SentinelPODOrbitFile extends BaseOrbitFile implements OrbitFile {
         orbitFile = findOrbitFile(missionPrefix, orbitType, stateVectorTime, year, month);
 
         if (orbitFile == null) {
-            try {
-                final GnssOrbitFileDownloader gnssOrbitFileDownloader = new GnssOrbitFileDownloader();
-                orbitFile = gnssOrbitFileDownloader.download(localFolder, "Sentinel-1", missionPrefix,
-                        orbitType, year, month, day, stateVectorTime);
-            } catch(Exception e) {
-                // try next
-            }
-        }
-        if (orbitFile == null) {
             OrbitFileScraper scraper = null;
             try {
                 scraper = new OrbitFileScraper.Step(orbitType);
@@ -104,12 +95,12 @@ public class SentinelPODOrbitFile extends BaseOrbitFile implements OrbitFile {
         if (orbitFile == null) {
             String msg;
             if(orbitType.startsWith(RESTITUTED)) {
-                msg = "RESORB files are no longer available from " + GnssOrbitFileDownloader.COPERNICUS_ODATA_ROOT;
+                msg = "RESORB files are no longer available from Copernicus Dataspaces";
             } else {
                 String timeStr = absRoot.getAttributeUTC(AbstractMetadata.STATE_VECTOR_TIME).format();
                 final File destFolder = getDestFolder(missionPrefix, orbitType, year, month);
                 msg = "No valid orbit file found for " + timeStr +
-                        "\nOrbit files may be downloaded from " + GnssOrbitFileDownloader.COPERNICUS_ODATA_ROOT
+                        "\nOrbit files may be downloaded from Copernicus Dataspaces "
                         + "\nand placed in " + destFolder.getAbsolutePath();
             }
             throw new IOException(msg);

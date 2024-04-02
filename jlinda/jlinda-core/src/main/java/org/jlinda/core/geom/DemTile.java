@@ -1,7 +1,6 @@
 package org.jlinda.core.geom;
 
 import org.esa.snap.core.util.SystemUtils;
-import org.jlinda.core.*;
 
 import java.util.logging.Logger;
 
@@ -58,9 +57,6 @@ public class DemTile {
     double maxValue;
 
 
-    public DemTile() {
-    }
-
     public DemTile(double lat0, double lon0, long nLatPixels, long nLonPixels,
                    double latitudeDelta, double longitudeDelta, double noDataValue) {
         this.lat0 = lat0;
@@ -69,18 +65,6 @@ public class DemTile {
         this.nLonPixels = nLonPixels;
         this.latitudeDelta = latitudeDelta;
         this.longitudeDelta = longitudeDelta;
-        this.noDataValue = noDataValue;
-    }
-
-    public DemTile(double lat0_ABS, double lon0_ABS, long nLatPixels_ABS, long nLonPixels_ABS,
-                   double delta, double noDataValue) {
-
-        this.lat0_ABS = lat0_ABS;
-        this.lon0_ABS = lon0_ABS;
-        this.nLatPixels_ABS = nLatPixels_ABS;
-        this.nLonPixels_ABS = nLonPixels_ABS;
-        this.latitudeDelta = delta;
-        this.longitudeDelta = delta;
         this.noDataValue = noDataValue;
     }
 
@@ -171,126 +155,4 @@ public class DemTile {
         }
 
     }
-
-
-    @Deprecated
-    public void computeGeoCorners(final SLCImage meta, final Orbit orbit, final Window tile) throws Exception {
-
-        double[] phiAndLambda;
-
-        final double l0 = tile.linelo;
-        final double lN = tile.linehi;
-        final double p0 = tile.pixlo;
-        final double pN = tile.pixhi;
-
-        // compute Phi, Lambda for Tile corners
-        phiAndLambda = orbit.lp2ell(new Point(p0, l0), meta);
-        final double phi_l0p0 = phiAndLambda[0];
-        final double lambda_l0p0 = phiAndLambda[1];
-
-        phiAndLambda = orbit.lp2ell(new Point(p0, lN), meta);
-        final double phi_lNp0 = phiAndLambda[0];
-        final double lambda_lNp0 = phiAndLambda[1];
-
-        phiAndLambda = orbit.lp2ell(new Point(pN, lN), meta);
-        final double phi_lNpN = phiAndLambda[0];
-        final double lambda_lNpN = phiAndLambda[1];
-
-        phiAndLambda = orbit.lp2ell(new Point(pN, l0), meta);
-        final double phi_l0pN = phiAndLambda[0];
-        final double lambda_l0pN = phiAndLambda[1];
-
-        //// Select DEM values based on rectangle outside l,p border ////
-        // phi
-        phiMin = Math.min(Math.min(Math.min(phi_l0p0, phi_lNp0), phi_lNpN), phi_l0pN);
-        phiMax = Math.max(Math.max(Math.max(phi_l0p0, phi_lNp0), phi_lNpN), phi_l0pN);
-        // lambda
-        lambdaMin = Math.min(Math.min(Math.min(lambda_l0p0, lambda_lNp0), lambda_lNpN), lambda_l0pN);
-        lambdaMax = Math.max(Math.max(Math.max(lambda_l0p0, lambda_lNp0), lambda_lNpN), lambda_l0pN);
-
-        // a little bit extra at edges to be sure
-
-        // redefine it: no checks whether there are previous declarations
-        defineExtraPhiLam();
-
-        // phi
-        phiMin -= phiExtra;
-        phiMax += phiExtra;
-        // lambda
-        lambdaMax += lambdaExtra;
-        lambdaMin -= lambdaExtra;
-
-//        computeIndexCornersNest();
-//        computeDemTileSize();
-
-        cornersComputed = true;
-    }
-
-    @Deprecated
-    private void computeDemTileSize() {
-        nLatPixels = indexLambdaNDEM - indexLambda0DEM;
-        nLonPixels = indexPhiNDEM - indexPhi0DEM;
-    }
-
-    @Deprecated
-    private void computeIndexCorners() {
-
-        indexPhi0DEM = (int) (Math.floor((lat0 - phiMax) / latitudeDelta));
-        indexPhiNDEM = (int) (Math.ceil((lat0 - phiMin) / latitudeDelta));
-        indexLambda0DEM = (int) (Math.floor((lambdaMin - lon0) / longitudeDelta));
-        indexLambdaNDEM = (int) (Math.ceil((lambdaMax - lon0) / longitudeDelta));
-
-        //// sanity checks ////
-        if (indexPhi0DEM < 0) {
-            logger.warning("indexPhi0DEM: " + indexPhi0DEM);
-            indexPhi0DEM = 0;   // reset to default start at first
-            logger.warning("DEM does not cover entire interferogram/tile.");
-            logger.warning("input DEM should be extended to the North.");
-        }
-
-        if (indexPhiNDEM > nLatPixels - 1) {
-            logger.warning("indexPhiNDEM: " + indexPhi0DEM);
-            indexPhiNDEM = (int) (nLatPixels - 1);
-            logger.warning("DEM does not cover entire interferogram/tile.");
-            logger.warning("input DEM should be extended to the South.");
-        }
-
-        if (indexLambda0DEM < 0) {
-            logger.warning("indexLambda0DEM: " + indexLambda0DEM);
-            indexLambda0DEM = 0;    // default start at first
-            logger.warning("DEM does not cover entire interferogram/tile.");
-            logger.warning("input DEM should be extended to the West.");
-        }
-
-        if (indexLambdaNDEM > nLonPixels - 1) {
-            logger.warning("indexLambdaNDEM: " + indexLambdaNDEM);
-            indexLambdaNDEM = (int) (nLonPixels - 1);
-            logger.warning("DEM does not cover entire interferogram/tile.");
-            logger.warning("input DEM should be extended to the East.");
-        }
-
-    }
-
-    @Deprecated
-    private void computeIndexCornersNest() {
-        indexPhi0DEM = (int) (Math.floor(nLatPixels_ABS - (lat0_ABS + phiMax) / latitudeDelta));
-        indexPhiNDEM = (int) (Math.ceil(nLatPixels_ABS - (lat0_ABS + phiMin) / latitudeDelta));
-        indexLambda0DEM = (int) (Math.floor((lambdaMin + lon0_ABS) / longitudeDelta));
-        indexLambdaNDEM = (int) (Math.ceil((lambdaMax - lon0_ABS) / longitudeDelta));
-    }
-
-    // get corners of tile (approx) to select DEM
-    //	in radians (if height were zero)
-    @Deprecated
-    private void defineExtraPhiLam() {
-        // TODO: introduce methods for dynamic scaling of extra lambda/phi depending on average tile Height!
-//        lambdaExtra = (1.5 * latitudeDelta + (4.0 / 25.0) * Constants.DTOR); // for himalayas!
-//        phiExtra = (1.5 * longitudeDelta + (4.0 / 25.0) * Constants.DTOR);
-//        lambdaExtra = (1.5 * latitudeDelta + (0.75 / 25.0) * Constants.DTOR); // for Etna
-//        phiExtra = (1.5 * longitudeDelta + (0.05 / 25.0) * Constants.DTOR);
-        lambdaExtra = (1.5 * latitudeDelta + (0.75 / 25.0) * Constants.DTOR); // for Etna
-        phiExtra = (1.5 * longitudeDelta + (0.1 / 25.0) * Constants.DTOR);
-    }
-
-
 }

@@ -300,7 +300,7 @@ public class CreateStackOp extends Operator {
                         }
 
                         fixDependencies(targetBand, slaveBandList, suffix);
-                        
+
                         // Disable using of no data value in slave so that valid 0s will be used in the interpolation
                         srcBand.setNoDataValueUsed(false);
                     }
@@ -394,30 +394,30 @@ public class CreateStackOp extends Operator {
             final InSARStackOverview.IfgStack[] stackOverview = InSARStackOverview.calculateInSAROverview(sourceProduct);
 
             for(InSARStackOverview.IfgStack stack : stackOverview) {
-                final InSARStackOverview.IfgPair[] slaves = stack.getMasterSlave();
+                final InSARStackOverview.IfgPair[] secondaryList = stack.getMasterSlave();
                 //System.out.println("======");
-                //System.out.println("Master: " + StackUtils.createBandTimeStamp(
-                //        slaves[0].getMasterMetadata().getAbstractedMetadata().getProduct()).substring(1));
+                //System.out.println("Ref_" + StackUtils.createBandTimeStamp(
+                //        secondary[0].getMasterMetadata().getAbstractedMetadata().getProduct()).substring(1));
 
-                final MetadataElement masterElem = new MetadataElement("Master: " + StackUtils.createBandTimeStamp(
-                        slaves[0].getMasterMetadata().getAbstractedMetadata().getProduct()).substring(1));
+                final MetadataElement masterElem = new MetadataElement("Ref_" + StackUtils.createBandTimeStamp(
+                        secondaryList[0].getMasterMetadata().getAbstractedMetadata().getProduct()).substring(1));
                 baselinesElem.addElement(masterElem);
 
-                for (InSARStackOverview.IfgPair slave : slaves) {
-                    //System.out.println("Slave: " + StackUtils.createBandTimeStamp(
-                    //        slave.getSlaveMetadata().getAbstractedMetadata().getProduct()).substring(1) +
-                    //        " perp baseline: " + slave.getPerpendicularBaseline() +
-                    //        " temp baseline: " + slave.getTemporalBaseline());
+                for (InSARStackOverview.IfgPair secondary : secondaryList) {
+                    //System.out.println("Secondary_" + StackUtils.createBandTimeStamp(
+                    //        secondary.getSlaveMetadata().getAbstractedMetadata().getProduct()).substring(1) +
+                    //        " perp baseline: " + secondary.getPerpendicularBaseline() +
+                    //        " temp baseline: " + secondary.getTemporalBaseline());
 
-                    final MetadataElement slaveElem = new MetadataElement("Slave: " + StackUtils.createBandTimeStamp(
-                            slave.getSlaveMetadata().getAbstractedMetadata().getProduct()).substring(1));
+                    final MetadataElement slaveElem = new MetadataElement("Secondary_" + StackUtils.createBandTimeStamp(
+                            secondary.getSlaveMetadata().getAbstractedMetadata().getProduct()).substring(1));
                     masterElem.addElement(slaveElem);
 
-                    addAttrib(slaveElem, "Perp Baseline", slave.getPerpendicularBaseline());
-                    addAttrib(slaveElem, "Temp Baseline", slave.getTemporalBaseline());
-                    addAttrib(slaveElem, "Modelled Coherence", slave.getCoherence());
-                    addAttrib(slaveElem, "Height of Ambiguity", slave.getHeightAmb());
-                    addAttrib(slaveElem, "Doppler Difference", slave.getDopplerDifference());
+                    addAttrib(slaveElem, "Perp Baseline", secondary.getPerpendicularBaseline());
+                    addAttrib(slaveElem, "Temp Baseline", secondary.getTemporalBaseline());
+                    addAttrib(slaveElem, "Modelled Coherence", secondary.getCoherence());
+                    addAttrib(slaveElem, "Height of Ambiguity", secondary.getHeightAmb());
+                    addAttrib(slaveElem, "Doppler Difference", secondary.getDopplerDifference());
                 }
                 //System.out.println();
             }

@@ -6,7 +6,7 @@
 
     <groupId>eu.esa.microwavetbx</groupId>
     <artifactId>microwave-toolbox</artifactId>
-    <version>10.0.0-SNAPSHOT</version>
+    <version>11.0.0-SNAPSHOT</version>
     <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
     <description>Tools for SAR Earth Observation</description>
@@ -25,7 +25,7 @@
         <test.jvm.arguments>-Xmx${test.jvm.maxheapsize}</test.jvm.arguments>
         <surefire.jvm.args>${test.jvm.arguments} -enableassertions</surefire.jvm.args>
 
-        <snap.version>10.0.0-SNAPSHOT</snap.version>
+        <snap.version>11.0.0-SNAPSHOT</snap.version>
         <snap-help-system.version>1.0.0</snap-help-system.version>
         <!--
             microwavetbx.version is the Maven module version.
@@ -33,11 +33,11 @@
             It is used to filter manifest.mf and set the manifest's "OpenIDE-Module-Specification-Version" header.
             This is necessary to make NetBeans modules updatable and independent of the Maven version (= microwavetbx.version).
         -->
-        <microwavetbx.version>10.0.0-SNAPSHOT</microwavetbx.version>
+        <microwavetbx.version>11.0.0-SNAPSHOT</microwavetbx.version>
 
-        <netcdf.version>5.3.3</netcdf.version>
         <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
+        <json-simple.version>1.1.1</json-simple.version>
 
         <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
         <buildDate>${maven.build.timestamp}</buildDate>
@@ -54,6 +54,7 @@
         <module>sar-io</module>
         <module>sar-io-ephemeris</module>
         <module>sar-io-ephemeris-ui</module>
+        <module>sar-io-gdal</module>
         <module>sar-op-analysis-ui</module>
         <module>sar-op-calibration</module>
         <module>sar-op-calibration-ui</module>
@@ -266,12 +267,6 @@
             </dependency>
 
             <dependency>
-                <groupId>edu.ucar</groupId>
-                <artifactId>netcdfAll</artifactId>
-                <version>${netcdf.version}</version>
-            </dependency>
-
-            <dependency>
                 <groupId>org.esa.snap</groupId>
                 <artifactId>snap-netcdf</artifactId>
                 <version>${snap.version}</version>
@@ -467,6 +462,45 @@
                 </plugin>
 
                 <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>2.40.0</version>
+                    <configuration>
+                        <java>
+                            <includes>
+                                <include>src/main/java/**/*.java</include>
+                                <include>src/test/java/**/*.java</include>
+                            </includes>
+                            <!--googleJavaFormat>
+                                <version>1.15.0</version>
+                                <style>GOOGLE</style>
+                            </googleJavaFormat-->
+                            <removeUnusedImports/>
+                            <trimTrailingWhitespace/>
+                            <indent>
+                                <spaces>true</spaces>
+                                <spacesPerTab>4</spacesPerTab>
+                            </indent>
+                        </java>
+                        <pom>
+                            <includes>
+                                <include>pom.xml</include>
+                            </includes>
+                            <indent>
+                                <spaces>true</spaces>
+                                <spacesPerTab>4</spacesPerTab>
+                            </indent>
+                        </pom>
+                        <yml>
+                            <includes>
+                                <include>*.yml</include>
+                            </includes>
+                            <prettier/>
+                        </yml>
+                    </configuration>
+                </plugin>
+
+                <plugin>
                     <artifactId>maven-resources-plugin</artifactId>
                     <version>3.3.1</version>
                     <configuration>
@@ -497,11 +531,11 @@
 
                 <plugin>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>2.8.2</version>
+                    <version>3.1.1</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-install-plugin</artifactId>
-                    <version>2.5.2</version>
+                    <version>3.1.1</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-site-plugin</artifactId>

@@ -341,7 +341,7 @@ public class WindFieldEstimationOp extends Operator {
                 final double[] direction = {0.0, 0.0};
                 double ratio = estimateWindDirection(sourceTile, numLandPixels, noDataValue, direction);
                 /*
-                if (ratio < 0.2 || ratio > 0.8) { 
+                if (ratio < 0.2 || ratio > 0.8) {
                     continue;
                 }
                 */

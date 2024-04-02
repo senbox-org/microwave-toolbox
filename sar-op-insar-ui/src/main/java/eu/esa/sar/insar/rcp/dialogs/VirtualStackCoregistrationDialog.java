@@ -112,8 +112,7 @@ public class VirtualStackCoregistrationDialog extends BatchGraphDialog {
             final String targetFormat = productSetPanel.getTargetFormat();
 
             setIO(graphExecutorList.get(graphIndex),
-                  "Read", referenceFile,
-                  "Write", targetFile, name, targetFormat);
+                  referenceFile, targetFile, targetFormat);
             setSlaveIO(graphExecutorList.get(graphIndex),
                        "ProductSet-Reader", referenceFile, new File[]{secondaryFile});
             ++graphIndex;

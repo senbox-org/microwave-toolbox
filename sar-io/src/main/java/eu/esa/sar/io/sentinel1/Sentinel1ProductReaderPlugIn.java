@@ -70,7 +70,7 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
             if(path.getFileName() != null) {
                 final String filename = path.getFileName().toString().toLowerCase();
                 if (filename.equals(PRODUCT_HEADER_NAME)) {
-                    if(isETAD(path)) {
+                    if(isETAD(path) || isGRD(path)) {
                         return DecodeQualification.UNABLE;
                     }
                     if (isLevel1(path) || isLevel2(path) || isLevel0(path)) {
@@ -79,12 +79,13 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
                 }
                 if (filename.endsWith(".zip") && filename.startsWith("s1") && !filename.contains("_eta_") &&
                         (ZipUtils.findInZip(path.toFile(), "s1", PRODUCT_HEADER_NAME) ||
-                                ZipUtils.findInZip(path.toFile(), "rs2", PRODUCT_HEADER_NAME))) {
+                                ZipUtils.findInZip(path.toFile(), "rs2", PRODUCT_HEADER_NAME)) &&
+                        !isGRD(path)) {
                     return DecodeQualification.INTENDED;
                 }
                 if (filename.startsWith("s1") && filename.endsWith(".safe") && Files.isDirectory(path)) {
                     Path manifest = path.resolve(PRODUCT_HEADER_NAME);
-                    if (Files.exists(manifest)) {
+                    if (Files.exists(manifest) && !isGRD(manifest)) {
                         if (isLevel1(manifest) || isLevel2(manifest) || isLevel0(manifest)) {
                             return DecodeQualification.INTENDED;
                         }
@@ -129,6 +130,10 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
         } else {
             return checkFolder(path.getParent().toFile(), ".dat");
         }
+    }
+
+    static boolean isGRD(final Path path) {
+        return path.toString().toUpperCase().contains("_GRD");
     }
 
     static void validateInput(final Path path) throws IOException {

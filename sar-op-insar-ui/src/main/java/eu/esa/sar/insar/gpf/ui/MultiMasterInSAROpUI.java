@@ -390,7 +390,7 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
                 final String pathUser = homePath.substring(0, homePath.length() - internalPath.length());
                 try {
                     image = ImageIO.read(new File(pathUser +
-                                                          "s1tbx/s1tbx-rcp/src/main/resources/eu/esa/sar/dat/icons/SNAP_icon_128.jpg"));
+                                                          "s1tbx/s1tbx-rcp/src/main/resources/eu/esa/sar/dat/icons/SNAP_icon_128.png"));
                 } catch (IOException e) {
                 }
                 plot.setBackgroundImage(image);

@@ -336,7 +336,7 @@ public class DoubleDifferenceInterferogramOp extends Operator {
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException("computeDDIPhase", e);
         }
-        
+
         return null;
     }
 
