@@ -17,9 +17,10 @@ package eu.esa.sar.io.nisar.subreaders;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.product.Missions;
+import eu.esa.sar.io.netcdf.NcRasterDim;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
-import eu.esa.sar.io.netcdf.NetcdfConstants;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
+import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
@@ -34,15 +35,18 @@ import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.ma2.Array;
 import ucar.ma2.StructureData;
+import ucar.ma2.StructureMembers;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
+import ucar.ma2.DataType;
 
 import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static ucar.ma2.DataType.STRUCTURE;
@@ -216,20 +220,8 @@ public class NisarRSLCProductReader extends NisarSubReader {
         return null;
     }
 
-    private void addMetadataToProduct() {
-
-        final MetadataElement origMetadataRoot = AbstractMetadata.addOriginalProductMetadata(product.getMetadataRoot());
-        NetCDFUtils.addAttributes(origMetadataRoot, NetcdfConstants.GLOBAL_ATTRIBUTES_NAME,
-                netcdfFile.getGlobalAttributes());
-
-        for (Variable variable : netcdfFile.getVariables()) {
-            NetCDFUtils.addVariableMetadata(origMetadataRoot, variable, 5000);
-        }
-
-        addAbstractedMetadataHeader(product.getMetadataRoot());
-    }
-
-    private void addAbstractedMetadataHeader(MetadataElement root) {
+    @Override
+    protected void addAbstractedMetadataHeader(MetadataElement root) {
 
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
 
@@ -546,13 +538,32 @@ public class NisarRSLCProductReader extends NisarSubReader {
         final Group groupSwaths = groupRSLC.findGroup("swaths");
         final Group groupFrequencyA = groupSwaths.findGroup("frequencyA");
 
+        int width = 0, height = 0;
+        final Map<NcRasterDim, List<Variable>> groupFrequencyAVariableListMap = NetCDFUtils.getVariableListMap(groupFrequencyA);
+        final NcRasterDim rasterDim2 = NetCDFUtils.getBestRasterDim(groupFrequencyAVariableListMap);
+        final Variable[] rasterVariables2 = NetCDFUtils.getRasterVariables(groupFrequencyAVariableListMap, rasterDim2);
+
+        final Map<NcRasterDim, List<Variable>> variableListMap = NetCDFUtils.getVariableListMap(netcdfFile.getRootGroup());
+        final NcRasterDim rasterDim = NetCDFUtils.getBestRasterDim(variableListMap);
+        final Variable[] rasterVariables = NetCDFUtils.getRasterVariables(variableListMap, rasterDim);
+
+        Variable variable = rasterVariables2[0];
+        width = variable.getDimension(0).getLength();
+        height = variable.getDimension(1).getLength();
+        Band band = NetCDFUtils.createBand(variable, width, height, ProductData.TYPE_FLOAT32);
+
+        band.setUnit(Unit.REAL);
+        band.setNoDataValue(0);
+        band.setNoDataValueUsed(true);
+        product.addBand(band);
+        bandMap.put(band, variable);
+
         final Variable hh = groupFrequencyA.findVariable("HH");
         final Variable hv = groupFrequencyA.findVariable("HV");
         final Variable vh = groupFrequencyA.findVariable("VH");
         final Variable vv = groupFrequencyA.findVariable("VV");
 
         String polStr = "";
-        int width = 0, height = 0;
         if (hh != null) {
             variables.put(NisarXConstants.I_Q, hh);
             polStr = "HH";
@@ -613,7 +624,7 @@ public class NisarRSLCProductReader extends NisarSubReader {
      * {@inheritDoc}
      */
     @Override
-    public void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
+    public synchronized void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
                                           int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
                                           int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
                                           ProgressMonitor pm) throws IOException {
@@ -637,6 +648,12 @@ public class NisarRSLCProductReader extends NisarSubReader {
                 synchronized (netcdfFile) {
                     array = variable.read(origin, shape);
                 }
+
+//                int length = (int)array.getSize();
+//                final float[] tempArray = new float[length];
+//                for (int i = 0; i < length; ++i) {
+//                    tempArray[i] = array.getFloat(i);
+//                }
 
                 String memberName;
                 if (destBand.getName().contains("i_")) {

@@ -215,29 +215,7 @@ public class NisarROFFProductReader extends NisarSubReader {
     }
 
     @Override
-    public void close() throws IOException {
-        if (product != null) {
-            product = null;
-            netcdfFile.close();
-            netcdfFile = null;
-        }
-        super.close();
-    }
-
-    private void addMetadataToProduct() {
-
-        final MetadataElement origMetadataRoot = AbstractMetadata.addOriginalProductMetadata(product.getMetadataRoot());
-        NetCDFUtils.addAttributes(origMetadataRoot, NetcdfConstants.GLOBAL_ATTRIBUTES_NAME,
-                netcdfFile.getGlobalAttributes());
-
-        for (Variable variable : netcdfFile.getVariables()) {
-            NetCDFUtils.addVariableMetadata(origMetadataRoot, variable, 5000);
-        }
-
-        addAbstractedMetadataHeader(product.getMetadataRoot());
-    }
-
-    private void addAbstractedMetadataHeader(MetadataElement root) {
+    protected void addAbstractedMetadataHeader(MetadataElement root) {
 
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
 

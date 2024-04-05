@@ -216,20 +216,8 @@ public class NisarGSLCProductReader extends NisarSubReader {
         return null;
     }
 
-    private void addMetadataToProduct() {
-
-        final MetadataElement origMetadataRoot = AbstractMetadata.addOriginalProductMetadata(product.getMetadataRoot());
-        NetCDFUtils.addAttributes(origMetadataRoot, NetcdfConstants.GLOBAL_ATTRIBUTES_NAME,
-                netcdfFile.getGlobalAttributes());
-
-        for (Variable variable : netcdfFile.getVariables()) {
-            NetCDFUtils.addVariableMetadata(origMetadataRoot, variable, 5000);
-        }
-
-        addAbstractedMetadataHeader(product.getMetadataRoot());
-    }
-
-    private void addAbstractedMetadataHeader(MetadataElement root) {
+    @Override
+    protected void addAbstractedMetadataHeader(MetadataElement root) {
 
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
 

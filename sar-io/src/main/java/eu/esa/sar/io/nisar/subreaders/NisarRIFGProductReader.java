@@ -40,6 +40,7 @@ import ucar.nc2.Variable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -220,20 +221,8 @@ public class NisarRIFGProductReader extends NisarSubReader {
         return null;
     }
 
-    private void addMetadataToProduct() {
-
-        final MetadataElement origMetadataRoot = AbstractMetadata.addOriginalProductMetadata(product.getMetadataRoot());
-        NetCDFUtils.addAttributes(origMetadataRoot, NetcdfConstants.GLOBAL_ATTRIBUTES_NAME,
-                netcdfFile.getGlobalAttributes());
-
-        for (Variable variable : netcdfFile.getVariables()) {
-            NetCDFUtils.addVariableMetadata(origMetadataRoot, variable, 5000);
-        }
-
-        addAbstractedMetadataHeader(product.getMetadataRoot());
-    }
-
-    private void addAbstractedMetadataHeader(MetadataElement root) {
+    @Override
+    protected void addAbstractedMetadataHeader(MetadataElement root) {
 
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
 
@@ -575,13 +564,14 @@ public class NisarRIFGProductReader extends NisarSubReader {
         try {
             for (String key : variables.keySet()) {
                 final Variable var = variables.get(key);
+                String unit = var.getUnitsString();
                 if (key.equals("wrappedInterferogram")) {
-                    createBand("i_ifg_" + polStr, rasterWidth1, rasterHeight1, var);
-                    createBand("q_ifg_" + polStr, rasterWidth1, rasterHeight1, var);
+                    createBand("i_ifg_" + polStr, rasterWidth1, rasterHeight1, Unit.REAL, var);
+                    createBand("q_ifg_" + polStr, rasterWidth1, rasterHeight1, Unit.IMAGINARY, var);
                 } else if (key.equals("coherenceMagnitude")) {
-                    createBand(key + "_" + polStr, rasterWidth1, rasterHeight1, var);
+                    createBand(key + "_" + polStr, rasterWidth1, rasterHeight1, Unit.COHERENCE, var);
                 } else {
-                    createBand(key + "_" + polStr, rasterWidth2, rasterHeight2, var);
+                    createBand(key + "_" + polStr, rasterWidth2, rasterHeight2, unit, var);
                 }
             }
 
@@ -590,10 +580,10 @@ public class NisarRIFGProductReader extends NisarSubReader {
         }
     }
 
-    private void createBand(final String bandName, final int width, final int height, final Variable var) {
-        final Band band = new Band(bandName, ProductData.TYPE_FLOAT32, width, height);
+    private void createBand(final String bandName, final int width, final int height, final String unit, final Variable var) {
+        final Band band = new Band(bandName, ProductData.TYPE_FLOAT64, width, height);
         band.setDescription(var.getDescription());
-        band.setUnit(var.getUnitsString());
+        band.setUnit(unit);
         band.setNoDataValue(0);
         band.setNoDataValueUsed(true);
         product.addBand(band);
@@ -644,11 +634,15 @@ public class NisarRIFGProductReader extends NisarSubReader {
                         } else {
                             memberName = "i";
                         }
+
                         StructureData[] row = (StructureData[])array.get1DJavaArray(STRUCTURE);
-                        final float[] tempArray = new float[row.length];
+                        final double[] tempArray = new double[row.length];
                         for (int i = 0; i < row.length; ++i) {
-                            tempArray[i] = row[i].getJavaArrayFloat(memberName)[0];
-                            tempArray[i] = row[i].convertScalarFloat(memberName);
+                            //float[] floats = row[i].getJavaArrayFloat(memberName);
+                            //double a = row[i].getJavaArrayFloat(memberName)[0];
+                            double b = row[i].convertScalarDouble(memberName);
+
+                            tempArray[i] = b;
                         }
                         System.arraycopy(tempArray, 0, destBuffer.getElems(), y * destWidth, destWidth);
 

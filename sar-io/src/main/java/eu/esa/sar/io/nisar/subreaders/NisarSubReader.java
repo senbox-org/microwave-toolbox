@@ -2,6 +2,7 @@ package eu.esa.sar.io.nisar.subreaders;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.io.netcdf.NetCDFReader;
+import eu.esa.sar.io.netcdf.NetCDFUtils;
 import eu.esa.sar.io.netcdf.NetcdfConstants;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
 import org.esa.snap.core.dataio.ProductReader;
@@ -40,6 +41,21 @@ public abstract class NisarSubReader {
     }
 
     public abstract Product readProduct(final ProductReader reader, final NetcdfFile netcdfFile, final File inputFile);
+
+    protected void addMetadataToProduct() {
+
+        final MetadataElement origMetadataRoot = AbstractMetadata.addOriginalProductMetadata(product.getMetadataRoot());
+        NetCDFUtils.addAttributes(origMetadataRoot, NetcdfConstants.GLOBAL_ATTRIBUTES_NAME,
+                netcdfFile.getGlobalAttributes());
+
+        for (Variable variable : netcdfFile.getVariables()) {
+            NetCDFUtils.addVariableMetadata(origMetadataRoot, variable, 5000);
+        }
+
+        addAbstractedMetadataHeader(product.getMetadataRoot());
+    }
+
+    protected abstract void addAbstractedMetadataHeader(MetadataElement root);
 
     public abstract void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
                                 int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
