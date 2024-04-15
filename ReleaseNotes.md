@@ -1,4 +1,6 @@
-#New in Microwave Toolbox 10.0
+#Microwave Toolbox 10.0.0
+
+##New in Microwave Toolbox 10.0
 
 * Refactoring from s1tbx to microwave toolbox
 * Support for updated Sentinel-1 format
@@ -7,6 +9,55 @@
 * Updated support for SAOCOM
 * ETAD product reading and viewing
 * Application of ETAD corrections for GRD and SM SLC
+
+##List of solved issues
+
+###New Feature
+
+SNAP-3499 Support for Sentinel-1 COG GRD products
+
+###Improvement
+SNAP-760 Help is not in line with Convert-Datatype operator
+SNAP-843 Documentation for GLCM should be enhanced
+SNAP-858 Documentation of Terrain Mask should be improved
+SNAP-953 ENL and Coef Variation not explained in help
+SNAP-3588 Investigate gdal reading in S1 reader
+SNAP-3630 GDAL reader does not create more levels
+SNAP-3663 ETAD correction slow
+
+###Wishlist
+
+SNAP-2602 Support Cosmo-Skymed Second Generation GeoTiff products
+SNAP-2605 Support Cosmo-Skymed Second Generation HDF products
+SNAP-2624 Check of all items in Help-files - identifying omissions and obsolete content, and fixing them
+SNAP-2627 COG opening issues
+
+###Task
+
+SNAP-3448 Research issues into ALOS product support
+SNAP-3478 Investigate missing functionality with SAOCOM products
+
+###Bug
+
+SNAP-1432 Help is missing for Land-Cover-Mask operator
+SNAP-3471 Copernicus DEM complications when coregistering S1
+SNAP-3498 Help files don't open on dev build
+SNAP-3501 Resampling losing product description
+SNAP-3502 Update geocoding for undersampleOp
+SNAP-3521 Labels are not shown in WorldWind View
+SNAP-3547 RCM Acquisition Mode is wrong
+SNAP-3548 RCM slant range time tie point grids disabled
+SNAP-3518 Datum not transfered from GCPGeoCoding
+SNAP-3562 Handle Soil Moisture uninitialized LUT
+SNAP-3575 Multi-Ref InSAR not working with multi polarizations
+SNAP-3576 AddElevation does not report error on doExecute
+SNAP-3578 Deburst seems to not work since the ecosystem
+SNAP-3593 Button with wrong label
+SNAP-3605 IllegalStateException while creating HSV image
+SNAP-3624 Help - EAP Phase correction
+SNAP-3665 CDSE S1 COG quicklook missing
+SNAP-3672 Calibration for Capella SLC is not correct
+
 
 #Update 9.0.3
 https://senbox.atlassian.net/projects/SNAP/versions/12822/tab/release-report-all-issues
