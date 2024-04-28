@@ -1,4 +1,6 @@
-#New in Microwave Toolbox 10.0
+# Microwave Toolbox 10.0.0
+
+## New in Microwave Toolbox 10.0
 
 * Refactoring from s1tbx to microwave toolbox
 * Support for updated Sentinel-1 format
@@ -7,6 +9,36 @@
 * Updated support for SAOCOM
 * ETAD product reading and viewing
 * Application of ETAD corrections for GRD and SM SLC
+
+## List of solved issues
+
+### New Feature
+
+  [SNAP-3499] Support for Sentinel-1 COG GRD products
+
+### Improvement
+  [SNAP-3588] Investigate gdal reading in S1 reader
+
+### Wishlist
+
+SNAP-2602 Support Cosmo-Skymed Second Generation GeoTiff products
+SNAP-2605 Support Cosmo-Skymed Second Generation HDF products
+SNAP-2624 Check of all items in Help-files - identifying omissions and obsolete content, and fixing them
+SNAP-2627 COG opening issues
+
+###Bug
+
+SNAP-3502 Update geocoding for undersampleOp
+SNAP-3547 RCM Acquisition Mode is wrong
+SNAP-3548 RCM slant range time tie point grids disabled
+SNAP-3562 Handle Soil Moisture uninitialized LUT
+SNAP-3575 Multi-Ref InSAR not working with multi polarizations
+SNAP-3578 Deburst seems to not work since the ecosystem
+SNAP-3593 Button with wrong label
+SNAP-3624 Help - EAP Phase correction
+SNAP-3665 CDSE S1 COG quicklook missing
+SNAP-3672 Calibration for Capella SLC is not correct
+
 
 #Update 9.0.3
 https://senbox.atlassian.net/projects/SNAP/versions/12822/tab/release-report-all-issues

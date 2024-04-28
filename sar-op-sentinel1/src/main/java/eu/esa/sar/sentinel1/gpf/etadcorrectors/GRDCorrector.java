@@ -196,7 +196,6 @@ import java.util.StringTokenizer;
                                                final int burstIndex, final double[][] correction, final double scale)
             throws Exception {
 
-        Map<String, double[][]> correctionMap = new HashMap<>(10);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -213,7 +212,14 @@ import java.util.StringTokenizer;
                         groundRange - grsrConvParams[0].ground_range_origin, grsrCoefficients);
                 final double rgTime = slantRange / Constants.halfLightSpeed;
                 final ETADUtils.Burst burst = etadUtils.getBurst(azTime, rgTime);
-                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
+
+                if (burst != null) {
+                    final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
+                    double[][] layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
+                    correction[yy][xx] += scale * getCorrection(azTime, rgTime, burst, layerCorrection);
+                } else {
+                    correction[yy][xx] += 0.0;
+                }
             }
         }
     }

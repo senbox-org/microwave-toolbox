@@ -14,7 +14,6 @@ import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
 
 import java.awt.*;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -214,8 +213,7 @@ import java.util.Map;
 
 	@Override
     protected void getCorrectionForCurrentTile(final String layer, final int x0, final int y0, final int w, final int h,
-                                               final int burstIndex, final double[][] correction, final double scale)
-            throws Exception {
+                                               final int burstIndex, final double[][] correction, final double scale) {
 
         int prodSubswathIndex = -1;
         if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
@@ -229,7 +227,8 @@ import java.util.Map;
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
         final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
 
-        Map<String, double[][]> correctionMap = new HashMap<>(10);
+        final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
+        double[][] layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -242,7 +241,7 @@ import java.util.Map;
                 final int xx = x - x0;
                 final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
 
-                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
+                correction[yy][xx] += scale * getCorrection(azTime, rgTime, burst, layerCorrection);
             }
         }
     }
@@ -289,24 +288,18 @@ import java.util.Map;
                             slavePixelPos.x - sourceRectangle.x, slavePixelPos.y - sourceRectangle.y,
                             sourceRectangle.width, sourceRectangle.height, resamplingIndex);
 
-                    final double samplePhase = selectedResampling.resample(resamplingRasterPhase, resamplingIndex);
-                    final double cosPhase = FastMath.cos(samplePhase);
-                    final double sinPhase = FastMath.sin(samplePhase);
                     double sampleI = selectedResampling.resample(resamplingRasterI, resamplingIndex);
-                    double sampleQ = selectedResampling.resample(resamplingRasterQ, resamplingIndex);
 
-                    double rerampRemodI;
+                    double rerampRemodI, rerampRemodQ;
                     if (Double.isNaN(sampleI)) {
-                        sampleI = noDataValue;
                         rerampRemodI = noDataValue;
-                    } else {
-                        rerampRemodI = sampleI * cosPhase + sampleQ * sinPhase;
-                    }
-
-                    double rerampRemodQ;
-                    if (Double.isNaN(sampleQ)) {
                         rerampRemodQ = noDataValue;
                     } else {
+                        double sampleQ = selectedResampling.resample(resamplingRasterQ, resamplingIndex);
+                        final double samplePhase = selectedResampling.resample(resamplingRasterPhase, resamplingIndex);
+                        final double cosPhase = FastMath.cos(samplePhase);
+                        final double sinPhase = FastMath.sin(samplePhase);
+                        rerampRemodI = sampleI * cosPhase + sampleQ * sinPhase;
                         rerampRemodQ = -sampleI * sinPhase + sampleQ * cosPhase;
                     }
 

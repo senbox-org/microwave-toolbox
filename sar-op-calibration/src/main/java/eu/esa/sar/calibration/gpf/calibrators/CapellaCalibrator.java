@@ -96,16 +96,11 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
                 if (outputImageInComplex) {
                     throw new OperatorException("Absolute radiometric calibration has already been applied to the product");
                 }
-                inputSigma0 = true;
-            } else { // SLC
-                inputBeta0 = true; // it is true only when SLC product is calibrated for the first time
             }
+
+            inputSigma0 = true;
 
             getSampleType();
-
-            if (inputBeta0 && !isComplex) {
-                throw new OperatorException("For beta0 product, complex data is expected");
-            }
 
             getTiePointGridData(sourceProduct);
 
