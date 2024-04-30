@@ -20,6 +20,7 @@ import org.apache.commons.math3.util.FastMath;
 import eu.esa.sar.commons.OrbitStateVectors;
 import eu.esa.sar.commons.SARGeocoding;
 import eu.esa.sar.commons.SARUtils;
+import org.esa.snap.core.dataio.geocoding.GeoCodingFactory;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.dem.ElevationModel;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
@@ -49,6 +50,7 @@ import org.jlinda.core.SLCImage;
 
 import java.awt.*;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -249,7 +251,7 @@ public final class UpdateGeoRefOp extends Operator {
     /**
      * Create target product.
      */
-    private void createTargetProduct() {
+    private void createTargetProduct() throws IOException {
 
         targetProduct = new Product(sourceProduct.getName(),
                 sourceProduct.getProductType(),
@@ -279,7 +281,7 @@ public final class UpdateGeoRefOp extends Operator {
         targetProduct.setPreferredTileSize(targetProduct.getSceneRasterWidth(), tileSize);
     }
 
-    private void addSelectedBands() {
+    private void addSelectedBands() throws IOException {
 
         // add selected source bands
         if (sourceBandNames == null || sourceBandNames.length == 0) {
@@ -316,7 +318,7 @@ public final class UpdateGeoRefOp extends Operator {
         targetProduct.addBand(latBand);
         targetProduct.addBand(lonBand);
 
-        targetProduct.setSceneGeoCoding(new PixelGeoCoding(latBand, lonBand, null, 6));
+        targetProduct.setSceneGeoCoding(GeoCodingFactory.createPixelGeoCoding(latBand, lonBand));
     }
 
     private void computeTileOverlapPercentage(final int x0, final int y0, final int w, final int h,
