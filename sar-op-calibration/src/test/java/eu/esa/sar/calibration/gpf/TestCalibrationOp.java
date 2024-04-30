@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.calibration.gpf;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
@@ -103,6 +104,15 @@ public class TestCalibrationOp {
 
         final float[] expected = new float[] {0.03781468f,0.14200227f,0.3646295f};
         processFile(TestData.inputS1_StripmapSLC, "sigma0_VV", expected);
+    }
+
+    @Test
+    @STTM("SNAP-3672")
+    public void testProcessingCapella_StripmapSLC() throws Exception {
+
+        final float[] expected = new float[] {0.01825511f,0.04138892f,0.04425726f};
+        processFile(TestData.inputCapella_StripmapSLC, "sigma0_HH", expected);
+        System.out.println();
     }
 
     /**
