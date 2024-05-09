@@ -454,7 +454,6 @@
                         <target>11</target>
                         <debug>true</debug>
                         <encoding>UTF-8</encoding>
-                        <optimize>true</optimize>
                         <excludes>
                             <exclude>.gitignore</exclude>
                         </excludes>
@@ -542,8 +541,9 @@
                     <version>3.12.1</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.0.0</version>
+                    <version>3.3.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
@@ -553,12 +553,12 @@
 
                 <plugin>
                     <artifactId>maven-source-plugin</artifactId>
-                    <version>3.2.1</version>
+                    <version>3.3.1</version>
                     <executions>
                         <execution>
                             <phase>verify</phase>
                             <goals>
-                                <goal>jar</goal>
+                                <goal>jar-no-fork</goal>
                             </goals>
                         </execution>
                     </executions>
@@ -586,24 +586,23 @@
 
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.0.0</version>
+                    <version>3.2.5</version>
                     <configuration>
                         <enableAssertions>true</enableAssertions>
                         <!--  to test from the command line mvn test -DskipTests=false -->
                         <skipTests>${skipTests}</skipTests>
                         <printSummary>true</printSummary>
-                        <disableXmlReport>false</disableXmlReport>
                         <redirectTestOutputToFile>true</redirectTestOutputToFile>
                         <excludes>
                             <exclude>**/TestRaster.java</exclude>
                             <exclude>**/TestHelper$1.java</exclude>
                         </excludes>
-                        <systemProperties>
+                        <systemPropertyVariables>
                             <property>
                                 <name>org.esa.snap.testdata.out</name>
                                 <value>target/test-data</value>
                             </property>
-                        </systemProperties>
+                        </systemPropertyVariables>
                         <argLine>${surefire.jvm.args} @{argLine}</argLine>
                     </configuration>
 
@@ -639,7 +638,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>build-helper-maven-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.5.0</version>
                     <executions>
                         <execution>
                             <id>create-nbmSpecVersion</id>
@@ -672,7 +671,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.4.0</version>
                     <executions>
                         <execution>
                             <goals>
@@ -709,7 +708,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>3.4.1</version>
                 <executions>
                     <execution>
                         <id>enforce-versions</id>
@@ -743,7 +742,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.3</version>
+                <version>0.8.12</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>

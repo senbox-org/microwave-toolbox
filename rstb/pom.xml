@@ -64,7 +64,6 @@
                     <target>11</target>
                     <encoding>ISO-8859-1</encoding>
                     <!-- encoding>UTF-8</encoding -->
-                    <optimize>true</optimize>
                     <debug>true</debug>
                     <showWarnings>false</showWarnings>
                     <showDeprecation>false</showDeprecation>
