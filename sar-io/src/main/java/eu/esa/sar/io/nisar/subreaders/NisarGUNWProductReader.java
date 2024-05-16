@@ -17,44 +17,44 @@ package eu.esa.sar.io.nisar.subreaders;
 
 import eu.esa.sar.commons.product.Missions;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
-import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.datamodel.Unit;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-public class NisarGCOVProductReader extends NisarSubReader {
+public class NisarGUNWProductReader extends NisarSubReader {
 
-    public NisarGCOVProductReader() {
-        productType = "GCOV";
+    public NisarGUNWProductReader() {
+        productType = "GUNW";
+    }
+
+    @Override
+    protected Group getFrequencyAGroup(final Group groupLSAR) {
+        final Group groupProductType = groupLSAR.findGroup(productType);
+        final Group groupGrids = groupProductType.findGroup("grids");
+        return groupGrids.findGroup("frequencyA");
     }
 
     @Override
     protected Variable[] getRasterVariables(final Group groupFrequencyA) {
         List<Variable> rasterVariables = new ArrayList<>();
+        final Group groupUnwInterferogram = groupFrequencyA.findGroup("unwrappedInterferogram");
+        final Group[] polGroups = getPolarizationGroups(groupUnwInterferogram);
 
-        final Variable hh = groupFrequencyA.findVariable("HH");
-        final Variable hv = groupFrequencyA.findVariable("HV");
-        final Variable vh = groupFrequencyA.findVariable("VH");
-        final Variable vv = groupFrequencyA.findVariable("VV");
+        for (Group polGroup : polGroups) {
+            final Variable coh = polGroup.findVariable("coherenceMagnitude");
+            final Variable phase = polGroup.findVariable("unwrappedPhase");
 
-        if (hh != null) {
-            rasterVariables.add(hh);
-        } else if (hv != null) {
-            rasterVariables.add(hv);
-        } else if (vh != null) {
-            rasterVariables.add(vh);
-        } else if (vv != null) {
-            rasterVariables.add(vv);
+            rasterVariables.add(coh);
+            rasterVariables.add(phase);
         }
 
         return rasterVariables.toArray(new Variable[0]);
@@ -93,7 +93,7 @@ public class NisarGCOVProductReader extends NisarSubReader {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.BEAMS, NisarXConstants.BEAMS_DEFAULT_VALUE);
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME, ProductData.UTC.parse(
-                    groupID.findVariable(NisarXConstants.PROC_TIME_UTC).readScalarString().substring(0, 22),
+                    groupID.findVariable("processingDateTime").readScalarString(),
                     standardDateFormat));
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier,
@@ -123,11 +123,11 @@ public class NisarGCOVProductReader extends NisarSubReader {
                     NisarXConstants.GEO_REFERENCE_SYSTEM_DEFAULT_VALUE);
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, ProductData.UTC.parse(
-                    groupID.findVariable(NisarXConstants.ACQUISITION_START_UTC).readScalarString().substring(0, 22),
+                    groupID.findVariable("referenceZeroDopplerStartTime").readScalarString().substring(0, 22),
                     standardDateFormat));
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, ProductData.UTC.parse(
-                    groupID.findVariable(NisarXConstants.ACQUISITION_END_UTC).readScalarString().substring(0, 22),
+                    groupID.findVariable("referenceZeroDopplerEndTime").readScalarString().substring(0, 22),
                     standardDateFormat));
 
 //            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(
@@ -293,75 +293,22 @@ public class NisarGCOVProductReader extends NisarSubReader {
     @Override
     protected void addBandsToProduct() {
 
-        int cnt = 1;
-        Map<String, Variable> variables = new HashMap<>();
-        final Group groupScience = this.netcdfFile.getRootGroup().findGroup("science");
-        final Group groupLSAR = groupScience.findGroup("LSAR");
-        final Group groupRSLC = groupLSAR.findGroup("RSLC");
-        final Group groupSwaths = groupRSLC.findGroup("swaths");
-        final Group groupFrequencyA = groupSwaths.findGroup("frequencyA");
+        final Group groupLSAR = getLSARGroup();
+        final Group groupFrequencyA = getFrequencyAGroup(groupLSAR);
 
-        final Variable hh = groupFrequencyA.findVariable("HH");
-        final Variable hv = groupFrequencyA.findVariable("HV");
-        final Variable vh = groupFrequencyA.findVariable("VH");
-        final Variable vv = groupFrequencyA.findVariable("VV");
+        final Group groupInterferogram = groupFrequencyA.findGroup("unwrappedInterferogram");
+        Group[] polGroups = getPolarizationGroups(groupInterferogram);
+        for (Group polGroup : polGroups) {
+            String polStr = polGroup.getShortName();
 
-        String polStr = "";
-        int width = 0, height = 0;
-        if (hh != null) {
-            variables.put(NisarXConstants.I_Q, hh);
-            polStr = "HH";
-            height = hh.getDimension(0).getLength();
-            width = hh.getDimension(1).getLength();
-        } else if (hv != null) {
-            variables.put(NisarXConstants.I_Q, hv);
-            polStr = "HV";
-            height = hv.getDimension(0).getLength();
-            width = hv.getDimension(1).getLength();
-        } else if (vh != null) {
-            variables.put(NisarXConstants.I_Q, vh);
-            polStr = "VH";
-            height = vh.getDimension(0).getLength();
-            width = vh.getDimension(1).getLength();
-        } else if (vv != null) {
-            variables.put(NisarXConstants.I_Q, vv);
-            polStr = "VV";
-            height = vv.getDimension(0).getLength();
-            width = vv.getDimension(1).getLength();
-        }
+            final Variable coherenceMagnitude = polGroup.findVariable("coherenceMagnitude");
+            final int rasterHeight = coherenceMagnitude.getDimension(0).getLength();
+            final int rasterWidth = coherenceMagnitude.getDimension(1).getLength();
 
-//        final NcAttributeMap attMap = NcAttributeMap.create(variables.get(NisarXConstants.I_Q));
+            createBand("coherenceMagnitude" + "_" + polStr, rasterWidth, rasterHeight, Unit.COHERENCE, coherenceMagnitude);
 
-        try {
-            final Band bandIQ = new Band("i_q" + polStr, ProductData.TYPE_FLOAT32, width, height);
-            bandIQ.setDescription("I-Q band of the focused SLC image (HH)");
-            bandIQ.setUnit("CFloat16");
-            bandIQ.setNoDataValue(0);
-            bandIQ.setNoDataValueUsed(true);
-            product.addBand(bandIQ);
-            bandMap.put(bandIQ, variables.get(NisarXConstants.I_Q));
-
-//            final Band bandI = new Band("i_" + polStr, ProductData.TYPE_FLOAT32, width, height);
-//            bandI.setDescription("I band of the focused SLC image (HH)");
-//            bandI.setUnit(Unit.REAL);
-//            bandI.setNoDataValue(0);
-//            bandI.setNoDataValueUsed(true);
-//            product.addBand(bandI);
-//            bandMap.put(bandI, variables.get(NisarXConstants.I_Q));
-//
-//            final Band bandQ = new Band("q_" + polStr, ProductData.TYPE_FLOAT32, width, height);
-//            bandI.setDescription("Q band of the focused SLC image (HH)");
-//            bandQ.setUnit(Unit.IMAGINARY);
-//            bandQ.setNoDataValue(0);
-//            bandQ.setNoDataValueUsed(true);
-//            product.addBand(bandQ);
-//            bandMap.put(bandQ, variables.get(NisarXConstants.I_Q));
-//
-//            ReaderUtils.createVirtualIntensityBand(product, bandI, bandQ, polStr);
-
-        } catch (Exception e) {
-            SystemUtils.LOG.severe(e.getMessage());
-
+            final Variable unwrappedPhase = polGroup.findVariable("unwrappedPhase");
+            createBand("unwrappedPhase" + "_" + polStr, rasterWidth, rasterHeight, Unit.PHASE, unwrappedPhase);
         }
     }
 }

@@ -15,205 +15,49 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
-import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.netcdf.NetCDFUtils;
-import eu.esa.sar.io.netcdf.NetcdfConstants;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
-import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
-import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
-import org.esa.snap.engine_utilities.datamodel.Unit;
-import org.esa.snap.engine_utilities.eo.Constants;
-import org.esa.snap.engine_utilities.gpf.OperatorUtils;
-import org.esa.snap.engine_utilities.gpf.ReaderUtils;
-import ucar.ma2.Array;
-import ucar.ma2.StructureData;
 import ucar.nc2.Group;
-import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
 
-import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-
-import static ucar.ma2.DataType.STRUCTURE;
 
 public class NisarGSLCProductReader extends NisarSubReader {
 
-    private static void addIncidenceAnglesSlantRangeTime(final Product product, final MetadataElement bandElem,
-                                                         NetcdfFile netcdfFile) {
-
-        try {
-            if (bandElem == null) return;
-
-            final int gridWidth = 11;
-            final int gridHeight = 11;
-            final float subSamplingX = product.getSceneRasterWidth() / (float) (gridWidth - 1);
-            final float subSamplingY = product.getSceneRasterHeight() / (float) (gridHeight - 1);
-
-            final double[] incidenceAngles = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.INCIDENCE_ANGLES).read().getStorage();
-
-            final double nearRangeAngle = incidenceAngles[0];
-            final double farRangeAngle = incidenceAngles[incidenceAngles.length - 1];
-
-            final double firstRangeTime = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.FIRST_PIXEL_TIME).readScalarDouble() * Constants.sTOns;
-
-            final double samplesPerLine = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.NUM_SAMPLES_PER_LINE).readScalarDouble();
-
-            final double rangeSamplingRate = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.RANGE_SAMPLING_RATE).readScalarDouble();
-
-            final double lastRangeTime = firstRangeTime + samplesPerLine / rangeSamplingRate * Constants.sTOns;
-
-            final float[] incidenceCorners = new float[]{(float) nearRangeAngle, (float) farRangeAngle,
-                    (float) nearRangeAngle, (float) farRangeAngle};
-
-            final float[] slantRange = new float[]{(float) firstRangeTime, (float) lastRangeTime,
-                    (float) firstRangeTime, (float) lastRangeTime};
-
-            final float[] fineAngles = new float[gridWidth * gridHeight];
-            final float[] fineTimes = new float[gridWidth * gridHeight];
-
-            ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight,
-                    incidenceCorners, fineAngles);
-
-            ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight,
-                    slantRange, fineTimes);
-
-            final TiePointGrid incidentAngleGrid = new TiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE,
-                    gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, fineAngles);
-            incidentAngleGrid.setUnit(Unit.DEGREES);
-            product.addTiePointGrid(incidentAngleGrid);
-
-            final TiePointGrid slantRangeGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME,
-                    gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, fineTimes);
-            slantRangeGrid.setUnit(Unit.NANOSECONDS);
-            product.addTiePointGrid(slantRangeGrid);
-
-        } catch (IOException e) {
-            SystemUtils.LOG.severe(e.getMessage());
-
-        }
+    public NisarGSLCProductReader() {
+        productType = "GSLC";
     }
 
-    private static void addGeocodingFromMetadata(
-            final Product product, final MetadataElement bandElem, NetcdfFile netcdfFile) {
-
-        if (bandElem == null) return;
-
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-
-        try {
-            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.FIRST_NEAR).read().getStorage();
-
-            double[] firstFar = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.FIRST_FAR).read().getStorage();
-
-            double[] lastNear = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.LAST_NEAR).read().getStorage();
-
-            double[] lastFar = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.LAST_FAR).read().getStorage();
-
-            final double latUL = firstNear[2];
-            final double lonUL = firstNear[3];
-            final double latUR = firstFar[2];
-            final double lonUR = firstFar[3];
-            final double latLL = lastNear[2];
-            final double lonLL = lastNear[3];
-            final double latLR = lastFar[2];
-            final double lonLR = lastFar[3];
-
-            absRoot.setAttributeDouble(AbstractMetadata.first_near_lat, latUL);
-            absRoot.setAttributeDouble(AbstractMetadata.first_near_long, lonUL);
-            absRoot.setAttributeDouble(AbstractMetadata.first_far_lat, latUR);
-            absRoot.setAttributeDouble(AbstractMetadata.first_far_long, lonUR);
-            absRoot.setAttributeDouble(AbstractMetadata.last_near_lat, latLL);
-            absRoot.setAttributeDouble(AbstractMetadata.last_near_long, lonLL);
-            absRoot.setAttributeDouble(AbstractMetadata.last_far_lat, latLR);
-            absRoot.setAttributeDouble(AbstractMetadata.last_far_long, lonLR);
-
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
-                    netcdfFile.getRootGroup().findVariable(NisarXConstants.SLANT_RANGE_SPACING).readScalarDouble());
-
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
-                    netcdfFile.getRootGroup().findVariable(NisarXConstants.AZIMUTH_GROUND_SPACING).readScalarDouble());
-
-            final double[] latCorners = new double[]{latUL, latUR, latLL, latLR};
-            final double[] lonCorners = new double[]{lonUL, lonUR, lonLL, lonLR};
-
-            ReaderUtils.addGeoCoding(product, latCorners, lonCorners);
-
-        } catch (Exception e) {
-            SystemUtils.LOG.severe(e.getMessage());
-        }
-    }
-
-    /**
-     * Provides an implementation of the <code>readProductNodes</code> interface method. Clients implementing this
-     * method can be sure that the input object and eventually the subset information has already been set.
-     * <p/>
-     * <p>This method is called as a last step in the <code>readProductNodes(input, subsetInfo)</code> method.
-     */
     @Override
-    public Product readProduct(final ProductReader reader, final NetcdfFile netcdfFile, final File inputFile) {
-        this.netcdfFile = netcdfFile;
+    protected Variable[] getRasterVariables(final Group groupFrequencyA) {
+        List<Variable> rasterVariables = new ArrayList<>();
 
-        try {
-            final Group groupScience = this.netcdfFile.getRootGroup().findGroup("science");
-            final Group groupLSAR = groupScience.findGroup("LSAR");
-            final Group groupID = groupLSAR.findGroup("identification");
-            final Group groupRSLC = groupLSAR.findGroup("RSLC");
-            final Group groupMetadata = groupRSLC.findGroup("metadata");
-            final Group groupSwaths = groupRSLC.findGroup("swaths");
-            final Group groupFrequencyA = groupSwaths.findGroup("frequencyA");
+        final Variable hh = groupFrequencyA.findVariable("HH");
+        final Variable hv = groupFrequencyA.findVariable("HV");
+        final Variable vh = groupFrequencyA.findVariable("VH");
+        final Variable vv = groupFrequencyA.findVariable("VV");
 
-            final Variable hh = groupFrequencyA.findVariable("HH");
-            final int rasterHeight = hh.getDimension(0).getLength();
-            final int rasterWidth = hh.getDimension(1).getLength();
-            final String productType = groupID.findVariable(NisarXConstants.PRODUCT_TYPE).readScalarString();
-            final String missionID = groupID.findVariable(NisarXConstants.MISSION).readScalarString();
-            final String startTime = groupID.findVariable(NisarXConstants.ACQUISITION_START_UTC).readScalarString().substring(0,22);
-            final String stopTime = groupID.findVariable(NisarXConstants.ACQUISITION_END_UTC).readScalarString().substring(0,22);
-
-            product = new Product(inputFile.getName(),
-                    productType,
-                    rasterWidth, rasterHeight,
-                    reader);
-            product.setFileLocation(inputFile);
-
-            StringBuilder description = new StringBuilder();
-            description.append(inputFile.getName()).append(" - ");
-            description.append(productType).append(" - ");
-            description.append(missionID);
-            product.setDescription(description.toString());
-            product.setStartTime(ProductData.UTC.parse(startTime, standardDateFormat));
-            product.setEndTime(ProductData.UTC.parse(stopTime, standardDateFormat));
-
-            addMetadataToProduct();
-            addBandsToProduct();
-            addTiePointGridsToProduct();
-            addGeoCodingToProduct();
-            addDopplerMetadata();
-
-            return product;
-        } catch (Exception e) {
-            SystemUtils.LOG.severe(e.getMessage());
+        if (hh != null) {
+            rasterVariables.add(hh);
+        } else if (hv != null) {
+            rasterVariables.add(hv);
+        } else if (vh != null) {
+            rasterVariables.add(vh);
+        } else if (vv != null) {
+            rasterVariables.add(vv);
         }
-        return null;
+
+        return rasterVariables.toArray(new Variable[0]);
     }
 
     @Override
@@ -222,14 +66,9 @@ public class NisarGSLCProductReader extends NisarSubReader {
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
 
         try {
-            final Group groupScience = this.netcdfFile.getRootGroup().findGroup("science");
-            final Group groupLSAR = groupScience.findGroup("LSAR");
-            final Group groupID = groupLSAR.findGroup("identification");
-            final Group groupRSLC = groupLSAR.findGroup("RSLC");
-            final Group groupMetadata = groupRSLC.findGroup("metadata");
-            final Group groupSwaths = groupRSLC.findGroup("swaths");
-            final Group groupFrequencyA = groupSwaths.findGroup("frequencyA");
-            final Group groupGeolocationGrid = groupMetadata.findGroup("geolocationGrid");
+            final Group groupLSAR = getLSARGroup();
+            final Group groupID = getIndenificationGroup(groupLSAR);
+            final Group groupFrequencyA = getFrequencyAGroup(groupLSAR);
 
             final String title = this.netcdfFile.getRootGroup().findAttValueIgnoreCase("title", null);
             final String mission = this.netcdfFile.getRootGroup().findAttValueIgnoreCase("mission_name", null);
@@ -254,7 +93,7 @@ public class NisarGSLCProductReader extends NisarSubReader {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.BEAMS, NisarXConstants.BEAMS_DEFAULT_VALUE);
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME, ProductData.UTC.parse(
-                    groupID.findVariable(NisarXConstants.PROC_TIME_UTC).readScalarString().substring(0,22),
+                    groupID.findVariable(NisarXConstants.PROC_TIME_UTC).readScalarString().substring(0, 22),
                     standardDateFormat));
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier,
@@ -284,11 +123,11 @@ public class NisarGSLCProductReader extends NisarSubReader {
                     NisarXConstants.GEO_REFERENCE_SYSTEM_DEFAULT_VALUE);
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, ProductData.UTC.parse(
-                    groupID.findVariable(NisarXConstants.ACQUISITION_START_UTC).readScalarString().substring(0,22),
+                    groupID.findVariable(NisarXConstants.ACQUISITION_START_UTC).readScalarString().substring(0, 22),
                     standardDateFormat));
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, ProductData.UTC.parse(
-                    groupID.findVariable(NisarXConstants.ACQUISITION_END_UTC).readScalarString().substring(0,22),
+                    groupID.findVariable(NisarXConstants.ACQUISITION_END_UTC).readScalarString().substring(0, 22),
                     standardDateFormat));
 
 //            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(
@@ -451,80 +290,8 @@ public class NisarGSLCProductReader extends NisarSubReader {
         }
     }
 
-    private void addDopplerMetadata() {
-
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-        final String imagingMode = absRoot.getAttributeString("ACQUISITION_MODE");
-
-        if (imagingMode.equalsIgnoreCase("spotlight"))  {
-            final MetadataElement dopplerSpotlightElem = new MetadataElement("dopplerSpotlight");
-            absRoot.addElement(dopplerSpotlightElem);
-            addDopplerRateAndCentroidSpotlight(dopplerSpotlightElem);
-            addAzimuthTimeZpSpotlight(dopplerSpotlightElem);
-        }
-//        addDopplerCentroidCoefficients();
-    }
-
-    private void addDopplerRateAndCentroidSpotlight(MetadataElement elem) {
-
-        // Compute doppler rate and centroid
-        MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
-        MetadataElement dopplerRateCoeffs = origProdRoot.getElement(NisarXConstants.DR_COEFFS);
-        String dopplerRate = dopplerRateCoeffs.getAttributeString("data").split(",")[0]; // take first coefficient
-        final double fmRate = Double.parseDouble(dopplerRate);
-        final double dopplerCentroid = 0.0; // TODO: load from original metadata once it's accurate
-
-        final int rasterWidth = product.getSceneRasterWidth();
-        final double[] dopplerRateSpotlight = new double[rasterWidth];
-        final double[] dopplerCentroidSpotlight = new double[rasterWidth];
-
-        for(int i = 0; i < rasterWidth; i++) {
-            dopplerRateSpotlight[i] = fmRate;
-            dopplerCentroidSpotlight[i] = dopplerCentroid;
-        }
-
-        // Save in metadata
-        String dopplerRateSpotlightStr =
-                Arrays.toString(dopplerRateSpotlight).replace("]", "").replace("[", "");
-
-        String dopplerCentroidSpotlightStr =
-                Arrays.toString(dopplerCentroidSpotlight).replace("]", "").replace("[", "");
-
-        AbstractMetadata.addAbstractedAttribute(elem, "dopplerRateSpotlight",
-               ProductData.TYPE_ASCII, "", "Doppler Rate Spotlight");
-
-        AbstractMetadata.setAttribute(elem, "dopplerRateSpotlight", dopplerRateSpotlightStr);
-
-        AbstractMetadata.addAbstractedAttribute(elem, "dopplerCentroidSpotlight",
-                ProductData.TYPE_ASCII, "", "Doppler Centroid Spotlight");
-
-        AbstractMetadata.setAttribute(elem, "dopplerCentroidSpotlight", dopplerCentroidSpotlightStr);
-    }
-
-    private void addAzimuthTimeZpSpotlight(MetadataElement elem) {
-        // Compute azimuth time
-        MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
-
-        final double firstAzimuthTimeZp = timeUTCtoSecs(origProdRoot.getAttributeString(
-                NisarXConstants.FIRST_LINE_TIME));
-
-        final double lastAzimuthTimeZp = timeUTCtoSecs(origProdRoot.getAttributeString(
-                NisarXConstants.LAST_LINE_TIME));
-
-        final double AzimuthTimeZpOffset = firstAzimuthTimeZp - 0.5 * (firstAzimuthTimeZp + lastAzimuthTimeZp);
-
-        // Save in metadata
-        final MetadataElement azimuthTimeZd = new MetadataElement("azimuthTimeZdSpotlight");
-
-        elem.addElement(azimuthTimeZd);
-
-        AbstractMetadata.addAbstractedAttribute(azimuthTimeZd, "AzimuthTimeZdOffset", ProductData.TYPE_FLOAT64,
-                "", "Azimuth Time Zero Doppler Offset");
-
-        AbstractMetadata.setAttribute(azimuthTimeZd, "AzimuthTimeZdOffset", AzimuthTimeZpOffset);
-    }
-
-    private void addBandsToProduct() {
+    @Override
+    protected void addBandsToProduct() {
 
         int cnt = 1;
         Map<String, Variable> variables = new HashMap<>();
@@ -597,57 +364,4 @@ public class NisarGSLCProductReader extends NisarSubReader {
 
         }
     }
-
-    private void addTiePointGridsToProduct() {
-
-        final MetadataElement bandElem = getBandElement(product.getBandAt(0));
-        addIncidenceAnglesSlantRangeTime(product, bandElem, netcdfFile);
-        addGeocodingFromMetadata(product, bandElem, netcdfFile);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
-                                          int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
-                                          int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
-                                          ProgressMonitor pm) throws IOException {
-
-        final int sceneHeight = product.getSceneRasterHeight();
-        final int sceneWidth = product.getSceneRasterWidth();
-
-        final Variable variable = bandMap.get(destBand);
-
-        destHeight = Math.min(destHeight, sceneHeight - sourceOffsetY);
-        sourceWidth = Math.min(sourceWidth, sceneWidth - sourceOffsetX);
-        destWidth = Math.min(destWidth, sceneWidth - destOffsetX);
-        final int[] origin = {sourceOffsetY, sourceOffsetX};
-        final int[] shape = {1, sourceWidth};
-        pm.beginTask("Reading util from band " + destBand.getName(), destHeight);
-
-        try {
-            for (int y = 0; y < destHeight; y++) {
-                origin[0] = sourceOffsetY + y;
-                final Array array;
-                synchronized (netcdfFile) {
-                    array = variable.read(origin, shape);
-                }
-
-                StructureData[] row = (StructureData[])array.get1DJavaArray(STRUCTURE);
-                int r = row.length;
-                float[] hh = row[0].getJavaArrayFloat("HH");
-
-                System.arraycopy(array.getStorage(), 0, destBuffer.getElems(), y * destWidth, destWidth);
-                pm.worked(1);
-            }
-        } catch (Exception e) {
-            final IOException ioException = new IOException(e);
-            ioException.initCause(e);
-            throw ioException;
-        } finally {
-            pm.done();
-        }
-    }
-
 }

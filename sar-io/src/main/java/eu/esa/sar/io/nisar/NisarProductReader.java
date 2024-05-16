@@ -18,10 +18,13 @@ package eu.esa.sar.io.nisar;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.io.nisar.subreaders.NisarGCOVProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarGOFFProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarGSLCProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarGUNWProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarRIFGProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarROFFProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarRSLCProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarRUNWProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarSubReader;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
@@ -77,20 +80,7 @@ public class NisarProductReader extends SARReader {
                     fileName = inputFile.getName().toLowerCase();
                 }
 
-                if (fileName.contains("_rslc_")) {
-                    subReader = new NisarRSLCProductReader();
-                } else if (fileName.contains("_roff_")) {
-                    subReader = new NisarROFFProductReader();
-                } else if (fileName.contains("_rifg_")) {
-                    subReader = new NisarRIFGProductReader();
-                } else if (fileName.contains("_gslc_")) {
-                    subReader = new NisarGSLCProductReader();
-                } else if (fileName.contains("_gcov_")) {
-                    subReader = new NisarGCOVProductReader();
-                }
-            }
-            if(subReader == null) {
-                throw new Exception("NISAR product type not supported: " + fileName);
+                subReader = createSubReader(fileName);
             }
 
             final NetcdfFile netcdfFile = NetcdfFile.open(inputFile.getPath());
@@ -126,6 +116,27 @@ public class NisarProductReader extends SARReader {
             subReader.close();
         }
         super.close();
+    }
+
+    private NisarSubReader createSubReader(final String fileName) throws Exception {
+        if (fileName.contains("_rslc_")) {
+            return new NisarRSLCProductReader();
+        } else if (fileName.contains("_roff_")) {
+            return new NisarROFFProductReader();
+        } else if (fileName.contains("_rifg_")) {
+            return new NisarRIFGProductReader();
+        } else if (fileName.contains("_runw_")) {
+            return new NisarRUNWProductReader();
+        } else if (fileName.contains("_goff_")) {
+            return new NisarGOFFProductReader();
+        } else if (fileName.contains("_gslc_")) {
+            return new NisarGSLCProductReader();
+        } else if (fileName.contains("_gcov_")) {
+            return new NisarGCOVProductReader();
+        } else if (fileName.contains("_gunw_")) {
+            return new NisarGUNWProductReader();
+        }
+        throw new Exception("NISAR product type not supported: " + fileName);
     }
 
     /**

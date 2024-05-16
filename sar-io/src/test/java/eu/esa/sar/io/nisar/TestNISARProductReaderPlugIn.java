@@ -95,10 +95,14 @@ public class TestNISARProductReaderPlugIn {
         isValidDecodeQualification(TestNISARReader.input_L1_RIFG_H5);
         isValidDecodeQualification(TestNISARReader.input_L1_RUNW_H5);
         isValidDecodeQualification(TestNISARReader.input_L1_ROFF_H5);
+        isValidDecodeQualification(TestNISARReader.input_L1_RSLC_H5);
 
         isValidDecodeQualification(TestNISARReader.input_L2_GCOV_H5);
         isValidDecodeQualification(TestNISARReader.input_L2_GOFF_H5);
+        isValidDecodeQualification(TestNISARReader.input_L2_GSLC_H5);
+        isValidDecodeQualification(TestNISARReader.input_L2_GUNW_H5);
 
+        isValidDecodeQualification(TestNISARReader.input_L3_SME2_H5);
 
         isInValidDecodeQualification(TestCosmoSkymedReader.inputSCS_H5);
         isInValidDecodeQualification(TestCosmoSkymedReader.inputDGM_H5);
