@@ -71,9 +71,7 @@ public abstract class NisarSubReader {
 
             final int rasterHeight = rasterVariables[0].getDimension(0).getLength();
             final int rasterWidth = rasterVariables[0].getDimension(1).getLength();
-
-            final String productType = groupID.findVariable(NisarXConstants.PRODUCT_TYPE).readScalarString();
-            final String missionID = groupID.findVariable(NisarXConstants.MISSION).readScalarString();
+            final String productType = getProductType(groupID);
 
             product = new Product(inputFile.getName(),
                     productType,
@@ -81,10 +79,7 @@ public abstract class NisarSubReader {
                     reader);
             product.setFileLocation(inputFile);
 
-            String description = inputFile.getName() + " - " +
-                    productType + " - " +
-                    missionID;
-            product.setDescription(description);
+            product.setDescription(getDescription(inputFile.getName(), groupID));
             product.setStartTime(ProductData.UTC.parse(getStartTime(groupID), standardDateFormat));
             product.setEndTime(ProductData.UTC.parse(getStopTime(groupID), standardDateFormat));
 
@@ -131,6 +126,20 @@ public abstract class NisarSubReader {
 
     protected abstract Variable[] getRasterVariables(final Group group);
 
+    protected String getProductType(Group groupID) throws Exception {
+        return groupID.findVariable(NisarXConstants.PRODUCT_TYPE).readScalarString();
+    }
+
+    protected String getDescription(String filename, Group groupID) throws Exception {
+        final String productType = getProductType(groupID);
+        final Variable missionID = groupID.findVariable(NisarXConstants.MISSION);
+        String description =  filename + " - " + productType;
+        if(missionID != null) {
+            description += " - " + missionID.readScalarString();
+        }
+        return description;
+    }
+
     protected String getStartTime(final Group groupID) throws IOException {
         Variable var = groupID.findVariable(NisarXConstants.ACQUISITION_START_UTC);
         if (var == null) {
@@ -149,7 +158,7 @@ public abstract class NisarSubReader {
 
     protected abstract void addBandsToProduct();
 
-    protected void addMetadataToProduct() {
+    protected void addMetadataToProduct() throws Exception{
 
         final MetadataElement origMetadataRoot = AbstractMetadata.addOriginalProductMetadata(product.getMetadataRoot());
         NetCDFUtils.addAttributes(origMetadataRoot, NetcdfConstants.GLOBAL_ATTRIBUTES_NAME,
@@ -162,13 +171,13 @@ public abstract class NisarSubReader {
         addAbstractedMetadataHeader(product.getMetadataRoot());
     }
 
-    protected abstract void addAbstractedMetadataHeader(MetadataElement root);
+    protected abstract void addAbstractedMetadataHeader(MetadataElement root) throws Exception;
 
     protected void addTiePointGridsToProduct() {
 
         final MetadataElement bandElem = getBandElement(product.getBandAt(0));
-        addIncidenceAnglesSlantRangeTime(product, bandElem, netcdfFile);
-        addGeocodingFromMetadata(product, bandElem, netcdfFile);
+        addIncidenceAnglesSlantRangeTime(product, bandElem);
+        addGeocodingFromMetadata(product, bandElem);
     }
 
     protected void createBand(final String bandName, final int width, final int height, final String unit, final Variable var) {
@@ -181,58 +190,65 @@ public abstract class NisarSubReader {
         bandMap.put(band, var);
     }
 
-    protected static void addIncidenceAnglesSlantRangeTime(final Product product, final MetadataElement bandElem,
-                                                           NetcdfFile netcdfFile) {
+    protected void addIncidenceAnglesSlantRangeTime(final Product product, final MetadataElement bandElem) {
 
         try {
-            if (bandElem == null) return;
+            final Group groupLSAR = getLSARGroup();
+            final Group groupMetadata = getMetadataGroup(groupLSAR);
+            final Group metadata = groupMetadata.findGroup("geolocationGrid");
+
+            Variable incidenceAngleVar = metadata.findVariable("incidenceAngle");
+            Array incidenceArray = incidenceAngleVar.read();
+            float[] incidenceAngles = (float[]) incidenceArray.get1DJavaArray(DataType.FLOAT);
+
+            //if (bandElem == null) return;
 
             final int gridWidth = 11;
             final int gridHeight = 11;
             final float subSamplingX = product.getSceneRasterWidth() / (float) (gridWidth - 1);
             final float subSamplingY = product.getSceneRasterHeight() / (float) (gridHeight - 1);
 
-            final double[] incidenceAngles = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.INCIDENCE_ANGLES).read().getStorage();
-
-            final double nearRangeAngle = incidenceAngles[0];
-            final double farRangeAngle = incidenceAngles[incidenceAngles.length - 1];
-
-            final double firstRangeTime = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.FIRST_PIXEL_TIME).readScalarDouble() * Constants.sTOns;
-
-            final double samplesPerLine = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.NUM_SAMPLES_PER_LINE).readScalarDouble();
-
-            final double rangeSamplingRate = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.RANGE_SAMPLING_RATE).readScalarDouble();
-
-            final double lastRangeTime = firstRangeTime + samplesPerLine / rangeSamplingRate * Constants.sTOns;
-
-            final float[] incidenceCorners = new float[]{(float) nearRangeAngle, (float) farRangeAngle,
-                    (float) nearRangeAngle, (float) farRangeAngle};
-
-            final float[] slantRange = new float[]{(float) firstRangeTime, (float) lastRangeTime,
-                    (float) firstRangeTime, (float) lastRangeTime};
-
-            final float[] fineAngles = new float[gridWidth * gridHeight];
-            final float[] fineTimes = new float[gridWidth * gridHeight];
-
-            ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight,
-                    incidenceCorners, fineAngles);
-
-            ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight,
-                    slantRange, fineTimes);
-
-            final TiePointGrid incidentAngleGrid = new TiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE,
-                    gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, fineAngles);
-            incidentAngleGrid.setUnit(Unit.DEGREES);
-            product.addTiePointGrid(incidentAngleGrid);
-
-            final TiePointGrid slantRangeGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME,
-                    gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, fineTimes);
-            slantRangeGrid.setUnit(Unit.NANOSECONDS);
-            product.addTiePointGrid(slantRangeGrid);
+//            final double[] incidenceAngles = (double[]) netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.INCIDENCE_ANGLES).read().getStorage();
+//
+//            final double nearRangeAngle = incidenceAngles[0];
+//            final double farRangeAngle = incidenceAngles[incidenceAngles.length - 1];
+//
+//            final double firstRangeTime = netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.FIRST_PIXEL_TIME).readScalarDouble() * Constants.sTOns;
+//
+//            final double samplesPerLine = netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.NUM_SAMPLES_PER_LINE).readScalarDouble();
+//
+//            final double rangeSamplingRate = netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.RANGE_SAMPLING_RATE).readScalarDouble();
+//
+//            final double lastRangeTime = firstRangeTime + samplesPerLine / rangeSamplingRate * Constants.sTOns;
+//
+//            final float[] incidenceCorners = new float[]{(float) nearRangeAngle, (float) farRangeAngle,
+//                    (float) nearRangeAngle, (float) farRangeAngle};
+//
+//            final float[] slantRange = new float[]{(float) firstRangeTime, (float) lastRangeTime,
+//                    (float) firstRangeTime, (float) lastRangeTime};
+//
+//            final float[] fineAngles = new float[gridWidth * gridHeight];
+//            final float[] fineTimes = new float[gridWidth * gridHeight];
+//
+//            ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight,
+//                    incidenceCorners, fineAngles);
+//
+//            ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight,
+//                    slantRange, fineTimes);
+//
+//            final TiePointGrid incidentAngleGrid = new TiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE,
+//                    gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, fineAngles);
+//            incidentAngleGrid.setUnit(Unit.DEGREES);
+//            product.addTiePointGrid(incidentAngleGrid);
+//
+//            final TiePointGrid slantRangeGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME,
+//                    gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, fineTimes);
+//            slantRangeGrid.setUnit(Unit.NANOSECONDS);
+//            product.addTiePointGrid(slantRangeGrid);
 
         } catch (IOException e) {
             SystemUtils.LOG.severe(e.getMessage());
@@ -240,8 +256,8 @@ public abstract class NisarSubReader {
         }
     }
 
-    protected static void addGeocodingFromMetadata(
-            final Product product, final MetadataElement bandElem, NetcdfFile netcdfFile) {
+    protected void addGeocodingFromMetadata(
+            final Product product, final MetadataElement bandElem) {
 
         if (bandElem == null) return;
 
@@ -310,27 +326,6 @@ public abstract class NisarSubReader {
         } catch (IOException e) {
             SystemUtils.LOG.severe(e.getMessage());
 
-        }
-        return null;
-    }
-
-    protected static void createUniqueBandName(final Product product, final Band band, final String origName) {
-
-        int cnt = 1;
-        band.setName(origName);
-        while (product.getBand(band.getName()) != null) {
-            band.setName(origName + cnt);
-            ++cnt;
-        }
-    }
-
-    protected Group findGroup(final String groupName, final List<Group> groups) {
-
-        for (Group group : groups) {
-            final String name = group.getName();
-            if (group.getName().equals(groupName)) {
-                return group;
-            }
         }
         return null;
     }
@@ -569,6 +564,7 @@ public abstract class NisarSubReader {
     /**
      * {@inheritDoc}
      */
+    //Todo remove synchronized
     public synchronized void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
                                                     int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
                                                     int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,

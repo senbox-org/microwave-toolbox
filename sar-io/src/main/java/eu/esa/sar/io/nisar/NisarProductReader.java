@@ -25,6 +25,7 @@ import eu.esa.sar.io.nisar.subreaders.NisarRIFGProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarROFFProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarRSLCProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarRUNWProductReader;
+import eu.esa.sar.io.nisar.subreaders.NisarSMEProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarSubReader;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
@@ -135,6 +136,8 @@ public class NisarProductReader extends SARReader {
             return new NisarGCOVProductReader();
         } else if (fileName.contains("_gunw_")) {
             return new NisarGUNWProductReader();
+        } else if (fileName.contains("_sme2_")) {
+            return new NisarSMEProductReader();
         }
         throw new Exception("NISAR product type not supported: " + fileName);
     }

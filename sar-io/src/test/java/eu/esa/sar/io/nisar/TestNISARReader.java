@@ -129,6 +129,16 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L2_GUNW_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
+        validator.validateProduct();
+        //validator.validateMetadata();
+        //validator.validateBands(new String[] {"i","q","Intensity"});
+    }
+
+    @Test
+    public void testOpening_L3_SME2_H5() throws Exception {
+        Product prod = testReader(input_L3_SME2_H5.toPath());
+
+        final ProductValidator validator = new ProductValidator(prod);
         //validator.validateProduct();
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"i","q","Intensity"});
