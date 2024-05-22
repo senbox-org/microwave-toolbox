@@ -10,12 +10,8 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
-import org.esa.snap.engine_utilities.datamodel.Unit;
-import org.esa.snap.engine_utilities.eo.Constants;
-import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.ma2.Array;
 import ucar.ma2.DataType;
@@ -174,6 +170,16 @@ public abstract class NisarSubReader {
     protected abstract void addAbstractedMetadataHeader(MetadataElement root) throws Exception;
 
     protected void addTiePointGridsToProduct() {
+
+//        final int rank = variable.getRank();
+//        final int gridWidth = variable.getDimension(rank - 1).getLength();
+//        int gridHeight = variable.getDimension(rank - 2).getLength();
+//        if (rank >= 3 && gridHeight <= 1)
+//            gridHeight = variable.getDimension(rank - 3).getLength();
+//        final TiePointGrid tpg = NetCDFUtils.createTiePointGrid(variable, gridWidth, gridHeight,
+//                product.getSceneRasterWidth(), product.getSceneRasterHeight());
+
+//        product.addTiePointGrid(tpg);
 
         final MetadataElement bandElem = getBandElement(product.getBandAt(0));
         addIncidenceAnglesSlantRangeTime(product, bandElem);
