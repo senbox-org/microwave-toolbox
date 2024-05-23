@@ -59,7 +59,8 @@ public final class PolarimetricDecompositionOp extends Operator {
             GENERALIZED_FREEMAN_DURDEN_DECOMPOSITION,
             YAMAGUCHI_DECOMPOSITION, VANZYL_DECOMPOSITION, H_A_ALPHA_DECOMPOSITION, H_ALPHA_DECOMPOSITION,
             CLOUDE_DECOMPOSITION, TOUZI_DECOMPOSITION, HUYNEN_DECOMPOSITION, YANG_DECOMPOSITION,
-            KROGAGER_DECOMPOSITION, CAMERON_DECOMPOSITION, MF3CF_DECOMPOSITION, MF4CF_DECOMPOSITION},
+            KROGAGER_DECOMPOSITION, CAMERON_DECOMPOSITION, MF3CF_DECOMPOSITION, MF4CF_DECOMPOSITION,
+            MODEL_BASED_C2_DECOMPOSITION},
             defaultValue = SINCLAIR_DECOMPOSITION, label = "Decomposition")
     private String decomposition = SINCLAIR_DECOMPOSITION;
 
@@ -117,6 +118,9 @@ public final class PolarimetricDecompositionOp extends Operator {
     public static final String CAMERON_DECOMPOSITION = "Cameron Decomposition";
     public static final String MF3CF_DECOMPOSITION = "Model-free 3-component Decomposition";
     public static final String MF4CF_DECOMPOSITION = "Model-free 4-component Decomposition";
+    public static final String MODEL_BASED_C2_DECOMPOSITION = "Model-Based Dual Pol Decomposition";
+    public static final String VH_VV = "VH_VV";
+    public static final String HH_HV = "HH_HV";
 
     private PolBandUtils.PolSourceBand[] srcBandList;
     private PolBandUtils.MATRIX sourceProductType = null;
@@ -134,7 +138,8 @@ public final class PolarimetricDecompositionOp extends Operator {
                 s.equals(VANZYL_DECOMPOSITION) || s.equals(H_A_ALPHA_DECOMPOSITION) || s.equals(H_ALPHA_DECOMPOSITION) ||
                 s.equals(CLOUDE_DECOMPOSITION) || s.equals(TOUZI_DECOMPOSITION) || s.equals(HUYNEN_DECOMPOSITION) ||
                 s.equals(YANG_DECOMPOSITION) || s.equals(KROGAGER_DECOMPOSITION) || s.equals(CAMERON_DECOMPOSITION) ||
-                s.equals(GENERALIZED_FREEMAN_DURDEN_DECOMPOSITION) || s.equals(MF3CF_DECOMPOSITION) || s.equals(MF4CF_DECOMPOSITION)) {
+                s.equals(GENERALIZED_FREEMAN_DURDEN_DECOMPOSITION) || s.equals(MF3CF_DECOMPOSITION) ||
+                s.equals(MF4CF_DECOMPOSITION) || s.equals(MODEL_BASED_C2_DECOMPOSITION)) {
             decomposition = s;
         } else {
             throw new OperatorException(s + " is an invalid decomposition name.");
@@ -206,12 +211,13 @@ public final class PolarimetricDecompositionOp extends Operator {
             throw new OperatorException("Input should be a polarimetric product");
         }
 
-        if (polDecomp instanceof HAlphaC2 && !PolBandUtils.isDualPol(sourceProductType)) {
+        if ((polDecomp instanceof HAlphaC2 || polDecomp instanceof ModelBasedC2) &&
+                !PolBandUtils.isDualPol(sourceProductType)) {
 
             throw new OperatorException("Input should be a dual polarimetric product");
 
-        } else if (!(polDecomp instanceof HAlphaC2) && !PolBandUtils.isQuadPol(sourceProductType) &&
-                !PolBandUtils.isFullPol(sourceProductType)) {
+        } else if (!(polDecomp instanceof HAlphaC2) && !(polDecomp instanceof ModelBasedC2) &&
+                !PolBandUtils.isQuadPol(sourceProductType) && !PolBandUtils.isFullPol(sourceProductType)) {
 
             throw new OperatorException("Input should be a full polarimetric product");
         }
@@ -289,8 +295,33 @@ public final class PolarimetricDecompositionOp extends Operator {
             case CAMERON_DECOMPOSITION:
                 return new Cameron(srcBandList, sourceProductType,
                         windowSize, sourceImageWidth, sourceImageHeight);
+            case MODEL_BASED_C2_DECOMPOSITION:
+                final String polarization = getPolarization(sourceProduct);
+                return new ModelBasedC2(srcBandList, sourceProductType,
+                        windowSize, windowSize, polarization, sourceImageWidth, sourceImageHeight);
         }
         return null;
+    }
+
+    private String getPolarization(final Product sourceProduct) {
+
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        final String pol1 = absRoot.getAttributeString(AbstractMetadata.mds1_tx_rx_polar);
+        final String pol2 = absRoot.getAttributeString(AbstractMetadata.mds2_tx_rx_polar);
+
+        if (pol1 == null || pol2 == null) {
+            throw new OperatorException("Dual-pol product with VH-VV or HH-HV polarization is expected");
+        }
+
+        if (pol1.toLowerCase().equals("vh") && pol2.toLowerCase().equals("vv") ||
+                pol1.toLowerCase().equals("vv") && pol2.toLowerCase().equals("vh")) {
+            return VH_VV;
+        } else if (pol1.toLowerCase().equals("hh") && pol2.toLowerCase().equals("hv") ||
+                pol1.toLowerCase().equals("hv") && pol2.toLowerCase().equals("hh")) {
+            return HH_HV;
+        } else {
+            throw new OperatorException("Dual-pol product with VH-VV or HH-HV polarization is expected");
+        }
     }
 
     /**

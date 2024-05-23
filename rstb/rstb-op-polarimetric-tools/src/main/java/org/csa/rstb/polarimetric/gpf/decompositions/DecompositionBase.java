@@ -36,7 +36,7 @@ public class DecompositionBase {
     protected final int halfWindowSizeX;
     protected final int halfWindowSizeY;
 
-    public enum TargetBandColour {R, G, B, M, A}
+    public enum TargetBandColour {R, G, B, M, A, H, S, V}
 
     public DecompositionBase(final PolBandUtils.PolSourceBand[] srcBandList, final PolBandUtils.MATRIX sourceProductType,
                              final int windowSizeX, final int windowSizeY, final int srcImageWidth, final int srcImageHeight) {
