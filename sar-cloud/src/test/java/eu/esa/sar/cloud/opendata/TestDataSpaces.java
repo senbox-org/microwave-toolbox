@@ -1,0 +1,44 @@
+/*
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
+package eu.esa.sar.cloud.opendata;
+
+import com.bc.ceres.annotation.STTM;
+import org.json.simple.JSONObject;
+import org.junit.Test;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.util.Map;
+
+
+public class TestDataSpaces {
+
+
+    @Test
+    @STTM("SNAP-3707")
+    public void testDataSpaces() throws Exception {
+
+        final DataSpaces dataSpaces = new DataSpaces();
+
+        String query2 = dataSpaces.constructQuery("SENTINEL-1", "IW_ETA__AX",
+                "2024-05-03T00:00:00.000Z", "2024-05-03T00:50:00.000Z");
+        JSONObject response = dataSpaces.query(query2);
+
+        File outputFolder = Files.createTempDirectory("tmpDirPrefix").toFile();
+        Map<String, File> results = dataSpaces.getResults(response, outputFolder);
+        assert !results.isEmpty();
+    }
+}
