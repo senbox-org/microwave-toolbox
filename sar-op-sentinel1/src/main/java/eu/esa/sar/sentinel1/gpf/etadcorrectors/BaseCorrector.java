@@ -21,6 +21,7 @@ import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.engine_utilities.util.Maths;
 
 import java.awt.*;
+import java.util.Map;
 
 /**
  * Base class for ETAD correctors.
@@ -206,11 +207,17 @@ import java.awt.*;
         return new Rectangle(x0, y0, w, h);
     }
 
-    protected double getCorrection(final double azimuthTime, final double slantRangeTime,
-                                   final ETADUtils.Burst burst, double[][] layerCorrection) {
+    protected double getCorrection(final String layer, final double azimuthTime, final double slantRangeTime,
+                                   final ETADUtils.Burst burst, final Map<String, double[][]> layerCorrectionMap) {
 
         if (burst == null) {
             return 0.0;
+        }
+        final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
+        double[][] layerCorrection = layerCorrectionMap.get(bandName);
+        if (layerCorrection == null) {
+            layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
+            layerCorrectionMap.put(bandName, layerCorrection);
         }
         final double i = (azimuthTime - burst.azimuthTimeMin) / burst.gridSamplingAzimuth;
         final double j = (slantRangeTime - burst.rangeTimeMin) / burst.gridSamplingRange;

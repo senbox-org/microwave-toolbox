@@ -29,6 +29,7 @@ import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
 
 import java.awt.*;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -242,8 +243,7 @@ import java.util.Map;
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
         final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
 
-        final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
-        double[][] layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
+        Map<String, double[][]> correctionMap = new HashMap<>(10);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -256,7 +256,7 @@ import java.util.Map;
                 final int xx = x - x0;
                 final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
 
-                correction[yy][xx] += scale * getCorrection(azTime, rgTime, burst, layerCorrection);
+                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
             }
         }
     }
