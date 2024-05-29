@@ -17,15 +17,23 @@ package eu.esa.sar.cloud.opendata;
 
 import com.bc.ceres.annotation.STTM;
 import org.json.simple.JSONObject;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.nio.file.Files;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 
 public class TestDataSpaces {
+
+    @Before
+    public void setUp() throws Exception {
+        final DataSpaces dataSpaces = new DataSpaces();
+        assumeTrue("DataSpaces credentials not found", dataSpaces.hasToken());
+    }
 
     @Test
     @STTM("SNAP-3707")

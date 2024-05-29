@@ -62,6 +62,10 @@ public class DataSpaces {
         this.token = getAccessToken(credentials.getUserName(), credentials.getPassword());
     }
 
+    public boolean hasToken() {
+        return token != null;
+    }
+
     public String constructQuery(final String collection, final String productType,
                                  final String startDate, final String endDate) {
         String query = "Collection/Name eq '"+collection+"'";
