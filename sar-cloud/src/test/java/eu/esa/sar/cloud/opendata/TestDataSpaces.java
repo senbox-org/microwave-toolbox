@@ -21,11 +21,11 @@ import org.junit.Test;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.Map;
+
+import static org.junit.Assert.assertTrue;
 
 
 public class TestDataSpaces {
-
 
     @Test
     @STTM("SNAP-3707")
@@ -33,12 +33,15 @@ public class TestDataSpaces {
 
         final DataSpaces dataSpaces = new DataSpaces();
 
-        String query2 = dataSpaces.constructQuery("SENTINEL-1", "IW_ETA__AX",
+        String query = dataSpaces.constructQuery("SENTINEL-1", "IW_ETA__AX",
                 "2024-05-03T00:00:00.000Z", "2024-05-03T00:50:00.000Z");
-        JSONObject response = dataSpaces.query(query2);
+        JSONObject response = dataSpaces.query(query);
 
-        File outputFolder = Files.createTempDirectory("tmpDirPrefix").toFile();
-        Map<String, File> results = dataSpaces.getResults(response, outputFolder);
-        assert !results.isEmpty();
+        DataSpaces.Result[] results = dataSpaces.getResults(response);
+        assertTrue(results.length != 0);
+
+        File outputFolder = Files.createTempDirectory("etad").toFile();
+        File file = dataSpaces.download(results[0], outputFolder);
+        assertTrue(file.exists());
     }
 }

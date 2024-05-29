@@ -40,8 +40,8 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DataSpaces {
 
@@ -91,8 +91,8 @@ public class DataSpaces {
         return (JSONObject) parser.parse(response.toString());
     }
 
-    public Map<String, File> getResults(JSONObject json, final File outputFolder) {
-        Map<String, File> results = new HashMap<>();
+    public Result[] getResults(JSONObject json) {
+        List<Result> results = new ArrayList<>();
         JSONArray features = (JSONArray) json.get("value");
         for (Object o : features) {
             JSONObject feature = (JSONObject) o;
@@ -100,24 +100,18 @@ public class DataSpaces {
             String name = (String) feature.get("Name");
 
             String fileUrl = "https://download.dataspace.copernicus.eu/odata/v1/Products("+id+")/$value";
-            File outputFile = new File(outputFolder, name+".zip");
-            results.put(fileUrl, outputFile);
+            results.add(new Result(fileUrl, name));
         }
-        return results;
+        return results.toArray(new Result[0]);
     }
 
-    public void download(JSONObject json, final File outputFolder) throws Exception {
-        // Extract and download files
-        JSONArray features = (JSONArray) json.get("value");
-        for (Object o : features) {
-            JSONObject feature = (JSONObject) o;
-            String id = (String) feature.get("Id");
-            String name = (String) feature.get("Name");
-
-            String fileUrl = "https://download.dataspace.copernicus.eu/odata/v1/Products("+id+")/$value";
-            File outputFile = new File(outputFolder, name+".zip");
-            downloadFile(fileUrl, outputFile);
+    public File download(final Result result, final File outputFolder) throws Exception {
+        File outputFile = new File(outputFolder, result.name+".zip");
+        if(outputFile.exists()) {
+            return outputFile;
         }
+        downloadFile(result.url, outputFile);
+        return outputFile;
     }
 
     private void downloadFile(String fileUrl, final File outputFile) throws Exception {
@@ -125,7 +119,6 @@ public class DataSpaces {
         //ssl.disableSSLCertificateCheck();
 
         URL url = new URL(fileUrl);
-
 
         CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = new HttpGet(url.toString());
@@ -195,6 +188,15 @@ public class DataSpaces {
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        }
+    }
+
+    public static class Result {
+        String url;
+        String name;
+        public Result(String url, String name) {
+            this.url = url;
+            this.name = name;
         }
     }
 }
