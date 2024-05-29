@@ -106,6 +106,7 @@ public class DataSpaces {
     }
 
     public File download(final Result result, final File outputFolder) throws Exception {
+        outputFolder.mkdirs();
         File outputFile = new File(outputFolder, result.name+".zip");
         if(outputFile.exists()) {
             return outputFile;

@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import eu.esa.sar.commons.ETADUtils;
@@ -6,7 +21,6 @@ import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.engine_utilities.util.Maths;
 
 import java.awt.*;
-import java.util.Map;
 
 /**
  * Base class for ETAD correctors.
@@ -53,6 +67,10 @@ import java.util.Map;
 		this.selectedResampling = selectedResampling;
         sourceImageWidth = sourceProduct.getSceneRasterWidth();
         sourceImageHeight = sourceProduct.getSceneRasterHeight();
+    }
+
+    public void setEtadUtils(final ETADUtils etadUtils) {
+        this.etadUtils = etadUtils;
     }
 
     public void setTroposphericCorrectionRg(final boolean flag) {
