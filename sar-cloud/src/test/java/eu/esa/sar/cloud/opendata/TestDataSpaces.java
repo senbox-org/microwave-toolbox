@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.cloud.opendata;
 
-import com.bc.ceres.annotation.STTM;
 import org.json.simple.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,7 +35,7 @@ public class TestDataSpaces {
     }
 
     @Test
-    @STTM("SNAP-3707")
+    //@STTM("SNAP-3707")
     public void testDataSpaces() throws Exception {
 
         final DataSpaces dataSpaces = new DataSpaces();
