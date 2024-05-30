@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 20123 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -80,7 +80,6 @@ public class ETADCorrectionTOPSOp extends Operator {
     private Resampling selectedResampling = null;
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
-    private Product etadProduct = null;
     private ETADUtils etadUtils = null;
 
     private Sentinel1Utils mSU = null;
@@ -145,11 +144,7 @@ public class ETADCorrectionTOPSOp extends Operator {
             sourceImageWidth = sourceProduct.getSceneRasterWidth();
             sourceImageHeight = sourceProduct.getSceneRasterHeight();
 
-            etadProduct = getETADProduct(etadFile);
-
-            validateETADProduct(sourceProduct, etadProduct);
-
-            etadUtils = new ETADUtils(etadProduct);
+            etadUtils = createETADUtils(etadFile);
 
             createTargetProduct();
 
@@ -165,6 +160,15 @@ public class ETADCorrectionTOPSOp extends Operator {
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
+    }
+
+    private ETADUtils createETADUtils(final File etadFile) throws Exception {
+
+        Product etadProduct = getETADProduct(etadFile);
+
+        validateETADProduct(sourceProduct, etadProduct);
+
+        return new ETADUtils(etadProduct);
     }
 
     private Product getETADProduct(final File etadFile) {
@@ -546,7 +550,6 @@ public class ETADCorrectionTOPSOp extends Operator {
     public static class ETADUtils {
 
         private Product etadProduct = null;
-        private MetadataElement absRoot = null;
         private MetadataElement origProdRoot = null;
         private double azimuthTimeMin = 0.0;
         private double azimuthTimeMax = 0.0;
@@ -555,7 +558,7 @@ public class ETADCorrectionTOPSOp extends Operator {
         private int numInputProducts = 0;
         private int numSubSwaths = 0;
         private InputProduct[] inputProducts = null;
-        private Map<String, double[][]> layerCorrectionMap = new HashMap<>(10);
+        //private Map<String, double[][]> layerCorrectionMap = new HashMap<>(10);
 
         public ETADUtils(final Product ETADProduct) throws Exception {
 
@@ -575,7 +578,7 @@ public class ETADCorrectionTOPSOp extends Operator {
                 throw new IOException("Root Metadata not found");
             }
 
-            absRoot = AbstractMetadata.getAbstractedMetadata(etadProduct);
+            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(etadProduct);
             if (absRoot == root) {
                 throw new IOException(AbstractMetadata.ABSTRACT_METADATA_ROOT + " not found.");
             }
