@@ -36,7 +36,7 @@ public class TestETADSearch {
     private final File S1_GRD = new File(TestData.inputSAR + "S1/GRD/S1A_IW_GRDH_1SDV_20240508T062559_20240508T062624_053776_0688DB_1A13.SAFE.zip");
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         // If any of the file does not exist: the test will be ignored
         assumeTrue(S1_Pre_ETAD + " not found", S1_Pre_ETAD.exists());
         assumeTrue(S1_GRD + " not found", S1_GRD.exists());

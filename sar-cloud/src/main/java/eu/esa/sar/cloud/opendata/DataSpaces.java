@@ -54,12 +54,13 @@ public class DataSpaces {
         this.token = getAccessToken(username, password);
     }
 
-    public DataSpaces() throws IOException {
+    public DataSpaces() {
         UsernamePasswordCredentials credentials = CredentialsManager.instance().getProductLibraryCredentials(COPERNICUS_REPO);
-        if(credentials == null) {
-            throw new IOException("Credentials for Copernicus DataSpace not found in the credentials store.");
+        if(credentials != null) {
+            this.token = getAccessToken(credentials.getUserName(), credentials.getPassword());
+        } else {
+            this.token = null;
         }
-        this.token = getAccessToken(credentials.getUserName(), credentials.getPassword());
     }
 
     public boolean hasToken() {
@@ -75,6 +76,9 @@ public class DataSpaces {
     }
 
     public JSONObject query(String query) throws Exception {
+        if (token == null) {
+            throw new IOException("Credentials for Copernicus DataSpace not found in the credentials store.");
+        }
 
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         URI uri = new URI(baseUrl + encodedQuery);
