@@ -54,7 +54,7 @@ public class TestRemoveAntennaPatternOp {
 
     private String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR", "GeoTIFF", "SCS_U"};
     private String[] exceptionExemptions = {"not supported",
-            "ASA_IMS_1P is not a valid ASAR product type for the operator",
+            "Derived from (ASA_IMS_1P) is not a valid ASAR product type for the operator",
             "calibration has already been applied",
             "Cannot apply calibration to coregistered product"};
 
