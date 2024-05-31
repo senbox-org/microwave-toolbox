@@ -71,7 +71,7 @@ public class DataSpaces {
                                  final String startDate, final String endDate) {
         String query = "Collection/Name eq '"+collection+"'";
         query += " and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType' and att/OData.CSC.StringAttribute/Value eq '"+productType+"')";
-        query += " and ContentDate/Start gt "+startDate+" and ContentDate/Start lt "+endDate;
+        query += " and ContentDate/Start lt "+startDate+" and ContentDate/End gt "+endDate;
         return query;
     }
 
