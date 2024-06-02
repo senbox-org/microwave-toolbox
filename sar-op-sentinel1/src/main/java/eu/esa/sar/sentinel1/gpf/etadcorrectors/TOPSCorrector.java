@@ -25,6 +25,9 @@ import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
+import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
 
@@ -47,15 +50,15 @@ import java.util.Map;
     private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private double noDataValue = 0.0;
+    private double radarFrequency = 0.0;
 
 
     /**
      * Default constructor. The graph processing framework
      * requires that an operator has a default constructor.
      */
-    public TOPSCorrector(final Product sourceProduct, final Product targetProduct, final ETADUtils etadUtils,
-                         final Resampling selectedResampling) {
-		super(sourceProduct, targetProduct, etadUtils, selectedResampling);
+    public TOPSCorrector(final Product sourceProduct, final ETADUtils etadUtils, final Resampling selectedResampling) {
+        super(sourceProduct, etadUtils, selectedResampling);
     }
 
     @Override
@@ -79,9 +82,64 @@ import java.util.Map;
             if(masterBandI != null && masterBandI.isNoDataValueUsed()) {
                 noDataValue = masterBandI.getNoDataValue();
             }
+
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            radarFrequency = absRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // in Hz
         } catch (Throwable e) {
             throw new OperatorException(e);
         }
+    }
+
+    @Override
+    public Product createTargetProduct() {
+
+        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX, sourceProduct.getProductType(),
+                sourceImageWidth, sourceImageHeight);
+
+        if (outputPhaseCorrections) {
+
+            for (Band srcBand : sourceProduct.getBands()) {
+                if (srcBand instanceof VirtualBand) {
+                    continue;
+                }
+
+                final Band targetBand = ProductUtils.copyBand(srcBand.getName(), sourceProduct, targetProduct, true);
+
+                if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
+                    int idx = targetProduct.getBandIndex(targetBand.getName());
+                    ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
+                }
+            }
+
+            final String bandName = ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName;
+            final Band targetBand = new Band(bandName, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
+            targetBand.setUnit(Unit.RADIANS);
+            targetProduct.addBand(targetBand);
+
+        } else { // resampling image
+
+            for (Band srcBand : sourceProduct.getBands()) {
+                if (srcBand instanceof VirtualBand) {
+                    continue;
+                }
+
+                final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
+                        srcBand.getRasterWidth(), srcBand.getRasterHeight());
+
+                targetBand.setUnit(srcBand.getUnit());
+                targetBand.setDescription(srcBand.getDescription());
+                targetProduct.addBand(targetBand);
+
+                if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
+                    int idx = targetProduct.getBandIndex(targetBand.getName());
+                    ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
+                }
+            }
+        }
+
+        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
+
+        return targetProduct;
     }
 
     /**
@@ -121,7 +179,11 @@ import java.util.Map;
                 final int nth = ntyMax - nty0;
                 //System.out.println("burstIndex = " + burstIndex + ": ntx0 = " + ntx0 + ", nty0 = " + nty0 + ", ntw = " + ntw + ", nth = " + nth);
 
-                computePartialTile(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
+                if (resamplingImage) {
+                    computePartialTileResampleImage(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
+                } else { // outputInSARPhaseCorrections
+                    computePartialTileOutputCorrections(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
+                }
             }
 
         } catch (Throwable e) {
@@ -129,9 +191,45 @@ import java.util.Map;
         }
     }
 
-    private void computePartialTile(final int subSwathIndex, final int mBurstIndex, final int x0, final int y0,
-                                    final int w, final int h, final Map<Band, Tile> targetTileMap,
-                                    final Operator op) {
+    private void computePartialTileOutputCorrections(final int subSwathIndex, final int mBurstIndex,
+                                                     final int x0, final int y0, final int w, final int h,
+                                                     final Map<Band, Tile> targetTileMap, final Operator op) {
+
+        try {
+            double[][] correction = new double[h][w];
+            getInSARRangeTimeCorrectionForCurrentTile(x0, y0, w, h, mBurstIndex, correction);
+            final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
+
+            final String targetBandName = ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName;
+            final Band targetBand = targetProduct.getBand(targetBandName);
+            final Tile targetTile = targetTileMap.get(targetBand);
+            final ProductData tgtData = targetTile.getDataBuffer();
+            final TileIndex tgtIndex = new TileIndex(targetTile);
+            final int xMax = x0 + w - 1;
+            final int yMax = y0 + h - 1;
+
+            for (int y = y0; y <= yMax; ++y) {
+                tgtIndex.calculateStride(y);
+                int yy = y - y0;
+
+                for (int x = x0; x <= xMax; ++x) {
+                    final int tgtIdx = tgtIndex.getIndex(x);
+                    final int xx = x - x0;
+
+                    final double delay = correction[yy][xx] + rangeTimeCalibration;
+                    final double phase = -2.0 * Constants.PI * delay * radarFrequency; // delay time (s) to phase (radian)
+                    tgtData.setElemDoubleAt(tgtIdx, phase);
+                }
+            }
+
+        } catch (Throwable e) {
+            throw new OperatorException(e);
+        }
+    }
+
+    private void computePartialTileResampleImage(final int subSwathIndex, final int mBurstIndex,
+                                                 final int x0, final int y0, final int w, final int h,
+                                                 final Map<Band, Tile> targetTileMap, final Operator op) {
 
         try {
             final PixelPos[][] slavePixPos = new PixelPos[h][w];
