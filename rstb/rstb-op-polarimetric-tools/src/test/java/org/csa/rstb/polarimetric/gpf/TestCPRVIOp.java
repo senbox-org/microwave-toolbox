@@ -40,7 +40,7 @@ public class TestCPRVIOp {
 
     private final static OperatorSpi spi = new CPRVIOp.Spi();
 
-    private final static String inputPath = TestData.inputSAR + "/CompPol/subset_0_of_RCM1_OK76385_PK678063_2_16MCP2_20080415_143807_CH_CV_SLC.dim";
+    private final static String inputPath = TestData.inputSAR + "/RCM/CP/subset_0_of_RCM1_OK76385_PK678063_2_16MCP2_20080415_143807_CH_CV_SLC.dim";
 
 
     @Before
