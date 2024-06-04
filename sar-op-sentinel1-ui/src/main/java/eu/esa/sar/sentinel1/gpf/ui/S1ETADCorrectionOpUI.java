@@ -110,6 +110,8 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
                     resamplingType.setEnabled(true);
                     outputPhaseCorrectionsCheckBox.setSelected(false);
                     outputPhaseCorrections = false;
+                    sumOfAzimuthCorrectionsCheckBox.setSelected(true);
+                    sumOfRangeCorrectionsCheckBox.setSelected(true);
                 } else {
                     resamplingType.setEnabled(false);
                     outputPhaseCorrectionsCheckBox.setSelected(true);
