@@ -52,28 +52,29 @@ public class TestGeocoding extends ProcessorTest {
      */
     @Test
     public void testProcessing() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        GeoCoding gc = sourceProduct.getSceneGeoCoding();
-        GeoPos geo = new GeoPos();
-        PixelPos pix1 = new PixelPos();
-        PixelPos pix2 = new PixelPos();
-        double errorX = 0, errorY = 0;
+            GeoCoding gc = sourceProduct.getSceneGeoCoding();
+            GeoPos geo = new GeoPos();
+            PixelPos pix1 = new PixelPos();
+            PixelPos pix2 = new PixelPos();
+            double errorX = 0, errorY = 0;
 
-        int n = 0;
-        for (int i = 0; i < 1000; i += 10) {
-            pix1.setLocation(i + 0.5, i + 0.5);
+            int n = 0;
+            for (int i = 0; i < 1000; i += 10) {
+                pix1.setLocation(i + 0.5, i + 0.5);
 
-            gc.getGeoPos(pix1, geo);
-            gc.getPixelPos(geo, pix2);
+                gc.getGeoPos(pix1, geo);
+                gc.getPixelPos(geo, pix2);
 
-            errorX += Math.abs(pix1.getX() - pix2.getX());
-            errorY += Math.abs(pix1.getY() - pix2.getY());
+                errorX += Math.abs(pix1.getX() - pix2.getX());
+                errorY += Math.abs(pix1.getY() - pix2.getY());
 
-            TestUtils.log.info(pix1.getX() + " == " + pix2.getX() + ", " + pix1.getY() + " == " + pix2.getY());
-            ++n;
+                TestUtils.log.info(pix1.getX() + " == " + pix2.getX() + ", " + pix1.getY() + " == " + pix2.getY());
+                ++n;
+            }
+            System.out.println("\nerrorX=" + errorX);
+            System.out.println("errorY=" + errorY);
         }
-        System.out.println("\nerrorX=" + errorX);
-        System.out.println("errorY=" + errorY);
     }
 }

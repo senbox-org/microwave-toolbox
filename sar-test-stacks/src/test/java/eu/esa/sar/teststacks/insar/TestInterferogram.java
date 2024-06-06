@@ -41,7 +41,10 @@ public class TestInterferogram extends ProcessorTest {
         File tmpFolder = createTmpFolder("stack1");
         ProductIO.writeProduct(trgProduct, new File(tmpFolder,"stack.dim"), "BEAM-DIMAP", true);
 
-        trgProduct.dispose();
+        trgProduct.close();
+        for(Product product : products) {
+            product.close();
+        }
         delete(tmpFolder);
     }
 }

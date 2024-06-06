@@ -39,7 +39,7 @@ public class TestSRGROperator extends ProcessorTest {
     private final static OperatorSpi spi = new SRGROp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
+    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN","ETAD"};
     private static final String[] exceptionExemptions = {"conversion has already been applied", "not supported", "GeoCoding is null",
             "not be map projected", "Source product should first be deburst"};
 

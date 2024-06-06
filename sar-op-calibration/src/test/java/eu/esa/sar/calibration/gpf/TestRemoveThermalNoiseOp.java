@@ -60,43 +60,47 @@ public class TestRemoveThermalNoiseOp {
 
     @Test
     public void testProcessingS1_GRD() throws Exception {
-        final Product targetProduct = processFile(inputFile1);
+        try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
+            try (final Product targetProduct = process(sourceProduct)) {
 
-        final Band band = targetProduct.getBand("Intensity_VV");
-        assertNotNull(band);
+                final Band band = targetProduct.getBand("Intensity_VV");
+                assertNotNull(band);
 
-        final float[] floatValues = new float[8];
-        band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+                final float[] floatValues = new float[8];
+                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
 
-        assertEquals(1024.0, floatValues[0], 0.0001);
-        assertEquals(1024.0, floatValues[1], 0.0001);
-        assertEquals(1444.0, floatValues[2], 0.0001);
+                assertEquals(1024.0, floatValues[0], 0.0001);
+                assertEquals(1024.0, floatValues[1], 0.0001);
+                assertEquals(1444.0, floatValues[2], 0.0001);
+            }
+        }
     }
 
     @Test
     public void testProcessingS1_StripmapSLC() throws Exception {
+        try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile2)) {
+            try (final Product targetProduct = process(sourceProduct)) {
 
-        final Product targetProduct = processFile(inputFile2);
+                final Band band = targetProduct.getBand("Intensity_VV");
+                assertNotNull(band);
 
-        final Band band = targetProduct.getBand("Intensity_VV");
-        assertNotNull(band);
+                final float[] floatValues = new float[8];
+                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
 
-        final float[] floatValues = new float[8];
-        band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
-
-        assertEquals(629.0, floatValues[0], 0.0001);
-        assertEquals(2362.0, floatValues[1], 0.0001);
-        assertEquals(6065.0, floatValues[2], 0.0001);
+                assertEquals(629.0, floatValues[0], 0.0001);
+                assertEquals(2362.0, floatValues[1], 0.0001);
+                assertEquals(6065.0, floatValues[2], 0.0001);
+            }
+        }
     }
 
     /**
      * Processes a product and compares it to processed product known to be correct
      *
-     * @param inputFile the path to the input product
+     * @param sourceProduct the path to the input product
      * @throws Exception general exception
      */
-    private static Product processFile(final File inputFile) throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+    private static Product process(final Product sourceProduct) throws Exception {
 
         final Sentinel1RemoveThermalNoiseOp op = (Sentinel1RemoveThermalNoiseOp) spi.createOperator();
         assertNotNull(op);

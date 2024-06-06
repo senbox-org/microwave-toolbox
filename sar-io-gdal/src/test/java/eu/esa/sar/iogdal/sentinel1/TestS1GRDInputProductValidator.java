@@ -15,18 +15,21 @@
  */
 package eu.esa.sar.iogdal.sentinel1;
 
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Validates input products using commonly used verifications
  */
+@RunWith(LongTestRunner.class)
 public class TestS1GRDInputProductValidator extends ReaderTest {
 
     public TestS1GRDInputProductValidator() {
@@ -41,12 +44,13 @@ public class TestS1GRDInputProductValidator extends ReaderTest {
 
     @Test
     public void TestSentinel1GRDProduct() throws Exception {
-        final Product prod = testReader(TestData.inputS1_GRD.toPath());
+        try(final Product prod = testReader(TestData.inputS1_GRD.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_VH", "Intensity_VH", "Amplitude_VV", "Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude_VH", "Intensity_VH", "Amplitude_VV", "Intensity_VV"});
+        }
     }
 }
 
