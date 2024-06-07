@@ -67,7 +67,10 @@ public class TestCrossCorrelationCoregistrationStack extends ProcessorTest {
         assertEquals("rmsMean", 1, warpData.getAttributeDouble("rmsMean"), 0.0001);
         assertEquals("rmsStd", 1, warpData.getAttributeDouble("rmsStd"), 0.0001);
 
-        trgProduct.dispose();
+        trgProduct.close();
+        for(Product product : products) {
+            product.close();
+        }
         delete(tmpFolder);
     }
 

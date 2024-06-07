@@ -57,7 +57,7 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
     private final OperatorSpi spi = new SpeckleFilterOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
+    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN", "ETAD"};
     private static final String[] exceptionExemptions = {"first be deburst","has no bands"};
 
     /**
@@ -395,18 +395,19 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
      */
     @Test
     public void testProcessing() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final SpeckleFilterOp op = (SpeckleFilterOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final SpeckleFilterOp op = (SpeckleFilterOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[] { 658.8125f,649.8499755859375f,650.0417f };
-        TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), expected);
+            final float[] expected = new float[]{658.8125f, 649.8499755859375f, 650.0417f};
+            TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), expected);
+        }
     }
 
     @Test

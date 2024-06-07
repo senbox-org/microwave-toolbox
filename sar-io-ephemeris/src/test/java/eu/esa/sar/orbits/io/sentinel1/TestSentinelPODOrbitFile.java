@@ -51,18 +51,21 @@ public class TestSentinelPODOrbitFile {
     public void testRetrieveOrbitFile() throws Exception {
         final File sourceFile = TestData.inputS1_GRDSubset;
 
-        final Product sourceProduct = ProductIO.readProduct(sourceFile);
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        try(final Product sourceProduct = ProductIO.readProduct(sourceFile)) {
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
-        final SentinelPODOrbitFile podOrbitFile = new SentinelPODOrbitFile(absRoot, 3);
-        podOrbitFile.retrieveOrbitFile(SentinelPODOrbitFile.PRECISE);
+            final SentinelPODOrbitFile podOrbitFile = new SentinelPODOrbitFile(absRoot, 3);
+            podOrbitFile.retrieveOrbitFile(SentinelPODOrbitFile.PRECISE);
+        }
     }
 
     @Test
     public void testSentinelPODOrbitFile() throws Exception {
 
-        final Product sourceProduct = ProductIO.readProduct(sourceFile);
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        final MetadataElement absRoot;
+        try(final Product sourceProduct = ProductIO.readProduct(sourceFile)) {
+            absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        }
 
         final SentinelPODOrbitFile podOrbitFile = new SentinelPODOrbitFile(absRoot, 3);
         podOrbitFile.retrieveOrbitFile(SentinelPODOrbitFile.PRECISE);

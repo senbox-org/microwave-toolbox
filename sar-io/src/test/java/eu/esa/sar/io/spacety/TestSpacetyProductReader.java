@@ -81,126 +81,138 @@ public class TestSpacetyProductReader extends ReaderTest {
 
     @Test
     public void testOpeningMetadataFile_SP1() throws Exception {
-        Product prod = testReader(slc_sp1.toPath().resolve("manifest.safe"));
+        try(Product prod = testReader(slc_sp1.toPath().resolve("manifest.safe"))) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     @Test
     public void testOpeningFolder_SP1() throws Exception {
-        Product prod = testReader(slc_sp1.toPath());
+        try(Product prod = testReader(slc_sp1.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     @Test
     public void testOpeningZip_SP1() throws Exception {
-        Product prod = testReader(slc_sp1_zip.toPath());
+        try(Product prod = testReader(slc_sp1_zip.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     // SM
 
     @Test
     public void testOpeningMetadataFile_SM1() throws Exception {
-        Product prod = testReader(slc_sm1.toPath().resolve("manifest.safe"));
+        try(Product prod = testReader(slc_sm1.toPath().resolve("manifest.safe"))) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     @Test
     public void testOpeningFolder_SM1() throws Exception {
-        Product prod = testReader(slc_sm1.toPath());
+        try(Product prod = testReader(slc_sm1.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     @Test
     public void testOpeningZip_SM1() throws Exception {
-        Product prod = testReader(slc_sm1_zip.toPath());
+        try(Product prod = testReader(slc_sm1_zip.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     @Test
     public void testOpeningMetadataFile_SM2() throws Exception {
-        Product prod = testReader(slc_sm2.toPath().resolve("manifest.safe"));
+        try(Product prod = testReader(slc_sm2.toPath().resolve("manifest.safe"))) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     @Test
     public void testOpeningFolder_SM2() throws Exception {
-        Product prod = testReader(slc_sm2.toPath());
+        try(Product prod = testReader(slc_sm2.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     @Test
     public void testOpeningZip_SM2() throws Exception {
-        Product prod = testReader(slc_sm2_zip.toPath());
+        try(Product prod = testReader(slc_sm2_zip.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+        }
     }
 
     // NS
 
     @Test
     public void testOpeningMetadataFile_NS1() throws Exception {
-        Product prod = testReader(slc_ns1.toPath().resolve("manifest.safe"));
+        try(Product prod = testReader(slc_ns1.toPath().resolve("manifest.safe"))) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV_NS1","q_VV_NS1","Intensity_VV_NS1","i_VV_NS2","q_VV_NS2","Intensity_VV_NS2","i_VV_NS3","q_VV_NS3","Intensity_VV_NS3","i_VV_NS4","q_VV_NS4","Intensity_VV_NS4"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV_NS1", "q_VV_NS1", "Intensity_VV_NS1", "i_VV_NS2", "q_VV_NS2", "Intensity_VV_NS2", "i_VV_NS3", "q_VV_NS3", "Intensity_VV_NS3", "i_VV_NS4", "q_VV_NS4", "Intensity_VV_NS4"});
+        }
     }
 
     @Test
     public void testOpeningFolder_NS1() throws Exception {
-        Product prod = testReader(slc_ns1.toPath());
+        try(Product prod = testReader(slc_ns1.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV_NS1","q_VV_NS1","Intensity_VV_NS1","i_VV_NS2","q_VV_NS2","Intensity_VV_NS2","i_VV_NS3","q_VV_NS3","Intensity_VV_NS3","i_VV_NS4","q_VV_NS4","Intensity_VV_NS4"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV_NS1", "q_VV_NS1", "Intensity_VV_NS1", "i_VV_NS2", "q_VV_NS2", "Intensity_VV_NS2", "i_VV_NS3", "q_VV_NS3", "Intensity_VV_NS3", "i_VV_NS4", "q_VV_NS4", "Intensity_VV_NS4"});
+        }
     }
 
     @Test
     public void testOpeningZip_NS1() throws Exception {
-        Product prod = testReader(slc_ns1_zip.toPath());
+        try(Product prod = testReader(slc_ns1_zip.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_VV_NS1","q_VV_NS1","Intensity_VV_NS1","i_VV_NS2","q_VV_NS2","Intensity_VV_NS2","i_VV_NS3","q_VV_NS3","Intensity_VV_NS3","i_VV_NS4","q_VV_NS4","Intensity_VV_NS4"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"i_VV_NS1", "q_VV_NS1", "Intensity_VV_NS1", "i_VV_NS2", "q_VV_NS2", "Intensity_VV_NS2", "i_VV_NS3", "q_VV_NS3", "Intensity_VV_NS3", "i_VV_NS4", "q_VV_NS4", "Intensity_VV_NS4"});
+        }
     }
 
     // level 2
@@ -208,22 +220,24 @@ public class TestSpacetyProductReader extends ReaderTest {
     @Test
     @Ignore("no geocoding")
     public void testOpeningL2_SM() throws Exception {
-        Product prod = testReader(l2_sm_zip.toPath());
+        try(Product prod = testReader(l2_sm_zip.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude_VV", "Intensity_VV"});
+        }
     }
 
     @Test
     @Ignore("no geocoding")
     public void testOpeningL2_SP() throws Exception {
-        Product prod = testReader(l2_sp_zip.toPath());
+        try(Product prod = testReader(l2_sp_zip.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude_VV", "Intensity_VV"});
+        }
     }
 }

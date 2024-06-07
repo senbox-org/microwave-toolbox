@@ -55,7 +55,7 @@ public class TestGeolocationGridOp extends ProcessorTest {
     private final static OperatorSpi spi = new GeolocationGridGeocodingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
+    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN", "ETAD"};
     private static final String[] exceptionExemptions = {"not supported", "not be map projected",
                     "Source product should first be deburst","has no bands"};
 
@@ -66,26 +66,27 @@ public class TestGeolocationGridOp extends ProcessorTest {
      */
     @Test
     public void testProcessing() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final GeolocationGridGeocodingOp op = (GeolocationGridGeocodingOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final GeolocationGridGeocodingOp op = (GeolocationGridGeocodingOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
-        assertNotNull(band);
+            final Band band = targetProduct.getBandAt(0);
+            assertNotNull(band);
 
-        // readPixels gets computeTiles to be executed
-        final float[] floatValues = new float[4];
-        band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
+            // readPixels gets computeTiles to be executed
+            final float[] floatValues = new float[4];
+            band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        final float[] expected = new float[] { 2356.043f, 2176.3665f, 2261.298f, 1921.2916f };
-        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+            // compare with expected outputs:
+            final float[] expected = new float[]{2356.043f, 2176.3665f, 2261.298f, 1921.2916f};
+            assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
     }
 
     @Test

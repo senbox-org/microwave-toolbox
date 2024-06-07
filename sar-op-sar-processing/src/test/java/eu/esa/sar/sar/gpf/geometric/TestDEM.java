@@ -37,42 +37,43 @@ public class TestDEM {
     //@Test
     public void testProcessing() throws Exception {
         int w = 10, h = 10;
-        final Product sourceProduct = TestUtils.createProduct("GRD", w,h);
+        try(final Product sourceProduct = TestUtils.createProduct("GRD", w,h)) {
 
-        GeoCoding geoCoding = sourceProduct.getSceneGeoCoding();
-        GeoPos geoPos1 = geoCoding.getGeoPos(new PixelPos(0,0), null);
-        assertEquals(47.01368163108826, geoPos1.lat, 1e-8);
-        assertEquals(11.150777896003394, geoPos1.lon, 1e-8);
+            GeoCoding geoCoding = sourceProduct.getSceneGeoCoding();
+            GeoPos geoPos1 = geoCoding.getGeoPos(new PixelPos(0, 0), null);
+            assertEquals(47.01368163108826, geoPos1.lat, 1e-8);
+            assertEquals(11.150777896003394, geoPos1.lon, 1e-8);
 
-        GeoPos geoPos2 = geoCoding.getGeoPos(new PixelPos(w,0), null);
-        assertEquals(47.09209979057312, geoPos2.lat, 1e-8);
-        assertEquals(10.60330894340638, geoPos2.lon, 1e-8);
+            GeoPos geoPos2 = geoCoding.getGeoPos(new PixelPos(w, 0), null);
+            assertEquals(47.09209979057312, geoPos2.lat, 1e-8);
+            assertEquals(10.60330894340638, geoPos2.lon, 1e-8);
 
-        GeoPos geoPos3 = geoCoding.getGeoPos(new PixelPos(w,h), null);
-        assertEquals(46.73274329185486, geoPos3.lat, 1e-8);
-        assertEquals(10.495820911551409, geoPos3.lon, 1e-8);
+            GeoPos geoPos3 = geoCoding.getGeoPos(new PixelPos(w, h), null);
+            assertEquals(46.73274329185486, geoPos3.lat, 1e-8);
+            assertEquals(10.495820911551409, geoPos3.lon, 1e-8);
 
-        GeoPos geoPos4 = geoCoding.getGeoPos(new PixelPos(0,h), null);
-        assertEquals(46.654466276168826, geoPos4.lat, 1e-8);
-        assertEquals(11.039697677677857, geoPos4.lon, 1e-8);
+            GeoPos geoPos4 = geoCoding.getGeoPos(new PixelPos(0, h), null);
+            assertEquals(46.654466276168826, geoPos4.lat, 1e-8);
+            assertEquals(11.039697677677857, geoPos4.lon, 1e-8);
 
-        final AddElevationOp op = (AddElevationOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final AddElevationOp op = (AddElevationOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        op.doExecute(ProgressMonitor.NULL);
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            op.doExecute(ProgressMonitor.NULL);
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band elevBand = targetProduct.getBand("elevation");
-        assertNotNull(elevBand);
-        assertEquals("SRTM 3Sec", elevBand.getDescription());
-        assertEquals(-32768.0, elevBand.getNoDataValue(), 1e-8);
+            final Band elevBand = targetProduct.getBand("elevation");
+            assertNotNull(elevBand);
+            assertEquals("SRTM 3Sec", elevBand.getDescription());
+            assertEquals(-32768.0, elevBand.getNoDataValue(), 1e-8);
 
-        final double[] demValues = new double[w*h];
-        elevBand.readPixels(0, 0, w, h, demValues, ProgressMonitor.NULL);
+            final double[] demValues = new double[w * h];
+            elevBand.readPixels(0, 0, w, h, demValues, ProgressMonitor.NULL);
 
-        TestUtils.comparePixels(targetProduct, elevBand.getName(), expectedValuesLinux);
+            TestUtils.comparePixels(targetProduct, elevBand.getName(), expectedValuesLinux);
+        }
     }
 }

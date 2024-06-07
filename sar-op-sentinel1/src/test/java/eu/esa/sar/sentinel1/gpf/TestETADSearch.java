@@ -19,6 +19,7 @@ import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.cloud.opendata.DataSpaces;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -47,10 +48,11 @@ public class TestETADSearch {
 
     @Test
     public void testGetTime() throws Exception {
-        Product s1GRD = TestUtils.readSourceProduct(S1_GRD);
-        ETADSearch etadSearch = new ETADSearch();
-        String startTime = etadSearch.getTime(s1GRD.getStartTime());
-        assertEquals("2024-05-08T06:25:59.059Z", startTime);
+        try(Product s1GRD = TestUtils.readSourceProduct(S1_GRD)) {
+            ETADSearch etadSearch = new ETADSearch();
+            String startTime = etadSearch.getTime(s1GRD.getStartTime());
+            assertEquals("2024-05-08T06:25:59.059Z", startTime);
+        }
     }
 
     @Test
@@ -99,6 +101,7 @@ public class TestETADSearch {
             assert file.exists();
 
             s1GRD.dispose();
+            FileUtils.deleteTree(outputFolder);
         }
     }
 }
