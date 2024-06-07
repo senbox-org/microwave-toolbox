@@ -327,7 +327,7 @@ import java.util.Map;
 
 	@Override
     protected void getCorrectionForCurrentTile(final String layer, final int x0, final int y0, final int w, final int h,
-                                               final int burstIndex, final double[][] correction, final double scale) {
+                                               final int prodBurstIndex, final double[][] correction, final double scale) {
 
         int prodSubswathIndex = -1;
         if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
@@ -339,6 +339,8 @@ import java.util.Map;
         }
 
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
+        final double burstAzTime = 0.5 * (subSwath.burstFirstLineTime[prodBurstIndex] +  subSwath.burstLastLineTime[prodBurstIndex]);
+        final int burstIndex = etadUtils.getBurstIndex(pIndex, prodSubswathIndex, burstAzTime);
         final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
 
         Map<String, double[][]> correctionMap = new HashMap<>(10);
@@ -347,8 +349,8 @@ import java.util.Map;
 
         for (int y = y0; y <= yMax; ++y) {
             final int yy = y - y0;
-            final double azTime = subSwath.burstFirstLineTime[burstIndex] +
-                    (y - burstIndex * subSwath.linesPerBurst) * subSwath.azimuthTimeInterval;
+            final double azTime = subSwath.burstFirstLineTime[prodBurstIndex] +
+                    (y - prodBurstIndex * subSwath.linesPerBurst) * subSwath.azimuthTimeInterval;
 
             for (int x = x0; x <= xMax; ++x) {
                 final int xx = x - x0;
