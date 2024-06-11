@@ -49,40 +49,43 @@ public class TestSentinel1ETADProductReader extends ReaderTest {
 
     @Test
     public void TestS1ETAD_SM() throws Exception {
-        final Product sourceProduct = testReader(inputS1ETAD_SM.toPath());
-        if(sourceProduct != null) {
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        try(final Product sourceProduct = testReader(inputS1ETAD_SM.toPath())) {
+            if (sourceProduct != null) {
+                final InputProductValidator validator = new InputProductValidator(sourceProduct);
 
-            validator.checkIfSentinel1Product();
-            validator.checkProductType(new String[]{"ETAD"});
-            validator.checkIfTOPSARBurstProduct(false);
-            validator.checkAcquisitionMode(new String[]{"S6"});
+                validator.checkIfSentinel1Product();
+                validator.checkProductType(new String[]{"ETAD"});
+                validator.checkIfTOPSARBurstProduct(false);
+                validator.checkAcquisitionMode(new String[]{"S6"});
+            }
         }
     }
 
     @Test
     public void TestS1ETAD_SM_ZIP() throws Exception {
-        final Product sourceProduct = testReader(inputS1ETAD_SM_ZIP.toPath());
-        if(sourceProduct != null) {
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        try(final Product sourceProduct = testReader(inputS1ETAD_SM_ZIP.toPath())) {
+            if (sourceProduct != null) {
+                final InputProductValidator validator = new InputProductValidator(sourceProduct);
 
-            validator.checkIfSentinel1Product();
-            validator.checkProductType(new String[]{"ETAD"});
-            validator.checkIfTOPSARBurstProduct(false);
-            validator.checkAcquisitionMode(new String[]{"S6"});
+                validator.checkIfSentinel1Product();
+                validator.checkProductType(new String[]{"ETAD"});
+                validator.checkIfTOPSARBurstProduct(false);
+                validator.checkAcquisitionMode(new String[]{"S6"});
+            }
         }
     }
 
     @Test
     public void TestS1ETAD_IW() throws Exception {
-        final Product sourceProduct = testReader(inputS1ETAD_IW.toPath());
-        if(sourceProduct != null) {
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        try(final Product sourceProduct = testReader(inputS1ETAD_IW.toPath())) {
+            if (sourceProduct != null) {
+                final InputProductValidator validator = new InputProductValidator(sourceProduct);
 
-            validator.checkIfSentinel1Product();
-            validator.checkProductType(new String[]{"ETAD"});
-            validator.checkIfTOPSARBurstProduct(false);
-            validator.checkAcquisitionMode(new String[]{"IW"});
+                validator.checkIfSentinel1Product();
+                validator.checkProductType(new String[]{"ETAD"});
+                validator.checkIfTOPSARBurstProduct(false);
+                validator.checkAcquisitionMode(new String[]{"IW"});
+            }
         }
     }
 }

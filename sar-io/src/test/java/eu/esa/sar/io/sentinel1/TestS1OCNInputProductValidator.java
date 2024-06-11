@@ -47,14 +47,15 @@ public class TestS1OCNInputProductValidator extends ReaderTest {
 
     @Test
     public void TestSentinel1_IW_OCNProduct() throws Exception {
-        final Product sourceProduct = testReader(inputS1_IW_metaOCN.toPath());
-        if(sourceProduct != null) {
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        try(final Product sourceProduct = testReader(inputS1_IW_metaOCN.toPath())) {
+            if (sourceProduct != null) {
+                final InputProductValidator validator = new InputProductValidator(sourceProduct);
 
-            validator.checkIfSentinel1Product();
-            validator.checkProductType(new String[]{"OCN"});
-            validator.checkIfTOPSARBurstProduct(false);
-            validator.checkAcquisitionMode(new String[]{"IW"});
+                validator.checkIfSentinel1Product();
+                validator.checkProductType(new String[]{"OCN"});
+                validator.checkIfTOPSARBurstProduct(false);
+                validator.checkAcquisitionMode(new String[]{"IW"});
+            }
         }
     }
 

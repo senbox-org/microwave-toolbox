@@ -41,12 +41,13 @@ public class TestS1GRDInputProductValidator extends ReaderTest {
 
     @Test
     public void TestSentinel1GRDProduct() throws Exception {
-        final Product prod = testReader(TestData.inputS1_GRD.toPath());
+        try(final Product prod = testReader(TestData.inputS1_GRD.toPath())) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_VH", "Intensity_VH", "Amplitude_VV", "Intensity_VV"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude_VH", "Intensity_VH", "Amplitude_VV", "Intensity_VV"});
+        }
     }
 }
 

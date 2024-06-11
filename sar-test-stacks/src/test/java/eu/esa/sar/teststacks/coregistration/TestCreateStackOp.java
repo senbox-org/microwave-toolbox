@@ -106,7 +106,10 @@ public class TestCreateStackOp extends ProcessorTest {
         File tmpFolder = createTmpFolder("stack1");
         ProductIO.writeProduct(prod, new File(tmpFolder,"stack.dim"), "BEAM-DIMAP", true);
 
-        prod.dispose();
+        prod.close();
+        for(Product product : products) {
+            product.close();
+        }
         delete(tmpFolder);
     }
 }
