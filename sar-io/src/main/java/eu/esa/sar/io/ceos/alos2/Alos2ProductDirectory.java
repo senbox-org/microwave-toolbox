@@ -20,6 +20,9 @@ import eu.esa.sar.io.ceos.alos.AlosPalsarConstants;
 import eu.esa.sar.io.ceos.alos.AlosPalsarTrailerFile;
 import eu.esa.sar.io.ceos.alos.AlosPalsarImageFile;
 import eu.esa.sar.io.ceos.alos.AlosPalsarProductDirectory;
+import org.esa.snap.core.datamodel.MetadataElement;
+import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -105,5 +108,13 @@ public class Alos2ProductDirectory extends AlosPalsarProductDirectory {
 
     protected String getProductDescription() {
         return Alos2Constants.PRODUCT_DESCRIPTION_PREFIX + leaderFile.getProductLevel();
+    }
+    @Override
+    public Product createProduct() throws IOException{
+        Product product = super.createProduct();
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
+
+        return product;
     }
 }
