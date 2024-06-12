@@ -1,5 +1,6 @@
 package eu.esa.sar.sar.gpf.geometric;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
@@ -50,6 +51,7 @@ public class TestUpdateGeoRef extends ProcessorTest {
      * @throws Exception general exception
      */
     @Test
+    @STTM("SNAP-3719")
     public void testProcessing() throws Exception {
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 

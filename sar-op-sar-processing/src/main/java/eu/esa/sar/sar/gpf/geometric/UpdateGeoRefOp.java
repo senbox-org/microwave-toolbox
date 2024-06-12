@@ -318,7 +318,7 @@ public final class UpdateGeoRefOp extends Operator {
         targetProduct.addBand(latBand);
         targetProduct.addBand(lonBand);
 
-        targetProduct.setSceneGeoCoding(GeoCodingFactory.createPixelGeoCoding(latBand, lonBand));
+//        targetProduct.setSceneGeoCoding(GeoCodingFactory.createPixelGeoCoding(latBand, lonBand));
     }
 
     private void computeTileOverlapPercentage(final int x0, final int y0, final int w, final int h,
