@@ -74,6 +74,7 @@
         <module>microwavetbx-benchmark</module>
         <module>microwavetbx-rcp</module>
         <module>microwavetbx-kit</module>
+        <module>microwave-toolbox-coverage</module>
     </modules>
 
     <organization>
