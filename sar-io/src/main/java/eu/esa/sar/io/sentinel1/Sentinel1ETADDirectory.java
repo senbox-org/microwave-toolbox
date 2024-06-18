@@ -43,6 +43,14 @@ public class Sentinel1ETADDirectory extends XMLProductDirectory implements Senti
         super(inputFile);
     }
 
+    @Override
+    public void close() throws IOException {
+        if (etadReader != null) {
+            etadReader.close();
+        }
+        super.close();
+    }
+
     protected String getHeaderFileName() {
         return Sentinel1ProductReaderPlugIn.PRODUCT_HEADER_NAME;
     }
@@ -55,7 +63,7 @@ public class Sentinel1ETADDirectory extends XMLProductDirectory implements Senti
         final String name = getBandFileNameFromImage(imgPath);
         if (name.endsWith(".nc")) {
             if (etadReader == null) {
-                etadReader = new Sentinel1ETADNetCDFReader(this);
+                etadReader = new Sentinel1ETADNetCDFReader();
             }
             File file = new File(getBaseDir(), imgPath);
             if(isCompressed()) {

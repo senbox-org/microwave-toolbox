@@ -81,15 +81,16 @@ public class TestRemoveAntennaPatternOp {
      */
     private void processFile(final File inputFile) throws Exception {
 
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final RemoveAntennaPatternOp op = (RemoveAntennaPatternOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final RemoveAntennaPatternOp op = (RemoveAntennaPatternOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
+        }
     }
 
     @Test

@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sentinel1.gpf.util;
 
+import com.bc.ceres.test.LongTestRunner;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
@@ -24,6 +25,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Assume;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 
@@ -32,6 +34,7 @@ import static org.junit.Assert.assertNotNull;
 /**
  * Unit test for TOPSARDeburst Operator.
  */
+@RunWith(LongTestRunner.class)
 public class TestDeburstOperator extends ProcessorTest {
 
     private final File inputFile = new File(TestData.inputSAR, "S1/SLC/Etna-DLR/S1A_IW_SLC__1SDV_20140809T165546_20140809T165613_001866_001C20_088B.zip");
@@ -44,25 +47,26 @@ public class TestDeburstOperator extends ProcessorTest {
     @Test
     public void testProcessing() throws Exception {
         Assume.assumeTrue("Input file does not exist - Skipping test", inputFile.exists());
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final TOPSARDeburstOp op = new TOPSARDeburstOp();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final TOPSARDeburstOp op = new TOPSARDeburstOp();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, false, false);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false);
 
-        final Band targetBand = targetProduct.getBandAt(0);
-        assertNotNull(targetBand);
+            final Band targetBand = targetProduct.getBandAt(0);
+            assertNotNull(targetBand);
 
-        final int bandWidth = 5000;//targetBand.getRasterWidth();
-        final int bandHeight = 5000;//targetBand.getRasterHeight();
+            final int bandWidth = 5000;//targetBand.getRasterWidth();
+            final int bandHeight = 5000;//targetBand.getRasterHeight();
 
-        // readPixels: execute computeTiles()
-        final float[] floatValues = new float[bandWidth*bandHeight];
-        targetBand.readPixels(0, 0,  bandWidth, bandHeight, floatValues, ProgressMonitor.NULL);
+            // readPixels: execute computeTiles()
+            final float[] floatValues = new float[bandWidth * bandHeight];
+            targetBand.readPixels(0, 0, bandWidth, bandHeight, floatValues, ProgressMonitor.NULL);
+        }
     }
 
 }

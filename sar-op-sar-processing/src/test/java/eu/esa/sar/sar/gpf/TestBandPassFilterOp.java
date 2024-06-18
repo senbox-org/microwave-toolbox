@@ -66,24 +66,25 @@ public class TestBandPassFilterOp extends ProcessorTest {
      */
     private void process(final File inputFile, final float[] expected) throws Exception {
 
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final BandPassFilterOp op = (BandPassFilterOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final BandPassFilterOp op = (BandPassFilterOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
-        assertNotNull(band);
+            final Band band = targetProduct.getBandAt(0);
+            assertNotNull(band);
 
-        // readPixels gets computeTiles to be executed
-        final float[] floatValues = new float[4];
-        band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+            // readPixels gets computeTiles to be executed
+            final float[] floatValues = new float[4];
+            band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+            // compare with expected outputs:
+            assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
     }
 }

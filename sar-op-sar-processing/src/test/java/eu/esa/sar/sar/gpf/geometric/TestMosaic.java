@@ -74,29 +74,31 @@ public class TestMosaic extends ProcessorTest {
 
     private void process(boolean average, boolean normalizeByMean, boolean gradientDomain, final float[] expected) throws Exception {
 
-        final Product sourceProduct1 = TestUtils.readSourceProduct(inputFile1);
-        final Product sourceProduct2 = TestUtils.readSourceProduct(inputFile2);
+        try(final Product sourceProduct1 = TestUtils.readSourceProduct(inputFile1)) {
+            try (final Product sourceProduct2 = TestUtils.readSourceProduct(inputFile2)) {
 
-        final MosaicOp op = (MosaicOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(sourceProduct1,sourceProduct2);
-        op.setParameter("average", average);
-        op.setParameter("normalizeByMean", normalizeByMean);
-        op.setParameter("gradientDomainMosaic", gradientDomain);
-        op.setParameter("resamplingMethod", ResamplingFactory.BILINEAR_INTERPOLATION_NAME);
+                final MosaicOp op = (MosaicOp) spi.createOperator();
+                assertNotNull(op);
+                op.setSourceProducts(sourceProduct1, sourceProduct2);
+                op.setParameter("average", average);
+                op.setParameter("normalizeByMean", normalizeByMean);
+                op.setParameter("gradientDomainMosaic", gradientDomain);
+                op.setParameter("resamplingMethod", ResamplingFactory.BILINEAR_INTERPOLATION_NAME);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, false, true, true);
+                // get targetProduct: execute initialize()
+                final Product targetProduct = op.getTargetProduct();
+                TestUtils.verifyProduct(targetProduct, false, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
-        assertNotNull(band);
+                final Band band = targetProduct.getBandAt(0);
+                assertNotNull(band);
 
-        // readPixels gets computeTiles to be executed
-        final float[] floatValues = new float[4];
-        band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
+                // readPixels gets computeTiles to be executed
+                final float[] floatValues = new float[4];
+                band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+                // compare with expected outputs:
+                assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+            }
+        }
     }
 }

@@ -38,6 +38,14 @@ public class Sentinel1Level2Directory extends XMLProductDirectory implements Sen
         super(inputFile);
     }
 
+    @Override
+    public void close() throws IOException {
+        if (OCNReader != null) {
+            OCNReader.close();
+        }
+        super.close();
+    }
+
     protected String getHeaderFileName() {
         return Sentinel1ProductReaderPlugIn.PRODUCT_HEADER_NAME;
     }

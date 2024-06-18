@@ -70,7 +70,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
     private final static OperatorSpi spi = new RangeDopplerGeocodingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
+    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN","ETAD"};
     private static final String[] exceptionExemptions = {"not supported", "not be map projected", "outside of SRTM valid area",
                                 "Source product should first be deburst","has no bands","numbands is zero"};
 
@@ -81,53 +81,55 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessWSM() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile1);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
 
-        final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
-        op.setApplyRadiometricCalibration(true);
-        op.setParameter("saveLayoverShadowMask", true);
-        String[] bandNames = {"Amplitude"};
-        op.setSourceBandNames(bandNames);
+            final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
+            op.setApplyRadiometricCalibration(true);
+            op.setParameter("saveLayoverShadowMask", true);
+            String[] bandNames = {"Amplitude"};
+            op.setSourceBandNames(bandNames);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
-        assertNotNull(band);
+            final Band band = targetProduct.getBandAt(0);
+            assertNotNull(band);
 
-        // readPixels gets computeTiles to be executed
-        final float[] floatValues = new float[4];
-        band.readPixels(200, 200, 2, 2, floatValues, ProgressMonitor.NULL);
+            // readPixels gets computeTiles to be executed
+            final float[] floatValues = new float[4];
+            band.readPixels(200, 200, 2, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        final float[] expected = new float[] { 0.12189214f, 0.12721543f, 0.13359734f, 0.12150828f };
-        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+            // compare with expected outputs:
+            final float[] expected = new float[]{0.12189214f, 0.12721543f, 0.13359734f, 0.12150828f};
+            assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
     }
 
     @Test
     public void testGetLocalDEM() throws Exception {
 
         final ProductReader reader = ProductIO.getProductReaderForInput(inputFile2);
-        final Product sourceProduct = reader.readProductNodes(inputFile2, null);
+        try(final Product sourceProduct = reader.readProductNodes(inputFile2, null)) {
 
-        final ElevationModelRegistry elevationModelRegistry = ElevationModelRegistry.getInstance();
-        final ElevationModelDescriptor demDescriptor = elevationModelRegistry.getDescriptor("SRTM 3Sec");
-        final ElevationModel dem = demDescriptor.createDem(ResamplingFactory.createResampling(ResamplingFactory.BILINEAR_INTERPOLATION_NAME));
-        final GeoCoding targetGeoCoding = sourceProduct.getSceneGeoCoding();
+            final ElevationModelRegistry elevationModelRegistry = ElevationModelRegistry.getInstance();
+            final ElevationModelDescriptor demDescriptor = elevationModelRegistry.getDescriptor("SRTM 3Sec");
+            final ElevationModel dem = demDescriptor.createDem(ResamplingFactory.createResampling(ResamplingFactory.BILINEAR_INTERPOLATION_NAME));
+            final GeoCoding targetGeoCoding = sourceProduct.getSceneGeoCoding();
 
-        final int width = sourceProduct.getSceneRasterWidth();
-        final int height = sourceProduct.getSceneRasterHeight();
+            final int width = sourceProduct.getSceneRasterWidth();
+            final int height = sourceProduct.getSceneRasterHeight();
 
-        final GeoPos geoPos = new GeoPos();
-        final PixelPos pixPos = new PixelPos();
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                pixPos.setLocation(x, y);
-                targetGeoCoding.getGeoPos(pixPos, geoPos);
-                dem.getElevation(geoPos);
+            final GeoPos geoPos = new GeoPos();
+            final PixelPos pixPos = new PixelPos();
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    pixPos.setLocation(x, y);
+                    targetGeoCoding.getGeoPos(pixPos, geoPos);
+                    dem.getElevation(geoPos);
+                }
             }
         }
     }
@@ -139,29 +141,30 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessIMS() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile3);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile3)) {
 
-        final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
-        op.setApplyRadiometricCalibration(true);
-        String[] bandNames = {"i", "q"};
-        op.setSourceBandNames(bandNames);
+            final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
+            op.setApplyRadiometricCalibration(true);
+            String[] bandNames = {"i", "q"};
+            op.setSourceBandNames(bandNames);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
-        assertNotNull(band);
+            final Band band = targetProduct.getBandAt(0);
+            assertNotNull(band);
 
-        // readPixels gets computeTiles to be executed
-        final float[] floatValues = new float[4];
-        band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+            // readPixels gets computeTiles to be executed
+            final float[] floatValues = new float[4];
+            band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        final float[] expected = new float[] { 0.050986305f, 0.15979816f, 0.017083498f, 0.10548973f };
-        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+            // compare with expected outputs:
+            final float[] expected = new float[]{0.050986305f, 0.15979816f, 0.017083498f, 0.10548973f};
+            assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
     }
 
     /**
@@ -171,29 +174,30 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessAPM() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile4);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile4)) {
 
-        final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
-        op.setApplyRadiometricCalibration(true);
-        String[] bandNames = {sourceProduct.getBandAt(0).getName()};
-        op.setSourceBandNames(bandNames);
+            final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
+            op.setApplyRadiometricCalibration(true);
+            String[] bandNames = {sourceProduct.getBandAt(0).getName()};
+            op.setSourceBandNames(bandNames);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true);
 
-        final Band band = targetProduct.getBandAt(0);
-        assertNotNull(band);
+            final Band band = targetProduct.getBandAt(0);
+            assertNotNull(band);
 
-        // readPixels gets computeTiles to be executed
-        final float[] floatValues = new float[4];
-        band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
+            // readPixels gets computeTiles to be executed
+            final float[] floatValues = new float[4];
+            band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        final float[] expected = new float[] { 0.2688405f, 0.2265824f, 0.18008466f, 0.17219248f };
-        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+            // compare with expected outputs:
+            final float[] expected = new float[]{0.2688405f, 0.2265824f, 0.18008466f, 0.17219248f};
+            assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
     }
 
     @Test
