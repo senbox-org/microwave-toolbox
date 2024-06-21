@@ -84,7 +84,7 @@ import java.util.Map;
             }
 
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-            radarFrequency = absRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // in Hz
+            radarFrequency = absRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // MHz to Hz
         } catch (Throwable e) {
             throw new OperatorException(e);
         }
@@ -217,7 +217,7 @@ import java.util.Map;
                     final int xx = x - x0;
 
                     final double delay = correction[yy][xx] + rangeTimeCalibration;
-                    final double phase = -2.0 * Constants.PI * delay * radarFrequency; // delay time (s) to phase (radian)
+                    final double phase = 2.0 * Constants.PI * delay * radarFrequency; // delay time (s) to phase (radian)
                     tgtData.setElemDoubleAt(tgtIdx, phase);
                 }
             }
