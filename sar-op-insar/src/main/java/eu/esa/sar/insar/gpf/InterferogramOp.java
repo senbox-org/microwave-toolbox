@@ -178,6 +178,7 @@ public class InterferogramOp extends Operator {
 
     private static final boolean CREATE_VIRTUAL_BAND = true;
     private static final boolean OUTPUT_PHASE = false;
+    private static final boolean OUTPUT_ETAD_IFG = true;
     private static final String PRODUCT_SUFFIX = "_Ifg";
     private static final String FLAT_EARTH_PHASE = "flat_earth_phase";
     private static final String TOPO_PHASE = "topo_phase";
@@ -189,6 +190,7 @@ public class InterferogramOp extends Operator {
     private static final String MASTER_TAG = "mst";
     private static final String SLAVE_TAG = "slv";
     private static final String ETAD = "ETAD";
+    private static final String ETAD_IFG = "etad_ifg";
 
     /**
      * Initializes this operator and sets the one and only target product.
@@ -655,6 +657,13 @@ public class InterferogramOp extends Operator {
                 container.addBand(LONGITUDE, lonBand.getName());
                 lonBand.setUnit(Unit.DEGREES);
                 targetBandNames.add(lonBand.getName());
+            }
+
+            if (subtractETADPhase && OUTPUT_ETAD_IFG) {
+                final Band etadIfgBand = targetProduct.addBand(ETAD_IFG, ProductData.TYPE_FLOAT32);
+                container.addBand(ETAD_IFG, etadIfgBand.getName());
+                etadIfgBand.setUnit(Unit.PHASE);
+                targetBandNames.add(etadIfgBand.getName());
             }
 
             String slvProductName = StackUtils.findOriginalSlaveProductName(sourceProduct, container.sourceSlave.realBand);
@@ -1234,6 +1243,26 @@ public class InterferogramOp extends Operator {
 //        }
 //    }
 
+    private void saveETADPhase(final int x0, final int xN, final int y0, final int yN, final double[][] etadPhase,
+                               final ProductContainer product, final Map<Band, Tile> targetTileMap) {
+
+        final Band etadIfgBand = targetProduct.getBand(product.getBandName(ETAD_IFG));
+        final Tile etadIfgTile = targetTileMap.get(etadIfgBand);
+        final ProductData etadIfgData = etadIfgTile.getDataBuffer();
+        final TileIndex tgtIndex = new TileIndex(etadIfgTile);
+
+        for (int y = y0; y <= yN; y++) {
+            tgtIndex.calculateStride(y);
+            final int yy = y - y0;
+            for (int x = x0; x <= xN; x++) {
+                final int tgtIdx = tgtIndex.getIndex(x);
+                final int xx = x - x0;
+                etadIfgData.setElemFloatAt(tgtIdx, (float)Math.atan2(Math.sin(etadPhase[yy][xx]), Math.cos(etadPhase[yy][xx])));
+//                etadIfgData.setElemFloatAt(tgtIdx, (float)etadPhase[yy][xx]);
+            }
+        }
+    }
+
     private void saveInterferogram(final ComplexDoubleMatrix dataMaster, final ProductContainer product,
                                    final Map<Band, Tile> targetTileMap, final Rectangle targetRectangle) {
 
@@ -1514,6 +1543,10 @@ public class InterferogramOp extends Operator {
                                 MatrixFunctions.sin(new DoubleMatrix(etadPhase)));
 
                         dataSlave.muli(ComplexETADPhase);
+
+                        if (OUTPUT_ETAD_IFG) {
+                            saveETADPhase(x0, xN, y0, yN, etadPhase, product, targetTileMap);
+                        }
                     }
                 }
 
