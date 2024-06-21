@@ -125,17 +125,18 @@ public class TestCalibrationOp {
      */
     private void processFile(final File inputFile, final String bandName, final float[] expected) throws Exception {
 
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final CalibrationOp op = (CalibrationOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final CalibrationOp op = (CalibrationOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        TestUtils.comparePixels(targetProduct, bandName, expected);
+            TestUtils.comparePixels(targetProduct, bandName, expected);
+        }
     }
 
     @Test

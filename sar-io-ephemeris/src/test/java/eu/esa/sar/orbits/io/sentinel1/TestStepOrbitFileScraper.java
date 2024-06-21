@@ -94,12 +94,13 @@ public class TestStepOrbitFileScraper {
         final ProductData.UTC stateVectorTime = ProductData.UTC.parse("2016-02-28 15:19:21.698661", Sentinel1OrbitFileReader.orbitDateFormat);
         final File localFolder = SentinelPODOrbitFile.getDestFolder(missionPrefix, orbitType, year, month);
 
-        final OrbitFileScraper scraper = new OrbitFileScraper.Step(orbitType);
+        try(final OrbitFileScraper scraper = new OrbitFileScraper.Step(orbitType)) {
 
-        File orbitFile = scraper.download(localFolder,missionPrefix, orbitType,
-                year, month, day, stateVectorTime);
-        assertTrue(orbitFile.exists());
-        orbitFile.delete();
+            File orbitFile = scraper.download(localFolder, missionPrefix, orbitType,
+                    year, month, day, stateVectorTime);
+            assertTrue(orbitFile.exists());
+            orbitFile.delete();
+        }
     }
 
     @Test
@@ -112,12 +113,13 @@ public class TestStepOrbitFileScraper {
         final ProductData.UTC stateVectorTime = ProductData.UTC.parse("2018-02-28 15:19:21.698661", Sentinel1OrbitFileReader.orbitDateFormat);
         final File localFolder = SentinelPODOrbitFile.getDestFolder(missionPrefix, orbitType, year, month);
 
-        final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.PRECISE);
+        try(final OrbitFileScraper scraper = new OrbitFileScraper.Step(SentinelPODOrbitFile.PRECISE)) {
 
-        File orbitFile = scraper.download(localFolder,missionPrefix, orbitType,
-                year, month, day, stateVectorTime);
-        assertNotNull(orbitFile);
-        assertTrue(orbitFile.exists());
-        orbitFile.delete();
+            File orbitFile = scraper.download(localFolder, missionPrefix, orbitType,
+                    year, month, day, stateVectorTime);
+            assertNotNull(orbitFile);
+            assertTrue(orbitFile.exists());
+            orbitFile.delete();
+        }
     }
 }

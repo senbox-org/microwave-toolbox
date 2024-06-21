@@ -17,8 +17,10 @@
     <properties>
         <json-simple.version>1.1.1</json-simple.version>
         <jackson.version>2.15.1</jackson.version>
-        <json-schema-validator.version>1.0.83</json-schema-validator.version>
-        <olingo.version>2.0.12</olingo.version>
+        <json-schema-validator.version>1.4.0</json-schema-validator.version>
+        <commons-codec.version>1.15</commons-codec.version>
+        <commons-io.version>2.16.1</commons-io.version>
+        <jasypt.version>1.9.3</jasypt.version>
     </properties>
 
     <dependencies>
@@ -46,25 +48,36 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.olingo</groupId>
-            <artifactId>olingo-odata2-api</artifactId>
-            <version>${olingo.version}</version>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpcore</artifactId>
+            <version>4.4.16</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.olingo</groupId>
-            <artifactId>olingo-odata2-core</artifactId>
-            <version>${olingo.version}</version>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.14</version>
             <exclusions>
                 <exclusion>
-                    <groupId>javax.ws.rs</groupId>
-                    <artifactId>javax.ws.rs-api</artifactId>
+                    <groupId>commons-codec</groupId>
+                    <artifactId>commons-codec</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>${commons-codec.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>${commons-io.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.jasypt</groupId>
             <artifactId>jasypt</artifactId>
-            <version>1.9.2</version>
+            <version>${jasypt.version}</version>
         </dependency>
     </dependencies>
     
@@ -79,8 +92,8 @@
                         <publicPackage>org.json.simple.*</publicPackage>
                         <publicPackage>com.fasterxml.jackson.*</publicPackage>
                         <publicPackage>javax.xml.stream.*</publicPackage>
-                        <publicPackage>org.apache.olingo.odata2.*</publicPackage>
                         <publicPackage>org.jasypt.*</publicPackage>
+                        <publicPackage>org.apache.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

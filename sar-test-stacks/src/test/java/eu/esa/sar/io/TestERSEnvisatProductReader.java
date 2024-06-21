@@ -57,32 +57,35 @@ public class TestERSEnvisatProductReader extends ReaderTest {
 
     @Test
     public void testERS2_ENVISAT_IMM_ZIP() throws Exception {
-        Product prod = read(ers2_envisat_imm_zip);
+        try(Product prod = read(ers2_envisat_imm_zip)) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        //validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            //validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude", "Intensity"});
+        }
     }
 
     @Test
     public void testERS1_E1_IMP() throws Exception {
-        Product prod = read(ers1_envisat_imp);
+        try(Product prod = read(ers1_envisat_imp)) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        //validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            //validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude", "Intensity"});
+        }
     }
 
     @Test
     public void testERS2_E2_IMP() throws Exception {
-        Product prod = read(ers2_envisat_imp);
+        try(Product prod = read(ers2_envisat_imp)) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        //validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            //validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude", "Intensity"});
+        }
     }
 
     private Product read(final File file) throws Exception {

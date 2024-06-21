@@ -65,27 +65,28 @@ public class TestDemodulateOp {
      */
     private void process(final File inputFile, final float[] expected) throws Exception {
 
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final float[] origValues = new float[4];
-        sourceProduct.getBandAt(2).readPixels(0, 0, 2, 2, origValues, ProgressMonitor.NULL);
+            final float[] origValues = new float[4];
+            sourceProduct.getBandAt(2).readPixels(0, 0, 2, 2, origValues, ProgressMonitor.NULL);
 
-        final DemodulateOp op = (DemodulateOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final DemodulateOp op = (DemodulateOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(4);
-        assertNotNull(band);
+            final Band band = targetProduct.getBandAt(4);
+            assertNotNull(band);
 
-        // readPixels gets computeTiles to be executed
-        final float[] floatValues = new float[4];
-        band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+            // readPixels gets computeTiles to be executed
+            final float[] floatValues = new float[4];
+            band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+            // compare with expected outputs:
+            assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
     }
 }

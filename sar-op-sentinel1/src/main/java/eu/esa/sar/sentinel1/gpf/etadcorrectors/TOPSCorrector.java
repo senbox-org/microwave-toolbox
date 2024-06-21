@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import com.bc.ceres.core.ProgressMonitor;
@@ -14,6 +29,7 @@ import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
 
 import java.awt.*;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -227,8 +243,7 @@ import java.util.Map;
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
         final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
 
-        final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
-        double[][] layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
+        Map<String, double[][]> correctionMap = new HashMap<>(10);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -241,7 +256,7 @@ import java.util.Map;
                 final int xx = x - x0;
                 final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
 
-                correction[yy][xx] += scale * getCorrection(azTime, rgTime, burst, layerCorrection);
+                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
             }
         }
     }

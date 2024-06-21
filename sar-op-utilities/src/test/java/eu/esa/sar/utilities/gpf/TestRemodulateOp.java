@@ -66,45 +66,46 @@ public class TestRemodulateOp extends ProcessorTest {
      */
     private void process(final File inputFile, final float[] expected) throws Exception {
 
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final float[] origValues = new float[4];
-        sourceProduct.getBandAt(2).readPixels(500, 500, 2, 2, origValues, ProgressMonitor.NULL);
+            final float[] origValues = new float[4];
+            sourceProduct.getBandAt(2).readPixels(500, 500, 2, 2, origValues, ProgressMonitor.NULL);
 
-        final DemodulateOp dmodOp = (DemodulateOp) new DemodulateOp.Spi().createOperator();
-        assertNotNull(dmodOp);
-        dmodOp.setSourceProduct(sourceProduct);
+            final DemodulateOp dmodOp = (DemodulateOp) new DemodulateOp.Spi().createOperator();
+            assertNotNull(dmodOp);
+            dmodOp.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product dmodProduct = dmodOp.getTargetProduct();
-        TestUtils.verifyProduct(dmodProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product dmodProduct = dmodOp.getTargetProduct();
+            TestUtils.verifyProduct(dmodProduct, true, true, true);
 
-        final Band dmodSlvBand = dmodProduct.getBandAt(2);
-        assertNotNull(dmodSlvBand);
+            final Band dmodSlvBand = dmodProduct.getBandAt(2);
+            assertNotNull(dmodSlvBand);
 
-        final float[] dmodExpected = new float[] { -23.118227f, -9.201061f, 52.344772f, 42.925545f };
-        final float[] dmodValues = new float[4];
-        dmodSlvBand.readPixels(500, 500, 2, 2, dmodValues, ProgressMonitor.NULL);
+            final float[] dmodExpected = new float[]{-23.118227f, -9.201061f, 52.344772f, 42.925545f};
+            final float[] dmodValues = new float[4];
+            dmodSlvBand.readPixels(500, 500, 2, 2, dmodValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        assertArrayEquals(Arrays.toString(dmodValues), dmodExpected, dmodValues, 0.0001f);
+            // compare with expected outputs:
+            assertArrayEquals(Arrays.toString(dmodValues), dmodExpected, dmodValues, 0.0001f);
 
-        final RemodulateOp op = (RemodulateOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(dmodProduct);
+            final RemodulateOp op = (RemodulateOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(dmodProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final Band band = targetProduct.getBandAt(2);
-        assertNotNull(band);
+            final Band band = targetProduct.getBandAt(2);
+            assertNotNull(band);
 
-        // readPixels gets computeTiles to be executed
-        final float[] floatValues = new float[4];
-        band.readPixels(500, 500, 2, 2, floatValues, ProgressMonitor.NULL);
+            // readPixels gets computeTiles to be executed
+            final float[] floatValues = new float[4];
+            band.readPixels(500, 500, 2, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+            // compare with expected outputs:
+            assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
     }
 }

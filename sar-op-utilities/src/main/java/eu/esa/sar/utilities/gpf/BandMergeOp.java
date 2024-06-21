@@ -16,6 +16,7 @@
 package eu.esa.sar.utilities.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.snap.core.datamodel.group.BandGrouping;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.Operator;
@@ -48,11 +49,11 @@ import java.util.List;
  * @author Thomas Storm
  */
 @OperatorMetadata(alias = "BandMerge",
-                  category = "Raster",
-                  description = "Allows copying raster data from any number of source products to a specified 'master' product.",
-                  authors = "SNAP team",
-                  version = "1.0",
-                  copyright = "(c) 2012 by Brockmann Consult")
+        category = "Raster",
+        description = "Allows copying raster data from any number of source products to a specified 'master' product.",
+        authors = "SNAP team",
+        version = "1.0",
+        copyright = "(c) 2012 by Brockmann Consult")
 public class BandMergeOp extends Operator {
 
     @SourceProducts(description = "The products to be merged into the master product.")
@@ -65,7 +66,7 @@ public class BandMergeOp extends Operator {
     private String[] sourceBandNames;
 
     @Parameter(defaultValue = "1.0E-5f",
-               description = "Defines the maximum lat/lon error in degree between the products.")
+            description = "Defines the maximum lat/lon error in degree between the products.")
     private float geographicError;
 
     @Override
@@ -84,17 +85,17 @@ public class BandMergeOp extends Operator {
 
         for (Product prod : sourceProducts) {
             for (Band band : prod.getBands()) {
-                if(prod.equals(mstProduct) && existingBands.contains(band.getName())) {
+                if (prod.equals(mstProduct) && existingBands.contains(band.getName())) {
                     continue;
                 }
                 final Band sourceBand = targetProduct.getBand(band.getName());
                 String targetBandName = band.getName();
                 if (sourceBand != null) {
                     int cnt = 2;
-                    targetBandName = band.getName() + "_"+cnt;
-                    while(targetProduct.containsRasterDataNode(targetBandName)) {
+                    targetBandName = band.getName() + "_" + cnt;
+                    while (targetProduct.containsRasterDataNode(targetBandName)) {
                         ++cnt;
-                        targetBandName = band.getName() + "_"+cnt;
+                        targetBandName = band.getName() + "_" + cnt;
                     }
                 }
                 ProductUtils.copyBand(band.getName(), prod, targetBandName, targetProduct, true);
@@ -111,15 +112,15 @@ public class BandMergeOp extends Operator {
     }
 
     private void mergeAutoGrouping(Product srcProduct) {
-        final Product.AutoGrouping srcAutoGrouping = srcProduct.getAutoGrouping();
+        final BandGrouping srcAutoGrouping = srcProduct.getAutoGrouping();
         if (srcAutoGrouping != null && !srcAutoGrouping.isEmpty()) {
-            final Product.AutoGrouping targetAutoGrouping = targetProduct.getAutoGrouping();
+            final BandGrouping targetAutoGrouping = targetProduct.getAutoGrouping();
             if (targetAutoGrouping == null) {
                 targetProduct.setAutoGrouping(srcAutoGrouping);
             } else {
                 for (String[] grouping : srcAutoGrouping) {
                     if (!targetAutoGrouping.contains(grouping)) {
-                        targetProduct.setAutoGrouping(targetAutoGrouping.toString() + ":" + srcAutoGrouping);
+                        targetProduct.setAutoGrouping(targetAutoGrouping + ":" + srcAutoGrouping);
                     }
                 }
             }
@@ -130,7 +131,7 @@ public class BandMergeOp extends Operator {
         for (Product sourceProduct : getSourceProducts()) {
             if (!targetProduct.isCompatibleProduct(sourceProduct, geographicError)) {
                 throw new OperatorException(String.format("Product [%s] is not compatible to master product.",
-                                                          getSourceProductId(sourceProduct)));
+                        getSourceProductId(sourceProduct)));
             }
         }
     }

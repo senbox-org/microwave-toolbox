@@ -53,70 +53,77 @@ public class TestSliceAssemblyOp extends ProcessorTest {
     @Test
     public void testSingleProduct() throws Exception {
 
-        final Product slice1Product = TestUtils.readSourceProduct(slice1File);
+        try(final Product slice1Product = TestUtils.readSourceProduct(slice1File)) {
 
-        final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(slice1Product);
+            final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProducts(slice1Product);
 
-        try {
-            // get targetProduct: execute initialize()
-            final Product targetProduct = op.getTargetProduct();
-            TestUtils.verifyProduct(targetProduct, false, false);
-        } catch (Exception e) {
-            String msg = e.getMessage();
-            assertTrue(msg.equals("Slice assembly requires at least two consecutive slice products"));
+            try {
+                // get targetProduct: execute initialize()
+                final Product targetProduct = op.getTargetProduct();
+                TestUtils.verifyProduct(targetProduct, false, false);
+            } catch (Exception e) {
+                String msg = e.getMessage();
+                assertTrue(msg.equals("Slice assembly requires at least two consecutive slice products"));
+            }
         }
     }
 
     @Test
     public void testNonSliceProduct() throws Exception {
 
-        final Product slice1Product = TestUtils.readSourceProduct(slice1File);
-        final Product nonSliceProduct = TestUtils.readSourceProduct(nonSliceFile);
+        try(final Product slice1Product = TestUtils.readSourceProduct(slice1File)) {
+            try(final Product nonSliceProduct = TestUtils.readSourceProduct(nonSliceFile)) {
 
-        final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(slice1Product, nonSliceProduct);
+                final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
+                assertNotNull(op);
+                op.setSourceProducts(slice1Product, nonSliceProduct);
 
-        try {
-            // get targetProduct: execute initialize()
-            final Product targetProduct = op.getTargetProduct();
-            TestUtils.verifyProduct(targetProduct, false, false);
-        } catch (Exception e) {
-            String msg = e.getMessage();
-            assertTrue(msg.contains("is not a slice product"));
+                try {
+                    // get targetProduct: execute initialize()
+                    final Product targetProduct = op.getTargetProduct();
+                    TestUtils.verifyProduct(targetProduct, false, false);
+                } catch (Exception e) {
+                    String msg = e.getMessage();
+                    assertTrue(msg.contains("is not a slice product"));
+                }
+            }
         }
     }
 
     @Test
     public void testOrder1_2() throws Exception {
 
-        final Product slice1Product = TestUtils.readSourceProduct(slice1File);
-        final Product slice2Product = TestUtils.readSourceProduct(slice2File);
+        try(final Product slice1Product = TestUtils.readSourceProduct(slice1File)) {
+            try (final Product slice2Product = TestUtils.readSourceProduct(slice2File)) {
 
-        final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(slice1Product, slice2Product);
+                final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
+                assertNotNull(op);
+                op.setSourceProducts(slice1Product, slice2Product);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+                // get targetProduct: execute initialize()
+                final Product targetProduct = op.getTargetProduct();
+                TestUtils.verifyProduct(targetProduct, true, true, true);
+            }
+        }
     }
 
     @Test
     public void testOrder2_1() throws Exception {
 
-        final Product slice1Product = TestUtils.readSourceProduct(slice1File);
-        final Product slice2Product = TestUtils.readSourceProduct(slice2File);
+        try(final Product slice1Product = TestUtils.readSourceProduct(slice1File)) {
+            try (final Product slice2Product = TestUtils.readSourceProduct(slice2File)) {
 
-        final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(slice2Product, slice1Product);
+                final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
+                assertNotNull(op);
+                op.setSourceProducts(slice2Product, slice1Product);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+                // get targetProduct: execute initialize()
+                final Product targetProduct = op.getTargetProduct();
+                TestUtils.verifyProduct(targetProduct, true, true, true);
+            }
+        }
     }
 
 }

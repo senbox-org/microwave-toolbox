@@ -137,6 +137,16 @@ public class Sentinel1OCNReader {
         this.dataDir = dataDir;
     }
 
+    public void close() {
+        for (NCFileData data : bandNCFileMap.values()) {
+            try {
+                data.netcdfFile.close();
+            } catch (IOException e) {
+                SystemUtils.LOG.severe("Sentinel1OCNReader.close: IOException when closing " + data.name);
+            }
+        }
+    }
+
     public void addImageFile(final File file, final String name) throws IOException {
 
         //System.out.println("Sentinel1OCNReader.addImageFile: file = " + file + "; name = " + name);

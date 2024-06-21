@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.cloud.utils;
 
+import org.apache.http.auth.UsernamePasswordCredentials;
 import org.junit.Test;
 
 import static junit.framework.TestCase.assertEquals;
@@ -23,21 +24,32 @@ import static junit.framework.TestCase.assertNotNull;
 /**
  * Test Credentials Class
  */
-public class TestCredentials {
+public class TestCredentialsManager {
 
     private static final String host = "https://some.website.com";
 
     @Test
     public void testAdd() throws Exception {
-        Credentials.CredentialInfo credentialInfo = Credentials.instance().get(host);
-        if (credentialInfo == null) {
+        UsernamePasswordCredentials credentials = CredentialsManager.instance().get(host);
+        if (credentials == null) {
             //add
-            Credentials.instance().put(host, "testuser", "testpassword");
-            credentialInfo = Credentials.instance().get(host);
+            CredentialsManager.instance().put(host, "testuser", "testpassword");
+            credentials = CredentialsManager.instance().get(host);
         }
 
-        assertNotNull(credentialInfo);
-        assertEquals("testuser", credentialInfo.getUser());
-        assertEquals("testpassword", credentialInfo.getPassword());
+        assertNotNull(credentials);
+        assertEquals("testuser", credentials.getUserName());
+        assertEquals("testpassword", credentials.getPassword());
     }
+
+    @Test
+    public void testCopernicus() {
+        UsernamePasswordCredentials credentials = CredentialsManager.instance().getProductLibraryCredentials("Copernicus DataSpace");
+        if (credentials == null) {
+            System.out.println("Credentials for Copernicus DataSpace not found in the credentials store.");
+        } else {
+            assertNotNull(credentials.getUserName());
+        }
+    }
+    
 }

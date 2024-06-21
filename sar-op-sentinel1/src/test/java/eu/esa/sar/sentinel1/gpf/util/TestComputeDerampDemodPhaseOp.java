@@ -44,17 +44,18 @@ public class TestComputeDerampDemodPhaseOp {
         assumeTrue(inputFile + " not found", inputFile.exists());
         assumeTrue(inputParameterFile + " not found", inputParameterFile.exists());
 
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
-        op = (DerampDemodPhaseOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
+            op = (DerampDemodPhaseOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, false, false, false);
+            // get targetProduct: execute initialize()
+            targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false, false);
 
-        reader = new TAXIParameterFileReader(inputParameterFile);
-        reader.readParameterFile();
+            reader = new TAXIParameterFileReader(inputParameterFile);
+            reader.readParameterFile();
+        }
     }
 
     @Test
