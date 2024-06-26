@@ -62,4 +62,19 @@ public class TestInterferogramOp {
         TestUtils.comparePixels(targetProduct, "Phase_ifg_IW1_VH_25Feb2018_09Mar2018", expected);
     }
 
+    @Test
+    @STTM("SNAP-3723")
+    public void testProcessingInterferogramFlatEarthPhase() throws Exception {
+        final Product sourceProduct = TestUtils.readSourceProduct(inputFile1);
+
+        final InterferogramOp op = (InterferogramOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
+        op.setParameter("outputFlatEarthPhase", true);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        assumeTrue(targetProduct.containsBand("fep_IW1_VH_25Feb2018_09Mar2018"));
+    }
+
 }

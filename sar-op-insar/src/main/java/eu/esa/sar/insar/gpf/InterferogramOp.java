@@ -90,7 +90,7 @@ public class InterferogramOp extends Operator {
             label = "Orbit interpolation degree")
     private int orbitDegree = 3;
 
-    @Parameter(defaultValue = "true", label = "Include coherence estimation")
+    @Parameter(defaultValue = "true", label = "Output coherence estimation")
     private boolean includeCoherence = true;
 
     @Parameter(description = "Size of coherence estimation window in Azimuth direction",
@@ -134,6 +134,12 @@ public class InterferogramOp extends Operator {
             defaultValue = "100")
     private String tileExtensionPercent = "100";
 
+    @Parameter(defaultValue = "false", label = "Output Flat Earth Phase")
+    private boolean outputFlatEarthPhase = false;
+
+    @Parameter(defaultValue = "false", label = "Output Topographic Phase")
+    private boolean outputTopoPhase = false;
+
     @Parameter(defaultValue = "false", label = "Output Elevation")
     private boolean outputElevation = false;
 
@@ -141,18 +147,18 @@ public class InterferogramOp extends Operator {
     private boolean outputLatLon = false;
 
     // flat_earth_polynomial container
-    private Map<String, DoubleMatrix> flatEarthPolyMap = new HashMap<>();
+    private final Map<String, DoubleMatrix> flatEarthPolyMap = new HashMap<>();
     private boolean flatEarthEstimated = false;
 
     // source
-    private Map<String, CplxContainer> masterMap = new HashMap<>();
-    private Map<String, CplxContainer> slaveMap = new HashMap<>();
+    private final Map<String, CplxContainer> masterMap = new HashMap<>();
+    private final Map<String, CplxContainer> slaveMap = new HashMap<>();
 
     private String[] polarisations;
     private String[] subswaths = new String[]{""};
 
     // target
-    private Map<String, ProductContainer> targetMap = new HashMap<>();
+    private final Map<String, ProductContainer> targetMap = new HashMap<>();
 
     // operator tags
     private String productTag = "ifg";
@@ -173,7 +179,6 @@ public class InterferogramOp extends Operator {
     private MetadataElement mstRoot = null;
 
     private static final boolean CREATE_VIRTUAL_BAND = true;
-    private static final boolean OUTPUT_PHASE = false;
     private static final String PRODUCT_SUFFIX = "_Ifg";
     private static final String FLAT_EARTH_PHASE = "flat_earth_phase";
     private static final String TOPO_PHASE = "topo_phase";
@@ -200,10 +205,8 @@ public class InterferogramOp extends Operator {
         try {
             if(AbstractMetadata.getAbstractedMetadata(sourceProduct).containsAttribute("multimaster_split")){
                 mstRoot = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(0);
-            }
-            else{
+            } else{
                 mstRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-
             }
 
             checkUserInput();
@@ -279,7 +282,7 @@ public class InterferogramOp extends Operator {
             }
         }
 
-        if (polarisations.size() > 0) {
+        if (!polarisations.isEmpty()) {
             return polarisations.toArray(new String[0]);
         } else {
             return new String[]{""};
@@ -517,15 +520,15 @@ public class InterferogramOp extends Operator {
                 targetBandNames.add(coherenceBand.getName());
             }
 
-            if (subtractTopographicPhase && OUTPUT_PHASE) {
-                final String targetBandTgp = "tgp" + tag;
+            if (subtractTopographicPhase && outputTopoPhase) {
+                final String targetBandTgp = "topo" + tag;
                 final Band tgpBand = targetProduct.addBand(targetBandTgp, ProductData.TYPE_FLOAT32);
                 container.addBand(TOPO_PHASE, tgpBand.getName());
                 tgpBand.setUnit(Unit.PHASE);
                 targetBandNames.add(tgpBand.getName());
             }
 
-            if (subtractFlatEarthPhase && OUTPUT_PHASE) {
+            if (subtractFlatEarthPhase && outputFlatEarthPhase) {
                 final String targetBandFep = "fep" + tag;
                 final Band fepBand = targetProduct.addBand(targetBandFep, ProductData.TYPE_FLOAT32);
                 container.addBand(FLAT_EARTH_PHASE, fepBand.getName());
@@ -927,7 +930,7 @@ public class InterferogramOp extends Operator {
 
                     dataSlave.muli(complexReferencePhase);
 
-                    if (OUTPUT_PHASE) {
+                    if (outputFlatEarthPhase) {
                         saveFlatEarthPhase(x0, xN, y0, yN, flatEarthPhase, product, targetTileMap);
                     }
                 }
@@ -942,7 +945,7 @@ public class InterferogramOp extends Operator {
 
                     dataSlave.muli(ComplexTopoPhase);
 
-                    if (OUTPUT_PHASE) {
+                    if (outputTopoPhase) {
                         saveTopoPhase(x0, xN, y0, yN, topoPhase.demPhase, product, targetTileMap);
                     }
 
@@ -1356,7 +1359,7 @@ public class InterferogramOp extends Operator {
 
                     dataSlave.muli(complexReferencePhase);
 
-                    if (OUTPUT_PHASE) {
+                    if (outputFlatEarthPhase) {
                         saveFlatEarthPhase(x0, xN, y0, yN, flatEarthPhase, product, targetTileMap);
                     }
                 }
@@ -1371,7 +1374,7 @@ public class InterferogramOp extends Operator {
 
                     dataSlave.muli(ComplexTopoPhase);
 
-                    if (OUTPUT_PHASE) {
+                    if (outputTopoPhase) {
                         saveTopoPhase(x0, xN, y0, yN, topoPhase.demPhase, product, targetTileMap);
                     }
 
