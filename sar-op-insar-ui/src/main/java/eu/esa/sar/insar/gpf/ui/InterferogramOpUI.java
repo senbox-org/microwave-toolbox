@@ -43,11 +43,14 @@ import java.util.Map;
  */
 public class InterferogramOpUI extends BaseOperatorUI {
 
-    private final JCheckBox subtractFlatEarthPhaseCheckBox = new JCheckBox("Subtract flat-earth phase");
-    private final JCheckBox subtractTopographicPhaseCheckBox = new JCheckBox("Subtract topographic phase");
-    private final JCheckBox includeCoherenceCheckBox = new JCheckBox("Include coherence estimation");
+    private final JCheckBox subtractFlatEarthPhaseCheckBox = new JCheckBox("Subtract Flat-Earth Phase");
+    private final JCheckBox subtractTopographicPhaseCheckBox = new JCheckBox("Subtract Topographic Phase");
+    private final JCheckBox includeCoherenceCheckBox = new JCheckBox("Output Coherence");
     private final JCheckBox squarePixelCheckBox = new JCheckBox("Square Pixel");
     private final JCheckBox independentWindowSizeCheckBox = new JCheckBox("Independent Window Sizes");
+
+    private final JCheckBox outputFlatEarthPhaseCheckBox = new JCheckBox("Output Flat Earth Phase");
+    private final JCheckBox outputTopoPhaseCheckBox = new JCheckBox("Output Topographic Phase");
     private final JCheckBox outputElevationCheckBox = new JCheckBox("Output Elevation");
     private final JCheckBox outputLatLonCheckBox = new JCheckBox("Output Orthorectified Lat/Lon");
 
@@ -68,6 +71,8 @@ public class InterferogramOpUI extends BaseOperatorUI {
     private Boolean includeCoherence = true;
     private Boolean squarePixel = true;
     private final CoherenceOp.DerivedParams param = new CoherenceOp.DerivedParams();
+    private Boolean outputFlatEarthPhase = false;
+    private Boolean outputTopoPhase = false;
     private Boolean outputElevation = false;
     private Boolean outputLatLon = false;
 
@@ -99,15 +104,16 @@ public class InterferogramOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
 
                 subtractFlatEarthPhase = (e.getStateChange() == ItemEvent.SELECTED);
-                if (subtractFlatEarthPhase) {
-                    srpPolynomialDegreeStr.setEnabled(true);
-                    srpNumberPointsStr.setEnabled(true);
-                    orbitDegreeStr.setEnabled(true);
-                } else {
-                    srpPolynomialDegreeStr.setEnabled(false);
-                    srpNumberPointsStr.setEnabled(false);
-                    orbitDegreeStr.setEnabled(false);
-                }
+                srpPolynomialDegreeStr.setEnabled(subtractFlatEarthPhase);
+                srpNumberPointsStr.setEnabled(subtractFlatEarthPhase);
+                orbitDegreeStr.setEnabled(subtractFlatEarthPhase);
+                outputFlatEarthPhaseCheckBox.setEnabled(subtractFlatEarthPhase);
+            }
+        });
+
+        outputFlatEarthPhaseCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                outputFlatEarthPhase = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -115,17 +121,10 @@ public class InterferogramOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
 
                 includeCoherence = (e.getStateChange() == ItemEvent.SELECTED);
-                if (includeCoherence) {
-                    squarePixelCheckBox.setEnabled(true);
-                    independentWindowSizeCheckBox.setEnabled(true);
-                    cohWinAz.setEnabled(true);
-                    cohWinRg.setEnabled(true);
-                } else {
-                    squarePixelCheckBox.setEnabled(false);
-                    independentWindowSizeCheckBox.setEnabled(false);
-                    cohWinAz.setEnabled(false);
-                    cohWinRg.setEnabled(false);
-                }
+                squarePixelCheckBox.setEnabled(includeCoherence);
+                independentWindowSizeCheckBox.setEnabled(includeCoherence);
+                cohWinAz.setEnabled(includeCoherence);
+                cohWinRg.setEnabled(includeCoherence);
             }
         });
 
@@ -158,17 +157,11 @@ public class InterferogramOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
 
                 subtractTopographicPhase = (e.getStateChange() == ItemEvent.SELECTED);
-                if (subtractTopographicPhase) {
-                    demName.setEnabled(true);
-                    tileExtensionPercent.setEnabled(true);
-                    outputElevationCheckBox.setEnabled(true);
-                    outputLatLonCheckBox.setEnabled(true);
-                } else {
-                    demName.setEnabled(false);
-                    tileExtensionPercent.setEnabled(false);
-                    outputElevationCheckBox.setEnabled(false);
-                    outputLatLonCheckBox.setEnabled(false);
-                }
+                demName.setEnabled(subtractTopographicPhase);
+                tileExtensionPercent.setEnabled(subtractTopographicPhase);
+                outputElevationCheckBox.setEnabled(subtractTopographicPhase);
+                outputLatLonCheckBox.setEnabled(subtractTopographicPhase);
+                outputTopoPhaseCheckBox.setEnabled(subtractTopographicPhase);
             }
         });
 
@@ -207,6 +200,12 @@ public class InterferogramOpUI extends BaseOperatorUI {
 
         externalDEMNoDataValue.addKeyListener(textAreaKeyListener);
 
+        outputTopoPhaseCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                outputTopoPhase = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
         outputElevationCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 outputElevation = (e.getStateChange() == ItemEvent.SELECTED);
@@ -236,6 +235,13 @@ public class InterferogramOpUI extends BaseOperatorUI {
         srpNumberPointsStr.setSelectedItem(paramMap.get("srpNumberPoints"));
         orbitDegreeStr.setSelectedItem(paramMap.get("orbitDegree"));
 
+        paramVal = (Boolean) paramMap.get("outputFlatEarthPhase");
+        if (paramVal != null) {
+            outputFlatEarthPhase = paramVal;
+        }
+        outputFlatEarthPhaseCheckBox.setSelected(outputFlatEarthPhase);
+        outputFlatEarthPhaseCheckBox.setEnabled(subtractFlatEarthPhase);
+
         if (subtractFlatEarthPhase) {
             srpPolynomialDegreeStr.setEnabled(true);
             srpNumberPointsStr.setEnabled(true);
@@ -246,6 +252,13 @@ public class InterferogramOpUI extends BaseOperatorUI {
             subtractTopographicPhase = paramVal;
             subtractTopographicPhaseCheckBox.setSelected(subtractTopographicPhase);
         }
+
+        paramVal = (Boolean) paramMap.get("outputTopoPhase");
+        if (paramVal != null) {
+            outputTopoPhase = paramVal;
+        }
+        outputTopoPhaseCheckBox.setSelected(outputTopoPhase);
+        outputTopoPhaseCheckBox.setEnabled(subtractTopographicPhase);
 
         paramVal = (Boolean) paramMap.get("outputElevation");
         if (paramVal != null) {
@@ -339,6 +352,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
             paramMap.put("srpPolynomialDegree", srpPolynomialDegreeStr.getSelectedItem());
             paramMap.put("srpNumberPoints", srpNumberPointsStr.getSelectedItem());
             paramMap.put("orbitDegree", orbitDegreeStr.getSelectedItem());
+            paramMap.put("outputFlatEarthPhase", outputFlatEarthPhase);
         }
 
         paramMap.put("subtractTopographicPhase", subtractTopographicPhase);
@@ -353,6 +367,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
                 paramMap.put("externalDEMApplyEGM", externalDEMApplyEGM);
             }
             paramMap.put("tileExtensionPercent", tileExtensionPercent.getSelectedItem());
+            paramMap.put("outputTopoPhase", outputTopoPhase);
             paramMap.put("outputElevation", outputElevation);
             paramMap.put("outputLatLon", outputLatLon);
         }
@@ -376,70 +391,96 @@ public class InterferogramOpUI extends BaseOperatorUI {
         final JPanel contentPane = new JPanel(new GridBagLayout());
         final GridBagConstraints gbc = DialogUtils.createGridBagConstraints();
 
-        contentPane.add(subtractFlatEarthPhaseCheckBox, gbc);
+        final JPanel flatEarthPanel = new JPanel(new GridBagLayout());
+        final GridBagConstraints gbc2 = DialogUtils.createGridBagConstraints();
+        flatEarthPanel.setBorder(BorderFactory.createTitledBorder("Flat Earth Phase"));
 
-        gbc.gridy++;
-        DialogUtils.addComponent(contentPane, gbc, srpPolynomialDegreeStrLabel, srpPolynomialDegreeStr);
+        contentPane.add(flatEarthPanel, gbc);
+
+        flatEarthPanel.add(subtractFlatEarthPhaseCheckBox, gbc2);
+
+        gbc2.gridy++;
+        DialogUtils.addComponent(flatEarthPanel, gbc2, srpPolynomialDegreeStrLabel, srpPolynomialDegreeStr);
         srpPolynomialDegreeStr.setEnabled(false);
 
-        gbc.gridy++;
-        DialogUtils.addComponent(contentPane, gbc, srpNumberPointsStrLabel, srpNumberPointsStr);
+        gbc2.gridy++;
+        DialogUtils.addComponent(flatEarthPanel, gbc2, srpNumberPointsStrLabel, srpNumberPointsStr);
         srpNumberPointsStr.setEnabled(false);
 
-        gbc.gridy++;
-        DialogUtils.addComponent(contentPane, gbc, orbitDegreeStrLabel, orbitDegreeStr);
+        gbc2.gridy++;
+        DialogUtils.addComponent(flatEarthPanel, gbc2, orbitDegreeStrLabel, orbitDegreeStr);
         orbitDegreeStr.setEnabled(false);
 
-        gbc.gridy++;
-        contentPane.add(subtractTopographicPhaseCheckBox, gbc);
+        gbc2.gridy++;
+        flatEarthPanel.add(outputFlatEarthPhaseCheckBox, gbc2);
 
-//        gbc.gridy++;
-//        DialogUtils.addComponent(contentPane, gbc, "Orbit Interpolation Degree:", orbitDegree);
-        gbc.gridy++;
-        DialogUtils.addComponent(contentPane, gbc, "Digital Elevation Model:", demName);
-        gbc.gridy++;
-        DialogUtils.addInnerPanel(contentPane, gbc, externalDEMFileLabel, externalDEMFile, externalDEMBrowseButton);
-        gbc.gridy++;
-        DialogUtils.addComponent(contentPane, gbc, externalDEMNoDataValueLabel, externalDEMNoDataValue);
-        gbc.gridy++;
-        gbc.gridx = 1;
-        contentPane.add(externalDEMApplyEGMCheckBox, gbc);
+        final JPanel topoPanel = new JPanel(new GridBagLayout());
+        final GridBagConstraints gbc3 = DialogUtils.createGridBagConstraints();
+        topoPanel.setBorder(BorderFactory.createTitledBorder("Topographic Phase"));
 
-        gbc.gridx = 0;
-        gbc.gridy = gbc.gridy + 10;
-        DialogUtils.addComponent(contentPane, gbc, "Tile Extension [%]", tileExtensionPercent);
         gbc.gridy++;
-        contentPane.add(outputElevationCheckBox, gbc);
-        gbc.gridy++;
-        contentPane.add(outputLatLonCheckBox, gbc);
+        contentPane.add(topoPanel, gbc);
+
+        topoPanel.add(subtractTopographicPhaseCheckBox, gbc3);
+
+        //gbc.gridy++;
+        //DialogUtils.addComponent(topoPanel, gbc3, "Orbit Interpolation Degree:", orbitDegree);
+        gbc3.gridy++;
+        DialogUtils.addComponent(topoPanel, gbc3, "Digital Elevation Model:", demName);
+        gbc3.gridy++;
+        DialogUtils.addInnerPanel(topoPanel, gbc3, externalDEMFileLabel, externalDEMFile, externalDEMBrowseButton);
+        gbc3.gridy++;
+        DialogUtils.addComponent(topoPanel, gbc3, externalDEMNoDataValueLabel, externalDEMNoDataValue);
+        gbc3.gridy++;
+        gbc3.gridx = 1;
+        topoPanel.add(externalDEMApplyEGMCheckBox, gbc3);
+
+        gbc3.gridx = 0;
+        gbc3.gridy = gbc.gridy + 10;
+        DialogUtils.addComponent(topoPanel, gbc3, "Tile Extension [%]", tileExtensionPercent);
+        gbc3.gridy++;
+        topoPanel.add(outputTopoPhaseCheckBox, gbc3);
+        gbc3.gridy++;
+        topoPanel.add(outputElevationCheckBox, gbc3);
+        gbc3.gridy++;
+        topoPanel.add(outputLatLonCheckBox, gbc3);
 
         demName.setEnabled(false);
         tileExtensionPercent.setEnabled(false);
         outputElevationCheckBox.setEnabled(false);
         outputLatLonCheckBox.setEnabled(false);
 
-        gbc.gridy++;
-        contentPane.add(includeCoherenceCheckBox, gbc);
+        final JPanel coherencePanel = new JPanel(new GridBagLayout());
+        final GridBagConstraints gbc4 = DialogUtils.createGridBagConstraints();
+        coherencePanel.setBorder(BorderFactory.createTitledBorder("Coherence"));
 
-        gbc.gridx = 0;
         gbc.gridy++;
-        contentPane.add(squarePixelCheckBox, gbc);
+        contentPane.add(coherencePanel, gbc);
+
+        coherencePanel.add(includeCoherenceCheckBox, gbc4);
+
+        gbc4.gridx = 0;
+        gbc4.gridy++;
+        coherencePanel.add(squarePixelCheckBox, gbc4);
         squarePixelCheckBox.setEnabled(false);
 
-        gbc.gridx = 1;
-        contentPane.add(independentWindowSizeCheckBox, gbc);
+        gbc4.gridx = 1;
+        coherencePanel.add(independentWindowSizeCheckBox, gbc4);
         independentWindowSizeCheckBox.setEnabled(false);
 
-        gbc.gridy++;
-        DialogUtils.addComponent(contentPane, gbc, cohWinRgLabel, cohWinRg);
+        gbc4.gridy++;
+        DialogUtils.addComponent(coherencePanel, gbc4, cohWinRgLabel, cohWinRg);
         cohWinRg.setEnabled(false);
         cohWinRg.setDocument(new CohWinRgDocument());
 
-        gbc.gridy++;
-        DialogUtils.addComponent(contentPane, gbc, cohWinAzLabel, cohWinAz);
+        gbc4.gridy++;
+        DialogUtils.addComponent(coherencePanel, gbc4, cohWinAzLabel, cohWinAz);
         cohWinAz.setEnabled(false);
         cohWinAz.setEditable(false);
 
+        DialogUtils.fillPanel(flatEarthPanel, gbc2);
+        DialogUtils.fillPanel(topoPanel, gbc3);
+        DialogUtils.fillPanel(coherencePanel, gbc4);
         DialogUtils.fillPanel(contentPane, gbc);
 
         return contentPane;
