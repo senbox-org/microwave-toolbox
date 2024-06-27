@@ -515,33 +515,29 @@ public final class SARGeocoding {
                                             final double ground_range_origin) {
 
         // binary search is used in finding the ground range for given slant range
-        double lowerBound = ground_range_origin;
-        final double lowerBoundSlantRange = Maths.computePolynomialValue(lowerBound, srgrCoeff);
-        if (slantRange < lowerBoundSlantRange) {
+        double lowerGroundRange = ground_range_origin;
+        final double lowerSlantRange = Maths.computePolynomialValue(lowerGroundRange, srgrCoeff);
+        if (slantRange < lowerSlantRange) {
             return -1.0;
         }
 
-        double upperBound = ground_range_origin + sourceImageWidth * groundRangeSpacing;
-        final double upperBoundSlantRange = Maths.computePolynomialValue(upperBound, srgrCoeff);
-        if (slantRange > upperBoundSlantRange) {
+        double upperGroundRange = ground_range_origin + sourceImageWidth * groundRangeSpacing;
+        final double upperSlantRange = Maths.computePolynomialValue(upperGroundRange, srgrCoeff);
+        if (slantRange > upperSlantRange) {
             return -1.0;
         }
 
         // start binary search
-        double midSlantRange;
-        while (upperBound - lowerBound > 0.0) {
+        while (upperGroundRange - lowerGroundRange > 0.1) {
 
-            final double mid = (lowerBound + upperBound) / 2.0;
-            midSlantRange = Maths.computePolynomialValue(mid, srgrCoeff);
-            if (midSlantRange < slantRange) {
-                lowerBound = mid;
+            final double midGroundRange = (lowerGroundRange + upperGroundRange) / 2.0;
+            final double midSlantRange = Maths.computePolynomialValue(midGroundRange, srgrCoeff);
+            if (Math.abs(midSlantRange - slantRange) < 0.1) {
+                return midGroundRange;
+            } else if (midSlantRange < slantRange) {
+                lowerGroundRange = midGroundRange;
             } else if (midSlantRange > slantRange) {
-                upperBound = mid;
-            } else {
-                final double a = midSlantRange - slantRange;
-                if ((a > 0 && a < 0.1) || (a <= 0.0D && 0.0D - a < 0.1)) {
-                    return mid;
-                }
+                upperGroundRange = midGroundRange;
             }
         }
 
