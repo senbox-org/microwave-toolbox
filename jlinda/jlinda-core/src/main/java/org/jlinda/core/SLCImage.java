@@ -153,7 +153,7 @@ public final class SLCImage {
         this.tAzi1 = DateUtils.dateTimeToSecOfDay(t_azi1_UTC);
         this.lineTimeInterval = element.getAttributeDouble(AbstractMetadata.line_time_interval);
 
-        this.rangeBandwidth = element.getAttributeDouble(AbstractMetadata.range_bandwidth);
+        this.rangeBandwidth = element.getAttributeDouble(AbstractMetadata.range_bandwidth) * MEGA;
         this.azimuthBandwidth = element.getAttributeDouble(AbstractMetadata.azimuth_bandwidth);
 
         // 2 times range sampling rate [HZ]
