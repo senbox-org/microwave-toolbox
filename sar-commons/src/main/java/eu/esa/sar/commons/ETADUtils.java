@@ -354,10 +354,8 @@ public final class ETADUtils {
         return inputProducts[pIndex - 1].swathArray[sIndex - 1].burstMap.get(bIndex);
     }
 
-    public Burst getBurst(final int pIndex, final int sIndex, final int prodBurstIndex) {
+    public Burst getBurst(final int pIndex, final int sIndex, final int bIndex) {
 
-        final int[] bIndexArray = inputProducts[pIndex - 1].swathArray[sIndex - 1].bIndexArray;
-        final int bIndex = bIndexArray[prodBurstIndex];
         return inputProducts[pIndex - 1].swathArray[sIndex - 1].burstMap.get(bIndex);
     }
 
