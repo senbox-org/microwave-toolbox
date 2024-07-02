@@ -72,16 +72,19 @@ public class NisarProductReader extends SARReader {
             File inputFile = inputPath.toFile();
             String fileName = inputFile.getName().toLowerCase();
 
-            if(fileName.startsWith(NisarXConstants.NISAR_FILE_PREFIX.toLowerCase())) {
-                if (fileName.endsWith(".xml")) {
-                    inputFile = FileUtils.exchangeExtension(inputFile, ".h5");
-                    if(!inputFile.exists()) {
-                        inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
+            for(final String prefix : NisarXConstants.NISAR_FILE_PREFIXES) {
+                if (fileName.startsWith(prefix.toLowerCase())) {
+                    if (fileName.endsWith(".xml")) {
+                        inputFile = FileUtils.exchangeExtension(inputFile, ".h5");
+                        if (!inputFile.exists()) {
+                            inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
+                        }
+                        fileName = inputFile.getName().toLowerCase();
                     }
-                    fileName = inputFile.getName().toLowerCase();
-                }
 
-                subReader = createSubReader(fileName);
+                    subReader = createSubReader(fileName);
+                    break;
+                }
             }
 
             final NetcdfFile netcdfFile = NetcdfFile.open(inputFile.getPath());

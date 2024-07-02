@@ -17,7 +17,7 @@ package eu.esa.sar.io.nisar.util;
 
 public class NisarXConstants {
     public static final String NISAR_PLUGIN_DESCRIPTION = "NISAR Products";
-    public static final String NISAR_FILE_PREFIX = "NISAR";
+    public static final String[] NISAR_FILE_PREFIXES = new String[] {"NISAR", "WINNIP"};
     //    NisarProductProductReader
     public static final String PRODUCT = "product_name";
     public static final String PRODUCT_TYPE = "productType";

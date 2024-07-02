@@ -44,9 +44,11 @@ public class NisarProductReaderPlugIn extends NetCDFReaderPlugIn {
             return DecodeQualification.UNABLE;
         }
         final String fileName = path.getFileName().toString().toUpperCase();
-        if(fileName.startsWith(NisarXConstants.NISAR_FILE_PREFIX)) {
-            if (fileName.endsWith(".H5") || fileName.endsWith(".TIF") || fileName.endsWith(".XML")) {
-                return DecodeQualification.INTENDED;
+        for(final String prefix : NisarXConstants.NISAR_FILE_PREFIXES) {
+            if(fileName.startsWith(prefix)) {
+                if(fileName.endsWith(".H5") || fileName.endsWith(".TIF") || fileName.endsWith(".XML")) {
+                    return DecodeQualification.INTENDED;
+                }
             }
         }
         return DecodeQualification.UNABLE;
