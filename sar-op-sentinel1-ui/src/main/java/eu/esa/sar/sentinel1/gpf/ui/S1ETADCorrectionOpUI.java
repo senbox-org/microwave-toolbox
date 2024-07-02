@@ -43,6 +43,9 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
     private final JLabel etadFileLabel = new JLabel("");
     private final JTextField etadFile = new JTextField("");
     private final JButton etadFileBrowseButton = new JButton("...");
+    private final JCheckBox resamplingImageCheckBox = new JCheckBox("Option 1: Resampling Image");
+    private final JCheckBox outputPhaseCorrectionsCheckBox =
+            new JCheckBox("Option 2: Output Phase Correction (Range)");
     private final JComboBox resamplingType = new JComboBox(ResamplingFactory.resamplingNames);
     final JCheckBox troposphericCorrectionRgCheckBox = new JCheckBox("Tropospheric Correction (Range)");
     final JCheckBox ionosphericCorrectionRgCheckBox = new JCheckBox("Ionospheric Correction (Range)");
@@ -54,6 +57,8 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
     final JCheckBox sumOfAzimuthCorrectionsCheckBox = new JCheckBox("Sum Of Azimuth Corrections");
     final JCheckBox sumOfRangeCorrectionsCheckBox = new JCheckBox("Sum Of Range Corrections");
 
+    private Boolean resamplingImage = true;
+    private Boolean outputPhaseCorrections = false;
     private Boolean troposphericCorrectionRg = false;
     private Boolean ionosphericCorrectionRg = false;
     private Boolean geodeticCorrectionRg = false;
@@ -97,14 +102,82 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             }
         });
 
+        resamplingImageCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                resamplingImage = (e.getStateChange() == ItemEvent.SELECTED);
+
+                if (resamplingImage) {
+                    resamplingType.setEnabled(true);
+                    outputPhaseCorrectionsCheckBox.setSelected(false);
+                    outputPhaseCorrections = false;
+                    sumOfAzimuthCorrectionsCheckBox.setSelected(true);
+                    sumOfRangeCorrectionsCheckBox.setSelected(true);
+                } else {
+                    resamplingType.setEnabled(false);
+                    outputPhaseCorrectionsCheckBox.setSelected(true);
+                    outputPhaseCorrections = true;
+                }
+            }
+        });
+
+        outputPhaseCorrectionsCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                outputPhaseCorrections = (e.getStateChange() == ItemEvent.SELECTED);
+
+                if (outputPhaseCorrections) {
+                    resamplingImageCheckBox.setSelected(false);
+                    resamplingType.setEnabled(false);
+                    resamplingImage = false;
+
+                    troposphericCorrectionRgCheckBox.setEnabled(false);
+                    ionosphericCorrectionRgCheckBox.setEnabled(false);
+                    geodeticCorrectionRgCheckBox.setEnabled(false);
+                    dopplerShiftCorrectionRgCheckBox.setEnabled(false);
+                    sumOfRangeCorrectionsCheckBox.setEnabled(false);
+                    geodeticCorrectionAzCheckBox.setEnabled(false);
+                    bistaticShiftCorrectionAzCheckBox.setEnabled(false);
+                    fmMismatchCorrectionAzCheckBox.setEnabled(false);
+                    sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
+
+                    troposphericCorrectionRgCheckBox.setSelected(false);
+                    ionosphericCorrectionRgCheckBox.setSelected(false);
+                    geodeticCorrectionRgCheckBox.setSelected(false);
+                    dopplerShiftCorrectionRgCheckBox.setSelected(false);
+                    sumOfRangeCorrectionsCheckBox.setSelected(false);
+                    geodeticCorrectionAzCheckBox.setSelected(false);
+                    bistaticShiftCorrectionAzCheckBox.setSelected(false);
+                    fmMismatchCorrectionAzCheckBox.setSelected(false);
+                    sumOfAzimuthCorrectionsCheckBox.setSelected(false);
+
+                } else {
+
+                    resamplingImageCheckBox.setSelected(true);
+                    resamplingType.setEnabled(true);
+                    resamplingImage = true;
+
+                    troposphericCorrectionRgCheckBox.setEnabled(true);
+                    ionosphericCorrectionRgCheckBox.setEnabled(true);
+                    geodeticCorrectionRgCheckBox.setEnabled(true);
+                    dopplerShiftCorrectionRgCheckBox.setEnabled(true);
+                    sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                    geodeticCorrectionAzCheckBox.setEnabled(true);
+                    bistaticShiftCorrectionAzCheckBox.setEnabled(true);
+                    fmMismatchCorrectionAzCheckBox.setEnabled(true);
+                    sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
+                }
+            }
+        });
+
         troposphericCorrectionRgCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 troposphericCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (troposphericCorrectionRg) {
-                    sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                } else if (!isIndividualRangeCorrectionLayerSelected()) {
-                    sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (troposphericCorrectionRg) {
+                        sumOfRangeCorrectionsCheckBox.setEnabled(false);
+                    } else if (!isIndividualRangeCorrectionLayerSelected()) {
+                        sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -113,10 +186,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 ionosphericCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (ionosphericCorrectionRg) {
-                    sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                } else if (!isIndividualRangeCorrectionLayerSelected()) {
-                    sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (ionosphericCorrectionRg) {
+                        sumOfRangeCorrectionsCheckBox.setEnabled(false);
+                    } else if (!isIndividualRangeCorrectionLayerSelected()) {
+                        sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -125,10 +200,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 geodeticCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (geodeticCorrectionRg) {
-                    sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                } else if (!isIndividualRangeCorrectionLayerSelected()) {
-                    sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (geodeticCorrectionRg) {
+                        sumOfRangeCorrectionsCheckBox.setEnabled(false);
+                    } else if (!isIndividualRangeCorrectionLayerSelected()) {
+                        sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -137,10 +214,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 dopplerShiftCorrectionRg = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (dopplerShiftCorrectionRg) {
-                    sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                } else if (!isIndividualRangeCorrectionLayerSelected()) {
-                    sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (dopplerShiftCorrectionRg) {
+                        sumOfRangeCorrectionsCheckBox.setEnabled(false);
+                    } else if (!isIndividualRangeCorrectionLayerSelected()) {
+                        sumOfRangeCorrectionsCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -149,10 +228,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 geodeticCorrectionAz = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (geodeticCorrectionAz) {
-                    sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
-                } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
-                    sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (geodeticCorrectionAz) {
+                        sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
+                    } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
+                        sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -161,10 +242,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 bistaticShiftCorrectionAz = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (bistaticShiftCorrectionAz) {
-                    sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
-                } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
-                    sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (bistaticShiftCorrectionAz) {
+                        sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
+                    } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
+                        sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -173,10 +256,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 fmMismatchCorrectionAz = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (fmMismatchCorrectionAz) {
-                    sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
-                } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
-                    sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (fmMismatchCorrectionAz) {
+                        sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
+                    } else if (!isIndividualAzimuthCorrectionLayerSelected()) {
+                        sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -185,14 +270,16 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 sumOfAzimuthCorrections = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (sumOfAzimuthCorrections) {
-                    geodeticCorrectionAzCheckBox.setEnabled(false);
-                    bistaticShiftCorrectionAzCheckBox.setEnabled(false);
-                    fmMismatchCorrectionAzCheckBox.setEnabled(false);
-                } else {
-                    geodeticCorrectionAzCheckBox.setEnabled(true);
-                    bistaticShiftCorrectionAzCheckBox.setEnabled(true);
-                    fmMismatchCorrectionAzCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (sumOfAzimuthCorrections) {
+                        geodeticCorrectionAzCheckBox.setEnabled(false);
+                        bistaticShiftCorrectionAzCheckBox.setEnabled(false);
+                        fmMismatchCorrectionAzCheckBox.setEnabled(false);
+                    } else {
+                        geodeticCorrectionAzCheckBox.setEnabled(true);
+                        bistaticShiftCorrectionAzCheckBox.setEnabled(true);
+                        fmMismatchCorrectionAzCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -201,16 +288,18 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 sumOfRangeCorrections = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (sumOfRangeCorrections) {
-                    troposphericCorrectionRgCheckBox.setEnabled(false);
-                    ionosphericCorrectionRgCheckBox.setEnabled(false);
-                    geodeticCorrectionRgCheckBox.setEnabled(false);
-                    dopplerShiftCorrectionRgCheckBox.setEnabled(false);
-                } else {
-                    troposphericCorrectionRgCheckBox.setEnabled(true);
-                    ionosphericCorrectionRgCheckBox.setEnabled(true);
-                    geodeticCorrectionRgCheckBox.setEnabled(true);
-                    dopplerShiftCorrectionRgCheckBox.setEnabled(true);
+                if (resamplingImage) {
+                    if (sumOfRangeCorrections) {
+                        troposphericCorrectionRgCheckBox.setEnabled(false);
+                        ionosphericCorrectionRgCheckBox.setEnabled(false);
+                        geodeticCorrectionRgCheckBox.setEnabled(false);
+                        dopplerShiftCorrectionRgCheckBox.setEnabled(false);
+                    } else {
+                        troposphericCorrectionRgCheckBox.setEnabled(true);
+                        ionosphericCorrectionRgCheckBox.setEnabled(true);
+                        geodeticCorrectionRgCheckBox.setEnabled(true);
+                        dopplerShiftCorrectionRgCheckBox.setEnabled(true);
+                    }
                 }
             }
         });
@@ -240,6 +329,14 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         }
 
         resamplingType.setSelectedItem(paramMap.get("resamplingType"));
+        resamplingImage = (Boolean)paramMap.get("resamplingImage");
+        outputPhaseCorrections = (Boolean)paramMap.get("outputPhaseCorrections");
+        if(resamplingImage != null) {
+            resamplingImageCheckBox.setSelected(resamplingImage);
+        }
+        if(outputPhaseCorrections != null) {
+            outputPhaseCorrectionsCheckBox.setSelected(outputPhaseCorrections);
+        }
 
         troposphericCorrectionRg = (Boolean)paramMap.get("troposphericCorrectionRg");
         ionosphericCorrectionRg = (Boolean)paramMap.get("ionosphericCorrectionRg");
@@ -321,6 +418,8 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         }
 
         paramMap.put("resamplingType", resamplingType.getSelectedItem());
+        paramMap.put("resamplingImage", resamplingImage);
+        paramMap.put("outputPhaseCorrections", outputPhaseCorrections);
 
         paramMap.put("troposphericCorrectionRg", troposphericCorrectionRg);
         paramMap.put("ionosphericCorrectionRg", ionosphericCorrectionRg);
@@ -340,10 +439,6 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
         gbc.gridx = 0;
         gbc.gridy++;
-        DialogUtils.addComponent(contentPane, gbc, "Resampling Type:", resamplingType);
-
-        gbc.gridx = 0;
-        gbc.gridy++;
         contentPane.add(autoDownloadRadioButton, gbc);
         gbc.gridy++;
         contentPane.add(manualETADRadioButton, gbc);
@@ -358,6 +453,11 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         contentPane.add(innerPane, gbc);
 
         gbc.gridx = 0;
+        gbc.gridy++;
+        contentPane.add(resamplingImageCheckBox, gbc);
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Resampling Type:", resamplingType);
+
         gbc.gridy++;
         final JPanel correctionLayerSelectionPanel = new JPanel(new GridBagLayout());
         final GridBagConstraints gbc2 = DialogUtils.createGridBagConstraints();
@@ -390,10 +490,17 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         gbc2.gridx = 0;
         correctionLayerSelectionPanel.add(dopplerShiftCorrectionRgCheckBox, gbc2);
         gbc2.gridx = 1;
-//        correctionLayerSelectionPanel.add(interferometricPhaseCorrectionRgCheckBox, gbc2);
 
         gbc.gridwidth = 2;
         contentPane.add(correctionLayerSelectionPanel, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        contentPane.add(outputPhaseCorrectionsCheckBox, gbc);
+        gbc.gridy++;
+        contentPane.add(new JTextArea("PhaseCorrection = -2 * \u03c0 * f * (troposphericCorrectionRg + geodeticCorrectionRg" +
+                " \n                               - ionosphericCorrectionRg + instrumentTimingCalibrationRange)" +
+                "\nwhere f is the radar frequency. Note this option is for TOPS InSAR application only."), gbc);
 
         DialogUtils.fillPanel(contentPane, gbc);
 
