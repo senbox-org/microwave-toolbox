@@ -49,6 +49,7 @@ import java.util.Map;
     protected boolean sumOfRangeCorrections = false;
     protected boolean resamplingImage = false;
     protected boolean outputPhaseCorrections = false;
+    protected boolean tropToHeightGradientComputed = false;
 
     protected static final String TROPOSPHERIC_CORRECTION_RG = "troposphericCorrectionRg";
     protected static final String IONOSPHERIC_CORRECTION_RG = "ionosphericCorrectionRg";
@@ -59,9 +60,9 @@ import java.util.Map;
     protected static final String FM_MISMATCH_CORRECTION_AZ = "fmMismatchCorrectionAz";
     protected static final String SUM_OF_CORRECTIONS_RG = "sumOfCorrectionsRg";
     protected static final String SUM_OF_CORRECTIONS_AZ = "sumOfCorrectionsAz";
+    protected static final String HEIGHT = "height";
     protected static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
-    protected static final String ETAD_RANGE_CORRECTION = "etadRangeCorrection";
-    protected static final String ETAAD_AZIMUTH_CORRECTION = "etadAzimuthCorrection";
+    protected static final String ETAD_HEIGHT = "etadHeight";
     protected static final String PRODUCT_SUFFIX = "_etad";
 
 
@@ -276,5 +277,14 @@ import java.util.Map;
         final double c10 = layerCorrection[i1][j0];
         final double c11 = layerCorrection[i1][j1];
         return Maths.interpolationBiLinear(c00, c01, c10, c11, j - j0, i - i0);
+    }
+
+    protected double[][] getBurstCorrection(final String layer, final ETADUtils.Burst burst) {
+
+        if (burst == null) {
+            return null;
+        }
+        final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
+        return etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
     }
 }
