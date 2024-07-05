@@ -220,29 +220,27 @@ import static Jama.Matrix.constructWithCopy;
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
         final int[] burstIndexArray = etadUtils.getBurstIndexArray(pIndex, prodSubswathIndex);
 
+        final double[] gradientArray = new double[burstIndexArray.length];
+        int i = 0;
+        for (int burstIndex : burstIndexArray) {
+            final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
+            final double[][] tropCorr = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
+            final double[][] height = getBurstCorrection(HEIGHT, burst);
+            final double gradient = computeGradientForCurrentBurst(tropCorr, height);
+            gradientArray[i++] = gradient * 2.0 * Constants.PI * radarFrequency;
+        }
+
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         MetadataElement etadElem = absTgt.getElement(ETAD);
         if (etadElem == null) {
             etadElem = new MetadataElement(ETAD);
             absTgt.addElement(etadElem);
         }
-
-        for (int burstIndex : burstIndexArray) {
-            final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
-            final double[][] tropCorr = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
-            final double[][] height = getBurstCorrection(HEIGHT, burst);
-            final double gradient = computeGradientForCurrentBurst(tropCorr, height);
-            final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, "gradient");
-            addAttrib(etadElem, bandName, gradient * 2.0 * Constants.PI * radarFrequency);
-        }
+        final MetadataAttribute attrib = new MetadataAttribute("gradient", ProductData.TYPE_FLOAT64, gradientArray.length);
+        attrib.getData().setElems(gradientArray);
+        etadElem.addAttribute(attrib);
 
         tropToHeightGradientComputed = true;
-    }
-
-    private static void addAttrib(final MetadataElement elem, final String tag, final double value) {
-        final MetadataAttribute attrib = new MetadataAttribute(tag, ProductData.TYPE_FLOAT32);
-        attrib.getData().setElemDouble(value);
-        elem.addAttribute(attrib);
     }
 
     private double computeGradientForCurrentBurst(final double[][] tropCorr, final double[][] height) {

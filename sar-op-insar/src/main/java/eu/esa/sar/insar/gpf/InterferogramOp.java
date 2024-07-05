@@ -506,9 +506,13 @@ public class InterferogramOp extends Operator {
         performHeightCorrection = hasMstETADHeightBand & hasSlvETADHeightBand;
 
         if (performHeightCorrection) {
-            // get gradient array from metadata, hardcoded here for now
-            gradient = new double[]{-0.09488074, -0.0943492, -0.093973145, -0.09233212, -0.09248055, -0.09171246,
-                    -0.09170584, -0.09069816, -0.08743786};
+            // get gradient array from metadata
+            final MetadataElement abs = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(0);
+            MetadataElement etadElem = abs.getElement(ETAD);
+            final MetadataAttribute gradientAttrib = etadElem.getAttribute("gradient");
+            if (gradientAttrib != null) {
+                gradient = (double[]) gradientAttrib.getData().getElems();
+            }
         }
     }
 
