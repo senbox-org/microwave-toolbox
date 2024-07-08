@@ -18,6 +18,9 @@ package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
+import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.esa.snap.engine_utilities.util.Maths;
 
 import java.awt.*;
@@ -44,6 +47,8 @@ import java.util.Map;
     protected boolean fmMismatchCorrectionAz = false;
     protected boolean sumOfAzimuthCorrections = false;
     protected boolean sumOfRangeCorrections = false;
+    protected boolean resamplingImage = false;
+    protected boolean outputPhaseCorrections = false;
 
     protected static final String TROPOSPHERIC_CORRECTION_RG = "troposphericCorrectionRg";
     protected static final String IONOSPHERIC_CORRECTION_RG = "ionosphericCorrectionRg";
@@ -54,18 +59,20 @@ import java.util.Map;
     protected static final String FM_MISMATCH_CORRECTION_AZ = "fmMismatchCorrectionAz";
     protected static final String SUM_OF_CORRECTIONS_RG = "sumOfCorrectionsRg";
     protected static final String SUM_OF_CORRECTIONS_AZ = "sumOfCorrectionsAz";
+    protected static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
+    protected static final String ETAD_RANGE_CORRECTION = "etadRangeCorrection";
+    protected static final String ETAAD_AZIMUTH_CORRECTION = "etadAzimuthCorrection";
+    protected static final String PRODUCT_SUFFIX = "_etad";
 
 
     /**
      * Default constructor. The graph processing framework
      * requires that an operator has a default constructor.
      */
-    public BaseCorrector(final Product sourceProduct, final Product targetProduct, final ETADUtils etadUtils,
-                         final Resampling selectedResampling) {
-		this.sourceProduct = sourceProduct;
-		this.targetProduct = targetProduct;
-		this.etadUtils = etadUtils;
-		this.selectedResampling = selectedResampling;
+    public BaseCorrector(final Product sourceProduct, final ETADUtils etadUtils, final Resampling selectedResampling) {
+        this.sourceProduct = sourceProduct;
+        this.etadUtils = etadUtils;
+        this.selectedResampling = selectedResampling;
         sourceImageWidth = sourceProduct.getSceneRasterWidth();
         sourceImageHeight = sourceProduct.getSceneRasterHeight();
     }
@@ -108,6 +115,44 @@ import java.util.Map;
 
     public void setSumOfRangeCorrections(final boolean flag) {
         sumOfRangeCorrections = flag;
+    }
+
+    public void setResamplingImage(final boolean flag) {
+        resamplingImage = flag;
+    }
+
+    public void setOutputPhaseCorrections(final boolean flag) {
+        outputPhaseCorrections = flag;
+    }
+
+    public Product createTargetProduct() {
+
+        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX, sourceProduct.getProductType(),
+                sourceImageWidth, sourceImageHeight);
+
+        for (Band srcBand : sourceProduct.getBands()) {
+            if (srcBand instanceof VirtualBand) {
+                continue;
+            }
+
+            final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
+                    srcBand.getRasterWidth(), srcBand.getRasterHeight());
+
+            targetBand.setNoDataValueUsed(true);
+            targetBand.setNoDataValue(srcBand.getNoDataValue());
+            targetBand.setUnit(srcBand.getUnit());
+            targetBand.setDescription(srcBand.getDescription());
+            targetProduct.addBand(targetBand);
+
+            if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
+                int idx = targetProduct.getBandIndex(targetBand.getName());
+                ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
+            }
+        }
+
+        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
+
+        return targetProduct;
     }
 
     protected void getAzimuthTimeCorrectionForCurrentTile(final int x0, final int y0, final int w, final int h,
@@ -166,6 +211,17 @@ import java.util.Map;
         }
     }
 
+    protected void getInSARRangeTimeCorrectionForCurrentTile(final int x0, final int y0, final int w, final int h,
+                                                             final int burstIndex, final double[][] rgCorrection)
+            throws Exception {
+
+        getCorrectionForCurrentTile(TROPOSPHERIC_CORRECTION_RG, x0, y0, w, h, burstIndex, rgCorrection);
+
+        getCorrectionForCurrentTile(GEODETIC_CORRECTION_RG, x0, y0, w, h, burstIndex, rgCorrection);
+
+        getCorrectionForCurrentTile(IONOSPHERIC_CORRECTION_RG, x0, y0, w, h, burstIndex, rgCorrection, -1.0);
+    }
+
     protected void getCorrectionForCurrentTile(
             final String layer, final int x0, final int y0, final int w, final int h, final int burstIndex,
             final double[][] correction) throws Exception {
@@ -179,21 +235,11 @@ import java.util.Map;
     }
 
     protected double getInstrumentAzimuthTimeCalibration(final String swathID) {
-
-        if(geodeticCorrectionAz || bistaticShiftCorrectionAz || fmMismatchCorrectionAz) {
-            return etadUtils.getAzimuthCalibration(swathID);
-        } else {
-            return 0.0;
-        }
+        return etadUtils.getAzimuthCalibration(swathID);
     }
 
     protected double getInstrumentRangeTimeCalibration(final String swathID) {
-
-        if(troposphericCorrectionRg || ionosphericCorrectionRg || geodeticCorrectionRg || dopplerShiftCorrectionRg) {
-            return etadUtils.getRangeCalibration(swathID);
-        } else {
-            return 0.0;
-        }
+        return etadUtils.getRangeCalibration(swathID);
     }
 
     protected Rectangle getSourceRectangle(final int tx0, final int ty0, final int tw, final int th, final int margin) {

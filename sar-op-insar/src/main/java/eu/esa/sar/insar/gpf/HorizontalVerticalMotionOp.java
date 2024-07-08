@@ -133,9 +133,9 @@ public class HorizontalVerticalMotionOp extends Operator {
 
         wavelength = Constants.lightSpeed / abs.getAttributeDouble(AbstractMetadata.radar_frequency) / 1E6;
 
-        final MetadataElement slavesHeadingAnglesElem = abs.getElement("Slaves_Heading_Angles");
+        final MetadataElement slavesHeadingAnglesElem = abs.getElement("Secondary_Heading_Angles");
         if (slavesHeadingAnglesElem == null) {
-            throw new OperatorException("Heading angles are missing for collocated slaves.");
+            throw new OperatorException("Heading angles are missing for secondary collocated images.");
         }
         if (abs.getAttributeString("PASS").equals("DESCENDING")) { // if collocation master is DSC
             headingDsc = abs.getAttributeDouble("centre_heading");

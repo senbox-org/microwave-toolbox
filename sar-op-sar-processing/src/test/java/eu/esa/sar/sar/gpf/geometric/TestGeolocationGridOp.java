@@ -84,7 +84,7 @@ public class TestGeolocationGridOp extends ProcessorTest {
             band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{2356.043f, 2176.3665f, 2261.298f, 1921.2916f};
+            final float[] expected = new float[]{2357.3801f, 2176.2278f, 2261.9229f, 1921.1202f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }

@@ -52,9 +52,8 @@ import java.util.StringTokenizer;
      * Default constructor. The graph processing framework
      * requires that an operator has a default constructor.
      */
-    public GRDCorrector(final Product sourceProduct, final Product targetProduct, final ETADUtils etadUtils,
-                        final Resampling selectedResampling) {
-		super(sourceProduct, targetProduct, etadUtils, selectedResampling);
+    public GRDCorrector(final Product sourceProduct, final ETADUtils etadUtils, final Resampling selectedResampling) {
+        super(sourceProduct, etadUtils, selectedResampling);
     }
 
     @Override
