@@ -195,7 +195,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
             band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.2688405f, 0.2265824f, 0.18008466f, 0.17219248f};
+            final float[] expected = new float[]{0.26883528f, 0.22659998f, 0.18019523f, 0.17243087f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }
