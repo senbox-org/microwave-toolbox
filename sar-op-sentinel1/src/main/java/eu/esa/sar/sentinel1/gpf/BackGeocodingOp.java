@@ -132,6 +132,7 @@ public final class BackGeocodingOp extends Operator {
     private static final double invalidIndex = -9999.0;
 
     private static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
+    private static final String ETAD_HEIGHT = "etadHeight";
     private static final String PRODUCT_SUFFIX = "_Stack";
 
     private boolean outputDEM = false;
@@ -359,6 +360,10 @@ public final class BackGeocodingOp extends Operator {
 
                 if (bandName.contains(ETAD_PHASE_CORRECTION)) {
                     slaveData.foundETADCorrection = true;
+                }
+
+                if (bandName.contains(ETAD_HEIGHT)) {
+                    slaveData.foundETADHeight = true;
                 }
 
                 final Band targetBand = new Band(
@@ -877,7 +882,15 @@ public final class BackGeocodingOp extends Operator {
         // In future, if the ETAD correction is polarization dependent, then the following code should be in a for
         // loop of polarizations as above.
         if (slaveData.foundETADCorrection) {
-            performInterpolationOnETADCorrection(x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData);
+            final String etadCorrBandName = ETAD_PHASE_CORRECTION + "_" + swathID; // add polarization if needed
+            performInterpolationOnETADBand(
+                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadCorrBandName);
+        }
+
+        if (slaveData.foundETADHeight) {
+            final String etadHeightBandName = ETAD_HEIGHT + "_" + swathID; // add polarization if needed
+            performInterpolationOnETADBand(
+                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadHeightBandName);
         }
     }
 
@@ -1378,23 +1391,22 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
-    private void performInterpolationOnETADCorrection(
+    private void performInterpolationOnETADBand(
             final int x0, final int y0, final int w, final int h, final Rectangle sourceRectangle,
-            final Map<Band, Tile> targetTileMap, final PixelPos[][] slavePixPos, final SlaveData slaveData)
-            throws OperatorException {
+            final Map<Band, Tile> targetTileMap, final PixelPos[][] secPixPos, final SlaveData secData,
+            final String bandName) throws OperatorException {
 
         try {
-            final String etadCorrBandName = ETAD_PHASE_CORRECTION + "_" + swathID; // add polarization if needed
-            final Band slaveETADCorrBand = slaveData.slaveProduct.getBand(etadCorrBandName);
-            final Tile slaveETADCorrTile = getSourceTile(slaveETADCorrBand, sourceRectangle);
-            final double[][] inSARRangeCorrection = getETADCorrection(slaveETADCorrTile, sourceRectangle);
+            final Band secETADBand = secData.slaveProduct.getBand(bandName);
+            final Tile secETADTile = getSourceTile(secETADBand, sourceRectangle);
+            final double[][] secETADData = getETADData(secETADTile, sourceRectangle);
 
-            final Band tgtETADCorrBand = getTargetBand(etadCorrBandName, slaveData.slvSuffix, null);
-            final Tile tgtETADCorrTile = targetTileMap.get(tgtETADCorrBand);
-            final ProductData tgtETADCorrBuffer = tgtETADCorrTile.getDataBuffer();
-            final TileIndex tgtIndex = new TileIndex(tgtETADCorrTile);
+            final Band tgtETADBand = getTargetBand(bandName, secData.slvSuffix, null);
+            final Tile tgtETADTile = targetTileMap.get(tgtETADBand);
+            final ProductData tgtETADBuffer = tgtETADTile.getDataBuffer();
+            final TileIndex tgtIndex = new TileIndex(tgtETADTile);
 
-            final ResamplingRaster resamplingRaster = new ResamplingRaster(slaveETADCorrTile, inSARRangeCorrection);
+            final ResamplingRaster resamplingRaster = new ResamplingRaster(secETADTile, secETADData);
             final Resampling.Index resamplingIndex = selectedResampling.createIndex();
 
             final int sxMin = sourceRectangle.x;
@@ -1410,21 +1422,21 @@ public final class BackGeocodingOp extends Operator {
                     final int xx = x - x0;
                     final int tgtIdx = tgtIndex.getIndex(x);
 
-                    final PixelPos slavePixelPos = slavePixPos[yy][xx];
-                    if (slavePixelPos == null || slavePixelPos.x < sxMin || slavePixelPos.x > sxMax ||
-                            slavePixelPos.y < syMin || slavePixelPos.y > syMax) {
+                    final PixelPos secPixelPos = secPixPos[yy][xx];
+                    if (secPixelPos == null || secPixelPos.x < sxMin || secPixelPos.x > sxMax ||
+                            secPixelPos.y < syMin || secPixelPos.y > syMax) {
 
-                        tgtETADCorrBuffer.setElemDoubleAt(tgtIdx, noDataValue);
+                        tgtETADBuffer.setElemDoubleAt(tgtIdx, noDataValue);
                         continue;
                     }
 
                     selectedResampling.computeCornerBasedIndex(
-                            slavePixelPos.x - sourceRectangle.x, slavePixelPos.y - sourceRectangle.y,
+                            secPixelPos.x - sourceRectangle.x, secPixelPos.y - sourceRectangle.y,
                             sourceRectangle.width, sourceRectangle.height, resamplingIndex);
 
                     double sample = selectedResampling.resample(resamplingRaster, resamplingIndex);
 
-                    tgtETADCorrBuffer.setElemDoubleAt(tgtIdx, sample);
+                    tgtETADBuffer.setElemDoubleAt(tgtIdx, sample);
                 }
             }
         } catch (Throwable e) {
@@ -1432,7 +1444,7 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
-    static double[][] getETADCorrection(final Tile tile, final Rectangle rectangle) {
+    static double[][] getETADData(final Tile tile, final Rectangle rectangle) {
 
         try {
             final int x0 = rectangle.x;
@@ -1667,6 +1679,7 @@ public final class BackGeocodingOp extends Operator {
         int burstOffset = -9999;
         String slvSuffix;
         boolean foundETADCorrection = false;
+        boolean foundETADHeight = false;
 
         SlaveData(final Product product) throws Exception {
             this.slaveProduct = product;

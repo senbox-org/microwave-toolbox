@@ -320,6 +320,10 @@ public final class ETADUtils {
         return -1;
     }
 
+    public int[] getBurstIndexArray(final int pIndex, final int sIndex) {
+        return inputProducts[pIndex - 1].swathArray[sIndex - 1].bIndexArray;
+    }
+
     public Burst getBurst(final double azimuthTime, final double slantRangeTime) {
 
         final int pIndex = getProductIndex(azimuthTime);
