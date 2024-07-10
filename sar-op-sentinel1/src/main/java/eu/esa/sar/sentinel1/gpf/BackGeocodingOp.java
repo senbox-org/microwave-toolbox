@@ -1393,20 +1393,20 @@ public final class BackGeocodingOp extends Operator {
 
     private void performInterpolationOnETADBand(
             final int x0, final int y0, final int w, final int h, final Rectangle sourceRectangle,
-            final Map<Band, Tile> targetTileMap, final PixelPos[][] slavePixPos, final SlaveData slaveData,
+            final Map<Band, Tile> targetTileMap, final PixelPos[][] secPixPos, final SlaveData secData,
             final String bandName) throws OperatorException {
 
         try {
-            final Band slaveETADBand = slaveData.slaveProduct.getBand(bandName);
-            final Tile slaveETADTile = getSourceTile(slaveETADBand, sourceRectangle);
-            final double[][] slaveETADData = getETADData(slaveETADTile, sourceRectangle);
+            final Band secETADBand = secData.slaveProduct.getBand(bandName);
+            final Tile secETADTile = getSourceTile(secETADBand, sourceRectangle);
+            final double[][] secETADData = getETADData(secETADTile, sourceRectangle);
 
-            final Band tgtETADBand = getTargetBand(bandName, slaveData.slvSuffix, null);
+            final Band tgtETADBand = getTargetBand(bandName, secData.slvSuffix, null);
             final Tile tgtETADTile = targetTileMap.get(tgtETADBand);
             final ProductData tgtETADBuffer = tgtETADTile.getDataBuffer();
             final TileIndex tgtIndex = new TileIndex(tgtETADTile);
 
-            final ResamplingRaster resamplingRaster = new ResamplingRaster(slaveETADTile, slaveETADData);
+            final ResamplingRaster resamplingRaster = new ResamplingRaster(secETADTile, secETADData);
             final Resampling.Index resamplingIndex = selectedResampling.createIndex();
 
             final int sxMin = sourceRectangle.x;
@@ -1422,16 +1422,16 @@ public final class BackGeocodingOp extends Operator {
                     final int xx = x - x0;
                     final int tgtIdx = tgtIndex.getIndex(x);
 
-                    final PixelPos slavePixelPos = slavePixPos[yy][xx];
-                    if (slavePixelPos == null || slavePixelPos.x < sxMin || slavePixelPos.x > sxMax ||
-                            slavePixelPos.y < syMin || slavePixelPos.y > syMax) {
+                    final PixelPos secPixelPos = secPixPos[yy][xx];
+                    if (secPixelPos == null || secPixelPos.x < sxMin || secPixelPos.x > sxMax ||
+                            secPixelPos.y < syMin || secPixelPos.y > syMax) {
 
                         tgtETADBuffer.setElemDoubleAt(tgtIdx, noDataValue);
                         continue;
                     }
 
                     selectedResampling.computeCornerBasedIndex(
-                            slavePixelPos.x - sourceRectangle.x, slavePixelPos.y - sourceRectangle.y,
+                            secPixelPos.x - sourceRectangle.x, secPixelPos.y - sourceRectangle.y,
                             sourceRectangle.width, sourceRectangle.height, resamplingIndex);
 
                     double sample = selectedResampling.resample(resamplingRaster, resamplingIndex);

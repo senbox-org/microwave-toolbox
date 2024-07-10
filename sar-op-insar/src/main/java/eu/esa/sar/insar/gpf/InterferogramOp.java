@@ -176,18 +176,18 @@ public class InterferogramOp extends Operator {
     private int numSubSwaths = 0;
     private org.jlinda.core.Point[] mstSceneCentreXYZ = null;
     private int subSwathIndex = 0;
-    private MetadataElement mstRoot = null;
+    private MetadataElement refRoot = null;
     private boolean subtractETADPhase = false;
     private boolean performHeightCorrection = false;
     private boolean etadPhaseStatsComputed = false;
-    private boolean hasMstETADPhaseBand = false;
-    private boolean hasMstETADHeightBand = false;
-    private boolean hasSlvETADPhaseBand = false;
-    private boolean hasSlvETADHeightBand = false;
-    private Band mstETADPhaseBand = null;
-    private Band mstETADHeightBand = null;
-    private Band slvETADPhaseBand = null;
-    private Band slvETADHeightBand = null;
+    private boolean hasRefETADPhaseBand = false;
+    private boolean hasRefETADHeightBand = false;
+    private boolean hasSecETADPhaseBand = false;
+    private boolean hasSecETADHeightBand = false;
+    private Band refETADPhaseBand = null;
+    private Band refETADHeightBand = null;
+    private Band secETADPhaseBand = null;
+    private Band secETADHeightBand = null;
     private double[] gradient = null;
 
     private static final boolean CREATE_VIRTUAL_BAND = true;
@@ -223,9 +223,9 @@ public class InterferogramOp extends Operator {
 
         try {
             if(AbstractMetadata.getAbstractedMetadata(sourceProduct).containsAttribute("multimaster_split")){
-                mstRoot = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(0);
+                refRoot = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(0);
             } else{
-                mstRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+                refRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
             }
 
             checkUserInput();
@@ -256,7 +256,7 @@ public class InterferogramOp extends Operator {
             isTOPSARBurstProduct = validator.isTOPSARProduct() && !validator.isDebursted();
 
             if (isTOPSARBurstProduct) {
-                final String mProcSysId = mstRoot.getAttributeString(AbstractMetadata.ProcessingSystemIdentifier);
+                final String mProcSysId = refRoot.getAttributeString(AbstractMetadata.ProcessingSystemIdentifier);
                 final float mVersion = Float.parseFloat(mProcSysId.substring(mProcSysId.lastIndexOf(' ')));
 
                 MetadataElement slaveElem = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
@@ -267,7 +267,7 @@ public class InterferogramOp extends Operator {
                 for (MetadataElement slvRoot : slaveRoot) {
                     final String sProcSysId = slvRoot.getAttributeString(AbstractMetadata.ProcessingSystemIdentifier);
                     final float sVersion = Float.parseFloat(sProcSysId.substring(sProcSysId.lastIndexOf(' ')));
-                    if ((mVersion < 2.43 && sVersion >= 2.43 && mstRoot.getAttribute("EAP Correction") == null) ||
+                    if ((mVersion < 2.43 && sVersion >= 2.43 && refRoot.getAttribute("EAP Correction") == null) ||
                             (sVersion < 2.43 && mVersion >= 2.43 && slvRoot.getAttribute("EAP Correction") == null)) {
                         throw new OperatorException("Source products cannot be InSAR pairs: one is EAP phase corrected" +
                                 " and the other is not. Apply EAP Correction.");
@@ -421,7 +421,7 @@ public class InterferogramOp extends Operator {
 
         // organize metadata
         // put sourceMaster metadata into the masterMap
-        metaMapPut(MASTER_TAG, mstRoot, sourceProduct, masterMap);
+        metaMapPut(MASTER_TAG, refRoot, sourceProduct, masterMap);
 
         // put sourceSlave metadata into slaveMap
         MetadataElement slaveElem = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot);
@@ -486,24 +486,24 @@ public class InterferogramOp extends Operator {
         for (Band band : sourceProduct.getBands()) {
             final String bandName = band.getName();
             if (bandName.contains(ETAD_PHASE_CORRECTION) && bandName.contains(MASTER_TAG)) {
-                hasMstETADPhaseBand = true;
-                mstETADPhaseBand = band;
+                hasRefETADPhaseBand = true;
+                refETADPhaseBand = band;
             }
             if (bandName.contains(ETAD_HEIGHT) && bandName.contains(MASTER_TAG)) {
-                hasMstETADHeightBand = true;
-                mstETADHeightBand = band;
+                hasRefETADHeightBand = true;
+                refETADHeightBand = band;
             }
             if (bandName.contains(ETAD_PHASE_CORRECTION) && bandName.contains(SLAVE_TAG)) {
-                hasSlvETADPhaseBand = true;
-                slvETADPhaseBand = band;
+                hasSecETADPhaseBand = true;
+                secETADPhaseBand = band;
             }
             if (bandName.contains(ETAD_HEIGHT) && bandName.contains(SLAVE_TAG)) {
-                hasSlvETADHeightBand = true;
-                slvETADHeightBand = band;
+                hasSecETADHeightBand = true;
+                secETADHeightBand = band;
             }
         }
-        subtractETADPhase = hasMstETADPhaseBand & hasSlvETADPhaseBand;
-        performHeightCorrection = hasMstETADHeightBand & hasSlvETADHeightBand;
+        subtractETADPhase = hasRefETADPhaseBand & hasSecETADPhaseBand;
+        performHeightCorrection = hasRefETADHeightBand & hasSecETADHeightBand;
 
         if (performHeightCorrection) {
             // get gradient array from metadata
@@ -520,10 +520,10 @@ public class InterferogramOp extends Operator {
 
         if (etadPhaseStatsComputed) return;
 
-        final double mstNoDataValue = mstETADPhaseBand.getNoDataValue();
-        final double slvNoDataValue = slvETADPhaseBand.getNoDataValue();
-        final int w = mstETADPhaseBand.getRasterWidth();
-        final int h = mstETADPhaseBand.getRasterHeight();
+        final double mstNoDataValue = refETADPhaseBand.getNoDataValue();
+        final double slvNoDataValue = secETADPhaseBand.getNoDataValue();
+        final int w = refETADPhaseBand.getRasterWidth();
+        final int h = refETADPhaseBand.getRasterHeight();
         final int rgStep = w / 407;
         final int azStep = h / 108;
 
@@ -534,8 +534,8 @@ public class InterferogramOp extends Operator {
         int count = 0;
         for (int y = azStep/2; y < h; y += azStep) {
             for (int x = rgStep/2; x < w; x += rgStep) {
-                final double mstETADCorr = getPixelValue(x, y, mstETADPhaseBand);
-                final double slvETADCorr = getPixelValue(x, y, slvETADPhaseBand);
+                final double mstETADCorr = getPixelValue(x, y, refETADPhaseBand);
+                final double slvETADCorr = getPixelValue(x, y, secETADPhaseBand);
 
                 if (mstETADCorr == mstNoDataValue || slvETADCorr == slvNoDataValue) {
                     continue;
@@ -1695,7 +1695,7 @@ public class InterferogramOp extends Operator {
 
     private double[][] computeETADPhase(final Rectangle rectangle) {
 
-        if (mstETADPhaseBand == null || slvETADPhaseBand == null) {
+        if (refETADPhaseBand == null || secETADPhaseBand == null) {
             return null;
         }
 
@@ -1715,35 +1715,35 @@ public class InterferogramOp extends Operator {
         final int xMax = x0 + w;
         final int yMax = y0 + h;
 
-        final Tile mstETADPhaseTile = getSourceTile(mstETADPhaseBand, rectangle);
-        final ProductData mstETADPhaseData = mstETADPhaseTile.getDataBuffer();
-        final TileIndex mstPhaseIndex = new TileIndex(mstETADPhaseTile);
+        final Tile refETADPhaseTile = getSourceTile(refETADPhaseBand, rectangle);
+        final ProductData refETADPhaseData = refETADPhaseTile.getDataBuffer();
+        final TileIndex refPhaseIndex = new TileIndex(refETADPhaseTile);
 
-        final Tile slvETADPhaseTile = getSourceTile(slvETADPhaseBand, rectangle);
-        final ProductData slvETADPhaseData = slvETADPhaseTile.getDataBuffer();
-        final TileIndex slvPhaseIndex = new TileIndex(slvETADPhaseTile);
+        final Tile secETADPhaseTile = getSourceTile(secETADPhaseBand, rectangle);
+        final ProductData secETADPhaseData = secETADPhaseTile.getDataBuffer();
+        final TileIndex secPhaseIndex = new TileIndex(secETADPhaseTile);
 
-        final double mstNoDataValue = mstETADPhaseBand.getNoDataValue();
-        final double slvNoDataValue = slvETADPhaseBand.getNoDataValue();
+        final double refNoDataValue = refETADPhaseBand.getNoDataValue();
+        final double secNoDataValue = secETADPhaseBand.getNoDataValue();
 
         final double[][] etadPhase = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
-            mstPhaseIndex.calculateStride(y);
-            slvPhaseIndex.calculateStride(y);
+            refPhaseIndex.calculateStride(y);
+            secPhaseIndex.calculateStride(y);
             final int yy = y - y0;
 
             for (int x = x0; x < xMax; ++x) {
-                final int mstPhaseIdx = mstPhaseIndex.getIndex(x);
-                final int slvPhaseIdx = slvPhaseIndex.getIndex(x);
+                final int refPhaseIdx = refPhaseIndex.getIndex(x);
+                final int secPhaseIdx = secPhaseIndex.getIndex(x);
                 final int xx = x - x0;
 
-                final double mstETADPhase = mstETADPhaseData.getElemDoubleAt(mstPhaseIdx);
-                final double slvETADPhase = slvETADPhaseData.getElemDoubleAt(slvPhaseIdx);
+                final double refETADPhase = refETADPhaseData.getElemDoubleAt(refPhaseIdx);
+                final double secETADPhase = secETADPhaseData.getElemDoubleAt(secPhaseIdx);
 
-                if (mstETADPhase == mstNoDataValue || slvETADPhase == slvNoDataValue) {
-                    etadPhase[yy][xx] = mstNoDataValue;
+                if (refETADPhase == refNoDataValue || secETADPhase == secNoDataValue) {
+                    etadPhase[yy][xx] = refNoDataValue;
                 } else {
-                    etadPhase[yy][xx] = mstETADPhase - slvETADPhase;
+                    etadPhase[yy][xx] = refETADPhase - secETADPhase;
                 }
             }
         }
@@ -1759,24 +1759,24 @@ public class InterferogramOp extends Operator {
         final int xMax = x0 + w;
         final int yMax = y0 + h;
 
-        final Tile mstETADPhaseTile = getSourceTile(mstETADPhaseBand, rectangle);
-        final ProductData mstETADPhaseData = mstETADPhaseTile.getDataBuffer();
-        final TileIndex mstPhaseIndex = new TileIndex(mstETADPhaseTile);
+        final Tile refETADPhaseTile = getSourceTile(refETADPhaseBand, rectangle);
+        final ProductData refETADPhaseData = refETADPhaseTile.getDataBuffer();
+        final TileIndex refPhaseIndex = new TileIndex(refETADPhaseTile);
 
-        final Tile mstETADHeightTile = getSourceTile(mstETADHeightBand, rectangle);
-        final ProductData mstETADHeightData = mstETADHeightTile.getDataBuffer();
-        final TileIndex mstHeightIndex = new TileIndex(mstETADHeightTile);
+        final Tile refETADHeightTile = getSourceTile(refETADHeightBand, rectangle);
+        final ProductData refETADHeightData = refETADHeightTile.getDataBuffer();
+        final TileIndex refHeightIndex = new TileIndex(refETADHeightTile);
 
-        final Tile slvETADPhaseTile = getSourceTile(slvETADPhaseBand, rectangle);
-        final ProductData slvETADPhaseData = slvETADPhaseTile.getDataBuffer();
-        final TileIndex slvPhaseIndex = new TileIndex(slvETADPhaseTile);
+        final Tile secETADPhaseTile = getSourceTile(secETADPhaseBand, rectangle);
+        final ProductData secETADPhaseData = secETADPhaseTile.getDataBuffer();
+        final TileIndex secPhaseIndex = new TileIndex(secETADPhaseTile);
 
-        final Tile slvETADHeightTile = getSourceTile(slvETADHeightBand, rectangle);
-        final ProductData slvETADHeightData = slvETADHeightTile.getDataBuffer();
-        final TileIndex slvHeightIndex = new TileIndex(slvETADHeightTile);
+        final Tile secETADHeightTile = getSourceTile(secETADHeightBand, rectangle);
+        final ProductData secETADHeightData = secETADHeightTile.getDataBuffer();
+        final TileIndex secHeightIndex = new TileIndex(secETADHeightTile);
 
-        final double mstNoDataValue = mstETADPhaseBand.getNoDataValue();
-        final double slvNoDataValue = slvETADPhaseBand.getNoDataValue();
+        final double refNoDataValue = refETADPhaseBand.getNoDataValue();
+        final double secNoDataValue = secETADPhaseBand.getNoDataValue();
 
         // Here we assume that slave image has the same number of bursts as the master image which may not be
         // correct. We will fix it later.
@@ -1785,31 +1785,31 @@ public class InterferogramOp extends Operator {
 
         final double[][] etadPhase = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
-            mstPhaseIndex.calculateStride(y);
-            mstHeightIndex.calculateStride(y);
-            slvPhaseIndex.calculateStride(y);
-            slvHeightIndex.calculateStride(y);
+            refPhaseIndex.calculateStride(y);
+            refHeightIndex.calculateStride(y);
+            secPhaseIndex.calculateStride(y);
+            secHeightIndex.calculateStride(y);
 
             final int yy = y - y0;
             final int burstIndex = y / numLinesPerBurst;
             final double slope = gradient[burstIndex];
 
             for (int x = x0; x < xMax; ++x) {
-                final int mstPhaseIdx = mstPhaseIndex.getIndex(x);
-                final int mstHeightIdx = mstPhaseIndex.getIndex(x);
-                final int slvPhaseIdx = slvPhaseIndex.getIndex(x);
-                final int slvHeightIdx = slvPhaseIndex.getIndex(x);
+                final int refPhaseIdx = refPhaseIndex.getIndex(x);
+                final int refHeightIdx = refPhaseIndex.getIndex(x);
+                final int secPhaseIdx = secPhaseIndex.getIndex(x);
+                final int secHeightIdx = secPhaseIndex.getIndex(x);
                 final int xx = x - x0;
 
-                final double mstETADPhase = mstETADPhaseData.getElemDoubleAt(mstPhaseIdx);
-                final double slvETADPhase = slvETADPhaseData.getElemDoubleAt(slvPhaseIdx);
-                final double mstETADHeight = mstETADHeightData.getElemDoubleAt(mstPhaseIdx);
-                final double slvETADHeight = slvETADHeightData.getElemDoubleAt(slvPhaseIdx);
+                final double refETADPhase = refETADPhaseData.getElemDoubleAt(refPhaseIdx);
+                final double secETADPhase = secETADPhaseData.getElemDoubleAt(secPhaseIdx);
+                final double refETADHeight = refETADHeightData.getElemDoubleAt(refHeightIdx);
+                final double secETADHeight = secETADHeightData.getElemDoubleAt(secHeightIdx);
 
-                if (mstETADPhase == mstNoDataValue || slvETADPhase == slvNoDataValue) {
-                    etadPhase[yy][xx] = mstNoDataValue;
+                if (refETADPhase == refNoDataValue || secETADPhase == secNoDataValue) {
+                    etadPhase[yy][xx] = refNoDataValue;
                 } else {
-                    etadPhase[yy][xx] = mstETADPhase - slvETADPhase - slope * (mstETADHeight - slvETADHeight);
+                    etadPhase[yy][xx] = refETADPhase - secETADPhase - slope * (refETADHeight - secETADHeight);
                 }
             }
         }
