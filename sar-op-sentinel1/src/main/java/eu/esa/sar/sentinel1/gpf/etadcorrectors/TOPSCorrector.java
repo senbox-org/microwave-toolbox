@@ -165,10 +165,6 @@ import static Jama.Matrix.constructWithCopy;
                                  final Operator op) throws OperatorException {
 
         try {
-            if (!tropToHeightGradientComputed) {
-                computeTroposphericToHeightGradient();
-            }
-
             final int tx0 = targetRectangle.x;
             final int ty0 = targetRectangle.y;
             final int tw = targetRectangle.width;
@@ -271,6 +267,10 @@ import static Jama.Matrix.constructWithCopy;
                                                      final Map<Band, Tile> targetTileMap, final Operator op) {
 
         try {
+            if (!tropToHeightGradientComputed) {
+                computeTroposphericToHeightGradient();
+            }
+
             double[][] correction = new double[h][w];
             getInSARRangeTimeCorrectionForCurrentTile(x0, y0, w, h, mBurstIndex, correction);
             final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
