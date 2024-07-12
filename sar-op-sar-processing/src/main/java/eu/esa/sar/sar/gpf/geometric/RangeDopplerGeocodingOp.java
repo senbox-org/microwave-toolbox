@@ -1137,8 +1137,6 @@ public class RangeDopplerGeocodingOp extends Operator {
                                     tileGeoRef, x0, y0, w, h, sourceProduct, true, localDEM);
 
                             if (!valid) {
-                                saveLayoverShadowMask = false;
-                                System.out.println("Cannot create layover/shadow mask due to the absent of DEM");
                                 return;
                             }
                         } catch (Throwable e) {
