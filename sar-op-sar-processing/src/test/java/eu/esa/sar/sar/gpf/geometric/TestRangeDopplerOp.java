@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sar.gpf.geometric;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
@@ -197,6 +198,35 @@ public class TestRangeDopplerOp extends ProcessorTest {
             // compare with expected outputs:
             final float[] expected = new float[]{0.26883528f, 0.22659998f, 0.18019523f, 0.17243087f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
+    }
+
+    @Test
+    @STTM("SNAP-3727")
+    public void testLayoverShadowMask() throws Exception {
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
+
+            final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
+            op.setParameter("saveLayoverShadowMask", true);
+            String[] bandNames = {sourceProduct.getBandAt(0).getName()};
+            op.setSourceBandNames(bandNames);
+
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true);
+
+            final Band band = targetProduct.getBandAt(1);
+            assertNotNull(band);
+
+            // readPixels gets computeTiles to be executed
+            final int[] intValues = new int[4];
+            band.readPixels(605, 947, 2, 2, intValues, ProgressMonitor.NULL);
+
+            // compare with expected outputs:
+            final int[] expected = new int[]{1, 1, 3, 3};
+            assertArrayEquals(Arrays.toString(intValues), expected, intValues);
         }
     }
 
