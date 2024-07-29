@@ -223,7 +223,7 @@ import static Jama.Matrix.constructWithCopy;
             final double[][] tropCorr = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
             final double[][] height = getBurstCorrection(HEIGHT, burst);
             final double gradient = computeGradientForCurrentBurst(tropCorr, height);
-            gradientArray[i++] = gradient * 2.0 * Constants.PI * radarFrequency;
+            gradientArray[i++] = -2.0 * Constants.PI * radarFrequency * gradient;
         }
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -304,7 +304,7 @@ import static Jama.Matrix.constructWithCopy;
                     final int xx = x - x0;
 
                     final double delay = correction[yy][xx] + rangeTimeCalibration;
-                    final double phase = 2.0 * Constants.PI * delay * radarFrequency; // delay time (s) to phase (radian)
+                    final double phase = -2.0 * Constants.PI * radarFrequency * delay; // delay time (s) to phase (radian)
                     phaseData.setElemDoubleAt(phaseIdx, phase);
                     heightData.setElemDoubleAt(heightIdx, height[yy][xx]);
                 }
