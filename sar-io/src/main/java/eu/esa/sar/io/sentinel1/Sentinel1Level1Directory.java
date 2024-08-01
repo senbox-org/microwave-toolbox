@@ -316,7 +316,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 final String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
                 final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
                 final String imgName = FileUtils.exchangeExtension(metadataFile, ".tiff");
-                imgBandMetadataMap.put(imgName, bandRootName);
+                imgBandMetadataMap.put(imgName.toLowerCase(), bandRootName);
 
                 AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.SWATH, swath);
                 AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.polarization, pol);
