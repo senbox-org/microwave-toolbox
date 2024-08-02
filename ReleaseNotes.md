@@ -8,6 +8,7 @@
 * S-1 ETAD Improved Interferograms
 * S-1 ETAD improved InSAR image selection tool
 * Dual-pol model-based decomposition
+* Output flat-Earth and topographic phase
 
 ## New in Microwave Toolbox 10.0
 
