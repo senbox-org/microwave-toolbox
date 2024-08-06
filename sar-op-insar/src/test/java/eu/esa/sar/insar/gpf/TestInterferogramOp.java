@@ -34,11 +34,13 @@ import static org.junit.Assume.assumeTrue;
 public class TestInterferogramOp {
 
     private final static File inputFile1 = TestData.inputStackS1;
+    private final static File inputFile2 = TestData.inputStackETADS1;
 
     @Before
     public void setUp() {
         // If the file does not exist: the test will be ignored
         assumeTrue(inputFile1 + " not found", inputFile1.exists());
+        assumeTrue(inputFile2 + " not found", inputFile2.exists());
     }
 
     static {
@@ -75,6 +77,24 @@ public class TestInterferogramOp {
         // get targetProduct: execute initialize()
         final Product targetProduct = op.getTargetProduct();
         assumeTrue(targetProduct.containsBand("fep_IW1_VH_25Feb2018_09Mar2018"));
+    }
+
+    @Test
+    @STTM("SNAP-3780")
+    public void testComputeETADPhaseWithHeightCompensation() throws Exception {
+        final Product sourceProduct = TestUtils.readSourceProduct(inputFile2);
+
+        final InterferogramOp op = (InterferogramOp) spi.createOperator();
+        assertNotNull(op);
+        op.setSourceProduct(sourceProduct);
+        op.setParameter("subtractTopographicPhase", true);
+        op.setParameter("demName", "Copernicus 30m Global DEM");
+        op.setParameter("tileExtensionPercent", "40");
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        final float[] expected = new float[] { 1.77912f, 1.93397f, 2.41658f };
+        TestUtils.comparePixels(targetProduct, "Phase_ifg_IW2_VV_15Aug2020_27Aug2020", 500, 754, expected);
     }
 
 }
