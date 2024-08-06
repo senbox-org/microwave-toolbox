@@ -1288,8 +1288,7 @@ public class InterferogramOp extends Operator {
             for (int x = x0; x <= xN; x++) {
                 final int tgtIdx = tgtIndex.getIndex(x);
                 final int xx = x - x0;
-                etadIfgData.setElemFloatAt(tgtIdx, (float)Math.atan2(Math.sin(etadPhase[yy][xx]), Math.cos(etadPhase[yy][xx])));
-//                etadIfgData.setElemFloatAt(tgtIdx, (float)etadPhase[yy][xx]);
+                etadIfgData.setElemFloatAt(tgtIdx, (float)etadPhase[yy][xx]);
             }
         }
     }
@@ -1778,11 +1777,6 @@ public class InterferogramOp extends Operator {
         final double refNoDataValue = refETADPhaseBand.getNoDataValue();
         final double secNoDataValue = secETADPhaseBand.getNoDataValue();
 
-        // Here we assume that slave image has the same number of bursts as the master image which may not be
-        // correct. We will fix it later.
-        final int numBursts = gradient.length;
-        final int numLinesPerBurst = sourceImageHeight / numBursts;
-
         final double[][] etadPhase = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
             refPhaseIndex.calculateStride(y);
@@ -1791,7 +1785,7 @@ public class InterferogramOp extends Operator {
             secHeightIndex.calculateStride(y);
 
             final int yy = y - y0;
-            final int burstIndex = y / numLinesPerBurst;
+            final int burstIndex = y / subSwath[subSwathIndex - 1].linesPerBurst;
             final double slope = gradient[burstIndex];
 
             for (int x = x0; x < xMax; ++x) {
