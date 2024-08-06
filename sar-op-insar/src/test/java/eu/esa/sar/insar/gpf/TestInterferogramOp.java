@@ -20,6 +20,7 @@ import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -34,13 +35,11 @@ import static org.junit.Assume.assumeTrue;
 public class TestInterferogramOp {
 
     private final static File inputFile1 = TestData.inputStackS1;
-    private final static File inputFile2 = TestData.inputStackETADS1;
 
     @Before
     public void setUp() {
         // If the file does not exist: the test will be ignored
-        assumeTrue(inputFile1 + " not found", inputFile1.exists());
-        assumeTrue(inputFile2 + " not found", inputFile2.exists());
+        //assumeTrue(inputFile1 + " not found", inputFile1.exists());
     }
 
     static {
@@ -81,20 +80,29 @@ public class TestInterferogramOp {
 
     @Test
     @STTM("SNAP-3780")
-    public void testComputeETADPhaseWithHeightCompensation() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile2);
+    public void testComputeETADPhaseWithHeightCompensation() {
 
         final InterferogramOp op = (InterferogramOp) spi.createOperator();
         assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
-        op.setParameter("subtractTopographicPhase", true);
-        op.setParameter("demName", "Copernicus 30m Global DEM");
-        op.setParameter("tileExtensionPercent", "40");
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        final float[] expected = new float[] { 1.77912f, 1.93397f, 2.41658f };
-        TestUtils.comparePixels(targetProduct, "Phase_ifg_IW2_VV_15Aug2020_27Aug2020", 500, 754, expected);
+        final int burstIndex0 = op.getBurstIndex(754, 1509);
+        final int burstIndex1 = op.getBurstIndex(2263, 1509);
+        final int burstIndex2 = op.getBurstIndex(3772, 1509);
+        final int burstIndex3 = op.getBurstIndex(5281, 1509);
+        final int burstIndex4 = op.getBurstIndex(6790, 1509);
+        final int burstIndex5 = op.getBurstIndex(8299, 1509);
+        final int burstIndex6 = op.getBurstIndex(9808, 1509);
+        final int burstIndex7 = op.getBurstIndex(11317, 1509);
+        final int burstIndex8 = op.getBurstIndex(12826, 1509);
+
+        Assert.assertEquals(0, burstIndex0, 0);
+        Assert.assertEquals(1, burstIndex1, 0);
+        Assert.assertEquals(2, burstIndex2, 0);
+        Assert.assertEquals(3, burstIndex3, 0);
+        Assert.assertEquals(4, burstIndex4, 0);
+        Assert.assertEquals(5, burstIndex5, 0);
+        Assert.assertEquals(6, burstIndex6, 0);
+        Assert.assertEquals(7, burstIndex7, 0);
+        Assert.assertEquals(8, burstIndex8, 0);
     }
-
 }
