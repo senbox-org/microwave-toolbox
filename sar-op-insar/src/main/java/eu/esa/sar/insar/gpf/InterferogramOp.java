@@ -1785,7 +1785,7 @@ public class InterferogramOp extends Operator {
             secHeightIndex.calculateStride(y);
 
             final int yy = y - y0;
-            final int burstIndex = y / subSwath[subSwathIndex - 1].linesPerBurst;
+            final int burstIndex = getBurstIndex(y, subSwath[subSwathIndex - 1].linesPerBurst);
             final double slope = gradient[burstIndex];
 
             for (int x = x0; x < xMax; ++x) {
@@ -1808,6 +1808,10 @@ public class InterferogramOp extends Operator {
             }
         }
         return etadPhase;
+    }
+
+    public int getBurstIndex(final int y, final int linesPerBurst) {
+        return y / linesPerBurst;
     }
 
 
