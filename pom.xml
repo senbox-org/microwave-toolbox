@@ -15,7 +15,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <netbeans.version>RELEASE113</netbeans.version>
+        <netbeans.version>RELEASE210</netbeans.version>
         <javahelp.version>2.0.05</javahelp.version>
         <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
@@ -44,6 +44,7 @@
         <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
         <sonar.java.binaries>**/classes</sonar.java.binaries>
         <sonar.exclusions>*/src</sonar.exclusions>
+        <jvm.version>21</jvm.version>
     </properties>
 
     <modules>
@@ -450,8 +451,8 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.11.0</version>
                     <configuration>
-                        <source>11</source>
-                        <target>11</target>
+                        <source>${jvm.version}</source>
+                        <target>${jvm.version}</target>
                         <debug>true</debug>
                         <encoding>UTF-8</encoding>
                         <excludes>
@@ -611,7 +612,7 @@
                 <plugin>
                     <groupId>org.apache.netbeans.utilities</groupId>
                     <artifactId>nbm-maven-plugin</artifactId>
-                    <version>4.4</version>
+                    <version>14.0</version>
                     <extensions>true</extensions>
                     <dependencies>
                         <dependency>
