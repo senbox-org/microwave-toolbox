@@ -26,8 +26,6 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Calendar;
 import java.util.Locale;
@@ -38,7 +36,6 @@ public class MicrowavetbxAboutBox extends JPanel {
 
     private final static String defaultReleaseNotesHTTP = "https://github.com/senbox-org/microwave-toolbox/blob/master/ReleaseNotes.md";
     private final static String stepReleaseNotesHTTP = "https://step.esa.int/main/wp-content/releasenotes/Microwave/Microwave_<version>.html";
-    private static String releaseNotesHTTP = defaultReleaseNotesHTTP;
 
 
     public MicrowavetbxAboutBox() {
@@ -57,37 +54,23 @@ public class MicrowavetbxAboutBox extends JPanel {
 
         final ModuleInfo moduleInfo = Modules.getDefault().ownerOf(MicrowavetbxAboutBox.class);
         JLabel versionLabel = new JLabel("<html><b>Microwave Toolbox version " + moduleInfo.getImplementationVersion() + "</b>", SwingConstants.CENTER);
-        Version specVersion = Version.parseVersion(moduleInfo.getImplementationVersion() );
+
+        Version specVersion = Version.parseVersion(moduleInfo.getSpecificationVersion().toString());
         String versionString = String.format("%s.%s.%s", specVersion.getMajor(), specVersion.getMinor(), specVersion.getMicro());
         String changelogUrl = getReleaseNotesURLString(versionString);
-        releaseNotesHTTP = getReleaseNotesURLString(versionString);
+        final JLabel releaseNoteLabel = new JLabel("<html><a href=\"" + changelogUrl + "\">Release Notes</a>", SwingConstants.CENTER);
+        releaseNoteLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        releaseNoteLabel.addMouseListener(new BrowserUtils.URLClickAdaptor(changelogUrl));
 
         final JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.add(copyRightLabel);
         mainPanel.add(versionLabel);
-
-        final URI releaseNotesURI = getReleaseNotesURI();
-        if (releaseNotesURI != null) {
-            final JLabel releaseNoteLabel = new JLabel("<html><a href=\"" + releaseNotesURI + "\">Release Notes</a>",
-                    SwingConstants.CENTER);
-            releaseNoteLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            releaseNoteLabel.addMouseListener(new BrowserUtils.URLClickAdaptor(releaseNotesHTTP));
-            mainPanel.add(releaseNoteLabel);
-        }
-
+        mainPanel.add(releaseNoteLabel);
         return mainPanel;
     }
 
-    private URI getReleaseNotesURI() {
-        try {
-            return new URI(releaseNotesHTTP);
-        } catch (URISyntaxException e) {
-            return null;
-        }
-    }
-
-    private String getReleaseNotesURLString(String versionString){
+    static String getReleaseNotesURLString(String versionString){
         String changelogUrl = stepReleaseNotesHTTP.replace("<version>", versionString);
         try {
             URL url = new URL(changelogUrl);
@@ -96,10 +79,10 @@ public class MicrowavetbxAboutBox extends JPanel {
 
             int responseCode = huc.getResponseCode();
             if(responseCode != HttpURLConnection.HTTP_OK) {
-                changelogUrl = stepReleaseNotesHTTP + versionString;
+                changelogUrl = defaultReleaseNotesHTTP;
             }
         } catch (IOException e) {
-            changelogUrl = stepReleaseNotesHTTP + versionString;
+            changelogUrl = defaultReleaseNotesHTTP;
         }
         return changelogUrl;
     }
