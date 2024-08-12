@@ -344,6 +344,11 @@
             </dependency>
             <dependency>
                 <groupId>eu.esa.microwavetbx</groupId>
+                <artifactId>sar-io-gdal</artifactId>
+                <version>${microwavetbx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-op-insar</artifactId>
                 <version>${microwavetbx.version}</version>
             </dependency>
