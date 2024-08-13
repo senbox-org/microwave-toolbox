@@ -88,7 +88,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         metadataList.add(createMetadataDouble("Water Depth", recElem, "oswDepth", null));
         metadataList.add(createMetadataDouble("Incidence Angle", recElem, "oswIncidenceAngle", "°"));
         metadataList.add(createMetadataDouble("Backscatter", recElem, "oswNrcs", null));
-        return metadataList.toArray(new String[metadataList.size()]);
+        return metadataList.toArray(new String[0]);
     }
 
     private String createMetadataDouble(final String name, final MetadataElement recElem, final String elemName, String unit) {
@@ -229,6 +229,6 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         readoutList.add("Bin: " + (thBin + 1) + "," + (wvBin + 1) + " Element: " + element);
         readoutList.add("Value: " + spectrum[thBin][wvBin]);
 
-        return readoutList.toArray(new String[readoutList.size()]);
+        return readoutList.toArray(new String[0]);
     }
 }

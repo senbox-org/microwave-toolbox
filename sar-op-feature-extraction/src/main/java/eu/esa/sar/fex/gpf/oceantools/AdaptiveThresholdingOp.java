@@ -242,7 +242,7 @@ public class AdaptiveThresholdingOp extends Operator {
             } else if (bandNameMap.containsKey("hh")) {
                 sourceBandNames = new String[]{bandNameMap.get("hh")};
             } else {
-                sourceBandNames = bandNameMap.values().toArray(new String[bandNameMap.size()]);
+                sourceBandNames = bandNameMap.values().toArray(new String[0]);
             }
         }
 
@@ -825,7 +825,7 @@ public class AdaptiveThresholdingOp extends Operator {
 
     private KDistributionPDF getScaledKDistribution(final double mu, final double nu) {
 
-        KDistributionPDF pdf = new KDistributionPDF((double)numLooks, mu, nu, 1.0);
+        KDistributionPDF pdf = new KDistributionPDF((double) numLooks, mu, nu, 1.0);
 
         double tmp = integrateFromZeroToInfinity(pdf);
 
@@ -833,7 +833,7 @@ public class AdaptiveThresholdingOp extends Operator {
             return null;
         }
 
-        KDistributionPDF spdf = new KDistributionPDF(numLooks, mu, nu, 1/tmp);
+        KDistributionPDF spdf = new KDistributionPDF(numLooks, mu, nu, 1 / tmp);
 
         return spdf;
     }
@@ -881,7 +881,7 @@ public class AdaptiveThresholdingOp extends Operator {
         return x*x;
     }
 
-    class KDistributionPDF implements UnivariateFunction {
+    static class KDistributionPDF implements UnivariateFunction {
 
         final double L;
         final double mu;
@@ -954,7 +954,7 @@ public class AdaptiveThresholdingOp extends Operator {
         }
     }
 
-    class Chi2DistributionPDF implements UnivariateFunction {
+    static class Chi2DistributionPDF implements UnivariateFunction {
 
         final double n;
         final double sigma;
@@ -990,7 +990,7 @@ public class AdaptiveThresholdingOp extends Operator {
         }
     }
 
-    class ModifiedFinitePDF implements UnivariateFunction {
+    static class ModifiedFinitePDF implements UnivariateFunction {
 
         // http://math.stackexchange.com/questions/1355828/estimating-the-value-of-an-improper-integral-numerically
 
@@ -1011,7 +1011,7 @@ public class AdaptiveThresholdingOp extends Operator {
 
     // For testing and/or debugging K-distribution only...
 
-    class NaturalExp implements UnivariateFunction {
+    static class NaturalExp implements UnivariateFunction {
 
         NaturalExp() {}
 
@@ -1021,7 +1021,7 @@ public class AdaptiveThresholdingOp extends Operator {
         }
     }
 
-    class UniformDistribution implements UnivariateFunction {
+    static class UniformDistribution implements UnivariateFunction {
 
         UniformDistribution() {}
 
@@ -1063,7 +1063,7 @@ public class AdaptiveThresholdingOp extends Operator {
         System.out.println("DEBUG K-Dis: intergrate K-distribution from -infinity to +infinity = " +
                 integrateFromNegativeInfinityToPositiveInfinity(pdf));
 
-        KDistributionPDF spdf = new KDistributionPDF(numLooks, 0.08525186254131689, 17.343587288660498, 1/tmp);
+        KDistributionPDF spdf = new KDistributionPDF(numLooks, 0.08525186254131689, 17.343587288660498, 1 / tmp);
         System.out.println("DEBUG K-Dis: intergrate K-distribution (scaled) from 0 to +infinity = "
                             + integrateFromZeroToInfinity(spdf));
 

@@ -128,7 +128,7 @@ public class SpectraDataAsar extends SpectraDataBase implements SpectraData {
                 metadataList.add("Backscatter: " + frmt.format(backscatter) + " dB");
             }
 
-            return metadataList.toArray(new String[metadataList.size()]);
+            return metadataList.toArray(new String[0]);
 
         } catch (Exception e) {
             throw new Exception("Unable to get metadata for " + spectraMetadataRoot.getName());
@@ -276,6 +276,6 @@ public class SpectraDataAsar extends SpectraDataBase implements SpectraData {
         readoutList.add("Bin: " + (thBin + 1) + "," + (wvBin + 1) + " Element: " + element);
         readoutList.add("Value: " + spectrum[thBin][wvBin]);
 
-        return readoutList.toArray(new String[readoutList.size()]);
+        return readoutList.toArray(new String[0]);
     }
 }

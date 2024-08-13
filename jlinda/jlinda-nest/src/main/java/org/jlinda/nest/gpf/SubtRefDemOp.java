@@ -424,7 +424,7 @@ public final class SubtRefDemOp extends Operator {
 
             String slvProductName = StackUtils.findOriginalSlaveProductName(sourceProduct, container.sourceSlave.realBand);
             StackUtils.saveSlaveProductBandNames(targetProduct, slvProductName,
-                                                 targetBandNames.toArray(new String[targetBandNames.size()]));
+                                                 targetBandNames.toArray(new String[0]));
         }
 
         if (outputElevationBand) {
