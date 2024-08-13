@@ -98,7 +98,7 @@ class RadarsatProductDirectory extends CEOSProductDirectory {
                 // continue
             }
         }
-        imageFiles = imgArray.toArray(new RadarsatImageFile[imgArray.size()]);
+        imageFiles = imgArray.toArray(new RadarsatImageFile[0]);
 
         sceneWidth = imageFiles[0].getRasterWidth();
         sceneHeight = imageFiles[0].getRasterHeight();

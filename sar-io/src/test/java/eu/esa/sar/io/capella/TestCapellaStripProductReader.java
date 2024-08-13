@@ -23,8 +23,6 @@ import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.gpf.Tile;
 import org.junit.Before;
 import org.junit.Test;
 

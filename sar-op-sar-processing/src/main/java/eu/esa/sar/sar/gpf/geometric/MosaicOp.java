@@ -285,8 +285,8 @@ public class MosaicOp extends Operator {
             }
         }
 
-        selectedProducts = selectedProductSet.toArray(new Product[selectedProductSet.size()]);
-        return bandList.toArray(new Band[bandList.size()]);
+        selectedProducts = selectedProductSet.toArray(new Product[0]);
+        return bandList.toArray(new Band[0]);
     }
 
     private Product getProduct(final String productName) {

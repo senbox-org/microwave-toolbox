@@ -115,7 +115,7 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
                 e.printStackTrace();
             }
         }
-        imageFiles = imgArray.toArray(new AlosPalsarImageFile[imgArray.size()]);
+        imageFiles = imgArray.toArray(new AlosPalsarImageFile[0]);
         imageFiles[0].isProductIPF = isProductIPF;
         sceneWidth = imageFiles[0].getRasterWidth();
         sceneHeight = imageFiles[0].getRasterHeight();

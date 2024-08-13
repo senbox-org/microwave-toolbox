@@ -1660,58 +1660,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             lineTimeInterval = (lastLineTime - firstLineTime) / (numOfLines - 1);
         }
     }
-
-    private final static class NoiseAzimuthBlock {
-        final int firstAzimuthLine;
-        final int firstRangeSample;
-        final int lastAzimuthLine;
-        final int lastRangeSample;
-
-        final double[][] noiseMatrix;
-
-        NoiseAzimuthBlock(final int firstAzimuthLine, final int firstRangeSample,
-                          final int lastAzimuthLine, final int lastRangeSample,
-                          final double [][] noiseMatrix)
-        {
-            this.firstAzimuthLine = firstAzimuthLine;
-            this.firstRangeSample = firstRangeSample;
-            this.lastAzimuthLine = lastAzimuthLine;
-            this.lastRangeSample = lastRangeSample;
-            this.noiseMatrix =  noiseMatrix;
-        }
-    }
-
-    private final class BurstBlock {
-
-        final int linesPerBurst; // same for all bursts
-        final int samplesPerBurst; // same for all bursts
-        final double firstLineTime; // from azimuthTime
-
-        final int firstValidSample[]; // length is samplesPerBurst
-        final int lastValidSample[]; // length is samplesPerBurst
-
-        final int firstLine;
-        final int lastLine;
-
-        final double[] rangeNoise; // length is samplePerBurst; rangeNoise[0] is x = 0 in the image
-        final double[] azimuthNoise; // length is height of subswath image; azimuthNoize[0] is y = 0 in image
-
-        BurstBlock(final int linesPerBurst, final int samplesPerBurst, final double firstLineTime,
-                   final int firstValidSample[], final int lastValidSample[],
-                   final int firstLine, final int lastLine, final double[] rangeNoise, final double[] azimuthNoise) {
-            this.linesPerBurst = linesPerBurst;
-            this.samplesPerBurst = samplesPerBurst;
-            this.firstLineTime = firstLineTime;
-            this.firstValidSample = firstValidSample;
-            this.lastValidSample = lastValidSample;
-
-            this.firstLine = firstLine;
-            this.lastLine = lastLine;
-            this.rangeNoise = rangeNoise;
-            this.azimuthNoise = azimuthNoise;
-        }
-    }
-
+    
     /**
      * The SPI is used to register this operator in the graph processing framework
      * via the SPI configuration file

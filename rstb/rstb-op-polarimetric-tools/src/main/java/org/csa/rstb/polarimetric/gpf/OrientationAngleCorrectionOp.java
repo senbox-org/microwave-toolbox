@@ -155,7 +155,7 @@ public final class OrientationAngleCorrectionOp extends Operator implements Quad
             targetBandNameList.add("Ori_Ang");
         }
 
-        final String[] bandNames = targetBandNameList.toArray(new String[targetBandNameList.size()]);
+        final String[] bandNames = targetBandNameList.toArray(new String[0]);
         for (PolBandUtils.PolSourceBand bandList : srcBandList) {
             final Band[] targetBands = OperatorUtils.addBands(targetProduct, bandNames, bandList.suffix);
             if (outputOrientationAngle) {

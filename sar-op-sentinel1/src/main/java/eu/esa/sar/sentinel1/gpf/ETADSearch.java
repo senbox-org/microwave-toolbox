@@ -22,7 +22,6 @@ import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.json.simple.JSONObject;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.DateFormat;
 
 public class ETADSearch {
@@ -30,7 +29,7 @@ public class ETADSearch {
     private final DateFormat dateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss.sss");
     private final DataSpaces dataSpaces;
 
-    public ETADSearch() throws IOException {
+    public ETADSearch() {
         this.dataSpaces = new DataSpaces();
     }
 

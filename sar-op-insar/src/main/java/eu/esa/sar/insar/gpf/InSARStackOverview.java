@@ -199,7 +199,7 @@ public class InSARStackOverview {
         absMetaList.add(AbstractMetadata.getAbstractedMetadata(coregProduct));
         absMetaList.addAll(Arrays.asList(slaveElem.getElements()));
 
-        return InSARStackOverview.calculateInSAROverview(absMetaList.toArray(new MetadataElement[absMetaList.size()]));
+        return InSARStackOverview.calculateInSAROverview(absMetaList.toArray(new MetadataElement[0]));
     }
 
     public static InSARStackOverview.IfgStack[] calculateInSAROverview(final MetadataElement[] absRoots) throws Exception {
@@ -217,7 +217,7 @@ public class InSARStackOverview {
         }
 
         final InSARStackOverview dataStack = new InSARStackOverview();
-        dataStack.setInput(imgList.toArray(new SLCImage[imgList.size()]), orbList.toArray(new Orbit[orbList.size()]));
+        dataStack.setInput(imgList.toArray(new SLCImage[0]), orbList.toArray(new Orbit[0]));
         return dataStack.getCoherenceScores(ProgressMonitor.NULL);
     }
 
@@ -232,7 +232,7 @@ public class InSARStackOverview {
         }
 
         final InSARStackOverview dataStack = new InSARStackOverview();
-        dataStack.setInput(imgList.toArray(new SLCImage[imgList.size()]), orbList.toArray(new Orbit[orbList.size()]));
+        dataStack.setInput(imgList.toArray(new SLCImage[0]), orbList.toArray(new Orbit[0]));
         return dataStack.getCoherenceScores(ProgressMonitor.NULL);
     }
 
