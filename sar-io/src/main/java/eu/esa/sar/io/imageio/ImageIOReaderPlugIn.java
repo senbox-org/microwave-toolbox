@@ -46,7 +46,7 @@ public class ImageIOReaderPlugIn implements ProductReaderPlugIn {
         names.add("ImageIO");
         names.addAll(Arrays.asList(ImageIO.getReaderFormatNames()));
         names.remove("geotiff");
-        return names.toArray(new String[names.size()]);
+        return names.toArray(new String[0]);
     }
 
     private static String[] getFormatFileExtensions() {
@@ -59,7 +59,7 @@ public class ImageIOReaderPlugIn implements ProductReaderPlugIn {
         // BEST extensions
         //addAllBestExtensions(extList);
 
-        return extList.toArray(new String[extList.size()]);
+        return extList.toArray(new String[0]);
     }
 
     private static void addAllBestExtensions(final List<String> extList) {
@@ -112,7 +112,7 @@ public class ImageIOReaderPlugIn implements ProductReaderPlugIn {
         extList.add("jpg");
         extList.add("png");
 
-        return extList.toArray(new String[extList.size()]);
+        return extList.toArray(new String[0]);
     }
 
     /**

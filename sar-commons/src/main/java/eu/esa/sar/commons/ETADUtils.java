@@ -16,29 +16,15 @@
 package eu.esa.sar.commons;
 
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.Sentinel1Utils;
-import org.apache.commons.math3.util.FastMath;
-import org.esa.snap.core.dataio.ProductIO;
-import org.esa.snap.core.datamodel.*;
-import org.esa.snap.core.dataop.resamp.Resampling;
-import org.esa.snap.core.dataop.resamp.ResamplingFactory;
-import org.esa.snap.core.gpf.Operator;
-import org.esa.snap.core.gpf.OperatorException;
-import org.esa.snap.core.gpf.OperatorSpi;
-import org.esa.snap.core.gpf.Tile;
-import org.esa.snap.core.gpf.annotations.OperatorMetadata;
-import org.esa.snap.core.gpf.annotations.Parameter;
-import org.esa.snap.core.gpf.annotations.SourceProduct;
-import org.esa.snap.core.gpf.annotations.TargetProduct;
-import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataAttribute;
+import org.esa.snap.core.datamodel.MetadataElement;
+import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
-import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
-import org.esa.snap.engine_utilities.gpf.*;
-import org.esa.snap.engine_utilities.util.Maths;
+import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 
-import java.awt.*;
-import java.io.File;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.util.HashMap;

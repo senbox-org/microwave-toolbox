@@ -277,7 +277,7 @@ public class Project extends Observable {
         for (int i = 0; i < length; i++) {
             folderNames.add(st.nextToken().trim());
         }
-        return folderNames.toArray(new String[folderNames.size()]);
+        return folderNames.toArray(new String[0]);
     }
 
     private void startUpdateTimer() {
@@ -337,7 +337,7 @@ public class Project extends Observable {
 
     private static void pruneNonExistantFiles(final ProjectSubFolder projSubFolder) {
         // check for files to remove
-        final ProjectFile[] fileList = projSubFolder.getFileList().toArray(new ProjectFile[projSubFolder.getFileList().size()]);
+        final ProjectFile[] fileList = projSubFolder.getFileList().toArray(new ProjectFile[0]);
         for (ProjectFile projFile : fileList) {
             final File f = projFile.getFile();
             if (!f.exists() || f.getName().endsWith(DimapProductConstants.DIMAP_DATA_DIRECTORY_EXTENSION)) {

@@ -279,7 +279,7 @@ public class CreateStackOpUI extends BaseOperatorUI {
             }
         }
 
-        return bandNames.toArray(new String[bandNames.size()]);
+        return bandNames.toArray(new String[0]);
     }
 
 }

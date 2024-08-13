@@ -109,7 +109,7 @@ public final class DecisionTreeOp extends Operator {
                 availableProductsList.add(srcProduct);
             }
         }
-        return availableProductsList.toArray(new Product[availableProductsList.size()]);
+        return availableProductsList.toArray(new Product[0]);
     }
 
     /**

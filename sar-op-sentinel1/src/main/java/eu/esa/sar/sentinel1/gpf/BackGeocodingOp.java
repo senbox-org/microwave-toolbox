@@ -230,7 +230,7 @@ public final class BackGeocodingOp extends Operator {
             }
 
             StackUtils.saveMasterProductBandNames(targetProduct,
-                    masterProductBands.toArray(new String[masterProductBands.size()]));
+                    masterProductBands.toArray(new String[0]));
             StackUtils.saveSlaveProductNames(sourceProduct, targetProduct,
                     masterProduct, targetBandToSlaveBandMap);
 

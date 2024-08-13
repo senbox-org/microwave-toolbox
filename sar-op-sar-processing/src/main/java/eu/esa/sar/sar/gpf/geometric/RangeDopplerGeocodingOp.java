@@ -327,7 +327,7 @@ public class RangeDopplerGeocodingOp extends Operator {
                     for (Band band : sourceBands) {
                         polList.add(OperatorUtils.getBandPolarization(band.getName(), absRoot));
                     }
-                    final String[] selectedPolarisations = polList.toArray(new String[polList.size()]);
+                    final String[] selectedPolarisations = polList.toArray(new String[0]);
 
                     Sentinel1Calibrator cal = (Sentinel1Calibrator) calibrator;
                     cal.setUserSelections(sourceProduct,

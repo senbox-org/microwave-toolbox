@@ -143,7 +143,7 @@ public class GammaReader extends SARReader {
                 }
             }
         }
-        return fileList.toArray(new File[fileList.size()]);
+        return fileList.toArray(new File[0]);
     }
 
     private File getImageFile(final File parFile) {
