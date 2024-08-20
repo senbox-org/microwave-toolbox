@@ -154,8 +154,11 @@ public class WarpOp extends Operator {
 
     // demodulation related attributes
     private static final String DEMOD_PHASE_PREFIX = "DemodPhase";
+    private static final String ETAD_PHASE_CORRECTION_PREFIX = "etadPhaseCorrection";
+    private static final String ETAD_HEIGHT_PREFIX = "etadHeight";
     private Interpolation interpDemodPhase = Interpolation.getInstance(Interpolation.INTERP_BILINEAR);
     private final Map<Band, Band> demodPhaseMap = new HashMap<>(10);
+    private final Map<Band, Band> etadBandMap = new HashMap<>(10);
 
     /**
      * Default constructor. The graph processing framework
@@ -348,6 +351,18 @@ public class WarpOp extends Operator {
                         break;
                     }
                 }
+
+                // find slave etad band corresponding to srcBand
+                if (srcBand.getUnit().equals(Unit.REAL)) {
+                    for (Band band : sourceBands) {
+                        final String bandName = band.getName();
+                        final String timeStamp = srcBand.getName().substring(srcBand.getName().lastIndexOf('_'));
+                        if ((bandName.startsWith(ETAD_PHASE_CORRECTION_PREFIX) || bandName.startsWith(ETAD_HEIGHT_PREFIX))
+                                && bandName.contains(timeStamp)) {
+                            etadBandMap.put(band, srcBand);
+                        }
+                    }
+                }
             }
             sourceRasterMap.put(targetBand, srcBand);
 
@@ -356,7 +371,7 @@ public class WarpOp extends Operator {
                 continue;
             }
 
-            if (complexCoregistration) {
+            if (complexCoregistration && srcBand.getUnit().equals(Unit.REAL)) {
                 final Band srcBandQ = sourceProduct.getBandAt(i + 1);
                 Band targetBandQ;
                 if (StringUtils.contains(masterBandNames, srcBandName)) {
@@ -454,6 +469,9 @@ public class WarpOp extends Operator {
             Band realSrcBand;
             if (srcBand.getName().startsWith(DEMOD_PHASE_PREFIX)) {
                 realSrcBand = demodPhaseMap.get(srcBand);
+            } else if (srcBand.getName().startsWith(ETAD_PHASE_CORRECTION_PREFIX) ||
+                    srcBand.getName().startsWith(ETAD_HEIGHT_PREFIX)) {
+                realSrcBand = etadBandMap.get(srcBand);
             } else {
                 // get real part, assuming srcBand is imaginary
                 realSrcBand = complexSrcMap.get(srcBand);
