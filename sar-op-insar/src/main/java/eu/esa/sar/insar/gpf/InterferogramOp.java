@@ -691,7 +691,8 @@ public class InterferogramOp extends Operator {
             }
 
             if (subtractETADPhase && OUTPUT_ETAD_IFG) {
-                final Band etadIfgBand = targetProduct.addBand(ETAD_IFG, ProductData.TYPE_FLOAT32);
+                final String targetBandEtad = ETAD_IFG + tag;
+                final Band etadIfgBand = targetProduct.addBand(targetBandEtad, ProductData.TYPE_FLOAT32);
                 container.addBand(ETAD_IFG, etadIfgBand.getName());
                 etadIfgBand.setUnit(Unit.PHASE);
                 targetBandNames.add(etadIfgBand.getName());
@@ -1090,6 +1091,22 @@ public class InterferogramOp extends Operator {
                                 product, tileWindow, demTile, false, true);
 
                         saveLatLon(x0, xN, y0, yN, topoPhase1.latitude, topoPhase1.longitude, product, targetTileMap);
+                    }
+                }
+
+                if (subtractETADPhase) {
+                    final double[][] etadPhase = computeETADPhase(targetRectangle);
+
+                    if (etadPhase != null) {
+                        final ComplexDoubleMatrix ComplexETADPhase = new ComplexDoubleMatrix(
+                                MatrixFunctions.cos(new DoubleMatrix(etadPhase)),
+                                MatrixFunctions.sin(new DoubleMatrix(etadPhase)));
+
+                        dataSlave.muli(ComplexETADPhase);
+
+                        if (OUTPUT_ETAD_IFG) {
+                            saveETADPhase(x0, xN, y0, yN, etadPhase, product, targetTileMap);
+                        }
                     }
                 }
 
@@ -1785,7 +1802,10 @@ public class InterferogramOp extends Operator {
             secHeightIndex.calculateStride(y);
 
             final int yy = y - y0;
-            final int burstIndex = getBurstIndex(y, subSwath[subSwathIndex - 1].linesPerBurst);
+            int burstIndex = 0;
+            if (subSwath != null) {
+                burstIndex = getBurstIndex(y, subSwath[subSwathIndex - 1].linesPerBurst);
+            }
             final double slope = gradient[burstIndex];
 
             for (int x = x0; x < xMax; ++x) {
