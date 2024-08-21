@@ -70,17 +70,17 @@ public class OilSpillDetectionOp extends Operator {
 
     @Parameter(description = "The list of source bands.", alias = "sourceBands",
             rasterDataNodeType = Band.class, label = "Source Bands")
-    private String[] sourceBandNames = null;
+    String[] sourceBandNames = null;
 
     @Parameter(description = "Background window dimension (km)", defaultValue = "0.5", label = "Background Window Dimension (km)")
-    private double backgroundWindowDim = 0.5;
+    double backgroundWindowDim = 0.5;
 
     @Parameter(description = "Threshold shift from background mean", defaultValue = "2.0", label = "Threshold Shift (dB)")
     private double k = 2.0;
 
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
-    private int backgroundWindowSize = 0;
+    int backgroundWindowSize = 0;
     private int halfBackgroundWindowSize = 0;
 
     private double kInLinearScale = 0.0;
@@ -173,6 +173,9 @@ public class OilSpillDetectionOp extends Operator {
         if(absRoot == null) {
             throw new OperatorException("AbstractMetadata is null");
         }
+        if(backgroundWindowDim <= 0) {
+            throw new OperatorException("Background window dimension should be greater than 0");
+        }
 
         final double rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 1);
         final double azimuthSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing, 1);
@@ -228,6 +231,10 @@ public class OilSpillDetectionOp extends Operator {
             targetBandMask.setNoDataValueUsed(true);
             targetBandMask.setUnit(Unit.AMPLITUDE);
             targetProduct.addBand(targetBandMask);
+        }
+
+        if(targetProduct.getNumBands() == 0) {
+            throw new OperatorException("No intensity bands selected");
         }
     }
 
