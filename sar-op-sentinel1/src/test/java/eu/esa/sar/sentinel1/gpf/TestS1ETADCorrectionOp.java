@@ -35,10 +35,10 @@ import static org.junit.Assume.assumeTrue;
 @STTM("SNAP-3815")
 public class TestS1ETADCorrectionOp {
 
-    private final File S1_IW_SLC = new File(TestData.inputSAR + "S1/IW/S1B_IW_SLC__1SDV_20200815T173048_20200815T173116_022937_02B897_F7CF_Orb_IW1.dim");
-    private final File S1_IW_ETAD = new File(TestData.inputSAR + "S1/IW/S1B_IW_ETA__AXDV_20200815T173048_20200815T173116_022937_02B897_E56D.SAFE/manifest.safe");
-    private final File S1_SM_SLC = new File(TestData.inputSAR + "S1/SM/subset_0_of_S1B_S4_SLC__1SDV_20200827T014634_20200827T014658_023102_02BDCF_DB58.dim");
-    private final File S1_SM_ETAD = new File(TestData.inputSAR + "S1/SM/S1B_S4_ETA__AXDV_20200827T014634_20200827T014658_023102_02BDCF_82DD.SAFE/manifest.safe");
+    private final File S1_IW_SLC = new File(TestData.inputSAR + "S1/ETAD/IW/S1B_IW_SLC__1SDV_20200815T173048_20200815T173116_022937_02B897_F7CF_Orb_IW1.dim");
+    private final File S1_IW_ETAD = new File(TestData.inputSAR + "S1/ETAD/IW/S1B_IW_ETA__AXDV_20200815T173048_20200815T173116_022937_02B897_E56D.SAFE/manifest.safe");
+    private final File S1_SM_SLC = new File(TestData.inputSAR + "S1/ETAD/SM/subset_0_of_S1B_S4_SLC__1SDV_20200827T014634_20200827T014658_023102_02BDCF_DB58.dim");
+    private final File S1_SM_ETAD = new File(TestData.inputSAR + "S1/ETAD/SM/S1B_S4_ETA__AXDV_20200827T014634_20200827T014658_023102_02BDCF_82DD.SAFE/manifest.safe");
 
     private final static OperatorSpi spi = new S1ETADCorrectionOp.Spi();
 
