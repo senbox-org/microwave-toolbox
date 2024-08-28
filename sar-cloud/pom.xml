@@ -89,7 +89,6 @@
                 <configuration>
                     <publicPackages>
                         <publicPackage>eu.esa.sar.*</publicPackage>
-                        <publicPackage>org.json.simple.*</publicPackage>
                         <publicPackage>com.fasterxml.jackson.*</publicPackage>
                         <publicPackage>javax.xml.stream.*</publicPackage>
                         <publicPackage>org.jasypt.*</publicPackage>
