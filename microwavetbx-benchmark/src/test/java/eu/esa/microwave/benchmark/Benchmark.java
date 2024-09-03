@@ -22,14 +22,20 @@ import org.esa.snap.core.util.io.FileUtils;
 import org.json.simple.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
+@SuppressWarnings("unchecked")
 public abstract class Benchmark {
 
     private final static boolean DISABLE_BENCHMARKS = true;
-    private final static int iterations = 5;
+    private final static int iterations = 2;
+    private final static boolean deleteTempOutputFiles = true;
+
     private final String name;
-    private final File resultsFile = new File("e:\\out\\results.json");
+    private final File resultsFile = new File("/tmp/benchmark_results.json");
     protected File outputFolder;
 
     public Benchmark(final String name) {
@@ -41,35 +47,82 @@ public abstract class Benchmark {
             System.out.println("Benchmark " + name + " disabled");
             return;
         }
-        SystemUtils.LOG.info("Initial cold start run");
-        StopWatch coldStartTimer = new StopWatch();
-        outputFolder = Files.createTempDirectory(name).toFile();
-        this.execute();
-        coldStartTimer.stop();
-        SystemUtils.LOG.info("Cold start time " + coldStartTimer.getTimeDiffString());
-        SystemUtils.freeAllMemory();
-        outputFolder.delete();
-        long totalTime = 0L;
 
-        for(int i = 1; i <= iterations; ++i) {
-            SystemUtils.LOG.info("Run " + i + " of " + iterations +" stated");
-            StopWatch timer = new StopWatch();
-            outputFolder = Files.createTempDirectory(name+i).toFile();
+        try {
+            SystemUtils.LOG.info("Initial cold start run");
+            StopWatch coldStartTimer = new StopWatch();
+            outputFolder = createTempFolder(name);
             this.execute();
-            timer.stop();
-            totalTime += timer.getTimeDiff();
-            SystemUtils.LOG.info("Run " + i + " of " + iterations + " end time " + timer.getTimeDiffString());
+            coldStartTimer.stop();
 
+            SystemUtils.LOG.info("Cold start time " + coldStartTimer.getTimeDiffString());
             SystemUtils.freeAllMemory();
-            outputFolder.delete();
+            if (deleteTempOutputFiles)
+                FileUtils.deleteTree(outputFolder);
+            long totalTime = 0L;
+
+            long minTime = Long.MAX_VALUE;
+            long maxTime = Long.MIN_VALUE;
+            for (int i = 1; i <= iterations; ++i) {
+                SystemUtils.LOG.info("Run " + i + " of " + iterations + " started");
+                StopWatch timer = new StopWatch();
+                outputFolder = createTempFolder(name + i);
+                this.execute();
+                timer.stop();
+
+                long currentRunTime = timer.getTimeDiff(); // Store the current run time
+                totalTime += currentRunTime;
+                minTime = Math.min(minTime, currentRunTime);
+                maxTime = Math.max(maxTime, currentRunTime);
+
+                SystemUtils.LOG.info("Run " + i + " of " + iterations + " end time " + timer.getTimeDiffString());
+
+                SystemUtils.freeAllMemory();
+                FileUtils.deleteTree(outputFolder);
+            }
+
+            String coldStartTime = StopWatch.getTimeString(coldStartTimer.getTimeDiff());
+            String avgTime = StopWatch.getTimeString(totalTime / (long) iterations);
+            SystemUtils.LOG.warning(name + " average time " + avgTime);
+
+            writeJSONResults(minTime, maxTime, avgTime, coldStartTime);
+        } catch (Exception e) {
+            SystemUtils.LOG.severe("Benchmark " + name + " failed: " + e.getMessage());
+            writeJSONFailedResults(e.getMessage());
+            throw e;
         }
+    }
 
-        String avgTime = StopWatch.getTimeString(totalTime / (long)iterations);
-        SystemUtils.LOG.warning(name + " average time " + avgTime);
-
+    private void writeJSONFailedResults(final String errorMsg) throws Exception {
         final JSONObject json = readJSON(resultsFile);
-        json.put(name, avgTime);
+        final JSONObject results = new JSONObject();
+        results.put("error", errorMsg);
+        json.put(name, results);
+
         JSON.write(json, resultsFile);
+    }
+
+    private void writeJSONResults(final long minTime, long maxTime, String avgTime, String coldStartTime) throws Exception {
+        final JSONObject json = readJSON(resultsFile);
+        final JSONObject results = (JSONObject) json.getOrDefault(name, new JSONObject());
+        results.put("iterations", iterations);
+        results.put("coldStart", coldStartTime);
+        results.put("minTime", StopWatch.getTimeString(minTime));
+        results.put("maxTime", StopWatch.getTimeString(maxTime));
+        results.put("avgTime", avgTime);
+        json.put(name, results);
+
+        JSON.write(json, resultsFile);
+    }
+
+    private File createTempFolder(final String name) throws IOException {
+        String user = SystemUtils.getUserName();
+        String tempDir = System.getProperty("java.io.tmpdir");
+        Path subFolderPath = Paths.get(tempDir, "snap-" + user);
+        Files.createDirectories(subFolderPath);
+        File tmpFolder = Files.createTempDirectory(subFolderPath, name).toFile();
+        System.out.println("Using temp folder: " + tmpFolder);
+        return tmpFolder;
     }
 
     private JSONObject readJSON(final File file) throws Exception {
