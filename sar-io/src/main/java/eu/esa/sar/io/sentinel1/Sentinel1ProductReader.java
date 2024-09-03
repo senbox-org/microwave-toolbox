@@ -44,7 +44,7 @@ public class Sentinel1ProductReader extends SARReader {
 
     protected Sentinel1Directory dataDir = null;
     private final DataCache cache;
-    private final boolean useCache = false;
+    private final boolean useCache = true;
 
     /**
      * Constructs a new abstract product reader.
@@ -190,17 +190,11 @@ public class Sentinel1ProductReader extends SARReader {
         if(useCache) {
             final DataCache.DataKey datakey = new DataCache.DataKey(bandInfo.img, destRect);
             DataCache.Data cachedData = cache.get(datakey);
-            if (cachedData != null && cachedData.valid) {
-                srcArray = cachedData.intArray;
-                length = srcArray.length;
-            } else {
-                cachedData = readRect(datakey, bandInfo,
-                        sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY,
-                        destRect);
-
-                srcArray = cachedData.intArray;
-                length = srcArray.length;
+            if (cachedData == null || !cachedData.valid) {
+                cachedData = readRect(datakey, bandInfo, sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY, destRect);
             }
+            srcArray = cachedData.intArray;
+            length = srcArray.length;
         } else {
 
             DataCache.Data cachedData = readRect(null, bandInfo,
@@ -210,48 +204,26 @@ public class Sentinel1ProductReader extends SARReader {
             length = srcArray.length;
         }
 
-        if(destBuffer.getElemSize() > 2) {
+        if (destBuffer.getElemSize() > 2) {
             final int[] destArray = (int[]) destBuffer.getElems();
             if (!bandInfo.isImaginary) {
-                if (sourceStepX == 1) {
-                    int i = 0;
-                    for (int srcVal : srcArray) {
-                        destArray[i++] = (short)srcVal;
-                    }
-                } else {
-                    for (int i = 0; i < length; i += sourceStepX) {
-                        destArray[i] = (short)srcArray[i];
-                    }
+                for (int i = 0; i < length; i++) {
+                    destArray[i] = (short) srcArray[i];
                 }
             } else {
-                if (sourceStepX == 1) {
-                    int i = 0;
-                    for (int srcVal : srcArray) {
-                        destArray[i++] = (short)(srcVal >> 16);
-                    }
-                } else {
-                    for (int i = 0; i < length; i += sourceStepX) {
-                        destArray[i] = (short)(srcArray[i] >> 16);
-                    }
+                for (int i = 0; i < length; i++) {
+                    destArray[i] = (short) (srcArray[i] >> 16);
                 }
             }
         } else {
             final short[] destArray = (short[]) destBuffer.getElems();
             if (!bandInfo.isImaginary) {
-                int i = 0;
-                for (int srcVal : srcArray) {
-                    destArray[i++] = (short)srcVal;
+                for (int i = 0; i < length; i++) {
+                    destArray[i] = (short) srcArray[i];
                 }
             } else {
-                if (sourceStepX == 1) {
-                    int i = 0;
-                    for (int srcVal : srcArray) {
-                        destArray[i++] = (short) (srcVal >> 16);
-                    }
-                } else {
-                    for (int i = 0; i < length; i += sourceStepX) {
-                        destArray[i] = (short) (srcArray[i] >> 16);
-                    }
+                for (int i = 0; i < length; i++) {
+                    destArray[i] = (short) (srcArray[i] >> 16);
                 }
             }
         }
@@ -280,7 +252,7 @@ public class Sentinel1ProductReader extends SARReader {
             sampleModel.getSamples(0, 0, destWidth, destHeight, bandInfo.bandSampleOffset, srcArray, data.getDataBuffer());
 
             DataCache.Data cachedData = new DataCache.Data(srcArray);
-            if(datakey != null) {
+            if (datakey != null) {
                 cache.put(datakey, cachedData);
             }
             return cachedData;
