@@ -31,6 +31,10 @@ import java.io.IOException;
 
 public class TestBenchmark_SpeckleFilters extends BaseBenchmarks {
 
+    public TestBenchmark_SpeckleFilters() {
+        super("SpeckleFilters");
+    }
+
     @Test
     public void testGRD_specklefilter_Boxcar() throws Exception {
         specklefilter("Boxcar");
@@ -82,7 +86,7 @@ public class TestBenchmark_SpeckleFilters extends BaseBenchmarks {
     }
 
     private void specklefilter(final String name) throws Exception {
-        Benchmark b = new Benchmark(name) {
+        Benchmark b = new Benchmark(groupName, name) {
             @Override
             protected void execute() throws Exception {
                 process(name, outputFolder, false);
@@ -92,7 +96,7 @@ public class TestBenchmark_SpeckleFilters extends BaseBenchmarks {
     }
 
     private void specklefilterWriteOp(final String name) throws Exception {
-        Benchmark b = new Benchmark(name) {
+        Benchmark b = new Benchmark(groupName, name) {
             @Override
             protected void execute() throws Exception {
                 process(name, outputFolder, true);
@@ -102,7 +106,7 @@ public class TestBenchmark_SpeckleFilters extends BaseBenchmarks {
     }
 
     private void specklefilterGraph(final String name) throws Exception {
-        Benchmark b = new Benchmark(name) {
+        Benchmark b = new Benchmark(groupName, name) {
             @Override
             protected void execute() throws Exception {
                 processGraph(grdFile, outputFolder, name);

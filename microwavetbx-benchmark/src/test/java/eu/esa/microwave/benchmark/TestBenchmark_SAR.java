@@ -27,9 +27,13 @@ import org.junit.Test;
 
 public class TestBenchmark_SAR extends BaseBenchmarks {
 
+    public TestBenchmark_SAR() {
+        super("SAR");
+    }
+
     @Test
     public void testGRD_multilook() throws Exception {
-        Benchmark b = new Benchmark("GRD_multilook") {
+        Benchmark b = new Benchmark(groupName, "GRD_multilook") {
             @Override
             protected void execute() throws Exception {
                 final Product srcProduct = subset(grdFile, rect);
@@ -49,7 +53,7 @@ public class TestBenchmark_SAR extends BaseBenchmarks {
 
     @Test
     public void testGRD_terraincorrect() throws Exception {
-        Benchmark b = new Benchmark("GRD_terraincorrect") {
+        Benchmark b = new Benchmark(groupName, "GRD_terraincorrect") {
             @Override
             protected void execute() throws Exception {
                 final Product srcProduct = subset(grdFile, rect);
@@ -69,7 +73,7 @@ public class TestBenchmark_SAR extends BaseBenchmarks {
 
     @Test
     public void testGRD_ellipsoidcorrect() throws Exception {
-        Benchmark b = new Benchmark("GRD_ellipsoidcorrect") {
+        Benchmark b = new Benchmark(groupName,"GRD_ellipsoidcorrect") {
             @Override
             protected void execute() throws Exception {
                 final Product srcProduct = subset(grdFile, rect);
@@ -89,7 +93,7 @@ public class TestBenchmark_SAR extends BaseBenchmarks {
 
     @Test
     public void testGRD_terrainflatten() throws Exception {
-        Benchmark b = new Benchmark("GRD_terrainflatten") {
+        Benchmark b = new Benchmark(groupName,"GRD_terrainflatten") {
             @Override
             protected void execute() throws Exception {
                 final Product srcProduct = subset(grdFile, rect);
@@ -115,7 +119,7 @@ public class TestBenchmark_SAR extends BaseBenchmarks {
     @Test
     @Ignore
     public void testGRD_glcm() throws Exception {
-        Benchmark b = new Benchmark("GRD_glcm") {
+        Benchmark b = new Benchmark(groupName,"GRD_glcm") {
             @Override
             protected void execute() throws Exception {
                 final Product srcProduct = subset(grdFile, rect);

@@ -36,11 +36,13 @@ public class BaseBenchmarks {
 
     protected final static Rectangle rect = new Rectangle(0, 0, 5000, 5000);
 
+    protected final String groupName;
     protected String testName;
     protected final String DIMAP = "BEAM-DIMAP";
     protected enum WriteMode {PRODUCT_IO, GPF, GRAPH}
 
-    BaseBenchmarks() {
+    BaseBenchmarks(final String groupName) {
+        this.groupName = groupName;
         diagnostics();
     }
 
