@@ -24,6 +24,10 @@ import java.io.IOException;
 
 public class TestBenchmark_PolSARFilters extends BaseBenchmarks {
 
+    public TestBenchmark_PolSARFilters() {
+        super("PolSARFilters");
+    }
+
     @Test
     public void testQP_specklefilter_Boxcar() throws Exception {
         specklefilter("Box Car Filter");
@@ -45,7 +49,7 @@ public class TestBenchmark_PolSARFilters extends BaseBenchmarks {
     }
 
     private void specklefilter(final String name) throws Exception {
-        Benchmark b = new Benchmark(name) {
+        Benchmark b = new Benchmark(groupName, name) {
             @Override
             protected void execute() throws Exception {
                 process(name, outputFolder);

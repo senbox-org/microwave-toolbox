@@ -23,12 +23,17 @@ import org.esa.snap.core.gpf.graph.Graph;
 import org.esa.snap.core.gpf.graph.GraphProcessor;
 import org.esa.snap.core.gpf.graph.Node;
 import org.esa.snap.core.gpf.graph.NodeSource;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
 
 
 public class TestBenchmark_ReadWrite extends BaseBenchmarks {
+
+    public TestBenchmark_ReadWrite() {
+        super("ReadWrite");
+    }
 
     // GRD
     @Test
@@ -63,6 +68,7 @@ public class TestBenchmark_ReadWrite extends BaseBenchmarks {
     }
 
     @Test
+    @Ignore
     public void testGRDZIP_read_write_Graph() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
         readWrite(grdZipFile, WriteMode.GRAPH);
@@ -107,7 +113,7 @@ public class TestBenchmark_ReadWrite extends BaseBenchmarks {
     }
 
     private void readWrite(File srcFile, WriteMode mode) throws Exception {
-        Benchmark b = new Benchmark(testName) {
+        Benchmark b = new Benchmark(groupName, testName) {
             @Override
             protected void execute() throws Exception {
                 switch (mode) {

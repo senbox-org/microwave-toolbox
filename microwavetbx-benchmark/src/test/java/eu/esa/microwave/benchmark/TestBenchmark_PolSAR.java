@@ -30,6 +30,10 @@ import java.io.File;
 
 public class TestBenchmark_PolSAR extends BaseBenchmarks {
 
+    public TestBenchmark_PolSAR() {
+        super("PolSAR");
+    }
+
     @Test
     public void testQP_decomposition_pauli() throws Exception {
         decomposition("Pauli Decomposition", null);
@@ -86,7 +90,7 @@ public class TestBenchmark_PolSAR extends BaseBenchmarks {
     }
 
     private void decomposition(final String name, final String param) throws Exception {
-        Benchmark b = new Benchmark(name + " productIO.write") {
+        Benchmark b = new Benchmark(groupName,name + " productIO.write") {
             @Override
             protected void execute() throws Exception {
                 process(name, param, false, outputFolder);
@@ -96,7 +100,7 @@ public class TestBenchmark_PolSAR extends BaseBenchmarks {
     }
 
     private void decompositionWriteOp(final String name, final String param) throws Exception {
-        Benchmark b = new Benchmark(name + " GPF.write") {
+        Benchmark b = new Benchmark(groupName,name + " GPF.write") {
             @Override
             protected void execute() throws Exception {
                 process(name, param, true, outputFolder);
@@ -106,7 +110,7 @@ public class TestBenchmark_PolSAR extends BaseBenchmarks {
     }
 
     private void decompositionGraph(final String name, final String param) throws Exception {
-        Benchmark b = new Benchmark(name + " GraphProcessor") {
+        Benchmark b = new Benchmark(groupName,name + " GraphProcessor") {
             @Override
             protected void execute() throws Exception {
                 processGraph(qpFile, outputFolder, name, param);
