@@ -351,7 +351,7 @@ public class Radarsat2ProductReader extends SARReader {
                                          final int destWidth, final int destHeight,
                                          final int imageID, final ImageIOFile img,
                                          final int bandSampleOffset,
-                                         final boolean isAntennaPointingRight) throws IOException {
+                                         final boolean isAntennaPointingRight) {
 
         final Raster data;
     try {
