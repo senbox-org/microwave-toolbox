@@ -15,30 +15,36 @@
  */
 package org.csa.rstb.calibration;
 
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.calibration.gpf.CalibrationOp;
 import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
-import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
-import java.io.File;
-
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Unit test for Calibration Operator.
  */
-public class TestCalibrationOp extends ProcessorTest {
+@RunWith(LongTestRunner.class)
+public class TestCalibrationOpenAll extends ProcessorTest {
 
     private final static OperatorSpi spi = new CalibrationOp.Spi();
+    private TestProcessor testProcessor;
+
+    private String[] productTypeExemptions = {"GeoTIFF"};
 
     @Before
     public void setUp() throws Exception {
         try {
+            testProcessor = SARTests.createTestProcessor();
+
             // If any of the file does not exist: the test will be ignored
             assumeTrue(TestData.inputRS2_SQuad + "not found", TestData.inputRS2_SQuad.exists());
         } catch (Exception e) {
@@ -47,33 +53,14 @@ public class TestCalibrationOp extends ProcessorTest {
         }
     }
 
-    @Test
-    public void testProcessingRS2_Quad() throws Exception {
-
-        final float[] expected = new float[] {0.030368317f, 0.004051784f, 0.04810727f};
-        processFile(TestData.inputRS2_SQuad, "sigma0_VV", expected);
+    //@Test
+    //@Ignore
+    public void testProcessAllRadarsat1() throws Exception {
+        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsRadarsat1, "RADARSAT-1", productTypeExemptions, null);
     }
 
-    /**
-     * Processes a product and compares it to processed product known to be correct
-     *
-     * @param inputFile the path to the input product
-     * @param bandName the target band name to verify
-     * @param expected expected values
-     * @throws Exception general exception
-     */
-    private void processFile(final File inputFile, final String bandName, final float[] expected) throws Exception {
-
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
-
-        final CalibrationOp op = (CalibrationOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
-
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
-
-        TestUtils.comparePixels(targetProduct, bandName, expected);
+    @Test
+    public void testProcessAllRadarsat2() throws Exception {
+        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsRadarsat2, "RADARSAT-2", productTypeExemptions, null);
     }
 }

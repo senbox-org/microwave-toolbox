@@ -21,9 +21,7 @@
         <user.language>en</user.language>
 
         <skipTests>false</skipTests>
-        <test.jvm.maxheapsize>5024m</test.jvm.maxheapsize>
-        <test.jvm.arguments>-Xmx${test.jvm.maxheapsize}</test.jvm.arguments>
-        <surefire.jvm.args>${test.jvm.arguments} -enableassertions</surefire.jvm.args>
+        <surefire.jvm.args>-enableassertions</surefire.jvm.args>
         <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
         <buildDate>${maven.build.timestamp}</buildDate>
         <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
