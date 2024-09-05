@@ -26,32 +26,35 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 
 @SuppressWarnings("unchecked")
 public abstract class Benchmark {
 
     private final static boolean DISABLE_BENCHMARKS = true;
-    private final static int iterations = 2;
+    private final static int iterations = 5;
     private final static boolean deleteTempOutputFiles = true;
 
-    private final String name;
+    private final String groupName;
+    private final String testName;
     private final File resultsFile = new File("/tmp/benchmark_results.json");
     protected File outputFolder;
 
-    public Benchmark(final String name) {
-        this.name = FileUtils.createValidFilename(name);
+    public Benchmark(final String groupName, final String testName) {
+        this.groupName = groupName;
+        this.testName = FileUtils.createValidFilename(testName);
     }
 
     public void run() throws Exception {
         if(DISABLE_BENCHMARKS) {
-            System.out.println("Benchmark " + name + " disabled");
+            System.out.println("Benchmark " + groupName + " disabled");
             return;
         }
 
         try {
             SystemUtils.LOG.info("Initial cold start run");
             StopWatch coldStartTimer = new StopWatch();
-            outputFolder = createTempFolder(name);
+            outputFolder = createTempFolder(testName);
             this.execute();
             coldStartTimer.stop();
 
@@ -66,7 +69,7 @@ public abstract class Benchmark {
             for (int i = 1; i <= iterations; ++i) {
                 SystemUtils.LOG.info("Run " + i + " of " + iterations + " started");
                 StopWatch timer = new StopWatch();
-                outputFolder = createTempFolder(name + i);
+                outputFolder = createTempFolder(testName + i);
                 this.execute();
                 timer.stop();
 
@@ -83,11 +86,11 @@ public abstract class Benchmark {
 
             String coldStartTime = StopWatch.getTimeString(coldStartTimer.getTimeDiff());
             String avgTime = StopWatch.getTimeString(totalTime / (long) iterations);
-            SystemUtils.LOG.warning(name + " average time " + avgTime);
+            SystemUtils.LOG.warning(testName + " average time " + avgTime);
 
             writeJSONResults(minTime, maxTime, avgTime, coldStartTime);
         } catch (Exception e) {
-            SystemUtils.LOG.severe("Benchmark " + name + " failed: " + e.getMessage());
+            SystemUtils.LOG.severe("Benchmark " + testName + " failed: " + e.getMessage());
             writeJSONFailedResults(e.getMessage());
             throw e;
         }
@@ -95,22 +98,36 @@ public abstract class Benchmark {
 
     private void writeJSONFailedResults(final String errorMsg) throws Exception {
         final JSONObject json = readJSON(resultsFile);
+        final JSONObject group = (JSONObject) json.getOrDefault(groupName, new JSONObject());
+        json.put(groupName, group);
+
         final JSONObject results = new JSONObject();
         results.put("error", errorMsg);
-        json.put(name, results);
+        json.put(testName, results);
 
         JSON.write(json, resultsFile);
     }
 
     private void writeJSONResults(final long minTime, long maxTime, String avgTime, String coldStartTime) throws Exception {
         final JSONObject json = readJSON(resultsFile);
-        final JSONObject results = (JSONObject) json.getOrDefault(name, new JSONObject());
+        final JSONObject group = (JSONObject) json.getOrDefault(groupName, new JSONObject());
+        json.put(groupName, group);
+
+        final JSONObject results = (JSONObject) group.getOrDefault(testName, new JSONObject());
+        if(results.containsKey("error")) {
+            results.remove("error");
+        }
+        if(results.containsKey("avgTime")) {
+            results.put("prevAvgTime", results.get("avgTime"));
+        }
+
+        results.put("date", LocalDate.now().toString());
         results.put("iterations", iterations);
         results.put("coldStart", coldStartTime);
         results.put("minTime", StopWatch.getTimeString(minTime));
         results.put("maxTime", StopWatch.getTimeString(maxTime));
         results.put("avgTime", avgTime);
-        json.put(name, results);
+        group.put(testName, results);
 
         JSON.write(json, resultsFile);
     }

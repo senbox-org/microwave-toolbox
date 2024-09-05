@@ -30,6 +30,10 @@ import java.io.File;
 
 public class TestBenchmark_Calibrate extends BaseBenchmarks {
 
+    public TestBenchmark_Calibrate() {
+        super("Calibrate");
+    }
+
     @Test
     public void testGRD_calibrate_ProductIO() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
@@ -49,7 +53,7 @@ public class TestBenchmark_Calibrate extends BaseBenchmarks {
     }
 
     private void calibrate(final File srcFile, final WriteMode mode) throws Exception {
-        Benchmark b = new Benchmark(testName) {
+        Benchmark b = new Benchmark(groupName, testName) {
             @Override
             protected void execute() throws Exception {
                 switch (mode) {
