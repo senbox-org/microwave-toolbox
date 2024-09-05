@@ -37,19 +37,19 @@ public class TestBenchmark_Calibrate extends BaseBenchmarks {
     @Test
     public void testGRD_calibrate_ProductIO() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        calibrate(grdFile, WriteMode.PRODUCT_IO);
+        calibrate(slcFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_calibrate_GPF() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        calibrate(grdFile, WriteMode.GPF);
+        calibrate(slcFile, WriteMode.GPF);
     }
 
     @Test
     public void testGRD_calibrate_Graph() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        calibrate(grdFile, WriteMode.GRAPH);
+        calibrate(slcFile, WriteMode.GRAPH);
     }
 
     private void calibrate(final File srcFile, final WriteMode mode) throws Exception {
@@ -77,11 +77,7 @@ public class TestBenchmark_Calibrate extends BaseBenchmarks {
         op.setSourceProduct(srcProduct);
         Product trgProduct = op.getTargetProduct();
 
-        if(mode == WriteMode.GPF) {
-            writeGPF(trgProduct, outputFolder, DIMAP);
-        } else {
-            write(trgProduct, outputFolder, DIMAP);
-        }
+        write(trgProduct, outputFolder, mode);
 
         trgProduct.dispose();
         srcProduct.dispose();

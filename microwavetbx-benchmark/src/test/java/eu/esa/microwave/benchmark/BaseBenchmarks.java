@@ -63,6 +63,14 @@ public class BaseBenchmarks {
         return op.getTargetProduct();
     }
 
+    protected void write(final Product trgProduct, File outputFolder, final WriteMode mode) throws IOException {
+        if(mode == WriteMode.GPF) {
+            writeGPF(trgProduct, outputFolder, DIMAP);
+        } else {
+            write(trgProduct, outputFolder, DIMAP);
+        }
+    }
+
     protected void write(final Product trgProduct, final File outputFolder, final String format) throws IOException {
         ProductIO.writeProduct(trgProduct, new File(outputFolder, trgProduct.getName()), format, false);
     }

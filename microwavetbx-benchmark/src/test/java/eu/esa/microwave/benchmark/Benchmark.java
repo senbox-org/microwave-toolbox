@@ -32,7 +32,7 @@ import java.time.LocalDate;
 public abstract class Benchmark {
 
     private final static boolean DISABLE_BENCHMARKS = true;
-    private final static int iterations = 5;
+    private final static int iterations = 2;
     private final static boolean deleteTempOutputFiles = true;
 
     private final String groupName;
