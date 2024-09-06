@@ -53,10 +53,6 @@
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-cloud</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
 
