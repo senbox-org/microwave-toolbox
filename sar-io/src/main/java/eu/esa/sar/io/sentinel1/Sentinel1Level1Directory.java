@@ -117,6 +117,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         for (Map.Entry<String, ImageIOFile> stringImageIOFileEntry : bandImageFileMap.entrySet()) {
             final ImageIOFile img = stringImageIOFileEntry.getValue();
             final String imgName = img.getName().toLowerCase();
+            final String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
             final MetadataElement bandMetadata = absRoot.getElement(imgBandMetadataMap.get(imgName));
             final String swath = bandMetadata.getAttributeString(AbstractMetadata.swath);
             final String pol = bandMetadata.getAttributeString(AbstractMetadata.polarization);
@@ -176,8 +177,10 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                         // add tiepointgrids and geocoding for band
                         addTiePointGrids(product, band, imgName, tpgPrefix);
 
-                        // reset to null so it doesn't adopt a geocoding from the bands
-                        product.setSceneGeoCoding(null);
+                        if(!mode.equals("WV")) {
+                            // reset to null so it doesn't adopt a geocoding from the bands
+                            product.setSceneGeoCoding(null);
+                        }
                     }
                 } else {
                     for (int b = 0; b < img.getNumBands(); ++b) {
