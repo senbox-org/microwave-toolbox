@@ -20,10 +20,12 @@ import eu.esa.sar.commons.io.ImageIOFile;
 import eu.esa.sar.commons.io.SARReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.quicklooks.Quicklook;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
@@ -91,7 +93,7 @@ public class Sentinel1ProductReader extends SARReader {
                 inputPath = inputPath.resolve(Sentinel1ProductReaderPlugIn.PRODUCT_HEADER_NAME);
             }
             if(!Files.exists(inputPath)) {
-                throw new IOException(inputPath.toString() + " not found");
+                throw new IOException(inputPath + " not found");
             }
 
             if (Sentinel1ProductReaderPlugIn.isLevel2(inputPath)) {
@@ -115,15 +117,27 @@ public class Sentinel1ProductReader extends SARReader {
 
             setQuicklookBandName(product);
             addQuicklook(product, Quicklook.DEFAULT_QUICKLOOK_NAME, getQuicklookFile());
+            setBandGrouping(product);
 
             product.setModified(false);
-
             return product;
         } catch (Exception e) {
             handleReaderException(e);
         }
 
         return null;
+    }
+
+    private void setBandGrouping(final Product product) {
+        MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+        String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+        if (product.getProductType().equals("SLC") && mode != null) {
+            if (mode.equals("IW")) {
+                product.setAutoGrouping("IW1:IW2:IW3");
+            } else if (mode.equals("EW")) {
+                product.setAutoGrouping("EW1:EW2:EW3:EW4:EW5");
+            }
+        }
     }
 
     private File getQuicklookFile() {
@@ -234,8 +248,7 @@ public class Sentinel1ProductReader extends SARReader {
 
             return srcArray;
         } catch (Exception e) {
-            final int[] srcArray = new int[(int)destRect.getWidth()*(int)destRect.getHeight()];
-            return srcArray;
+            return new int[(int)destRect.getWidth()*(int)destRect.getHeight()];
         }
     }
 }
