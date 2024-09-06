@@ -27,13 +27,13 @@
 
         <dependency>
             <groupId>org.esa.snap</groupId>
-            <artifactId>snap-runtime</artifactId>
-            <version>${snap.version}</version>
+            <artifactId>ceres-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-core</artifactId>
+            <artifactId>snap-core</artifactId>
         </dependency>
+
         <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-core</artifactId>
