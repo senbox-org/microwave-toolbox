@@ -34,7 +34,7 @@ import static org.junit.Assume.assumeTrue;
  *
  * @author lveci
  */
-public class TestSentinel1ProductReader extends ReaderTest {
+public class TestSentinel1GDALProductReader extends ReaderTest {
 
     public final static File inputS1_COGGRD = new File(TestData.inputSAR+"S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE/manifest.safe");
     public final static File inputS1_COGGRD_ZIP = new File(TestData.inputSAR+"S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE.zip");
@@ -60,8 +60,8 @@ public class TestSentinel1ProductReader extends ReaderTest {
         productOptions.verifyBands = false;
     }
 
-    public TestSentinel1ProductReader() {
-        super(new Sentinel1ProductReaderPlugIn());
+    public TestSentinel1GDALProductReader() {
+        super(new Sentinel1GDALProductReaderPlugIn());
     }
 
     /**

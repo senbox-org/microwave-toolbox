@@ -32,11 +32,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public abstract class AbstractProductReaderPlugInTest {
+public abstract class AbstractProductReaderPlugInGDALTest {
 
     protected SARProductReaderPlugIn plugin;
 
-    protected AbstractProductReaderPlugInTest(final SARProductReaderPlugIn plugin) {
+    protected AbstractProductReaderPlugInGDALTest(final SARProductReaderPlugIn plugin) {
         this.plugin = plugin;
     }
 

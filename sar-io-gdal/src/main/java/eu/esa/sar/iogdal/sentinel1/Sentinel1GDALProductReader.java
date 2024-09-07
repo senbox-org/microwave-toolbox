@@ -34,9 +34,9 @@ import java.nio.file.Path;
 /**
  * The product reader for Sentinel1 products.
  */
-public class Sentinel1ProductReader extends SARReader {
+public class Sentinel1GDALProductReader extends SARReader {
 
-    private Sentinel1ProductDirectory dataDir;
+    private Sentinel1GDALProductDirectory dataDir;
 
     /**
      * Constructs a new abstract product reader.
@@ -44,7 +44,7 @@ public class Sentinel1ProductReader extends SARReader {
      * @param readerPlugIn the reader plug-in which created this reader, can be <code>null</code> for internal reader
      *                     implementations
      */
-    public Sentinel1ProductReader(final SARProductReaderPlugIn readerPlugIn) {
+    public Sentinel1GDALProductReader(final SARProductReaderPlugIn readerPlugIn) {
         super(readerPlugIn);
     }
 
@@ -70,7 +70,7 @@ public class Sentinel1ProductReader extends SARReader {
         try {
             Path inputPath = getPathFromInput(getInput());
             if(Files.isDirectory(inputPath)) {
-                inputPath = inputPath.resolve(Sentinel1ProductReaderPlugIn.PRODUCT_HEADER_NAME);
+                inputPath = inputPath.resolve(Sentinel1GDALProductReaderPlugIn.PRODUCT_HEADER_NAME);
             }
             if(!Files.exists(inputPath)) {
                 throw new IOException(inputPath + " not found");
@@ -78,7 +78,7 @@ public class Sentinel1ProductReader extends SARReader {
 
             File metadataFile = inputPath.toFile();
 
-            dataDir = new Sentinel1ProductDirectory(metadataFile);
+            dataDir = new Sentinel1GDALProductDirectory(metadataFile);
             dataDir.readProductDirectory();
             final Product product = dataDir.createProduct();
 
@@ -117,7 +117,7 @@ public class Sentinel1ProductReader extends SARReader {
                                           int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
                                           int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
                                           ProgressMonitor pm) throws IOException {
-        Sentinel1ProductDirectory.ReaderData readerData = dataDir.getReaderData(destBand.getName());
+        Sentinel1GDALProductDirectory.ReaderData readerData = dataDir.getReaderData(destBand.getName());
 
         Band band = readerData.bandProduct.getBandAt(0);
 
