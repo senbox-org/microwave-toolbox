@@ -37,17 +37,35 @@ public class TestBenchmark_Calibrate extends BaseBenchmarks {
     @Test
     public void testGRD_calibrate_ProductIO() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        calibrate(slcFile, WriteMode.PRODUCT_IO);
+        calibrate(grdFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_calibrate_GPF() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        calibrate(slcFile, WriteMode.GPF);
+        calibrate(grdFile, WriteMode.GPF);
     }
 
     @Test
     public void testGRD_calibrate_Graph() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(grdFile, WriteMode.GRAPH);
+    }
+
+    @Test
+    public void testSLC_calibrate_ProductIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(slcFile, WriteMode.PRODUCT_IO);
+    }
+
+    @Test
+    public void testSLC_calibrate_GPF() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(slcFile, WriteMode.GPF);
+    }
+
+    @Test
+    public void testSLC_calibrate_Graph() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
         calibrate(slcFile, WriteMode.GRAPH);
     }
