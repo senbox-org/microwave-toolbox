@@ -32,7 +32,7 @@ import static org.junit.Assume.assumeTrue;
 public class TestS1GRDInputProductValidator extends ReaderTest {
 
     public TestS1GRDInputProductValidator() {
-        super(new Sentinel1ProductReaderPlugIn());
+        super(new Sentinel1GDALProductReaderPlugIn());
     }
 
     @Before

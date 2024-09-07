@@ -31,7 +31,7 @@ import java.util.Locale;
 /**
  * The ReaderPlugIn for Sentinel1 products.
  */
-public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
+public class Sentinel1GDALProductReaderPlugIn implements SARProductReaderPlugIn {
 
     private final static String[] FORMAT_NAMES = new String[]{"SENTINEL-1 COG"};
     private final static String[] FORMAT_FILE_EXTENSIONS = new String[]{".safe", ".zip"};
@@ -153,7 +153,7 @@ public class Sentinel1ProductReaderPlugIn implements SARProductReaderPlugIn {
      */
     @Override
     public ProductReader createReaderInstance() {
-        return new Sentinel1ProductReader(this);
+        return new Sentinel1GDALProductReader(this);
     }
 
     /**
