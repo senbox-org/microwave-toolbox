@@ -587,7 +587,7 @@
 
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.2.5</version>
+                    <version>3.5.0</version>
                     <configuration>
                         <enableAssertions>true</enableAssertions>
                         <!--  to test from the command line mvn test -DskipTests=false -->
