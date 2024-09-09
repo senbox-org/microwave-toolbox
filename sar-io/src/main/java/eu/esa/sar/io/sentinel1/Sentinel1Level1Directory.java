@@ -23,6 +23,7 @@ import eu.esa.sar.commons.io.XMLProductDirectory;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.GeoCoding;
 import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
@@ -117,7 +118,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         for (Map.Entry<String, ImageIOFile> stringImageIOFileEntry : bandImageFileMap.entrySet()) {
             final ImageIOFile img = stringImageIOFileEntry.getValue();
             final String imgName = img.getName().toLowerCase();
-            final String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
             final MetadataElement bandMetadata = absRoot.getElement(imgBandMetadataMap.get(imgName));
             final String swath = bandMetadata.getAttributeString(AbstractMetadata.swath);
             final String pol = bandMetadata.getAttributeString(AbstractMetadata.polarization);
@@ -132,8 +132,8 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 if(isTOPSAR()) {
                     suffix = swath + '_' + pol;
                     tpgPrefix = swath;
-                } else if(acqMode.equals("WV")) {
-                    suffix = suffix + '_' + cnt;
+                } else if(isWV()) {
+                    suffix = swath + '_' + pol + '_' + cnt;
                     ++cnt;
                 }
             }
@@ -177,7 +177,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                         // add tiepointgrids and geocoding for band
                         addTiePointGrids(product, band, imgName, tpgPrefix);
 
-                        if(!mode.equals("WV")) {
+                        if(!isWV()) {
                             // reset to null so it doesn't adopt a geocoding from the bands
                             product.setSceneGeoCoding(null);
                         }
@@ -316,7 +316,12 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 final ProductData.UTC startTime = getTime(adsHeader, "startTime", sentinelDateFormat);
                 final ProductData.UTC stopTime = getTime(adsHeader, "stopTime", sentinelDateFormat);
 
-                final String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
+                String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
+                if(adsHeader.containsAttribute("imageNumber")) {
+                    int imageNumber = adsHeader.getAttributeInt("imageNumber");
+                    bandRootName = bandRootName + "_" + imageNumber;
+                }
+
                 final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
                 final String imgName = FileUtils.exchangeExtension(metadataFile, ".tiff");
                 imgBandMetadataMap.put(imgName.toLowerCase(), bandRootName);
@@ -326,6 +331,11 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.annotation, metadataFile);
                 AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.first_line_time, startTime);
                 AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.last_line_time, stopTime);
+
+                if(adsHeader.containsAttribute("imageNumber")) {
+                    int imageNumber = adsHeader.getAttributeInt("imageNumber");
+                    bandAbsRoot.setAttributeInt("image_number", imageNumber);
+                }
 
                 if (AbstractMetadata.isNoData(absRoot, AbstractMetadata.mds1_tx_rx_polar)) {
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds1_tx_rx_polar, pol);
@@ -892,6 +902,10 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
 
     private boolean isTOPSAR() {
         return acqMode.equals("IW") || acqMode.equals("EW");
+    }
+
+    private boolean isWV() {
+        return acqMode.equals("WV");
     }
 
     @Override
