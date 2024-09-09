@@ -929,7 +929,7 @@ public class OffsetTrackingOp extends Operator {
         final String suffix = StackUtils.getBandSuffix(slaveBand.getName());
         final String velocityBandName = VELOCITY + suffix;
 
-        final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, velocityBandName, true);
+        final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, targetProduct.getBand(velocityBandName));
 
         MetadataElement warpDataElem = bandElem.getElement("WarpData");
         if (warpDataElem == null) {
