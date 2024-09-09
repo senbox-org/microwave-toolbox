@@ -131,11 +131,14 @@ public class Sentinel1ProductReader extends SARReader {
     private void setBandGrouping(final Product product) {
         MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
         String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
-        if (product.getProductType().equals("SLC") && mode != null) {
+        String productType = product.getProductType();
+        if ((productType.equals("SLC") || productType.equals("OCN")) && mode != null) {
             if (mode.equals("IW")) {
                 product.setAutoGrouping("IW1:IW2:IW3");
             } else if (mode.equals("EW")) {
                 product.setAutoGrouping("EW1:EW2:EW3:EW4:EW5");
+            } else if (mode.equals("WV")) {
+                product.setAutoGrouping("WV1:WV2");
             }
         }
     }
