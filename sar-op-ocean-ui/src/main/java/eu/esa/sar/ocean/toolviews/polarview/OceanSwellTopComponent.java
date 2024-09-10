@@ -83,7 +83,7 @@ public class OceanSwellTopComponent extends ToolTopComponent {
         // update world map window with the information of the currently activated  product scene view.
         final SnapApp snapApp = SnapApp.getDefault();
         snapApp.getProductManager().addListener(new OSWProductManagerListener(polarView));
-        snapApp.getSelectionSupport(ProductNode.class).addHandler(new SelectionSupport.Handler<ProductNode>() {
+        snapApp.getSelectionSupport(ProductNode.class).addHandler(new SelectionSupport.Handler<>() {
             @Override
             public void selectionChange(@NullAllowed ProductNode oldValue, @NullAllowed ProductNode newValue) {
                 if (newValue != null) {
