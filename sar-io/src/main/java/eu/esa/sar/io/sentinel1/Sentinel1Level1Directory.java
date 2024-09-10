@@ -23,7 +23,6 @@ import eu.esa.sar.commons.io.XMLProductDirectory;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.GeoCoding;
 import org.esa.snap.core.datamodel.GeoPos;
-import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
@@ -114,7 +113,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
     protected void addBands(final Product product) {
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-        int cnt = 1;
         for (Map.Entry<String, ImageIOFile> stringImageIOFileEntry : bandImageFileMap.entrySet()) {
             final ImageIOFile img = stringImageIOFileEntry.getValue();
             final String imgName = img.getName().toLowerCase();
@@ -133,8 +131,8 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     suffix = swath + '_' + pol;
                     tpgPrefix = swath;
                 } else if(isWV()) {
-                    suffix = swath + '_' + pol + '_' + cnt;
-                    ++cnt;
+                    final int imageNumber = bandMetadata.getAttributeInt("image_number");
+                    suffix = swath + '_' + pol + '_' + imageNumber;
                 }
             }
 
@@ -242,6 +240,17 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         }
     }
 
+    @Override
+    protected Dimension getProductDimensions(final MetadataElement newRoot) throws Exception {
+        final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
+
+        determineProductDimensions(absRoot);
+
+        final int sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
+        final int sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
+        return new Dimension(sceneWidth, sceneHeight);
+    }
+
     private void determineProductDimensions(final MetadataElement absRoot) throws IOException {
         int totalWidth = 0, maxHeight = 0, k = 0;
         String pol = null;
@@ -317,7 +326,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 final ProductData.UTC stopTime = getTime(adsHeader, "stopTime", sentinelDateFormat);
 
                 String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
-                if(adsHeader.containsAttribute("imageNumber")) {
+                if(isWV() && adsHeader.containsAttribute("imageNumber")) {
                     int imageNumber = adsHeader.getAttributeInt("imageNumber");
                     bandRootName = bandRootName + "_" + imageNumber;
                 }
@@ -626,8 +635,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
         TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
         if (latGrid != null && lonGrid != null) {
-            setLatLongMetadata(product, latGrid, lonGrid);
-
             final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
             product.setSceneGeoCoding(tpGeoCoding);
             return;
@@ -714,8 +721,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
                 lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
                 if (latGrid != null && lonGrid != null) {
-                    setLatLongMetadata(product, latGrid, lonGrid);
-
                     final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
                     product.setSceneGeoCoding(tpGeoCoding);
                 }
@@ -883,23 +888,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         return false;
     }
 
-    private static void setLatLongMetadata(Product product, TiePointGrid latGrid, TiePointGrid lonGrid) {
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-
-        final int w = product.getSceneRasterWidth();
-        final int h = product.getSceneRasterHeight();
-
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, latGrid.getPixelDouble(0, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, lonGrid.getPixelDouble(0, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, latGrid.getPixelDouble(w, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, lonGrid.getPixelDouble(w, 0));
-
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, latGrid.getPixelDouble(0, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, lonGrid.getPixelDouble(0, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, latGrid.getPixelDouble(w, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lonGrid.getPixelDouble(w, h));
-    }
-
     private boolean isTOPSAR() {
         return acqMode.equals("IW") || acqMode.equals("EW");
     }
@@ -993,29 +981,5 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         start = start.replace("T", "_");
 
         return AbstractMetadata.parseUTC(start, sentinelDateFormat);
-    }
-
-    @Override
-    public Product createProduct() throws IOException {
-
-        final MetadataElement newRoot = addMetaData();
-        findImages(newRoot);
-
-        final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
-        determineProductDimensions(absRoot);
-
-        final int sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
-        final int sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
-
-        final Product product = new Product(getProductName(), getProductType(), sceneWidth, sceneHeight);
-        updateProduct(product, newRoot);
-
-        addBands(product);
-        addGeoCoding(product);
-
-        ReaderUtils.addMetadataIncidenceAngles(product);
-        ReaderUtils.addMetadataProductSize(product);
-
-        return product;
     }
 }

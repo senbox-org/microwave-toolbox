@@ -312,7 +312,7 @@ public abstract class AbstractProductDirectory {
         return product;
     }
 
-    protected Dimension getProductDimensions(final MetadataElement newRoot) {
+    protected Dimension getProductDimensions(final MetadataElement newRoot) throws Exception{
         final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
         final int sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
         final int sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
@@ -336,7 +336,7 @@ public abstract class AbstractProductDirectory {
         product.setDescription(absRoot.getAttributeString(AbstractMetadata.SPH_DESCRIPTOR));
     }
 
-    private static void setLatLongMetadata(final Product product) {
+    protected static void setLatLongMetadata(final Product product) {
 
         final GeoCoding geoCoding = product.getSceneGeoCoding();
         if(geoCoding != null) {
