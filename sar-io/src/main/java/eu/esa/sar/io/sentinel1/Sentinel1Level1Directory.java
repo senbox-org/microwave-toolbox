@@ -666,38 +666,12 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 numOfSubSwath = 1;
         }
 
-        String firstSWName = acquisitionMode + 1 + '_';
-        String lastSWName = acquisitionMode + numOfSubSwath + '_';
-        Band firstSWBand = null, lastSWBand = null;
-        boolean firstSWBandFound = false, lastSWBandFound = false;
-        for (Band band : product.getBands()) {
-            String bandName = band.getName();
-            if(!firstSWBandFound && bandName.contains(firstSWName)) {
-                for(String prefix : bandGeocodingMap.keySet()) {
-                    if(bandName.contains(prefix)) {
-                        firstSWBand = band;
-                        firstSWBandFound = true;
-                        if(bandName.contains("_IMG")) {
-                            firstSWName = firstSWName + bandName.substring(bandName.indexOf("IMG"), bandName.lastIndexOf("_")) + '_';
-                        }
-                        break;
-                    }
-                }
-            }
-            if(!lastSWBandFound && bandName.contains(lastSWName)) {
-                for(String prefix : bandGeocodingMap.keySet()) {
-                    if(bandName.contains(prefix)) {
-                        lastSWBand = band;
-                        lastSWBandFound = true;
-                        if(bandName.contains("_IMG")) {
-                            lastSWName = lastSWName + bandName.substring(bandName.indexOf("IMG"), bandName.lastIndexOf("_")) + '_';
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        if (firstSWBand != null && lastSWBand != null) {
+        if (product.getNumBands() > 0) {
+            Band firstSWBand = product.getBandAt(0);
+            Band lastSWBand = product.getBandAt(product.getNumBands() - 1);
+
+            String firstSWName = firstSWBand.getName().substring(firstSWBand.getName().indexOf(acquisitionMode), firstSWBand.getName().lastIndexOf('_')) + '_';
+            String lastSWName = lastSWBand.getName().substring(lastSWBand.getName().indexOf(acquisitionMode), lastSWBand.getName().lastIndexOf('_')) + '_';
 
             final GeoCoding firstSWBandGeoCoding = bandGeocodingMap.get(firstSWName);
             final int firstSWBandHeight = firstSWBand.getRasterHeight();
