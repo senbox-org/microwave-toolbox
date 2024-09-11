@@ -312,7 +312,7 @@ public abstract class AbstractProductDirectory {
         return product;
     }
 
-    protected Dimension getProductDimensions(final MetadataElement newRoot) throws Exception{
+    protected Dimension getProductDimensions(final MetadataElement newRoot) {
         final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
         final int sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
         final int sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
