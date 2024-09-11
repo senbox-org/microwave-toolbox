@@ -47,10 +47,6 @@ public class ETADProductLayer extends BaseLayer implements WWLayer {
     }
 
     @Override
-    public void updateInfoAnnotation(final SelectEvent event) {
-    }
-
-    @Override
     public void setSelectedProduct(final Product product) {
         super.setSelectedProduct(product);
 
