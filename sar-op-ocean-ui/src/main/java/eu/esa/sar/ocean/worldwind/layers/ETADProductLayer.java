@@ -19,7 +19,7 @@ import gov.nasa.worldwind.awt.WorldWindowGLCanvas;
 import gov.nasa.worldwind.event.SelectEvent;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
-import gov.nasa.worldwind.render.Polyline;
+import gov.nasa.worldwind.render.Path;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -27,7 +27,6 @@ import org.esa.snap.worldwind.layers.BaseLayer;
 import org.esa.snap.worldwind.layers.WWLayer;
 
 import javax.swing.*;
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ETADProductLayer extends BaseLayer implements WWLayer {
 
-    private final ConcurrentHashMap<String, Polyline[]> outlineTable = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Path[]> outlineTable = new ConcurrentHashMap<>();
 
     public ETADProductLayer() {
         this.setName("S-1 ETAD");
@@ -58,11 +57,11 @@ public class ETADProductLayer extends BaseLayer implements WWLayer {
         if (selectedProduct != null) {
             final String selName = getUniqueName(selectedProduct);
             for (String name : outlineTable.keySet()) {
-                final Polyline[] lineList = outlineTable.get(name);
+                final Path[] lineList = outlineTable.get(name);
                 final boolean highlight = name.equals(selName);
-                for (Polyline line : lineList) {
+                for (Path line : lineList) {
                     line.setHighlighted(highlight);
-                    line.setHighlightColor(Color.GREEN);
+                    line.getAttributes().setOutlineMaterial(GREEN_MATERIAL);
                 }
             }
         }
@@ -86,7 +85,7 @@ public class ETADProductLayer extends BaseLayer implements WWLayer {
         final MetadataElement etadProduct = annotation.getElement("etadProduct");
         final MetadataElement etadBurstList = etadProduct.getElement("etadBurstList");
 
-        final List<Polyline> polyLineList = new ArrayList<>();
+        final List<Path> polyLineList = new ArrayList<>();
         final MetadataElement[] burstElems = etadBurstList.getElements();
         for(MetadataElement burstElem : burstElems) {
             final MetadataElement burstCoverage = burstElem.getElement("burstCoverage");
@@ -101,15 +100,13 @@ public class ETADProductLayer extends BaseLayer implements WWLayer {
             positions.add(getPosition(coordinates[3]));
             positions.add(getPosition(coordinates[1]));
 
-            Polyline polyLine = new Polyline();
-            polyLine.setFollowTerrain(true);
-            polyLine.setPositions(positions);
+            Path polyLine = createPath(positions, WHITE_MATERIAL, GREEN_MATERIAL);
             polyLineList.add(polyLine);
 
             addRenderable(polyLine);
         }
 
-        outlineTable.put(getUniqueName(product), polyLineList.toArray(new Polyline[0]));
+        outlineTable.put(getUniqueName(product), polyLineList.toArray(new Path[0]));
     }
 
     private Position getPosition(final MetadataElement coordinate) {
@@ -126,9 +123,9 @@ public class ETADProductLayer extends BaseLayer implements WWLayer {
     }
 
     private void removeOutline(String imagePath) {
-        final Polyline[] lineList = this.outlineTable.get(imagePath);
+        final Path[] lineList = this.outlineTable.get(imagePath);
         if (lineList != null) {
-            for (Polyline line : lineList) {
+            for (Path line : lineList) {
                 this.removeRenderable(line);
             }
             this.outlineTable.remove(imagePath);

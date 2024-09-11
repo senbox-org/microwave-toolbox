@@ -835,9 +835,8 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
             polygonPositions.add(new Position(Angle.fromDegreesLatitude(latValues[ind] + vignette_half_side_deg), Angle.fromDegreesLongitude(lonValues[ind] - vignette_half_side_deg), 10.0));
             polygonPositions.add(new Position(Angle.fromDegreesLatitude(latValues[ind] - vignette_half_side_deg), Angle.fromDegreesLongitude(lonValues[ind] - vignette_half_side_deg), 10.0));
 
-            Polyline p = new Polyline();
-            p.setFollowTerrain(true);
-            p.setPositions(polygonPositions);
+            Path p = createPath(polygonPositions, WHITE_MATERIAL, RED_MATERIAL);
+
             addRenderable(p);
             if (renderableList != null) {
                 renderableList.add(p);
@@ -1093,11 +1092,11 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
             }
         }
 
-
-        theWWD.redrawNow();
         //}
 
-        theWWD.redrawNow();
+        if(theWWD != null) {
+            theWWD.redrawNow();
+        }
     }
 
     private void recreateColorBarAndGradient(double minValue, double maxValue, String comp, WorldWindowGLCanvas wwd, boolean redraw) {
