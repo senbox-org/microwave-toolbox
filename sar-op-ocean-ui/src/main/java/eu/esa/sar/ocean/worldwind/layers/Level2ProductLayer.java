@@ -140,6 +140,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         theInfoAnnotation.getAttributes().setVisible(false);
     }
 
+    @Override
     public void updateInfoAnnotation(final SelectEvent event) {
         //SystemUtils.LOG.info("updateInfoAnnotation " + event.getTopObject() + " " + theObjectInfoHash.get(event.getTopObject()));
         if (event.getEventAction().equals(SelectEvent.ROLLOVER) && theObjectInfoHash.get(event.getTopObject()) != null) {
@@ -176,6 +177,15 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         }
     }
 
+    @Override
+    public Suitability getSuitability(Product product) {
+        if (product.getProductType().equalsIgnoreCase("OCN")) {
+            return Suitability.INTENDED;
+        }
+        return Suitability.UNSUITABLE;
+    }
+
+    @Override
     public void addProduct(final Product product, final WorldWindowGLCanvas wwd) {
 
         if (!product.getProductType().equalsIgnoreCase("OCN")) {
@@ -1052,15 +1062,12 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         return AnalyticSurface.createGridPointAttributes(value, rgbaColor);
     }
 
+    @Override
     public void removeProduct(final Product product) {
-        //SystemUtils.LOG.info(":: removeProduct " + product);
-        //SystemUtils.LOG.info(":: theProductRenderablesInfoHash " + theProductRenderablesInfoHash);
+
         final ProductRenderablesInfo productRenderablesInfo = theProductRenderablesInfoHash.get(product);
-        //SystemUtils.LOG.info(":: chosen ProductRenderablesInfo " + productRenderablesInfo);
 
         if (productRenderablesInfo != null) {
-            //for (ProductRenderablesInfo currProductRenderablesInfo : theProductRenderablesInfoHash.values()) {
-            //SystemUtils.LOG.info(":: currProductRenderablesInfo " + productRenderablesInfo);
 
             for (ArrayList<Renderable> renderableList : productRenderablesInfo.theRenderableListHash.values()) {
                 //SystemUtils.LOG.info(":: renderableList " + renderableList);
@@ -1075,27 +1082,14 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
                 }
                 renderableList.clear();
             }
+            theProductRenderablesInfoHash.remove(product);
         }
-            /*
-            for (ColorBarLegend legend : theColorBarLegendHash.values()) {
-                removeRenderable(legend);
-            }
 
-            theColorBarLegendHash.clear();
-            */
-
-        theProductRenderablesInfoHash.remove(product);
         if (theProductRenderablesInfoHash.size() == 0) {
             theControlLevel2Panel.setVisible(false);
             for (ColorBarLegend colorBarLegend : theColorBarLegendHash.values()) {
                 removeRenderable(colorBarLegend);
             }
-        }
-
-        //}
-
-        if(theWWD != null) {
-            theWWD.redrawNow();
         }
     }
 
@@ -1129,6 +1123,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         }
     }
 
+    @Override
     public JPanel getControlPanel(final WorldWindowGLCanvas wwd) {
         theControlLevel2Panel = new JPanel(new GridLayout(7, 1, 5, 5));
         theControlLevel2Panel.setVisible(false);

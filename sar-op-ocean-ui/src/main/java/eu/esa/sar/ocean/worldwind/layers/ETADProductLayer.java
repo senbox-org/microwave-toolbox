@@ -42,10 +42,6 @@ public class ETADProductLayer extends BaseLayer implements WWLayer {
         this.setName("S-1 ETAD");
     }
 
-    private static String getUniqueName(final Product product) {
-        return product.getProductRefString() + product.getName();
-    }
-
     @Override
     public void setSelectedProduct(final Product product) {
         super.setSelectedProduct(product);
@@ -63,6 +59,15 @@ public class ETADProductLayer extends BaseLayer implements WWLayer {
         }
     }
 
+    @Override
+    public Suitability getSuitability(Product product) {
+        if(product.getProductType().equals("ETAD")) {
+            return Suitability.INTENDED;
+        }
+        return Suitability.UNSUITABLE;
+    }
+
+    @Override
     public void addProduct(final Product product, WorldWindowGLCanvas wwd) {
 
         if(product.getProductType().equals("ETAD")) {
@@ -114,11 +119,10 @@ public class ETADProductLayer extends BaseLayer implements WWLayer {
         return new Position(Angle.fromDegreesLatitude(lat), Angle.fromDegreesLongitude(lon), 0.0);
     }
 
+    @Override
     public void removeProduct(final Product product) {
-        removeOutline(getUniqueName(product));
-    }
+        String imagePath = getUniqueName(product);
 
-    private void removeOutline(String imagePath) {
         final Path[] lineList = this.outlineTable.get(imagePath);
         if (lineList != null) {
             for (Path line : lineList) {
