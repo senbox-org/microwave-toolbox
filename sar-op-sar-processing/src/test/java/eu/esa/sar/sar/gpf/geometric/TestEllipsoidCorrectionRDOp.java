@@ -29,7 +29,7 @@ public class TestEllipsoidCorrectionRDOp extends ProcessorTest {
     private final static OperatorSpi spi = new EllipsoidCorrectionRDOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "GeoTIFF", "DOR_VOR_AX","OCN"};
+    private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "GeoTIFF", "DOR_VOR_AX","OCN","ETAD"};
     private static final String[] exceptionExemptions = {"not supported", "not be map projected",
             "Source product should first be deburst","has no bands","numbands is zero"};
 

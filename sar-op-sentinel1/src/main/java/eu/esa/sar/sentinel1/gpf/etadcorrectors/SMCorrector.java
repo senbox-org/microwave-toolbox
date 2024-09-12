@@ -1,5 +1,21 @@
+/*
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
+import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
@@ -7,8 +23,10 @@ import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
 
@@ -28,6 +46,8 @@ import java.util.Map;
     private double lineTimeInterval = 0.0;
     private double slantRangeToFirstPixel = 0.0;
     private double rangeSpacing = 0.0;
+    private double radarFrequency = 0.0;
+    private static final String ETAD = "ETAD";
 
     private String[] swathID = null;
     private String[] polarizations = null;
@@ -37,9 +57,8 @@ import java.util.Map;
      * Default constructor. The graph processing framework
      * requires that an operator has a default constructor.
      */
-    public SMCorrector(final Product sourceProduct, final Product targetProduct, final ETADUtils etadUtils,
-                       final Resampling selectedResampling) {
-		super(sourceProduct, targetProduct, etadUtils, selectedResampling);
+    public SMCorrector(final Product sourceProduct, final ETADUtils etadUtils, final Resampling selectedResampling) {
+        super(sourceProduct, etadUtils, selectedResampling);
     }
 
     @Override
@@ -69,6 +88,7 @@ import java.util.Map;
             lineTimeInterval = (lastLineTime - firstLineTime) / (sourceImageHeight - 1);
             slantRangeToFirstPixel = absRoot.getAttributeDouble(AbstractMetadata.slant_range_to_first_pixel);
             rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
+            radarFrequency = absRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // MHz to Hz
 
             final MetadataElement srcOrigProdRoot = AbstractMetadata.getOriginalProductMetadata(sourceProduct);
             final MetadataElement srcAnnotation = srcOrigProdRoot.getElement("annotation");
@@ -91,6 +111,62 @@ import java.util.Map;
         }
     }
 
+    @Override
+    public Product createTargetProduct() {
+
+        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX, sourceProduct.getProductType(),
+                sourceImageWidth, sourceImageHeight);
+
+        if (outputPhaseCorrections) {
+
+            for (Band srcBand : sourceProduct.getBands()) {
+                if (srcBand instanceof VirtualBand) {
+                    continue;
+                }
+
+                final Band targetBand = ProductUtils.copyBand(srcBand.getName(), sourceProduct, targetProduct, true);
+
+                if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
+                    int idx = targetProduct.getBandIndex(targetBand.getName());
+                    ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
+                }
+            }
+
+            final Band phaseBand = new Band(ETAD_PHASE_CORRECTION, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
+            phaseBand.setUnit(Unit.RADIANS);
+            targetProduct.addBand(phaseBand);
+
+            final Band heightBand = new Band(ETAD_HEIGHT, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
+            heightBand.setUnit(Unit.METERS);
+            targetProduct.addBand(heightBand);
+
+        } else { // resampling image
+
+            for (Band srcBand : sourceProduct.getBands()) {
+                if (srcBand instanceof VirtualBand) {
+                    continue;
+                }
+
+                final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
+                        srcBand.getRasterWidth(), srcBand.getRasterHeight());
+
+                targetBand.setUnit(srcBand.getUnit());
+                targetBand.setDescription(srcBand.getDescription());
+                targetProduct.addBand(targetBand);
+
+                if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
+                    int idx = targetProduct.getBandIndex(targetBand.getName());
+                    ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
+                }
+            }
+        }
+
+        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
+
+        return targetProduct;
+    }
+
+
     /**
      * Called by the framework in order to compute a tile for the given target band.
      * <p>The default implementation throws a runtime exception with the message "not implemented".</p>
@@ -104,6 +180,15 @@ import java.util.Map;
     public void computeTileStack(Map<Band, Tile> targetTileMap, Rectangle targetRectangle, ProgressMonitor pm,
                                  final Operator op) throws OperatorException {
 
+        if (resamplingImage) {
+            computeTileStackResampleImage(targetTileMap, targetRectangle, pm, op);
+        } else {
+            computeTileStackOutputCorrections(targetTileMap, targetRectangle, pm, op);
+        }
+    }
+
+    private void computeTileStackResampleImage(Map<Band, Tile> targetTileMap, Rectangle targetRectangle,
+                                               ProgressMonitor pm, final Operator op) throws OperatorException {
         try {
             final int x0 = targetRectangle.x;
             final int y0 = targetRectangle.y;
@@ -160,6 +245,108 @@ import java.util.Map;
         }
     }
 
+    private void computeTileStackOutputCorrections(Map<Band, Tile> targetTileMap, Rectangle targetRectangle,
+                                                   ProgressMonitor pm, final Operator op) throws OperatorException {
+
+        try {
+            final int x0 = targetRectangle.x;
+            final int y0 = targetRectangle.y;
+            final int w = targetRectangle.width;
+            final int h = targetRectangle.height;
+            final int yMax = y0 + h - 1;
+            final int xMax = x0 + w - 1;
+            //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
+
+            if (!tropToHeightGradientComputed) {
+                computeTroposphericToHeightGradient();
+            }
+
+            double[][] correction = new double[h][w];
+            getInSARRangeTimeCorrectionForCurrentTile(x0, y0, w, h, 1, correction);
+            final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(swathID[0]);
+
+            double[][] height = new double[h][w];
+            getCorrectionForCurrentTile(HEIGHT, x0, y0, w, h, 1, height);
+
+            final Band phaseBand = targetProduct.getBand(ETAD_PHASE_CORRECTION);
+            final Tile phaseTile = targetTileMap.get(phaseBand);
+            final ProductData phaseData = phaseTile.getDataBuffer();
+            final TileIndex phaseIndex = new TileIndex(phaseTile);
+
+            final Band heightBand = targetProduct.getBand(ETAD_HEIGHT);
+            final Tile heightTile = targetTileMap.get(heightBand);
+            final ProductData heightData = heightTile.getDataBuffer();
+            final TileIndex heightIndex = new TileIndex(phaseTile);
+
+            for (int y = y0; y <= yMax; ++y) {
+                phaseIndex.calculateStride(y);
+                heightIndex.calculateStride(y);
+                int yy = y - y0;
+
+                for (int x = x0; x <= xMax; ++x) {
+                    final int phaseIdx = phaseIndex.getIndex(x);
+                    final int heightIdx = heightIndex.getIndex(x);
+                    final int xx = x - x0;
+
+                    final double delay = correction[yy][xx] + rangeTimeCalibration;
+                    final double phase = -2.0 * Constants.PI * radarFrequency * delay; // delay time (s) to phase (radian)
+                    phaseData.setElemDoubleAt(phaseIdx, phase);
+                    heightData.setElemDoubleAt(heightIdx, height[yy][xx]);
+                }
+            }
+
+        } catch (Throwable e) {
+            throw new OperatorException(e);
+        }
+    }
+
+    private synchronized void computeTroposphericToHeightGradient() {
+
+        if (tropToHeightGradientComputed) return;
+
+        final double[] gradientArray = new double[1];
+        final ETADUtils.Burst burst = etadUtils.getBurst(1, 1, 1);
+        final double[][] tropCorr = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
+        final double[][] height = getBurstCorrection(HEIGHT, burst);
+        final double gradient = computeGradientForCurrentBurst(tropCorr, height);
+        gradientArray[0] = -2.0 * Constants.PI * radarFrequency * gradient;
+
+        final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
+        MetadataElement etadElem = absTgt.getElement(ETAD);
+        if (etadElem == null) {
+            etadElem = new MetadataElement(ETAD);
+            absTgt.addElement(etadElem);
+        }
+        final MetadataAttribute attrib = new MetadataAttribute("gradient", ProductData.TYPE_FLOAT64, gradientArray.length);
+        attrib.getData().setElems(gradientArray);
+        etadElem.addAttribute(attrib);
+
+        tropToHeightGradientComputed = true;
+    }
+
+    private double computeGradientForCurrentBurst(final double[][] tropCorr, final double[][] height) {
+
+        final int rows = tropCorr.length;
+        final int cols = tropCorr[0].length;
+
+        double sumX = 0.0, sumX2 = 0.0, sumY = 0.0, sumXY = 0.0;
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols - 1; ++c) {
+                final double dh = height[r][c + 1] - height[r][c];
+                final double dt = tropCorr[r][c + 1] - tropCorr[r][c];
+                sumX += dh;
+                sumX2 += dh * dh;
+                sumY += dt;
+                sumXY += dh * dt;
+            }
+        }
+
+        final Matrix A = new Matrix(new double[][]{{sumX2, sumX}, {sumX, rows * (cols - 1)}});
+        final Matrix b = new Matrix(new double[]{sumXY, sumY}, 2);
+        final Matrix c = A.solve(b);
+        return c.get(0,0);
+    }
+
     private void computeETADCorrPixPos(final int x0, final int y0, final int w, final int h,
                                        final PixelPos[][] slavePixPos) throws Exception {
 
@@ -212,7 +399,7 @@ import java.util.Map;
             for (int x = x0; x <= xMax; ++x) {
                 final int xx = x - x0;
                 final double rgTime = (slantRangeToFirstPixel + x * rangeSpacing) / Constants.halfLightSpeed;
-				final ETADUtils.Burst burst = etadUtils.getBurst(azTime, rgTime);
+                final ETADUtils.Burst burst = etadUtils.getBurst(azTime, rgTime);
                 correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
             }
         }

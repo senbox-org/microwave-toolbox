@@ -336,7 +336,7 @@ public abstract class AbstractProductDirectory {
         product.setDescription(absRoot.getAttributeString(AbstractMetadata.SPH_DESCRIPTOR));
     }
 
-    private static void setLatLongMetadata(final Product product) {
+    protected static void setLatLongMetadata(final Product product) {
 
         final GeoCoding geoCoding = product.getSceneGeoCoding();
         if(geoCoding != null) {

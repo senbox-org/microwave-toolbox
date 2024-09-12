@@ -248,7 +248,7 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
             targetBandNameList.add(BandType.VVVHRatio.toString());
         }
 
-        return targetBandNameList.toArray(new String[targetBandNameList.size()]);
+        return targetBandNameList.toArray(new String[0]);
     }
 
     /**

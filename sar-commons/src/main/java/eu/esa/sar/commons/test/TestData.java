@@ -64,4 +64,8 @@ public class TestData {
     public final static File inputS1_GRDSubset = new File(inputSAR + "S1/subset_0_of_subset_1_of_S1A_S1_GRDH_1SDH_20150828T165902_20150828T165921_007466_00A4B2_84A5.dim");
     public final static File inputS1_SLC = new File(inputSAR + "S1/S1A_IW_SLC__1SDV_20180620T222319_20180620T222347_022446_026E52_B227.zip");
     public final static File inputS1_StripmapSLC = new File(inputSAR + "S1/subset_2_S1A_S1_SLC__1SSV_20140807T142342_20140807T142411_001835_001BC1_05AA.dim");
+    public final static File inputStackS1 = new File(inputSAR + "S1/subset_0_of_S1A_IW_SLC__1SDV_20180225T055001_20180225T055028_020759_02393B_4117_IW1_Cal_Stack.dim");
+
+    //Capella
+    public final static File inputCapella_StripmapSLC = new File(inputSAR + "Capella/test/subset_0_of_CAPELLA_C02_SM_SLC_HH_20201118185123_20201118185127.dim");
 }

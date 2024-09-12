@@ -254,7 +254,7 @@ public class MultiTemporalSpeckleFilterOp extends Operator {
                 if (band.getUnit().contains("intensity"))
                     bandNameList.add(band.getName());
             }
-            sourceBandNames = bandNameList.toArray(new String[bandNameList.size()]);
+            sourceBandNames = bandNameList.toArray(new String[0]);
         }
         final Band[] sourceBands = OperatorUtils.getSourceBands(sourceProduct, sourceBandNames, false);
 

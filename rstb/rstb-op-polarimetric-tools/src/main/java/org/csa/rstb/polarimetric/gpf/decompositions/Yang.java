@@ -95,7 +95,7 @@ public class Yang extends DecompositionBase implements Decomposition, QuadPolPro
             targetBandNameList.add(T33);
         }
 
-        return targetBandNameList.toArray(new String[targetBandNameList.size()]);
+        return targetBandNameList.toArray(new String[0]);
     }
 
     /**

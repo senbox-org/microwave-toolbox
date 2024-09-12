@@ -75,7 +75,7 @@ class JERSProductDirectory extends CEOSProductDirectory {
                 // continue
             }
         }
-        imageFiles = imgArray.toArray(new JERSImageFile[imgArray.size()]);
+        imageFiles = imgArray.toArray(new JERSImageFile[0]);
 
         productType = leaderFile.getSceneRecord().getAttributeString("Product type descriptor");
         sceneWidth = imageFiles[0].getRasterWidth();

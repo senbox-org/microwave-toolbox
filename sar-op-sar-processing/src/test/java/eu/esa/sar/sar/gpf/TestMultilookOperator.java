@@ -113,18 +113,19 @@ public class TestMultilookOperator extends ProcessorTest {
      */
     @Test
     public void testProcessing() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final MultilookOp op = (MultilookOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final MultilookOp op = (MultilookOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[] { 668.0f, 564.0f, 574.0f };
-        TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), expected);
+            final float[] expected = new float[]{668.0f, 564.0f, 574.0f};
+            TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), expected);
+        }
     }
 
     /**

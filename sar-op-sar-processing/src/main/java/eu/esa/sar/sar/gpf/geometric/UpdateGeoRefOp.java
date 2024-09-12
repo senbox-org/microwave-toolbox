@@ -49,6 +49,7 @@ import org.jlinda.core.SLCImage;
 
 import java.awt.*;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -249,7 +250,7 @@ public final class UpdateGeoRefOp extends Operator {
     /**
      * Create target product.
      */
-    private void createTargetProduct() {
+    private void createTargetProduct() throws IOException {
 
         targetProduct = new Product(sourceProduct.getName(),
                 sourceProduct.getProductType(),
@@ -279,7 +280,7 @@ public final class UpdateGeoRefOp extends Operator {
         targetProduct.setPreferredTileSize(targetProduct.getSceneRasterWidth(), tileSize);
     }
 
-    private void addSelectedBands() {
+    private void addSelectedBands() throws IOException {
 
         // add selected source bands
         if (sourceBandNames == null || sourceBandNames.length == 0) {
@@ -291,7 +292,7 @@ public final class UpdateGeoRefOp extends Operator {
                     bandNameList.add(band.getName());
                 }
             }
-            sourceBandNames = bandNameList.toArray(new String[bandNameList.size()]);
+            sourceBandNames = bandNameList.toArray(new String[0]);
         }
 
         final Band[] sourceBands = new Band[sourceBandNames.length];
@@ -316,7 +317,7 @@ public final class UpdateGeoRefOp extends Operator {
         targetProduct.addBand(latBand);
         targetProduct.addBand(lonBand);
 
-        targetProduct.setSceneGeoCoding(new PixelGeoCoding(latBand, lonBand, null, 6));
+//        targetProduct.setSceneGeoCoding(GeoCodingFactory.createPixelGeoCoding(latBand, lonBand));
     }
 
     private void computeTileOverlapPercentage(final int x0, final int y0, final int w, final int h,

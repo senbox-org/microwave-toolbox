@@ -654,7 +654,7 @@ public class Sentinel1Level0Directory extends XMLProductDirectory implements Sen
     }
 
     @Override
-    public Product createProduct() throws IOException {
+    public Product createProduct() throws Exception {
 
         final MetadataElement newRoot = addMetaData();
         addBinaryDataToProduct(newRoot);

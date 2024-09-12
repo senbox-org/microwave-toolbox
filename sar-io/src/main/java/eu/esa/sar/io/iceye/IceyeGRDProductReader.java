@@ -761,7 +761,7 @@ public class IceyeGRDProductReader extends SARReader {
                 * 24 * 3600;
         final double pixelSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 0);
 
-        final CoefList[] segments = segmentsArray.toArray(new CoefList[segmentsArray.size()]);
+        final CoefList[] segments = segmentsArray.toArray(new CoefList[0]);
 
         int k = 0;
         int c = 0;

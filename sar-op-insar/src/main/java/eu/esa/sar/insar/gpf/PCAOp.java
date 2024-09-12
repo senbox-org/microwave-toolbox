@@ -197,7 +197,7 @@ public class PCAOp extends Operator {
             for (Band band : bands) {
                 bandNameList.add(band.getName());
             }
-            sourceBandNames = bandNameList.toArray(new String[bandNameList.size()]);
+            sourceBandNames = bandNameList.toArray(new String[0]);
         }
 
         numOfSourceBands = sourceBandNames.length;

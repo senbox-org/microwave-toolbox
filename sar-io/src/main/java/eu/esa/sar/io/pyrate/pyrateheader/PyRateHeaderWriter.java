@@ -50,9 +50,7 @@ public class PyRateHeaderWriter {
         final MetadataElement[] secondaryS = srcProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElements();
         roots = new MetadataElement[secondaryS.length + 1];
         roots[0] = srcProduct.getMetadataRoot().getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
-        for (int x = 0; x < secondaryS.length; x++){
-            roots[x + 1] = secondaryS[x];
-        }
+        System.arraycopy(secondaryS, 0, roots, 1, secondaryS.length);
     }
 
 

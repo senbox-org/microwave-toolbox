@@ -72,10 +72,10 @@ public class SpacetyDirectory extends XMLProductDirectory {
 
     @Override
     public void close() throws IOException  {
-        super.close();
         if(bandProduct != null) {
             bandProduct.dispose();
         }
+        super.close();
     }
 
     protected String getHeaderFileName() {

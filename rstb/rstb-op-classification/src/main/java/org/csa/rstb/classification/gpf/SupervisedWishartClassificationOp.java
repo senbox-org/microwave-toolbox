@@ -185,7 +185,7 @@ public final class SupervisedWishartClassificationOp extends Operator implements
             clusterCenters[c] = new PolClassifierBase.ClusterInfo();
             clusterCenters[c].setClusterCenter(c, Cr, Ci, 0);
         }
-        classNames = classNameList.toArray(new String[classNameList.size()]);
+        classNames = classNameList.toArray(new String[0]);
     }
 
     private void getQuadPolClusterCenters() throws IOException {
@@ -224,7 +224,7 @@ public final class SupervisedWishartClassificationOp extends Operator implements
             clusterCenters[c] = new PolClassifierBase.ClusterInfo();
             clusterCenters[c].setClusterCenter(c, Tr, Ti, 0);
         }
-        classNames = classNameList.toArray(new String[classNameList.size()]);
+        classNames = classNameList.toArray(new String[0]);
     }
 
     /**

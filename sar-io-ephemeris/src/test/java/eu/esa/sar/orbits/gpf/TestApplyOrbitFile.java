@@ -51,41 +51,46 @@ public class TestApplyOrbitFile {
 
     @Test
     public void testApplyOrbit_S1() throws Exception {
-        final Product srcProduct = ProductIO.readProduct(TestData.inputS1_GRDSubset);
-
-        ApplyOrbitFileOp op = new ApplyOrbitFileOp();
-        op.setSourceProduct(srcProduct);
-        Product trgProduct = op.getTargetProduct();
-    }
-
-    @Test
-    public void testApplyOrbit_ASAR_WSM() throws Exception {
-        final Product srcProduct = ProductIO.readProduct(TestData.inputASAR_WSM);
-
-        ApplyOrbitFileOp op = new ApplyOrbitFileOp();
-        op.setSourceProduct(srcProduct);
-        Product trgProduct = op.getTargetProduct();
-    }
-
-    @Test
-    public void testApplyOrbit_ASAR_IMS() throws Exception {
-        final Product srcProduct = ProductIO.readProduct(TestData.inputASAR_IMS);
-
-        ApplyOrbitFileOp op = new ApplyOrbitFileOp();
-        op.setSourceProduct(srcProduct);
-        Product trgProduct = op.getTargetProduct();
-    }
-
-    @Test
-    public void testApplyOrbit_ERS1() throws Exception {
-        try {
-            // http://step.esa.int/auxdata/orbits/ers_precise_orb/ERS1/1997.zip does not exist
-
-            final Product srcProduct = ProductIO.readProduct(TestData.inputERS_IMP);
+        try(final Product srcProduct = ProductIO.readProduct(TestData.inputS1_GRDSubset)) {
 
             ApplyOrbitFileOp op = new ApplyOrbitFileOp();
             op.setSourceProduct(srcProduct);
             Product trgProduct = op.getTargetProduct();
+            trgProduct.close();
+        }
+    }
+
+    @Test
+    public void testApplyOrbit_ASAR_WSM() throws Exception {
+        try(final Product srcProduct = ProductIO.readProduct(TestData.inputASAR_WSM)) {
+
+            ApplyOrbitFileOp op = new ApplyOrbitFileOp();
+            op.setSourceProduct(srcProduct);
+            Product trgProduct = op.getTargetProduct();
+            trgProduct.close();
+        }
+    }
+
+    @Test
+    public void testApplyOrbit_ASAR_IMS() throws Exception {
+        try(final Product srcProduct = ProductIO.readProduct(TestData.inputASAR_IMS)) {
+
+            ApplyOrbitFileOp op = new ApplyOrbitFileOp();
+            op.setSourceProduct(srcProduct);
+            Product trgProduct = op.getTargetProduct();
+            trgProduct.close();
+        }
+    }
+
+    @Test
+    public void testApplyOrbit_ERS1() {
+        try (final Product srcProduct = ProductIO.readProduct(TestData.inputERS_IMP)) {
+            // http://step.esa.int/auxdata/orbits/ers_precise_orb/ERS1/1997.zip does not exist
+
+            ApplyOrbitFileOp op = new ApplyOrbitFileOp();
+            op.setSourceProduct(srcProduct);
+            Product trgProduct = op.getTargetProduct();
+            trgProduct.close();
         } catch (Exception e) {
             assertTrue(e.getMessage().startsWith("Unable to find suitable orbit file"));
         }

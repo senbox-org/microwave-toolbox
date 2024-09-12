@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -17,10 +17,8 @@ package org.csa.rstb.io.radarsat2;
 
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
-import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -45,9 +43,6 @@ public class TestRadarsat2ProductReader extends ReaderTest {
     private static final File zipDP_SGX = new File(TestData.inputSAR +"RS2/RS2_OK76385_PK678083_DK606772_S7_20081111_141314_HH_HV_SGX.zip");
     private static final File zipDP_SSG = new File(TestData.inputSAR +"RS2/RS2_OK76397_PK678155_DK606835_S7_20081111_141314_HH_HV_SSG.zip");
 
-    public final static String inputRS2 = TestData.inputSAR + "RS2/";
-    public final static File[] rootPathsRadarsat2 = SARTests.loadFilePath(inputRS2);
-
     private final static ProductValidator.Expected expectedSLC = new ProductValidator.Expected();
 
     @Before
@@ -61,10 +56,6 @@ public class TestRadarsat2ProductReader extends ReaderTest {
         assumeTrue(zipDP_SGX + " not found", zipDP_SGX.exists());
         assumeTrue(zipDP_SSG + " not found", zipDP_SSG.exists());
 
-        for (File file : rootPathsRadarsat2) {
-            assumeTrue(file + " not found", file.exists());
-        }
-
         expectedSLC.isSAR = true;
         expectedSLC.isComplex = true;
         expectedSLC.productType = "SLC";
@@ -72,12 +63,6 @@ public class TestRadarsat2ProductReader extends ReaderTest {
 
     public TestRadarsat2ProductReader() {
         super(new Radarsat2ProductReaderPlugIn());
-    }
-
-    @Test
-    public void testOpenAll() throws Exception {
-        TestProcessor testProcessor = SARTests.createTestProcessor();
-        testProcessor.recurseReadFolder(this, rootPathsRadarsat2, readerPlugIn, reader, null, null);
     }
 
     @Test

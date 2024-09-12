@@ -124,12 +124,15 @@ public final class BackGeocodingOp extends Operator {
     private int subSwathIndex = 0;
     private boolean burstOffsetComputed = false;
     private String swathIndexStr = null;
+    private String swathID = null;
 
     private final HashMap<Band, Band> targetBandToSlaveBandMap = new HashMap<>(2);
     private final HashMap<Band, SlaveData> targetBandToSlaveDataMap = new HashMap<>(2);
 
     private static final double invalidIndex = -9999.0;
 
+    private static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
+    private static final String ETAD_HEIGHT = "etadHeight";
     private static final String PRODUCT_SUFFIX = "_Stack";
 
     private boolean outputDEM = false;
@@ -203,6 +206,7 @@ public final class BackGeocodingOp extends Operator {
 
             subSwathIndex = 1; // subSwathIndex is always 1 because of split product
             swathIndexStr = mSubSwathNames[0].substring(2);
+            swathID = mSubSwathNames[0];
 
             if (externalDEMFile == null) {
                 DEMFactory.checkIfDEMInstalled(demName);
@@ -226,7 +230,7 @@ public final class BackGeocodingOp extends Operator {
             }
 
             StackUtils.saveMasterProductBandNames(targetProduct,
-                    masterProductBands.toArray(new String[masterProductBands.size()]));
+                    masterProductBands.toArray(new String[0]));
             StackUtils.saveSlaveProductNames(sourceProduct, targetProduct,
                     masterProduct, targetBandToSlaveBandMap);
 
@@ -353,6 +357,15 @@ public final class BackGeocodingOp extends Operator {
                 if (srcBand instanceof VirtualBand) {
                     continue;
                 }
+
+                if (bandName.contains(ETAD_PHASE_CORRECTION)) {
+                    slaveData.foundETADCorrection = true;
+                }
+
+                if (bandName.contains(ETAD_HEIGHT)) {
+                    slaveData.foundETADHeight = true;
+                }
+
                 final Band targetBand = new Band(
                         bandName + slvSuffix,
                         ProductData.TYPE_FLOAT32,
@@ -865,6 +878,20 @@ public final class BackGeocodingOp extends Operator {
             performInterpolation(x0, y0, w, h, sourceRectangle, slaveTileI, slaveTileQ, targetTileMap, slvDerampDemodPhase,
                     slvDerampDemodI, slvDerampDemodQ, slavePixPos, subSwathIndex, sBurstIndex, slaveData, polarization);
         }
+
+        // In future, if the ETAD correction is polarization dependent, then the following code should be in a for
+        // loop of polarizations as above.
+        if (slaveData.foundETADCorrection) {
+            final String etadCorrBandName = ETAD_PHASE_CORRECTION + "_" + swathID; // add polarization if needed
+            performInterpolationOnETADBand(
+                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadCorrBandName);
+        }
+
+        if (slaveData.foundETADHeight) {
+            final String etadHeightBandName = ETAD_HEIGHT + "_" + swathID; // add polarization if needed
+            performInterpolationOnETADBand(
+                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadHeightBandName);
+        }
     }
 
     private boolean computeSlavePixPos(final int subSwathIndex, final int mBurstIndex, final int sBurstIndex,
@@ -1364,6 +1391,87 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
+    private void performInterpolationOnETADBand(
+            final int x0, final int y0, final int w, final int h, final Rectangle sourceRectangle,
+            final Map<Band, Tile> targetTileMap, final PixelPos[][] secPixPos, final SlaveData secData,
+            final String bandName) throws OperatorException {
+
+        try {
+            final Band secETADBand = secData.slaveProduct.getBand(bandName);
+            final Tile secETADTile = getSourceTile(secETADBand, sourceRectangle);
+            final double[][] secETADData = getETADData(secETADTile, sourceRectangle);
+
+            final Band tgtETADBand = getTargetBand(bandName, secData.slvSuffix, null);
+            final Tile tgtETADTile = targetTileMap.get(tgtETADBand);
+            final ProductData tgtETADBuffer = tgtETADTile.getDataBuffer();
+            final TileIndex tgtIndex = new TileIndex(tgtETADTile);
+
+            final ResamplingRaster resamplingRaster = new ResamplingRaster(secETADTile, secETADData);
+            final Resampling.Index resamplingIndex = selectedResampling.createIndex();
+
+            final int sxMin = sourceRectangle.x;
+            final int syMin = sourceRectangle.y;
+            final int sxMax = sourceRectangle.x + sourceRectangle.width - 1;
+            final int syMax = sourceRectangle.y + sourceRectangle.height - 1;
+
+            for (int y = y0; y < y0 + h; ++y) {
+                tgtIndex.calculateStride(y);
+                final int yy = y - y0;
+
+                for (int x = x0; x < x0 + w; ++x) {
+                    final int xx = x - x0;
+                    final int tgtIdx = tgtIndex.getIndex(x);
+
+                    final PixelPos secPixelPos = secPixPos[yy][xx];
+                    if (secPixelPos == null || secPixelPos.x < sxMin || secPixelPos.x > sxMax ||
+                            secPixelPos.y < syMin || secPixelPos.y > syMax) {
+
+                        tgtETADBuffer.setElemDoubleAt(tgtIdx, noDataValue);
+                        continue;
+                    }
+
+                    selectedResampling.computeCornerBasedIndex(
+                            secPixelPos.x - sourceRectangle.x, secPixelPos.y - sourceRectangle.y,
+                            sourceRectangle.width, sourceRectangle.height, resamplingIndex);
+
+                    double sample = selectedResampling.resample(resamplingRaster, resamplingIndex);
+
+                    tgtETADBuffer.setElemDoubleAt(tgtIdx, sample);
+                }
+            }
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException("performInterpolationOnETADCorrection", e);
+        }
+    }
+
+    static double[][] getETADData(final Tile tile, final Rectangle rectangle) {
+
+        try {
+            final int x0 = rectangle.x;
+            final int y0 = rectangle.y;
+            final int xMax = x0 + rectangle.width;
+            final int yMax = y0 + rectangle.height;
+            final double[][] corr = new double[rectangle.height][rectangle.width];
+
+            final ProductData data = tile.getDataBuffer();
+            final TileIndex index = new TileIndex(tile);
+
+            for (int y = y0; y < yMax; y++) {
+                index.calculateStride(y);
+                final int yy = y - y0;
+                for (int x = x0; x < xMax; x++) {
+                    final int idx = index.getIndex(x);
+                    corr[yy][x - x0] = data.getElemDoubleAt(idx);
+                }
+            }
+            return corr;
+
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException("getETADCorrection", e);
+        }
+        return null;
+    }
+
     public static Band getBand(
             final Product product, final String prefix, final String swathIndexStr, final String polarization) {
 
@@ -1570,6 +1678,8 @@ public final class BackGeocodingOp extends Operator {
         Sentinel1Utils sSU;
         int burstOffset = -9999;
         String slvSuffix;
+        boolean foundETADCorrection = false;
+        boolean foundETADHeight = false;
 
         SlaveData(final Product product) throws Exception {
             this.slaveProduct = product;

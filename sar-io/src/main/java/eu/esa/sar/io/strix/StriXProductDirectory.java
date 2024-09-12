@@ -95,7 +95,7 @@ public class StriXProductDirectory extends CEOSProductDirectory {
                 // continue
             }
         }
-        imageFiles = imgArray.toArray(new StriXImageFile[imgArray.size()]);
+        imageFiles = imgArray.toArray(new StriXImageFile[0]);
 
         sceneWidth = imageFiles[0].getRasterWidth();
         sceneHeight = imageFiles[0].getRasterHeight();

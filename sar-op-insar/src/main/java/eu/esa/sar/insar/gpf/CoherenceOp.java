@@ -401,8 +401,7 @@ public class CoherenceOp extends Operator {
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
         if (isComplex) {
-            List<String> sortedKeys = new ArrayList<>();
-            sortedKeys.addAll(targetMap.keySet());
+            List<String> sortedKeys = new ArrayList<>(targetMap.keySet());
             Collections.sort(sortedKeys);
             for (String key : sortedKeys) {
                 final java.util.List<String> targetBandNames = new ArrayList<>();

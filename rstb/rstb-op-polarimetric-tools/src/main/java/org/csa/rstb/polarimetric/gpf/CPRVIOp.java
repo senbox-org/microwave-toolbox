@@ -74,9 +74,11 @@ public final class CPRVIOp extends Operator implements CompactPolProcessor {
 
     // If the input covariance matrix C2 has already been averaged, then comment out the following two lines and
     // set windowSize to 0
-    @Parameter(description = "The sliding window size", interval = "[1, 100]", defaultValue = "5", label = "Window Size")
-    private int windowSize = 5;
+    @Parameter(description = "The sliding window size", valueSet = {"3", "5", "7", "9", "11", "13", "15", "17", "19"},
+            defaultValue = "3", label = "Window Size")
+    private String windowSizeStr = "3";
 
+    private int windowSize = 0;
     private int halfWindowSize = 0;
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
@@ -100,6 +102,7 @@ public final class CPRVIOp extends Operator implements CompactPolProcessor {
             }
 
             srcBandList = PolBandUtils.getSourceBands(sourceProduct, sourceProductType);
+            windowSize = Integer.parseInt(windowSizeStr);
             halfWindowSize = windowSize / 2;
             sourceImageWidth = sourceProduct.getSceneRasterWidth();
             sourceImageHeight = sourceProduct.getSceneRasterHeight();

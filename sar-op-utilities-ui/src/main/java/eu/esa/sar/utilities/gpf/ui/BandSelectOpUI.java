@@ -58,7 +58,7 @@ public class BandSelectOpUI extends BaseOperatorUI {
                     pols.add(pol.toUpperCase());
             }
 
-            OperatorUIUtils.initParamList(polList, pols.toArray(new String[pols.size()]),
+            OperatorUIUtils.initParamList(polList, pols.toArray(new String[0]),
                     (String[])paramMap.get("selectedPolarisations"));
         }
 

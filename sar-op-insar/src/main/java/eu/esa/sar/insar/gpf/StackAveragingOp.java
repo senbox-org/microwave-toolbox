@@ -145,7 +145,7 @@ public class StackAveragingOp extends Operator {
                 bandGroup.add(new BandInfo(band, name));
             }
         }
-        return bandGroup.toArray(new BandInfo[bandGroup.size()]);
+        return bandGroup.toArray(new BandInfo[0]);
     }
 
     private Band[] getSourceBands(final String name_prefix) {
@@ -156,7 +156,7 @@ public class StackAveragingOp extends Operator {
                 bandList.add(band);
             }
         }
-        return bandList.toArray(new Band[bandList.size()]);
+        return bandList.toArray(new Band[0]);
     }
 
     private void addVirtualBand(final String operation, final String name_prefix, final String expression,

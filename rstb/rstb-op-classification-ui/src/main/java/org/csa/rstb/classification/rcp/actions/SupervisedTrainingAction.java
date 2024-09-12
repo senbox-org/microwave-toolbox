@@ -331,7 +331,7 @@ public class SupervisedTrainingAction extends AbstractAction implements DualPolP
             } catch (Throwable e) {
                 e.printStackTrace();
             }
-            return subGeometries.toArray(new String[subGeometries.size()]);
+            return subGeometries.toArray(new String[0]);
         }
 
         private static void removeSubGeometries(final Product product, final String[] subGeometries) {

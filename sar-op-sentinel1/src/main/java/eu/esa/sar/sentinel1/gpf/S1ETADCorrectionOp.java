@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 20123 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -16,6 +16,7 @@
 package eu.esa.sar.sentinel1.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.cloud.opendata.DataSpaces;
 import eu.esa.sar.commons.ETADUtils;
 import eu.esa.sar.sentinel1.gpf.etadcorrectors.Corrector;
 import eu.esa.sar.sentinel1.gpf.etadcorrectors.GRDCorrector;
@@ -33,8 +34,7 @@ import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
-import org.esa.snap.core.util.ProductUtils;
-import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
@@ -73,6 +73,14 @@ public class S1ETADCorrectionOp extends Operator {
             label = "Resampling Type")
     private String resamplingType = ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME;
 
+    @Parameter(description = "Resampling Image", defaultValue = "true",
+            label = "Resampling Image")
+    private boolean resamplingImage = true;
+
+    @Parameter(description = "Output Phase Corrections", defaultValue = "false",
+            label = "Output Phase Corrections")
+    private boolean outputPhaseCorrections = false;
+
     @Parameter(description = "Tropospheric Correction (Range)", defaultValue = "false",
             label = "Tropospheric Correction (Range)")
     private boolean troposphericCorrectionRg = false;
@@ -101,22 +109,21 @@ public class S1ETADCorrectionOp extends Operator {
             label = "FM Mismatch Correction (Azimuth)")
     private boolean fmMismatchCorrectionAz = false;
 
-    @Parameter(description = "Sum Of Azimuth Corrections", defaultValue = "false",
+    @Parameter(description = "Sum Of Azimuth Corrections", defaultValue = "true",
             label = "Sum Of Azimuth Corrections")
-    private boolean sumOfAzimuthCorrections = false;
+    private boolean sumOfAzimuthCorrections = true;
 
-    @Parameter(description = "Sum Of Range Corrections", defaultValue = "false",
+    @Parameter(description = "Sum Of Range Corrections", defaultValue = "true",
             label = "Sum Of Range Corrections")
-    private boolean sumOfRangeCorrections = false;
+    private boolean sumOfRangeCorrections = true;
 
+    private String productType = null;
+    private String acquisitionMode = null;
     private Corrector etadCorrector;
     private MetadataElement absRoot = null;
 
     private Resampling selectedResampling = null;
-    private Product etadProduct = null;
     private ETADUtils etadUtils = null;
-
-    protected static final String PRODUCT_SUFFIX = "_etad";
 
 
     /**
@@ -140,45 +147,17 @@ public class S1ETADCorrectionOp extends Operator {
      */
     @Override
     public void initialize() throws OperatorException {
+
         try {
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
-            validator.checkIfSARProduct();
-            validator.checkIfSentinel1Product();
+            validateSourceProduct();
 
-            if (etadFile == null) {
-                throw new OperatorException("ETAD product is not available");
-            }
+            getSourceProductMetadata();
 
-            if (noCorrectionLayerSelected()) {
-                throw new OperatorException("No correction layer is selected");
-            }
+            getEtadUtils();
 
-            absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            getResampling();
 
-            selectedResampling = ResamplingFactory.createResampling(resamplingType);
-            if(selectedResampling == null) {
-                throw new OperatorException("Resampling method "+ resamplingType + " is invalid");
-            }
-
-            etadProduct = getETADProduct(etadFile);
-
-            validateETADProduct(sourceProduct, etadProduct);
-
-            etadUtils = new ETADUtils(etadProduct);
-
-            createTargetProduct();
-
-            etadCorrector = createETADCorrector();
-			etadCorrector.initialize();
-            etadCorrector.setTroposphericCorrectionRg(troposphericCorrectionRg);
-            etadCorrector.setIonosphericCorrectionRg(ionosphericCorrectionRg);
-            etadCorrector.setGeodeticCorrectionRg(geodeticCorrectionRg);
-            etadCorrector.setDopplerShiftCorrectionRg(dopplerShiftCorrectionRg);
-            etadCorrector.setGeodeticCorrectionAz(geodeticCorrectionAz);
-            etadCorrector.setBistaticShiftCorrectionAz(bistaticShiftCorrectionAz);
-            etadCorrector.setFmMismatchCorrectionAz(fmMismatchCorrectionAz);
-            etadCorrector.setSumOfAzimuthCorrections(sumOfAzimuthCorrections);
-            etadCorrector.setSumOfRangeCorrections(sumOfRangeCorrections);
+            getETADCorrector();
 
             updateTargetProductMetadata();
 
@@ -187,27 +166,105 @@ public class S1ETADCorrectionOp extends Operator {
         }
     }
 
-    private boolean noCorrectionLayerSelected() {
-        return !troposphericCorrectionRg && !ionosphericCorrectionRg && !geodeticCorrectionRg &&
-                !dopplerShiftCorrectionRg && !geodeticCorrectionAz && !bistaticShiftCorrectionAz &&
-                !fmMismatchCorrectionAz && !sumOfAzimuthCorrections && !sumOfRangeCorrections;
+    private void validateSourceProduct() {
+
+        final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        validator.checkIfSARProduct();
+        validator.checkIfSentinel1Product();
     }
 
-	private Corrector createETADCorrector() {
-		
-		final String productType = absRoot.getAttributeString(AbstractMetadata.PRODUCT_TYPE);
-		final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
-		
-		if (acquisitionMode.equals("IW") && productType.equals("SLC")) { // TOPS SLC
-			return new TOPSCorrector(sourceProduct, targetProduct, etadUtils, selectedResampling);
-		} else if (acquisitionMode.equals("IW") && productType.equals("GRD")) { // GRD
-            return new GRDCorrector(sourceProduct, targetProduct, etadUtils, selectedResampling);
+    private void getSourceProductMetadata() {
+
+        absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        productType = absRoot.getAttributeString(AbstractMetadata.PRODUCT_TYPE);
+        acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+
+        if (resamplingImage && noCorrectionLayerSelected()) {
+            throw new OperatorException("No correction layer is selected");
+        }
+
+        if (outputPhaseCorrections && !((acquisitionMode.equals("IW") || acquisitionMode.equals("SM")) && productType.equals("SLC"))) {
+            throw new OperatorException("Option 2 is for Sentinel-1 IW SLC and SM SLC product only");
+        }
+    }
+
+    private void getEtadUtils() throws Exception {
+
+        if (etadFile != null) {
+                etadUtils = createETADUtils();
+        }
+    }
+
+    private synchronized ETADUtils createETADUtils() throws Exception {
+        if(etadUtils != null) {
+            return etadUtils;
+        }
+        if(etadFile == null) {
+            ETADSearch etadSearch = new ETADSearch();
+            DataSpaces.Result[] results = etadSearch.search(sourceProduct);
+
+            if(results.length == 0) {
+                throw new OperatorException("ETAD product not found");
+            }
+
+            File outputFolder = new File(SystemUtils.getCacheDir(), "etad");
+            etadFile = etadSearch.download(results[0], outputFolder);
+        }
+
+        Product etadProduct = getETADProduct(etadFile);
+
+        validateETADProduct(sourceProduct, etadProduct);
+
+        etadUtils = new ETADUtils(etadProduct);
+        return etadUtils;
+    }
+
+    private void getResampling() {
+
+        if (resamplingImage) {
+            selectedResampling = ResamplingFactory.createResampling(resamplingType);
+            if(selectedResampling == null) {
+                throw new OperatorException("Resampling method "+ resamplingType + " is invalid");
+            }
+        }
+    }
+
+    private void getETADCorrector() {
+
+        etadCorrector = createETADCorrector();
+        etadCorrector.setTroposphericCorrectionRg(troposphericCorrectionRg);
+        etadCorrector.setIonosphericCorrectionRg(ionosphericCorrectionRg);
+        etadCorrector.setGeodeticCorrectionRg(geodeticCorrectionRg);
+        etadCorrector.setDopplerShiftCorrectionRg(dopplerShiftCorrectionRg);
+        etadCorrector.setGeodeticCorrectionAz(geodeticCorrectionAz);
+        etadCorrector.setBistaticShiftCorrectionAz(bistaticShiftCorrectionAz);
+        etadCorrector.setFmMismatchCorrectionAz(fmMismatchCorrectionAz);
+        etadCorrector.setSumOfAzimuthCorrections(sumOfAzimuthCorrections);
+        etadCorrector.setSumOfRangeCorrections(sumOfRangeCorrections);
+        etadCorrector.setResamplingImage(resamplingImage);
+        etadCorrector.setOutputPhaseCorrections(outputPhaseCorrections);
+        etadCorrector.initialize();
+        targetProduct = etadCorrector.createTargetProduct();
+    }
+
+    private boolean noCorrectionLayerSelected() {
+        return !troposphericCorrectionRg && !ionosphericCorrectionRg && !geodeticCorrectionRg &&
+               !dopplerShiftCorrectionRg && !geodeticCorrectionAz && !bistaticShiftCorrectionAz &&
+               !fmMismatchCorrectionAz && !sumOfAzimuthCorrections && !sumOfRangeCorrections;
+    }
+
+    private Corrector createETADCorrector() {
+
+        if (acquisitionMode.equals("IW") && productType.equals("SLC")) { // TOPS SLC
+            return new TOPSCorrector(sourceProduct, etadUtils, selectedResampling);
+        } else if (acquisitionMode.equals("IW") && productType.equals("GRD")) { // GRD
+            return new GRDCorrector(sourceProduct, etadUtils, selectedResampling);
         } else if (acquisitionMode.equals("SM") && productType.equals("SLC")) { // SM SLC
-			return new SMCorrector(sourceProduct, targetProduct, etadUtils, selectedResampling);
-		} else {
+            return new SMCorrector(sourceProduct, etadUtils, selectedResampling);
+        } else {
             throw new OperatorException("The source product is currently not supported for ETAD correction");
         }
-	}
+    }
 
     private Product getETADProduct(final File etadFile) {
 
@@ -244,43 +301,12 @@ public class S1ETADCorrectionOp extends Operator {
             final double etadStopTime = ETADUtils.getTime(etadHeaderElem, "stopTime").getMJD()* Constants.secondsInDay;
 
             if (srcStartTime < etadStartTime || srcStopTime > etadStopTime) {
-                throw new OperatorException("The selected ETAD product does not match the source product");
+                //throw new OperatorException("The selected ETAD product does not match the source product");
             }
 
         } catch(Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
-    }
-
-    /**
-     * Create target product.
-     */
-    public Product createTargetProduct() {
-
-        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX, sourceProduct.getProductType(),
-                sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
-
-        for (Band srcBand : sourceProduct.getBands()) {
-            if (srcBand instanceof VirtualBand) {
-                continue;
-            }
-
-            final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
-                    srcBand.getRasterWidth(), srcBand.getRasterHeight());
-
-            targetBand.setUnit(srcBand.getUnit());
-            targetBand.setDescription(srcBand.getDescription());
-            targetProduct.addBand(targetBand);
-			
-            if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
-                int idx = targetProduct.getBandIndex(targetBand.getName());
-                ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
-            }
-        }
-
-        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
-
-        return targetProduct;
     }
 
     /**
@@ -307,6 +333,11 @@ public class S1ETADCorrectionOp extends Operator {
             throws OperatorException {
 
         try {
+            if (etadUtils == null) {
+                etadUtils = createETADUtils();
+                etadCorrector.setEtadUtils(etadUtils);
+            }
+
             etadCorrector.computeTileStack(targetTileMap, targetRectangle, pm, this);
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);

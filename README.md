@@ -10,7 +10,7 @@ Building Microwave Toolbox from the source
 ------------------------------
 
 1. Download and install the required build tools
-	* Install J2SE 1.8 JDK and set JAVA_HOME accordingly. 
+	* Install JAVA JDK 11 and set JAVA_HOME accordingly. 
 	* Install Maven and set MAVEN_HOME accordingly. 
 	* Install git
 2. Add `$JAVA_HOME/bin` and `$MAVEN_HOME/bin` to your PATH.
@@ -48,7 +48,7 @@ Setting up IntelliJ IDEA
 2. Import the pom.xml files of snap-engine, snap-desktop and microwave-toolbox as modules. Ensure **not** to enable
 the option *'Create module groups for multi-module Maven projects'*. Everything can be default values.
 
-3. Set the used SDK for the main project. A JDK 1.8 or later is needed.
+3. Set the used SDK for the main project. A JDK 11 or later is needed.
 
 4. Use the following configuration to run SNAP in the IDE:
 	* **Main class:** `org.esa.snap.nbexec.Launcher`
