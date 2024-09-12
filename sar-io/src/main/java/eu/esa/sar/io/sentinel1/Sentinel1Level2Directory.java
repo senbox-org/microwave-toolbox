@@ -135,7 +135,7 @@ public class Sentinel1Level2Directory extends XMLProductDirectory implements Sen
     }
 
     @Override
-    public Product createProduct() throws IOException {
+    public Product createProduct() throws Exception {
 
         // If addMetaData() is called before findImages(), the annotation will not show up in the display.
         // This is because...

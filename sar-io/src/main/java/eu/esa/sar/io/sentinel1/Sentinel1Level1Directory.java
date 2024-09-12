@@ -60,8 +60,8 @@ import static org.esa.snap.engine_utilities.datamodel.AbstractMetadata.*;
  */
 public class Sentinel1Level1Directory extends XMLProductDirectory implements Sentinel1Directory {
 
-    private final Map<Band, TiePointGeoCoding> bandGeocodingMap = new HashMap<>(5);
-    private final transient Map<String, String> imgBandMetadataMap = new HashMap<>(4);
+    private final Map<String, GeoCoding> bandGeocodingMap = new HashMap<>();
+    private final transient Map<String, String> imgBandMetadataMap = new HashMap<>();
     private String acqMode = "";
 
     private final static Double NoDataValue = 0.0;//-9999.0;
@@ -113,7 +113,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
     protected void addBands(final Product product) {
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-        int cnt = 1;
         for (Map.Entry<String, ImageIOFile> stringImageIOFileEntry : bandImageFileMap.entrySet()) {
             final ImageIOFile img = stringImageIOFileEntry.getValue();
             final String imgName = img.getName().toLowerCase();
@@ -131,9 +130,10 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 if(isTOPSAR()) {
                     suffix = swath + '_' + pol;
                     tpgPrefix = swath;
-                } else if(acqMode.equals("WV")) {
-                    suffix = suffix + '_' + cnt;
-                    ++cnt;
+                } else if(isWV()) {
+                    final int imageNumber = bandMetadata.getAttributeInt("image_number");
+                    suffix = swath + "_IMG" + imageNumber + '_' + pol;
+                    tpgPrefix = swath + "_IMG" + imageNumber;
                 }
             }
 
@@ -176,8 +176,10 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                         // add tiepointgrids and geocoding for band
                         addTiePointGrids(product, band, imgName, tpgPrefix);
 
-                        // reset to null so it doesn't adopt a geocoding from the bands
-                        product.setSceneGeoCoding(null);
+                        if(!isWV()) {
+                            // reset to null so it doesn't adopt a geocoding from the bands
+                            product.setSceneGeoCoding(null);
+                        }
                     }
                 } else {
                     for (int b = 0; b < img.getNumBands(); ++b) {
@@ -237,6 +239,25 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                //throw new IOException("Unable to read productInfo " + e.getMessage(), e);
             }
         }
+    }
+
+    @Override
+    protected Dimension getProductDimensions(final MetadataElement newRoot) {
+        final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
+
+        try {
+            determineProductDimensions(absRoot);
+        } catch (IOException e) {
+            SystemUtils.LOG.severe("Unable to determine product dimensions " + e.getMessage());
+        }
+
+        int sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
+        int sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
+        if(isWV()) {
+            sceneWidth = 5000;
+            sceneHeight = 5000;
+        }
+        return new Dimension(sceneWidth, sceneHeight);
     }
 
     private void determineProductDimensions(final MetadataElement absRoot) throws IOException {
@@ -313,7 +334,12 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 final ProductData.UTC startTime = getTime(adsHeader, "startTime", sentinelDateFormat);
                 final ProductData.UTC stopTime = getTime(adsHeader, "stopTime", sentinelDateFormat);
 
-                final String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
+                String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
+                if(isWV() && adsHeader.containsAttribute("imageNumber")) {
+                    int imageNumber = adsHeader.getAttributeInt("imageNumber");
+                    bandRootName = bandRootName + "_" + imageNumber;
+                }
+
                 final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
                 final String imgName = FileUtils.exchangeExtension(metadataFile, ".tiff");
                 imgBandMetadataMap.put(imgName.toLowerCase(), bandRootName);
@@ -323,6 +349,11 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.annotation, metadataFile);
                 AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.first_line_time, startTime);
                 AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.last_line_time, stopTime);
+
+                if(adsHeader.containsAttribute("imageNumber")) {
+                    int imageNumber = adsHeader.getAttributeInt("imageNumber");
+                    bandAbsRoot.setAttributeInt("image_number", imageNumber);
+                }
 
                 if (AbstractMetadata.isNoData(absRoot, AbstractMetadata.mds1_tx_rx_polar)) {
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds1_tx_rx_polar, pol);
@@ -613,8 +644,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
         TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
         if (latGrid != null && lonGrid != null) {
-            setLatLongMetadata(product, latGrid, lonGrid);
-
             final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
             product.setSceneGeoCoding(tpGeoCoding);
             return;
@@ -630,30 +659,24 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
             case "EW":
                 numOfSubSwath = 5;
                 break;
+            case "WV":
+                numOfSubSwath = 2;
+                break;
             default:
                 numOfSubSwath = 1;
         }
 
-        String[] bandNames = product.getBandNames();
-        Band firstSWBand = null, lastSWBand = null;
-        boolean firstSWBandFound = false, lastSWBandFound = false;
-        for (String bandName : bandNames) {
-            if (!firstSWBandFound && bandName.contains(acquisitionMode + 1)) {
-                firstSWBand = product.getBand(bandName);
-                firstSWBandFound = true;
-            }
+        if (product.getNumBands() > 0) {
+            Band firstSWBand = product.getBandAt(0);
+            Band lastSWBand = product.getBandAt(product.getNumBands() - 1);
 
-            if (!lastSWBandFound && bandName.contains(acquisitionMode + numOfSubSwath)) {
-                lastSWBand = product.getBand(bandName);
-                lastSWBandFound = true;
-            }
-        }
-        if (firstSWBand != null && lastSWBand != null) {
+            String firstSWName = firstSWBand.getName().substring(firstSWBand.getName().indexOf(acquisitionMode), firstSWBand.getName().lastIndexOf('_')) + '_';
+            String lastSWName = lastSWBand.getName().substring(lastSWBand.getName().indexOf(acquisitionMode), lastSWBand.getName().lastIndexOf('_')) + '_';
 
-            final GeoCoding firstSWBandGeoCoding = bandGeocodingMap.get(firstSWBand);
+            final GeoCoding firstSWBandGeoCoding = bandGeocodingMap.get(firstSWName);
             final int firstSWBandHeight = firstSWBand.getRasterHeight();
 
-            final GeoCoding lastSWBandGeoCoding = bandGeocodingMap.get(lastSWBand);
+            final GeoCoding lastSWBandGeoCoding = bandGeocodingMap.get(lastSWName);
             final int lastSWBandWidth = lastSWBand.getRasterWidth();
             final int lastSWBandHeight = lastSWBand.getRasterHeight();
 
@@ -688,8 +711,12 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
 
             // add band geocoding
             final Band[] bands = product.getBands();
-            for (Band band : bands) {
-                band.setGeoCoding(bandGeocodingMap.get(band));
+            for (String prefix : bandGeocodingMap.keySet()) {
+                for(Band band : bands) {
+                    if(band.getName().contains(prefix)) {
+                        band.setGeoCoding(bandGeocodingMap.get(prefix));
+                    }
+                }
             }
         } else {
             try {
@@ -701,8 +728,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
                 lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
                 if (latGrid != null && lonGrid != null) {
-                    setLatLongMetadata(product, latGrid, lonGrid);
-
                     final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
                     product.setSceneGeoCoding(tpGeoCoding);
                 }
@@ -856,8 +881,8 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
 
         final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
 
-        if(band != null) {
-            bandGeocodingMap.put(band, tpGeoCoding);
+        if(!pre.isEmpty()) {
+            bandGeocodingMap.put(pre, tpGeoCoding);
         }
     }
 
@@ -870,25 +895,12 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         return false;
     }
 
-    private static void setLatLongMetadata(Product product, TiePointGrid latGrid, TiePointGrid lonGrid) {
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-
-        final int w = product.getSceneRasterWidth();
-        final int h = product.getSceneRasterHeight();
-
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, latGrid.getPixelDouble(0, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, lonGrid.getPixelDouble(0, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, latGrid.getPixelDouble(w, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, lonGrid.getPixelDouble(w, 0));
-
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, latGrid.getPixelDouble(0, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, lonGrid.getPixelDouble(0, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, latGrid.getPixelDouble(w, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lonGrid.getPixelDouble(w, h));
-    }
-
     private boolean isTOPSAR() {
         return acqMode.equals("IW") || acqMode.equals("EW");
+    }
+
+    private boolean isWV() {
+        return acqMode.equals("WV");
     }
 
     @Override
@@ -976,29 +988,5 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         start = start.replace("T", "_");
 
         return AbstractMetadata.parseUTC(start, sentinelDateFormat);
-    }
-
-    @Override
-    public Product createProduct() throws IOException {
-
-        final MetadataElement newRoot = addMetaData();
-        findImages(newRoot);
-
-        final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
-        determineProductDimensions(absRoot);
-
-        final int sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
-        final int sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
-
-        final Product product = new Product(getProductName(), getProductType(), sceneWidth, sceneHeight);
-        updateProduct(product, newRoot);
-
-        addBands(product);
-        addGeoCoding(product);
-
-        ReaderUtils.addMetadataIncidenceAngles(product);
-        ReaderUtils.addMetadataProductSize(product);
-
-        return product;
     }
 }

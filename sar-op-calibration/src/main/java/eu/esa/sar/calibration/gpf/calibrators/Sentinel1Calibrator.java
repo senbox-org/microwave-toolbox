@@ -127,7 +127,7 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
     private void validate(final Product sourceProduct) throws OperatorException {
         final InputProductValidator validator = new InputProductValidator(sourceProduct);
         validator.checkIfSentinel1Product();
-        validator.checkAcquisitionMode(new String[]{"IW", "EW", "SM"});
+        validator.checkAcquisitionMode(new String[]{"IW", "EW", "SM", "WV"});
         validator.checkProductType(new String[]{"SLC", "GRD"});
         // Need to check for isComplex because it is OK to calibrate GRD product which are always debursted.
         if(validator.isComplex() && validator.isTOPSARProduct() && validator.isDebursted()) {

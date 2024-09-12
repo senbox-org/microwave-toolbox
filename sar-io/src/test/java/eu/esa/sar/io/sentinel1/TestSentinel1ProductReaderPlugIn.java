@@ -65,8 +65,9 @@ public class TestSentinel1ProductReaderPlugIn extends AbstractProductReaderPlugI
 
         isValidDecodeQualification(TestData.inputS1_SLC);
 
-        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_IW_metaOCN);
-        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_WV_metaOCN);
+        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_IW_OCN);
+        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_WV_OCN);
+        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_WV_SLC);
 
         isInValidDecodeQualification(TestSentinel1ETADProductReader.inputS1ETAD_IW);
         isInValidDecodeQualification(TestSentinel1ETADProductReader.inputS1ETAD_SM);

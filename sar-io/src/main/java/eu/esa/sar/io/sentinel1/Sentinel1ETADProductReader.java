@@ -19,8 +19,10 @@ import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -91,6 +93,7 @@ public class Sentinel1ETADProductReader extends SARReader {
             addCommonSARMetadata(product);
 
             setQuicklookBandName(product);
+            setBandGrouping(product);
 
             product.setModified(false);
 
@@ -100,6 +103,18 @@ public class Sentinel1ETADProductReader extends SARReader {
         }
 
         return null;
+    }
+
+    private void setBandGrouping(final Product product) {
+        MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+        String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+        if (product.getProductType().equals("ETAD") && mode != null) {
+            if (mode.equals("IW")) {
+                product.setAutoGrouping("IW1:IW2:IW3");
+            } else if (mode.equals("EW")) {
+                product.setAutoGrouping("EW1:EW2:EW3:EW4:EW5");
+            }
+        }
     }
 
     /**
