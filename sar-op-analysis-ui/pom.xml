@@ -8,7 +8,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>11.0.0-SNAPSHOT</version>
+        <version>11.0.0</version>
     </parent>
 
     <name>SAR Analysis Tools UI</name>
