@@ -651,63 +651,51 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
         final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
-        int numOfSubSwath;
-        switch (acquisitionMode) {
-            case "IW":
-                numOfSubSwath = 3;
-                break;
-            case "EW":
-                numOfSubSwath = 5;
-                break;
-            case "WV":
-                numOfSubSwath = 2;
-                break;
-            default:
-                numOfSubSwath = 1;
-        }
 
         if (product.getNumBands() > 0) {
-            Band firstSWBand = product.getBandAt(0);
-            Band lastSWBand = product.getBandAt(product.getNumBands() - 1);
+            if(!acquisitionMode.equals("WV")) {
+                Band firstSWBand = product.getBandAt(0);
+                Band lastSWBand = product.getBandAt(product.getNumBands() - 1);
 
-            String firstSWName = firstSWBand.getName().substring(firstSWBand.getName().indexOf(acquisitionMode), firstSWBand.getName().lastIndexOf('_')) + '_';
-            String lastSWName = lastSWBand.getName().substring(lastSWBand.getName().indexOf(acquisitionMode), lastSWBand.getName().lastIndexOf('_')) + '_';
+                String firstSWName = firstSWBand.getName().substring(firstSWBand.getName().indexOf(acquisitionMode), firstSWBand.getName().lastIndexOf('_')) + '_';
+                String lastSWName = lastSWBand.getName().substring(lastSWBand.getName().indexOf(acquisitionMode), lastSWBand.getName().lastIndexOf('_')) + '_';
 
-            final GeoCoding firstSWBandGeoCoding = bandGeocodingMap.get(firstSWName);
-            final int firstSWBandHeight = firstSWBand.getRasterHeight();
+                final GeoCoding firstSWBandGeoCoding = bandGeocodingMap.get(firstSWName);
+                final int firstSWBandHeight = firstSWBand.getRasterHeight();
 
-            final GeoCoding lastSWBandGeoCoding = bandGeocodingMap.get(lastSWName);
-            final int lastSWBandWidth = lastSWBand.getRasterWidth();
-            final int lastSWBandHeight = lastSWBand.getRasterHeight();
+                final GeoCoding lastSWBandGeoCoding = bandGeocodingMap.get(lastSWName);
+                final int lastSWBandWidth = lastSWBand.getRasterWidth();
+                final int lastSWBandHeight = lastSWBand.getRasterHeight();
 
-            final PixelPos ulPix = new PixelPos(0, 0);
-            final PixelPos llPix = new PixelPos(0, firstSWBandHeight - 1);
-            final GeoPos ulGeo = new GeoPos();
-            final GeoPos llGeo = new GeoPos();
-            firstSWBandGeoCoding.getGeoPos(ulPix, ulGeo);
-            firstSWBandGeoCoding.getGeoPos(llPix, llGeo);
+                final PixelPos ulPix = new PixelPos(0, 0);
+                final PixelPos llPix = new PixelPos(0, firstSWBandHeight - 1);
+                final GeoPos ulGeo = new GeoPos();
+                final GeoPos llGeo = new GeoPos();
+                firstSWBandGeoCoding.getGeoPos(ulPix, ulGeo);
+                firstSWBandGeoCoding.getGeoPos(llPix, llGeo);
 
-            final PixelPos urPix = new PixelPos(lastSWBandWidth - 1, 0);
-            final PixelPos lrPix = new PixelPos(lastSWBandWidth - 1, lastSWBandHeight - 1);
-            final GeoPos urGeo = new GeoPos();
-            final GeoPos lrGeo = new GeoPos();
-            lastSWBandGeoCoding.getGeoPos(urPix, urGeo);
-            lastSWBandGeoCoding.getGeoPos(lrPix, lrGeo);
+                final PixelPos urPix = new PixelPos(lastSWBandWidth - 1, 0);
+                final PixelPos lrPix = new PixelPos(lastSWBandWidth - 1, lastSWBandHeight - 1);
+                final GeoPos urGeo = new GeoPos();
+                final GeoPos lrGeo = new GeoPos();
+                lastSWBandGeoCoding.getGeoPos(urPix, urGeo);
+                lastSWBandGeoCoding.getGeoPos(lrPix, lrGeo);
 
-            final float[] latCorners = {(float) ulGeo.getLat(), (float) urGeo.getLat(), (float) llGeo.getLat(), (float) lrGeo.getLat()};
-            final float[] lonCorners = {(float) ulGeo.getLon(), (float) urGeo.getLon(), (float) llGeo.getLon(), (float) lrGeo.getLon()};
+                final float[] latCorners = {(float) ulGeo.getLat(), (float) urGeo.getLat(), (float) llGeo.getLat(), (float) lrGeo.getLat()};
+                final float[] lonCorners = {(float) ulGeo.getLon(), (float) urGeo.getLon(), (float) llGeo.getLon(), (float) lrGeo.getLon()};
 
-            ReaderUtils.addGeoCoding(product, latCorners, lonCorners);
+                ReaderUtils.addGeoCoding(product, latCorners, lonCorners);
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, ulGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, ulGeo.getLon());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, urGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, urGeo.getLon());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, ulGeo.getLat());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, ulGeo.getLon());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, urGeo.getLat());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, urGeo.getLon());
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, llGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, llGeo.getLon());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, lrGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lrGeo.getLon());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, llGeo.getLat());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, llGeo.getLon());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, lrGeo.getLat());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lrGeo.getLon());
+            }
 
             // add band geocoding
             final Band[] bands = product.getBands();
