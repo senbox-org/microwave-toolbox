@@ -207,7 +207,7 @@ public class BaseCalibrator {
             targetBandI.setNoDataValueUsed(true);
             targetBandI.setNoDataValue(srcBandI.getNoDataValue());
 
-            if(srcBandI.getGeoCoding() != null) {
+            if(srcBandI.hasGeoCoding()) {
                 // copy band geocoding after target band added to target product
                 ProductUtils.copyGeoCoding(srcBandI, targetBandI);
             }
@@ -218,7 +218,7 @@ public class BaseCalibrator {
             targetBandQ.setNoDataValueUsed(true);
             targetBandQ.setNoDataValue(srcBandQ.getNoDataValue());
 
-            if(srcBandQ.getGeoCoding() != null) {
+            if(srcBandQ.hasGeoCoding()) {
                 // copy band geocoding after target band added to target product
                 ProductUtils.copyGeoCoding(srcBandQ, targetBandQ);
             }
@@ -289,7 +289,7 @@ public class BaseCalibrator {
                     targetBand.setNoDataValueUsed(srcBand.isNoDataValueUsed());
                     targetProduct.addBand(targetBand);
 
-                    if(srcBand.getGeoCoding() != null) {
+                    if(srcBand.hasGeoCoding()) {
                         // copy band geocoding after target band added to target product
                         ProductUtils.copyGeoCoding(srcBand, targetBand);
                     }

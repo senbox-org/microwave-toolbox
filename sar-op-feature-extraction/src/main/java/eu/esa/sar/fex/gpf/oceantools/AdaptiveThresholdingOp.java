@@ -95,8 +95,6 @@ public class AdaptiveThresholdingOp extends Operator {
     @Parameter(description = "Rough estimation of background threshold for quicker processing", defaultValue = "false", label = "Estimate background")
     private Boolean estimateBackground = false;
 
-    private int sourceImageWidth;
-    private int sourceImageHeight;
     private int targetWindowSize;
     private int halfTargetWindowSize;
     private int halfGuardWindowSize;
@@ -128,9 +126,6 @@ public class AdaptiveThresholdingOp extends Operator {
             validator.checkIfCalibrated(true);
             validator.checkIfTOPSARBurstProduct(false);
 
-            sourceImageWidth = sourceProduct.getSceneRasterWidth();
-            sourceImageHeight = sourceProduct.getSceneRasterHeight();
-
             getMeanPixelSpacing();
 
             targetWindowSize = Math.max(1, (int) (targetWindowSizeInMeter / meanPixelSpacing) + 1);
@@ -142,9 +137,9 @@ public class AdaptiveThresholdingOp extends Operator {
             halfBackgroundWindowSize = (backgroundWindowSize - 1) / 2;
 
             targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
-                                        sourceProduct.getProductType(),
-                                        sourceImageWidth,
-                                        sourceImageHeight);
+                    sourceProduct.getProductType(),
+                    sourceProduct.getSceneRasterWidth(),
+                    sourceProduct.getSceneRasterHeight());
 
             ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
@@ -197,8 +192,8 @@ public class AdaptiveThresholdingOp extends Operator {
      * @throws OperatorException The exceptions.
      */
     private double getIncidenceAngleAtCentreRangePixel() throws OperatorException {
-        final int x = sourceImageWidth / 2;
-        final int y = sourceImageHeight / 2;
+        final int x = sourceProduct.getSceneRasterWidth() / 2;
+        final int y = sourceProduct.getSceneRasterHeight() / 2;
         final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
         if (incidenceAngle == null) {
             throw new OperatorException("incidence_angle tie point grid not found in product");
@@ -257,17 +252,17 @@ public class AdaptiveThresholdingOp extends Operator {
 
                 if (!targetProduct.containsBand(srcBandName)) {
                     final Band targetBand = ProductUtils.copyBand(srcBandName, sourceProduct, targetProduct, true);
+
+                    final Band targetBandMask = new Band(targetBandName,
+                            ProductData.TYPE_INT8,
+                            targetBand.getRasterWidth(),
+                            targetBand.getRasterHeight());
+
+                    targetBandMask.setUnit(Unit.AMPLITUDE);
+                    targetBandMask.setNoDataValue(0);
+                    targetBandMask.setNoDataValueUsed(true);
+                    targetProduct.addBand(targetBandMask);
                 }
-
-                final Band targetBandMask = new Band(targetBandName,
-                                                     ProductData.TYPE_INT8,
-                                                     sourceImageWidth,
-                                                     sourceImageHeight);
-
-                targetBandMask.setUnit(Unit.AMPLITUDE);
-                targetBandMask.setNoDataValue(0);
-                targetBandMask.setNoDataValueUsed(true);
-                targetProduct.addBand(targetBandMask);
             }
         }
     }
@@ -303,8 +298,8 @@ public class AdaptiveThresholdingOp extends Operator {
             } else {
                 x0 = Math.max(tx0 - halfBackgroundWindowSize, 0);
                 y0 = Math.max(ty0 - halfBackgroundWindowSize, 0);
-                w = Math.min(tx0 + tw - 1 + halfBackgroundWindowSize, sourceImageWidth - 1) - x0 + 1;
-                h = Math.min(ty0 + th - 1 + halfBackgroundWindowSize, sourceImageHeight - 1) - y0 + 1;
+                w = Math.min(tx0 + tw - 1 + halfBackgroundWindowSize, targetBand.getRasterWidth() - 1) - x0 + 1;
+                h = Math.min(ty0 + th - 1 + halfBackgroundWindowSize, targetBand.getRasterHeight() - 1) - y0 + 1;
                 sourceTileRectangle = new Rectangle(x0, y0, w, h);
             }
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);

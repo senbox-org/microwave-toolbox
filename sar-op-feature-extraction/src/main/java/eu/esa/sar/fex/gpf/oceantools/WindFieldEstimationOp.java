@@ -118,14 +118,10 @@ public class WindFieldEstimationOp extends Operator {
 
     private int windowSize = 0;
     private int halfWindowSize = 0;
-    private int sourceImageWidth = 0;
-    private int sourceImageHeight = 0;
 
     private double rangeSpacing = 0.0;
     private double azimuthSpacing = 0.0;
 
-    private TiePointGrid latitudeTPG = null;
-    private TiePointGrid longitudeTPG = null;
     private TiePointGrid incidenceAngle = null;
 
     private MetadataElement absRoot = null;
@@ -154,14 +150,9 @@ public class WindFieldEstimationOp extends Operator {
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
-            sourceImageWidth = sourceProduct.getSceneRasterWidth();
-            sourceImageHeight = sourceProduct.getSceneRasterHeight();
-
             rangeSpacing = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.range_spacing);
             azimuthSpacing = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.azimuth_spacing);
 
-            latitudeTPG = OperatorUtils.getLatitude(sourceProduct);
-            longitudeTPG = OperatorUtils.getLongitude(sourceProduct);
             incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
             if(incidenceAngle == null) {
                 throw new OperatorException("Incidence Angle Tie Point Grid required.");
@@ -241,8 +232,8 @@ public class WindFieldEstimationOp extends Operator {
 
             final Band targetBand = new Band(srcBandName,
                     srcBand.getDataType(),
-                    sourceImageWidth,
-                    sourceImageHeight);
+                    srcBand.getRasterWidth(),
+                    srcBand.getRasterHeight());
 
             targetBand.setNoDataValueUsed(true);
             targetBand.setNoDataValue(srcBand.getNoDataValue());
@@ -283,6 +274,7 @@ public class WindFieldEstimationOp extends Operator {
         final List<WindFieldRecord> windFieldRecordList = new ArrayList<>();
 
         final Band sourceBand = sourceProduct.getBand(targetBandName);
+        final GeoCoding srcGeoCoding = sourceBand.getGeoCoding();
         final double noDataValue = sourceBand.getNoDataValue();
         final String pol = OperatorUtils.getBandPolarization(targetBandName, absRoot);
         Tile sourceTile;
@@ -320,13 +312,16 @@ public class WindFieldEstimationOp extends Operator {
             for (int x = xStart; x < maxX; x += windowSize) {
 
                 // get source data for the frame
-                final Rectangle sourceTileRectangle = getSourceRectangle(x, y);
+                final Rectangle sourceTileRectangle = getSourceRectangle(x, y,
+                        targetBand.getRasterWidth(), targetBand.getRasterHeight());
                 if (sourceTileRectangle == null) {
                     continue;
                 }
 
-                final double lat = latitudeTPG.getPixelDouble(x, y);
-                final double lon = longitudeTPG.getPixelDouble(x, y);
+
+                final GeoPos geoPos = srcGeoCoding.getGeoPos(new PixelPos(x, y), null);
+                final double lat = geoPos.lat;
+                final double lon = geoPos.lon;
                 final double theta = incidenceAngle.getPixelDouble(x, y);
 
                 sourceTile = getSourceTile(sourceBand, sourceTileRectangle);
@@ -372,7 +367,8 @@ public class WindFieldEstimationOp extends Operator {
      * @param y The y coordinate of the given pixel.
      * @return The rectangle.
      */
-    private Rectangle getSourceRectangle(final int x, final int y) {
+    private Rectangle getSourceRectangle(final int x, final int y,
+                                         int sourceImageWidth, int sourceImageHeight) {
         final int x0 = x - halfWindowSize;
         final int y0 = y - halfWindowSize;
         final int w = windowSize;
@@ -889,7 +885,7 @@ public class WindFieldEstimationOp extends Operator {
      * @param theta     The incidence angle in degree.
      * @return The wind speed in m/s.
      */
-    private static double estimateWindSpeed(final double nrcs, final double[] direction, final double theta) {
+    static double estimateWindSpeed(final double nrcs, final double[] direction, final double theta) {
 
         final double fi = Math.atan2(direction[1], direction[0]) * Constants.RTOD;
         final double cosFI = FastMath.cos(fi * Constants.DTOR);
