@@ -78,11 +78,7 @@ public class Sentinel1GDALProductDirectory extends XMLProductDirectory {
         Product bandProduct;
         Dimension bandDimensions;
     }
-
-    public ReaderData getReaderData(final String bandName) {
-        return bandNameReaderDataMap.get(bandName);
-    }
-
+    
     @Override
     public void close() throws IOException {
         super.close();
@@ -1014,18 +1010,5 @@ public class Sentinel1GDALProductDirectory extends XMLProductDirectory {
         ReaderUtils.addMetadataProductSize(product);
 
         return product;
-    }
-
-    private MetadataElement getMetadataObject(final MetadataElement origProdRoot, final String metadataObjectName) {
-
-        final MetadataElement metadataSection = origProdRoot.getElement("XFDU").getElement("metadataSection");
-        final MetadataElement[] metadataObjects = metadataSection.getElements();
-
-        for (MetadataElement elem : metadataObjects) {
-            if (elem.getAttribute("ID").getData().getElemString().equals(metadataObjectName)) {
-                return elem;
-            }
-        }
-        return null;
     }
 }
