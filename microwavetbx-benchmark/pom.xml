@@ -61,6 +61,11 @@
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io-gdal</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-calibration</artifactId>
             <scope>test</scope>
         </dependency>

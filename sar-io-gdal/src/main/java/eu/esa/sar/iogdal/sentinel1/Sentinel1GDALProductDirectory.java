@@ -60,7 +60,7 @@ import static org.esa.snap.engine_utilities.datamodel.AbstractMetadata.NO_METADA
 /**
  * This class represents a product directory.
  */
-public class Sentinel1ProductDirectory extends XMLProductDirectory {
+public class Sentinel1GDALProductDirectory extends XMLProductDirectory {
 
     private static final GTiffDriverProductReaderPlugIn readerPlugin = new GTiffDriverProductReaderPlugIn();
     private final Map<String, ReaderData> bandProductMap = new HashMap<>();
@@ -78,11 +78,7 @@ public class Sentinel1ProductDirectory extends XMLProductDirectory {
         Product bandProduct;
         Dimension bandDimensions;
     }
-
-    public ReaderData getReaderData(final String bandName) {
-        return bandNameReaderDataMap.get(bandName);
-    }
-
+    
     @Override
     public void close() throws IOException {
         super.close();
@@ -94,12 +90,12 @@ public class Sentinel1ProductDirectory extends XMLProductDirectory {
         }
     }
 
-    public Sentinel1ProductDirectory(final File inputFile) {
+    public Sentinel1GDALProductDirectory(final File inputFile) {
         super(inputFile);
     }
 
     protected String getHeaderFileName() {
-        return Sentinel1ProductReaderPlugIn.PRODUCT_HEADER_NAME;
+        return Sentinel1GDALProductReaderPlugIn.PRODUCT_HEADER_NAME;
     }
 
     protected String getRelativePathToImageFolder() {
@@ -1014,18 +1010,5 @@ public class Sentinel1ProductDirectory extends XMLProductDirectory {
         ReaderUtils.addMetadataProductSize(product);
 
         return product;
-    }
-
-    private MetadataElement getMetadataObject(final MetadataElement origProdRoot, final String metadataObjectName) {
-
-        final MetadataElement metadataSection = origProdRoot.getElement("XFDU").getElement("metadataSection");
-        final MetadataElement[] metadataObjects = metadataSection.getElements();
-
-        for (MetadataElement elem : metadataObjects) {
-            if (elem.getAttribute("ID").getData().getElemString().equals(metadataObjectName)) {
-                return elem;
-            }
-        }
-        return null;
     }
 }

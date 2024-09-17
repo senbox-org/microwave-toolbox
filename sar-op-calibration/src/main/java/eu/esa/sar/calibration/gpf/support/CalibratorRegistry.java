@@ -53,7 +53,7 @@ public class CalibratorRegistry {
     }
 
     public Calibrator[] getAllCalibrators() {
-        return calibrators.getServices().toArray(new Calibrator[calibrators.getServices().size()]);
+        return calibrators.getServices().toArray(new Calibrator[0]);
     }
 
     // Initialization on demand holder idiom

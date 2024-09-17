@@ -163,7 +163,7 @@ public class SpeckleDivergenceOp extends Operator {
                     srcBandNameList.add(band.getName());
                 }
             }
-            sourceBands = srcBandNameList.toArray(new String[srcBandNameList.size()]);
+            sourceBands = srcBandNameList.toArray(new String[0]);
         }
 
         final Band[] srcBands = new Band[sourceBands.length];

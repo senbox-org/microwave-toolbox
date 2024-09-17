@@ -20,6 +20,7 @@ import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assume.assumeTrue;
@@ -27,10 +28,11 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Validates input products using commonly used verifications
  */
+@Ignore("Handled by S1 Reader")
 public class TestS1GRDInputProductValidator extends ReaderTest {
 
     public TestS1GRDInputProductValidator() {
-        super(new Sentinel1ProductReaderPlugIn());
+        super(new Sentinel1GDALProductReaderPlugIn());
     }
 
     @Before

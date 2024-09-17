@@ -17,7 +17,7 @@ package eu.esa.sar.iogdal.sentinel1;
 
 import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.TestData;
-import eu.esa.sar.iogdal.AbstractProductReaderPlugInTest;
+import eu.esa.sar.iogdal.AbstractProductReaderPlugInGDALTest;
 import org.esa.snap.core.dataio.ProductReader;
 import org.junit.Test;
 
@@ -25,17 +25,17 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public class TestSentinel1ProductReaderPlugIn extends AbstractProductReaderPlugInTest {
+public class TestSentinel1GDALProductReaderPlugIn extends AbstractProductReaderPlugInGDALTest {
 
-    public TestSentinel1ProductReaderPlugIn() {
-        super(new Sentinel1ProductReaderPlugIn());
+    public TestSentinel1GDALProductReaderPlugIn() {
+        super(new Sentinel1GDALProductReaderPlugIn());
     }
 
     @Test
     public void testCreateReaderInstance() {
         ProductReader productReader = plugin.createReaderInstance();
         assertNotNull(productReader);
-        assertTrue(productReader instanceof Sentinel1ProductReader);
+        assertTrue(productReader instanceof Sentinel1GDALProductReader);
     }
 
     @Test
@@ -61,11 +61,11 @@ public class TestSentinel1ProductReaderPlugIn extends AbstractProductReaderPlugI
     @Test
     @STTM("SNAP-3588")
     public void testValidDecodeQualification() {
-        isValidDecodeQualification(TestData.inputS1_GRD);
-        isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD);
-        isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD_ZIP);
-        isValidDecodeQualification(TestSentinel1ProductReader.inputS1_COGGRD_COMPRESSED_ZIP);
+        isValidDecodeQualification(TestSentinel1GDALProductReader.inputS1_COGGRD);
+        isValidDecodeQualification(TestSentinel1GDALProductReader.inputS1_COGGRD_ZIP);
+        isValidDecodeQualification(TestSentinel1GDALProductReader.inputS1_COGGRD_COMPRESSED_ZIP);
 
+        isInValidDecodeQualification(TestData.inputS1_GRD);
         isInValidDecodeQualification(TestData.inputS1_SLC);
     }
 }

@@ -34,9 +34,7 @@ import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
-import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
-import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
@@ -44,7 +42,6 @@ import org.esa.snap.engine_utilities.gpf.*;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Map;
 
 /**
@@ -186,8 +183,8 @@ public class S1ETADCorrectionOp extends Operator {
             throw new OperatorException("No correction layer is selected");
         }
 
-        if (outputPhaseCorrections && !(acquisitionMode.equals("IW") && productType.equals("SLC"))) {
-            throw new OperatorException("Option 2 is for Sentinel-1 TOPS SLC product only");
+        if (outputPhaseCorrections && !((acquisitionMode.equals("IW") || acquisitionMode.equals("SM")) && productType.equals("SLC"))) {
+            throw new OperatorException("Option 2 is for Sentinel-1 IW SLC and SM SLC product only");
         }
     }
 

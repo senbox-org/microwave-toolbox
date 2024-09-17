@@ -36,8 +36,6 @@ import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 
-import static Jama.Matrix.constructWithCopy;
-
 /**
  * ETAD corrector for split Sentinel-1 TOPS SLC products.
  * The reason that the operator cannot take the original Sentinel-1 product with 3 sub-swaths as input is because

@@ -31,8 +31,9 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestS1OCNInputProductValidator extends ReaderTest {
 
-    public final static File inputS1_IW_metaOCN = new File(TestData.inputSAR+"S1/OCN/S1A_IW_OCN__2SDV_20170317T221705_20170317T221730_015738_019E85_FACA.zip");
-    public final static File inputS1_WV_metaOCN = new File(TestData.inputSAR+"S1/OCN/S1A_WV_OCN__2SSV_20150630T131602_20150630T133818_006603_008CD6_19BF.zip");
+    public final static File inputS1_IW_OCN = new File(TestData.inputSAR+"S1/OCN/S1A_IW_OCN__2SDV_20170317T221705_20170317T221730_015738_019E85_FACA.zip");
+    public final static File inputS1_WV_OCN = new File(TestData.inputSAR+"S1/OCN/S1A_WV_OCN__2SSV_20150630T131602_20150630T133818_006603_008CD6_19BF.zip");
+    public final static File inputS1_WV_SLC = new File(TestData.inputSAR+"S1/OCN/S1A_WV_SLC__1SSV_20240818T071513_20240818T071530_055264_06BCBE_F4BF.SAFE.zip");
 
     public TestS1OCNInputProductValidator() {
         super(new Sentinel1ProductReaderPlugIn());
@@ -41,13 +42,14 @@ public class TestS1OCNInputProductValidator extends ReaderTest {
     @Before
     public void setUp() {
         // If any of the file does not exist: the test will be ignored
-        assumeTrue(inputS1_IW_metaOCN + " not found", inputS1_IW_metaOCN.exists());
-        assumeTrue(inputS1_WV_metaOCN + " not found", inputS1_WV_metaOCN.exists());
+        assumeTrue(inputS1_IW_OCN + " not found", inputS1_IW_OCN.exists());
+        assumeTrue(inputS1_WV_OCN + " not found", inputS1_WV_OCN.exists());
+        assumeTrue(inputS1_WV_SLC + " not found", inputS1_WV_SLC.exists());
     }
 
     @Test
     public void TestSentinel1_IW_OCNProduct() throws Exception {
-        try(final Product sourceProduct = testReader(inputS1_IW_metaOCN.toPath())) {
+        try(final Product sourceProduct = testReader(inputS1_IW_OCN.toPath())) {
             if (sourceProduct != null) {
                 final InputProductValidator validator = new InputProductValidator(sourceProduct);
 
@@ -59,18 +61,31 @@ public class TestS1OCNInputProductValidator extends ReaderTest {
         }
     }
 
-//    @Test
-//    public void TestSentinel1_WV_OCNProduct() throws Exception {
-//        final Product sourceProduct = testReader(inputS1_WV_metaOCN.toPath());
-//        if(sourceProduct != null) {
-//            final InputProductValidator validator = new InputProductValidator(sourceProduct);
-//
-//            validator.checkIfSentinel1Product();
-//            validator.checkProductType(new String[]{"OCN"});
-//            validator.checkIfTOPSARBurstProduct(false);
-//            validator.checkAcquisitionMode(new String[]{"WV"});
-//        }
-//    }
+    @Test
+    public void TestSentinel1_WV_OCNProduct() throws Exception {
+        final Product sourceProduct = testReader(inputS1_WV_OCN.toPath());
+        if(sourceProduct != null) {
+            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+
+            validator.checkIfSentinel1Product();
+            validator.checkProductType(new String[]{"OCN"});
+            validator.checkIfTOPSARBurstProduct(false);
+            validator.checkAcquisitionMode(new String[]{"WV"});
+        }
+    }
+
+    @Test
+    public void TestSentinel1_WV_SLCProduct() throws Exception {
+        final Product sourceProduct = testReader(inputS1_WV_SLC.toPath());
+        if(sourceProduct != null) {
+            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+
+            validator.checkIfSentinel1Product();
+            validator.checkProductType(new String[]{"SLC"});
+            validator.checkIfTOPSARBurstProduct(false);
+            validator.checkAcquisitionMode(new String[]{"WV"});
+        }
+    }
 }
 
 

@@ -286,7 +286,7 @@ public final class CompactPolStokesParametersOp extends Operator implements Comp
             targetBandNameList.add("PhasePhi");
         }
 
-        return targetBandNameList.toArray(new String[targetBandNameList.size()]);
+        return targetBandNameList.toArray(new String[0]);
     }
 
     /**

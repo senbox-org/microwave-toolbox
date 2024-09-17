@@ -18,10 +18,8 @@ package eu.esa.sar.iogdal.sentinel1;
 import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
-import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -34,19 +32,12 @@ import static org.junit.Assume.assumeTrue;
  *
  * @author lveci
  */
-public class TestSentinel1ProductReader extends ReaderTest {
+public class TestSentinel1GDALProductReader extends ReaderTest {
 
     public final static File inputS1_COGGRD = new File(TestData.inputSAR+"S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE/manifest.safe");
     public final static File inputS1_COGGRD_ZIP = new File(TestData.inputSAR+"S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE.zip");
     public final static File inputGRDFolder = new File(TestData.inputSAR+"S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE");
     public final static File inputS1_COGGRD_COMPRESSED_ZIP = new File(TestData.inputSAR+"S1/COG/S1A_IW_GRDH_1SDV_20231030T181230_20231030T181255_050998_062611_D4AC_COG.SAFE.zip");
-
-    public final static File inputS1_IW_SLC_ZIP = new File(TestData.inputSAR+"S1/SLC/Etna-DLR/S1A_IW_SLC__1SDV_20140809T165546_20140809T165613_001866_001C20_088B.zip");
-
-    private final String[] productTypeExemptions = {"RAW","OCN"};
-
-    private final static String inputS1 = SARTests.inputPathProperty + "/SAR/S1/";
-    private final static File[] rootPathsSentinel1 = SARTests.loadFilePath(inputS1);
 
     final static ProductValidator.Options productOptions = new ProductValidator.Options();
 
@@ -60,20 +51,10 @@ public class TestSentinel1ProductReader extends ReaderTest {
         productOptions.verifyBands = false;
     }
 
-    public TestSentinel1ProductReader() {
-        super(new Sentinel1ProductReaderPlugIn());
+    public TestSentinel1GDALProductReader() {
+        super(new Sentinel1GDALProductReaderPlugIn());
     }
 
-    /**
-     * Open all files in a folder recursively
-     *
-     * @throws Exception anything
-     */
-    @Test
-    public void testOpenAll() throws Exception {
-        TestProcessor testProcessor = SARTests.createTestProcessor();
-        testProcessor.recurseReadFolder(this, rootPathsSentinel1, readerPlugIn, reader, productTypeExemptions, null);
-    }
 
     @Test
     public void testOpeningFile() throws Exception {

@@ -18,7 +18,6 @@ package eu.esa.microwave.dat.preferences;
 import org.esa.snap.rcp.SnapApp;
 import org.esa.snap.runtime.Config;
 import org.openide.awt.Mnemonics;
-import org.openide.util.NbBundle;
 
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;

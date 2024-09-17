@@ -24,12 +24,10 @@ import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.core.datamodel.quicklooks.Quicklook;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
-import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
@@ -144,37 +142,6 @@ public class Radarsat2ProductReader extends SARReader {
             SystemUtils.LOG.severe("Unable to load quicklook " + dataDir.getProductName());
         }
         return null;
-    }
-
-    private static void addPauliQuicklooks(final Product product) {
-        final InputProductValidator validator = new InputProductValidator(product);
-        if(validator.isFullPolSLC()) {
-            final Band[] pauliBands = pauliVirtualBands(product);
-            product.getQuicklookGroup().add(new Quicklook(product, "Pauli", pauliBands));
-        }
-    }
-
-    public static Band[] pauliVirtualBands(final Product product) {
-
-        final VirtualBand r = new VirtualBand("pauli_r",
-                                              ProductData.TYPE_FLOAT32,
-                                              product.getSceneRasterWidth(),
-                                              product.getSceneRasterHeight(),
-                                              "((i_HH-i_VV)*(i_HH-i_VV)+(q_HH-q_VV)*(q_HH-q_VV))/2");
-
-        final VirtualBand g = new VirtualBand("pauli_g",
-                                              ProductData.TYPE_FLOAT32,
-                                              product.getSceneRasterWidth(),
-                                              product.getSceneRasterHeight(),
-                                              "((i_HV+i_VH)*(i_HV+i_VH)+(q_HV+q_VH)*(q_HV+q_VH))/2");
-
-        final VirtualBand b = new VirtualBand("pauli_b",
-                                              ProductData.TYPE_FLOAT32,
-                                              product.getSceneRasterWidth(),
-                                              product.getSceneRasterHeight(),
-                                              "((i_HH+i_VV)*(i_HH+i_VV)+(q_HH+q_VV)*(q_HH+q_VV))/2");
-
-        return new Band[] {r, g, b};
     }
 
     /**
@@ -351,7 +318,7 @@ public class Radarsat2ProductReader extends SARReader {
                                          final int destWidth, final int destHeight,
                                          final int imageID, final ImageIOFile img,
                                          final int bandSampleOffset,
-                                         final boolean isAntennaPointingRight) throws IOException {
+                                         final boolean isAntennaPointingRight) {
 
         final Raster data;
     try {

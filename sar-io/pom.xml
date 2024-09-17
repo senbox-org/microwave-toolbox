@@ -53,10 +53,6 @@
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-cloud</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
 
@@ -67,11 +63,18 @@
         <dependency>
             <groupId>uk.me.jstott</groupId>
             <artifactId>jcoord</artifactId>
-            <version>1.0</version>
+            <version>${jcoord.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>ceres-core</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
         </dependency>
     </dependencies>
     

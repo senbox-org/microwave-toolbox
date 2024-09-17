@@ -260,37 +260,39 @@ public final class SubtRefDemOp extends Operator {
     private void masterMetaMapPut(final MetadataElement mstRoot, final Product product,
                                   final Map<String, CplxContainer> map) throws Exception {
 
-        final String mapKey = Integer.toString(mstRoot.getAttributeInt(AbstractMetadata.ABS_ORBIT));
         final String date = OperatorUtils.getAcquisitionDate(mstRoot);
         final Orbit orbit = new Orbit(mstRoot, orbitDegree);
         final SLCImage meta = new SLCImage(mstRoot, product);
         meta.setMlAz(1);
         meta.setMlRg(1);
 
-        Band bandReal = null;
-        Band bandImag = null;
+        for (String polarisation : polarisations) {
+            final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
+            String mapKey = mstRoot.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
 
-        final String pol = polarisations[0].isEmpty() ? "" : '_' + polarisations[0].toUpperCase();
-        for (String bandName : product.getBandNames()) {
-            if (bandName.contains("ifg") && bandName.contains(date)) {
-                if (pol.isEmpty() || bandName.contains(pol)) {
-                    final Band band = product.getBand(bandName);
-                    if (BandUtilsDoris.isBandReal(band)) {
-                        bandReal = band;
-                    } else if (BandUtilsDoris.isBandImag(band)) {
-                        bandImag = band;
-                    }
+            Band bandReal = null;
+            Band bandImag = null;
+            for (String bandName : product.getBandNames()) {
+                if (bandName.contains("ifg") && bandName.contains(date)) {
+                    if (pol.isEmpty() || bandName.contains(pol)) {
+                        final Band band = product.getBand(bandName);
+                        if (BandUtilsDoris.isBandReal(band)) {
+                            bandReal = band;
+                        } else if (BandUtilsDoris.isBandImag(band)) {
+                            bandImag = band;
+                        }
 
-                    if (bandReal != null && bandImag != null) {
-                        break;
+                        if (bandReal != null && bandImag != null) {
+                            break;
+                        }
                     }
                 }
             }
+            if (bandReal == null || bandImag == null) {
+                throw new OperatorException("Product must be interferogram");
+            }
+            map.put(mapKey, new CplxContainer(date, meta, orbit, bandReal, bandImag));
         }
-        if (bandReal == null || bandImag == null) {
-            throw new OperatorException("Product must be interferogram");
-        }
-        map.put(mapKey, new CplxContainer(date, meta, orbit, bandReal, bandImag));
     }
 
     private void slaveMetaMapPut(final MetadataElement mstRoot, final MetadataElement slvRoot,
@@ -424,7 +426,7 @@ public final class SubtRefDemOp extends Operator {
 
             String slvProductName = StackUtils.findOriginalSlaveProductName(sourceProduct, container.sourceSlave.realBand);
             StackUtils.saveSlaveProductBandNames(targetProduct, slvProductName,
-                                                 targetBandNames.toArray(new String[targetBandNames.size()]));
+                                                 targetBandNames.toArray(new String[0]));
         }
 
         if (outputElevationBand) {

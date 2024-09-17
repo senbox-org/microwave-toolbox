@@ -28,84 +28,115 @@ import org.junit.Test;
 
 import java.io.File;
 
+
 public class TestBenchmark_ReadWrite extends BaseBenchmarks {
 
+    public TestBenchmark_ReadWrite() {
+        super("ReadWrite");
+    }
+
+    // GRD
     @Test
-    public void testGRD_read_write() throws Exception {
-        Benchmark b = new Benchmark("GRD_read_write") {
-            @Override
-            protected void execute() throws Exception {
-                final Product srcProduct = read(grdFile);
-                write(srcProduct, outputFolder, DIMAP);
-                srcProduct.dispose();
-            }
-        };
-        b.run();
+    public void testGRD_read_write_productIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(grdFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
-    public void testGRD_read_writeGPF() throws Exception {
-        Benchmark b = new Benchmark("GRD_read_writeGPF") {
-            @Override
-            protected void execute() throws Exception {
-                final Product srcProduct = read(grdFile);
-                writeGPF(srcProduct, outputFolder, DIMAP);
-                srcProduct.dispose();
-            }
-        };
-        b.run();
+    public void testGRD_read_write_GPF() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(grdFile, WriteMode.GPF);
+    }
+
+    @Test
+    public void testGRD_read_write_Graph() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(grdZipFile, WriteMode.GRAPH);
+    }
+
+    // GRD ZIP
+    @Test
+    public void testGRDZIP_read_write_productIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(grdFile, WriteMode.PRODUCT_IO);
+    }
+
+    @Test
+    public void testGRDZIP_read_write_GPF() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(grdZipFile, WriteMode.GPF);
     }
 
     @Test
     @Ignore
-    public void testGRD_read_writeGraph() throws Exception {
-        Benchmark b = new Benchmark("GRD_read_write Graph") {
-            @Override
-            protected void execute() throws Exception {
-                processReadWriteGraph(grdFile, outputFolder);
-            }
-        };
-        b.run();
+    public void testGRDZIP_read_write_Graph() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(grdZipFile, WriteMode.GRAPH);
+    }
+
+    // SLC
+    @Test
+    public void testSLC_read_write_ProductIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(slcFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
-    public void testQP_read_write() throws Exception {
-        Benchmark b = new Benchmark("QP Read_ProductIO.Write") {
-            @Override
-            protected void execute() throws Exception {
-                final Product srcProduct = read(qpFile);
-                write(srcProduct, outputFolder, DIMAP);
-                srcProduct.dispose();
-            }
-        };
-        b.run();
+    public void testSLC_read_write_GPF() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(slcFile, WriteMode.GPF);
     }
 
     @Test
-    public void testQP_read_writeGPF() throws Exception {
-        Benchmark b = new Benchmark("QP Read_WriteGPF") {
-            @Override
-            protected void execute() throws Exception {
-                final Product srcProduct = read(qpFile);
-                writeGPF(srcProduct, outputFolder, DIMAP);
-                srcProduct.dispose();
-            }
-        };
-        b.run();
+    public void testSLC_read_write_Graph() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(slcFile, WriteMode.GRAPH);
+    }
+
+    // RS2 QuadPol SLC
+    @Test
+    public void testQP_read_write_ProductIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(qpFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
-    public void testQP_read_writeGraph() throws Exception {
-        Benchmark b = new Benchmark("QP_read_write Graph") {
+    public void testQP_read_write_GPF() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(qpFile, WriteMode.GPF);
+    }
+
+    @Test
+    public void testQP_read_write_Graph() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        readWrite(qpFile, WriteMode.GRAPH);
+    }
+
+    private void readWrite(File srcFile, WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
             @Override
             protected void execute() throws Exception {
-                processReadWriteGraph(qpFile, outputFolder);
+                switch (mode) {
+                    case PRODUCT_IO:
+                        final Product srcProduct = read(srcFile);
+                        write(srcProduct, outputFolder, DIMAP);
+                        srcProduct.dispose();
+                        break;
+                    case GPF:
+                        final Product srcProductGPF = read(srcFile);
+                        writeGPF(srcProductGPF, outputFolder, DIMAP);
+                        srcProductGPF.dispose();
+                        break;
+                    case GRAPH:
+                        processReadWriteGraph(srcFile, outputFolder);
+                        break;
+                }
             }
         };
         b.run();
     }
 
-    public static void processReadWriteGraph(final File file, final File outputFolder) throws Exception {
+    private static void processReadWriteGraph(final File file, final File outputFolder) throws Exception {
 
         final Graph graph = new Graph("graph");
 

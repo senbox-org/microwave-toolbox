@@ -632,7 +632,7 @@ public final class SLCImage {
         return meta;
     }
 
-    public class SlaveWindow {
+    public static class SlaveWindow {
 
         public double l00, p00, l0N, p0N, lN0, pN0, lNN, pNN;
 

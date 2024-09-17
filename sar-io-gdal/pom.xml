@@ -41,12 +41,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.googlecode.json-simple</groupId>
-            <artifactId>json-simple</artifactId>
-            <version>${json-simple.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>lib-gdal</artifactId>
             <version>${snap.version}</version>
@@ -57,6 +51,12 @@
             <version>${snap.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>ceres-core</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
     </dependencies>
     
     <build>

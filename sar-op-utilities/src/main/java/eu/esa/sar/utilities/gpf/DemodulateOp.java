@@ -466,14 +466,10 @@ public class DemodulateOp extends Operator {
 
         if (azimuthTime <= dopplerCoefficientsTimes[0]) {
             // Use coefficients corresponding to first estimate
-            for (int j = 0; j < MAX_NR_DOPPLER_COEFFICIENTS; j++) {
-                dopplerCoefficientsToUse[j] = dopplerCoefficients[0][j];
-            }
+            System.arraycopy(dopplerCoefficients[0], 0, dopplerCoefficientsToUse, 0, MAX_NR_DOPPLER_COEFFICIENTS);
         } else if (azimuthTime > dopplerCoefficientsTimes[numberOfDopplerEstimates - 1]) {
             // Use coefficients corresponding to last estimate
-            for (int j = 0; j < MAX_NR_DOPPLER_COEFFICIENTS; j++) {
-                dopplerCoefficientsToUse[j] = dopplerCoefficients[numberOfDopplerEstimates - 1][j];
-            }
+            System.arraycopy(dopplerCoefficients[numberOfDopplerEstimates - 1], 0, dopplerCoefficientsToUse, 0, MAX_NR_DOPPLER_COEFFICIENTS);
         } else {
             // Use interpolated coefficients
             for (int i = 0; i < numberOfDopplerEstimates - 1; i++) {
