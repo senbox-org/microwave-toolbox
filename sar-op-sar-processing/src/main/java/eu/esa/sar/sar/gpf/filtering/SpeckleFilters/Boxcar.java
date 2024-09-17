@@ -40,8 +40,6 @@ public class Boxcar implements SpeckleFilter {
     private final int windowSizeY;
     private final int halfWindowSizeX;
     private final int halfWindowSizeY;
-    private final int sourceImageWidth;
-    private final int sourceImageHeight;
     private Map<String, String[]> targetBandNameToSourceBandName;
 
     public Boxcar(final Operator op, final Product srcProduct, final Product trgProduct, final int windowSizeX,
@@ -54,8 +52,6 @@ public class Boxcar implements SpeckleFilter {
         this.windowSizeY = windowSizeY;
         this.halfWindowSizeX = windowSizeX / 2;
         this.halfWindowSizeY = windowSizeY / 2;
-        this.sourceImageWidth = srcProduct.getSceneRasterWidth();
-        this.sourceImageHeight = srcProduct.getSceneRasterHeight();
         this.targetBandNameToSourceBandName = targetBandNameToSourceBandName;
     }
 
@@ -95,26 +91,22 @@ public class Boxcar implements SpeckleFilter {
             final int x0, final int y0, final int w, final int h, final String[] srcBandNames) {
 
         final double[][] filteredTile = new double[h][w];
+        Band sourceBand1 = sourceProduct.getBand(srcBandNames[0]);
+        int sourceImageWidth = sourceBand1.getRasterWidth();
+        int sourceImageHeight = sourceBand1.getRasterHeight();
 
         final Rectangle sourceTileRectangle = getSourceTileRectangle(
                 x0, y0, w, h, halfWindowSizeX, halfWindowSizeY, sourceImageWidth, sourceImageHeight);
 
-        Band sourceBand1 = null;
-        Band sourceBand2 = null;
-        Tile sourceTile1 = null;
-        Tile sourceTile2 = null;
-        ProductData sourceData1 = null;
+        Tile sourceTile1 = operator.getSourceTile(sourceBand1, sourceTileRectangle);
+        ProductData sourceData1 = sourceTile1.getDataBuffer();
+
+        Band sourceBand2;
+        Tile sourceTile2;
         ProductData sourceData2 = null;
-        if (srcBandNames.length == 1) {
-            sourceBand1 = sourceProduct.getBand(srcBandNames[0]);
-            sourceTile1 = operator.getSourceTile(sourceBand1, sourceTileRectangle);
-            sourceData1 = sourceTile1.getDataBuffer();
-        } else {
-            sourceBand1 = sourceProduct.getBand(srcBandNames[0]);
+        if (srcBandNames.length > 1) {
             sourceBand2 = sourceProduct.getBand(srcBandNames[1]);
-            sourceTile1 = operator.getSourceTile(sourceBand1, sourceTileRectangle);
             sourceTile2 = operator.getSourceTile(sourceBand2, sourceTileRectangle);
-            sourceData1 = sourceTile1.getDataBuffer();
             sourceData2 = sourceTile2.getDataBuffer();
         }
         final Unit.UnitType bandUnit = Unit.getUnitType(sourceBand1);
