@@ -122,16 +122,14 @@ public class OceanSwellTopComponent extends ToolTopComponent {
 
     public static void setOSWRecord(final Product product, final int recNum) {
 
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                final OceanSwellTopComponent window = (OceanSwellTopComponent)
-                        WindowManager.getDefault().findTopComponent("OceanSwellTopComponent");
-                if(window != null) {
-                    window.open();
-                    window.requestActive();
+        SwingUtilities.invokeLater(() -> {
+            final OceanSwellTopComponent window = (OceanSwellTopComponent)
+                    WindowManager.getDefault().findTopComponent("OceanSwellTopComponent");
+            if(window != null) {
+                window.open();
+                window.requestActive();
 
-                    window.setSelectedRecord(product, recNum);
-                }
+                window.setSelectedRecord(product, recNum);
             }
         });
     }

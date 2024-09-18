@@ -158,6 +158,9 @@ public final class PolarView extends JPanel implements ActionListener, PopupMenu
 
     private void createPlot(final int rec) {
         try {
+            if(!isEnabled()) {
+                return;
+            }
             final String[] readouts = spectraData.getSpectraMetadata(rec);
             polarPanel.setMetadata(readouts);
 
@@ -434,4 +437,7 @@ public final class PolarView extends JPanel implements ActionListener, PopupMenu
         repaint();
     }
 
+    public boolean isEnabled() {
+        return product != null && spectraData != null;
+    }
 }
