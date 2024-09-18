@@ -78,8 +78,6 @@ public class OilSpillDetectionOp extends Operator {
     @Parameter(description = "Threshold shift from background mean", defaultValue = "2.0", label = "Threshold Shift (dB)")
     private double k = 2.0;
 
-    private int sourceImageWidth = 0;
-    private int sourceImageHeight = 0;
     int backgroundWindowSize = 0;
     private int halfBackgroundWindowSize = 0;
 
@@ -97,9 +95,6 @@ public class OilSpillDetectionOp extends Operator {
 
             getMission();
 
-            sourceImageWidth = sourceProduct.getSceneRasterWidth();
-            sourceImageHeight = sourceProduct.getSceneRasterHeight();
-
             computeBackgroundWindowSize();
 
             if (k < 0) {
@@ -110,8 +105,8 @@ public class OilSpillDetectionOp extends Operator {
 
             targetProduct = new Product(sourceProduct.getName(),
                     sourceProduct.getProductType(),
-                    sourceImageWidth,
-                    sourceImageHeight);
+                    sourceProduct.getSceneRasterWidth(),
+                    sourceProduct.getSceneRasterHeight());
 
             ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
@@ -225,8 +220,8 @@ public class OilSpillDetectionOp extends Operator {
 
             final Band targetBandMask = new Band(targetBandName,
                     ProductData.TYPE_INT8,
-                    sourceImageWidth,
-                    sourceImageHeight);
+                    targetBand.getRasterWidth(),
+                    targetBand.getRasterHeight());
             targetBandMask.setNoDataValue(0);
             targetBandMask.setNoDataValueUsed(true);
             targetBandMask.setUnit(Unit.AMPLITUDE);
@@ -261,8 +256,8 @@ public class OilSpillDetectionOp extends Operator {
 
             final int x0 = Math.max(tx0 - halfBackgroundWindowSize, 0);
             final int y0 = Math.max(ty0 - halfBackgroundWindowSize, 0);
-            final int w = Math.min(tx0 + tw - 1 + halfBackgroundWindowSize, sourceImageWidth - 1) - x0 + 1;
-            final int h = Math.min(ty0 + th - 1 + halfBackgroundWindowSize, sourceImageHeight - 1) - y0 + 1;
+            final int w = Math.min(tx0 + tw - 1 + halfBackgroundWindowSize, targetBand.getRasterWidth() - 1) - x0 + 1;
+            final int h = Math.min(ty0 + th - 1 + halfBackgroundWindowSize, targetBand.getRasterHeight() - 1) - y0 + 1;
             final Rectangle sourceTileRectangle = new Rectangle(x0, y0, w, h);
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 

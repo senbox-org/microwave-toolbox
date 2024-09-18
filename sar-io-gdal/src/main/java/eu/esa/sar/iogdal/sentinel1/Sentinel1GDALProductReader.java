@@ -23,7 +23,6 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.quicklooks.Quicklook;
 import org.esa.snap.core.util.SystemUtils;
-import org.esa.snap.engine_utilities.datamodel.Unit;
 
 import java.io.File;
 import java.io.IOException;
@@ -116,61 +115,6 @@ public class Sentinel1GDALProductReader extends SARReader {
     protected void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
                                           int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
                                           int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
-                                          ProgressMonitor pm) throws IOException {
-        Sentinel1GDALProductDirectory.ReaderData readerData = dataDir.getReaderData(destBand.getName());
-
-        Band band = readerData.bandProduct.getBandAt(0);
-
-        ProductData buffer = band.createCompatibleRasterData(sourceWidth, sourceHeight);
-        band.readRasterData(sourceOffsetX, sourceOffsetY,
-                sourceWidth, sourceHeight, buffer, pm);
-        int[] srcArray = (int[])buffer.getElems();
-        int length = srcArray.length;
-
-        if(destBuffer.getElemSize() > 2) {
-            final int[] destArray = (int[]) destBuffer.getElems();
-//            if (!bandInfo.isImaginary) {
-//                if (sourceStepX == 1) {
-//                    int i = 0;
-//                    for (int srcVal : srcArray) {
-//                        destArray[i++] = (short)srcVal;
-//                    }
-//                } else {
-//                    for (int i = 0; i < length; i += sourceStepX) {
-//                        destArray[i] = (short)srcArray[i];
-//                    }
-//                }
-//            } else {
-//                if (sourceStepX == 1) {
-//                    int i = 0;
-//                    for (int srcVal : srcArray) {
-//                        destArray[i++] = (short)(srcVal >> 16);
-//                    }
-//                } else {
-//                    for (int i = 0; i < length; i += sourceStepX) {
-//                        destArray[i] = (short)(srcArray[i] >> 16);
-//                    }
-//                }
-//            }
-        } else {
-            final short[] destArray = (short[]) destBuffer.getElems();
-            if (destBand.getUnit().equals(Unit.REAL)) {
-                int i = 0;
-                for (int srcVal : srcArray) {
-                    destArray[i++] = (short) srcVal;
-                }
-            } else {
-                if (sourceStepX == 1) {
-                    int i = 0;
-                    for (int srcVal : srcArray) {
-                        destArray[i++] = (short) (srcVal >> 16);
-                    }
-                } else {
-                    for (int i = 0; i < length; i += sourceStepX) {
-                        destArray[i] = (short) (srcArray[i] >> 16);
-                    }
-                }
-            }
-        }
+                                          ProgressMonitor pm) {
     }
 }

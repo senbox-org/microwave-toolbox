@@ -699,10 +699,8 @@ public class WarpOp extends Operator {
         final Set<Band> bandSet = warpDataMap.keySet();
 
         for (Band band : bandSet) {
-            final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, band);
-            if(bandElem == null) {
-                throw new OperatorException("Band metadata not found for band " + band.getName());
-            }
+            final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, band.getName(), true);
+
             MetadataElement warpDataElem = bandElem.getElement("WarpData");
             if (warpDataElem == null) {
                 warpDataElem = new MetadataElement("WarpData");
