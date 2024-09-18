@@ -26,8 +26,8 @@ public class PolarCanvas extends Container {
     private final Axis radialAxis;
     private final Axis colourAxis;
     private PolarData data = null;
-    private double rings[] = null;
-    private String ringText[] = null;
+    private double[] rings = null;
+    private String[] ringText = null;
     private final float dirOffset;
     private int plotRadius;
     private double windDirection = 0;
@@ -164,7 +164,7 @@ public class PolarCanvas extends Container {
 
         int i = ncomponents - 1;
         while (i >= 0) {
-            final Component component[] = c.getComponents();
+            final Component[] component = c.getComponents();
             final Component comp = component[i];
             if (comp == null || !comp.isVisible())
                 continue;
@@ -208,7 +208,7 @@ public class PolarCanvas extends Container {
         }
     }
 
-    public void setRings(double rings[], String ringText[]) {
+    public void setRings(double[] rings, String[] ringText) {
         this.rings = rings;
         this.ringText = ringText;
     }

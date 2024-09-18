@@ -29,8 +29,8 @@ class ColorBar implements ImageProducer {
     private final ColourScale colourScale;
     private ColorModel model;
     private static final Dimension barSize = new Dimension(24, 256);
-    private static final byte barPixels[] = new byte[barSize.height];
-    private static final int barRGBPixels[] = new int[barSize.height];
+    private static final byte[] barPixels = new byte[barSize.height];
+    private static final int[] barRGBPixels = new int[barSize.height];
 
     private final Dimension imageSize = new Dimension(barSize.width, barSize.height);
     private final Rectangle imageArea = new Rectangle(imageSize);
