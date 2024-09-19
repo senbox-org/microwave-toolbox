@@ -125,7 +125,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         } else if (waveProductType == WaveProductType.CROSS_SPECTRA) {
             if (spectraUnit == SpectraUnit.AMPLITUDE || spectraUnit == SpectraUnit.INTENSITY) {
                 // complex data
-                final float imagSpectrum[][] = getSpectrum(currentRec, false);
+                final float[][] imagSpectrum = getSpectrum(currentRec, false);
                 minValue = Float.MAX_VALUE;
                 maxValue = Float.MIN_VALUE;
                 for (int i = 0; i < spectrum.length; i++) {
@@ -155,7 +155,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         final float thFirst = firstDirBins + 5f;
         final float thStep = -dirBinStep;
 
-        final float radii[] = new float[spectrum[0].length + 1];
+        final float[] radii = new float[spectrum[0].length + 1];
         for (int j = 0; j <= spectrum[0].length; j++) {
             radii[j] = (float) (10000.0 / FastMath.exp(logr));
             logr += rStep;
@@ -197,7 +197,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
 
         minValue = (float) rasterNode.getStx().getMinimum();
         maxValue = (float) rasterNode.getStx().getMaximum();
-        final float spectrum[][] = new float[numDirBins][numWLBins];
+        final float[][] spectrum = new float[numDirBins][numWLBins];
 
         int index = 0;
         for (int i = 0; i < numDirBins; i++) {
@@ -208,7 +208,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         return spectrum;
     }
 
-    public String[] updateReadouts(final double rTh[], final int currentRecord) {
+    public String[] updateReadouts(final double[] rTh, final int currentRecord) {
         if (spectrum == null)
             return null;
 

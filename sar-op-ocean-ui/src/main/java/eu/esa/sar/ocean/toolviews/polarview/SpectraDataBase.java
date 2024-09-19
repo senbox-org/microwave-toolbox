@@ -43,7 +43,7 @@ public class SpectraDataBase {
     protected double windSpeed = 0;
     protected double windDirection = 0;
 
-    protected float spectrum[][];
+    protected float[][] spectrum;
 
     protected final DecimalFormat frmt = new DecimalFormat("0.0000");
 

@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sar.gpf.filtering;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
@@ -66,6 +67,7 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
      * @throws Exception The exception.
      */
     @Test
+    @STTM("SRM-147")
     public void testMeanFilter() throws Exception {
         final Product sourceProduct = createTestProduct(4, 4);
 
@@ -360,7 +362,11 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
      */
     private static Product createTestProduct(int w, int h) {
         final Product testProduct = TestUtils.createProduct("type", w, h);
-        final Band band1 = testProduct.addBand("band1", ProductData.TYPE_INT32);
+        final Band band1 = new Band("band1", ProductData.TYPE_INT32, w, h);
+        testProduct.addBand(band1);
+        final Band band2 = new Band("band2", ProductData.TYPE_INT32, w + 5, h + 5); // different size from product
+        testProduct.addBand(band2);
+
         final int[] intValues = new int[w * h];
         for (int i = 0; i < w * h; i++) {
             intValues[i] = i + 1;

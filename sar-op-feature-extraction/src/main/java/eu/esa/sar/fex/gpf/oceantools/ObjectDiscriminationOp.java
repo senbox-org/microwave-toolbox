@@ -87,8 +87,6 @@ public class ObjectDiscriminationOp extends Operator {
     private double maxTargetSizeInMeter = 600.0;
 
     private boolean clusteringPerformed = false;
-    private int sourceImageWidth = 0;
-    private int sourceImageHeight = 0;
 
     private double rangeSpacing = 0;
     private double azimuthSpacing = 0;
@@ -122,9 +120,6 @@ public class ObjectDiscriminationOp extends Operator {
             rangeSpacing = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.range_spacing);
             azimuthSpacing = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.azimuth_spacing);
 
-            sourceImageWidth = sourceProduct.getSceneRasterWidth();
-            sourceImageHeight = sourceProduct.getSceneRasterHeight();
-
             setTargetReportFilePath();
 
             createTargetProduct();
@@ -150,7 +145,9 @@ public class ObjectDiscriminationOp extends Operator {
     private void createTargetProduct() {
 
         targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
-                                    sourceProduct.getProductType(), sourceImageWidth, sourceImageHeight);
+                sourceProduct.getProductType(),
+                sourceProduct.getSceneRasterWidth(),
+                sourceProduct.getSceneRasterHeight());
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
@@ -209,8 +206,8 @@ public class ObjectDiscriminationOp extends Operator {
 
             final int x0 = Math.max(tx0 - 10, 0);
             final int y0 = Math.max(ty0 - 10, 0);
-            final int w = Math.min(tw + 20, sourceImageWidth);
-            final int h = Math.min(th + 20, sourceImageHeight);
+            final int w = Math.min(tw + 20, targetBand.getRasterWidth());
+            final int h = Math.min(th + 20, targetBand.getRasterHeight());
             final Rectangle sourceTileRectangle = new Rectangle(x0, y0, w, h);
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 
