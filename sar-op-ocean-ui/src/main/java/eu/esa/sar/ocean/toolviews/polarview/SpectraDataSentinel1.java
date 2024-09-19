@@ -169,7 +169,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
             try {
                 String bandName = band.getName().toLowerCase();
                 String bandRecNumStr = bandName.substring(3, 6);
-                Integer bandRecNum = Integer.parseInt(bandRecNumStr);
+                int bandRecNum = Integer.parseInt(bandRecNumStr);
                 if (bandRecNum == currentRec + 1) {
                     if (waveProductType == WaveProductType.WAVE_SPECTRA && bandName.contains("oswpolspec")) {
                         return band;
