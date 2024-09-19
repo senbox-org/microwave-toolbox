@@ -90,11 +90,11 @@ public class OWI extends OCNComponent {
         final GeoPos geoPos2 = product.getSceneGeoCoding().getGeoPos(new PixelPos(product.getSceneRasterWidth() - 1,
                 product.getSceneRasterHeight() - 1), null);
 
-        final Band owiLonBand = product.getBand(prefix + "_001_owiLon");
-        final Band owiLatBand = product.getBand(prefix + "_001_owiLat");
-        final Band owiIncAngleBand = product.getBand(prefix + "_001_owiIncidenceAngle");
-        final Band owiWindSpeedBand = product.getBand(prefix + "_001_owiWindSpeed");
-        final Band owiWindDirBand = product.getBand(prefix + "_001_owiWindDirection");
+        final Band owiLonBand = findBands(product, "owiLon")[0];
+        final Band owiLatBand = findBands(product, "owiLat")[0];
+        final Band owiIncAngleBand = findBands(product, "owiIncidenceAngle")[0];
+        final Band owiWindSpeedBand = findBands(product, "owiWindSpeed")[0];
+        final Band owiWindDirBand = findBands(product, "owiWindDirection")[0];
 
         if (owiLonBand != null) {
             final double[] lonValues = new double[owiLonBand.getRasterWidth() * owiLonBand.getRasterHeight()];

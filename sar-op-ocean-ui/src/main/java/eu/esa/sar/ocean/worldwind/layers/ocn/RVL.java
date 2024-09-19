@@ -46,9 +46,6 @@ public class RVL extends OCNComponent {
     @Override
     public void addProduct(final Product product, final ProductRenderablesInfo productRenderablesInfo)
             throws IOException {
-        final Band firstBand = product.getBandAt(0);
-        final String firstBandName = firstBand.getName().toLowerCase();
-        final String prefix = firstBandName.startsWith("vv") ? "vv" : "hh";
 
         final MetadataElement metadataRoot = product.getMetadataRoot();
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
@@ -56,8 +53,6 @@ public class RVL extends OCNComponent {
         final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
 
         int numRVLElements = 0;
-        int rvlSwathWidth = 0;
-        int rvlSwathHeight = 0;
         int numSwaths = 0;
 
         if (acquisitionMode.equalsIgnoreCase("IW")) {
@@ -66,11 +61,10 @@ public class RVL extends OCNComponent {
             numSwaths = 5;
         }
         for (int i = 0; i < numSwaths; i++) {
-            Band rvlLonBand = product.getBand(prefix + "_001_" + acquisitionMode.toUpperCase() + (i + 1) + "_rvlLon");
+            String swath = acquisitionMode.toUpperCase() + (i + 1);
+            Band rvlLonBand = findBands(product, swath, "rvlLon")[0];
 
             numRVLElements += (rvlLonBand.getRasterWidth() * rvlLonBand.getRasterHeight());
-            rvlSwathWidth = rvlLonBand.getRasterWidth();
-            rvlSwathHeight = rvlLonBand.getRasterHeight();
         }
 
         final GeoPos geoPos1 = product.getSceneGeoCoding().getGeoPos(new PixelPos(0, 0), null);
@@ -94,13 +88,13 @@ public class RVL extends OCNComponent {
             }
 
             for (int i = 0; i < numSwaths; i++) {
+                String swath = acquisitionMode.toUpperCase() + (i + 1);
+                Band currRVLLonBand = findBands(product, swath, "rvlLon")[0];
+                Band currRVLLatBand = findBands(product, swath, "rvlLat")[0];
+                Band currRVLRadVelBand = findBands(product, swath, "rvlRadVel")[0];
 
-                Band currRVLLonBand = product.getBand(prefix + "_001_" + acquisitionMode.toUpperCase() + (i + 1) + "_rvlLon");
-                Band currRVLLatBand = product.getBand(prefix + "_001_" + acquisitionMode.toUpperCase() + (i + 1) + "_rvlLat");
-                Band currRVLRadVelBand = product.getBand(prefix + "_001_" + acquisitionMode.toUpperCase() + (i + 1) + "_rvlRadVel");
-
-                int w = rvlSwathWidth;
-                int h = rvlSwathHeight;
+                int w = currRVLRadVelBand.getRasterWidth();
+                int h = currRVLRadVelBand.getRasterHeight();
 
                 double[] currRVLLonValues = new double[w];
                 currRVLLonBand.readPixels(0, 0, w, 1, currRVLLonValues, ProgressMonitor.NULL);
@@ -144,7 +138,9 @@ public class RVL extends OCNComponent {
             }
 
             if (displayAsOne) {
-                createColorSurfaceWithGradient(geoPos1, geoPos2, rvlLatValues, rvlLonValues, rvlRadVelValues, numSwaths * rvlSwathWidth, rvlSwathHeight, -6, 5, true, productRenderablesInfo.theRenderableListHash.get("rvl"), productRenderablesInfo, "rvl");
+                //createColorSurfaceWithGradient(geoPos1, geoPos2, rvlLatValues, rvlLonValues, rvlRadVelValues,
+                // numSwaths * rvlSwathWidth, rvlSwathHeight, -6, 5, true,
+                // productRenderablesInfo.theRenderableListHash.get("rvl"), productRenderablesInfo, "rvl");
             }
         }
 

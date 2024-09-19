@@ -31,6 +31,7 @@ import gov.nasa.worldwind.render.ShapeAttributes;
 import gov.nasa.worldwindx.examples.analytics.AnalyticSurface;
 import gov.nasa.worldwindx.examples.analytics.AnalyticSurfaceAttributes;
 import gov.nasa.worldwindx.examples.util.DirectedPath;
+import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
@@ -96,8 +97,6 @@ public abstract class OCNComponent {
         ColorGradient.createColorGradient(minValue, maxValue, whiteZero, prodRenderInfo, comp);
     }
 
-
-
     protected void createWVColorSurfaceWithGradient(Product product,
                                                   double[] latValues,
                                                   double[] lonValues,
@@ -153,7 +152,11 @@ public abstract class OCNComponent {
                 }
             };
 
-            analyticSurface.setSector(Sector.fromDegrees(latValues[ind] - vignette_half_side_deg, latValues[ind] + vignette_half_side_deg, lonValues[ind] - vignette_half_side_deg, lonValues[ind] + vignette_half_side_deg));
+            analyticSurface.setSector(Sector.fromDegrees(
+                     latValues[ind] - vignette_half_side_deg,
+                    latValues[ind] + vignette_half_side_deg,
+                    lonValues[ind] - vignette_half_side_deg,
+                    lonValues[ind] + vignette_half_side_deg));
             analyticSurface.setAltitudeMode(WorldWind.CLAMP_TO_GROUND);
             // one by one square doesn't seem to work, so we'll just use the next smallest
             // possible square and repeat the same value 4 times
@@ -233,5 +236,21 @@ public abstract class OCNComponent {
         directedPath.setAltitudeMode(WorldWind.RELATIVE_TO_GROUND);
         directedPath.setPathType(AVKey.GREAT_CIRCLE);
         return directedPath;
+    }
+
+    protected Band[] findBands(final Product product, final String ... searchStrings) {
+        List<Band> bandList = new ArrayList<>();
+        for(Band band : product.getBands()) {
+            int found = 0;
+            for(String searchString : searchStrings) {
+                if(band.getName().contains(searchString)) {
+                    found++;
+                }
+            }
+            if (found == searchStrings.length) {
+                bandList.add(band);
+            }
+        }
+        return bandList.toArray(new Band[0]);
     }
 }

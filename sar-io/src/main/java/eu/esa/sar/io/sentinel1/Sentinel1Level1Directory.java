@@ -30,6 +30,7 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
+import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.core.util.math.MathUtils;
@@ -132,8 +133,9 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     tpgPrefix = swath;
                 } else if(isWV()) {
                     final int imageNumber = bandMetadata.getAttributeInt("image_number");
-                    suffix = swath + "_IMG" + imageNumber + '_' + pol;
-                    tpgPrefix = swath + "_IMG" + imageNumber;
+                    String padImageNum = StringUtils.padNum(imageNumber, 3, '0');
+                    suffix = swath + "_IMG" + padImageNum + '_' + pol;
+                    tpgPrefix = swath + "_IMG" + padImageNum;
                 }
             }
 

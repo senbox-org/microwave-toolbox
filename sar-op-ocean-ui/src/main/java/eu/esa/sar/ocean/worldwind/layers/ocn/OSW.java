@@ -16,14 +16,12 @@
 package eu.esa.sar.ocean.worldwind.layers.ocn;
 
 import eu.esa.sar.ocean.worldwind.layers.Level2ProductLayer;
-import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.worldwind.ColorBarLegend;
 import org.esa.snap.worldwind.ProductRenderablesInfo;
 
-import java.io.IOException;
 import java.util.Map;
 
 public class OSW extends OCNComponent {
@@ -41,11 +39,7 @@ public class OSW extends OCNComponent {
     }
 
     @Override
-    public void addProduct(final Product product, final ProductRenderablesInfo productRenderablesInfo)
-            throws IOException {
-        final Band firstBand = product.getBandAt(0);
-        final String firstBandName = firstBand.getName().toLowerCase();
-        final String prefix = firstBandName.startsWith("vv") ? "vv" : "hh";
+    public void addProduct(final Product product, final ProductRenderablesInfo productRenderablesInfo) {
 
         final MetadataElement metadataRoot = product.getMetadataRoot();
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);

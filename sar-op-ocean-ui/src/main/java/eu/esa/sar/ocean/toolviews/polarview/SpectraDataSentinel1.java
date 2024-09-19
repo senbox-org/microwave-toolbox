@@ -164,12 +164,17 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         return new PolarData(spectrum, 90f + thFirst, thStep, radii, minValue, maxValue);
     }
 
+    private int getRecordNum(final String bandName) {
+        int idx = bandName.indexOf("_img");
+        String bandRecNumStr = bandName.substring(idx+4, idx + 7);
+        return Integer.parseInt(bandRecNumStr);
+    }
+
     private Band getBand(final int currentRec, final boolean getReal) throws Exception {
         for (Band band : product.getBands()) {
             try {
                 String bandName = band.getName().toLowerCase();
-                String bandRecNumStr = bandName.substring(3, 6);
-                int bandRecNum = Integer.parseInt(bandRecNumStr);
+                int bandRecNum = getRecordNum(bandName);
                 if (bandRecNum == currentRec + 1) {
                     if (waveProductType == WaveProductType.WAVE_SPECTRA && bandName.contains("oswpolspec")) {
                         return band;

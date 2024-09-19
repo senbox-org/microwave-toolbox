@@ -203,7 +203,7 @@ public class Sentinel1OCNReader {
             // Add bands to product...
 
             int idx = file.indexOf("-ocn-");
-            final String pol = file.substring(idx + 5, idx + 7);
+            final String pol = file.substring(idx + 5, idx + 7).toUpperCase();
 
             idx = file.lastIndexOf('-');
             final String imageNum = file.substring(idx + 1, idx + 4);
@@ -215,7 +215,8 @@ public class Sentinel1OCNReader {
                     continue;
                 }
 
-                String bandName = pol + "_" + imageNum + "_";
+                String suffix = "_IMG" + imageNum + "_" + pol;
+                String bandName;
                 final int[] shape = variable.getShape();
 
                 switch (variable.getRank()) {
@@ -224,16 +225,16 @@ public class Sentinel1OCNReader {
                         // The data has been added as part of annotation for the variable under "Values".
                         break;
                     case 2: {
-                        bandName += variable.getFullName();
+                        bandName = variable.getFullName() + suffix;
                         addBand(product, bandName, variable, shape[1], shape[0]);
                         bandNameNCFileMap.put(bandName, netcdfFile);
 
                         if (bandName.contains("owiNrcs")) {
                             product.setQuicklookBandName(bandName);
                         }
+                        break;
                     }
-                    break;
-                    case 3:
+                    case 3: {
                         // When the rank is 3, there is an "outer" grid of cells and each cell contains a vector of values.
                         // The "outer" grid is oswAzSize (rows) by oswRaSize (cols) of cells.
                         // Each cell is a vector of values.
@@ -241,18 +242,18 @@ public class Sentinel1OCNReader {
                         // So it is more natural to have the band be (oswAzSize*oswAngularBinSize) rows by oswRaSize columns.
                         // All other rank 3 variables are oswAzSize x oswRaSize x oswPartitions
                         // To be consistent, the bands will be (oswAzSize*oswPartitions) rows by oswRaSize columns.
-                    {
+
                         for(int swath = 1; swath <= shape[2]; ++swath) {
-                            String bandNameSwath = bandName + mode + swath + "_" + variable.getFullName();
+                            bandName = variable.getFullName() +'_'+ mode + swath + suffix;
                             // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1] (cols).
                             // So band width = shape[1] and band height = shape[0]*shape[2]
-                            addBand(product, bandNameSwath, variable, shape[1], shape[0]);// * shape[2]);
-                            bandNameNCFileMap.put(bandNameSwath, netcdfFile);
+                            addBand(product, bandName, variable, shape[1], shape[0]);// * shape[2]);
+                            bandNameNCFileMap.put(bandName, netcdfFile);
                         }
+                        break;
                     }
-                    break;
 
-                    case 4:
+                    case 4: {
                         // When the rank is 4, there is an "outer" grid of cells and each cell contains an "inner" grid of bins.
                         // The "outer" grid is oswAzSize (rows) by oswRaSize (cols) of cells.
                         // Each cell is oswAngularBinSize (rows) by oswWaveNumberBinSize (cols) of bins.
@@ -260,19 +261,15 @@ public class Sentinel1OCNReader {
                         // shape[1] is width of "outer" grid.
                         // shape[2] is height of "inner" grid.
                         // shape[3] is width of "inner" grid.
-                    {
-                        bandName += variable.getFullName();
+
+                        bandName = variable.getFullName() + suffix;
                         // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1]*shape[3] (cols).
                         // So band width = shape[1]*shape[3] and band height = shape[0]*shape[2]
                         addBand(product, bandName, variable, shape[1] * shape[3], shape[0] * shape[2]);
                         bandNameNCFileMap.put(bandName, netcdfFile);
-                        /*
-                        if (bandName.contains("oswPolSpec")) {
-                            dumpVariableValues(variable, bandName);
-                        }
-                        */
+                        break;
                     }
-                    break;
+
                     default:
                         SystemUtils.LOG.severe("SentinelOCNReader.addNetCDFMetadataAndBands: ERROR invalid variable rank " + variable.getRank() + " for " + variable.getFullName());
                         break;
@@ -351,7 +348,7 @@ public class Sentinel1OCNReader {
         // So it looks like we can ignore destOffsetX and destOffsetY.
 
         final String bandName = destBand.getName();
-        final String varFullName = bandName.substring(bandName.lastIndexOf('_') + 1);
+        final String varFullName = bandName.substring(0, bandName.indexOf('_'));
 
         //System.out.println("Sentinel1OCNReader.readData: bandName = " + bandName + " varFullName = " + varFullName);
 
@@ -380,24 +377,15 @@ public class Sentinel1OCNReader {
 
         final int[] origin = {sourceOffsetY, sourceOffsetX};
         final int[] shape = {sourceHeight, sourceWidth};
-        /*
-        System.out.println(":::::" + sourceOffsetX + " " + sourceOffsetY);
-        System.out.println(":::::" + sourceStepX + " " + sourceStepY);
-        System.out.println(":::::" + sourceWidth + " " + sourceHeight);
-        System.out.println(":::::" + destWidth + " " + destHeight);
-        */
 
         try {
 
             final Array srcArray = var.read(origin, shape);
-
             for (int i = 0; i < destHeight; i++) {
                 final int srcStride = i * sourceWidth;
                 final int dstStride = i * destWidth;
                 for (int j = 0; j < destWidth; j++) {
-
                     destBuffer.setElemFloatAt(dstStride + j, srcArray.getFloat(srcStride + j));
-                    //destBuffer.setElemFloatAt(dstStride +destWidth - j - 1, srcArray.getFloat(srcStride + j));
                 }
             }
 
