@@ -51,6 +51,7 @@ import java.text.Format;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -86,7 +87,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
     //private AnalyticSurface analyticSurface = null;
     //private BufferWrapper analyticSurfaceValueBuffer = null;
 
-    private final HashMap<String, ColorBarLegend> theColorBarLegendHash = new HashMap<>();
+    final HashMap<String, ColorBarLegend> theColorBarLegendHash = new HashMap<>();
 
     // product associated with the current colorBar legend
     //private Product theColorBarLegendProduct = null;
@@ -96,9 +97,9 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
     private final HashMap<Object, Product> theSurfaceProductHash = new HashMap<>();
     private final HashMap<Object, Integer> theSurfaceSequenceHash = new HashMap<>();
 
-    private final HashMap<Product, ProductRenderablesInfo> theProductRenderablesInfoHash = new HashMap<>();
+    final HashMap<Product, ProductRenderablesInfo> theProductRenderablesInfoHash = new HashMap<>();
 
-    private final ScreenAnnotation theInfoAnnotation;
+    final ScreenAnnotation theInfoAnnotation;
 
     private DirectedPath theLastSelectedDP = null;
 
@@ -403,7 +404,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
     private void createColorSurfaceWithGradient(GeoPos geoPos1, GeoPos geoPos2, double[] latValues,
                                                 double[] lonValues, double[] values, int width, int height,
-                                                double minValue, double maxValue, boolean whiteZero, ArrayList<Renderable> renderableList, ProductRenderablesInfo prodRenderInfo, String comp) {
+                                                double minValue, double maxValue, boolean whiteZero, List<Renderable> renderableList, ProductRenderablesInfo prodRenderInfo, String comp) {
         createColorSurface(geoPos1, geoPos2, latValues, lonValues, values, width, height,
                 renderableList, prodRenderInfo, comp);
 
@@ -417,7 +418,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         createColorGradient(minValue, maxValue, whiteZero, prodRenderInfo, comp);
     }
 
-    private void createColorBarLegend(double minValue, double maxValue, String title, String comp) {
+    void createColorBarLegend(double minValue, double maxValue, String title, String comp) {
         //SystemUtils.LOG.info("createColorBarLegend " + minValue + " " + maxValue);
 
         String unit = "m/s";
@@ -448,7 +449,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
     }
 
 
-    private void setComponentVisible(String comp, WorldWindowGLCanvas wwd) {
+    void setComponentVisible(String comp, WorldWindowGLCanvas wwd) {
         //SystemUtils.LOG.info("setComponentVisible " + comp);
         //SystemUtils.LOG.info("theColorBarLegendHash " + theColorBarLegendHash);
         for (String currComp : theColorBarLegendHash.keySet()) {
@@ -462,7 +463,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
                 for (ProductRenderablesInfo productRenderablesInfo : theProductRenderablesInfoHash.values()) {
                     //SystemUtils.LOG.info("::: productRenderablesInfo " + productRenderablesInfo);
                     if (productRenderablesInfo != null) {
-                        ArrayList<Renderable> renderableList = productRenderablesInfo.theRenderableListHash.get(currComp);
+                        List<Renderable> renderableList = productRenderablesInfo.theRenderableListHash.get(currComp);
                         for (Renderable renderable : renderableList) {
                             removeRenderable(renderable);
                             if (currComp.equals(comp)) {
@@ -485,7 +486,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
                                     double[] windDirValues,
                                     int width,
                                     int height,
-                                    ArrayList<Renderable> renderableList) {
+                                    List<Renderable> renderableList) {
         double pixelWidth = Math.abs(lonValues[0] - lonValues[lonValues.length - 1]) / width;
         double pixelHeight = Math.abs(latValues[0] - latValues[latValues.length - 1]) / height;
 
@@ -575,7 +576,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
                 //System.out.println("startPos " + startPos + " endPos " + endPos);
 
-                final ArrayList<Position> positions = new ArrayList<>();
+                final List<Position> positions = new ArrayList<>();
                 positions.add(startPos);
                 positions.add(endPos);
 
@@ -642,7 +643,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
                         Position bigCellEndPos = new Position(LatLon.greatCircleEndPosition(bigCellStartPos, Angle.fromDegrees(cumAvgWindDir), Angle.fromDegrees(bigCellArrowLength_deg)), 10.0);
 
                         //System.out.println("startPos " + startPos + " endPos " + endPos);
-                        ArrayList<Position> bigCellPositions = new ArrayList<>();
+                        List<Position> bigCellPositions = new ArrayList<>();
                         bigCellPositions.add(bigCellStartPos);
                         bigCellPositions.add(bigCellEndPos);
 
@@ -744,7 +745,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         }
     }
 
-    private DirectedPath getDirectedPath(ArrayList<Position> positions, ShapeAttributes dpAttrs) {
+    private DirectedPath getDirectedPath(List<Position> positions, ShapeAttributes dpAttrs) {
         DirectedPath directedPath = new DirectedPath(positions);
         directedPath.setAttributes(dpAttrs);
         //directedPath.setHighlightAttributes(highlightAttrs);
@@ -755,11 +756,11 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         return directedPath;
     }
 
-    private void addWaveLengthArrows(double[] latValues,
+    void addWaveLengthArrows(double[] latValues,
                                      double[] lonValues,
                                      double[] waveLengthValues,
                                      double[] waveDirValues,
-                                     ArrayList<Renderable> renderableList) {
+                                     List<Renderable> renderableList) {
         //SystemUtils.LOG.info(":: addWaveLengthArrows ");
 
         final ShapeAttributes dpAttrs = new BasicShapeAttributes();
@@ -780,18 +781,16 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
                 //System.out.println("waveLengthValues[i] " + waveLengthValues[i]);
 
-                final ArrayList<Position> positions = new ArrayList<>();
+                final List<Position> positions = new ArrayList<>();
                 positions.add(startPos);
                 positions.add(endPos);
 
                 DirectedPath directedPath = getDirectedPath(positions, dpAttrs);
                 directedPath.setArrowLength(arrowHeadLength);
 
-                Renderable renderable = dc -> directedPath.render(dc);
-
-                addRenderable(renderable);
+                addRenderable(directedPath);
                 if (renderableList != null) {
-                    renderableList.add(renderable);
+                    renderableList.add(directedPath);
                 }
             } catch (Exception e) {
                 SystemUtils.LOG.info(":: addWaveLengthArrows exception " + e);
@@ -803,7 +802,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
                                                   double[] latValues,
                                                   double[] lonValues,
                                                   double[] values,
-                                                  ArrayList<Renderable> renderableList,
+                                                  List<Renderable> renderableList,
                                                   String comp) {
         //SystemUtils.LOG.info(":: createWVColorSurfaceWithGradient ");
 
@@ -812,11 +811,11 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         dpAttrs.setOutlineWidth(2d);
         // we cannot make it a scalar object because it has to be final and then we won't be able to assign to it
         // we'll store it as a first object of a final array
-        //final ArrayList<Object> ctgSurfaceList = new ArrayList<Object>();
+        //final List<Object> ctgSurfaceList = new ArrayList<Object>();
 
         for (int ind = 0; ind < values.length; ind++) {
             final int finalInd = ind;
-            final ArrayList<Position> polygonPositions = new ArrayList<>();
+            final List<Position> polygonPositions = new ArrayList<>();
             double vignette_half_side_deg = (180 / Math.PI) * 10000 / GLOBE_RADIUS;
 
             polygonPositions.add(new Position(Angle.fromDegreesLatitude(latValues[ind] - vignette_half_side_deg), Angle.fromDegreesLongitude(lonValues[ind] - vignette_half_side_deg), 10.0));
@@ -860,7 +859,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
             // possible square and repeat the same value 4 times
             analyticSurface.setDimensions(2, 2);
 
-            final ArrayList<AnalyticSurface.GridPointAttributes> attributesList = new ArrayList<>();
+            final List<AnalyticSurface.GridPointAttributes> attributesList = new ArrayList<>();
             for (int i = 0; i < 4; i++) {
                 attributesList.add(createColorGradientAttributes(values[ind], 0, 10, HUE_RED, HUE_MAX_RED, false));
             }
@@ -904,8 +903,8 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         return ang.radians * (dc.getGlobe().getRadius() + height * dc.getVerticalExaggeration());
     }
 
-    private void createColorSurface(GeoPos geoPos1, GeoPos geoPos2, double[] latValues, double[] lonValues, double[] vals,
-                                    int width, int height, ArrayList<Renderable> renderableList,
+    void createColorSurface(GeoPos geoPos1, GeoPos geoPos2, double[] latValues, double[] lonValues, double[] vals,
+                                    int width, int height, List<Renderable> renderableList,
                                     ProductRenderablesInfo prodRenderInfo, String comp) {
         SystemUtils.LOG.info("createColorSurface " + latValues.length + " " + lonValues.length + " " + vals.length + " " + width + " " + height);
 
@@ -989,8 +988,8 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
     private void createColorGradient(double minValue, double maxValue, boolean whiteZero,
                                      ProductRenderablesInfo prodRenderInfo, String comp) {
         //SystemUtils.LOG.info("createColorGradient " + minValue + " " + maxValue + " " + comp);
-        ArrayList<AnalyticSurface> analyticSurfaces = null;
-        ArrayList<BufferWrapper> analyticSurfaceValueBuffers = null;
+        List<AnalyticSurface> analyticSurfaces = null;
+        List<BufferWrapper> analyticSurfaceValueBuffers = null;
 
         if (comp.equalsIgnoreCase("owi")) {
             analyticSurfaces = prodRenderInfo.owiAnalyticSurfaces;
@@ -1009,7 +1008,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
                 AnalyticSurface analyticSurface = analyticSurfaces.get(currSurfInd);
                 BufferWrapper analyticSurfaceValueBuffer = analyticSurfaceValueBuffers.get(currSurfInd);
-                final ArrayList<AnalyticSurface.GridPointAttributes> attributesList = new ArrayList<>();
+                final List<AnalyticSurface.GridPointAttributes> attributesList = new ArrayList<>();
                 for (int i = 0; i < analyticSurfaceValueBuffer.length(); i++) {
                     double d = analyticSurfaceValueBuffer.getDouble(i);
                     attributesList.add(
@@ -1049,7 +1048,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
         if (productRenderablesInfo != null) {
 
-            for (ArrayList<Renderable> renderableList : productRenderablesInfo.theRenderableListHash.values()) {
+            for (List<Renderable> renderableList : productRenderablesInfo.theRenderableListHash.values()) {
                 //SystemUtils.LOG.info(":: renderableList " + renderableList);
                 for (Renderable renderable : renderableList) {
                     //SystemUtils.LOG.info(":: renderable " + renderable);
