@@ -25,11 +25,12 @@ import static org.junit.Assert.assertThrows;
 @STTM("SNAP-3575")
 public class TestMultiReferenceInSAR {
 
-    private Product sourceProduct;
+    private Product sourceProduct, dualPolSrcProduct;
 
     @Before
     public void setUp() throws Exception {
         sourceProduct = createStackProduct();
+        dualPolSrcProduct = createDualPolStackProduct();
     }
 
     @Test
@@ -59,12 +60,14 @@ public class TestMultiReferenceInSAR {
         assertNotNull(targetProduct.getBand(LAT_BAND_NAME));
         assertNotNull(targetProduct.getBand(LON_BAND_NAME));
 
+        final String swath = "IW1";
+        final String pol = "VV";
         for (String[] parsedPair : op.parsedPairs) {
-            String ifgBandNameI = String.join("_", "i", IFG_BAND_NAME_TAG, String.join("_", parsedPair));
-            String ifgBandNameQ = String.join("_", "q", IFG_BAND_NAME_TAG, String.join("_", parsedPair));
+            String ifgBandNameI = String.join("_", "i", IFG_BAND_NAME_TAG, swath, pol, String.join("_", parsedPair));
+            String ifgBandNameQ = String.join("_", "q", IFG_BAND_NAME_TAG, swath, pol, String.join("_", parsedPair));
             assertNotNull(targetProduct.getBand(ifgBandNameI));
             assertNotNull(targetProduct.getBand(ifgBandNameQ));
-            String coherenceBandName = String.join("_", COHERENCE_BAND_NAME_PREFIX, String.join("_", parsedPair));
+            String coherenceBandName = String.join("_", COHERENCE_BAND_NAME_PREFIX, swath, pol, String.join("_", parsedPair));
             assertNotNull(targetProduct.getBand(coherenceBandName));
         }
     }
@@ -99,6 +102,30 @@ public class TestMultiReferenceInSAR {
         assertThrows(OperatorException.class, () -> { op.initialize(); });
     }
 
+    @Test
+    @STTM("SNAP-3836")
+    public void test_dual_pol_input() {
+        MultiMasterInSAROp op = new MultiMasterInSAROp();
+        op.setSourceProduct(dualPolSrcProduct);
+        op.setParameter("includeWavenumber", false);
+        Product targetProduct = op.getTargetProduct();
+
+        assertNotNull(targetProduct.getBand("elevation"));
+
+        final String swath = "IW1";
+        final String[] polarisations = new String[]{"VV", "VH"};
+        for (String[] parsedPair : op.parsedPairs) {
+            for (String pol : polarisations) {
+                String ifgBandNameI = String.join("_", "i", IFG_BAND_NAME_TAG, swath, pol, String.join("_", parsedPair));
+                String ifgBandNameQ = String.join("_", "q", IFG_BAND_NAME_TAG, swath, pol, String.join("_", parsedPair));
+                assertNotNull(targetProduct.getBand(ifgBandNameI));
+                assertNotNull(targetProduct.getBand(ifgBandNameQ));
+                String coherenceBandName = String.join("_", COHERENCE_BAND_NAME_PREFIX, swath, pol, String.join("_", parsedPair));
+                assertNotNull(targetProduct.getBand(coherenceBandName));
+            }
+        }
+    }
+
     private Product createStackProduct() throws IOException {
         int size = 10;
         Product srcProduct = TestUtils.createProduct("stackProduct", size, size);
@@ -106,6 +133,28 @@ public class TestMultiReferenceInSAR {
         TestUtils.createBand(srcProduct, "q_VV_mst_26Apr2008", size, size);
         TestUtils.createBand(srcProduct, "i_VV_slv1_25Aug2007", size, size);
         TestUtils.createBand(srcProduct, "q_VV_slv1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_slv2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_slv2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "elevation", size, size);
+
+        AbstractMetadataIO.Load(srcProduct, srcProduct.getMetadataRoot(), new File("src/test/resources/metadata.xml"));
+
+        return srcProduct;
+    }
+
+    private Product createDualPolStackProduct() throws IOException {
+        int size = 10;
+        Product srcProduct = TestUtils.createProduct("stackProduct", size, size);
+        TestUtils.createBand(srcProduct, "i_VH_mst_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "q_VH_mst_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_mst_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_mst_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "i_VH_slv1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "q_VH_slv1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_slv1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_slv1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "i_VH_slv2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "q_VH_slv2_23Dec2006", size, size);
         TestUtils.createBand(srcProduct, "i_VV_slv2_23Dec2006", size, size);
         TestUtils.createBand(srcProduct, "q_VV_slv2_23Dec2006", size, size);
         TestUtils.createBand(srcProduct, "elevation", size, size);
