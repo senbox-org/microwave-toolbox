@@ -127,8 +127,8 @@ public class WindVectors {
 
         final GeometryFactory geometryFactory = new GeometryFactory();
 
-        final int xStepSize = rasterW / shapeSideLen;
-        final int yStepSize = rasterH / shapeSideLen;
+        final int xStepSize = Math.max(1, rasterW / shapeSideLen);
+        final int yStepSize = Math.max(1, rasterH / shapeSideLen);
         //System.out.println("Sentinel1OCNReader.addWindToVectorNodes: xStepSize = " + xStepSize + " yStepSize = " + yStepSize);
         int i = 0;
         for (int x = 0; x < rasterW; x += xStepSize) {
