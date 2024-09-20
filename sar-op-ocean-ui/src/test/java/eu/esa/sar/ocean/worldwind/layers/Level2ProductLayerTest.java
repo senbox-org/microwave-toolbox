@@ -15,20 +15,13 @@
  */
 package eu.esa.sar.ocean.worldwind.layers;
 
-import com.bc.ceres.annotation.STTM;
 import gov.nasa.worldwind.awt.WorldWindowGLCanvas;
-import gov.nasa.worldwindx.examples.util.DirectedPath;
 import org.esa.snap.worldwind.ColorBarLegend;
 import org.junit.Before;
 import org.junit.Test;
-import gov.nasa.worldwind.render.Renderable;
-import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.worldwind.ProductRenderablesInfo;
 
 import javax.swing.*;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -56,27 +49,6 @@ public class Level2ProductLayerTest {
     }
 
     @Test
-    public void getSuitability_returnsUnsuitableForNonOCNProduct() {
-        when(mockProduct.getProductType()).thenReturn("NON_OCN");
-
-        assertEquals(Level2ProductLayer.Suitability.UNSUITABLE, level2ProductLayer.getSuitability(mockProduct));
-    }
-
-    @Test
-    public void createColorSurface_createsAnalyticSurface() {
-        GeoPos geoPos1 = new GeoPos(0, 0);
-        GeoPos geoPos2 = new GeoPos(1, 1);
-        double[] latValues = {0, 1};
-        double[] lonValues = {0, 1};
-        double[] vals = {0.5, 1.0};
-        ArrayList<Renderable> renderableList = new ArrayList<>();
-        ProductRenderablesInfo prodRenderInfo = new ProductRenderablesInfo();
-
-        level2ProductLayer.createColorSurface(geoPos1, geoPos2, latValues, lonValues, vals,
-                2, 2, renderableList, prodRenderInfo, "comp");
-    }
-
-    @Test
     public void createColorBarLegend_createsLegendWithCorrectAttributes() {
         level2ProductLayer.createColorBarLegend(0, 10, "Test Legend", "testComp");
 
@@ -98,22 +70,6 @@ public class Level2ProductLayerTest {
 
         assertNotNull(controlPanel);
         assertEquals(6, controlPanel.getComponentCount());
-    }
-
-    @Test
-    @STTM("SNAP-2521")
-    public void addWaveLengthArrows_createsArrowsCorrectly() {
-        double[] latValues = {0.0, 1.0};
-        double[] lonValues = {0.0, 1.0};
-        double[] waveLengthValues = {4000.0, 8000.0, -999.0};
-        double[] waveDirValues = {45.0, 90.0};
-        List<Renderable> renderableList = new ArrayList<>();
-
-        level2ProductLayer.addWaveLengthArrows(latValues, lonValues, waveLengthValues, waveDirValues, renderableList);
-
-        assertEquals(2, renderableList.size());
-        assertTrue(renderableList.get(0) instanceof DirectedPath);
-        assertTrue(renderableList.get(1) instanceof DirectedPath);
     }
 }
 

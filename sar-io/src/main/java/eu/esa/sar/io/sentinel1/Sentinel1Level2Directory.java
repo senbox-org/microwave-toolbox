@@ -51,7 +51,7 @@ public class Sentinel1Level2Directory extends XMLProductDirectory implements Sen
     }
 
     protected String getRelativePathToImageFolder() {
-        return getRootFolder() + "measurement" + '/';
+        return getRootFolder() + "measurement/";
     }
 
     protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
@@ -89,7 +89,7 @@ public class Sentinel1Level2Directory extends XMLProductDirectory implements Sen
         addBandAbstractedMetadata(origProdRoot);
     }
 
-    private void addBandAbstractedMetadata(final MetadataElement origProdRoot) throws IOException {
+    private void addBandAbstractedMetadata(final MetadataElement origProdRoot) {
 
         MetadataElement annotationElement = origProdRoot.getElement("annotation");
         if (annotationElement == null) {
@@ -147,10 +147,6 @@ public class Sentinel1Level2Directory extends XMLProductDirectory implements Sen
 
         final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
 
-        // They are 99999 which is NOT correct.
-        //final int sceneWidth = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
-        //final int sceneHeight = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
-
         // Only implemented for SM(?), IW and EW, NOT for WV
         // SM, IW and EW only have one .nc file while WV has 1 per vignette
         // For WV, the calls return -1. In that case just use AbstractMetadata.num_samples_per_line
@@ -169,13 +165,17 @@ public class Sentinel1Level2Directory extends XMLProductDirectory implements Sen
 
         addBands(product);
         addGeoCoding(product);
+        addWindVectors(product);
 
         ReaderUtils.addMetadataProductSize(product);
 
-        OCNReader.addWindDataToVectorNodes(product);
-        //OCNReader.addOSWDataToVectorNode(product);
-
         return product;
+    }
+
+    private void addWindVectors(final Product product) {
+        WindVectors windVectors = new WindVectors(OCNReader);
+        windVectors.addWindDataToVectorNodes(product);
+        //windVectors.addOSWDataToVectorNode(product);
     }
 
     public void addGeoCodingToBands(final Product product) {
