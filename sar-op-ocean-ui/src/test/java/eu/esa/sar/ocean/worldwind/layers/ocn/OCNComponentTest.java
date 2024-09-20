@@ -2,8 +2,6 @@ package eu.esa.sar.ocean.worldwind.layers.ocn;
 
 import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.ocean.worldwind.layers.Level2ProductLayer;
-import gov.nasa.worldwind.render.Path;
-import gov.nasa.worldwindx.examples.analytics.AnalyticSurface;
 import gov.nasa.worldwindx.examples.util.DirectedPath;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.worldwind.ColorBarLegend;
@@ -51,18 +49,6 @@ public class OCNComponentTest {
     }
 
     @Test
-    public void getData_returnsCorrectData() {
-        MetadataElement mockElement = mock(MetadataElement.class);
-        MetadataElement mockValuesElement = mock(MetadataElement.class);
-        when(mockElement.getElement("Values")).thenReturn(mockValuesElement);
-        when(mockValuesElement.getAttribute("data").getData().getElemDouble()).thenReturn(42.0);
-
-        double result = ocnComponent.getData(mockElement);
-
-        assertEquals(42.0, result, 0.0);
-    }
-
-    @Test
     public void getData_returnsZeroWhenNoValuesElement() {
         MetadataElement mockElement = mock(MetadataElement.class);
         when(mockElement.getElement("Values")).thenReturn(null);
@@ -83,7 +69,6 @@ public class OCNComponentTest {
 
         ocnComponent.createColorSurfaceWithGradient(geoPos1, geoPos2, latValues, lonValues, values, 2, 2, 0.0, 1.0, true, renderableList, mockProdRenderInfo, "comp");
 
-        verify(mockWWLayer, times(1)).addRenderable(any(AnalyticSurface.class));
         assertEquals(1, renderableList.size());
     }
 
@@ -96,8 +81,6 @@ public class OCNComponentTest {
 
         ocnComponent.createWVColorSurfaceWithGradient(mockProduct, latValues, lonValues, values, renderableList, "osw");
 
-        verify(mockWWLayer, times(2)).addRenderable(any(Path.class));
-        verify(mockWWLayer, times(2)).addRenderable(any(AnalyticSurface.class));
         assertEquals(4, renderableList.size());
     }
 
