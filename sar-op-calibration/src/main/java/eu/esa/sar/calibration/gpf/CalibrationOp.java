@@ -76,7 +76,6 @@ public class CalibrationOp extends Operator {
     @Parameter(description = "Create beta0 virtual band", defaultValue = "false", label = "Create beta0 virtual band")
     private Boolean createBetaBand = false;
 
-    // for Sentinel-1 mission only
     @Parameter(description = "The list of polarisations", label = "Polarisations")
     private String[] selectedPolarisations;
 
@@ -199,7 +198,6 @@ public class CalibrationOp extends Operator {
      */
     public static void createGammaVirtualBand(final Product trgProduct, final boolean outputImageScaleInDb) {
 
-        int count = 1;
         final Band[] bands = trgProduct.getBands();
         for (Band trgBand : bands) {
 
@@ -233,8 +231,8 @@ public class CalibrationOp extends Operator {
                 gammeBandName += "_dB";
             }
 
-            while (trgProduct.getBand(gammeBandName) != null) {
-                gammeBandName += "_" + ++count;
+            if (trgProduct.getBand(gammeBandName) != null) {
+                continue;
             }
 
             final VirtualBand band = new VirtualBand(gammeBandName,
@@ -256,7 +254,6 @@ public class CalibrationOp extends Operator {
      */
     public static void createBetaVirtualBand(final Product trgProduct, final boolean outputImageScaleInDb) {
 
-        int count = 1;
         final Band[] bands = trgProduct.getBands();
         for (Band trgBand : bands) {
 
@@ -290,8 +287,8 @@ public class CalibrationOp extends Operator {
                 betaBandName += "_dB";
             }
 
-            while (trgProduct.getBand(betaBandName) != null) {
-                betaBandName += "_" + ++count;
+            if (trgProduct.getBand(betaBandName) != null) {
+                continue;
             }
 
             final VirtualBand band = new VirtualBand(betaBandName,

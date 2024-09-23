@@ -306,37 +306,29 @@ public class BaseCalibrator {
      */
     protected String[] createTargetBandNames(final String srcBandName) {
 
-        final int cnt = (outputSigmaBand ? 1 : 0) + (outputGammaBand ? 1 : 0) + (outputBetaBand ? 1 : 0) + (outputDNBand ? 1 : 0);
-        String[] targetBandNames = new String[cnt];
+        List<String> targetBandNames = new ArrayList<>();
 
         String pol = srcBandName.contains("_") ? srcBandName.substring(srcBandName.indexOf("_")) : "";
         if(pol.isEmpty()) {
             pol = "_" + OperatorUtils.getBandPolarization(srcBandName, absRoot).toUpperCase();
         }
 
-        int k = 0;
         if (outputSigmaBand) {
-            targetBandNames[k++] = "Sigma0" + pol;
+            targetBandNames.add("Sigma0" + pol);
         }
-
         if (outputGammaBand) {
-            targetBandNames[k++] = "Gamma0" + pol;
+            targetBandNames.add("Gamma0" + pol);
         }
-
         if (outputBetaBand) {
-            targetBandNames[k++] = "Beta0" + pol;
+            targetBandNames.add("Beta0" + pol);
         }
-
         if (outputDNBand) {
-            targetBandNames[k] = "DN" + pol;
+            targetBandNames.add("DN" + pol);
         }
-
         if (outputImageScaleInDb) {
-            for (int i = 0; i < targetBandNames.length; i++) {
-                targetBandNames[i] += "_dB";
-            }
+            targetBandNames.replaceAll(s -> s + "_dB");
         }
 
-        return targetBandNames;
+        return targetBandNames.toArray(new String[0]);
     }
 }
