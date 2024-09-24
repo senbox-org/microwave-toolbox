@@ -15,6 +15,7 @@
  */
 package eu.esa.microwave.benchmark;
 
+import com.bc.ceres.core.PrintWriterConciseProgressMonitor;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.ProductIO;
@@ -77,11 +78,13 @@ public class BaseBenchmarks {
     }
 
     protected void write(final Product trgProduct, final File outputFolder, final String format) throws IOException {
-        ProductIO.writeProduct(trgProduct, new File(outputFolder, trgProduct.getName()), format, false);
+        ProductIO.writeProduct(trgProduct, new File(outputFolder, trgProduct.getName()), format, false,
+                new PrintWriterConciseProgressMonitor(System.out));
     }
 
     protected void writeGPF(final Product trgProduct, final File outputFolder, final String format) {
-        GPF.writeProduct(trgProduct, new File(outputFolder, trgProduct.getName()), format, false, ProgressMonitor.NULL);
+        GPF.writeProduct(trgProduct, new File(outputFolder, trgProduct.getName()), format, false,
+                new PrintWriterConciseProgressMonitor(System.out));
     }
 
     protected void diagnostics() {
