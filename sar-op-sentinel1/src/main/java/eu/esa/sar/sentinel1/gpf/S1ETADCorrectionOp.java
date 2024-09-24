@@ -183,6 +183,10 @@ public class S1ETADCorrectionOp extends Operator {
             throw new OperatorException("No correction layer is selected");
         }
 
+        if(!resamplingImage) {
+            outputPhaseCorrections = true;
+        }
+
         if (outputPhaseCorrections && !((acquisitionMode.equals("IW") || acquisitionMode.equals("SM")) && productType.equals("SLC"))) {
             throw new OperatorException("Option 2 is for Sentinel-1 IW SLC and SM SLC product only");
         }
