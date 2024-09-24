@@ -59,10 +59,6 @@
             <artifactId>snap-raster</artifactId>
             <version>${snap.version}</version>
         </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-commons</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>edu.emory.mathcs</groupId>
