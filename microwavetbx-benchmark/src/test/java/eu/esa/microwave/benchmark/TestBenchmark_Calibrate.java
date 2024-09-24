@@ -111,9 +111,9 @@ public class TestBenchmark_Calibrate extends BaseBenchmarks {
         readNode.setConfiguration(readParameters);
         graph.addNode(readNode);
 
-        final Node decompNode = new Node("Calibration", "Calibration");
-        decompNode.addSource(new NodeSource("source", "read"));
-        graph.addNode(decompNode);
+        final Node calibrationNode = new Node("Calibration", "Calibration");
+        calibrationNode.addSource(new NodeSource("source", "read"));
+        graph.addNode(calibrationNode);
 
         final Node writeNode = new Node("write", "write");
         final DomElement writeParameters = new DefaultDomElement("parameters");
