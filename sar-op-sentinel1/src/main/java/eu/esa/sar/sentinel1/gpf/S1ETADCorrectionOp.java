@@ -17,7 +17,7 @@ package eu.esa.sar.sentinel1.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.cloud.opendata.DataSpaces;
-import eu.esa.sar.commons.ETADUtils;
+import eu.esa.sar.sentinel1.gpf.etadcorrectors.ETADUtils;
 import eu.esa.sar.sentinel1.gpf.etadcorrectors.Corrector;
 import eu.esa.sar.sentinel1.gpf.etadcorrectors.GRDCorrector;
 import eu.esa.sar.sentinel1.gpf.etadcorrectors.SMCorrector;
@@ -153,7 +153,7 @@ public class S1ETADCorrectionOp extends Operator {
 
             getSourceProductMetadata();
 
-            getEtadUtils();
+            createETADUtils();
 
             getResampling();
 
@@ -185,13 +185,6 @@ public class S1ETADCorrectionOp extends Operator {
 
         if (outputPhaseCorrections && !((acquisitionMode.equals("IW") || acquisitionMode.equals("SM")) && productType.equals("SLC"))) {
             throw new OperatorException("Option 2 is for Sentinel-1 IW SLC and SM SLC product only");
-        }
-    }
-
-    private void getEtadUtils() throws Exception {
-
-        if (etadFile != null) {
-                etadUtils = createETADUtils();
         }
     }
 

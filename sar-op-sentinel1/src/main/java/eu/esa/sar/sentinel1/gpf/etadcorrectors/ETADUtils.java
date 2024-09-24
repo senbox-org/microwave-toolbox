@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 20123 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.commons;
+package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
@@ -41,7 +41,7 @@ public final class ETADUtils {
     private double rangeTimeMax = 0.0;
     private int numInputProducts = 0;
     private int numSubSwaths = 0;
-    private InputProduct[] inputProducts = null;
+    InputProduct[] inputProducts = null;
     private InstrumentTimingCalibration[] instrumentTimingCalibrationList = null;
 
     public ETADUtils(final Product ETADProduct) throws Exception {

@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
-import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.util.ProductUtils;
@@ -30,7 +29,7 @@ import java.util.Map;
  * Base class for ETAD correctors.
  */
 
- public class BaseCorrector {
+ public abstract class BaseCorrector {
 
     protected Product sourceProduct;
     protected Product targetProduct;

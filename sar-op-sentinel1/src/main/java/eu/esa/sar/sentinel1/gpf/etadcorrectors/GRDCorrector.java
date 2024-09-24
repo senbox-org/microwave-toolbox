@@ -16,7 +16,6 @@
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.Operator;
@@ -40,10 +39,10 @@ import java.util.StringTokenizer;
 
  public class GRDCorrector extends BaseCorrector implements Corrector {
 
-    private double firstLineTime = 0.0;
-    private double lastLineTime = 0.0;
-    private double lineTimeInterval = 0.0;
-    private double groundRangeSpacing = 0.0;
+    double firstLineTime = 0.0;
+    double lastLineTime = 0.0;
+    double lineTimeInterval = 0.0;
+    double groundRangeSpacing = 0.0;
     private SRGRCoefficientList[] srgrConvParams = null;
     private GRSRCoefficientList[] grsrConvParams = null;
 
@@ -65,7 +64,7 @@ import java.util.StringTokenizer;
         }
     }
 
-    private void getSourceProductMetadata() {
+    void getSourceProductMetadata() {
 
         try {
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);

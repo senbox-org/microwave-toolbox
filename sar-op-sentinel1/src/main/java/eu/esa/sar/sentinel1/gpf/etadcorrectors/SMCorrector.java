@@ -17,7 +17,6 @@ package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.Operator;

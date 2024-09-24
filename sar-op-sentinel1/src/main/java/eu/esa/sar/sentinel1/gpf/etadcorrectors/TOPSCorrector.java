@@ -18,7 +18,6 @@ package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.Sentinel1Utils;
-import eu.esa.sar.commons.ETADUtils;
 import eu.esa.sar.sentinel1.gpf.BackGeocodingOp;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.*;
@@ -51,7 +50,7 @@ import java.util.Map;
     private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private double noDataValue = 0.0;
-    private double radarFrequency = 0.0;
+    double radarFrequency = 0.0;
     private static final String ETAD = "ETAD";
 
 
@@ -171,6 +170,11 @@ import java.util.Map;
             final int txMax = tx0 + tw;
 //            System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 
+
+            if (!resamplingImage && !tropToHeightGradientComputed) {
+                computeTroposphericToHeightGradient();
+            }
+
             for (int burstIndex = 0; burstIndex < subSwath.numOfBursts; burstIndex++) {
                 final int firstLineIdx = burstIndex * subSwath.linesPerBurst;
                 final int lastLineIdx = firstLineIdx + subSwath.linesPerBurst - 1;
@@ -189,7 +193,7 @@ import java.util.Map;
                 if (resamplingImage) {
                     computePartialTileResampleImage(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
                 } else { // outputInSARPhaseCorrections
-                    computePartialTileOutputCorrections(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
+                    computePartialTileOutputCorrections(burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
                 }
             }
 
@@ -203,11 +207,11 @@ import java.util.Map;
         if (tropToHeightGradientComputed) return;
 
         int prodSubswathIndex = -1;
-        if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
+        if (subSwath.subSwathName.equalsIgnoreCase("iw1")) {
             prodSubswathIndex = 1;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
+        } else if (subSwath.subSwathName.equalsIgnoreCase("iw2")) {
             prodSubswathIndex = 2;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
+        } else if (subSwath.subSwathName.equalsIgnoreCase("iw3")) {
             prodSubswathIndex = 3;
         }
 
@@ -260,15 +264,11 @@ import java.util.Map;
         return c.get(0,0);
     }
 
-    private void computePartialTileOutputCorrections(final int subSwathIndex, final int mBurstIndex,
+    private void computePartialTileOutputCorrections(final int mBurstIndex,
                                                      final int x0, final int y0, final int w, final int h,
                                                      final Map<Band, Tile> targetTileMap, final Operator op) {
 
         try {
-            if (!tropToHeightGradientComputed) {
-                computeTroposphericToHeightGradient();
-            }
-
             double[][] correction = new double[h][w];
             getInSARRangeTimeCorrectionForCurrentTile(x0, y0, w, h, mBurstIndex, correction);
             final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
@@ -416,11 +416,11 @@ import java.util.Map;
                                                final int prodBurstIndex, final double[][] correction, final double scale) {
 
         int prodSubswathIndex = -1;
-        if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
+        if (subSwath.subSwathName.equalsIgnoreCase("iw1")) {
             prodSubswathIndex = 1;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
+        } else if (subSwath.subSwathName.equalsIgnoreCase("iw2")) {
             prodSubswathIndex = 2;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
+        } else if (subSwath.subSwathName.equalsIgnoreCase("iw3")) {
             prodSubswathIndex = 3;
         }
 
