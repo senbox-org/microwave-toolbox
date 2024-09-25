@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 20123 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.commons;
+package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
@@ -32,7 +32,7 @@ import java.util.Map;
 
 public final class ETADUtils {
 
-    private Product etadProduct = null;
+    private final Product etadProduct;
     private MetadataElement absRoot = null;
     private MetadataElement origProdRoot = null;
     private double azimuthTimeMin = 0.0;
@@ -41,7 +41,7 @@ public final class ETADUtils {
     private double rangeTimeMax = 0.0;
     private int numInputProducts = 0;
     private int numSubSwaths = 0;
-    private InputProduct[] inputProducts = null;
+    InputProduct[] inputProducts = null;
     private InstrumentTimingCalibration[] instrumentTimingCalibrationList = null;
 
     public ETADUtils(final Product ETADProduct) throws Exception {
@@ -56,27 +56,33 @@ public final class ETADUtils {
 
         getInputProductMetadata();
     }
-    
+
+    public void dispose() {
+        if(etadProduct != null) {
+            etadProduct.dispose();
+        }
+    }
+
     private void getMetadataRoot() throws IOException {
 
         final MetadataElement root = etadProduct.getMetadataRoot();
         if (root == null) {
-        throw new IOException("Root Metadata not found");
+            throw new IOException("Root Metadata not found");
         }
 
         absRoot = AbstractMetadata.getAbstractedMetadata(etadProduct);
         if (absRoot == root) {
-        throw new IOException(AbstractMetadata.ABSTRACT_METADATA_ROOT + " not found.");
+            throw new IOException(AbstractMetadata.ABSTRACT_METADATA_ROOT + " not found.");
         }
 
         origProdRoot = AbstractMetadata.getOriginalProductMetadata(etadProduct);
         if (origProdRoot == root) {
-        throw new IOException("Original_Product_Metadata not found.");
+            throw new IOException("Original_Product_Metadata not found.");
         }
 
         final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION);
         if (!mission.startsWith("SENTINEL-1")) {
-        throw new IOException(mission + " is not a valid mission for Sentinel1 product.");
+            throw new IOException(mission + " is not a valid mission for Sentinel1 product.");
         }
     }
 

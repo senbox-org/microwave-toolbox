@@ -15,9 +15,9 @@
  */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
-import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
+import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -25,16 +25,19 @@ import org.esa.snap.engine_utilities.util.Maths;
 
 import java.awt.*;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Base class for ETAD correctors.
  */
 
- public class BaseCorrector {
+ public abstract class BaseCorrector {
 
     protected Product sourceProduct;
     protected Product targetProduct;
 	protected ETADUtils etadUtils;
+    protected boolean etadDataLoaded = false;
     protected Resampling selectedResampling;
     protected int sourceImageWidth;
     protected int sourceImageHeight;
@@ -65,6 +68,8 @@ import java.util.Map;
     protected static final String ETAD_HEIGHT = "etadHeight";
     protected static final String PRODUCT_SUFFIX = "_etad";
 
+    protected final Map<String, double[][]> correctionMap = new ConcurrentHashMap<>();
+    private final Map<String, ReentrantLock> lockMap = new ConcurrentHashMap<>();
 
     /**
      * Default constructor. The graph processing framework
@@ -76,6 +81,21 @@ import java.util.Map;
         this.selectedResampling = selectedResampling;
         sourceImageWidth = sourceProduct.getSceneRasterWidth();
         sourceImageHeight = sourceProduct.getSceneRasterHeight();
+    }
+
+    public void dispose() {
+
+    }
+
+    public boolean hasETADData() {
+        return etadDataLoaded;
+    }
+
+    public synchronized void loadETADData() throws OperatorException {
+        if(etadDataLoaded) {
+            return;
+        }
+
     }
 
     public void setEtadUtils(final ETADUtils etadUtils) {
@@ -255,17 +275,13 @@ import java.util.Map;
     }
 
     protected double getCorrection(final String layer, final double azimuthTime, final double slantRangeTime,
-                                   final ETADUtils.Burst burst, final Map<String, double[][]> layerCorrectionMap) {
+                                   final ETADUtils.Burst burst) {
 
         if (burst == null) {
             return 0.0;
         }
-        final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
-        double[][] layerCorrection = layerCorrectionMap.get(bandName);
-        if (layerCorrection == null) {
-            layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
-            layerCorrectionMap.put(bandName, layerCorrection);
-        }
+        double[][] layerCorrection = getBurstCorrection(layer, burst);
+
         final double i = (azimuthTime - burst.azimuthTimeMin) / burst.gridSamplingAzimuth;
         final double j = (slantRangeTime - burst.rangeTimeMin) / burst.gridSamplingRange;
         final int i0 = (int)i;
@@ -285,6 +301,29 @@ import java.util.Map;
             return null;
         }
         final String bandName = etadUtils.createBandName(burst.swathID, burst.bIndex, layer);
-        return etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
+        double[][] layerCorrection = correctionMap.get(bandName);
+        if (layerCorrection == null) {
+            layerCorrection = loadBurst(burst, bandName);
+        }
+        return layerCorrection;
+    }
+
+    private double[][] loadBurst(final ETADUtils.Burst burst, final String bandName) {
+        double[][] layerCorrection = correctionMap.get(bandName);
+        if (layerCorrection == null) {
+            ReentrantLock lock = lockMap.computeIfAbsent(bandName, k -> new ReentrantLock());
+            lock.lock();
+            try {
+                layerCorrection = correctionMap.get(bandName);
+                if (layerCorrection == null) {
+                    //System.out.println("Loading burst correction for band: " + bandName);
+                    layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
+                    correctionMap.put(bandName, layerCorrection);
+                }
+            } finally {
+                lock.unlock();
+            }
+        }
+        return layerCorrection;
     }
 }

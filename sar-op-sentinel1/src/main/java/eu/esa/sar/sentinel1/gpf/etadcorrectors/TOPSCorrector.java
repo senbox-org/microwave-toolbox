@@ -18,7 +18,6 @@ package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.Sentinel1Utils;
-import eu.esa.sar.commons.ETADUtils;
 import eu.esa.sar.sentinel1.gpf.BackGeocodingOp;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.*;
@@ -27,13 +26,16 @@ import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.ThreadExecutor;
+import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
 
 import java.awt.*;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,9 +53,9 @@ import java.util.Map;
     private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private double noDataValue = 0.0;
-    private double radarFrequency = 0.0;
+    double radarFrequency = 0.0;
     private static final String ETAD = "ETAD";
-
+    private List<String> tileRects = new ArrayList<>();
 
     /**
      * Default constructor. The graph processing framework
@@ -88,6 +90,41 @@ import java.util.Map;
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
             radarFrequency = absRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // MHz to Hz
         } catch (Throwable e) {
+            throw new OperatorException(e);
+        }
+    }
+
+    @Override
+    public synchronized void loadETADData() throws OperatorException {
+        if(etadDataLoaded) {
+            return;
+        }
+        try {
+            final String[] preLoadedLayers = new String[] {TROPOSPHERIC_CORRECTION_RG, HEIGHT,
+                    GEODETIC_CORRECTION_RG, IONOSPHERIC_CORRECTION_RG};
+
+            final int prodSubswathIndex = getSubSwathIndex(subSwath.subSwathName);
+            final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
+            final int[] burstIndexArray = etadUtils.getBurstIndexArray(pIndex, prodSubswathIndex);
+
+            ThreadExecutor executor = new ThreadExecutor();
+            for (int burstIndex : burstIndexArray) {
+                final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
+
+                for (String preLoadedLayer : preLoadedLayers) {
+                    ThreadRunnable runnable1 = new ThreadRunnable() {
+                        @Override
+                        public void process() {
+                            getBurstCorrection(preLoadedLayer, burst);
+                        }
+                    };
+                    executor.execute(runnable1);
+                }
+            }
+            executor.complete();
+
+            etadDataLoaded = true;
+        } catch (Exception e) {
             throw new OperatorException(e);
         }
     }
@@ -169,7 +206,17 @@ import java.util.Map;
             final int th = targetRectangle.height;
             final int tyMax = ty0 + th;
             final int txMax = tx0 + tw;
-//            System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
+            //System.out.println("x0 = " + tx0 + ", y0 = " + ty0 + ", w = " + tw + ", h = " + th);
+
+//            if(tileRects.contains(targetRectangle.toString())) {
+//                System.out.println("Already processed: " + targetRectangle.toString());
+//            } else {
+//                tileRects.add(targetRectangle.toString());
+//            }
+
+            if (!resamplingImage && !tropToHeightGradientComputed) {
+                computeTroposphericToHeightGradient();
+            }
 
             for (int burstIndex = 0; burstIndex < subSwath.numOfBursts; burstIndex++) {
                 final int firstLineIdx = burstIndex * subSwath.linesPerBurst;
@@ -189,7 +236,7 @@ import java.util.Map;
                 if (resamplingImage) {
                     computePartialTileResampleImage(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
                 } else { // outputInSARPhaseCorrections
-                    computePartialTileOutputCorrections(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
+                    computePartialTileOutputCorrections(burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
                 }
             }
 
@@ -198,19 +245,23 @@ import java.util.Map;
         }
     }
 
+    private static int getSubSwathIndex(String subSwathName) {
+        int prodSubswathIndex = -1;
+        if (subSwathName.equalsIgnoreCase("iw1")) {
+            prodSubswathIndex = 1;
+        } else if (subSwathName.equalsIgnoreCase("iw2")) {
+            prodSubswathIndex = 2;
+        } else if (subSwathName.equalsIgnoreCase("iw3")) {
+            prodSubswathIndex = 3;
+        }
+        return prodSubswathIndex;
+    }
+
     private synchronized void computeTroposphericToHeightGradient() {
 
         if (tropToHeightGradientComputed) return;
 
-        int prodSubswathIndex = -1;
-        if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
-            prodSubswathIndex = 1;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
-            prodSubswathIndex = 2;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
-            prodSubswathIndex = 3;
-        }
-
+        final int prodSubswathIndex = getSubSwathIndex(subSwath.subSwathName);
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
         final int[] burstIndexArray = etadUtils.getBurstIndexArray(pIndex, prodSubswathIndex);
 
@@ -260,15 +311,11 @@ import java.util.Map;
         return c.get(0,0);
     }
 
-    private void computePartialTileOutputCorrections(final int subSwathIndex, final int mBurstIndex,
+    private void computePartialTileOutputCorrections(final int mBurstIndex,
                                                      final int x0, final int y0, final int w, final int h,
                                                      final Map<Band, Tile> targetTileMap, final Operator op) {
 
         try {
-            if (!tropToHeightGradientComputed) {
-                computeTroposphericToHeightGradient();
-            }
-
             double[][] correction = new double[h][w];
             getInSARRangeTimeCorrectionForCurrentTile(x0, y0, w, h, mBurstIndex, correction);
             final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
@@ -416,11 +463,11 @@ import java.util.Map;
                                                final int prodBurstIndex, final double[][] correction, final double scale) {
 
         int prodSubswathIndex = -1;
-        if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
+        if (subSwath.subSwathName.equalsIgnoreCase("iw1")) {
             prodSubswathIndex = 1;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
+        } else if (subSwath.subSwathName.equalsIgnoreCase("iw2")) {
             prodSubswathIndex = 2;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
+        } else if (subSwath.subSwathName.equalsIgnoreCase("iw3")) {
             prodSubswathIndex = 3;
         }
 
@@ -429,7 +476,6 @@ import java.util.Map;
         final int burstIndex = etadUtils.getBurstIndex(pIndex, prodSubswathIndex, burstAzTime);
         final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
 
-        Map<String, double[][]> correctionMap = new HashMap<>(10);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -442,7 +488,7 @@ import java.util.Map;
                 final int xx = x - x0;
                 final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
 
-                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
+                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst);
             }
         }
     }

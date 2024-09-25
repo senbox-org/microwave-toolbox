@@ -17,7 +17,6 @@ package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.Operator;
@@ -25,6 +24,8 @@ import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.core.util.ThreadExecutor;
+import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -66,6 +67,34 @@ import java.util.Map;
         try {
             getSourceProductMetadata();
         } catch (Throwable e) {
+            throw new OperatorException(e);
+        }
+    }
+
+    @Override
+    public synchronized void loadETADData() throws OperatorException {
+        if(etadDataLoaded) {
+            return;
+        }
+        try {
+            final ETADUtils.Burst burst = etadUtils.getBurst(1, 1, 1);
+            final String[] preLoadedLayers = new String[] {TROPOSPHERIC_CORRECTION_RG, HEIGHT,
+                    GEODETIC_CORRECTION_RG, IONOSPHERIC_CORRECTION_RG};
+
+            ThreadExecutor executor = new ThreadExecutor();
+            for(String preLoadedLayer : preLoadedLayers) {
+                ThreadRunnable runnable1 = new ThreadRunnable() {
+                    @Override
+                    public void process() {
+                        getBurstCorrection(preLoadedLayer, burst);
+                    }
+                };
+                executor.execute(runnable1);
+            }
+            executor.complete();
+
+            etadDataLoaded = true;
+        } catch (Exception e) {
             throw new OperatorException(e);
         }
     }
@@ -389,7 +418,6 @@ import java.util.Map;
     protected void getCorrectionForCurrentTile(final String layer, final int x0, final int y0, final int w, final int h,
                                                final int burstIndex, final double[][] correction, final double scale) {
 
-        Map<String, double[][]> correctionMap = new HashMap<>(10);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -400,7 +428,7 @@ import java.util.Map;
                 final int xx = x - x0;
                 final double rgTime = (slantRangeToFirstPixel + x * rangeSpacing) / Constants.halfLightSpeed;
                 final ETADUtils.Burst burst = etadUtils.getBurst(azTime, rgTime);
-                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
+                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst);
             }
         }
     }
