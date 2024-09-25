@@ -32,6 +32,8 @@ public interface Corrector {
 
     void initialize() throws OperatorException;
 
+    void dispose();
+
     void setTroposphericCorrectionRg(final boolean flag);
     void setIonosphericCorrectionRg(final boolean flag);
     void setGeodeticCorrectionRg(final boolean flag);
@@ -46,6 +48,10 @@ public interface Corrector {
     void setEtadUtils(final ETADUtils etadUtils);
 
     Product createTargetProduct();
+
+    boolean hasETADData();
+
+    void loadETADData();
 
     /**
      * Called by the framework in order to compute a tile for the given target band.
