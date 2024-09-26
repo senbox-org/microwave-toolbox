@@ -52,6 +52,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
     private boolean theOWILimitChanged = false;
     private boolean theRVLLimitChanged = false;
+    private static int MAX_WIND_SPEED = 25;
 
     private JCheckBox theArrowsCB;
     private String theSelectedComp = null;
@@ -399,7 +400,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         final JPanel maxPanel = new JPanel(new GridLayout(1, 2, 5, 5));
         maxPanel.add(new JLabel("Max OWI Wind Speed:"));
 
-        final JSpinner maxSP = new JSpinner(new SpinnerNumberModel(10, 0, 10, 1));
+        final JSpinner maxSP = new JSpinner(new SpinnerNumberModel(10, 0, MAX_WIND_SPEED, 1));
         maxSP.addChangeListener(e -> {
             int newValue = (Integer) ((JSpinner) e.getSource()).getValue();
 
@@ -456,7 +457,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         });
         theControlLevel2Panel.add(updateButton);
 
-        createColorBarLegend(0, 10, "OWI Wind Speed", "owi");
+        createColorBarLegend(0, MAX_WIND_SPEED, "OWI Wind Speed", "owi");
         createColorBarLegend(0, 10, "OSW Wave Height.", "osw");
         createColorBarLegend(-6, 5, "RVL Rad. Vel.", "rvl");
         //addRenderable(theColorBarLegendHash.get("owi"));
