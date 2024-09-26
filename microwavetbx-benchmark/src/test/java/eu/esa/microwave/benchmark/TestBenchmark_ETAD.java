@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 SkyWatch Space Applications Inc. https://www.skywatch.com
+ * Copyright (C) 2024 SkyWatch Space Applications Inc. https://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -17,16 +17,15 @@ package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.binding.dom.DefaultDomElement;
 import com.bc.ceres.binding.dom.DomElement;
-import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.orbits.gpf.ApplyOrbitFileOp;
 import eu.esa.sar.sentinel1.gpf.BackGeocodingOp;
 import eu.esa.sar.sentinel1.gpf.S1ETADCorrectionOp;
 import eu.esa.sar.sentinel1.gpf.TOPSARSplitOp;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.graph.Graph;
-import org.esa.snap.core.gpf.graph.GraphProcessor;
 import org.esa.snap.core.gpf.graph.Node;
 import org.esa.snap.core.gpf.graph.NodeSource;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -130,6 +129,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
             splitOp.setSourceProduct(srcProduct);
             splitOp.setParameter("subswath", "IW1");
             splitOp.setParameter("selectedPolarisations", "VV");
+            splitOp.setParameter("lastBurstIndex", 2);
 
             ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
             applyOrbitOp.setSourceProduct(splitOp.getTargetProduct());
@@ -168,6 +168,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
         final DomElement splitParameters = new DefaultDomElement("parameters");
         splitParameters.createChild("subswath").setValue("IW1");
         splitParameters.createChild("selectedPolarisations").setValue("VV");
+        splitParameters.createChild("lastBurstIndex").setValue("2");
         splitNode.setConfiguration(splitParameters);
         graph.addNode(splitNode);
 
@@ -199,8 +200,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
         }
         graph.addNode(writeNode);
 
-        final GraphProcessor processor = new GraphProcessor();
-        processor.executeGraph(graph, ProgressMonitor.NULL);
+        processGraph(graph);
     }
 
     private void coregister(final File srcFile1, final File etadFile1,
@@ -215,7 +215,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
                         processStack(srcFile1, etadFile1, srcFile2, etadFile2, outputFolder, mode);
                         break;
                     case GRAPH:
-                        processStackGraph(srcFile1, srcFile2, outputFolder);
+                        processStackGraph(srcFile1, etadFile1, srcFile2, etadFile2, outputFolder);
                         break;
                 }
             }
@@ -233,11 +233,13 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
                 splitOp1.setSourceProduct(srcProduct1);
                 splitOp1.setParameter("subswath", "IW1");
                 splitOp1.setParameter("selectedPolarisations", "VV");
+                splitOp1.setParameter("lastBurstIndex", 2);
 
                 TOPSARSplitOp splitOp2 = new TOPSARSplitOp();
                 splitOp2.setSourceProduct(srcProduct2);
                 splitOp2.setParameter("subswath", "IW1");
                 splitOp2.setParameter("selectedPolarisations", "VV");
+                splitOp2.setParameter("lastBurstIndex", 2);
 
                 ApplyOrbitFileOp applyOrbitOp1 = new ApplyOrbitFileOp();
                 applyOrbitOp1.setSourceProduct(splitOp1.getTargetProduct());
@@ -271,29 +273,81 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
         }
     }
 
-    private void processStackGraph(final File srcFile1, final File srcFile2, final File outputFolder) throws Exception {
+    private void processStackGraph(final File srcFile1, final File etadFile1,
+                                   final File srcFile2, final File etadFile2,
+                                   final File outputFolder) throws Exception {
 
         final Graph graph = new Graph("graph");
 
-        final Node readNode = new Node("read", "read");
-        final DomElement readParameters = new DefaultDomElement("parameters");
-        readParameters.createChild("file").setValue(srcFile1.getAbsolutePath());
-        readNode.setConfiguration(readParameters);
-        graph.addNode(readNode);
+        final Node readNode1 = new Node("read1", "read");
+        final DomElement readParameters1 = new DefaultDomElement("parameters");
+        readParameters1.createChild("file").setValue(srcFile1.getAbsolutePath());
+        readNode1.setConfiguration(readParameters1);
+        graph.addNode(readNode1);
 
-        final Node decompNode = new Node("Calibration", "Calibration");
-        decompNode.addSource(new NodeSource("source", "read"));
-        graph.addNode(decompNode);
+        final Node readNode2 = new Node("read2", "read");
+        final DomElement readParameters2 = new DefaultDomElement("parameters");
+        readParameters2.createChild("file").setValue(srcFile2.getAbsolutePath());
+        readNode2.setConfiguration(readParameters2);
+        graph.addNode(readNode2);
+
+        final Node splitNode1 = new Node("TOPSAR-Split1", "TOPSAR-Split");
+        splitNode1.addSource(new NodeSource("source", "read1"));
+        final DomElement splitParameters1 = new DefaultDomElement("parameters");
+        splitParameters1.createChild("subswath").setValue("IW1");
+        splitParameters1.createChild("selectedPolarisations").setValue("VV");
+        splitParameters1.createChild("lastBurstIndex").setValue("2");
+        splitNode1.setConfiguration(splitParameters1);
+        graph.addNode(splitNode1);
+
+        final Node splitNode2 = new Node("TOPSAR-Split2", "TOPSAR-Split");
+        splitNode2.addSource(new NodeSource("source", "read2"));
+        final DomElement splitParameters2 = new DefaultDomElement("parameters");
+        splitParameters2.createChild("subswath").setValue("IW1");
+        splitParameters2.createChild("selectedPolarisations").setValue("VV");
+        splitParameters2.createChild("lastBurstIndex").setValue("2");
+        splitNode2.setConfiguration(splitParameters2);
+        graph.addNode(splitNode2);
+
+        final Node applyOrbitNode1 = new Node("Apply-Orbit-File1", "Apply-Orbit-File");
+        applyOrbitNode1.addSource(new NodeSource("source", "TOPSAR-Split1"));
+        graph.addNode(applyOrbitNode1);
+
+        final Node applyOrbitNode2 = new Node("Apply-Orbit-File2", "Apply-Orbit-File");
+        applyOrbitNode2.addSource(new NodeSource("source", "TOPSAR-Split2"));
+        graph.addNode(applyOrbitNode2);
+
+        final Node etadNode1 = new Node("S1-ETAD-Correction1", "S1-ETAD-Correction");
+        etadNode1.addSource(new NodeSource("source", "Apply-Orbit-File1"));
+        final DomElement etadParameters1 = new DefaultDomElement("parameters");
+        etadParameters1.createChild("etadFile").setValue(etadFile1.getAbsolutePath());
+        etadParameters1.createChild("resamplingImage").setValue("false");
+        etadParameters1.createChild("outputPhaseCorrections").setValue("true");
+        etadNode1.setConfiguration(etadParameters1);
+        graph.addNode(etadNode1);
+
+        final Node etadNode2 = new Node("S1-ETAD-Correction2", "S1-ETAD-Correction");
+        etadNode2.addSource(new NodeSource("source", "Apply-Orbit-File2"));
+        final DomElement etadParameters2 = new DefaultDomElement("parameters");
+        etadParameters2.createChild("etadFile").setValue(etadFile2.getAbsolutePath());
+        etadParameters2.createChild("resamplingImage").setValue("false");
+        etadParameters2.createChild("outputPhaseCorrections").setValue("true");
+        etadNode2.setConfiguration(etadParameters2);
+        graph.addNode(etadNode2);
+
+        final Node backGeoCodingNode = new Node("Back-Geocoding", "Back-Geocoding");
+        backGeoCodingNode.addSource(new NodeSource("source", "S1-ETAD-Correction1"));
+        backGeoCodingNode.addSource(new NodeSource("source", "S1-ETAD-Correction2"));
+        graph.addNode(backGeoCodingNode);
 
         final Node writeNode = new Node("write", "write");
         final DomElement writeParameters = new DefaultDomElement("parameters");
         final File outFile = new File(outputFolder, srcFile1.getName());
         writeParameters.createChild("file").setValue(outFile.getAbsolutePath());
         writeNode.setConfiguration(writeParameters);
-        writeNode.addSource(new NodeSource("source", "Calibration"));
+        writeNode.addSource(new NodeSource("source", "Back-Geocoding"));
         graph.addNode(writeNode);
 
-        final GraphProcessor processor = new GraphProcessor();
-        processor.executeGraph(graph, ProgressMonitor.NULL);
+        processGraph(graph);
     }
 }

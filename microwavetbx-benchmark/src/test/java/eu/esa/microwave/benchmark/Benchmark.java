@@ -27,22 +27,34 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 @SuppressWarnings("unchecked")
 public abstract class Benchmark {
 
     private final static boolean DISABLE_BENCHMARKS = true;
+    private final static String REFERENCE_NAME = "";
     private final static int iterations = 2;
     private final static boolean deleteTempOutputFiles = true;
 
     private final String groupName;
     private final String testName;
-    private final File resultsFile = new File("/tmp/benchmark_results.json");
+    private final File resultsFile = getResultsFile();
     protected File outputFolder;
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final String DATE_SUFFIX = LocalDate.now().format(DATE_FORMATTER);
 
     public Benchmark(final String groupName, final String testName) {
         this.groupName = groupName;
         this.testName = FileUtils.createValidFilename(testName);
+
+        SystemUtils.LOG.info("Benchmark results file: " + resultsFile);
+    }
+
+    public static File getResultsFile() {
+        String reference = REFERENCE_NAME.isEmpty() ? "" : "_" + REFERENCE_NAME;
+        return new File("/tmp/benchmark_results_"+DATE_SUFFIX+reference+".json");
     }
 
     public void run() throws Exception {
@@ -103,7 +115,7 @@ public abstract class Benchmark {
 
         final JSONObject results = new JSONObject();
         results.put("error", errorMsg);
-        json.put(testName, results);
+        group.put(testName, results);
 
         JSON.write(json, resultsFile);
     }

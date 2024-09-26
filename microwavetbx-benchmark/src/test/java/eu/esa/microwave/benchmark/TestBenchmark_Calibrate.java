@@ -17,11 +17,9 @@ package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.binding.dom.DefaultDomElement;
 import com.bc.ceres.binding.dom.DomElement;
-import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.calibration.gpf.CalibrationOp;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.graph.Graph;
-import org.esa.snap.core.gpf.graph.GraphProcessor;
 import org.esa.snap.core.gpf.graph.Node;
 import org.esa.snap.core.gpf.graph.NodeSource;
 import org.junit.Test;
@@ -123,7 +121,6 @@ public class TestBenchmark_Calibrate extends BaseBenchmarks {
         writeNode.addSource(new NodeSource("source", "Calibration"));
         graph.addNode(writeNode);
 
-        final GraphProcessor processor = new GraphProcessor();
-        processor.executeGraph(graph, ProgressMonitor.NULL);
+        processGraph(graph);
     }
 }
