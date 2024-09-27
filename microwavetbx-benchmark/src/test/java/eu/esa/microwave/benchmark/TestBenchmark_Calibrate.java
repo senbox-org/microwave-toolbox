@@ -17,11 +17,9 @@ package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.binding.dom.DefaultDomElement;
 import com.bc.ceres.binding.dom.DomElement;
-import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.calibration.gpf.CalibrationOp;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.graph.Graph;
-import org.esa.snap.core.gpf.graph.GraphProcessor;
 import org.esa.snap.core.gpf.graph.Node;
 import org.esa.snap.core.gpf.graph.NodeSource;
 import org.junit.Test;
@@ -30,64 +28,72 @@ import java.io.File;
 
 public class TestBenchmark_Calibrate extends BaseBenchmarks {
 
-
-    @Test
-    public void testGRD_calibrate() throws Exception {
-        calibrate("calibrateGRD");
+    public TestBenchmark_Calibrate() {
+        super("Calibrate");
     }
 
     @Test
-    public void testGRD_calibrateWriteOp() throws Exception {
-        calibrateWriteOp("calibrateGRD");
+    public void testGRD_calibrate_ProductIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(grdFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
-    public void testGRD_calibrateGraph() throws Exception {
-        calibrateGraph("calibrateGRD");
+    public void testGRD_calibrate_GPF() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(grdFile, WriteMode.GPF);
     }
 
-    private void calibrate(final String name) throws Exception {
-        Benchmark b = new Benchmark(name + " productIO.write") {
+    @Test
+    public void testGRD_calibrate_Graph() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(grdFile, WriteMode.GRAPH);
+    }
+
+    @Test
+    public void testSLC_calibrate_ProductIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(slcFile, WriteMode.PRODUCT_IO);
+    }
+
+    @Test
+    public void testSLC_calibrate_GPF() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(slcFile, WriteMode.GPF);
+    }
+
+    @Test
+    public void testSLC_calibrate_Graph() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        calibrate(slcFile, WriteMode.GRAPH);
+    }
+
+    private void calibrate(final File srcFile, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
             @Override
             protected void execute() throws Exception {
-                process(grdFile, outputFolder, false);
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        process(srcFile, outputFolder, mode);
+                        break;
+                    case GRAPH:
+                        processGraph(srcFile, outputFolder);
+                        break;
+                }
             }
         };
         b.run();
     }
 
-    private void calibrateWriteOp(final String name) throws Exception {
-        Benchmark b = new Benchmark(name + " GPF.write") {
-            @Override
-            protected void execute() throws Exception {
-                process(grdFile, outputFolder, true);
-            }
-        };
-        b.run();
-    }
-
-    private void calibrateGraph(final String name) throws Exception {
-        Benchmark b = new Benchmark(name + " GraphProcessor") {
-            @Override
-            protected void execute() throws Exception {
-                processGraph(grdFile, outputFolder);
-            }
-        };
-        b.run();
-    }
-
-    private void process(final File file, final File outputFolder, final boolean useWriteOp) throws Exception {
+    private void process(final File file, final File outputFolder, final WriteMode mode) throws Exception {
         final Product srcProduct = read(file);
 
         CalibrationOp op = new CalibrationOp();
         op.setSourceProduct(srcProduct);
         Product trgProduct = op.getTargetProduct();
 
-        if(useWriteOp) {
-            writeGPF(trgProduct, outputFolder, DIMAP);
-        } else {
-            write(trgProduct, outputFolder, DIMAP);
-        }
+        write(trgProduct, outputFolder, mode);
 
         trgProduct.dispose();
         srcProduct.dispose();
@@ -103,9 +109,9 @@ public class TestBenchmark_Calibrate extends BaseBenchmarks {
         readNode.setConfiguration(readParameters);
         graph.addNode(readNode);
 
-        final Node decompNode = new Node("Calibration", "Calibration");
-        decompNode.addSource(new NodeSource("source", "read"));
-        graph.addNode(decompNode);
+        final Node calibrationNode = new Node("Calibration", "Calibration");
+        calibrationNode.addSource(new NodeSource("source", "read"));
+        graph.addNode(calibrationNode);
 
         final Node writeNode = new Node("write", "write");
         final DomElement writeParameters = new DefaultDomElement("parameters");
@@ -115,7 +121,6 @@ public class TestBenchmark_Calibrate extends BaseBenchmarks {
         writeNode.addSource(new NodeSource("source", "Calibration"));
         graph.addNode(writeNode);
 
-        final GraphProcessor processor = new GraphProcessor();
-        processor.executeGraph(graph, ProgressMonitor.NULL);
+        processGraph(graph);
     }
 }

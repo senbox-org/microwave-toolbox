@@ -25,110 +25,182 @@ import org.esa.snap.raster.gpf.texture.GLCMOp;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.io.File;
+
 public class TestBenchmark_SAR extends BaseBenchmarks {
+
+    public TestBenchmark_SAR() {
+        super("SAR");
+    }
 
     @Test
     public void testGRD_multilook() throws Exception {
-        Benchmark b = new Benchmark("GRD_multilook") {
-            @Override
-            protected void execute() throws Exception {
-                final Product srcProduct = subset(grdFile, rect);
-
-                MultilookOp op = new MultilookOp();
-                op.setSourceProduct(srcProduct);
-                Product trgProduct = op.getTargetProduct();
-
-                writeGPF(trgProduct, outputFolder, DIMAP);
-
-                trgProduct.dispose();
-                srcProduct.dispose();
-            }
-        };
-        b.run();
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        multilook(grdFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_terraincorrect() throws Exception {
-        Benchmark b = new Benchmark("GRD_terraincorrect") {
-            @Override
-            protected void execute() throws Exception {
-                final Product srcProduct = subset(grdFile, rect);
-
-                RangeDopplerGeocodingOp op = new RangeDopplerGeocodingOp();
-                op.setSourceProduct(srcProduct);
-                Product trgProduct = op.getTargetProduct();
-
-                writeGPF(trgProduct, outputFolder, DIMAP);
-
-                trgProduct.dispose();
-                srcProduct.dispose();
-            }
-        };
-        b.run();
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        terrain_correct(grdFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_ellipsoidcorrect() throws Exception {
-        Benchmark b = new Benchmark("GRD_ellipsoidcorrect") {
-            @Override
-            protected void execute() throws Exception {
-                final Product srcProduct = subset(grdFile, rect);
-
-                EllipsoidCorrectionRDOp op = new EllipsoidCorrectionRDOp();
-                op.setSourceProduct(srcProduct);
-                Product trgProduct = op.getTargetProduct();
-
-                writeGPF(trgProduct, outputFolder, DIMAP);
-
-                trgProduct.dispose();
-                srcProduct.dispose();
-            }
-        };
-        b.run();
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        ellipsoid_correct(grdFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_terrainflatten() throws Exception {
-        Benchmark b = new Benchmark("GRD_terrainflatten") {
-            @Override
-            protected void execute() throws Exception {
-                final Product srcProduct = subset(grdFile, rect);
-
-                CalibrationOp cal = new CalibrationOp();
-                cal.setSourceProduct(srcProduct);
-                cal.setParameter("outputBetaBand", true);
-                Product calProduct = cal.getTargetProduct();
-
-                TerrainFlatteningOp op = new TerrainFlatteningOp();
-                op.setSourceProduct(calProduct);
-                Product trgProduct = op.getTargetProduct();
-
-                writeGPF(trgProduct, outputFolder, DIMAP);
-
-                trgProduct.dispose();
-                srcProduct.dispose();
-            }
-        };
-        b.run();
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        terrain_flatten(grdFile, WriteMode.PRODUCT_IO);
     }
 
     @Test
     @Ignore
     public void testGRD_glcm() throws Exception {
-        Benchmark b = new Benchmark("GRD_glcm") {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        glcm(grdFile, WriteMode.PRODUCT_IO);
+    }
+
+
+    private void multilook(final File srcFile, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
             @Override
             protected void execute() throws Exception {
-                final Product srcProduct = subset(grdFile, rect);
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        final Product srcProduct = subset(srcFile, rect);
 
-                GLCMOp op = new GLCMOp();
-                op.setSourceProduct(srcProduct);
-                op.setParameter("quantizationLevelsStr", "16");
-                Product trgProduct = op.getTargetProduct();
+                        MultilookOp op = new MultilookOp();
+                        op.setSourceProduct(srcProduct);
+                        Product trgProduct = op.getTargetProduct();
 
-                writeGPF(trgProduct, outputFolder, DIMAP);
+                        write(trgProduct, outputFolder, mode);
 
-                trgProduct.dispose();
-                srcProduct.dispose();
+                        trgProduct.dispose();
+                        srcProduct.dispose();
+                        break;
+                    case GRAPH:
+                        //processGraph(srcFile, outputFolder);
+                        break;
+                }
+            }
+        };
+        b.run();
+    }
+
+    private void terrain_correct(final File srcFile, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
+            @Override
+            protected void execute() throws Exception {
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        final Product srcProduct = subset(srcFile, rect);
+
+                        RangeDopplerGeocodingOp op = new RangeDopplerGeocodingOp();
+                        op.setSourceProduct(srcProduct);
+                        Product trgProduct = op.getTargetProduct();
+
+                        write(trgProduct, outputFolder, mode);
+
+                        trgProduct.dispose();
+                        srcProduct.dispose();
+                        break;
+                    case GRAPH:
+                        //processGraph(srcFile, outputFolder);
+                        break;
+                }
+            }
+        };
+        b.run();
+    }
+
+    private void ellipsoid_correct(final File srcFile, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
+            @Override
+            protected void execute() throws Exception {
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        final Product srcProduct = subset(srcFile, rect);
+
+                        EllipsoidCorrectionRDOp op = new EllipsoidCorrectionRDOp();
+                        op.setSourceProduct(srcProduct);
+                        Product trgProduct = op.getTargetProduct();
+
+                        write(trgProduct, outputFolder, mode);
+
+                        trgProduct.dispose();
+                        srcProduct.dispose();
+                        break;
+                    case GRAPH:
+                        //processGraph(srcFile, outputFolder);
+                        break;
+                }
+            }
+        };
+        b.run();
+    }
+
+    private void terrain_flatten(final File srcFile, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
+            @Override
+            protected void execute() throws Exception {
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        final Product srcProduct = subset(srcFile, rect);
+
+                        CalibrationOp cal = new CalibrationOp();
+                        cal.setSourceProduct(srcProduct);
+                        cal.setParameter("outputBetaBand", true);
+                        Product calProduct = cal.getTargetProduct();
+
+                        TerrainFlatteningOp op = new TerrainFlatteningOp();
+                        op.setSourceProduct(calProduct);
+                        Product trgProduct = op.getTargetProduct();
+
+                        write(trgProduct, outputFolder, mode);
+
+                        trgProduct.dispose();
+                        srcProduct.dispose();
+                        break;
+                    case GRAPH:
+                        //processGraph(srcFile, outputFolder);
+                        break;
+                }
+            }
+        };
+        b.run();
+    }
+
+    private void glcm(final File srcFile, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
+            @Override
+            protected void execute() throws Exception {
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        final Product srcProduct = subset(srcFile, rect);
+
+                        GLCMOp op = new GLCMOp();
+                        op.setSourceProduct(srcProduct);
+                        op.setParameter("quantizationLevelsStr", "16");
+                        Product trgProduct = op.getTargetProduct();
+
+                        write(trgProduct, outputFolder, mode);
+
+                        trgProduct.dispose();
+                        srcProduct.dispose();
+                        break;
+                    case GRAPH:
+                        //processGraph(srcFile, outputFolder);
+                        break;
+                }
             }
         };
         b.run();

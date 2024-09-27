@@ -17,11 +17,9 @@ package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.binding.dom.DefaultDomElement;
 import com.bc.ceres.binding.dom.DomElement;
-import com.bc.ceres.core.ProgressMonitor;
 import org.csa.rstb.polarimetric.gpf.PolarimetricDecompositionOp;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.graph.Graph;
-import org.esa.snap.core.gpf.graph.GraphProcessor;
 import org.esa.snap.core.gpf.graph.Node;
 import org.esa.snap.core.gpf.graph.NodeSource;
 import org.junit.Test;
@@ -30,113 +28,113 @@ import java.io.File;
 
 public class TestBenchmark_PolSAR extends BaseBenchmarks {
 
+    public TestBenchmark_PolSAR() {
+        super("PolSAR");
+    }
+
     @Test
-    public void testQP_decomposition_pauli() throws Exception {
-        decomposition("Pauli Decomposition", null);
+    public void testQP_decomposition_pauli_productIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Pauli Decomposition", null, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_decomposition_pauli_writeOp() throws Exception {
-        decompositionWriteOp("Pauli Decomposition", null);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Pauli Decomposition", null, WriteMode.GPF);
     }
 
     @Test
     public void testQP_decomposition_pauli_graph() throws Exception {
-        decompositionGraph("Pauli Decomposition", null);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Pauli Decomposition", null, WriteMode.GRAPH);
     }
 
     @Test
     public void testQP_decomposition_sinclair() throws Exception {
-        decomposition("Sinclair Decomposition", null);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Sinclair Decomposition", null, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_decomposition_FreemanDurden() throws Exception {
-        decomposition("Freeman-Durden Decomposition", null);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Freeman-Durden Decomposition", null, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_decomposition_GeneralizedFreemanDurden() throws Exception {
-        decomposition("Generalized Freeman-Durden Decomposition", null);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Generalized Freeman-Durden Decomposition", null, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_decomposition_Yamaguchi() throws Exception {
-        decomposition("Yamaguchi Decomposition", null);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Yamaguchi Decomposition", null, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_decomposition_vanZyl() throws Exception {
-        decomposition("van Zyl Decomposition", null);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"van Zyl Decomposition", null, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_decomposition_Cloude() throws Exception {
-        decomposition("Cloude Decomposition", null);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Cloude Decomposition", null, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_decomposition_Touzi() throws Exception {
-        decomposition("Touzi Decomposition", "outputTouziParamSet0");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile,"Touzi Decomposition", "outputTouziParamSet0", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_decomposition_HAAlphaQuadPol() throws Exception {
-        decomposition("H-A-Alpha Quad Pol Decomposition", "outputHAAlpha");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        decomposition(qpFile, "H-A-Alpha Quad Pol Decomposition", "outputHAAlpha", WriteMode.PRODUCT_IO);
     }
 
-    private void decomposition(final String name, final String param) throws Exception {
-        Benchmark b = new Benchmark(name + " productIO.write") {
+    private void decomposition(final File srcFile, final String decompName, final String param, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName,testName) {
             @Override
             protected void execute() throws Exception {
-                process(name, param, false, outputFolder);
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        process(srcFile, decompName, param, outputFolder, mode);
+                        break;
+                    case GRAPH:
+                        processGraph(srcFile, outputFolder, decompName, param);
+                        break;
+                }
             }
         };
         b.run();
     }
 
-    private void decompositionWriteOp(final String name, final String param) throws Exception {
-        Benchmark b = new Benchmark(name + " GPF.write") {
-            @Override
-            protected void execute() throws Exception {
-                process(name, param, true, outputFolder);
-            }
-        };
-        b.run();
-    }
-
-    private void decompositionGraph(final String name, final String param) throws Exception {
-        Benchmark b = new Benchmark(name + " GraphProcessor") {
-            @Override
-            protected void execute() throws Exception {
-                processGraph(qpFile, outputFolder, name, param);
-            }
-        };
-        b.run();
-    }
-
-    private void process(final String name, final String param, final boolean useWriteOp, final File outputFolder) throws Exception {
-        final Product srcProduct = read(qpFile);
+    private void process(final File srcFile, final String decompName, final String param,
+                         final File outputFolder, final WriteMode mode) throws Exception {
+        final Product srcProduct = read(srcFile);
 
         final PolarimetricDecompositionOp op = new PolarimetricDecompositionOp();
         op.setSourceProduct(srcProduct);
-        op.setParameter("decomposition", name);
+        op.setParameter("decomposition", decompName);
         if(param != null) {
             op.setParameter(param, true);
         }
         Product trgProduct = op.getTargetProduct();
 
-        if(useWriteOp) {
-            writeGPF(trgProduct, outputFolder, DIMAP);
-        } else {
-            write(trgProduct, outputFolder, DIMAP);
-        }
+        write(trgProduct, outputFolder, mode);
 
         trgProduct.dispose();
         srcProduct.dispose();
     }
 
-    private void processGraph(final File file, final File outputFolder, final String name, final String param) throws Exception {
+    private void processGraph(final File file, final File outputFolder, final String decompName, final String param) throws Exception {
 
         final Graph graph = new Graph("graph");
 
@@ -148,7 +146,7 @@ public class TestBenchmark_PolSAR extends BaseBenchmarks {
 
         final Node decompNode = new Node("Polarimetric-Decomposition", "Polarimetric-Decomposition");
         final DomElement decompParameters = new DefaultDomElement("parameters");
-        decompParameters.createChild("decomposition").setValue(name);
+        decompParameters.createChild("decomposition").setValue(decompName);
         if(param != null) {
             decompParameters.createChild(param).setValue("true");
         }
@@ -164,7 +162,6 @@ public class TestBenchmark_PolSAR extends BaseBenchmarks {
         writeNode.addSource(new NodeSource("source", "Polarimetric-Decomposition"));
         graph.addNode(writeNode);
 
-        final GraphProcessor processor = new GraphProcessor();
-        processor.executeGraph(graph, ProgressMonitor.NULL);
+        processGraph(graph);
     }
 }
