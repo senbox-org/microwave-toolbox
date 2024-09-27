@@ -52,7 +52,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
     private boolean theOWILimitChanged = false;
     private boolean theRVLLimitChanged = false;
-    private static int MAX_WIND_SPEED = 25;
+    private final static int MAX_WIND_SPEED = 50;
 
     private JCheckBox theArrowsCB;
     private String theSelectedComp = null;
