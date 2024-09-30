@@ -125,6 +125,7 @@ public class S1ETADCorrectionOp extends Operator {
     private Resampling selectedResampling = null;
     private ETADUtils etadUtils = null;
 
+    private boolean applyTropoToHeightGradient = true;
 
     /**
      * Default constructor. The graph processing framework
@@ -251,6 +252,7 @@ public class S1ETADCorrectionOp extends Operator {
         etadCorrector.setSumOfRangeCorrections(sumOfRangeCorrections);
         etadCorrector.setResamplingImage(resamplingImage);
         etadCorrector.setOutputPhaseCorrections(outputPhaseCorrections);
+        etadCorrector.setApplyTropoToHeightGradient(applyTropoToHeightGradient);
         etadCorrector.setEtadUtils(etadUtils);
         etadCorrector.initialize();
         targetProduct = etadCorrector.createTargetProduct();
@@ -299,7 +301,7 @@ public class S1ETADCorrectionOp extends Operator {
             final double etadStopTime = ETADUtils.getTime(etadHeaderElem, "stopTime").getMJD()* Constants.secondsInDay;
 
             if (srcStartTime < etadStartTime || srcStopTime > etadStopTime) {
-                //throw new OperatorException("The selected ETAD product does not match the source product");
+                throw new OperatorException("The selected ETAD product does not match the source product");
             }
 
         } catch(Throwable e) {

@@ -45,6 +45,7 @@ public interface Corrector {
     void setSumOfRangeCorrections(final boolean flag);
     void setResamplingImage(final boolean flag);
     void setOutputPhaseCorrections(final boolean flag);
+    void setApplyTropoToHeightGradient(final boolean flag);
     void setEtadUtils(final ETADUtils etadUtils);
 
     Product createTargetProduct();

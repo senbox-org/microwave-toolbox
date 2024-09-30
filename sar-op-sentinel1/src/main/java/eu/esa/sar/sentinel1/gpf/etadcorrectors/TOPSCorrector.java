@@ -155,10 +155,12 @@ import java.util.Map;
             phaseBand.setUnit(Unit.RADIANS);
             targetProduct.addBand(phaseBand);
 
-            final String heightBandName = ETAD_HEIGHT + "_" + subSwath.subSwathName;
-            final Band heightBand = new Band(heightBandName, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
-            heightBand.setUnit(Unit.METERS);
-            targetProduct.addBand(heightBand);
+            if (applyTropoToHeightGradient) {
+                final String heightBandName = ETAD_HEIGHT + "_" + subSwath.subSwathName;
+                final Band heightBand = new Band(heightBandName, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
+                heightBand.setUnit(Unit.METERS);
+                targetProduct.addBand(heightBand);
+            }
 
         } else { // resampling image
 
@@ -214,10 +216,6 @@ import java.util.Map;
 //                tileRects.add(targetRectangle.toString());
 //            }
 
-            if (!resamplingImage && !tropToHeightGradientComputed) {
-                computeTroposphericToHeightGradient();
-            }
-
             for (int burstIndex = 0; burstIndex < subSwath.numOfBursts; burstIndex++) {
                 final int firstLineIdx = burstIndex * subSwath.linesPerBurst;
                 final int lastLineIdx = firstLineIdx + subSwath.linesPerBurst - 1;
@@ -259,7 +257,7 @@ import java.util.Map;
 
     private synchronized void computeTroposphericToHeightGradient() {
 
-        if (tropToHeightGradientComputed) return;
+        if (tropoToHeightGradientComputed) return;
 
         final int prodSubswathIndex = getSubSwathIndex(subSwath.subSwathName);
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
@@ -285,7 +283,7 @@ import java.util.Map;
         attrib.getData().setElems(gradientArray);
         etadElem.addAttribute(attrib);
 
-        tropToHeightGradientComputed = true;
+        tropoToHeightGradientComputed = true;
     }
 
     private double computeGradientForCurrentBurst(final double[][] tropCorr, final double[][] height) {
@@ -320,38 +318,48 @@ import java.util.Map;
             getInSARRangeTimeCorrectionForCurrentTile(x0, y0, w, h, mBurstIndex, correction);
             final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
 
-            double[][] height = new double[h][w];
-            getCorrectionForCurrentTile(HEIGHT, x0, y0, w, h, mBurstIndex, height);
-
             final String phaseBandName = ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName;
             final Band phaseBand = targetProduct.getBand(phaseBandName);
             final Tile phaseTile = targetTileMap.get(phaseBand);
             final ProductData phaseData = phaseTile.getDataBuffer();
             final TileIndex phaseIndex = new TileIndex(phaseTile);
 
-            final String heightBandName = ETAD_HEIGHT + "_" + subSwath.subSwathName;
-            final Band heightBand = targetProduct.getBand(heightBandName);
-            final Tile heightTile = targetTileMap.get(heightBand);
-            final ProductData heightData = heightTile.getDataBuffer();
-            final TileIndex heightIndex = new TileIndex(phaseTile);
-
             final int xMax = x0 + w - 1;
             final int yMax = y0 + h - 1;
-
             for (int y = y0; y <= yMax; ++y) {
                 phaseIndex.calculateStride(y);
-                heightIndex.calculateStride(y);
                 int yy = y - y0;
-
                 for (int x = x0; x <= xMax; ++x) {
                     final int phaseIdx = phaseIndex.getIndex(x);
-                    final int heightIdx = heightIndex.getIndex(x);
                     final int xx = x - x0;
-
                     final double delay = correction[yy][xx] + rangeTimeCalibration;
                     final double phase = -2.0 * Constants.PI * radarFrequency * delay; // delay time (s) to phase (radian)
                     phaseData.setElemDoubleAt(phaseIdx, phase);
-                    heightData.setElemDoubleAt(heightIdx, height[yy][xx]);
+                }
+            }
+
+            if (applyTropoToHeightGradient) {
+                if (!tropoToHeightGradientComputed) {
+                    computeTroposphericToHeightGradient();
+                }
+
+                double[][] height = new double[h][w];
+                getCorrectionForCurrentTile(HEIGHT, x0, y0, w, h, mBurstIndex, height);
+
+                final String heightBandName = ETAD_HEIGHT + "_" + subSwath.subSwathName;
+                final Band heightBand = targetProduct.getBand(heightBandName);
+                final Tile heightTile = targetTileMap.get(heightBand);
+                final ProductData heightData = heightTile.getDataBuffer();
+                final TileIndex heightIndex = new TileIndex(phaseTile);
+
+                for (int y = y0; y <= yMax; ++y) {
+                    heightIndex.calculateStride(y);
+                    int yy = y - y0;
+                    for (int x = x0; x <= xMax; ++x) {
+                        final int heightIdx = heightIndex.getIndex(x);
+                        final int xx = x - x0;
+                        heightData.setElemDoubleAt(heightIdx, height[yy][xx]);
+                    }
                 }
             }
 

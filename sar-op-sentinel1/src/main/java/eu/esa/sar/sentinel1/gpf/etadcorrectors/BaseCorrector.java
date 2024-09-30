@@ -52,7 +52,8 @@ import java.util.concurrent.locks.ReentrantLock;
     protected boolean sumOfRangeCorrections = false;
     protected boolean resamplingImage = false;
     protected boolean outputPhaseCorrections = false;
-    protected boolean tropToHeightGradientComputed = false;
+    protected boolean tropoToHeightGradientComputed = false;
+    protected boolean applyTropoToHeightGradient = false;
 
     protected static final String TROPOSPHERIC_CORRECTION_RG = "troposphericCorrectionRg";
     protected static final String IONOSPHERIC_CORRECTION_RG = "ionosphericCorrectionRg";
@@ -144,6 +145,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
     public void setOutputPhaseCorrections(final boolean flag) {
         outputPhaseCorrections = flag;
+    }
+
+    public void setApplyTropoToHeightGradient(final boolean flag) {
+        applyTropoToHeightGradient = flag;
     }
 
     public Product createTargetProduct() {
