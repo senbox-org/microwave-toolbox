@@ -2,17 +2,19 @@
 
 ## New in Microwave Toolbox 11.0
 
+* S-1 Band grouping
+* S-1 Improved reader performance
+* Dual-pol model-based decomposition
+* Output flat-Earth and topographic phase
+* InSAR baselines overview from the command line
+
+coming soon in a module Update
 * S-1 ETAD Corrected SLC
 * S-1 ETAD Improved coregistration
 * S-1 ETAD Phase Screens
 * S-1 ETAD Improved Interferograms
 * S-1 ETAD improved InSAR image selection tool
 * S-1 ETAD auto download
-* S-1 Band grouping
-* S-1 Improved reader performance
-* Dual-pol model-based decomposition
-* Output flat-Earth and topographic phase
-* InSAR baselines overview from the command line
 
 
 ## New in Microwave Toolbox 10.0
