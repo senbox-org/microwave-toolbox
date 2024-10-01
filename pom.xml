@@ -41,7 +41,7 @@
         <junit.version>4.13.2</junit.version>
         <mockito.version>5.3.1</mockito.version>
 
-        <jblas.version>1.2.6</jblas.version>
+        <jblas.version>1.2.6-SNAP</jblas.version>
         <json-simple.version>1.1.1</json-simple.version>
         <jackson.version>2.17.2</jackson.version>
 
