@@ -184,10 +184,12 @@ public class InterferogramOp extends Operator {
     private boolean hasRefETADHeightBand = false;
     private boolean hasSecETADPhaseBand = false;
     private boolean hasSecETADHeightBand = false;
+    private boolean hasSecETADGradientBand = false;
     private Band refETADPhaseBand = null;
     private Band refETADHeightBand = null;
     private Band secETADPhaseBand = null;
     private Band secETADHeightBand = null;
+    private Band secETADGradientBand = null;
     private double[] gradient = null;
 
     private static final boolean CREATE_VIRTUAL_BAND = true;
@@ -201,6 +203,7 @@ public class InterferogramOp extends Operator {
     private static final String LONGITUDE = "orthorectifiedLon";
     private static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
     private static final String ETAD_HEIGHT = "etadHeight";
+    private static final String ETAD_GRADIENT = "etadGradient";
     private static final String MASTER_TAG = "mst";
     private static final String SLAVE_TAG = "slv";
     private static final String ETAD = "ETAD";
@@ -501,19 +504,23 @@ public class InterferogramOp extends Operator {
                 hasSecETADHeightBand = true;
                 secETADHeightBand = band;
             }
-        }
-        subtractETADPhase = hasRefETADPhaseBand & hasSecETADPhaseBand;
-        performHeightCorrection = hasRefETADHeightBand & hasSecETADHeightBand;
-
-        if (performHeightCorrection) {
-            // get gradient array from metadata
-            final MetadataElement abs = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(0);
-            MetadataElement etadElem = abs.getElement(ETAD);
-            final MetadataAttribute gradientAttrib = etadElem.getAttribute("gradient");
-            if (gradientAttrib != null) {
-                gradient = (double[]) gradientAttrib.getData().getElems();
+            if (bandName.contains(ETAD_GRADIENT) && bandName.contains(SLAVE_TAG)) {
+                hasSecETADGradientBand = true;
+                secETADGradientBand = band;
             }
         }
+        subtractETADPhase = hasRefETADPhaseBand & hasSecETADPhaseBand;
+        performHeightCorrection = hasRefETADHeightBand & hasSecETADHeightBand & hasSecETADGradientBand;
+
+//        if (performHeightCorrection) {
+//            // get gradient array from metadata
+//            final MetadataElement abs = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(0);
+//            MetadataElement etadElem = abs.getElement(ETAD);
+//            final MetadataAttribute gradientAttrib = etadElem.getAttribute("gradient");
+//            if (gradientAttrib != null) {
+//                gradient = (double[]) gradientAttrib.getData().getElems();
+//            }
+//        }
     }
 
     private synchronized void computeETADPhaseStatistics() {
@@ -1319,55 +1326,35 @@ public class InterferogramOp extends Operator {
         final int maxY = y0 + targetRectangle.height;
         final Band targetBand_I = targetProduct.getBand(product.getBandName(Unit.REAL));
         final Tile tileOutReal = targetTileMap.get(targetBand_I);
-
         final Band targetBand_Q = targetProduct.getBand(product.getBandName(Unit.IMAGINARY));
         final Tile tileOutImag = targetTileMap.get(targetBand_Q);
+        final TileIndex tgtIndex = new TileIndex(tileOutReal);
 
         final ProductData samplesReal = tileOutReal.getDataBuffer();
         final ProductData samplesImag = tileOutImag.getDataBuffer();
         final DoubleMatrix dataReal = dataMaster.real();
         final DoubleMatrix dataImag = dataMaster.imag();
-        final TileIndex tgtIndex = new TileIndex(tileOutReal);
-
-        final Tile mstRealTile = getSourceTile(product.sourceMaster.realBand, targetRectangle);
-        final ProductData mstRealData = mstRealTile.getDataBuffer();
-        final TileIndex srcIndexMst = new TileIndex(mstRealTile);
-
-        final Tile slvRealTile = getSourceTile(product.sourceSlave.realBand, targetRectangle);
-        final ProductData slvRealData = slvRealTile.getDataBuffer();
-        final TileIndex srcIndexSlv = new TileIndex(slvRealTile);
 
         final boolean mstNoDataValueUsed = product.sourceMaster.realBand.isNoDataValueUsed();
-        final boolean slvNoDataValueUsed = product.sourceSlave.realBand.isNoDataValueUsed();
+        final double mstNoDataValue = product.sourceMaster.realBand.getNoDataValue();
 
-        if (mstNoDataValueUsed || slvNoDataValueUsed) {
-
-            double mstNoDataValue = 0.0, slvNoDataValue = 0.0;
-            if (mstNoDataValueUsed) {
-                mstNoDataValue = product.sourceMaster.realBand.getNoDataValue();
-            }
-            if (slvNoDataValueUsed) {
-                slvNoDataValue = product.sourceSlave.realBand.getNoDataValue();
-            }
+        if (mstNoDataValueUsed) {
 
             for (int y = y0; y < maxY; y++) {
                 tgtIndex.calculateStride(y);
-                srcIndexMst.calculateStride(y);
-                srcIndexSlv.calculateStride(y);
                 final int yy = y - y0;
                 for (int x = x0; x < maxX; x++) {
                     final int tgtIdx = tgtIndex.getIndex(x);
                     final int xx = x - x0;
-                    final int srcIdxMst = srcIndexMst.getIndex(x);
-                    final int srcIdxSlv = srcIndexSlv.getIndex(x);
 
-                    if (mstNoDataValueUsed && mstRealData.getElemDoubleAt(srcIdxMst) == mstNoDataValue ||
-                            slvNoDataValueUsed && slvRealData.getElemDoubleAt(srcIdxSlv) == slvNoDataValue) {
+                    final float r = (float) dataReal.get(yy, xx);
+                    final float i = (float) dataImag.get(yy, xx);
+                    if (r == 0.0f) {
                         samplesReal.setElemFloatAt(tgtIdx, (float) mstNoDataValue);
                         samplesImag.setElemFloatAt(tgtIdx, (float) mstNoDataValue);
                     } else {
-                        samplesReal.setElemFloatAt(tgtIdx, (float) dataReal.get(yy, xx));
-                        samplesImag.setElemFloatAt(tgtIdx, (float) dataImag.get(yy, xx));
+                        samplesReal.setElemFloatAt(tgtIdx, r);
+                        samplesImag.setElemFloatAt(tgtIdx, i);
                     }
                 }
             }
@@ -1791,6 +1778,10 @@ public class InterferogramOp extends Operator {
         final ProductData secETADHeightData = secETADHeightTile.getDataBuffer();
         final TileIndex secHeightIndex = new TileIndex(secETADHeightTile);
 
+        final Tile secETADGradientTile = getSourceTile(secETADGradientBand, rectangle);
+        final ProductData secETADGradientData = secETADGradientTile.getDataBuffer();
+        final TileIndex secGradientIndex = new TileIndex(secETADGradientTile);
+
         final double refNoDataValue = refETADPhaseBand.getNoDataValue();
         final double secNoDataValue = secETADPhaseBand.getNoDataValue();
 
@@ -1800,30 +1791,33 @@ public class InterferogramOp extends Operator {
             refHeightIndex.calculateStride(y);
             secPhaseIndex.calculateStride(y);
             secHeightIndex.calculateStride(y);
+            secGradientIndex.calculateStride(y);
 
             final int yy = y - y0;
-            int burstIndex = 0;
-            if (subSwath != null) {
-                burstIndex = getBurstIndex(y, subSwath[subSwathIndex - 1].linesPerBurst);
-            }
-            final double slope = gradient[burstIndex];
+//            int burstIndex = 0;
+//            if (subSwath != null) {
+//                burstIndex = getBurstIndex(y, subSwath[subSwathIndex - 1].linesPerBurst);
+//            }
+//            final double slope = gradient[burstIndex];
 
             for (int x = x0; x < xMax; ++x) {
                 final int refPhaseIdx = refPhaseIndex.getIndex(x);
                 final int refHeightIdx = refPhaseIndex.getIndex(x);
                 final int secPhaseIdx = secPhaseIndex.getIndex(x);
-                final int secHeightIdx = secPhaseIndex.getIndex(x);
+                final int secHeightIdx = secHeightIndex.getIndex(x);
+                final int secGradientIdx = secGradientIndex.getIndex(x);
                 final int xx = x - x0;
 
                 final double refETADPhase = refETADPhaseData.getElemDoubleAt(refPhaseIdx);
                 final double secETADPhase = secETADPhaseData.getElemDoubleAt(secPhaseIdx);
                 final double refETADHeight = refETADHeightData.getElemDoubleAt(refHeightIdx);
                 final double secETADHeight = secETADHeightData.getElemDoubleAt(secHeightIdx);
+                final double secETADGradient = secETADGradientData.getElemDoubleAt(secGradientIdx);
 
                 if (refETADPhase == refNoDataValue || secETADPhase == secNoDataValue) {
                     etadPhase[yy][xx] = refNoDataValue;
                 } else {
-                    etadPhase[yy][xx] = refETADPhase - secETADPhase - slope * (refETADHeight - secETADHeight);
+                    etadPhase[yy][xx] = refETADPhase - secETADPhase - secETADGradient * (refETADHeight - secETADHeight);
                 }
             }
         }

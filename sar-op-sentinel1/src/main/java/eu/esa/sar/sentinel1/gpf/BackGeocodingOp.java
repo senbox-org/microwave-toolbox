@@ -133,6 +133,7 @@ public final class BackGeocodingOp extends Operator {
 
     private static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
     private static final String ETAD_HEIGHT = "etadHeight";
+    private static final String ETAD_GRADIENT = "etadGradient";
     private static final String PRODUCT_SUFFIX = "_Stack";
 
     private boolean outputDEM = false;
@@ -364,6 +365,10 @@ public final class BackGeocodingOp extends Operator {
 
                 if (bandName.contains(ETAD_HEIGHT)) {
                     slaveData.foundETADHeight = true;
+                }
+
+                if (bandName.contains(ETAD_GRADIENT)) {
+                    slaveData.foundETADGradient = true;
                 }
 
                 final Band targetBand = new Band(
@@ -879,7 +884,7 @@ public final class BackGeocodingOp extends Operator {
                     slvDerampDemodI, slvDerampDemodQ, slavePixPos, subSwathIndex, sBurstIndex, slaveData, polarization);
         }
 
-        // In future, if the ETAD correction is polarization dependent, then the following code should be in a for
+        // In the future, if the ETAD correction is polarization dependent, then the following code should be in a for
         // loop of polarizations as above.
         if (slaveData.foundETADCorrection) {
             final String etadCorrBandName = ETAD_PHASE_CORRECTION + "_" + swathID; // add polarization if needed
@@ -891,6 +896,12 @@ public final class BackGeocodingOp extends Operator {
             final String etadHeightBandName = ETAD_HEIGHT + "_" + swathID; // add polarization if needed
             performInterpolationOnETADBand(
                     x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadHeightBandName);
+        }
+
+        if (slaveData.foundETADGradient) {
+            final String etadGradientBandName = ETAD_GRADIENT + "_" + swathID; // add polarization if needed
+            performInterpolationOnETADBand(
+                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadGradientBandName);
         }
     }
 
@@ -1680,6 +1691,7 @@ public final class BackGeocodingOp extends Operator {
         String slvSuffix;
         boolean foundETADCorrection = false;
         boolean foundETADHeight = false;
+        boolean foundETADGradient = false;
 
         SlaveData(final Product product) throws Exception {
             this.slaveProduct = product;

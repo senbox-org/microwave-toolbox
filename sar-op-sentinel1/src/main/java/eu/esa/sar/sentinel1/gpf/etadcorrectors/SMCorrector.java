@@ -286,7 +286,7 @@ import java.util.Map;
             final int xMax = x0 + w - 1;
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 
-            if (!tropToHeightGradientComputed) {
+            if (!tropoToHeightGradientComputed) {
                 computeTroposphericToHeightGradient();
             }
 
@@ -331,7 +331,7 @@ import java.util.Map;
 
     private synchronized void computeTroposphericToHeightGradient() {
 
-        if (tropToHeightGradientComputed) return;
+        if (tropoToHeightGradientComputed) return;
 
         final double[] gradientArray = new double[1];
         final ETADUtils.Burst burst = etadUtils.getBurst(1, 1, 1);
@@ -350,30 +350,7 @@ import java.util.Map;
         attrib.getData().setElems(gradientArray);
         etadElem.addAttribute(attrib);
 
-        tropToHeightGradientComputed = true;
-    }
-
-    private double computeGradientForCurrentBurst(final double[][] tropCorr, final double[][] height) {
-
-        final int rows = tropCorr.length;
-        final int cols = tropCorr[0].length;
-
-        double sumX = 0.0, sumX2 = 0.0, sumY = 0.0, sumXY = 0.0;
-        for (int r = 0; r < rows; ++r) {
-            for (int c = 0; c < cols - 1; ++c) {
-                final double dh = height[r][c + 1] - height[r][c];
-                final double dt = tropCorr[r][c + 1] - tropCorr[r][c];
-                sumX += dh;
-                sumX2 += dh * dh;
-                sumY += dt;
-                sumXY += dh * dt;
-            }
-        }
-
-        final Matrix A = new Matrix(new double[][]{{sumX2, sumX}, {sumX, rows * (cols - 1)}});
-        final Matrix b = new Matrix(new double[]{sumXY, sumY}, 2);
-        final Matrix c = A.solve(b);
-        return c.get(0,0);
+        tropoToHeightGradientComputed = true;
     }
 
     private void computeETADCorrPixPos(final int x0, final int y0, final int w, final int h,
