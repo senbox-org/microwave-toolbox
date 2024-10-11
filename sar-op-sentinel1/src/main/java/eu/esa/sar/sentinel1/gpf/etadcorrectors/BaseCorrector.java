@@ -329,27 +329,4 @@ import java.util.concurrent.locks.ReentrantLock;
         }
         return layerCorrection;
     }
-
-    protected double computeGradientForCurrentBurst(final double[][] tropCorr, final double[][] height) {
-
-        final int rows = tropCorr.length;
-        final int cols = tropCorr[0].length;
-
-        double sumX = 0.0, sumX2 = 0.0, sumY = 0.0, sumXY = 0.0;
-        for (int r = 0; r < rows; ++r) {
-            for (int c = 0; c < cols - 1; ++c) {
-                final double dh = height[r][c + 1] - height[r][c];
-                final double dt = tropCorr[r][c + 1] - tropCorr[r][c];
-                sumX += dh;
-                sumX2 += dh * dh;
-                sumY += dt;
-                sumXY += dh * dt;
-            }
-        }
-
-        final Matrix A = new Matrix(new double[][]{{sumX2, sumX}, {sumX, rows * (cols - 1)}});
-        final Matrix b = new Matrix(new double[]{sumXY, sumY}, 2);
-        final Matrix c = A.solve(b);
-        return c.get(0,0);
-    }
 }

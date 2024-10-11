@@ -169,6 +169,10 @@ import java.util.Map;
             heightBand.setUnit(Unit.METERS);
             targetProduct.addBand(heightBand);
 
+            final Band gradientBand = new Band(ETAD_GRADIENT, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
+            gradientBand.setUnit(Unit.RADIANS);
+            targetProduct.addBand(gradientBand);
+
         } else { // resampling image
 
             for (Band srcBand : sourceProduct.getBands()) {
@@ -297,6 +301,9 @@ import java.util.Map;
             double[][] height = new double[h][w];
             getCorrectionForCurrentTile(HEIGHT, x0, y0, w, h, 1, height);
 
+            double[][] gradient = new double[h][w];
+            getCorrectionForCurrentTile(GRADIENT, x0, y0, w, h, 1, gradient);
+
             final Band phaseBand = targetProduct.getBand(ETAD_PHASE_CORRECTION);
             final Tile phaseTile = targetTileMap.get(phaseBand);
             final ProductData phaseData = phaseTile.getDataBuffer();
@@ -305,22 +312,30 @@ import java.util.Map;
             final Band heightBand = targetProduct.getBand(ETAD_HEIGHT);
             final Tile heightTile = targetTileMap.get(heightBand);
             final ProductData heightData = heightTile.getDataBuffer();
-            final TileIndex heightIndex = new TileIndex(phaseTile);
+            final TileIndex heightIndex = new TileIndex(heightTile);
+
+            final Band gradientBand = targetProduct.getBand(ETAD_GRADIENT);
+            final Tile gradientTile = targetTileMap.get(gradientBand);
+            final ProductData gradientData = gradientTile.getDataBuffer();
+            final TileIndex gradientIndex = new TileIndex(gradientTile);
 
             for (int y = y0; y <= yMax; ++y) {
                 phaseIndex.calculateStride(y);
                 heightIndex.calculateStride(y);
+                gradientIndex.calculateStride(y);
                 int yy = y - y0;
 
                 for (int x = x0; x <= xMax; ++x) {
                     final int phaseIdx = phaseIndex.getIndex(x);
                     final int heightIdx = heightIndex.getIndex(x);
+                    final int gradientIdx = gradientIndex.getIndex(x);
                     final int xx = x - x0;
 
                     final double delay = correction[yy][xx] + rangeTimeCalibration;
                     final double phase = -2.0 * Constants.PI * radarFrequency * delay; // delay time (s) to phase (radian)
                     phaseData.setElemDoubleAt(phaseIdx, phase);
                     heightData.setElemDoubleAt(heightIdx, height[yy][xx]);
+                    gradientData.setElemDoubleAt(gradientIdx, -2.0 * Constants.PI * radarFrequency * gradient[yy][xx]);
                 }
             }
 
@@ -333,22 +348,7 @@ import java.util.Map;
 
         if (tropoToHeightGradientComputed) return;
 
-        final double[] gradientArray = new double[1];
-        final ETADUtils.Burst burst = etadUtils.getBurst(1, 1, 1);
-        final double[][] tropCorr = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
-        final double[][] height = getBurstCorrection(HEIGHT, burst);
-        final double gradient = computeGradientForCurrentBurst(tropCorr, height);
-        gradientArray[0] = -2.0 * Constants.PI * radarFrequency * gradient;
-
-        final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
-        MetadataElement etadElem = absTgt.getElement(ETAD);
-        if (etadElem == null) {
-            etadElem = new MetadataElement(ETAD);
-            absTgt.addElement(etadElem);
-        }
-        final MetadataAttribute attrib = new MetadataAttribute("gradient", ProductData.TYPE_FLOAT64, gradientArray.length);
-        attrib.getData().setElems(gradientArray);
-        etadElem.addAttribute(attrib);
+        etadUtils.computeTroposphericToHeightGradient(1, 1);
 
         tropoToHeightGradientComputed = true;
     }

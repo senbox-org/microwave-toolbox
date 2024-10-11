@@ -266,28 +266,6 @@ import java.util.Map;
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
         etadUtils.computeTroposphericToHeightGradient(pIndex, prodSubswathIndex);
 
-//        final int[] burstIndexArray = etadUtils.getBurstIndexArray(pIndex, prodSubswathIndex);
-//
-//        final double[] gradientArray = new double[burstIndexArray.length];
-//        int i = 0;
-//        for (int burstIndex : burstIndexArray) {
-//            final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
-//            final double[][] tropCorr = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
-//            final double[][] height = getBurstCorrection(HEIGHT, burst);
-//            final double gradient = computeGradientForCurrentBurst(tropCorr, height);
-//            gradientArray[i++] = -2.0 * Constants.PI * radarFrequency * gradient;
-//        }
-//
-//        final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
-//        MetadataElement etadElem = absTgt.getElement(ETAD);
-//        if (etadElem == null) {
-//            etadElem = new MetadataElement(ETAD);
-//            absTgt.addElement(etadElem);
-//        }
-//        final MetadataAttribute attrib = new MetadataAttribute("gradient", ProductData.TYPE_FLOAT64, gradientArray.length);
-//        attrib.getData().setElems(gradientArray);
-//        etadElem.addAttribute(attrib);
-
         tropoToHeightGradientComputed = true;
     }
 
