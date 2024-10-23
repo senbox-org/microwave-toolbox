@@ -44,6 +44,100 @@
                     </archive>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-jars</id>
+                        <phase>install</phase>
+                        <configuration>
+                            <target>
+                                <!-- Ant copy task to collect JARs that are needed to run snap-desktop and copy them into kit module-->
+
+                                <copy todir="${project.build.directory}/netbeans_clusters/microwavetbx/modules/" flatten="true">
+                                    <fileset dir="${project.build.directory}/../../">
+                                        <include name="**/target/nbm/clusters/microwavetbx/modules/*.jar"/>
+                                    </fileset>
+                                </copy>
+
+                                <copy todir="${project.build.directory}/netbeans_clusters/microwavetbx/config/Modules/" flatten="true">
+                                    <fileset dir="${project.build.directory}/../../">
+                                        <include name="**/target/nbm/clusters/microwavetbx/config/Modules/*.xml"/>
+                                    </fileset>
+                                </copy>
+
+                                <copy todir="${project.build.directory}/netbeans_clusters/microwavetbx/update_tracking/" flatten="true">
+                                    <fileset dir="${project.build.directory}/../../">
+                                        <include name="**/target/nbm/clusters/microwavetbx/update_tracking/*.xml"/>
+                                    </fileset>
+                                </copy>
+
+                                <mkdir dir="${project.build.directory}/netbeans_clusters/microwavetbx/modules/docs" />
+                                <copy todir="${project.build.directory}/netbeans_clusters/microwavetbx/modules/docs/" flatten="true">
+                                    <fileset dir="${project.build.directory}/../../">
+                                        <include name="**/target/nbm/clusters/microwavetbx/modules/docs/*.jar"/>
+                                    </fileset>
+                                </copy>
+
+                                <mkdir dir="${project.build.directory}/netbeans_clusters/microwavetbx/modules/ext" />
+                                <copy todir="${project.build.directory}/netbeans_clusters/microwavetbx/modules/ext/">
+                                    <fileset dir="${project.build.directory}/../../">
+                                        <include name="**/target/nbm/clusters/microwavetbx/modules/ext/**"/>
+                                    </fileset>
+                                    <cutdirsmapper dirs="7"/>
+                                </copy>
+
+                                <move todir="${project.build.directory}/netbeans_clusters/microwavetbx/modules/ext/">
+                                    <fileset dir="${project.build.directory}/netbeans_clusters/microwavetbx/modules/ext/ext/"/>
+                                </move>
+
+                                <mkdir dir="${project.build.directory}/netbeans_clusters/rstb/config/Modules" />
+                                <mkdir dir="${project.build.directory}/netbeans_clusters/rstb/modules/docs" />
+                                <mkdir dir="${project.build.directory}/netbeans_clusters/rstb/modules/ext" />
+                                <mkdir dir="${project.build.directory}/netbeans_clusters/rstb/update_tracking" />
+
+                                <copy todir="${project.build.directory}/netbeans_clusters/rstb/modules/" flatten="true">
+                                    <fileset dir="${project.build.directory}/../../rstb/">
+                                        <include name="**/target/nbm/clusters/rstb/modules/*.jar"/>
+                                    </fileset>
+                                </copy>
+
+                                <copy todir="${project.build.directory}/netbeans_clusters/rstb/config/Modules/" flatten="true">
+                                    <fileset dir="${project.build.directory}/../../rstb/">
+                                        <include name="**/target/nbm/clusters/rstb/config/Modules/*.xml"/>
+                                    </fileset>
+                                </copy>
+
+                                <copy todir="${project.build.directory}/netbeans_clusters/rstb/update_tracking/" flatten="true">
+                                    <fileset dir="${project.build.directory}/../../rstb/">
+                                        <include name="**/target/nbm/clusters/rstb/update_tracking/*.xml"/>
+                                    </fileset>
+                                </copy>
+
+                                <copy todir="${project.build.directory}/netbeans_clusters/rstb/modules/docs/" flatten="true">
+                                    <fileset dir="${project.build.directory}/../../rstb/">
+                                        <include name="**/target/nbm/clusters/rstb/modules/docs/*.jar"/>
+                                    </fileset>
+                                </copy>
+
+                                <copy todir="${project.build.directory}/netbeans_clusters/rstb/modules/ext/">
+                                    <fileset dir="${project.build.directory}/../../rstb/">
+                                        <include name="**/target/nbm/clusters/rstb/modules/ext/**"/>
+                                    </fileset>
+                                    <cutdirsmapper dirs="7"/>
+                                </copy>
+
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
