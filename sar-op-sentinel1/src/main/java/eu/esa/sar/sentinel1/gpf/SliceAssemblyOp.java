@@ -168,22 +168,31 @@ public final class SliceAssemblyOp extends Operator {
             throw new Exception("Slice assembly requires at least two consecutive slice products");
         }
 
+        // sort the slice products by start time
+        Product[] sliceProducts = new Product[sourceProducts.length];
+        System.arraycopy(sourceProducts, 0, sliceProducts, 0, sourceProducts.length);
+        Arrays.sort(sliceProducts, Comparator.comparingDouble(p -> p.getStartTime().getMJD()));
+
+        // get slice numbers to check if consecutive
         final TreeMap<Integer, Product> productSet = new TreeMap<>();
-        for (Product srcProduct : sourceProducts) {
+        int cnt = 0;
+        for (Product srcProduct : sliceProducts) {
             final MetadataElement origMetaRoot = AbstractMetadata.getOriginalProductMetadata(srcProduct);
             final MetadataElement generalProductInformation = getGeneralProductInformation(origMetaRoot);
             if (!isSliceProduct(generalProductInformation)) {
                 throw new Exception(srcProduct.getName() + " is not a slice product");
             }
 
-            //final int totalSlices = generalProductInformation.getAttributeInt("totalSlices");
-            final int sliceNumber = generalProductInformation.getAttributeInt("sliceNumber");
-            //System.out.println("SliceAssemblyOp.determineSliceProducts: totalSlices = " + totalSlices + "; slice product name = " + srcProduct.getName() + "; prod type = " + srcProduct.getProductType() + "; sliceNumber = " + sliceNumber);
+            int sliceNumber = generalProductInformation.getAttributeInt("sliceNumber");
+            if(sliceNumber < 1) {
+                sliceNumber = cnt;
+            }
 
             productSet.put(sliceNumber, srcProduct);
+            ++cnt;
         }
 
-        //check if consecutive
+        // check if consecutive
         Integer prev = productSet.firstKey();
         // Note that "The set's iterator returns the keys in ascending order".
         for (Integer i : productSet.keySet()) {
@@ -1516,7 +1525,7 @@ public final class SliceAssemblyOp extends Operator {
                 targetBurstList.removeElement(b);
             }
 
-            long targetByteIncr = 4 * linesPerBurst * samplesPerBurst;
+            long targetByteIncr = 4L * linesPerBurst * samplesPerBurst;
 
             // update burst list
             int k = 0;
@@ -1702,9 +1711,7 @@ public final class SliceAssemblyOp extends Operator {
             }
 
             if (firstVecToRemove != -1) {
-                for (int i = orbVectorList.size() - 1; i >= firstVecToRemove; i--) {
-                    orbVectorList.remove(i);
-                }
+                orbVectorList.subList(firstVecToRemove, orbVectorList.size()).clear();
             }
 
             for (OrbitStateVector orb : orbs) {
