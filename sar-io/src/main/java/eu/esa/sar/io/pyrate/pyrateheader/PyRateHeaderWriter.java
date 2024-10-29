@@ -128,56 +128,57 @@ public class PyRateHeaderWriter {
             headerListFile = new File(destinationFolder.getParentFile(), "headers.txt");
         }
         StringBuilder allHeaderFiles = new StringBuilder();
-        ArrayList<MetadataElement> acceptableMetadataElements = new ArrayList<>();
+//        ArrayList<MetadataElement> acceptableMetadataElements = new ArrayList<>();
+//
+//        // Key: range sample value. Value: # of occurrences
+//        HashMap<Integer, Integer> rangeSampleCounts = new HashMap<>();
+//        int mostConsistentRangeSampleValue = 0; // Most common range sample value. Don't write anything that isn't this value.
+//
+//        HashMap<Double, Integer> rangePixelSpacingCounts = new HashMap<>();
+//        double mostConsistentRangePixelSpacingCountValue = 0;
+//
+//        for(MetadataElement root : roots){
+//            int rangeSample = root.getAttributeInt("num_samples_per_line");
+//            if(rangeSampleCounts.containsKey(rangeSample)){
+//                rangeSampleCounts.replace(rangeSample, rangeSampleCounts.get(rangeSample) + 1);
+//            }else{
+//                rangeSampleCounts.put(rangeSample, 1);
+//            }
+//
+//            double rangePixelSpacing = root.getAttributeDouble("range_spacing");
+//            if(rangePixelSpacingCounts.containsKey(rangePixelSpacing)){
+//                rangePixelSpacingCounts.replace(rangePixelSpacing, rangePixelSpacingCounts.get(rangePixelSpacing) + 1);
+//            }else{
+//                rangePixelSpacingCounts.put(rangePixelSpacing, 1);
+//            }
+//        }
+//        int x = 0;
+//        for(double key : rangePixelSpacingCounts.keySet()){
+//            if(rangePixelSpacingCounts.get(key) > x){
+//                mostConsistentRangePixelSpacingCountValue = key;
+//                x = rangePixelSpacingCounts.get(key);
+//            }
+//        }
+//        x = 0;
+//        for(int key : rangeSampleCounts.keySet()){
+//            if(rangeSampleCounts.get(key) > x){
+//                mostConsistentRangeSampleValue = key;
+//                x = rangeSampleCounts.get(key);
+//            }
+//        }
+//
+//        for(MetadataElement root : roots){
+//            if (root.getAttributeInt("num_samples_per_line") == mostConsistentRangeSampleValue &&
+//                    root.getAttributeDouble("range_spacing") == mostConsistentRangePixelSpacingCountValue){
+//                acceptableMetadataElements.add(root);
+//            }else{
+//                bannedDates.add(bandNameDateToPyRateDate(root.getAttributeString("first_line_time").split(" ")[0].replace("-", ""), false));
+//            }
+//
+//        }
 
-        // Key: range sample value. Value: # of occurrences
-        HashMap<Integer, Integer> rangeSampleCounts = new HashMap<>();
-        int mostConsistentRangeSampleValue = 0; // Most common range sample value. Don't write anything that isn't this value.
-
-        HashMap<Double, Integer> rangePixelSpacingCounts = new HashMap<>();
-        double mostConsistentRangePixelSpacingCountValue = 0;
-
+//        for(MetadataElement root : acceptableMetadataElements){
         for(MetadataElement root : roots){
-            int rangeSample = root.getAttributeInt("num_samples_per_line");
-            if(rangeSampleCounts.containsKey(rangeSample)){
-                rangeSampleCounts.replace(rangeSample, rangeSampleCounts.get(rangeSample) + 1);
-            }else{
-                rangeSampleCounts.put(rangeSample, 1);
-            }
-
-            double rangePixelSpacing = root.getAttributeDouble("range_spacing");
-            if(rangePixelSpacingCounts.containsKey(rangePixelSpacing)){
-                rangePixelSpacingCounts.replace(rangePixelSpacing, rangePixelSpacingCounts.get(rangePixelSpacing) + 1);
-            }else{
-                rangePixelSpacingCounts.put(rangePixelSpacing, 1);
-            }
-        }
-        int x = 0;
-        for(double key : rangePixelSpacingCounts.keySet()){
-            if(rangePixelSpacingCounts.get(key) > x){
-                mostConsistentRangePixelSpacingCountValue = key;
-                x = rangePixelSpacingCounts.get(key);
-            }
-        }
-        x = 0;
-        for(int key : rangeSampleCounts.keySet()){
-            if(rangeSampleCounts.get(key) > x){
-                mostConsistentRangeSampleValue = key;
-                x = rangeSampleCounts.get(key);
-            }
-        }
-
-        for(MetadataElement root : roots){
-            if (root.getAttributeInt("num_samples_per_line") == mostConsistentRangeSampleValue &&
-                    root.getAttributeDouble("range_spacing") == mostConsistentRangePixelSpacingCountValue){
-                acceptableMetadataElements.add(root);
-            }else{
-                bannedDates.add(bandNameDateToPyRateDate(root.getAttributeString("first_line_time").split(" ")[0].replace("-", ""), false));
-            }
-
-        }
-
-        for(MetadataElement root : acceptableMetadataElements){
             String contents = convertMetadataRootToPyRateGamma(root);
             String fileNameDate = bandNameDateToPyRateDate(root.getAttributeString("first_line_time").split(" ")[0].replace("-", ""), false);
             String fileName = fileNameDate + ".par";
@@ -191,8 +192,65 @@ public class PyRateHeaderWriter {
 
     }
 
+    public void writeDEMHeaderFile(final File destinationFolder, final String fileName) throws IOException {
+
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(srcProduct);
+        final int width = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
+        final int height = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
+        final double first_near_lat = absRoot.getAttributeDouble(AbstractMetadata.first_near_lat);
+        final double first_near_lon = absRoot.getAttributeDouble(AbstractMetadata.first_near_long);
+        final double last_far_lat = absRoot.getAttributeDouble(AbstractMetadata.last_far_lat);
+        final double last_far_lon = absRoot.getAttributeDouble(AbstractMetadata.last_far_long);
+        final double del_lat = (last_far_lat - first_near_lat) / (height - 1);
+        final double del_lon = (last_far_lon - first_near_lon) / (width - 1);
+
+        StringBuilder contents = new StringBuilder("Gamma DIFF&GEO DEM/MAP parameter file\n");
+        String [] contentLines = new String[]{
+                createTabbedVariableLine("title", "dem"),
+                createTabbedVariableLine("DEM_projection", "EQA"),
+                createTabbedVariableLine("data_format", "REAL*4"),
+                createTabbedVariableLine("DEM_hgt_offset", "0.00000"),
+                createTabbedVariableLine("DEM_scale", "1.00000"),
+                createTabbedVariableLine("width", width),
+                createTabbedVariableLine("nlines", height),
+                createTabbedVariableLine("corner_lat", first_near_lat + "\tdecimal" + "\tdegrees"),
+                createTabbedVariableLine("corner_lon", first_near_lon + "\tdecimal" + "\tdegrees"),
+                createTabbedVariableLine("post_lat", del_lat + "\tdecimal" + "\tdegrees"),
+                createTabbedVariableLine("post_lon", del_lon + "\tdecimal" + "\tdegrees\n"),
+
+                createTabbedVariableLine("ellipsoid_name", "WGS 84"),
+                createTabbedVariableLine("ellipsoid_ra", "6378137.000" + "\tm"),
+                createTabbedVariableLine("ellipsoid_reciprocal_flattening", "298.2572236\n"),
+
+                createTabbedVariableLine("datum_name", "WGS 84"),
+                createTabbedVariableLine("datum_shift_dx", "0.000" + "\tm"),
+                createTabbedVariableLine("datum_shift_dy", "0.000" + "\tm"),
+                createTabbedVariableLine("datum_shift_dz", "0.000" + "\tm"),
+                createTabbedVariableLine("datum_scale_m", "0.00000e+00"),
+                createTabbedVariableLine("datum_rotation_alpha", "0.00000e+00" + "\tarc-sec"),
+                createTabbedVariableLine("datum_rotation_beta", "0.00000e+00" + "\tarc-sec"),
+                createTabbedVariableLine("datum_rotation_gamma", "0.00000e+00" + "\tarc-sec"),
+                createTabbedVariableLine("datum_country_list", "WGS 84"),
+        };
+
+        for (String line : contentLines){
+            contents.append(line);
+        }
+
+        FileUtils.write(new File(destinationFolder, fileName), contents.toString());
+    }
+
     // Convert abstracted metadata into file contents for .PAR header.
     private String convertMetadataRootToPyRateGamma(MetadataElement root) throws ParseException {
+
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(srcProduct);
+        final int width = absRoot.getAttributeInt(AbstractMetadata.num_samples_per_line);
+        final int height = absRoot.getAttributeInt(AbstractMetadata.num_output_lines);
+        final double rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
+        final double azimuthSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing);
+        final double centreLat = absRoot.getAttributeDouble("centre_lat");
+        final double centreLon = absRoot.getAttributeDouble("centre_lon");
+
         StringBuilder contents = new StringBuilder("Gamma Interferometric SAR Processor (ISP) - Image Parameter File\n\n");
         String date = root.getAttributeString("first_line_time").split(" ")[0].replace("-", "");
 
@@ -264,13 +322,17 @@ public class PyRateHeaderWriter {
 
                 createTabbedVariableLine("time_of_first_state_vector", firstStateVectorTime),
 
-                createTabbedVariableLine("center_latitude", root.getAttributeString("centre_lat") + "\tdegrees"),
+//                createTabbedVariableLine("center_latitude", root.getAttributeString("centre_lat") + "\tdegrees"),
+                createTabbedVariableLine("center_latitude", centreLat + "\tdegrees"),
 
-                createTabbedVariableLine("center_longitude", root.getAttributeString("centre_lon") + "\tdegrees"),
+//                createTabbedVariableLine("center_longitude", root.getAttributeString("centre_lon") + "\tdegrees"),
+                createTabbedVariableLine("center_longitude", centreLon + "\tdegrees"),
 
-                createTabbedVariableLine("range_pixel_spacing", root.getAttributeString("range_spacing") + "\tm"),
+//                createTabbedVariableLine("range_pixel_spacing", root.getAttributeString("range_spacing") + "\tm"),
+                createTabbedVariableLine("range_pixel_spacing", rangeSpacing + "\tm"),
 
-                createTabbedVariableLine("azimuth_pixel_spacing", root.getAttributeString("azimuth_spacing") + "\tm"),
+//                createTabbedVariableLine("azimuth_pixel_spacing", root.getAttributeString("azimuth_spacing") + "\tm"),
+                createTabbedVariableLine("azimuth_pixel_spacing", azimuthSpacing + "\tm"),
 
                 createTabbedVariableLine("incidence_angle",
                         (root.getAttributeDouble("incidence_near") +
@@ -297,9 +359,11 @@ public class PyRateHeaderWriter {
 
                 createTabbedVariableLine("azimuth_angle", antennaAngle + " degrees"),
 
-                createTabbedVariableLine("range_samples", root.getAttributeString("num_samples_per_line")),
+//                createTabbedVariableLine("range_samples", root.getAttributeString("num_samples_per_line")),
+                createTabbedVariableLine("range_samples", width),
 
-                createTabbedVariableLine("azimuth_lines", root.getAttributeString("num_output_lines")),
+//                createTabbedVariableLine("azimuth_lines", root.getAttributeString("num_output_lines")),
+                createTabbedVariableLine("azimuth_lines", height),
 
                 createTabbedVariableLine("prf", root.getAttributeString("pulse_repetition_frequency") + "\tHz"),
 

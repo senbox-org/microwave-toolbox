@@ -464,25 +464,29 @@ public final class SubtRefDemOp extends Operator {
                     '_' + master.polarisation.toUpperCase();
             final String tag = pol + '_' + master.date + '_' + slave.date;
 
-            String targetBandName_I = "i_ifg" + tag;
+//            String targetBandName_I = "i_ifg" + tag;
+            String targetBandName_I = getSourceBandName("i_ifg", tag);
             Band iBand = targetProduct.addBand(targetBandName_I, ProductData.TYPE_FLOAT32);
             container.addBand(Unit.REAL, iBand.getName());
             iBand.setUnit(Unit.REAL);
             targetBandNames.add(iBand.getName());
 
-            String targetBandName_Q = "q_ifg" + tag;
+//            String targetBandName_Q = "q_ifg" + tag;
+            String targetBandName_Q = getSourceBandName("q_ifg", tag);
             Band qBand = targetProduct.addBand(targetBandName_Q, ProductData.TYPE_FLOAT32);
             container.addBand(Unit.IMAGINARY, qBand.getName());
             qBand.setUnit(Unit.IMAGINARY);
             targetBandNames.add(qBand.getName());
 
             if (CREATE_VIRTUAL_BAND) {
-                String countStr = productTag + tag;
+//                String countStr = productTag + tag;
 
                 Band intensityBand = ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBand(targetBandName_I),
-                        targetProduct.getBand(targetBandName_Q), countStr);
+                        targetProduct.getBand(targetBandName_Q), "");
                 targetBandNames.add(intensityBand.getName());
 
+                final String phaseBandName = getSourceBandName("Phase", tag);
+                String countStr = phaseBandName.substring(phaseBandName.indexOf('_'));
                 Band phaseBand = ReaderUtils.createVirtualPhaseBand(targetProduct, targetProduct.getBand(targetBandName_I),
                         targetProduct.getBand(targetBandName_Q), countStr);
                 targetBandNames.add(phaseBand.getName());
@@ -545,6 +549,15 @@ public final class SubtRefDemOp extends Operator {
             lonBand.setUnit(Unit.DEGREES);
             lonBand.setDescription("Orthorectified longitude");
         }
+    }
+
+    private String getSourceBandName(final String prefix, final String tag) {
+        for (String bandName: sourceProduct.getBandNames()) {
+            if (bandName.contains(prefix) && bandName.contains(tag)) {
+                return bandName;
+            }
+        }
+        return null;
     }
 
     private static void convertToDegree(double[][] a) {

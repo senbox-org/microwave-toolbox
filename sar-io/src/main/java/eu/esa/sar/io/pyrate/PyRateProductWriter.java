@@ -100,6 +100,12 @@ public class PyRateProductWriter extends GeoTiffProductWriter {
             ProductIO.writeProduct(singleBandProduct, outputGeoTiff, "GeoTIFF", false);
         }
 
+        // Write DEM header file
+        try {
+            gammaHeaderWriter.writeDEMHeaderFile(processingLocation, "DEM.par");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         // Write coherence and phase bands out to individual GeoTIFFS
         String interferogramFileList = null;
