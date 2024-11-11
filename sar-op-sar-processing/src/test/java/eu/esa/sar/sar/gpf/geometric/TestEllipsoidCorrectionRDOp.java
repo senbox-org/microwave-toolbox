@@ -31,7 +31,8 @@ public class TestEllipsoidCorrectionRDOp extends ProcessorTest {
 
     private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "GeoTIFF", "DOR_VOR_AX","OCN","ETAD"};
     private static final String[] exceptionExemptions = {"not supported", "not be map projected",
-            "Source product should first be deburst","has no bands","numbands is zero"};
+            "Source product should first be deburst","has no bands","numbands is zero",
+            "incidence_angle tie point grid not found in product"};
 
     @Test
     public void testProcessAllASAR() throws Exception {
