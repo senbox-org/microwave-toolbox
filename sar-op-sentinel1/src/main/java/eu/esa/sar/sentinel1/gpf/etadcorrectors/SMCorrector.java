@@ -395,6 +395,8 @@ import java.util.Map;
     protected void getCorrectionForCurrentTile(final String layer, final int x0, final int y0, final int w, final int h,
                                                final int burstIndex, final double[][] correction, final double scale) {
 
+        final ETADUtils.Burst burst = etadUtils.getBurst(1, 1, burstIndex);
+
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -404,7 +406,6 @@ import java.util.Map;
             for (int x = x0; x <= xMax; ++x) {
                 final int xx = x - x0;
                 final double rgTime = (slantRangeToFirstPixel + x * rangeSpacing) / Constants.halfLightSpeed;
-                final ETADUtils.Burst burst = etadUtils.getBurst(azTime, rgTime);
                 correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst);
             }
         }
