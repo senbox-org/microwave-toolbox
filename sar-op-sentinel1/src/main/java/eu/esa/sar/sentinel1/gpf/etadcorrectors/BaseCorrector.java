@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
+import Jama.Matrix;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.OperatorException;
@@ -52,7 +53,7 @@ import java.util.concurrent.locks.ReentrantLock;
     protected boolean sumOfRangeCorrections = false;
     protected boolean resamplingImage = false;
     protected boolean outputPhaseCorrections = false;
-    protected boolean tropToHeightGradientComputed = false;
+    protected boolean tropoToHeightGradientComputed = false;
 
     protected static final String TROPOSPHERIC_CORRECTION_RG = "troposphericCorrectionRg";
     protected static final String IONOSPHERIC_CORRECTION_RG = "ionosphericCorrectionRg";
@@ -64,8 +65,10 @@ import java.util.concurrent.locks.ReentrantLock;
     protected static final String SUM_OF_CORRECTIONS_RG = "sumOfCorrectionsRg";
     protected static final String SUM_OF_CORRECTIONS_AZ = "sumOfCorrectionsAz";
     protected static final String HEIGHT = "height";
+    protected static final String GRADIENT = "gradient";
     protected static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
     protected static final String ETAD_HEIGHT = "etadHeight";
+    protected static final String ETAD_GRADIENT = "etadGradient";
     protected static final String PRODUCT_SUFFIX = "_etad";
 
     protected final Map<String, double[][]> correctionMap = new ConcurrentHashMap<>();

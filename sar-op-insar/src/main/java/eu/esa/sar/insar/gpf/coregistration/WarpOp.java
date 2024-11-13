@@ -156,6 +156,7 @@ public class WarpOp extends Operator {
     private static final String DEMOD_PHASE_PREFIX = "DemodPhase";
     private static final String ETAD_PHASE_CORRECTION_PREFIX = "etadPhaseCorrection";
     private static final String ETAD_HEIGHT_PREFIX = "etadHeight";
+    private static final String ETAD_GRADIENT_PREFIX = "etadGradient";
     private Interpolation interpDemodPhase = Interpolation.getInstance(Interpolation.INTERP_BILINEAR);
     private final Map<Band, Band> demodPhaseMap = new HashMap<>(10);
     private final Map<Band, Band> etadBandMap = new HashMap<>(10);
@@ -357,7 +358,9 @@ public class WarpOp extends Operator {
                     for (Band band : sourceBands) {
                         final String bandName = band.getName();
                         final String timeStamp = srcBand.getName().substring(srcBand.getName().lastIndexOf('_'));
-                        if ((bandName.startsWith(ETAD_PHASE_CORRECTION_PREFIX) || bandName.startsWith(ETAD_HEIGHT_PREFIX))
+                        if ((bandName.startsWith(ETAD_PHASE_CORRECTION_PREFIX) ||
+                                bandName.startsWith(ETAD_HEIGHT_PREFIX) ||
+                                bandName.startsWith(ETAD_GRADIENT_PREFIX))
                                 && bandName.contains(timeStamp)) {
                             etadBandMap.put(band, srcBand);
                         }
@@ -470,7 +473,8 @@ public class WarpOp extends Operator {
             if (srcBand.getName().startsWith(DEMOD_PHASE_PREFIX)) {
                 realSrcBand = demodPhaseMap.get(srcBand);
             } else if (srcBand.getName().startsWith(ETAD_PHASE_CORRECTION_PREFIX) ||
-                    srcBand.getName().startsWith(ETAD_HEIGHT_PREFIX)) {
+                    srcBand.getName().startsWith(ETAD_HEIGHT_PREFIX) ||
+                    srcBand.getName().startsWith(ETAD_GRADIENT_PREFIX)) {
                 realSrcBand = etadBandMap.get(srcBand);
             } else {
                 // get real part, assuming srcBand is imaginary
