@@ -210,8 +210,13 @@ public final class ETADUtils {
     }
 
     private Burst createBurst(final int sIndex, final int bIndex) {
-
         final MetadataElement annotationElem = origProdRoot.getElement("annotation");
+        // bIndex is unique, no need to use sIndex
+        return createBurst(bIndex, annotationElem);
+    }
+
+    public static Burst createBurst(final int bIndex, final MetadataElement annotationElem) {
+
         final MetadataElement etadProductElem = annotationElem.getElement("etadProduct");
         final MetadataElement etadBurstListElem = etadProductElem.getElement("etadBurstList");
         final MetadataElement[] elements = etadBurstListElem.getElements();
@@ -221,9 +226,9 @@ public final class ETADUtils {
             // ID information
             final MetadataElement burstDataElem = elem.getElement("burstData");
             final int sIdx = Integer.parseInt(burstDataElem.getAttributeString("sIndex"));
-            if (sIdx != sIndex) {
-                continue;
-            }
+//            if (sIdx != sIndex) {
+//                continue;
+//            }
             final int bIdx = Integer.parseInt(burstDataElem.getAttributeString("bIndex"));
             if (bIdx != bIndex) {
                 continue;
@@ -242,6 +247,34 @@ public final class ETADUtils {
             burst.rangeTimeMax = Double.parseDouble(rangeTimeMaxElem.getAttributeString("rangeTimeMax"));
             burst.azimuthTimeMin = getTime(temporalCoverageElem, "azimuthTimeMin").getMJD()*Constants.secondsInDay;
             burst.azimuthTimeMax = getTime(temporalCoverageElem, "azimuthTimeMax").getMJD()*Constants.secondsInDay;
+
+            final MetadataElement spacialCoverageElem = burstCoverageElem.getElement("spacialCoverage");
+            final MetadataElement[] coordinatesElemList = spacialCoverageElem.getElements();
+            for (MetadataElement coordinatesElem : coordinatesElemList) {
+                final MetadataElement latitudeElem = coordinatesElem.getElement("latitude");
+                final MetadataElement longitudeElem = coordinatesElem.getElement("longitude");
+                final double lat = Double.parseDouble(latitudeElem.getAttributeString("latitude"));
+                final double lon = Double.parseDouble(longitudeElem.getAttributeString("longitude"));
+                final String corner = coordinatesElem.getAttributeString("corner");
+                switch (corner) {
+                    case "EarlyAzimuthNearRange":
+                        burst.EarlyAzimuthNearRangeLat = lat;
+                        burst.EarlyAzimuthNearRangeLon = lon;
+                        break;
+                    case "EarlyAzimuthFarRange":
+                        burst.EarlyAzimuthFarRangeLat = lat;
+                        burst.EarlyAzimuthFarRangeLon = lon;
+                        break;
+                    case "LateAzimuthNearRange":
+                        burst.LateAzimuthNearRangeLat = lat;
+                        burst.LateAzimuthNearRangeLon = lon;
+                        break;
+                    case "LateAzimuthFarRange":
+                        burst.LateAzimuthFarRangeLat = lat;
+                        burst.LateAzimuthFarRangeLon = lon;
+                        break;
+                }
+            }
 
             // grid information
             final MetadataElement gridInformationElem = elem.getElement("gridInformation");
@@ -436,6 +469,15 @@ public final class ETADUtils {
         public double rangeTimeMax;
         public double azimuthTimeMin;
         public double azimuthTimeMax;
+
+        public double EarlyAzimuthNearRangeLat;
+        public double EarlyAzimuthNearRangeLon;
+        public double EarlyAzimuthFarRangeLat;
+        public double EarlyAzimuthFarRangeLon;
+        public double LateAzimuthNearRangeLat;
+        public double LateAzimuthNearRangeLon;
+        public double LateAzimuthFarRangeLat;
+        public double LateAzimuthFarRangeLon;
 
         public double gridStartAzimuthTime;
         public double gridStartRangeTime;

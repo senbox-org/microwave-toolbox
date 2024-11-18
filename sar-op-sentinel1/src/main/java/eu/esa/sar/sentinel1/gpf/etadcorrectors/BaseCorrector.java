@@ -37,6 +37,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
     protected Product sourceProduct;
     protected Product targetProduct;
+    protected Product etadProduct;
 	protected ETADUtils etadUtils;
     protected boolean etadDataLoaded = false;
     protected Resampling selectedResampling;
@@ -103,6 +104,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
     public void setEtadUtils(final ETADUtils etadUtils) {
         this.etadUtils = etadUtils;
+    }
+
+    public void setEtadProduct(final Product etadProduct) {
+        this.etadProduct = etadProduct;
     }
 
     public void setTroposphericCorrectionRg(final boolean flag) {
