@@ -241,12 +241,25 @@ import java.util.Map;
             final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
             final double[][] phase = computeRangeTimeCorrectionPhase(burst);
             final double[][] height = getBurstCorrection(HEIGHT, burst);
-            final double[][] gradient = getBurstCorrection(GRADIENT, burst);
+            final double[][] gradient = convertGradientToPhase(getBurstCorrection(GRADIENT, burst));
 
             saveBurstDataAsTiePointGrid(phase, ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName + "_" + burstIndex);
             saveBurstDataAsTiePointGrid(height, ETAD_HEIGHT + "_" + subSwath.subSwathName + "_" + burstIndex);
             saveBurstDataAsTiePointGrid(gradient, ETAD_GRADIENT + "_" + subSwath.subSwathName + "_" + burstIndex);
         }
+    }
+
+    private double[][] convertGradientToPhase(final double[][] gradient) {
+
+        final int rows = gradient.length;
+        final int cols = gradient[0].length;
+        final double[][] phase = new double[rows][cols];
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                phase[r][c] = -2.0 * Constants.PI * radarFrequency * gradient[r][c];
+            }
+        }
+        return phase;
     }
 
     private void saveBurstDataAsTiePointGrid(final double[][] burstData, final String tpgName) {

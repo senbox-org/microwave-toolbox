@@ -248,7 +248,7 @@ public final class ETADUtils {
             burst.azimuthTimeMin = getTime(temporalCoverageElem, "azimuthTimeMin").getMJD()*Constants.secondsInDay;
             burst.azimuthTimeMax = getTime(temporalCoverageElem, "azimuthTimeMax").getMJD()*Constants.secondsInDay;
 
-            final MetadataElement spacialCoverageElem = burstCoverageElem.getElement("spacialCoverage");
+            final MetadataElement spacialCoverageElem = burstCoverageElem.getElement("spatialCoverage");
             final MetadataElement[] coordinatesElemList = spacialCoverageElem.getElements();
             for (MetadataElement coordinatesElem : coordinatesElemList) {
                 final MetadataElement latitudeElem = coordinatesElem.getElement("latitude");
