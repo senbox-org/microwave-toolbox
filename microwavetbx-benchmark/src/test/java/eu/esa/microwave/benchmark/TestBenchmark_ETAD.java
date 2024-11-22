@@ -17,6 +17,7 @@ package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.binding.dom.DefaultDomElement;
 import com.bc.ceres.binding.dom.DomElement;
+import eu.esa.sar.insar.gpf.InterferogramOp;
 import eu.esa.sar.orbits.gpf.ApplyOrbitFileOp;
 import eu.esa.sar.sentinel1.gpf.BackGeocodingOp;
 import eu.esa.sar.sentinel1.gpf.S1ETADCorrectionOp;
@@ -35,6 +36,9 @@ import java.io.Reader;
 public class TestBenchmark_ETAD extends BaseBenchmarks {
 
     protected enum ProcessMode {SPLIT_ORBIT, SPLIT_ORBIT_ETAD}
+
+    final String stackGraphPath = getTestFilePath("/eu/esa/microwave/benchmark/graphs/Sentinel1-TOPS-Coregistration.xml");
+    final String ifgGraphPath = getTestFilePath("/eu/esa/microwave/benchmark/graphs/Sentinel1-TOPS-Coregistration.xml");
 
     public TestBenchmark_ETAD() {
         super("ETAD");
@@ -85,21 +89,40 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
     @Test
     public void testInSAR_Coregister_ProductIO() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, WriteMode.PRODUCT_IO);
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, false, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testInSAR_Coregister_GPF() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, WriteMode.GPF);
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, false, WriteMode.GPF);
     }
 
     @Test
     public void testInSAR_Coregister_Graph() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, WriteMode.GRAPH);
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, false, WriteMode.GRAPH);
     }
 
+    // Split -> ApplyOrbit -> ETAD -> BackGeoCoding -> Interferogram
+
+    @Test
+    public void testInSAR_Coregister_Ifg_ProductIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, true, WriteMode.PRODUCT_IO);
+    }
+
+    @Test
+    public void testInSAR_Coregister_Ifg_GPF() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, true, WriteMode.GPF);
+    }
+
+    @Test
+    public void testInSAR_Coregister_Ifg_Graph() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, true, WriteMode.GRAPH);
+    }
 
 
 
@@ -207,6 +230,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
 
     private void coregister(final File srcFile1, final File etadFile1,
                             final File srcFile2, final File etadFile2,
+                            final boolean ifg,
                             final WriteMode mode) throws Exception {
         Benchmark b = new Benchmark(groupName, testName) {
             @Override
@@ -214,10 +238,14 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
                 switch (mode) {
                     case PRODUCT_IO:
                     case GPF:
-                        processStack(srcFile1, etadFile1, srcFile2, etadFile2, outputFolder, mode);
+                        processStack(srcFile1, etadFile1, srcFile2, etadFile2, ifg, outputFolder, mode);
                         break;
                     case GRAPH:
-                        processStackGraph(new File[] {srcFile1, srcFile2}, outputFolder);
+                        if(ifg) {
+                            processStackGraph(ifgGraphPath, new File[] {srcFile1, srcFile2}, outputFolder);
+                        } else {
+                            processStackGraph(stackGraphPath, new File[] {srcFile1, srcFile2}, outputFolder);
+                        }
                         break;
                 }
             }
@@ -226,7 +254,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
     }
 
     private void processStack(final File srcFile1, final File etadFile1,
-                              final File srcFile2, final File etadFile2,
+                              final File srcFile2, final File etadFile2, boolean ifg,
                               final File outputFolder, final WriteMode mode) throws Exception {
         try(final Product srcProduct1 = read(srcFile1)) {
             try(final Product srcProduct2 = read(srcFile2)) {
@@ -264,7 +292,15 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
                 BackGeocodingOp backGeoOp = new BackGeocodingOp();
                 backGeoOp.setSourceProducts(etadOp1.getTargetProduct(), etadOp2.getTargetProduct());
 
-                Product trgProduct = backGeoOp.getTargetProduct();
+                Product trgProduct;
+                if(ifg) {
+                    InterferogramOp ifgOp = new InterferogramOp();
+                    ifgOp.setSourceProduct(backGeoOp.getTargetProduct());
+
+                    trgProduct = ifgOp.getTargetProduct();
+                } else {
+                    trgProduct = backGeoOp.getTargetProduct();
+                }
 
                 write(trgProduct, outputFolder, mode);
 
@@ -275,8 +311,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
         }
     }
 
-    private void processStackGraph(final File[] srcFiles, final File outputFile) throws Exception {
-        final String graphPath = getTestFilePath("/eu/esa/microwave/benchmark/graphs/Sentinel1-TOPS-Coregistration.xml");
+    private void processStackGraph(final String graphPath, final File[] srcFiles, final File outputFile) throws Exception {
 
         try (Reader fileReader = new FileReader(graphPath)) {
             Graph graph = GraphIO.read(fileReader);

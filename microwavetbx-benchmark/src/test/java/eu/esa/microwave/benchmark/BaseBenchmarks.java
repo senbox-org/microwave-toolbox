@@ -111,9 +111,13 @@ public class BaseBenchmarks {
         processor.executeGraph(graph, new PrintWriterConciseProgressMonitor(System.out));
     }
 
-    protected String getTestFilePath(String name) throws URISyntaxException {
-        URI uri = new URI(Benchmark.class.getResource(name).toString());
-        return uri.getPath();
+    protected String getTestFilePath(String name) {
+        try {
+            URI uri = new URI(Benchmark.class.getResource(name).toString());
+            return uri.getPath();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected void setIO(final Graph graph, final File[] srcFiles, final File tgtFile, final String format) {
