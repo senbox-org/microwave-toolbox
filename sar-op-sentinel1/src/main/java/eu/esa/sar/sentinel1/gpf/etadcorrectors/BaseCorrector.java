@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
-import Jama.Matrix;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.OperatorException;
