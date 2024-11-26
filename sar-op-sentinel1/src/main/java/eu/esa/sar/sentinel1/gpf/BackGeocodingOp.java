@@ -739,18 +739,6 @@ public final class BackGeocodingOp extends Operator {
                     continue;
                 }
 
-//                if (bandName.contains(ETAD_PHASE_CORRECTION)) {
-//                    slaveData.foundETADCorrection = true;
-//                }
-//
-//                if (bandName.contains(ETAD_HEIGHT)) {
-//                    slaveData.foundETADHeight = true;
-//                }
-//
-//                if (bandName.contains(ETAD_GRADIENT)) {
-//                    slaveData.foundETADGradient = true;
-//                }
-
                 final Band targetBand = new Band(
                         bandName + slvSuffix,
                         ProductData.TYPE_FLOAT32,
@@ -1264,25 +1252,6 @@ public final class BackGeocodingOp extends Operator {
                     slvDerampDemodI, slvDerampDemodQ, slavePixPos, subSwathIndex, sBurstIndex, slaveData, polarization);
         }
 
-        // In the future, if the ETAD correction is polarization dependent, then the following code should be in a for
-        // loop of polarizations as above.
-//        if (slaveData.foundETADCorrection) {
-//            final String etadCorrBandName = ETAD_PHASE_CORRECTION + "_" + swathID; // add polarization if needed
-//            performInterpolationOnETADBand(
-//                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadCorrBandName);
-//        }
-//
-//        if (slaveData.foundETADHeight) {
-//            final String etadHeightBandName = ETAD_HEIGHT + "_" + swathID; // add polarization if needed
-//            performInterpolationOnETADBand(
-//                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadHeightBandName);
-//        }
-//
-//        if (slaveData.foundETADGradient) {
-//            final String etadGradientBandName = ETAD_GRADIENT + "_" + swathID; // add polarization if needed
-//            performInterpolationOnETADBand(
-//                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadGradientBandName);
-//        }
     }
 
     private boolean computeSlavePixPos(final int subSwathIndex, final int mBurstIndex, final int sBurstIndex,
