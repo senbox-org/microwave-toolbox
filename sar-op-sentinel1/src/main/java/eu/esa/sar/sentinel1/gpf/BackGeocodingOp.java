@@ -16,6 +16,7 @@
 package eu.esa.sar.sentinel1.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.sentinel1.gpf.etadcorrectors.ETADUtils;
 import org.apache.commons.math3.util.FastMath;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
 import eu.esa.sar.insar.gpf.coregistration.DEMAssistedCoregistrationOp;
@@ -241,10 +242,389 @@ public final class BackGeocodingOp extends Operator {
             if(masterBandI != null && masterBandI.isNoDataValueUsed()) {
                 noDataValue = masterBandI.getNoDataValue();
             }
+
+            // coregister master and slave TPGs if ETAD data is found in TPGs
+            if (findETADTPG()) {
+                coregisterETADTPG();
+            }
+
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
     }
+
+    //vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+    private boolean findETADTPG() {
+
+        boolean foundETADTPG = false;
+        for(SlaveData slaveData : slaveDataList) {
+            final TiePointGrid[] tpgs = slaveData.slaveProduct.getTiePointGrids();
+            for (TiePointGrid tpg : tpgs) {
+                final String tpgName = tpg.getName();
+                if (tpgName.contains(ETAD_PHASE_CORRECTION)) {
+                    slaveData.foundETADCorrection = true;
+                } else if (tpg.getName().contains(ETAD_HEIGHT)) {
+                    slaveData.foundETADHeight = true;
+                } else if (tpg.getName().contains(ETAD_GRADIENT)) {
+                    slaveData.foundETADGradient = true;
+                }
+            }
+            if (!foundETADTPG && slaveData.foundETADCorrection && slaveData.foundETADHeight && slaveData.foundETADGradient) {
+                foundETADTPG = true;
+            }
+        }
+        return foundETADTPG;
+    }
+
+    private void coregisterETADTPG() throws Exception {
+
+        Resampling resampling = ResamplingFactory.createResampling(ResamplingFactory.BILINEAR_INTERPOLATION_NAME);
+        if (resampling == null) {
+            return;
+        }
+
+        final ElevationModel dem = DEMFactory.createElevationModel("Copernicus 90m Global DEM",
+                ResamplingFactory.BILINEAR_INTERPOLATION_NAME);
+        final double demNoDataValue = dem.getDescriptor().getNoDataValue();
+        final double demSamplingLat = (double)dem.getDescriptor().getTileWidthInDegrees() /
+                (double)dem.getDescriptor().getTileWidth();
+        final double demSamplingLon = demSamplingLat;
+
+        for(SlaveData slaveData : slaveDataList) {
+            final List<Integer> burstIndexList = getBurstIndexList(slaveData.slaveProduct);
+
+            for (final int burstIndex : burstIndexList) {
+
+                final PixelPos[][] slaveBurstPointPos = computeSlaveBurstPointPosition(slaveData, burstIndex,
+                        dem, demNoDataValue, demSamplingLat, demSamplingLon);
+                if (slaveBurstPointPos == null) {
+                    return;
+                }
+
+                final TiePointGrid[] tpgs = slaveData.slaveProduct.getTiePointGrids();
+                for (TiePointGrid tpg : tpgs) {
+                    final String tpgName = tpg.getName();
+                    if (!tpgName.startsWith("etad") || !tpgName.endsWith("_" + burstIndex)) {
+                        continue;
+                    }
+
+                    final float[] coregisteredSlaveBurst = computeCoregisteredSlaveETADBurst(
+                            tpg, slaveBurstPointPos, resampling);
+
+                    targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid(tpgName));
+                    final TiePointGrid tpgMst = masterProduct.getTiePointGrid(tpgName);
+                    tpgMst.setName(tpgMst.getName() + "_mst");
+                    targetProduct.addTiePointGrid(tpgMst.cloneTiePointGrid());
+                    targetProduct.addTiePointGrid(new TiePointGrid(tpgName + "_slv", tpg.getGridWidth(),
+                            tpg.getGridHeight(), 0, 0, 1, 1, coregisteredSlaveBurst));
+                }
+            }
+        }
+    }
+
+    private List<Integer> getBurstIndexList(final Product product) {
+
+        final List<Integer> burstIndexList = new ArrayList<>();
+        final TiePointGrid[] tpgs = product.getTiePointGrids();
+        for (TiePointGrid tpg : tpgs) {
+            final String tpgName = tpg.getName();
+            if (tpgName.contains(ETAD_PHASE_CORRECTION)) {
+                final int burstIndex = Integer.parseInt(tpgName.substring(tpgName.lastIndexOf('_') + 1));
+                if (!burstIndexList.contains(burstIndex)) {
+                    burstIndexList.add(burstIndex);
+                }
+            }
+        }
+        return burstIndexList;
+    }
+
+    private ETADUtils.Burst getBurst(final int burstIndex, final MetadataElement metadataRoot) {
+
+        final MetadataElement etadElem = metadataRoot.getElement("ETAD_Product_Metadata");
+        final MetadataElement annotationElem = etadElem.getElement("annotation");
+        return ETADUtils.createBurst(burstIndex, annotationElem);
+    }
+
+    private PixelPos[][] computeSlaveBurstPointPosition(final SlaveData slaveData, final int burstIndex,
+                                                        final ElevationModel dem, final double demNoDataValue,
+                                                        final double demSamplingLat, final double demSamplingLon)
+            throws Exception {
+
+        final ETADUtils.Burst mstBurst = getBurst(burstIndex, masterProduct.getMetadataRoot());
+        final ETADUtils.Burst slvBurst = getBurst(burstIndex, slaveData.slaveProduct.getMetadataRoot());
+
+        final double[] latLonMinMax = new double[4];
+        computeBurstGeoBoundary(mstBurst, latLonMinMax);
+
+        final int[] latLonDEMIndices = getBoundaryInDEM(latLonMinMax, dem, demSamplingLat, demSamplingLon);
+        final int latMinIdx = latLonDEMIndices[0];
+        final int latMaxIdx = latLonDEMIndices[1];
+        final int lonMinIdx = latLonDEMIndices[2];
+        final int lonMaxIdx = latLonDEMIndices[3];
+
+        final int numLines = latMinIdx - latMaxIdx;
+        final int numPixels = lonMaxIdx - lonMinIdx;
+        double[][] masterAz = new double[numLines][numPixels];
+        double[][] masterRg = new double[numLines][numPixels];
+        double[][] slaveAz = new double[numLines][numPixels];
+        double[][] slaveRg = new double[numLines][numPixels];
+        double[][] lat = new double[numLines][numPixels];
+        double[][] lon = new double[numLines][numPixels];
+
+        final boolean noValidSlavePixPos = computeMasterSlavePositions(latMaxIdx, lonMinIdx, numLines, numPixels,
+                slaveData, mstBurst, slvBurst, dem, demNoDataValue, masterAz, masterRg, slaveAz, slaveRg, lat, lon);
+
+        if (noValidSlavePixPos) {
+            return null;
+        }
+
+        final org.jlinda.core.Window tileWindow = new org.jlinda.core.Window(
+                0, mstBurst.azimuthExtent - 1, 0, mstBurst.rangeExtent - 1);
+
+        final double rgAzRatio = mSU.rangeSpacing / mSU.azimuthSpacing;
+        final double[][] latArray = new double[(int)tileWindow.lines()][(int)tileWindow.pixels()];
+        final double[][] lonArray = new double[(int)tileWindow.lines()][(int)tileWindow.pixels()];
+        final double[][] azArray = new double[(int)tileWindow.lines()][(int)tileWindow.pixels()];
+        final double[][] rgArray = new double[(int)tileWindow.lines()][(int)tileWindow.pixels()];
+        for (double[] data : azArray) {
+            Arrays.fill(data, invalidIndex);
+        }
+        for (double[] data : rgArray) {
+            Arrays.fill(data, invalidIndex);
+        }
+
+        TriangleInterpolator.ZData[] dataList = new TriangleInterpolator.ZData[] {
+                new TriangleInterpolator.ZData(slaveAz, azArray),
+                new TriangleInterpolator.ZData(slaveRg, rgArray),
+                new TriangleInterpolator.ZData(lat, latArray),
+                new TriangleInterpolator.ZData(lon, lonArray)
+        };
+
+        TriangleInterpolator.gridDataLinear(masterAz, masterRg, dataList,
+                tileWindow, rgAzRatio, 1, 1, invalidIndex, 0);
+
+        final PixelPos[][] slaveBurstPointPos = new PixelPos[mstBurst.azimuthExtent][mstBurst.rangeExtent];
+        for(int yy = 0; yy < mstBurst.azimuthExtent; ++yy) {
+            for (int xx = 0; xx < mstBurst.rangeExtent; xx++) {
+                if (rgArray[yy][xx] == invalidIndex || azArray[yy][xx] == invalidIndex) {
+                    slaveBurstPointPos[yy][xx] = null;
+                } else {
+                    slaveBurstPointPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
+                }
+            }
+        }
+
+        return slaveBurstPointPos;
+    }
+
+    private int[] getBoundaryInDEM(final double[] latLonMinMax, final ElevationModel dem, final double demSamplingLat,
+                                   final double demSamplingLon) throws Exception {
+
+        final double delta = Math.max(demSamplingLat, demSamplingLon);
+        final double extralat = 20*delta;
+        final double extralon = 20*delta;
+
+        final double latMin = latLonMinMax[0] - extralat;
+        final double latMax = latLonMinMax[1] + extralat;
+        final double lonMin = latLonMinMax[2] - extralon;
+        final double lonMax = latLonMinMax[3] + extralon;
+
+        final PixelPos upperLeft = dem.getIndex(new GeoPos(latMax, lonMin));
+        final PixelPos lowerRight = dem.getIndex(new GeoPos(latMin, lonMax));
+        final int latMaxIdx = (int)Math.floor(upperLeft.getY());
+        final int latMinIdx = (int)Math.ceil(lowerRight.getY());
+        final int lonMinIdx = (int)Math.floor(upperLeft.getX());
+        final int lonMaxIdx = (int)Math.ceil(lowerRight.getX());
+
+        return new int[]{latMinIdx, latMaxIdx, lonMinIdx, lonMaxIdx};
+    }
+
+    private void computeBurstGeoBoundary(final ETADUtils.Burst burst, final double[] latLonMinMax) {
+
+        final double[] lats = {burst.EarlyAzimuthNearRangeLat, burst.EarlyAzimuthFarRangeLat,
+                burst.LateAzimuthNearRangeLat, burst.LateAzimuthFarRangeLat};
+
+        final double[] lons = {burst.EarlyAzimuthNearRangeLon, burst.EarlyAzimuthFarRangeLon,
+                burst.LateAzimuthNearRangeLon, burst.LateAzimuthFarRangeLon};
+
+        getLatLonMinMax(lats, lons, latLonMinMax);
+    }
+
+    private boolean computeMasterSlavePositions(final int latMaxIdx, final int lonMinIdx,
+                                                final int numLines, final int numPixels, final SlaveData slaveData,
+                                                final ETADUtils.Burst mstBurst, final ETADUtils.Burst slvBurst,
+                                                final ElevationModel dem, final double demNoDataValue,
+                                                final double[][] masterAz, final double[][] masterRg,
+                                                final double[][] slaveAz, final double[][] slaveRg,
+                                                final double[][] lat, final double[][] lon) throws Exception {
+
+        final PositionData posData = new PositionData();
+        final PixelPos pix = new PixelPos();
+        final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+
+        boolean noValidSlavePixPos = true;
+        for (int l = 0; l < numLines; ++l) {
+            for (int p = 0; p < numPixels; ++p) {
+
+                pix.setLocation(lonMinIdx + p, latMaxIdx + l);
+                GeoPos gp = dem.getGeoPos(pix);
+                lat[l][p] = gp.lat;
+                lon[l][p] = gp.lon;
+
+                Double alt = dem.getElevation(gp);
+                if (alt.equals(demNoDataValue) && !maskOutAreaWithoutElevation) { // get corrected elevation for 0
+                    alt = (double)egm.getEGM(gp.lat, gp.lon);
+                }
+
+                if (!alt.equals(demNoDataValue)) {
+                    GeoUtils.geo2xyzWGS84(gp.lat, gp.lon, alt, posData.earthPoint);
+                    if(getPosition(mstBurst, mSU, posData)) {
+
+                        masterAz[l][p] = posData.azimuthIndex;
+                        masterRg[l][p] = posData.rangeIndex;
+                        if (getPosition(slvBurst, slaveData.sSU, posData)) {
+
+                            slaveAz[l][p] = posData.azimuthIndex;
+                            slaveRg[l][p] = posData.rangeIndex;
+                            noValidSlavePixPos = false;
+                            continue;
+                        }
+                    }
+                }
+                masterAz[l][p] = invalidIndex;
+                masterRg[l][p] = invalidIndex;
+            }
+        }
+        return noValidSlavePixPos;
+    }
+
+    private static boolean getPosition(final ETADUtils.Burst burst, final Sentinel1Utils su, final PositionData data) {
+
+        try {
+            final double zeroDopplerTimeInDays = SARGeocoding.getZeroDopplerTime(
+                    su.lineTimeInterval, su.wavelength, data.earthPoint, su.getOrbit());
+
+            if (zeroDopplerTimeInDays == SARGeocoding.NonValidZeroDopplerTime) {
+                return false;
+            }
+
+            final double zeroDopplerTime = zeroDopplerTimeInDays * Constants.secondsInDay;
+            data.azimuthIndex = (zeroDopplerTime - burst.azimuthTimeMin) / burst.gridSamplingAzimuth;
+
+            final double slantRangeTime = SARGeocoding.computeSlantRange(
+                    zeroDopplerTimeInDays, su.getOrbit(), data.earthPoint, data.sensorPos) / Constants.lightSpeed;
+
+            data.rangeIndex = (2.0*slantRangeTime - burst.rangeTimeMin) / burst.gridSamplingRange;
+
+            if (!su.nearRangeOnLeft) {
+                data.rangeIndex = burst.rangeExtent - 1 - data.rangeIndex;
+            }
+            return true;
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException("getPosition", e);
+        }
+        return false;
+    }
+
+    private double[][] oneD2TwoD( final float[] oneD, final int rows, final int cols ) {
+
+        if (oneD.length != (rows*cols)) {
+            throw new IllegalArgumentException("Invalid array length");
+        }
+        double[][] twoD = new double[rows][cols];
+        for ( int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                twoD[r][c] = oneD[r*cols + c];
+            }
+        }
+        return twoD;
+    }
+
+    private float[] twoD2OneD(final double[][] twoD) {
+
+        final int rows = twoD.length;
+        final int cols = twoD[0].length;
+        final float[] oneD = new float[rows*cols];
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                oneD[r*cols + c] = (float)twoD[r][c];
+            }
+        }
+        return oneD;
+    }
+
+    private float[] computeCoregisteredSlaveETADBurst(final TiePointGrid tpgSlaveETADBurst,
+                                                      final PixelPos[][] slaveBurstPointPos,
+                                                      final Resampling resampling) throws Exception{
+
+        final int h = tpgSlaveETADBurst.getGridHeight();
+        final int w = tpgSlaveETADBurst.getGridWidth();
+        final double[][] slaveBurst = oneD2TwoD(tpgSlaveETADBurst.getTiePoints(), h, w);
+        final BurstResamplingRaster resamplingRaster = new BurstResamplingRaster(0.0, slaveBurst);
+        final Resampling.Index resamplingIndex = resampling.createIndex();
+        final double[][] coregisteredSlvBurst = new double[h][w];
+
+        for (int yy = 0; yy < h; ++yy) {
+            for (int xx = 0; xx < w; ++xx) {
+                final PixelPos slavePointPos = slaveBurstPointPos[yy][xx];
+                if (slavePointPos == null || slavePointPos.x < 0 || slavePointPos.x >= w ||
+                        slavePointPos.y < 0 || slavePointPos.y >= h) {
+                    coregisteredSlvBurst[yy][xx] = noDataValue;
+                    continue;
+                }
+                resampling.computeCornerBasedIndex(slavePointPos.x, slavePointPos.y, w, h, resamplingIndex);
+                coregisteredSlvBurst[yy][xx] = resampling.resample(resamplingRaster, resamplingIndex);
+            }
+        }
+        return twoD2OneD(coregisteredSlvBurst);
+    }
+
+    private static class BurstResamplingRaster implements Resampling.Raster {
+
+        private final double[][] data;
+        private final double noDataValue;
+
+        public BurstResamplingRaster(final double noDataValue, final double[][] data) {
+            this.data = data;
+            this.noDataValue = noDataValue;
+        }
+
+        public final int getWidth() {
+            return data[0].length;
+        }
+
+        public final int getHeight() {
+            return data.length;
+        }
+
+        public boolean getSamples(final int[] x, final int[] y, final double[][] samples) throws Exception {
+            boolean allValid = true;
+
+            try {
+                double val;
+                int i = 0;
+                while (i < y.length) {
+                    int j = 0;
+                    while (j < x.length) {
+                        val = data[y[i]][x[j]];
+                        if (noDataValue == val) {
+                            val = Double.NaN;
+                            allValid = false;
+                        }
+                        samples[i][j] = val;
+                        ++j;
+                    }
+                    ++i;
+                }
+            } catch (Exception e) {
+                SystemUtils.LOG.severe(e.getMessage());
+                allValid = false;
+            }
+            return allValid;
+        }
+    }
+
+    //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     private static void outputToFile(final String filePath, double[][] fbuf) throws IOException {
 
@@ -357,18 +737,6 @@ public final class BackGeocodingOp extends Operator {
                 final Band srcBand = slaveData.slaveProduct.getBand(bandName);
                 if (srcBand instanceof VirtualBand) {
                     continue;
-                }
-
-                if (bandName.contains(ETAD_PHASE_CORRECTION)) {
-                    slaveData.foundETADCorrection = true;
-                }
-
-                if (bandName.contains(ETAD_HEIGHT)) {
-                    slaveData.foundETADHeight = true;
-                }
-
-                if (bandName.contains(ETAD_GRADIENT)) {
-                    slaveData.foundETADGradient = true;
                 }
 
                 final Band targetBand = new Band(
@@ -884,25 +1252,6 @@ public final class BackGeocodingOp extends Operator {
                     slvDerampDemodI, slvDerampDemodQ, slavePixPos, subSwathIndex, sBurstIndex, slaveData, polarization);
         }
 
-        // In the future, if the ETAD correction is polarization dependent, then the following code should be in a for
-        // loop of polarizations as above.
-        if (slaveData.foundETADCorrection) {
-            final String etadCorrBandName = ETAD_PHASE_CORRECTION + "_" + swathID; // add polarization if needed
-            performInterpolationOnETADBand(
-                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadCorrBandName);
-        }
-
-        if (slaveData.foundETADHeight) {
-            final String etadHeightBandName = ETAD_HEIGHT + "_" + swathID; // add polarization if needed
-            performInterpolationOnETADBand(
-                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadHeightBandName);
-        }
-
-        if (slaveData.foundETADGradient) {
-            final String etadGradientBandName = ETAD_GRADIENT + "_" + swathID; // add polarization if needed
-            performInterpolationOnETADBand(
-                    x0, y0, w, h, sourceRectangle, targetTileMap, slavePixPos, slaveData, etadGradientBandName);
-        }
     }
 
     private boolean computeSlavePixPos(final int subSwathIndex, final int mBurstIndex, final int sBurstIndex,
@@ -920,27 +1269,13 @@ public final class BackGeocodingOp extends Operator {
 
             // Compute lat/lon boundaries (with extensions) for target tile
             final double[] latLonMinMax = new double[4];
-
             computeImageGeoBoundary(subSwathIndex, mBurstIndex, xmin, xmax, ymin, ymax, latLonMinMax);
 
-            final double delta = Math.max(demSamplingLat, demSamplingLon);
-//            final double extralat = 1.5*delta + 4.0/25.0;
-//            final double extralon = 1.5*delta + 4.0/25.0;
-            final double extralat = 20*delta;
-            final double extralon = 20*delta;
-
-            final double latMin = latLonMinMax[0] - extralat;
-            final double latMax = latLonMinMax[1] + extralat;
-            final double lonMin = latLonMinMax[2] - extralon;
-            final double lonMax = latLonMinMax[3] + extralon;
-
-            // Compute lat/lon indices in DEM for the boundaries;
-            final PixelPos upperLeft = dem.getIndex(new GeoPos(latMax, lonMin));
-            final PixelPos lowerRight = dem.getIndex(new GeoPos(latMin, lonMax));
-            final int latMaxIdx = (int)Math.floor(upperLeft.getY());
-            final int latMinIdx = (int)Math.ceil(lowerRight.getY());
-            final int lonMinIdx = (int)Math.floor(upperLeft.getX());
-            final int lonMaxIdx = (int)Math.ceil(lowerRight.getX());
+            final int[] latLonDEMIndices = getBoundaryInDEM(latLonMinMax);
+            final int latMinIdx = latLonDEMIndices[0];
+            final int latMaxIdx = latLonDEMIndices[1];
+            final int lonMinIdx = latLonDEMIndices[2];
+            final int lonMaxIdx = latLonDEMIndices[3];
 
             // Loop through all DEM points bounded by the indices computed above. For each point,
             // get its lat/lon and its azimuth/range indices in target image;
@@ -1091,7 +1426,10 @@ public final class BackGeocodingOp extends Operator {
 
         final double[] lats = {latUL, latUR, latLL, latLR};
         final double[] lons = {lonUL, lonUR, lonLL, lonLR};
+        getLatLonMinMax(lats, lons, latLonMinMax);
+    }
 
+    private void getLatLonMinMax(final double[] lats, final double[] lons, final double[] latLonMinMax) {
         double latMin = 90.0;
         double latMax = -90.0;
         for (double lat : lats) {
@@ -1118,6 +1456,28 @@ public final class BackGeocodingOp extends Operator {
         latLonMinMax[1] = latMax;
         latLonMinMax[2] = lonMin;
         latLonMinMax[3] = lonMax;
+    }
+
+    private int[] getBoundaryInDEM(final double[] latLonMinMax) throws Exception {
+
+        final double delta = Math.max(demSamplingLat, demSamplingLon);
+        final double extralat = 20*delta;
+        final double extralon = 20*delta;
+
+        final double latMin = latLonMinMax[0] - extralat;
+        final double latMax = latLonMinMax[1] + extralat;
+        final double lonMin = latLonMinMax[2] - extralon;
+        final double lonMax = latLonMinMax[3] + extralon;
+
+        // Compute lat/lon indices in DEM for the boundaries;
+        final PixelPos upperLeft = dem.getIndex(new GeoPos(latMax, lonMin));
+        final PixelPos lowerRight = dem.getIndex(new GeoPos(latMin, lonMax));
+        final int latMaxIdx = (int)Math.floor(upperLeft.getY());
+        final int latMinIdx = (int)Math.ceil(lowerRight.getY());
+        final int lonMinIdx = (int)Math.floor(upperLeft.getX());
+        final int lonMaxIdx = (int)Math.ceil(lowerRight.getX());
+
+        return new int[]{latMinIdx, latMaxIdx, lonMinIdx, lonMaxIdx};
     }
 
     /**
