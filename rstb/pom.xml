@@ -60,8 +60,8 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>${jvm.version}</source>
+                    <target>${jvm.version}</target>
                     <encoding>ISO-8859-1</encoding>
                     <!-- encoding>UTF-8</encoding -->
                     <debug>true</debug>
