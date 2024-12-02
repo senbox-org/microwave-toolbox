@@ -48,10 +48,17 @@ public class TestCalibrationOp extends ProcessorTest {
     }
 
     @Test
-    public void testProcessingASAR_WSM() throws Exception {
+    public void testProcessingASAR_WSM_Sigma0() throws Exception {
 
         final float[] expected = new float[] {0.027908697724342346f, 0.019894488155841827f, 0.020605698227882385f};
         processFile(TestData.inputASAR_WSM, "sigma0_VV", expected);
+    }
+
+    @Test
+    public void testProcessingASAR_WSM_beta0() throws Exception {
+
+        final float[] expected = new float[] {0.05965894f, 0.04252025f, 0.044032857f};
+        processFile(TestData.inputASAR_WSM, "beta0_VV", expected, true);
     }
 
     @Test
@@ -107,11 +114,20 @@ public class TestCalibrationOp extends ProcessorTest {
      * @throws Exception general exception
      */
     private void processFile(final File inputFile, final String bandName, final float[] expected) throws Exception {
+        processFile(inputFile, bandName, expected, false);
+    }
+
+    private void processFile(final File inputFile, final String bandName, final float[] expected,
+                             boolean outputBeta0) throws Exception {
 
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final CalibrationOp op = (CalibrationOp) spi.createOperator();
             assertNotNull(op);
+            if(outputBeta0) {
+                //op.setParameter("outputBetaBand", true);
+                op.setParameter("createBetaBand", true);
+            }
             op.setSourceProduct(sourceProduct);
 
             // get targetProduct: execute initialize()

@@ -15,23 +15,17 @@
  */
 package eu.esa.sar.io.sentinel1;
 
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dataio.netcdf.util.MetadataUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
-import org.esa.snap.engine_utilities.util.VectorUtils;
-import org.geotools.feature.DefaultFeatureCollection;
-import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
 import ucar.ma2.Array;
+import ucar.ma2.DataType;
 import ucar.ma2.InvalidRangeException;
 import ucar.nc2.Dimension;
 import ucar.nc2.NetcdfFile;
+import ucar.nc2.Structure;
 import ucar.nc2.Variable;
 
 import java.io.File;
@@ -87,51 +81,6 @@ public class Sentinel1OCNReader {
     private int sceneWidth = -1;
     private int sceneHeight = -1;
 
-    // These are for exporting wind data to ESRI Shape -----------------------------------------------------------------
-
-    private static final String WIND_VECTOR_DATA_NODE_NAME = "wind_data";
-
-    // Map a band name to a shapefile field name. Shapefile field names are limited to 10 characters.
-    // One VectorDataNode for OSW and one for OWI.
-
-    private final static Map<String, String> oswWindBandNameShpFieldNameMap;
-    static {
-        Map<String, String> aMap = new HashMap<>(6);
-        aMap.put("oswLon", "oswLon");
-        aMap.put("oswLat", "oswLat");
-        aMap.put("oswWindSpeed", "oswWdSpd");
-        aMap.put("oswWindDirection", "oswWdDir");
-        aMap.put("oswWindSeaHs", "oswWdSeaHs");
-        aMap.put("oswWaveAge", "oswWaveAge");
-        oswWindBandNameShpFieldNameMap = Collections.unmodifiableMap(aMap);
-    }
-
-    private final static Map<String, String> owiWindBandNameShpFieldNameMap;
-    static {
-        Map<String, String> aMap = new HashMap<>(8);
-        aMap.put("owiLon", "owiLon");
-        aMap.put("owiLat", "owiLat");
-        aMap.put("owiWindSpeed", "owiWdSpd");
-        aMap.put("owiWindDirection", "owiWdDir");
-        aMap.put("owiWindQuality", "owiWdQulty");
-        aMap.put("owiEcmwfWindSpeed", "owiEcmwfWS");
-        aMap.put("owiEcmwfWindDirection", "owiEcmwfWD");
-        aMap.put("owiWindSeaHs", "owiWdSeaHs");
-        owiWindBandNameShpFieldNameMap = Collections.unmodifiableMap(aMap);
-    }
-
-    private final Map<Band, String> bandToAttributeName =
-            new HashMap<>(oswWindBandNameShpFieldNameMap.size() + owiWindBandNameShpFieldNameMap.size());
-
-    private final int shapeSideLen = 25; // Number of points will be approximately square of this number
-
-    // These are for exporting osw data to ESRI Shape -----------------------------------------------------------------
-
-    // TODO
-
-
-    //------------------------------------------------------------------------------------------------------------------
-
     public Sentinel1OCNReader(final Sentinel1Level2Directory dataDir) {
 
         this.dataDir = dataDir;
@@ -148,35 +97,22 @@ public class Sentinel1OCNReader {
     }
 
     public void addImageFile(final File file, final String name) throws IOException {
-
-        //System.out.println("Sentinel1OCNReader.addImageFile: file = " + file + "; name = " + name);
-
         // The image file here is the MDS .nc file.
-        String imgNum = name.substring(name.lastIndexOf("-")+1, name.length());
+        String imgNum = name.substring(name.lastIndexOf("-")+1);
 
         final NetcdfFile netcdfFile = NetcdfFile.open(file.getPath());
         bandNCFileMap.put(imgNum, new NCFileData(name, netcdfFile));
     }
 
     public int getSceneWidth() {
-        if (bandNCFileMap.size() == 1) {
-            return sceneWidth;
-        } else {
-            return -1;
-        }
+        return bandNCFileMap.size() == 1 ? sceneWidth : -1;
     }
 
     public int getSceneHeight() {
-        if (bandNCFileMap.size() == 1) {
-            return sceneHeight;
-        } else {
-            return -1;
-        }
+        return bandNCFileMap.size() == 1 ? sceneHeight : -1;
     }
 
     public void addNetCDFMetadata(final MetadataElement annotationElement) {
-
-        //System.out.println("Sentinel1OCNReader.addNetCDFMetadata: annotationElement = " + annotationElement.getName());
 
         List<String> keys = new ArrayList<>(bandNCFileMap.keySet());
         Collections.sort(keys);
@@ -199,8 +135,7 @@ public class Sentinel1OCNReader {
             bandElem.addElement(dimElem);
             List<Dimension> dimensionList = netcdfFile.getDimensions();
             for (Dimension d : dimensionList) {
-                ProductData productData;
-                productData = ProductData.createInstance(ProductData.TYPE_UINT32, 1);
+                ProductData productData = ProductData.createInstance(ProductData.TYPE_UINT32, 1);
                 productData.setElemUInt(d.getLength());
                 final MetadataAttribute metadataAttribute = new MetadataAttribute(d.getFullName(), productData, true);
                 dimElem.addAttribute(metadataAttribute);
@@ -217,40 +152,38 @@ public class Sentinel1OCNReader {
 
             // Add attributes inside variables as Metadata
             for (Variable variable : variableList) {
-                bandElem.addElement(MetadataUtils.createMetadataElement(variable, 1000));
-            }
-
-            for (Variable variable : variableList) {
+                MetadataElement elem = createMetadataElement(variable, 1000);
+                bandElem.addElement(elem);
 
                 if (NetCDFUtils.variableIsVector(variable) && variable.getRank() > 1) {
 
-                    // If rank is 1 then it has already been taken care of by
-                    // MetadataUtils.createMetadataElement()
-
-                    final MetadataElement elem = bandElem.getElement(variable.getFullName());
                     final MetadataElement valuesElem = new MetadataElement("Values");
                     elem.addElement(valuesElem);
                     MetadataUtils.addAttribute(variable, valuesElem, 1000);
                 }
             }
-
-            /*
-            for (Dimension d : dimensionList) {
-                int len = d.getLength();
-                String name = d.getFullName();
-                System.out.println("Sentinel1OCNReader.addNetCDFMetadata: dim name = " + name + " len = " + len);
-            }
-
-            for (Variable variable : variableList) {
-                int[] varShape = variable.getShape();
-                System.out.print("Sentinel1OCNReader.addNetCDFMetadata: variable name = " + variable.getFullName() + " ");
-                for (int i = 0; i < varShape.length; i++) {
-                    System.out.print(varShape[i] + " ");
-                }
-                System.out.println();
-            }
-            */
         }
+    }
+
+    public static MetadataElement createMetadataElement(Variable variable, int maxNumValuesRead) {
+        final MetadataElement element = MetadataUtils.readAttributeList(variable.attributes(), variable.getFullName());
+        if (variable.getRank() == 1) {
+            final MetadataElement valuesElem = new MetadataElement("Values");
+            element.addElement(valuesElem);
+            if (variable.getDataType() == DataType.STRUCTURE) {
+                final Structure structure = (Structure) variable;
+                final List<Variable> structVariables = structure.getVariables();
+                for (Variable structVariable : structVariables) {
+                    final String name = structVariable.getShortName();
+                    final MetadataElement structElem = new MetadataElement(name);
+                    valuesElem.addElement(structElem);
+                    MetadataUtils.addAttribute(structVariable, structElem, maxNumValuesRead);
+                }
+            } else {
+                MetadataUtils.addAttribute(variable, valuesElem, maxNumValuesRead);
+            }
+        }
+        return element;
     }
 
     public void addNetCDFBands(final Product product) {
@@ -270,7 +203,7 @@ public class Sentinel1OCNReader {
             // Add bands to product...
 
             int idx = file.indexOf("-ocn-");
-            final String pol = file.substring(idx + 5, idx + 7);
+            final String pol = file.substring(idx + 5, idx + 7).toUpperCase();
 
             idx = file.lastIndexOf('-');
             final String imageNum = file.substring(idx + 1, idx + 4);
@@ -282,7 +215,8 @@ public class Sentinel1OCNReader {
                     continue;
                 }
 
-                String bandName = pol + "_" + imageNum + "_";
+                String suffix = "_IMG" + imageNum + "_" + pol;
+                String bandName;
                 final int[] shape = variable.getShape();
 
                 switch (variable.getRank()) {
@@ -291,16 +225,16 @@ public class Sentinel1OCNReader {
                         // The data has been added as part of annotation for the variable under "Values".
                         break;
                     case 2: {
-                        bandName += variable.getFullName();
+                        bandName = variable.getFullName() + suffix;
                         addBand(product, bandName, variable, shape[1], shape[0]);
                         bandNameNCFileMap.put(bandName, netcdfFile);
 
                         if (bandName.contains("owiNrcs")) {
                             product.setQuicklookBandName(bandName);
                         }
+                        break;
                     }
-                    break;
-                    case 3:
+                    case 3: {
                         // When the rank is 3, there is an "outer" grid of cells and each cell contains a vector of values.
                         // The "outer" grid is oswAzSize (rows) by oswRaSize (cols) of cells.
                         // Each cell is a vector of values.
@@ -308,18 +242,18 @@ public class Sentinel1OCNReader {
                         // So it is more natural to have the band be (oswAzSize*oswAngularBinSize) rows by oswRaSize columns.
                         // All other rank 3 variables are oswAzSize x oswRaSize x oswPartitions
                         // To be consistent, the bands will be (oswAzSize*oswPartitions) rows by oswRaSize columns.
-                    {
+
                         for(int swath = 1; swath <= shape[2]; ++swath) {
-                            String bandNameSwath = bandName + mode + swath + "_" + variable.getFullName();
+                            bandName = variable.getFullName() +'_'+ mode + swath + suffix;
                             // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1] (cols).
                             // So band width = shape[1] and band height = shape[0]*shape[2]
-                            addBand(product, bandNameSwath, variable, shape[1], shape[0]);// * shape[2]);
-                            bandNameNCFileMap.put(bandNameSwath, netcdfFile);
+                            addBand(product, bandName, variable, shape[1], shape[0]);// * shape[2]);
+                            bandNameNCFileMap.put(bandName, netcdfFile);
                         }
+                        break;
                     }
-                    break;
 
-                    case 4:
+                    case 4: {
                         // When the rank is 4, there is an "outer" grid of cells and each cell contains an "inner" grid of bins.
                         // The "outer" grid is oswAzSize (rows) by oswRaSize (cols) of cells.
                         // Each cell is oswAngularBinSize (rows) by oswWaveNumberBinSize (cols) of bins.
@@ -327,19 +261,15 @@ public class Sentinel1OCNReader {
                         // shape[1] is width of "outer" grid.
                         // shape[2] is height of "inner" grid.
                         // shape[3] is width of "inner" grid.
-                    {
-                        bandName += variable.getFullName();
+
+                        bandName = variable.getFullName() + suffix;
                         // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1]*shape[3] (cols).
                         // So band width = shape[1]*shape[3] and band height = shape[0]*shape[2]
                         addBand(product, bandName, variable, shape[1] * shape[3], shape[0] * shape[2]);
                         bandNameNCFileMap.put(bandName, netcdfFile);
-                        /*
-                        if (bandName.contains("oswPolSpec")) {
-                            dumpVariableValues(variable, bandName);
-                        }
-                        */
+                        break;
                     }
-                    break;
+
                     default:
                         SystemUtils.LOG.severe("SentinelOCNReader.addNetCDFMetadataAndBands: ERROR invalid variable rank " + variable.getRank() + " for " + variable.getFullName());
                         break;
@@ -373,158 +303,6 @@ public class Sentinel1OCNReader {
             }
         }
 */
-    }
-
-    public void addWindDataToVectorNodes(final Product product){
-
-        // This is not expected to do anything but leave it anyhow.
-        // osw data will be handled in addOSWDataToVectorNode()
-        addOneWindDataToVectorNode(product, "osw");
-
-        addOneWindDataToVectorNode(product, "owi");
-    }
-
-    public void addOneWindDataToVectorNode(final Product product, final String componentName){
-
-        //System.out.println("Sentinel1OCNReader.addWindToVectorNodes: called for " + componentName);
-
-        List<Band> windBands = new ArrayList<>();
-
-        SimpleFeatureType windFeatureType = createWindSimpleFeatureType(product, componentName , windBands);
-
-        if (windBands.size() == 0) {
-            SystemUtils.LOG.info("No " + componentName + " wind data bands");
-            return;
-        }
-
-        //System.out.println("Sentinel1OCNReader.addWindToVectorNodes: total " + componentName + " wind bands = " + windBands.size());
-
-        final int rasterH = windBands.get(0).getRasterHeight();
-        final int rasterW = windBands.get(0).getRasterWidth();
-
-        final int productRasterH = product.getSceneRasterHeight();
-        final int productRasterW = product.getSceneRasterWidth();
-
-        for (Band b : windBands) {
-            //System.out.println("  " + componentName + " wind data band: " + b.getName());
-            if (rasterH != b.getRasterHeight()) {
-                SystemUtils.LOG.warning(componentName + " wind data bands have different raster height");
-                return;
-            } else if (rasterW != b.getRasterWidth()) {
-                SystemUtils.LOG.warning(componentName + " wind data bands have different raster width");
-                return;
-            }
-        }
-
-        VectorDataNode windNode = new VectorDataNode(componentName + "_" + WIND_VECTOR_DATA_NODE_NAME, windFeatureType);
-
-        //final FeatureCollection<SimpleFeatureType, SimpleFeature> collection = windNode.getFeatureCollection();
-        final DefaultFeatureCollection collection = windNode.getFeatureCollection();
-
-        final GeometryFactory geometryFactory = new GeometryFactory();
-
-        final int xStepSize = rasterW / shapeSideLen;
-        final int yStepSize = rasterH / shapeSideLen;
-        //System.out.println("Sentinel1OCNReader.addWindToVectorNodes: xStepSize = " + xStepSize + " yStepSize = " + yStepSize);
-        int i = 0;
-        for (int x = 0; x < rasterW; x += xStepSize) {
-            for (int y = 0; y < rasterH; y += yStepSize) {
-
-                SimpleFeatureBuilder sfb = new SimpleFeatureBuilder(windFeatureType);
-
-                // TODO The problem is that productRasterW and productRasterH can be wrong and equal to 99999 which messes
-                // TODO up the geocoding. getScaledValue() will decide if scaling is needed.
-
-                // org.locationtech.jts.geom.Point p = geometryFactory.createPoint(new Coordinate(x, y));
-                final int x1 = getScaledValue(x, productRasterW, rasterW);
-                final int y1 = getScaledValue(y, productRasterH, rasterH);
-                org.locationtech.jts.geom.Point p = geometryFactory.createPoint(new Coordinate(x1, y1));
-
-                //System.out.println("Sentinel1OCNReader.addWindToVectorNodes: (" + x + ", " + y + ") -> (" + x1 + ", " + y1 + ")");
-
-                sfb.set(PlainFeatureFactory.ATTRIB_NAME_GEOMETRY, p);
-                final SimpleFeature feature = sfb.buildFeature( componentName + "_wind_data_pt_" + i++);
-
-                for (Band b : windBands) {
-
-                    ProductData productData = b.createCompatibleProductData(1);
-                    readData(x, y, 1, 1, 1, 1, b, 0, 0, 1, 1, productData);
-                    double val = productData.getElemDoubleAt(0);
-
-                    feature.setAttribute(bandToAttributeName.get(b), val);
-                }
-
-                collection.add(feature);
-            }
-        }
-
-        //System.out.println("Sentinel1OCNReader.addWindToVectorNodes: total " + componentName + " wind data points = " + i);
-
-        final ProductNodeGroup<VectorDataNode> vectorGroup = product.getVectorDataGroup();
-        vectorGroup.add(windNode);
-    }
-
-    private int getScaledValue(final int x, final int w1, final int w2) {
-        if (sceneHeight > 0) return x; // No need to scale if sceneHeight is available
-        return (int) ( ( ((double) x ) * ((double) w1 ) / ((double) w2) ) + 0.5);
-    }
-
-    private SimpleFeatureType createWindSimpleFeatureType(final Product product,
-                                                          final String componentName, // osw or owi
-                                                          final List<Band> windBands) {
-
-        Map<String, String> map =
-                componentName.equals("osw") ? oswWindBandNameShpFieldNameMap : owiWindBandNameShpFieldNameMap;
-
-        final List<AttributeDescriptor> attributeDescriptors = new ArrayList<>();
-
-        Band[] bands = product.getBands();
-        for (Band band : bands) {
-            for (String s : map.keySet())
-            if (band.getName().contains(s)) {
-                final String attributeName = map.get(s);
-                attributeDescriptors.add(VectorUtils.createAttribute(attributeName, Double.class));
-                windBands.add(band);
-                bandToAttributeName.put(band, attributeName);
-            }
-        }
-
-        return VectorUtils.createFeatureType(product.getSceneGeoCoding(),
-                componentName + " " + WIND_VECTOR_DATA_NODE_NAME, attributeDescriptors);
-    }
-
-    public void addOSWDataToVectorNode(final Product product) {
-
-        // TODO
-        // oswLon
-        // oswLat
-        // oswHs_1, oswHs_2, osw_Hs_n where n = oswPartitions
-        // oswWI_1,
-        // oswDirmet_1
-        // oswWindSpeed
-        // oswWindDirection
-        // oswEcmwfWindSpeed
-        // oswEcmwfWindDirection
-        // oswWaveAge
-        // oswWindSeaHs
-
-        MetadataElement root = product.getMetadataRoot();
-        dumpElems("root metadata", root);
-
-        MetadataElement originalProductMetadata = root.getElement(AbstractMetadata.ORIGINAL_PRODUCT_METADATA);
-        dumpElems(AbstractMetadata.ORIGINAL_PRODUCT_METADATA, originalProductMetadata);
-
-    }
-
-    private void dumpElems(final String name, final MetadataElement metadataElement) {
-        if (metadataElement == null) {
-            System.out.println(name + " is null");
-            return;
-        }
-        String[] elementNames = metadataElement.getElementNames();
-        for (String a : elementNames) {
-            System.out.println(metadataElement.getName() + " elem = " + a);
-        }
     }
 
     private void addBand(final Product product, String bandName, final Variable variable, final int width, final int height) {
@@ -570,7 +348,7 @@ public class Sentinel1OCNReader {
         // So it looks like we can ignore destOffsetX and destOffsetY.
 
         final String bandName = destBand.getName();
-        final String varFullName = bandName.substring(bandName.lastIndexOf('_') + 1);
+        final String varFullName = bandName.substring(0, bandName.indexOf('_'));
 
         //System.out.println("Sentinel1OCNReader.readData: bandName = " + bandName + " varFullName = " + varFullName);
 
@@ -599,24 +377,15 @@ public class Sentinel1OCNReader {
 
         final int[] origin = {sourceOffsetY, sourceOffsetX};
         final int[] shape = {sourceHeight, sourceWidth};
-        /*
-        System.out.println(":::::" + sourceOffsetX + " " + sourceOffsetY);
-        System.out.println(":::::" + sourceStepX + " " + sourceStepY);
-        System.out.println(":::::" + sourceWidth + " " + sourceHeight);
-        System.out.println(":::::" + destWidth + " " + destHeight);
-        */
 
         try {
 
             final Array srcArray = var.read(origin, shape);
-
             for (int i = 0; i < destHeight; i++) {
                 final int srcStride = i * sourceWidth;
                 final int dstStride = i * destWidth;
                 for (int j = 0; j < destWidth; j++) {
-
                     destBuffer.setElemFloatAt(dstStride + j, srcArray.getFloat(srcStride + j));
-                    //destBuffer.setElemFloatAt(dstStride +destWidth - j - 1, srcArray.getFloat(srcStride + j));
                 }
             }
 

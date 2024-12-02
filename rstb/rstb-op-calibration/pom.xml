@@ -41,11 +41,13 @@
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-commons</artifactId>
+            <artifactId>sar-op-calibration</artifactId>
         </dependency>
+
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-calibration</artifactId>
+            <artifactId>sar-commons</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.csa.rstb</groupId>

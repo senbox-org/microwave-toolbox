@@ -144,6 +144,8 @@ public class Sentinel1ProductReader extends SARReader {
                     product.setAutoGrouping("WV1:WV2");
                     break;
             }
+        } else if(productType.equals("OCN")) {
+            product.setAutoGrouping("owi:osw:rvl");
         }
     }
 
