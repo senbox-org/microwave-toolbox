@@ -43,27 +43,11 @@
         </dependency>
 
         <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-commons</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.csa.rstb</groupId>
             <artifactId>rstb-op-soil-moisture</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-windows</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-util</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-netbeans-api-annotations-common</artifactId>
-        </dependency>
     </dependencies>
 
     <build>

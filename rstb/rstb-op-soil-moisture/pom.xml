@@ -36,17 +36,17 @@
         <dependency>
             <groupId>org.tallison</groupId>
             <artifactId>jmatio</artifactId>
-            <version>1.5</version>
+            <version>${jmatio.version}</version>
         </dependency>
         <dependency>
             <groupId>net.sourceforge</groupId>
             <artifactId>javaml</artifactId>
-            <version>0.1.7</version>
+            <version>${javaml.version}</version>
         </dependency>
         <dependency>
             <groupId>net.sf.opencsv</groupId>
             <artifactId>opencsv</artifactId>
-            <version>2.1</version>
+            <version>${opencsv.version}</version>
         </dependency>
     </dependencies>
 
