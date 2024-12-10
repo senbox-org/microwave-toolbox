@@ -245,7 +245,13 @@ public final class BackGeocodingOp extends Operator {
 
             // coregister master and slave TPGs if ETAD data is found in TPGs
             if (findETADTPG()) {
-                coregisterETADTPG();
+                final String[] tgtSlvTPGList = getTargetSlvTPGList();
+                final boolean tgtSlvTPGCreated = checkTargetTPG(tgtSlvTPGList);
+                if (!tgtSlvTPGCreated) {
+                    coregisterETADTPG();
+                }
+                saveMasterETADTPG();
+                saveSlaveETADTPG(tgtSlvTPGList);
             }
 
         } catch (Throwable e) {
@@ -283,6 +289,8 @@ public final class BackGeocodingOp extends Operator {
             return;
         }
 
+        TPGManager.instance().removeAllTPGs(); // need this line, otherwise cached data from previous run is used
+
         final ElevationModel dem = DEMFactory.createElevationModel("Copernicus 90m Global DEM",
                 ResamplingFactory.BILINEAR_INTERPOLATION_NAME);
         final double demNoDataValue = dem.getDescriptor().getNoDataValue();
@@ -290,13 +298,15 @@ public final class BackGeocodingOp extends Operator {
                 (double)dem.getDescriptor().getTileWidth();
         final double demSamplingLon = demSamplingLat;
 
+        int i = 1;
         for(SlaveData slaveData : slaveDataList) {
+            final String slvSuffix = StackUtils.SLV + i + StackUtils.createBandTimeStamp(slaveData.slaveProduct);
             final List<Integer> burstIndexList = getBurstIndexList(slaveData.slaveProduct);
 
             for (final int burstIndex : burstIndexList) {
-
                 final PixelPos[][] slaveBurstPointPos = computeSlaveBurstPointPosition(slaveData, burstIndex,
                         dem, demNoDataValue, demSamplingLat, demSamplingLon);
+
                 if (slaveBurstPointPos == null) {
                     return;
                 }
@@ -311,14 +321,82 @@ public final class BackGeocodingOp extends Operator {
                     final float[] coregisteredSlaveBurst = computeCoregisteredSlaveETADBurst(
                             tpg, slaveBurstPointPos, resampling);
 
-                    targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid(tpgName));
-                    final TiePointGrid tpgMst = masterProduct.getTiePointGrid(tpgName);
-                    tpgMst.setName(tpgMst.getName() + "_mst");
-                    targetProduct.addTiePointGrid(tpgMst.cloneTiePointGrid());
-                    targetProduct.addTiePointGrid(new TiePointGrid(tpgName + "_slv", tpg.getGridWidth(),
-                            tpg.getGridHeight(), 0, 0, 1, 1, coregisteredSlaveBurst));
+                    TPGManager.instance().setTPG(tpgName + slvSuffix, tpg.getGridWidth(),
+                            tpg.getGridHeight(), coregisteredSlaveBurst);
                 }
             }
+            ++i;
+        }
+    }
+
+    private String[] getTargetSlvTPGList() {
+
+        List<String> list = new LinkedList<String>();
+        int i = 1;
+        for(SlaveData slaveData : slaveDataList) {
+            final String slvSuffix = StackUtils.SLV + i + StackUtils.createBandTimeStamp(slaveData.slaveProduct);
+            final List<Integer> burstIndexList = getBurstIndexList(slaveData.slaveProduct);
+            for (final int burstIndex : burstIndexList) {
+                final TiePointGrid[] tpgs = slaveData.slaveProduct.getTiePointGrids();
+                for (TiePointGrid tpg : tpgs) {
+                    final String tpgName = tpg.getName();
+                    if (tpgName.startsWith("etad") && tpgName.endsWith("_" + burstIndex)) {
+                        list.add(tpgName + slvSuffix);
+                    }
+                }
+            }
+            ++i;
+        }
+
+        return list.toArray(new String[0]);
+    }
+
+    private boolean checkTargetTPG(final String[] tgtTPGList) {
+
+        for (String tpgName : tgtTPGList) {
+            if (TPGManager.instance().getTPG(tpgName) == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void saveMasterETADTPG() {
+
+        final String mstSuffix = StackUtils.MST + StackUtils.createBandTimeStamp(masterProduct);
+        final TiePointGrid[] tpgsMst = masterProduct.getTiePointGrids();
+        for (TiePointGrid tpgMst : tpgsMst) {
+            final String tpgName = tpgMst.getName();
+            if (!tpgName.startsWith("etad")) {
+                continue;
+            }
+
+            final TiePointGrid tgtTPG = targetProduct.getTiePointGrid(tpgName);
+            if (tgtTPG != null) {
+                targetProduct.removeTiePointGrid(tgtTPG);
+            }
+
+            tpgMst.setName(tpgMst.getName() + mstSuffix);
+            targetProduct.addTiePointGrid(tpgMst.cloneTiePointGrid());
+        }
+    }
+
+    private void saveSlaveETADTPG(final String[] tgtSlvTPGList) {
+
+        for (String tpgName : tgtSlvTPGList) {
+            final TiePointGrid tpg = TPGManager.instance().getTPG(tpgName);
+            final TiePointGrid tpgSaved = TPGManager.instance().getTPG(tpgName);
+            if (tpgSaved == null) {
+                continue;
+            }
+
+            final String tpgNameInProduct = tpgName.substring(0, tpgName.indexOf("_slv"));
+            final TiePointGrid oldTPG = targetProduct.getTiePointGrid(tpgNameInProduct);
+            if (oldTPG != null) {
+                targetProduct.removeTiePointGrid(oldTPG);
+            }
+            targetProduct.addTiePointGrid(new TiePointGrid(tpgName, tpg.getGridWidth(), tpg.getGridHeight(),
+                    0, 0, 1, 1, tpgSaved.getTiePoints()));
         }
     }
 
