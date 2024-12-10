@@ -24,6 +24,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 //import org.esa.snap.core.dataop.downloadable.SSLUtil;
+import org.esa.snap.core.util.SystemUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -71,7 +72,7 @@ public class DataSpaces {
                                  final String startDate, final String endDate) {
         String query = "Collection/Name eq '"+collection+"'";
         query += " and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType' and att/OData.CSC.StringAttribute/Value eq '"+productType+"')";
-        query += " and ContentDate/Start lt "+startDate+" and ContentDate/End gt "+endDate;
+        query += " and ContentDate/Start gt "+startDate+" and ContentDate/End lt "+endDate;
         return query;
     }
 
@@ -94,7 +95,7 @@ public class DataSpaces {
         }
         reader.close();
 
-        System.out.println(response);
+        //System.out.println(response);
         JSONParser parser = new JSONParser();
         return (JSONObject) parser.parse(response.toString());
     }
@@ -106,9 +107,15 @@ public class DataSpaces {
             JSONObject feature = (JSONObject) o;
             String id = (String) feature.get("Id");
             String name = (String) feature.get("Name");
+            JSONObject footprint = (JSONObject) feature.get("GeoFootprint");
+            JSONObject contentDate = (JSONObject) feature.get("ContentDate");
+            String startTime = (String) contentDate.get("Start");
+            String endTime = (String) contentDate.get("End");
+
+            SystemUtils.LOG.info("Found product: "+name);
 
             String fileUrl = "https://download.dataspace.copernicus.eu/odata/v1/Products("+id+")/$value";
-            results.add(new Result(fileUrl, name));
+            results.add(new Result(fileUrl, name, startTime, endTime, footprint));
         }
         return results.toArray(new Result[0]);
     }
@@ -140,7 +147,7 @@ public class DataSpaces {
             IOUtils.copy(inputStream, fileOutputStream);
 
             EntityUtils.consume(response.getEntity());
-            System.out.println("File "+outputFile.getAbsolutePath()+ " downloaded successfully!");
+            SystemUtils.LOG.info("File "+outputFile.getAbsolutePath()+ " downloaded successfully!");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -203,9 +210,16 @@ public class DataSpaces {
     public static class Result {
         String url;
         String name;
-        public Result(String url, String name) {
+        String startTime;
+        String endTime;
+        JSONObject footprint;
+
+        public Result(String url, String name, String startTime, String endTime, JSONObject footprint) {
             this.url = url;
             this.name = name;
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.footprint = footprint;
         }
     }
 }
