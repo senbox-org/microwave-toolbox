@@ -30,6 +30,7 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dem.dataio.DEMFactory;
 import org.esa.snap.dem.dataio.FileElevationModel;
@@ -491,15 +492,15 @@ public class InterferogramOp extends Operator {
             final TiePointGrid[] tpgs = sourceProduct.getTiePointGrids();
             for (TiePointGrid tpg : tpgs) {
                 final String tpgName = tpg.getName();
-                if (tpgName.startsWith(ETAD_PHASE_CORRECTION) && tpgName.endsWith(MASTER_TAG)) {
+                if (tpgName.startsWith(ETAD_PHASE_CORRECTION) && tpgName.contains(MASTER_TAG)) {
                     hasRefETADPhaseTPG = true;
-                } else if (tpgName.startsWith(ETAD_HEIGHT) && tpgName.endsWith(MASTER_TAG)) {
+                } else if (tpgName.startsWith(ETAD_HEIGHT) && tpgName.contains(MASTER_TAG)) {
                     hasRefETADHeightTPG = true;
-                } else if (tpgName.startsWith(ETAD_PHASE_CORRECTION) && tpgName.endsWith(SLAVE_TAG)) {
+                } else if (tpgName.startsWith(ETAD_PHASE_CORRECTION) && tpgName.contains(SLAVE_TAG)) {
                     hasSecETADPhaseTPG = true;
-                } else if (tpgName.startsWith(ETAD_HEIGHT) && tpgName.endsWith(SLAVE_TAG)) {
+                } else if (tpgName.startsWith(ETAD_HEIGHT) && tpgName.contains(SLAVE_TAG)) {
                     hasSecETADHeightTPG = true;
-                } else if (tpgName.startsWith(ETAD_GRADIENT) && tpgName.endsWith(SLAVE_TAG)) {
+                } else if (tpgName.startsWith(ETAD_GRADIENT) && tpgName.contains(SLAVE_TAG)) {
                     hasSecETADGradientTPG = true;
                 }
             }
@@ -1437,10 +1438,6 @@ public class InterferogramOp extends Operator {
             throws OperatorException {
 
         try {
-//            if (subtractETADPhase && !etadPhaseStatsComputed) {
-//                computeETADPhaseStatistics();
-//            }
-
             final int tx0 = targetRectangle.x;
             final int ty0 = targetRectangle.y;
             final int tw = targetRectangle.width;
@@ -1587,7 +1584,9 @@ public class InterferogramOp extends Operator {
                 }
 
                 if (subtractETADPhase) {
-                    final double[][] etadPhase = computeETADPhase(targetRectangle, burstIndex);
+                    final String mstDate = getTimeStamp(product.sourceMaster.date);
+                    final String slvDate = getTimeStamp(product.sourceSlave.date);
+                    final double[][] etadPhase = computeETADPhase(targetRectangle, burstIndex, mstDate, slvDate);
 
                     if (etadPhase != null) {
                         final ComplexDoubleMatrix ComplexETADPhase = new ComplexDoubleMatrix(
@@ -1655,6 +1654,10 @@ public class InterferogramOp extends Operator {
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
+    }
+
+    private String getTimeStamp(final String dateString) {
+        return StringUtils.createValidName('_' + dateString, new char[]{'_', '.'}, '_');
     }
 
     private void updateMstMetaData(final int burstIndex, final SLCImage mstMeta) {
@@ -1838,16 +1841,18 @@ public class InterferogramOp extends Operator {
     }
 
     //vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv For S1 TOPS IW SLC product vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    private double[][] computeETADPhase(final Rectangle rectangle, final int burstIndex) {
+    private double[][] computeETADPhase(final Rectangle rectangle, final int burstIndex,
+                                        final String mstDate, final String slvDate) {
 
         if (!performHeightCorrection) {
-            return computeETADPhaseWithoutHeightCompensation(rectangle, burstIndex);
+            return computeETADPhaseWithoutHeightCompensation(rectangle, burstIndex, mstDate, slvDate);
         } else {
-            return computeETADPhaseWithHeightCompensation(rectangle, burstIndex);
+            return computeETADPhaseWithHeightCompensation(rectangle, burstIndex, mstDate, slvDate);
         }
     }
 
-    private double[][] computeETADPhaseWithoutHeightCompensation(final Rectangle rectangle, final int prodBurstIndex) {
+    private double[][] computeETADPhaseWithoutHeightCompensation(final Rectangle rectangle, final int prodBurstIndex,
+                                                                 final String mstDate, final String slvDate) {
 
         final int x0 = rectangle.x;
         final int y0 = rectangle.y;
@@ -1864,8 +1869,8 @@ public class InterferogramOp extends Operator {
             return null;
         }
 
-        final double[][] refETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, "mst");
-        final double[][] secETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, "slv");
+        final double[][] refETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, mstDate, "mst");
+        final double[][] secETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, slvDate, "slv");
 
         final double[][] etadPhase = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
@@ -1922,14 +1927,14 @@ public class InterferogramOp extends Operator {
         return null;
     }
 
-    private double[][] getETADBurstData(final String layer, final int burstIndex, final String suffix) {
+    private double[][] getETADBurstData(final String layer, final int burstIndex, final String prodDate, final String suffix) {
 
         final TiePointGrid[] tpgs = sourceProduct.getTiePointGrids();
         float[] tiePoints = null;
         int w = 0, h = 0;
         for (TiePointGrid tpg : tpgs) {
             final String tpgName = tpg.getName();
-            if (tpgName.startsWith(layer) && tpgName.endsWith(burstIndex + "_" + suffix)) {
+            if (tpgName.startsWith(layer) && tpgName.contains(burstIndex + "_" + suffix) && tpgName.contains(prodDate)) {
                 tiePoints = tpg.getTiePoints();
                 w = tpg.getGridWidth();
                 h = tpg.getGridHeight();
@@ -1978,7 +1983,8 @@ public class InterferogramOp extends Operator {
         return Maths.interpolationBiLinear(c00, c01, c10, c11, j - j0, i - i0);
     }
 
-    private double[][] computeETADPhaseWithHeightCompensation(final Rectangle rectangle, final int prodBurstIndex) {
+    private double[][] computeETADPhaseWithHeightCompensation(final Rectangle rectangle, final int prodBurstIndex,
+                                                              final String mstDate, final String slvDate) {
 
         final int x0 = rectangle.x;
         final int y0 = rectangle.y;
@@ -1995,11 +2001,11 @@ public class InterferogramOp extends Operator {
             return null;
         }
 
-        final double[][] refETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, "mst");
-        final double[][] refETADHeightBurstData = getETADBurstData(ETAD_HEIGHT, burst.bIndex, "mst");
-        final double[][] secETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, "slv");
-        final double[][] secETADHeightBurstData = getETADBurstData(ETAD_HEIGHT, burst.bIndex, "slv");
-        final double[][] secETADGradientBurstData = getETADBurstData(ETAD_GRADIENT, burst.bIndex, "slv");
+        final double[][] refETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, mstDate, "mst");
+        final double[][] refETADHeightBurstData = getETADBurstData(ETAD_HEIGHT, burst.bIndex, mstDate, "mst");
+        final double[][] secETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, slvDate, "slv");
+        final double[][] secETADHeightBurstData = getETADBurstData(ETAD_HEIGHT, burst.bIndex, slvDate, "slv");
+        final double[][] secETADGradientBurstData = getETADBurstData(ETAD_GRADIENT, burst.bIndex, slvDate, "slv");
 
         final double[][] etadPhase = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
