@@ -102,6 +102,10 @@ public final class SliceAssemblyOp extends Operator {
 
     private double version = 0.0f;
 
+    void setTestProducts(Product[] products) {
+        sourceProducts = products;
+    }
+
     /**
      * Default constructor. The graph processing framework
      * requires that an operator has a default constructor.
@@ -163,7 +167,7 @@ public final class SliceAssemblyOp extends Operator {
         //System.out.println("Sentinel1RemoveThermalNoiseOp: IPF version = " + version);
     }
 
-    private Product[] determineSliceProducts() throws Exception {
+    Product[] determineSliceProducts() throws Exception {
         if (sourceProducts.length < 2) {
             throw new Exception("Slice assembly requires at least two consecutive slice products");
         }
