@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
+import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataAttribute;
@@ -24,6 +25,7 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
+import org.jblas.DoubleMatrix;
 
 import java.io.IOException;
 import java.text.DateFormat;
@@ -43,6 +45,9 @@ public final class ETADUtils {
     private int numSubSwaths = 0;
     InputProduct[] inputProducts = null;
     private InstrumentTimingCalibration[] instrumentTimingCalibrationList = null;
+
+    // Temporary for holding the tropo-to-height gradient layers
+    private Map<String, double[][]> burstToGradientMap = null;
 
     public ETADUtils(final Product ETADProduct) throws Exception {
 
@@ -205,8 +210,13 @@ public final class ETADUtils {
     }
 
     private Burst createBurst(final int sIndex, final int bIndex) {
-
         final MetadataElement annotationElem = origProdRoot.getElement("annotation");
+        // bIndex is unique, no need to use sIndex
+        return createBurst(bIndex, annotationElem);
+    }
+
+    public static Burst createBurst(final int bIndex, final MetadataElement annotationElem) {
+
         final MetadataElement etadProductElem = annotationElem.getElement("etadProduct");
         final MetadataElement etadBurstListElem = etadProductElem.getElement("etadBurstList");
         final MetadataElement[] elements = etadBurstListElem.getElements();
@@ -216,9 +226,9 @@ public final class ETADUtils {
             // ID information
             final MetadataElement burstDataElem = elem.getElement("burstData");
             final int sIdx = Integer.parseInt(burstDataElem.getAttributeString("sIndex"));
-            if (sIdx != sIndex) {
-                continue;
-            }
+//            if (sIdx != sIndex) {
+//                continue;
+//            }
             final int bIdx = Integer.parseInt(burstDataElem.getAttributeString("bIndex"));
             if (bIdx != bIndex) {
                 continue;
@@ -237,6 +247,34 @@ public final class ETADUtils {
             burst.rangeTimeMax = Double.parseDouble(rangeTimeMaxElem.getAttributeString("rangeTimeMax"));
             burst.azimuthTimeMin = getTime(temporalCoverageElem, "azimuthTimeMin").getMJD()*Constants.secondsInDay;
             burst.azimuthTimeMax = getTime(temporalCoverageElem, "azimuthTimeMax").getMJD()*Constants.secondsInDay;
+
+            final MetadataElement spacialCoverageElem = burstCoverageElem.getElement("spatialCoverage");
+            final MetadataElement[] coordinatesElemList = spacialCoverageElem.getElements();
+            for (MetadataElement coordinatesElem : coordinatesElemList) {
+                final MetadataElement latitudeElem = coordinatesElem.getElement("latitude");
+                final MetadataElement longitudeElem = coordinatesElem.getElement("longitude");
+                final double lat = Double.parseDouble(latitudeElem.getAttributeString("latitude"));
+                final double lon = Double.parseDouble(longitudeElem.getAttributeString("longitude"));
+                final String corner = coordinatesElem.getAttributeString("corner");
+                switch (corner) {
+                    case "EarlyAzimuthNearRange":
+                        burst.EarlyAzimuthNearRangeLat = lat;
+                        burst.EarlyAzimuthNearRangeLon = lon;
+                        break;
+                    case "EarlyAzimuthFarRange":
+                        burst.EarlyAzimuthFarRangeLat = lat;
+                        burst.EarlyAzimuthFarRangeLon = lon;
+                        break;
+                    case "LateAzimuthNearRange":
+                        burst.LateAzimuthNearRangeLat = lat;
+                        burst.LateAzimuthNearRangeLon = lon;
+                        break;
+                    case "LateAzimuthFarRange":
+                        burst.LateAzimuthFarRangeLat = lat;
+                        burst.LateAzimuthFarRangeLon = lon;
+                        break;
+                }
+            }
 
             // grid information
             final MetadataElement gridInformationElem = elem.getElement("gridInformation");
@@ -357,6 +395,11 @@ public final class ETADUtils {
 
     public double[][] getLayerCorrectionForCurrentBurst(final Burst burst, final String bandName) {
 
+        // Temporary code to handle gradient layer
+        if (bandName.toLowerCase().contains("gradient")) {
+            return burstToGradientMap.get(bandName);
+        }
+
         try {
             final Band layerBand = etadProduct.getBand(bandName);
             layerBand.readRasterDataFully(ProgressMonitor.NULL);
@@ -427,11 +470,88 @@ public final class ETADUtils {
         public double azimuthTimeMin;
         public double azimuthTimeMax;
 
+        public double EarlyAzimuthNearRangeLat;
+        public double EarlyAzimuthNearRangeLon;
+        public double EarlyAzimuthFarRangeLat;
+        public double EarlyAzimuthFarRangeLon;
+        public double LateAzimuthNearRangeLat;
+        public double LateAzimuthNearRangeLon;
+        public double LateAzimuthFarRangeLat;
+        public double LateAzimuthFarRangeLon;
+
         public double gridStartAzimuthTime;
         public double gridStartRangeTime;
         public double gridSamplingAzimuth;
         public double gridSamplingRange;
         public int azimuthExtent;
         public int rangeExtent;
+    }
+
+    // The code below computes the tropo-to-height gradient layer for all bursts in the given sub-swath. Also, function
+    // getLayerCorrectionForCurrentBurst is modified temporarily to retrieve the gradient for a given burst. The code
+    // and the modification will be removed in future when ESA's ETAD-SE product is available.
+    public void computeTroposphericToHeightGradient(final int productIndex, final int swathIndex) {
+
+        final int[] burstIndexArray = getBurstIndexArray(productIndex, swathIndex);
+        burstToGradientMap = new HashMap<>(burstIndexArray.length);
+
+        for (int burstIndex : burstIndexArray) {
+            final ETADUtils.Burst burst = getBurst(productIndex, swathIndex, burstIndex);
+
+            final String tropoBandName = createBandName(burst.swathID, burst.bIndex, "troposphericCorrectionRg");
+            final double[][] tropoCorr = getLayerCorrectionForCurrentBurst(burst, tropoBandName);
+
+            final String heightBandName = createBandName(burst.swathID, burst.bIndex, "height");
+            final double[][] height = getLayerCorrectionForCurrentBurst(burst, heightBandName);
+
+            final String gradientBandName = createBandName(burst.swathID, burst.bIndex, "gradient");
+            final double[][] gradient = computeGradientForCurrentBurst(tropoCorr, height);
+            burstToGradientMap.put(gradientBandName, gradient);
+        }
+    }
+
+    private double[][] computeGradientForCurrentBurst(final double[][] tropoCorr, final double[][] height) {
+
+        if (tropoCorr == null || height == null){
+            return null;
+        }
+
+        final int rows = tropoCorr.length;
+        final int cols = tropoCorr[0].length;
+        final double[][] gradient = new double[rows][cols];
+
+        final int windowSize = 25; // 25 pixels ~ 5km assuming 200m grid spacing
+        final int halfWindowSize = windowSize / 2;
+        for (int y = 0; y < rows; ++y) {
+            for (int x = 0; x < cols - 1; ++x) {
+                final int winXSt = Math.max(x - halfWindowSize, 0);
+                final int winXEd = Math.min(x + halfWindowSize, cols - 1);
+                final int winYSt = Math.max(y - halfWindowSize, 0);
+                final int winYEd = Math.min(y + halfWindowSize, rows - 1);
+                gradient[y][x] = computeGradient(winXSt, winXEd, winYSt, winYEd, tropoCorr, height);
+            }
+        }
+        return gradient;
+    }
+
+    private double computeGradient(final int winXSt, final int winXEd, final int winYSt, final int winYEd,
+                                   final double[][] tropoCorr, final double[][] height) {
+
+        double sumX = 0.0, sumX2 = 0.0, sumY = 0.0, sumXY = 0.0;
+        for (int y = winYSt; y <= winYEd; ++y) {
+            for (int x = winXSt; x < winXEd; ++x) {
+                final double dh = height[y][x + 1] - height[y][x];
+                final double dt = tropoCorr[y][x + 1] - tropoCorr[y][x];
+                sumX += dh;
+                sumX2 += dh * dh;
+                sumY += dt;
+                sumXY += dh * dt;
+            }
+        }
+
+        final Matrix A = new Matrix(new double[][]{{sumX2, sumX}, {sumX, (winYEd - winYSt + 1) * (winXEd - winXSt)}});
+        final Matrix b = new Matrix(new double[]{sumXY, sumY}, 2);
+        final Matrix c = A.solve(b);
+        return c.get(0,0);
     }
 }

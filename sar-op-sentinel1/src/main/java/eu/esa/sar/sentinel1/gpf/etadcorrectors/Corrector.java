@@ -46,6 +46,7 @@ public interface Corrector {
     void setResamplingImage(final boolean flag);
     void setOutputPhaseCorrections(final boolean flag);
     void setEtadUtils(final ETADUtils etadUtils);
+    void setEtadProduct(final Product etadProduct);
 
     Product createTargetProduct();
 

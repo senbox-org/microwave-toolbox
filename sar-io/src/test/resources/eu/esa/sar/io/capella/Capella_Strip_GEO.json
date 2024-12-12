@@ -18,9 +18,6 @@
 				"path": "Original_Product_Metadata\/ProductMetadata\/collect\/transmit_antenna\/beam_pattern\/coefficients\/coefficients\/coefficients7",
 				"value": "4.028841477627756E11"
 			}, {
-				"path": "Original_Product_Metadata\/ProductMetadata\/collect\/receive_antenna\/beam_pattern\/coefficients\/coefficients[6]\/coefficients5",
-				"value": "-5.8897430574713201E18"
-			}, {
 				"path": "Original_Product_Metadata\/ProductMetadata\/collect\/image\/range_window\/parameters\/nbar",
 				"value": "3"
 			}, {

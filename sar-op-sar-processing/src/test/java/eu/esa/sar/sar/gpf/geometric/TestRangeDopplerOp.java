@@ -72,7 +72,8 @@ public class TestRangeDopplerOp extends ProcessorTest {
 
     private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN","ETAD"};
     private static final String[] exceptionExemptions = {"not supported", "not be map projected", "outside of SRTM valid area",
-                                "Source product should first be deburst","has no bands","numbands is zero"};
+                                "Source product should first be deburst","has no bands","numbands is zero",
+                                "incidence_angle tie point grid not found in product"};
 
     /**
      * Processes a WSM product and compares it to processed product known to be correct

@@ -124,6 +124,7 @@ public class S1ETADCorrectionOp extends Operator {
 
     private Resampling selectedResampling = null;
     private ETADUtils etadUtils = null;
+    private Product etadProduct = null;
 
 
     /**
@@ -220,7 +221,7 @@ public class S1ETADCorrectionOp extends Operator {
         }
 
         // disposed of in etadUtils.dispose()
-        Product etadProduct = ProductIO.readProduct(etadFile);
+        etadProduct = ProductIO.readProduct(etadFile);
 
         validateETADProduct(sourceProduct, etadProduct);
 
@@ -252,6 +253,7 @@ public class S1ETADCorrectionOp extends Operator {
         etadCorrector.setResamplingImage(resamplingImage);
         etadCorrector.setOutputPhaseCorrections(outputPhaseCorrections);
         etadCorrector.setEtadUtils(etadUtils);
+        etadCorrector.setEtadProduct(etadProduct);
         etadCorrector.initialize();
         targetProduct = etadCorrector.createTargetProduct();
     }
@@ -299,7 +301,7 @@ public class S1ETADCorrectionOp extends Operator {
             final double etadStopTime = ETADUtils.getTime(etadHeaderElem, "stopTime").getMJD()* Constants.secondsInDay;
 
             if (srcStartTime < etadStartTime || srcStopTime > etadStopTime) {
-                //throw new OperatorException("The selected ETAD product does not match the source product");
+                throw new OperatorException("The selected ETAD product does not match the source product");
             }
 
         } catch(Throwable e) {
@@ -331,9 +333,10 @@ public class S1ETADCorrectionOp extends Operator {
             throws OperatorException {
 
         try {
-            if(!etadCorrector.hasETADData()) {
-                etadCorrector.loadETADData();
-            }
+            // JL: This should only for InSAR case
+//            if(outputPhaseCorrections && !etadCorrector.hasETADData()) {
+//                etadCorrector.loadETADData();
+//            }
 
             etadCorrector.computeTileStack(targetTileMap, targetRectangle, pm, this);
         } catch (Throwable e) {

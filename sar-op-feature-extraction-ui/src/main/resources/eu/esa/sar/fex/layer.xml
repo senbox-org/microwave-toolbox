@@ -120,11 +120,11 @@
         </folder>
         <folder name="Raster">
             <folder name="Classification">
-                <!--attr name="position" intvalue="450"/>
+                <attr name="position" intvalue="450"/>
                 <file name="eu-esa-sar-fex-gpf-DecisionTree-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-DecisionTree-Action.instance"/>
-                    <attr name="position" intvalue="500"/>
-                </file-->
+                    <attr name="position" intvalue="800"/>
+                </file>
             </folder>
         </folder>
     </folder>
