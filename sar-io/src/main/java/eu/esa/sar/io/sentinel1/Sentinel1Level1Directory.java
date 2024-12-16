@@ -110,6 +110,11 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         return ImageIOFile.createImageInputStream(inStream, bandDimensions);
     }
 
+    private String createWVImageName(String swath, int imageNumber) {
+        String padImageNum = StringUtils.padNum(imageNumber, 3, '0');
+        return swath + "_IMG" + padImageNum;
+    }
+
     @Override
     protected void addBands(final Product product) {
 
@@ -133,9 +138,9 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     tpgPrefix = swath;
                 } else if(isWV()) {
                     final int imageNumber = bandMetadata.getAttributeInt("image_number");
-                    String padImageNum = StringUtils.padNum(imageNumber, 3, '0');
-                    suffix = swath + "_IMG" + padImageNum + '_' + pol;
-                    tpgPrefix = swath + "_IMG" + padImageNum;
+                    String imageName = createWVImageName(swath, imageNumber);
+                    suffix = imageName + '_' + pol;
+                    tpgPrefix = imageName;
                 }
             }
 
@@ -339,7 +344,8 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
                 if(isWV() && adsHeader.containsAttribute("imageNumber")) {
                     int imageNumber = adsHeader.getAttributeInt("imageNumber");
-                    bandRootName = bandRootName + "_" + imageNumber;
+                    String imageName = createWVImageName(swath, imageNumber);
+                    bandRootName = AbstractMetadata.BAND_PREFIX + imageName + '_' + pol;
                 }
 
                 final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
