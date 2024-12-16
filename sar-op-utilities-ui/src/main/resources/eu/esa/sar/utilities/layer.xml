@@ -32,6 +32,7 @@
                 <attr name="operatorName" stringvalue="BandSelect"/>
                 <attr name="dialogTitle" stringvalue="Band Select"/>
                 <attr name="ShortDescription" stringvalue="Select a subset of bands"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Subset"/>
                 <attr name="helpId" stringvalue="BandSelectOp"/>
                 <attr name="icon" stringvalue="esaIcon"/>
             </file>
