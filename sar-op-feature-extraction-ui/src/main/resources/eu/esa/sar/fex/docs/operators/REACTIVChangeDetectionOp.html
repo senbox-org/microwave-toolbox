@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+
+
+    
+    <title>Help - REACTIV Change Detection</title><link rel="stylesheet" href="../style.css"></head>
+
+<body>
+
+<table class="header">
+
+    <tbody>
+    <tr class="header">
+
+        <td class="header">&nbsp;REACTIV Change Detection</td>
+
+
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+
+    </tr>
+
+    </tbody>
+</table>
+
+
+<h3>REACTIV Change Detection</h3>&nbsp;&nbsp; This operator implements
+the "Rapid and EAsy Change detection in radar TIme-series by Variation
+coefficient (REACTIV)" algorithm proposed by Koeniguer et al. in [1]. <br><br>The
+REACTIV algorithm filters the speckle noise by exploiting the time
+dimension. Therefore the algorithm can not only to improve the
+signal-to-noise ratio, but also to detect all the pixels for which a
+change occurred between the first and the last observation date. The
+REACTIV algorithm is also a visualization tool. It highlights the
+detected changes in a stack of SAR images: where are the changes, when
+they happened and what their intensities. By exploiting the HSV
+display, the algorithm presents all the change information of the time
+series in one image. [1]<br><br>The HSV space consists of 3 components: the Hue, the Saturation and the Value (Figure 1).<br><img style="width: 331px; height: 283px;" alt="" src="images/reactiv_change_detection_fig1.jpg"><br><br>The
+Hue component encodes the dating information of the event. Thus, when a
+change is displayed, we can approximately know when it occurs in the
+observed period. In order to avoid the resemblance of color between the
+extreme start of the spectrum and its extreme end, the initial [0, 1]
+range is reduced to [0, 0.9] range (Figure 2). [1]<br><img style="width: 475px; height: 304px;" alt="" src="images/reactiv_change_detection_fig2.jpg"><br><br>The
+Saturation component, responsible for how intense the color picked by
+the hue value will be, is bound to the change intensity: the bigger the
+change, the more saturated the color will appear. This means that the
+white spots on the map represents places with low changes over time
+(Figure 3). &nbsp;[1]<br><img style="width: 459px; height: 179px;" alt="" src="images/reactiv_change_detection_fig3.jpg"><br><br>Finally,
+to keep the usual SAR Image look, the value component ranging from dark
+to bright, with respect to the color picked by the hue value,
+represents the maximum value of the input signal over both
+polarizations (Figure 4). [1]<br><img style="width: 529px; height: 164px;" alt="" src="images/reactiv_change_detection_fig4.jpg"><br><h4>Input</h4>
+<ul><li>The input to this operator could be a coregistered stack of Sentinel-1 IW dual-pol products.</li></ul>
+
+<h4>Output</h4>
+<ul><li>The output of the operator is a product with hue, saturation and value bands.</li></ul><h4>Parameters Used</h4>&nbsp;&nbsp;&nbsp;The following parameters are used by the operator:
+<ol>
+    <li>Include source bands: if the checkbox is selected, all
+bands&nbsp;of the source product will be included in the target product
+together with the hue, saturation and value bands. </li></ol><div style="margin-left: 40px;"><img style="width: 438px; height: 442px;" alt="" src="images/reactiv_change_detection_dlg.jpg">&nbsp;<br></div>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 5. REACTIV Change Detection dialog box<br><p style="font-style: italic;">Reference:</p>
+
+<p> [1] Elise Colin Koeniguer, Alexandre Boulch, Pauline Trouve-Peloux
+and Fabrice Janez, &#8220;Colored visualization of multitemporal data for
+change detection: issues and methods&#8221;, EUSAR, 2018.<br></p>
+
+<hr>
+</body></html>
