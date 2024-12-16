@@ -660,8 +660,8 @@ public class CrossCorrelationOp extends Operator {
             double groundRangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 1);
             final double azimuthSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing, 1);
             final boolean srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
-            if (!srgrFlag) {
-                final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
+            final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
+            if (!srgrFlag && incidenceAngle != null) {
                 final double incidenceAngleAtCentreRangePixel =
                         incidenceAngle.getPixelDouble(sourceImageWidth / 2f, sourceImageHeight / 2f);
                 groundRangeSpacing /= FastMath.sin(incidenceAngleAtCentreRangePixel * Constants.DTOR);
