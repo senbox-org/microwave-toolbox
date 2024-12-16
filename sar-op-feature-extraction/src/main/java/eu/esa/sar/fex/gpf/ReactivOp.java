@@ -79,8 +79,12 @@ public class ReactivOp extends Operator {
     private Band hueBand = null;
     private Band saturationBand = null;
     private Band valueBand = null;
+    private double timeMin = 0.0;
+    private double timeMax = 0.0;
     private String[] prodAcqDateArray = null;
+    private int numOfProducts = 0;
 
+    private static double noDataValue = 0.0;
     private static final String HUE_BAND_NAME = "hue";
     private static final String SATURATION_BAND_NAME = "saturation";
     private static final String VALUE_BAND_NAME = "value";
@@ -92,6 +96,8 @@ public class ReactivOp extends Operator {
             checkSourceProductValidity();
 
             createTargetProduct();
+
+            findMinMaxTime();
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
@@ -114,6 +120,24 @@ public class ReactivOp extends Operator {
         pol1 = absRoot.getAttributeString(AbstractMetadata.mds1_tx_rx_polar);
         pol2 = absRoot.getAttributeString(AbstractMetadata.mds2_tx_rx_polar);
         prodAcqDateArray = getProdAcqDatesFromBands();
+        numOfProducts = prodAcqDateArray.length;
+    }
+
+    private void findMinMaxTime() {
+
+        double tMin = Double.MAX_VALUE;
+        double tMax = Double.MIN_VALUE;
+        for (final String date : prodAcqDateArray) {
+            final double time = dateToTime(date);
+            if (tMin > time) {
+                tMin = time;
+            }
+            if (tMax < time) {
+                tMax = time;
+            }
+        }
+        timeMin = tMin;
+        timeMax = tMax;
     }
 
     private void createTargetProduct() {
@@ -183,19 +207,65 @@ public class ReactivOp extends Operator {
             throws OperatorException {
 
         try {
-            final int tx0 = targetRectangle.x;
-            final int ty0 = targetRectangle.y;
-            final int tw = targetRectangle.width;
-            final int th = targetRectangle.height;
-            final int maxX = tx0 + tw;
-            final int maxY = ty0 + th;
+            final int x0 = targetRectangle.x;
+            final int y0 = targetRectangle.y;
+            final int w = targetRectangle.width;
+            final int h = targetRectangle.height;
+            final int maxX = x0 + w;
+            final int maxY = y0 + h;
             //System.out.println("tx0 = " + tx0 + ", ty0 = " + ty0 + ", tw = " + tw + ", th = " + th);
 
-            final ComplexTileData[] tileDataArray = createComplexTileDataArray(prodAcqDateArray, targetRectangle);
-            final double[] minMaxTime = findMinMaxTime(tileDataArray);
-            final double timeMin = minMaxTime[0];
-            final double timeMax = minMaxTime[1];
-            final TileIndex srcIndex = new TileIndex(tileDataArray[0].tileIPol1);
+            final double[][] sumPol1 = new double[h][w];
+            final double[][] sumPol2 = new double[h][w];
+            final double[][] sum2Pol1 = new double[h][w];
+            final double[][] sum2Pol2 = new double[h][w];
+            final double[][] sumMax = new double[h][w];
+            final double[][] max = new double[h][w];
+            final double[][] time = new double[h][w];
+
+            for (String date : prodAcqDateArray) {
+                final double timeProd = dateToTime(date);
+                final Band bandIPol1 = getBand("i_", date, pol1);
+                final Band bandQPol1 = getBand("q_", date, pol1);
+                final Band bandIPol2 = getBand("i_", date, pol2);
+                final Band bandQPol2 = getBand("q_", date, pol2);
+                final Tile tileIPol1 = getSourceTile(bandIPol1, targetRectangle);
+                final Tile tileQPol1 = getSourceTile(bandQPol1, targetRectangle);
+                final Tile tileIPol2 = getSourceTile(bandIPol2, targetRectangle);
+                final Tile tileQPol2 = getSourceTile(bandQPol2, targetRectangle);
+                final ProductData dataBufferIPol1 = tileIPol1.getDataBuffer();
+                final ProductData dataBufferQPol1 = tileQPol1.getDataBuffer();
+                final ProductData dataBufferIPol2 = tileIPol2.getDataBuffer();
+                final ProductData dataBufferQPol2 = tileQPol2.getDataBuffer();
+                final TileIndex srcIndex = new TileIndex(tileIPol1);
+				
+                for (int y = y0; y < maxY; ++y) {
+                    srcIndex.calculateStride(y);
+                    final int yy = y - y0;
+
+                    for (int x = x0; x < maxX; ++x) {
+                        final int srcIdx = srcIndex.getIndex(x);
+                        final int xx = x - x0;
+
+                        final double iPol1 = dataBufferIPol1.getElemDoubleAt(srcIdx);
+                        final double qPol1 = dataBufferQPol1.getElemDoubleAt(srcIdx);
+                        final double iPol2 = dataBufferIPol2.getElemDoubleAt(srcIdx);
+                        final double qPol2 = dataBufferQPol2.getElemDoubleAt(srcIdx);
+                        final double vPol1 = Math.sqrt(iPol1 * iPol1 + qPol1 * qPol1);
+                        final double vPol2 = Math.sqrt(iPol2 * iPol2 + qPol2 * qPol2);
+                        final double vMax = Math.max(vPol1, vPol2);
+                        sumPol1[yy][xx] += vPol1;
+                        sumPol2[yy][xx] += vPol2;
+                        sum2Pol1[yy][xx] += vPol1 * vPol1;
+                        sum2Pol2[yy][xx] += vPol2 * vPol2;
+                        sumMax[yy][xx] += vMax;
+                        if (max[yy][xx] < vMax) {
+                            max[yy][xx] = vMax;
+                            time[yy][xx] = timeProd;
+                        }
+                    }
+                }
+            }
 
             final Tile hueTile = targetTiles.get(hueBand);
             final Tile satTile = targetTiles.get(saturationBand);
@@ -205,25 +275,28 @@ public class ReactivOp extends Operator {
             final ProductData valData = valTile.getDataBuffer();
             final TileIndex tgtIndex = new TileIndex(hueTile);
 
-            for (int ty = ty0; ty < maxY; ty++) {
-                tgtIndex.calculateStride(ty);
-                srcIndex.calculateStride(ty);
+            for (int y = y0; y < maxY; ++y) {
+                tgtIndex.calculateStride(y);
+                final int yy = y - y0;
 
-                for (int tx = tx0; tx < maxX; tx++) {
-                    final int tgtIdx = tgtIndex.getIndex(tx);
-                    final int srcIdx = srcIndex.getIndex(tx);
+                for (int x = x0; x < maxX; ++x) {
+                    final int tgtIdx = tgtIndex.getIndex(x);
+                    final int xx = x - x0;
 
-                    final double[] valuesPol1 = new double[tileDataArray.length];
-                    final double[] valuesPol2 = new double[tileDataArray.length];
-                    getBandValues(tileDataArray, srcIdx, valuesPol1, valuesPol2);
-
-                    final double hue = computeHue(valuesPol1, valuesPol2, timeMin, timeMax, tileDataArray);
+                    final double hue = 0.9 * (timeMax - time[yy][xx]) / (timeMax - timeMin);
                     hueData.setElemDoubleAt(tgtIdx, hue);
 
-                    final double saturation = computeSaturation(valuesPol1, valuesPol2);
+                    final double meanPol1 = sumPol1[yy][xx] / numOfProducts;
+                    final double stdPol1 = Math.sqrt(sum2Pol1[yy][xx] / numOfProducts - meanPol1 * meanPol1);
+                    final double varCoefPol1 = stdPol1 / meanPol1;
+                    final double meanPol2 = sumPol2[yy][xx] / numOfProducts;
+                    final double stdPol2 = Math.sqrt(sum2Pol2[yy][xx] / numOfProducts - meanPol2 * meanPol2);
+                    final double varCoefPol2 = stdPol2 / meanPol2;
+                    final double saturation = (Math.max(varCoefPol1, varCoefPol2) - 0.2286) / (10.0 * 0.1616) + 0.25;
                     satData.setElemDoubleAt(tgtIdx, saturation);
 
-                    final double value = computeValue(valuesPol1, valuesPol2);
+                    final double meanOfMax = sumMax[yy][xx] / numOfProducts;
+                    final double value = 0.4 * (max[yy][xx] + meanOfMax);
                     valData.setElemDoubleAt(tgtIdx, value);
                 }
             }
@@ -237,19 +310,61 @@ public class ReactivOp extends Operator {
             throws OperatorException {
 
         try {
-            final int tx0 = targetRectangle.x;
-            final int ty0 = targetRectangle.y;
-            final int tw = targetRectangle.width;
-            final int th = targetRectangle.height;
-            final int maxX = tx0 + tw;
-            final int maxY = ty0 + th;
+            final int x0 = targetRectangle.x;
+            final int y0 = targetRectangle.y;
+            final int w = targetRectangle.width;
+            final int h = targetRectangle.height;
+            final int maxX = x0 + w;
+            final int maxY = y0 + h;
             //System.out.println("tx0 = " + tx0 + ", ty0 = " + ty0 + ", tw = " + tw + ", th = " + th);
 
-            final TileData[] tileDataArray = createTileDataArray(prodAcqDateArray, targetRectangle);
-            final double[] minMaxTime = findMinMaxTime(tileDataArray);
-            final double timeMin = minMaxTime[0];
-            final double timeMax = minMaxTime[1];
-            final TileIndex srcIndex = new TileIndex(tileDataArray[0].tilePol1);
+            final double[][] sumPol1 = new double[h][w];
+            final double[][] sumPol2 = new double[h][w];
+            final double[][] sum2Pol1 = new double[h][w];
+            final double[][] sum2Pol2 = new double[h][w];
+            final double[][] sumMax = new double[h][w];
+            final double[][] max = new double[h][w];
+            final double[][] time = new double[h][w];
+
+            for (String date : prodAcqDateArray) {
+                final double timeProd = dateToTime(date);
+                final Band bandPol1 = getBand(date, pol1);
+                final Band bandPol2 = getBand(date, pol2);
+                final Tile tilePol1 = getSourceTile(bandPol1, targetRectangle);
+                final Tile tilePol2 = getSourceTile(bandPol2, targetRectangle);
+                final ProductData dataBufferPol1 = tilePol1.getDataBuffer();
+                final ProductData dataBufferPol2 = tilePol2.getDataBuffer();
+                final double noDataValuePol1 = bandPol1.getNoDataValue();
+                final double noDataValuePol2 = bandPol2.getNoDataValue();
+                final TileIndex srcIndex = new TileIndex(tilePol1);
+				
+                for (int y = y0; y < maxY; ++y) {
+                    srcIndex.calculateStride(y);
+                    final int yy = y - y0;
+
+                    for (int x = x0; x < maxX; ++x) {
+                        final int srcIdx = srcIndex.getIndex(x);
+                        final int xx = x - x0;
+
+                        final double vPol1 = dataBufferPol1.getElemDoubleAt(srcIdx);
+                        final double vPol2 = dataBufferPol2.getElemDoubleAt(srcIdx);
+                        if (vPol1 == noDataValuePol1 || vPol2 == noDataValuePol2) {
+                            time[yy][xx] = -1.0;
+                            continue;
+                        }
+                        final double vMax = Math.max(vPol1, vPol2);
+                        sumPol1[yy][xx] += vPol1;
+                        sumPol2[yy][xx] += vPol2;
+                        sum2Pol1[yy][xx] += vPol1 * vPol1;
+                        sum2Pol2[yy][xx] += vPol2 * vPol2;
+                        sumMax[yy][xx] += vMax;
+                        if (max[yy][xx] < vMax) {
+                            max[yy][xx] = vMax;
+                            time[yy][xx] = timeProd;
+                        }
+                    }
+                }
+            }
 
             final Tile hueTile = targetTiles.get(hueBand);
             final Tile satTile = targetTiles.get(saturationBand);
@@ -259,25 +374,34 @@ public class ReactivOp extends Operator {
             final ProductData valData = valTile.getDataBuffer();
             final TileIndex tgtIndex = new TileIndex(hueTile);
 
-            for (int ty = ty0; ty < maxY; ty++) {
-                tgtIndex.calculateStride(ty);
-                srcIndex.calculateStride(ty);
+            for (int y = y0; y < maxY; ++y) {
+                tgtIndex.calculateStride(y);
+                final int yy = y - y0;
 
-                for (int tx = tx0; tx < maxX; tx++) {
-                    final int tgtIdx = tgtIndex.getIndex(tx);
-                    final int srcIdx = srcIndex.getIndex(tx);
+                for (int x = x0; x < maxX; ++x) {
+                    final int tgtIdx = tgtIndex.getIndex(x);
+                    final int xx = x - x0;
+                    if (time[yy][xx] == -1.0) {
+                        hueData.setElemDoubleAt(tgtIdx, noDataValue);
+                        satData.setElemDoubleAt(tgtIdx, noDataValue);
+                        valData.setElemDoubleAt(tgtIdx, noDataValue);
+                        continue;
+                    }
 
-                    final double[] valuesPol1 = new double[tileDataArray.length];
-                    final double[] valuesPol2 = new double[tileDataArray.length];
-                    getBandValues(tileDataArray, srcIdx, valuesPol1, valuesPol2);
-
-                    final double hue = computeHue(valuesPol1, valuesPol2, timeMin, timeMax, tileDataArray);
+                    final double hue = 0.9 * (timeMax - time[yy][xx]) / (timeMax - timeMin);
                     hueData.setElemDoubleAt(tgtIdx, hue);
 
-                    final double saturation = computeSaturation(valuesPol1, valuesPol2);
+                    final double meanPol1 = sumPol1[yy][xx] / numOfProducts;
+                    final double stdPol1 = Math.sqrt(sum2Pol1[yy][xx] / numOfProducts - meanPol1 * meanPol1);
+                    final double varCoefPol1 = stdPol1 / meanPol1;
+                    final double meanPol2 = sumPol2[yy][xx] / numOfProducts;
+                    final double stdPol2 = Math.sqrt(sum2Pol2[yy][xx] / numOfProducts - meanPol2 * meanPol2);
+                    final double varCoefPol2 = stdPol2 / meanPol2;
+                    final double saturation = (Math.max(varCoefPol1, varCoefPol2) - 0.2286) / (10.0 * 0.1616) + 0.25;
                     satData.setElemDoubleAt(tgtIdx, saturation);
 
-                    final double value = computeValue(valuesPol1, valuesPol2);
+                    final double meanOfMax = sumMax[yy][xx] / numOfProducts;
+                    final double value = 0.4 * (max[yy][xx] + meanOfMax);
                     valData.setElemDoubleAt(tgtIdx, value);
                 }
             }
@@ -298,39 +422,6 @@ public class ReactivOp extends Operator {
             }
         }
         return timeStampList.toArray(new String[0]);
-    }
-
-    private TileData[] createTileDataArray(final String[] prodAcqDateArray, final Rectangle rectangle) {
-
-        final TileData[] tileDataArray = new TileData[prodAcqDateArray.length];
-        for (int i = 0; i < prodAcqDateArray.length; ++i) {
-            final String date = prodAcqDateArray[i];
-            final Band bandPol1 = getBand(date, pol1);
-            final Band bandPol2 = getBand(date, pol2);
-            final Tile tilePol1 = getSourceTile(bandPol1, rectangle);
-            final Tile tilePol2 = getSourceTile(bandPol2, rectangle);
-            tileDataArray[i] = new TileData(date, bandPol1, bandPol2, tilePol1, tilePol2);
-        }
-        return tileDataArray;
-    }
-
-    private ComplexTileData[] createComplexTileDataArray(final String[] prodAcqDateArray, final Rectangle rectangle) {
-
-        final ComplexTileData[] tileDataArray = new ComplexTileData[prodAcqDateArray.length];
-        for (int i = 0; i < prodAcqDateArray.length; ++i) {
-            final String date = prodAcqDateArray[i];
-            final Band bandIPol1 = getBand("i_", date, pol1);
-            final Band bandQPol1 = getBand("q_", date, pol1);
-            final Band bandIPol2 = getBand("i_", date, pol2);
-            final Band bandQPol2 = getBand("q_", date, pol2);
-            final Tile tileIPol1 = getSourceTile(bandIPol1, rectangle);
-            final Tile tileQPol1 = getSourceTile(bandQPol1, rectangle);
-            final Tile tileIPol2 = getSourceTile(bandIPol2, rectangle);
-            final Tile tileQPol2 = getSourceTile(bandQPol2, rectangle);
-            tileDataArray[i] = new ComplexTileData(date, bandIPol1, bandQPol1, bandIPol2, bandQPol2, tileIPol1,
-                    tileQPol1, tileIPol2, tileQPol2);
-        }
-        return tileDataArray;
     }
 
     private Band getBand(final String date, final String pol) {
@@ -356,124 +447,6 @@ public class ReactivOp extends Operator {
                 " and polarization " + pol);
     }
 
-    private double[] findMinMaxTime(final TileData[] tileDataArray) {
-
-        double timeMin = tileDataArray[0].time;
-        double timeMax = tileDataArray[0].time;
-        for (int i = 1; i < tileDataArray.length; ++i) {
-            if (timeMin > tileDataArray[i].time) {
-                timeMin = tileDataArray[i].time;
-            }
-            if (timeMax < tileDataArray[i].time) {
-                timeMax = tileDataArray[i].time;
-            }
-        }
-        return new double[]{timeMin, timeMax};
-    }
-
-    private double[] findMinMaxTime(final ComplexTileData[] tileDataArray) {
-
-        double timeMin = tileDataArray[0].time;
-        double timeMax = tileDataArray[0].time;
-        for (int i = 1; i < tileDataArray.length; ++i) {
-            if (timeMin > tileDataArray[i].time) {
-                timeMin = tileDataArray[i].time;
-            }
-            if (timeMax < tileDataArray[i].time) {
-                timeMax = tileDataArray[i].time;
-            }
-        }
-        return new double[]{timeMin, timeMax};
-    }
-
-    private void getBandValues(final TileData[] tileDataArray, final int srcIdx,
-                                   final double[] valuesPol1, final double[] valuesPol2) {
-
-        for (int i = 0; i < tileDataArray.length; ++i) {
-            valuesPol1[i] = tileDataArray[i].dataBufferPol1.getElemDoubleAt(srcIdx);
-            valuesPol2[i] = tileDataArray[i].dataBufferPol2.getElemDoubleAt(srcIdx);
-        }
-    }
-
-    private void getBandValues(final ComplexTileData[] tileDataArray, final int srcIdx,
-                               final double[] valuesPol1, final double[] valuesPol2) {
-
-        for (int i = 0; i < tileDataArray.length; ++i) {
-            final double iPol1 = tileDataArray[i].dataBufferIPol1.getElemDoubleAt(srcIdx);
-            final double qPol1 = tileDataArray[i].dataBufferQPol1.getElemDoubleAt(srcIdx);
-            valuesPol1[i] = Math.sqrt(iPol1 * iPol1 + qPol1 * qPol1);
-
-            final double iPol2 = tileDataArray[i].dataBufferIPol2.getElemDoubleAt(srcIdx);
-            final double qPol2 = tileDataArray[i].dataBufferQPol2.getElemDoubleAt(srcIdx);
-            valuesPol2[i] = Math.sqrt(iPol2 * iPol2 + qPol2 * qPol2);
-        }
-    }
-
-    private double computeHue(final double[] valuesPol1, final double[] valuesPol2,
-                              final double timeMin, final double timeMax, final TileData[] tileDataArray) {
-
-        double max = Double.MIN_VALUE;
-        int index = 0;
-        for (int i = 0; i < valuesPol1.length; ++i) {
-            final double v = Math.max(valuesPol1[i], valuesPol2[i]);
-            if (max < v) {
-                max = v;
-                index = i;
-            }
-        }
-        return 0.9 * (timeMax - tileDataArray[index].time) / (timeMax - timeMin);
-    }
-
-    private double computeHue(final double[] valuesPol1, final double[] valuesPol2,
-                              final double timeMin, final double timeMax, final ComplexTileData[] tileDataArray) {
-
-        double max = Double.MIN_VALUE;
-        int index = 0;
-        for (int i = 0; i < valuesPol1.length; ++i) {
-            final double v = Math.max(valuesPol1[i], valuesPol2[i]);
-            if (max < v) {
-                max = v;
-                index = i;
-            }
-        }
-        return 0.9 * (timeMax - tileDataArray[index].time) / (timeMax - timeMin);
-    }
-
-    private double computeSaturation(final double[] valuesPol1, final double[] valuesPol2) {
-
-        final double[] meanAndSTDPol1 = computeMeanAndSTD(valuesPol1);
-        final double[] meanAndSTDPol2 = computeMeanAndSTD(valuesPol2);
-        final double varCoefPol1 = meanAndSTDPol1[1] / meanAndSTDPol1[0];
-        final double varCoefPol2 = meanAndSTDPol2[1] / meanAndSTDPol2[0];
-        return (Math.max(varCoefPol1, varCoefPol2) - 0.2286) / (10.0 * 0.1616) + 0.25;
-    }
-
-    private double[] computeMeanAndSTD(final double[] values) {
-
-        double sum = 0.0, sum2 = 0.0;
-        for(double v : values) {
-            sum += v;
-            sum2 += v * v;
-        }
-        final double mean = sum / values.length;
-        final double mean2 = sum2 / values.length;
-        final double std = Math.sqrt(mean2 - mean * mean);
-        return new double[]{mean, std};
-    }
-
-    private double computeValue(final double[] valuesPol1, final double[] valuesPol2) {
-
-        double sum = 0.0;
-        double maxValue = Double.MIN_VALUE;
-        for (int i = 0; i < valuesPol1.length; ++i) {
-            double max = Math.max(valuesPol1[i], valuesPol2[i]);
-            sum += max;
-            maxValue = Math.max(maxValue, max);
-        }
-        final double meanOfMax = sum / valuesPol1.length;
-        return 0.4 * (maxValue + meanOfMax);
-    }
-
     private static double dateToTime(final String dateStr) {
         // dateStr in ddMMMyyyy format
         final int day = Integer.parseInt(dateStr.substring(0, 2));
@@ -481,79 +454,6 @@ public class ReactivOp extends Operator {
         final int year = Integer.parseInt(dateStr.substring(5));
         final String timeStr = day + "-" + month + "-" + year + " 00:00:00.000000";
         return AbstractMetadata.parseUTC(timeStr).getMJD();
-    }
-
-    private static class TileData {
-        final String dateStr;
-        final double time;
-        final Band bandPol1;
-        final Band bandPol2;
-        final Tile tilePol1;
-        final Tile tilePol2;
-        final ProductData dataBufferPol1;
-        final ProductData dataBufferPol2;
-        final double noDataValuePol1;
-        final double noDataValuePol2;
-
-        TileData(final String dateStr, final Band bandPol1, final Band bandPol2, final Tile tilePol1,
-                 final Tile tilePol2) {
-
-            this.dateStr = dateStr;
-            this.time = dateToTime(dateStr);
-            this.bandPol1 = bandPol1;
-            this.bandPol2 = bandPol2;
-            this.tilePol1 = tilePol1;
-            this.tilePol2 = tilePol2;
-            this.dataBufferPol1 = tilePol1.getDataBuffer();
-            this.dataBufferPol2 = tilePol2.getDataBuffer();
-            this.noDataValuePol1 = bandPol1.getNoDataValue();
-            this.noDataValuePol2 = bandPol2.getNoDataValue();
-        }
-    }
-
-    private static class ComplexTileData {
-        final String dateStr;
-        final double time;
-        final Band bandIPol1;
-        final Band bandQPol1;
-        final Band bandIPol2;
-        final Band bandQPol2;
-        final Tile tileIPol1;
-        final Tile tileQPol1;
-        final Tile tileIPol2;
-        final Tile tileQPol2;
-        final ProductData dataBufferIPol1;
-        final ProductData dataBufferQPol1;
-        final ProductData dataBufferIPol2;
-        final ProductData dataBufferQPol2;
-        final double noDataValueIPol1;
-        final double noDataValueQPol1;
-        final double noDataValueIPol2;
-        final double noDataValueQPol2;
-
-        ComplexTileData(final String dateStr, final Band bandIPol1, final Band bandQPol1, final Band bandIPol2,
-                        final Band bandQPol2, final Tile tileIPol1, final Tile tileQPol1, final Tile tileIPol2,
-                        final Tile tileQPol2) {
-
-            this.dateStr = dateStr;
-            this.time = dateToTime(dateStr);
-            this.bandIPol1 = bandIPol1;
-            this.bandQPol1 = bandQPol1;
-            this.bandIPol2 = bandIPol2;
-            this.bandQPol2 = bandQPol2;
-            this.tileIPol1 = tileIPol1;
-            this.tileQPol1 = tileQPol1;
-            this.tileIPol2 = tileIPol2;
-            this.tileQPol2 = tileQPol2;
-            this.dataBufferIPol1 = tileIPol1.getDataBuffer();
-            this.dataBufferQPol1 = tileQPol1.getDataBuffer();
-            this.dataBufferIPol2 = tileIPol2.getDataBuffer();
-            this.dataBufferQPol2 = tileQPol2.getDataBuffer();
-            this.noDataValueIPol1 = bandIPol1.getNoDataValue();
-            this.noDataValueQPol1 = bandQPol1.getNoDataValue();
-            this.noDataValueIPol2 = bandIPol2.getNoDataValue();
-            this.noDataValueQPol2 = bandQPol2.getNoDataValue();
-        }
     }
 
 
