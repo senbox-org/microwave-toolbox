@@ -64,7 +64,7 @@ import java.util.Map;
  */
 
 @OperatorMetadata(alias = "Offset-Tracking",
-        category = "Radar/SAR Applications",
+        category = "Radar/SAR Applications/Ice Applications",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2016 by Array Systems Computing Inc.",
