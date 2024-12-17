@@ -300,8 +300,8 @@
             </folder>
             <folder name="SAR Applications">
                 <attr name="position" intvalue="900"/>
-                <folder name="Ocean Applications">
-                    <attr name="position" intvalue="150"/>
+                <folder name="Ice">
+                    <attr name="position" intvalue="50"/>
                     <file name="eu-esa-sar-insar-gpf-coregistration-OffsetTrackingOp-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-coregistration-OffsetTrackingOp-Action.instance"/>
                         <attr name="position" intvalue="300"/>

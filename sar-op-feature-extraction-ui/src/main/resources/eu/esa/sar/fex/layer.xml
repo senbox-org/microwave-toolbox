@@ -101,7 +101,7 @@
             <attr name="position" intvalue="510"/>
             <folder name="SAR Applications">
                 <attr name="position" intvalue="900"/>
-                <folder name="Ocean Applications">
+                <folder name="Ocean">
                     <attr name="position" intvalue="100"/>
                     <file name="eu-esa-sar-fex-gpf-ObjectDetection-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-ObjectDetection-Action.instance"/>
@@ -116,7 +116,7 @@
                         <attr name="position" intvalue="300"/>
                     </file>
                 </folder>
-                <folder name="Urban Areas">
+                <folder name="Urban">
                     <attr name="position" intvalue="200"/>
                     <file name="eu-esa-sar-fex-gpf-SpeckleDivergence-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-SpeckleDivergence-Action.instance"/>

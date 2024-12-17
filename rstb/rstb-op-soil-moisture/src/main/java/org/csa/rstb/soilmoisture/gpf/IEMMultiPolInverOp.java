@@ -50,7 +50,7 @@ import java.util.Map;
  */
 
 @OperatorMetadata(alias = "IEM-Multi-Pol-Inversion",
-        category = "Radar/Soil Moisture",
+        category = "Radar/SAR Applications/Soil Moisture",
         description = "Performs IEM inversion using Multi-polarization approach")
 public class IEMMultiPolInverOp extends IEMInverBase {
 

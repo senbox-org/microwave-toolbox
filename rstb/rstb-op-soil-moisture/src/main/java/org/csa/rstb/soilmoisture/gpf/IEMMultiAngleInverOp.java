@@ -54,7 +54,7 @@ import java.util.Map;
  */
 
 @OperatorMetadata(alias = "IEM-Multi-Angle-Inversion",
-        category = "Radar/Soil Moisture",
+        category = "Radar/SAR Applications/Soil Moisture",
         description = "Performs IEM inversion using Multi-angle approach")
 public class IEMMultiAngleInverOp extends IEMInverBase {
 

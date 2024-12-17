@@ -56,7 +56,7 @@ import java.util.List;
 //    sar-op-feature-extraction-ui\src\main\resources\eu\esa\sar\fex\graphs\Radar\SAR Applications
 
 @OperatorMetadata(alias = "Oil-Spill-Detection",
-        category = "Radar/SAR Applications/Ocean Applications/Oil Spill Detection",
+        category = "Radar/SAR Applications/Ocean/Oil Spill Detection",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2015 by Array Systems Computing Inc.",

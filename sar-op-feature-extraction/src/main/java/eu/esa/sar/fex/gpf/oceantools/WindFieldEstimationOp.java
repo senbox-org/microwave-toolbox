@@ -97,7 +97,7 @@ import java.util.List;
  */
 
 @OperatorMetadata(alias = "Wind-Field-Estimation",
-        category = "Radar/SAR Applications/Ocean Applications",
+        category = "Radar/SAR Applications/Ocean",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2015 by Array Systems Computing Inc.",
