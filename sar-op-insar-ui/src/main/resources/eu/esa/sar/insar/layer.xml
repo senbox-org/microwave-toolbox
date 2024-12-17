@@ -334,7 +334,7 @@
         </file>
         <file name="eu.esa.sar.insar.gpf.ui.PCAOpUI">
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.PCAOpUI"/>
-            <attr name="operatorName" stringvalue="Principle-Components"/>
+            <attr name="operatorName" stringvalue="Principal-Components"/>
         </file>
         <file name="eu.esa.sar.insar.gpf.ui.PhaseToElevationOpUI">
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.PhaseToElevationOpUI"/>
