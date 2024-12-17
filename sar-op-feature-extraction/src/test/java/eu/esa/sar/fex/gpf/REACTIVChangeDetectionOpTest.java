@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.fex.gpf;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
@@ -30,7 +31,7 @@ import java.io.IOException;
 
 public class REACTIVChangeDetectionOpTest {
 
-
+    @STTM("SNAP-3900")
     @Test
     public void test_initialize_with_valid_products() throws Exception {
         final Product srcProduct = createProduct();
