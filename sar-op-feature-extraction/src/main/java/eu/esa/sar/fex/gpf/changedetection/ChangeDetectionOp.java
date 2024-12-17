@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.fex.gpf;
+package eu.esa.sar.fex.gpf.changedetection;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
@@ -48,11 +48,11 @@ import java.util.Map;
  */
 
 @OperatorMetadata(alias = "Change-Detection",
-        category = "Radar/SAR Applications",
+        category = "Raster/Change Detection",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2015 by Array Systems Computing Inc.",
-        description = "Change Detection.")
+        description = "Log Ratio Change Detection.")
 public class ChangeDetectionOp extends Operator {
 
     @SourceProduct(alias = "source")

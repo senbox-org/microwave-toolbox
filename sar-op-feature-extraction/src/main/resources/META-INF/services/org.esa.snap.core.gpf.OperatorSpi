@@ -8,8 +8,8 @@ eu.esa.sar.fex.gpf.oceantools.ObjectDiscriminationOp$Spi
 eu.esa.sar.fex.gpf.oceantools.OilSpillDetectionOp$Spi
 eu.esa.sar.fex.gpf.oceantools.OilSpillClusteringOp$Spi
 eu.esa.sar.fex.gpf.oceantools.WindFieldEstimationOp$Spi
-eu.esa.sar.fex.gpf.ChangeDetectionOp$Spi
+eu.esa.sar.fex.gpf.changedetection.ChangeDetectionOp$Spi
 eu.esa.sar.fex.gpf.SubGraphOp$Spi
 eu.esa.sar.fex.gpf.decisiontree.DecisionTreeOp$Spi
-eu.esa.sar.fex.gpf.ReactivOp$Spi
+eu.esa.sar.fex.gpf.changedetection.ReactivOp$Spi
 
