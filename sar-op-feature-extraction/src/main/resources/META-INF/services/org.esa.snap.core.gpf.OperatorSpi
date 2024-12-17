@@ -11,4 +11,5 @@ eu.esa.sar.fex.gpf.oceantools.WindFieldEstimationOp$Spi
 eu.esa.sar.fex.gpf.ChangeDetectionOp$Spi
 eu.esa.sar.fex.gpf.SubGraphOp$Spi
 eu.esa.sar.fex.gpf.decisiontree.DecisionTreeOp$Spi
+eu.esa.sar.fex.gpf.ReactivOp$Spi
 
