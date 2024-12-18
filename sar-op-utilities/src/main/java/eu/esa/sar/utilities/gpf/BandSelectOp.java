@@ -16,8 +16,10 @@
 package eu.esa.sar.utilities.gpf;
 
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.core.gpf.Operator;
@@ -247,6 +249,29 @@ public final class BandSelectOp extends Operator {
             for(MetadataElement bandMeta : bandMetadata) {
                 if(!isSubImage(bandMeta.getName(), subImages)) {
                     absRoot.removeElement(bandMeta);
+                } else {
+                    if(bandMeta.containsAttribute(AbstractMetadata.swath)) {
+                        absRoot.setAttributeString(AbstractMetadata.SWATH, bandMeta.getAttributeString(AbstractMetadata.swath));
+                    }
+                    if(bandMeta.containsAttribute(AbstractMetadata.first_line_time)) {
+                        ProductData.UTC startTime = bandMeta.getAttributeUTC(AbstractMetadata.first_line_time);
+                        absRoot.setAttributeUTC(AbstractMetadata.first_line_time, startTime);
+                        targetProduct.setStartTime(startTime);
+                    }
+                    if(bandMeta.containsAttribute(AbstractMetadata.last_line_time)) {
+                        ProductData.UTC endTime = bandMeta.getAttributeUTC(AbstractMetadata.last_line_time);
+                        absRoot.setAttributeUTC(AbstractMetadata.last_line_time, endTime);
+                        targetProduct.setEndTime(endTime);
+                    }
+                    if(bandMeta.containsAttribute(AbstractMetadata.line_time_interval)) {
+                        absRoot.setAttributeDouble(AbstractMetadata.line_time_interval, bandMeta.getAttributeDouble(AbstractMetadata.line_time_interval));
+                    }
+                    if(bandMeta.containsAttribute(AbstractMetadata.num_output_lines)) {
+                        absRoot.setAttributeDouble(AbstractMetadata.num_output_lines, bandMeta.getAttributeDouble(AbstractMetadata.num_output_lines));
+                    }
+                    if(bandMeta.containsAttribute(AbstractMetadata.num_samples_per_line)) {
+                        absRoot.setAttributeDouble(AbstractMetadata.num_samples_per_line, bandMeta.getAttributeDouble(AbstractMetadata.num_samples_per_line));
+                    }
                 }
             }
         }
