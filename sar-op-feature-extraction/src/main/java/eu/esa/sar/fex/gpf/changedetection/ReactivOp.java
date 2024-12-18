@@ -68,6 +68,9 @@ public class ReactivOp extends Operator {
     @TargetProduct
     private Product targetProduct = null;
 
+    @Parameter(description = "Mask threshold", interval = "(0, 1)", defaultValue = "0.8", label = "Mask threshold")
+    private float maskThreshold = 0.8f;
+
     @Parameter(description = "Include source bands", defaultValue = "false", label = "Include source bands")
     private boolean includeSourceBands = false;
 
@@ -88,6 +91,7 @@ public class ReactivOp extends Operator {
     private static final String HUE_BAND_NAME = "hue";
     private static final String SATURATION_BAND_NAME = "saturation";
     private static final String VALUE_BAND_NAME = "value";
+    private static final String MASK_NAME = "change";
 
     @Override
     public void initialize() throws OperatorException {
@@ -181,6 +185,18 @@ public class ReactivOp extends Operator {
 
         valueBand = new Band(VALUE_BAND_NAME, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
         targetProduct.addBand(valueBand);
+
+        //create mask
+        String expression = saturationBand.getName() + " > "+ maskThreshold + " ? 1 : 0";
+        final Mask mask = new Mask(MASK_NAME, sourceImageWidth, sourceImageHeight, Mask.BandMathsType.INSTANCE);
+
+        mask.setDescription("Change");
+        mask.getImageConfig().setValue("color", Color.RED);
+        mask.getImageConfig().setValue("transparency", 0.7);
+        mask.getImageConfig().setValue("expression", expression);
+        mask.setNoDataValue(0);
+        mask.setNoDataValueUsed(true);
+        targetProduct.getMaskGroup().add(mask);
     }
 
     /**
@@ -397,7 +413,8 @@ public class ReactivOp extends Operator {
                     final double meanPol2 = sumPol2[yy][xx] / numOfProducts;
                     final double stdPol2 = Math.sqrt(sum2Pol2[yy][xx] / numOfProducts - meanPol2 * meanPol2);
                     final double varCoefPol2 = stdPol2 / meanPol2;
-                    final double saturation = (Math.max(varCoefPol1, varCoefPol2) - 0.2286) / (10.0 * 0.1616) + 0.25;
+                    double saturation = (Math.max(varCoefPol1, varCoefPol2) - 0.2286) / (10.0 * 0.1616) + 0.25;
+                    saturation = saturation < 0?0:saturation > 1?1:saturation;
                     satData.setElemDoubleAt(tgtIdx, saturation);
 
                     final double meanOfMax = sumMax[yy][xx] / numOfProducts;

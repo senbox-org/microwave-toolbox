@@ -29,11 +29,13 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertNotNull;
+
 public class REACTIVChangeDetectionOpTest {
 
     @STTM("SNAP-3900")
     @Test
-    public void test_initialize_with_valid_products() throws Exception {
+    public void test_REACTIV_with_pseudo_product() throws Exception {
         final Product srcProduct = createProduct();
         ReactivOp op = new ReactivOp();
         op.setSourceProduct(srcProduct);
@@ -69,6 +71,18 @@ public class REACTIVChangeDetectionOpTest {
         Assert.assertEquals(hueExpected, hueActual[0], 1e-4);
         Assert.assertEquals(satExpected, satActual[0], 1e-4);
         Assert.assertEquals(valExpected, valActual[0], 1e-4);
+    }
+
+    @STTM("SNAP-3906")
+    @Test
+    public void test_mask_in_output() throws Exception {
+        final Product srcProduct = createProduct();
+        ReactivOp op = new ReactivOp();
+        op.setSourceProduct(srcProduct);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        assertNotNull(targetProduct.getMaskGroup().get("change"));
     }
 
     private Product createProduct() {
