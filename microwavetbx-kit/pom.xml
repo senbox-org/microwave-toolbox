@@ -52,7 +52,7 @@
                 <executions>
                     <execution>
                         <id>copy-jars</id>
-                        <phase>install</phase>
+                        <phase>package</phase>
                         <configuration>
                             <target>
                                 <!-- Ant copy task to collect JARs that are needed to run snap-desktop and copy them into kit module-->
