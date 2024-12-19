@@ -4,7 +4,6 @@
 
     
     <title>Help - REACTIV Change Detection</title><link rel="stylesheet" href="../style.css"></head>
-
 <body>
 
 <table class="header">
@@ -54,9 +53,12 @@ polarizations (Figure 4). [1]<br><img style="width: 529px; height: 164px;" alt="
 <h4>Output</h4>
 <ul><li>The output of the operator is a product with hue, saturation and value bands.</li></ul><h4>Parameters Used</h4>&nbsp;&nbsp;&nbsp;The following parameters are used by the operator:
 <ol>
-    <li>Include source bands: if the checkbox is selected, all
+    <li>Mask threshold: threshold used in creating the change mask.
+Pixel with saturation value,&nbsp;which represents the intensity of
+change, that is greater than this threshold will be masked as 1,
+otherwise 0.</li><li>Include source bands: if the checkbox is selected, all
 bands&nbsp;of the source product will be included in the target product
-together with the hue, saturation and value bands. </li></ol><div style="margin-left: 40px;"><img style="width: 438px; height: 442px;" alt="" src="images/reactiv_change_detection_dlg.jpg">&nbsp;<br></div>
+together with the hue, saturation and value bands. </li></ol><div style="margin-left: 40px;"><img style="width: 436px; height: 445px;" alt="" src="images/reactiv_change_detection_dlg.jpg">&nbsp;<br></div>
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 5. REACTIV Change Detection dialog box<br><p style="font-style: italic;">Reference:</p>
 
 <p> [1] Elise Colin Koeniguer, Alexandre Boulch, Pauline Trouve-Peloux
