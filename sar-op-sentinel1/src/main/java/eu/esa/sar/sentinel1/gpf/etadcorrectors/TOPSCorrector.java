@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
-import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.Sentinel1Utils;
 import eu.esa.sar.sentinel1.gpf.BackGeocodingOp;
@@ -54,8 +53,6 @@ import java.util.Map;
     private String swathIndexStr = null;
     private double noDataValue = 0.0;
     double radarFrequency = 0.0;
-    private static final String ETAD = "ETAD";
-    private List<String> tileRects = new ArrayList<>();
 
     /**
      * Default constructor. The graph processing framework
@@ -239,6 +236,10 @@ import java.util.Map;
         final int[] burstIndexArray = etadUtils.getBurstIndexArray(pIndex, prodSubswathIndex);
         for (int burstIndex : burstIndexArray) {
             final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
+            if (!isValidBurst(burst)) {
+                continue;
+            }
+
             final double[][] phase = computeRangeTimeCorrectionPhase(burst);
             final double[][] height = getBurstCorrection(HEIGHT, burst);
             final double[][] gradient = convertGradientToPhase(getBurstCorrection(GRADIENT, burst));
@@ -247,6 +248,16 @@ import java.util.Map;
             saveBurstDataAsTiePointGrid(height, ETAD_HEIGHT + "_" + subSwath.subSwathName + "_" + burstIndex);
             saveBurstDataAsTiePointGrid(gradient, ETAD_GRADIENT + "_" + subSwath.subSwathName + "_" + burstIndex);
         }
+    }
+
+    private boolean isValidBurst(final ETADUtils.Burst etadBurst) {
+
+        for (int b = 0; b < subSwath.numOfBursts; b++) {
+            if (Math.abs(subSwath.burstFirstLineTime[b] - etadBurst.azimuthTimeMin) < 0.1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private double[][] convertGradientToPhase(final double[][] gradient) {

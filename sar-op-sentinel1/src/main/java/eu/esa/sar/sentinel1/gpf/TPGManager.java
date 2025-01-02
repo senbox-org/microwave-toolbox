@@ -28,6 +28,7 @@ public class TPGManager {
     private static TPGManager _instance = null;
 
     private final Map<String, TiePointGrid> etadTPGMap = new HashMap<>();
+    private final Map<String, int[]> etadBurstsMap = new HashMap<>();
 
     private TPGManager() {
 
@@ -51,6 +52,14 @@ public class TPGManager {
 
     public TiePointGrid getTPG(final String tpgName) {
         return etadTPGMap.get(tpgName);
+    }
+
+    public void setBurstIndexArray(final String burstIndexArrayName, final int[] burstIndexArray) {
+        etadBurstsMap.put(burstIndexArrayName, burstIndexArray);
+    }
+
+    public int[] getBurstIndexArray(final String burstIndexArrayName) {
+        return etadBurstsMap.get(burstIndexArrayName);
     }
 
     public TiePointGrid getTPG(final String layer, final int burstIndex, final String suffix) {
