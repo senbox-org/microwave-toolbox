@@ -58,6 +58,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 
 @OperatorMetadata(alias = "Interferogram",
@@ -1586,7 +1587,11 @@ public class InterferogramOp extends Operator {
                 if (subtractETADPhase) {
                     final String mstDate = getTimeStamp(product.sourceMaster.date);
                     final String slvDate = getTimeStamp(product.sourceSlave.date);
-                    final double[][] etadPhase = computeETADPhase(targetRectangle, burstIndex, mstDate, slvDate);
+
+                    final Map<Integer, Integer> mstSlvBurstMap = createMstSlvBurstMap(product.sourceSlave.date);
+
+                    final double[][] etadPhase = computeETADPhase(targetRectangle, burstIndex, mstSlvBurstMap,
+                            mstDate, slvDate);
 
                     if (etadPhase != null) {
                         final ComplexDoubleMatrix ComplexETADPhase = new ComplexDoubleMatrix(
@@ -1842,16 +1847,48 @@ public class InterferogramOp extends Operator {
 
     //vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv For S1 TOPS IW SLC product vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
     private double[][] computeETADPhase(final Rectangle rectangle, final int burstIndex,
+                                        final Map<Integer, Integer> mstSlvBurstMap,
                                         final String mstDate, final String slvDate) {
 
         if (!performHeightCorrection) {
-            return computeETADPhaseWithoutHeightCompensation(rectangle, burstIndex, mstDate, slvDate);
+            return computeETADPhaseWithoutHeightCompensation(rectangle, burstIndex, mstSlvBurstMap, mstDate, slvDate);
         } else {
-            return computeETADPhaseWithHeightCompensation(rectangle, burstIndex, mstDate, slvDate);
+            return computeETADPhaseWithHeightCompensation(rectangle, burstIndex, mstSlvBurstMap, mstDate, slvDate);
         }
     }
 
+    private Map<Integer, Integer> createMstSlvBurstMap(final String slaveProductDate) {
+
+        final Map<Integer, Integer> mstSlvBurstMap = new HashMap<>();
+        MetadataElement slaveElem = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
+        if (slaveElem == null) {
+            return null;
+        }
+        final MetadataElement[] slaveRoot = slaveElem.getElements();
+        for (MetadataElement meta : slaveRoot) {
+            if(meta.getName().contains(slaveProductDate)) {
+                final MetadataElement etadBurstsElem = meta.getElement("ETAD_Burst_Index_Array");
+                final String mstBursts = etadBurstsElem.getAttributeString("master_bursts");
+                final String slvBursts = etadBurstsElem.getAttributeString("slave_bursts");
+                final Integer[] mstBurstArray = stringToIntegerArray(mstBursts);
+                final Integer[] slvBurstArray = stringToIntegerArray(slvBursts);
+                for (int i = 0; i < mstBurstArray.length; ++i) {
+                    mstSlvBurstMap.put(mstBurstArray[i], slvBurstArray[i]);
+                }
+                break;
+            }
+        }
+        return mstSlvBurstMap;
+    }
+
+    private Integer[] stringToIntegerArray(final String inputStr) {
+        String[] inputStrArray = inputStr.split(" ");
+        return Stream.of(inputStrArray).mapToInt(Integer::parseInt).boxed().toArray(Integer[]::new);
+    }
+
+
     private double[][] computeETADPhaseWithoutHeightCompensation(final Rectangle rectangle, final int prodBurstIndex,
+                                                                 final Map<Integer, Integer> mstSlvBurstMap,
                                                                  final String mstDate, final String slvDate) {
 
         final int x0 = rectangle.x;
@@ -1864,13 +1901,14 @@ public class InterferogramOp extends Operator {
         final double burstAzTime = 0.5 * (subSwath[subSwathIndex - 1].burstFirstLineTime[prodBurstIndex] +
                 subSwath[subSwathIndex - 1].burstLastLineTime[prodBurstIndex]);
 
-        final Burst burst = getETADBurst(burstAzTime);
-        if (burst == null) {
+        final Burst mstBurst = getETADBurst(burstAzTime);
+        if (mstBurst == null) {
             return null;
         }
+        final int slvBurstIndex = mstSlvBurstMap.get(mstBurst.bIndex);
 
-        final double[][] refETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, mstDate, "mst");
-        final double[][] secETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, slvDate, "slv");
+        final double[][] refETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, mstBurst.bIndex, mstDate, "mst");
+        final double[][] secETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, slvBurstIndex, slvDate, "slv");
 
         final double[][] etadPhase = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
@@ -1883,8 +1921,8 @@ public class InterferogramOp extends Operator {
                 final int xx = x - x0;
                 final double rgTime = 2.0 * (subSwath[subSwathIndex - 1].slrTimeToFirstPixel + x * su.rangeSpacing /
                         Constants.lightSpeed);
-                final double refETADPhase = getETADData(azTime, rgTime, refETADPhaseBurstData, burst);
-                final double secETADPhase = getETADData(azTime, rgTime, secETADPhaseBurstData, burst);
+                final double refETADPhase = getETADData(azTime, rgTime, refETADPhaseBurstData, mstBurst);
+                final double secETADPhase = getETADData(azTime, rgTime, secETADPhaseBurstData, mstBurst);
                 etadPhase[yy][xx] = refETADPhase - secETADPhase;
             }
         }
@@ -1984,6 +2022,7 @@ public class InterferogramOp extends Operator {
     }
 
     private double[][] computeETADPhaseWithHeightCompensation(final Rectangle rectangle, final int prodBurstIndex,
+                                                              final Map<Integer, Integer> mstSlvBurstMap,
                                                               final String mstDate, final String slvDate) {
 
         final int x0 = rectangle.x;
@@ -1993,19 +2032,21 @@ public class InterferogramOp extends Operator {
         final int xMax = x0 + w;
         final int yMax = y0 + h;
 
-        final double burstAzTime = 0.5 * (subSwath[subSwathIndex - 1].burstFirstLineTime[prodBurstIndex] +
+        final double mstBurstAzTime = 0.5 * (subSwath[subSwathIndex - 1].burstFirstLineTime[prodBurstIndex] +
                 subSwath[subSwathIndex - 1].burstLastLineTime[prodBurstIndex]);
 
-        final Burst burst = getETADBurst(burstAzTime);
-        if (burst == null) {
+        final Burst mstBurst = getETADBurst(mstBurstAzTime);
+        if (mstBurst == null) {
             return null;
         }
 
-        final double[][] refETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, mstDate, "mst");
-        final double[][] refETADHeightBurstData = getETADBurstData(ETAD_HEIGHT, burst.bIndex, mstDate, "mst");
-        final double[][] secETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, burst.bIndex, slvDate, "slv");
-        final double[][] secETADHeightBurstData = getETADBurstData(ETAD_HEIGHT, burst.bIndex, slvDate, "slv");
-        final double[][] secETADGradientBurstData = getETADBurstData(ETAD_GRADIENT, burst.bIndex, slvDate, "slv");
+        final int slvBurstIndex = mstSlvBurstMap.get(mstBurst.bIndex);
+
+        final double[][] refETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, mstBurst.bIndex, mstDate, "mst");
+        final double[][] refETADHeightBurstData = getETADBurstData(ETAD_HEIGHT, mstBurst.bIndex, mstDate, "mst");
+        final double[][] secETADPhaseBurstData = getETADBurstData(ETAD_PHASE_CORRECTION, slvBurstIndex, slvDate, "slv");
+        final double[][] secETADHeightBurstData = getETADBurstData(ETAD_HEIGHT, slvBurstIndex, slvDate, "slv");
+        final double[][] secETADGradientBurstData = getETADBurstData(ETAD_GRADIENT, slvBurstIndex, slvDate, "slv");
 
         final double[][] etadPhase = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
@@ -2019,11 +2060,11 @@ public class InterferogramOp extends Operator {
                 final double rgTime = 2.0 * (subSwath[subSwathIndex - 1].slrTimeToFirstPixel + x * su.rangeSpacing /
                         Constants.lightSpeed);
 
-                final double refETADPhase = getETADData(azTime, rgTime, refETADPhaseBurstData, burst);
-                final double secETADPhase = getETADData(azTime, rgTime, secETADPhaseBurstData, burst);
-                final double refETADHeight = getETADData(azTime, rgTime, refETADHeightBurstData, burst);
-                final double secETADHeight = getETADData(azTime, rgTime, secETADHeightBurstData, burst);
-                final double secETADGradient = getETADData(azTime, rgTime, secETADGradientBurstData, burst);
+                final double refETADPhase = getETADData(azTime, rgTime, refETADPhaseBurstData, mstBurst);
+                final double secETADPhase = getETADData(azTime, rgTime, secETADPhaseBurstData, mstBurst);
+                final double refETADHeight = getETADData(azTime, rgTime, refETADHeightBurstData, mstBurst);
+                final double secETADHeight = getETADData(azTime, rgTime, secETADHeightBurstData, mstBurst);
+                final double secETADGradient = getETADData(azTime, rgTime, secETADGradientBurstData, mstBurst);
 
                 etadPhase[yy][xx] = refETADPhase - secETADPhase - secETADGradient * (refETADHeight - secETADHeight);
             }

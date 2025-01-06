@@ -22,6 +22,7 @@ import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
 import eu.esa.sar.insar.gpf.coregistration.DEMAssistedCoregistrationOp;
 import eu.esa.sar.commons.SARGeocoding;
 import eu.esa.sar.commons.Sentinel1Utils;
+import org.esa.snap.core.dataio.persistence.Attribute;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.dem.ElevationModel;
 import org.esa.snap.core.dataop.resamp.Resampling;
@@ -54,6 +55,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.DateFormat;
 import java.util.*;
 import java.util.List;
 
@@ -252,6 +254,7 @@ public final class BackGeocodingOp extends Operator {
                 }
                 saveMasterETADTPG();
                 saveSlaveETADTPG(tgtSlvTPGList);
+                saveSlaveBurstIndexArray();
             }
 
         } catch (Throwable e) {
@@ -301,30 +304,46 @@ public final class BackGeocodingOp extends Operator {
         int i = 1;
         for(SlaveData slaveData : slaveDataList) {
             final String slvSuffix = StackUtils.SLV + i + StackUtils.createBandTimeStamp(slaveData.slaveProduct);
-            final List<Integer> burstIndexList = getBurstIndexList(slaveData.slaveProduct);
+            final List<Integer> slvBurstIndexList = getBurstIndexList(slaveData.slaveProduct);
 
-            for (final int burstIndex : burstIndexList) {
-                final PixelPos[][] slaveBurstPointPos = computeSlaveBurstPointPosition(slaveData, burstIndex,
+            final int[] slvBurstIndexArray = new int[slvBurstIndexList.size()];
+            final int[] mstBurstIndexArray = new int[slvBurstIndexList.size()];
+            int bc = 0;
+            for (final int slvBurstIndex : slvBurstIndexList) {
+                final ETADUtils.Burst slvBurst = getBurst(slvBurstIndex, slaveData.slaveProduct.getMetadataRoot());
+                final int mstBurstIndex = findMasterBurstIndex(slvBurst, masterProduct.getMetadataRoot());
+                slvBurstIndexArray[bc] = slvBurstIndex;
+                mstBurstIndexArray[bc++] = mstBurstIndex;
+                if (mstBurstIndex == -1) {
+                    continue;
+                }
+                final ETADUtils.Burst mstBurst = getBurst(mstBurstIndex, masterProduct.getMetadataRoot());
+
+                final PixelPos[][] slaveBurstPointPos = computeSlaveBurstPointPosition(slaveData, slvBurst, mstBurst,
                         dem, demNoDataValue, demSamplingLat, demSamplingLon);
 
                 if (slaveBurstPointPos == null) {
-                    return;
+                    continue;
                 }
 
-                final TiePointGrid[] tpgs = slaveData.slaveProduct.getTiePointGrids();
-                for (TiePointGrid tpg : tpgs) {
-                    final String tpgName = tpg.getName();
-                    if (!tpgName.startsWith("etad") || !tpgName.endsWith("_" + burstIndex)) {
+                final TiePointGrid[] slvTpgs = slaveData.slaveProduct.getTiePointGrids();
+                for (TiePointGrid slvTpg : slvTpgs) {
+                    final String tpgName = slvTpg.getName();
+                    if (!tpgName.startsWith("etad") || !tpgName.endsWith("_" + slvBurstIndex)) {
                         continue;
                     }
 
                     final float[] coregisteredSlaveBurst = computeCoregisteredSlaveETADBurst(
-                            tpg, slaveBurstPointPos, resampling);
+                            slvTpg, slaveBurstPointPos, resampling);
 
-                    TPGManager.instance().setTPG(tpgName + slvSuffix, tpg.getGridWidth(),
-                            tpg.getGridHeight(), coregisteredSlaveBurst);
+                    TPGManager.instance().setTPG(tpgName + slvSuffix, mstBurst.rangeExtent,
+                            mstBurst.azimuthExtent, coregisteredSlaveBurst);
                 }
             }
+            // save mstBurstIndexArray and slvBurstIndexArray to memory
+            final String mstSuffix = StackUtils.MST + i + StackUtils.createBandTimeStamp(masterProduct);
+            TPGManager.instance().setBurstIndexArray(mstSuffix, mstBurstIndexArray);
+            TPGManager.instance().setBurstIndexArray(slvSuffix, slvBurstIndexArray);
             ++i;
         }
     }
@@ -400,6 +419,44 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
+    private void saveSlaveBurstIndexArray() {
+
+        int i = 1;
+        for(SlaveData slaveData : slaveDataList) {
+            final String slvSuffix = StackUtils.SLV + i + StackUtils.createBandTimeStamp(slaveData.slaveProduct);
+            final String mstSuffix = StackUtils.MST + i + StackUtils.createBandTimeStamp(masterProduct);
+            final int[] mstBurstIndexArray = TPGManager.instance().getBurstIndexArray(mstSuffix);
+            final int[] slvBurstIndexArray = TPGManager.instance().getBurstIndexArray(slvSuffix);
+            saveSlaveBurstIndexArray(mstBurstIndexArray, slvBurstIndexArray, slaveData.slaveProduct);
+            ++i;
+        }
+    }
+
+    private void saveSlaveBurstIndexArray(final int[] mstBurstIndexArray, final int[] slvBurstIndexArray,
+                                          final Product slaveProduct) {
+
+        MetadataElement slaveElem = targetProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
+        if (slaveElem == null) {
+            return;
+        }
+        final MetadataElement[] slaveRoot = slaveElem.getElements();
+        for (MetadataElement meta : slaveRoot) {
+            if(meta.getName().contains(slaveProduct.getName())) {
+                final MetadataElement etadBurstsElem = new MetadataElement("ETAD_Burst_Index_Array");
+                String mstBursts = "", slvBursts = "";
+                for (int i = 0; i < mstBurstIndexArray.length; ++i) {
+                    if (mstBurstIndexArray[i] != -1) {
+                        mstBursts += mstBurstIndexArray[i] + " ";
+                        slvBursts += slvBurstIndexArray[i] + " ";
+                    }
+                }
+                etadBurstsElem.setAttributeString("master_bursts", mstBursts);
+                etadBurstsElem.setAttributeString("slave_bursts", slvBursts);
+                meta.addElement(etadBurstsElem);
+            }
+        }
+    }
+
     private List<Integer> getBurstIndexList(final Product product) {
 
         final List<Integer> burstIndexList = new ArrayList<>();
@@ -423,13 +480,66 @@ public final class BackGeocodingOp extends Operator {
         return ETADUtils.createBurst(burstIndex, annotationElem);
     }
 
-    private PixelPos[][] computeSlaveBurstPointPosition(final SlaveData slaveData, final int burstIndex,
+    private int findMasterBurstIndex(final ETADUtils.Burst slvBurst, final MetadataElement mstMetadataRoot) {
+
+        final MetadataElement etadElem = mstMetadataRoot.getElement("ETAD_Product_Metadata");
+        final MetadataElement annotationElem = etadElem.getElement("annotation");
+        final MetadataElement etadProductElem = annotationElem.getElement("etadProduct");
+        final MetadataElement etadBurstListElem = etadProductElem.getElement("etadBurstList");
+        final MetadataElement[] elements = etadBurstListElem.getElements();
+
+        for (MetadataElement elem : elements) {
+            // ID information
+            final MetadataElement burstDataElem = elem.getElement("burstData");
+            final int sIdx = Integer.parseInt(burstDataElem.getAttributeString("sIndex"));
+            if (sIdx != slvBurst.sIndex) {
+                continue;
+            }
+
+            // coverage information
+            final MetadataElement burstCoverageElem = elem.getElement("burstCoverage");
+            final MetadataElement spacialCoverageElem = burstCoverageElem.getElement("spatialCoverage");
+            final MetadataElement[] coordinatesElemList = spacialCoverageElem.getElements();
+
+            double maxLatError = 0.0, maxLonError = 0.0;
+            for (MetadataElement coordinatesElem : coordinatesElemList) {
+                final MetadataElement latitudeElem = coordinatesElem.getElement("latitude");
+                final MetadataElement longitudeElem = coordinatesElem.getElement("longitude");
+                final double lat = Double.parseDouble(latitudeElem.getAttributeString("latitude"));
+                final double lon = Double.parseDouble(longitudeElem.getAttributeString("longitude"));
+                final String corner = coordinatesElem.getAttributeString("corner");
+                switch (corner) {
+                    case "EarlyAzimuthNearRange":
+                        maxLatError = Math.max(maxLatError, Math.abs(slvBurst.EarlyAzimuthNearRangeLat - lat));
+                        maxLonError = Math.max(maxLonError, Math.abs(slvBurst.EarlyAzimuthNearRangeLon - lon));
+                        break;
+                    case "EarlyAzimuthFarRange":
+                        maxLatError = Math.max(maxLatError, Math.abs(slvBurst.EarlyAzimuthFarRangeLat - lat));
+                        maxLonError = Math.max(maxLonError, Math.abs(slvBurst.EarlyAzimuthFarRangeLon - lon));
+                        break;
+                    case "LateAzimuthNearRange":
+                        maxLatError = Math.max(maxLatError, Math.abs(slvBurst.LateAzimuthNearRangeLat - lat));
+                        maxLonError = Math.max(maxLonError, Math.abs(slvBurst.LateAzimuthNearRangeLon - lon));
+                        break;
+                    case "LateAzimuthFarRange":
+                        maxLatError = Math.max(maxLatError, Math.abs(slvBurst.LateAzimuthFarRangeLat - lat));
+                        maxLonError = Math.max(maxLonError, Math.abs(slvBurst.LateAzimuthFarRangeLon - lon));
+                        break;
+                }
+            }
+
+            if (maxLatError < 0.1 && maxLonError < 0.1) {
+                return Integer.parseInt(burstDataElem.getAttributeString("bIndex"));
+            }
+        }
+        return -1;
+    }
+
+    private PixelPos[][] computeSlaveBurstPointPosition(final SlaveData slaveData, final ETADUtils.Burst slvBurst,
+                                                        final ETADUtils.Burst mstBurst,
                                                         final ElevationModel dem, final double demNoDataValue,
                                                         final double demSamplingLat, final double demSamplingLon)
             throws Exception {
-
-        final ETADUtils.Burst mstBurst = getBurst(burstIndex, masterProduct.getMetadataRoot());
-        final ETADUtils.Burst slvBurst = getBurst(burstIndex, slaveData.slaveProduct.getMetadataRoot());
 
         final double[] latLonMinMax = new double[4];
         computeBurstGeoBoundary(mstBurst, latLonMinMax);
@@ -635,22 +745,25 @@ public final class BackGeocodingOp extends Operator {
                                                       final PixelPos[][] slaveBurstPointPos,
                                                       final Resampling resampling) throws Exception{
 
-        final int h = tpgSlaveETADBurst.getGridHeight();
-        final int w = tpgSlaveETADBurst.getGridWidth();
-        final double[][] slaveBurst = oneD2TwoD(tpgSlaveETADBurst.getTiePoints(), h, w);
+        final int sbh = tpgSlaveETADBurst.getGridHeight();
+        final int sbw = tpgSlaveETADBurst.getGridWidth();
+        final double[][] slaveBurst = oneD2TwoD(tpgSlaveETADBurst.getTiePoints(), sbh, sbw);
+
         final BurstResamplingRaster resamplingRaster = new BurstResamplingRaster(0.0, slaveBurst);
         final Resampling.Index resamplingIndex = resampling.createIndex();
-        final double[][] coregisteredSlvBurst = new double[h][w];
 
-        for (int yy = 0; yy < h; ++yy) {
-            for (int xx = 0; xx < w; ++xx) {
+        final int mbh = slaveBurstPointPos.length;
+        final int mbw = slaveBurstPointPos[0].length;
+        final double[][] coregisteredSlvBurst = new double[mbh][mbw];
+        for (int yy = 0; yy < mbh; ++yy) {
+            for (int xx = 0; xx < mbw; ++xx) {
                 final PixelPos slavePointPos = slaveBurstPointPos[yy][xx];
-                if (slavePointPos == null || slavePointPos.x < 0 || slavePointPos.x >= w ||
-                        slavePointPos.y < 0 || slavePointPos.y >= h) {
+                if (slavePointPos == null || slavePointPos.x < 0 || slavePointPos.x >= sbw ||
+                        slavePointPos.y < 0 || slavePointPos.y >= sbh) {
                     coregisteredSlvBurst[yy][xx] = noDataValue;
                     continue;
                 }
-                resampling.computeCornerBasedIndex(slavePointPos.x, slavePointPos.y, w, h, resamplingIndex);
+                resampling.computeCornerBasedIndex(slavePointPos.x, slavePointPos.y, sbw, sbh, resamplingIndex);
                 coregisteredSlvBurst[yy][xx] = resampling.resample(resamplingRaster, resamplingIndex);
             }
         }
