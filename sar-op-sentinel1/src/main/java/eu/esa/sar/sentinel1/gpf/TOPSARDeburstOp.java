@@ -112,6 +112,7 @@ public final class TOPSARDeburstOp extends Operator {
             validator.checkIfSentinel1Product();
             validator.checkProductType(new String[]{"SLC"});
             validator.checkAcquisitionMode(new String[]{"IW","EW"});
+            validator.checkIfSourceBandsMatch();
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 

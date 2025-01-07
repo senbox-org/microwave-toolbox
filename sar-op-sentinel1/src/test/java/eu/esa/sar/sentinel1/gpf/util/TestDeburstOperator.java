@@ -15,13 +15,17 @@
  */
 package eu.esa.sar.sentinel1.gpf.util;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.test.LongTestRunner;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.sentinel1.gpf.TOPSARDeburstOp;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Assume;
 import org.junit.Test;
@@ -29,6 +33,7 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
@@ -69,4 +74,20 @@ public class TestDeburstOperator extends ProcessorTest {
         }
     }
 
+    @Test
+    @STTM("SNAP-3876")
+    public void testProcessing2() throws Exception {
+        Assume.assumeTrue("Input file does not exist - Skipping test", inputFile.exists());
+        final String exemption = "The selected source bands do not match the source bands in the metadata.";
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
+            sourceProduct.removeBand(sourceProduct.getBandAt(0));
+
+            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+            validator.checkIfSourceBandsMatch();
+        } catch (Exception e) {
+            if (e.getMessage() != null) {
+                assertEquals(e.getMessage(), exemption);
+            }
+        }
+    }
 }
