@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 SkyWatch. https://www.skywatch.com
+ * Copyright (C) 2025 SkyWatch. https://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -15,10 +15,10 @@
  */
 package eu.esa.sar.teststacks.coregistration;
 
-import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
+import eu.esa.sar.teststacks.StackTest;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
@@ -39,7 +39,7 @@ import static org.junit.Assume.assumeTrue;
  * Unit test for CreateStackOp.
  */
 @RunWith(LongTestRunner.class)
-public class TestCreateStackOp extends ProcessorTest {
+public class TestCreateStackOp extends StackTest {
 
     private final static File asarBamFile1 = new File(TestData.inputSAR + "ASAR/Bam/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099.N1");
     private final static File asarBamFile2 = new File(TestData.inputSAR + "ASAR/Bam/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013.N1");
@@ -107,9 +107,7 @@ public class TestCreateStackOp extends ProcessorTest {
         ProductIO.writeProduct(prod, new File(tmpFolder,"stack.dim"), "BEAM-DIMAP", true);
 
         prod.close();
-        for(Product product : products) {
-            product.close();
-        }
+        closeProducts(products);
         delete(tmpFolder);
     }
 }
