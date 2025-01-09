@@ -488,12 +488,6 @@
                                 <spacesPerTab>4</spacesPerTab>
                             </indent>
                         </pom>
-                        <yml>
-                            <includes>
-                                <include>*.yml</include>
-                            </includes>
-                            <prettier/>
-                        </yml>
                     </configuration>
                 </plugin>
 
