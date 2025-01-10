@@ -24,7 +24,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 //import org.esa.snap.core.dataop.downloadable.SSLUtil;
-import org.esa.snap.core.util.SystemUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -112,7 +111,7 @@ public class DataSpaces {
             String startTime = (String) contentDate.get("Start");
             String endTime = (String) contentDate.get("End");
 
-            SystemUtils.LOG.info("Found product: "+name);
+            //SystemUtils.LOG.info("Found product: "+name);
 
             String fileUrl = "https://download.dataspace.copernicus.eu/odata/v1/Products("+id+")/$value";
             results.add(new Result(fileUrl, name, startTime, endTime, footprint));
@@ -147,7 +146,7 @@ public class DataSpaces {
             IOUtils.copy(inputStream, fileOutputStream);
 
             EntityUtils.consume(response.getEntity());
-            SystemUtils.LOG.info("File "+outputFile.getAbsolutePath()+ " downloaded successfully!");
+            //SystemUtils.LOG.info("File "+outputFile.getAbsolutePath()+ " downloaded successfully!");
 
         } catch (IOException e) {
             e.printStackTrace();
