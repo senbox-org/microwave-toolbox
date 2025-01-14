@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.io.sentinel1;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
@@ -26,6 +27,7 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -44,6 +46,7 @@ public class TestSentinel1ProductReader extends ReaderTest {
 
     public final static File inputS1_IW_SLC_ZIP = new File(TestData.inputSAR+"S1/SLC/Etna-DLR/S1A_IW_SLC__1SDV_20140809T165546_20140809T165613_001866_001C20_088B.zip");
     public final static File inputS1_WV_SLC = new File(TestData.inputSAR+"S1/OCN/S1A_WV_SLC__1SSV_20240818T071513_20240818T071530_055264_06BCBE_F4BF.SAFE.zip");
+    public final static File inputS1_WV_OCN = new File(TestData.inputSAR+"S1/OCN/S1A_WV_OCN__2SSV_20250103T190852_20250103T191037_057284_070C30_961F.SAFE.zip");
 
     private final String[] productTypeExemptions = {"RAW","OCN"};
 
@@ -156,6 +159,17 @@ public class TestSentinel1ProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_WV1_IMG001_VV", "q_WV1_IMG001_VV", "Intensity_WV1_IMG001_VV", "i_WV2_IMG002_VV", "q_WV2_IMG002_VV", "Intensity_WV2_IMG002_VV"});
+    }
+
+    @Test
+    @STTM("SNAP-3851")
+    public void testOpeningWV_OCN_ZIP() throws Exception {
+        Product prod = testReader(inputS1_WV_OCN.toPath());
+
+        final ProductValidator validator = new ProductValidator(prod);
+        assertTrue(prod.containsBand("oswCartSpecRe_IMG001_VV"));
+        //validator.validateProduct();
+        validator.validateMetadata();
     }
 
     @Test

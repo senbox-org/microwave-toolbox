@@ -270,8 +270,19 @@ public class Sentinel1OCNReader {
                         break;
                     }
 
+                    case 5: {
+
+                        bandName = variable.getFullName() + suffix;
+                        // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1]*shape[3] (cols).
+                        // So band width = shape[1]*shape[3] and band height = shape[0]*shape[2]
+                        addBand(product, bandName, variable, shape[1] * shape[3], shape[0] * shape[2]);
+                        bandNameNCFileMap.put(bandName, netcdfFile);
+                        break;
+                    }
+
                     default:
-                        SystemUtils.LOG.severe("SentinelOCNReader.addNetCDFMetadataAndBands: ERROR invalid variable rank " + variable.getRank() + " for " + variable.getFullName());
+                        SystemUtils.LOG.severe("SentinelOCNReader.addNetCDFMetadataAndBands: ERROR invalid variable rank "
+                                + variable.getRank() + " for " + variable.getFullName());
                         break;
                 }
             }
@@ -367,6 +378,14 @@ public class Sentinel1OCNReader {
             case 4:
                 readDataForRank4Variable(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
                         sourceStepX, sourceStepY, var, destWidth, destHeight, destBuffer);
+                break;
+            case 5:
+                readDataForRank5Variable(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
+                        sourceStepX, sourceStepY, var, destWidth, destHeight, destBuffer);
+                break;
+            default:
+                SystemUtils.LOG.severe("SentinelOCNReader.readData: ERROR invalid variable rank "
+                        + var.getRank() + " for " + var.getFullName());
                 break;
         }
     }
@@ -511,6 +530,72 @@ public class Sentinel1OCNReader {
         } catch (InvalidRangeException e) {
 
             SystemUtils.LOG.severe("Sentinel1OCNReader.readDataForRank4Variable: InvalidRangeException when reading variable " + var.getFullName());
+        }
+    }
+
+    private synchronized void readDataForRank5Variable(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
+                                                       int sourceStepX, int sourceStepY, Variable var,
+                                                       int destWidth, int destHeight, ProductData destBuffer) {
+
+        final int[] shape0 = var.getShape();
+
+        // shape0[0] is height of "outer" grid.
+        // shape0[1] is width of "outer" grid.
+        // shape0[2] is height of "inner" grid.
+        // shape0[3] is width of "inner" grid.
+
+        final int[] origin = {sourceOffsetY / shape0[2], sourceOffsetX / shape0[3], 0, 0, 0};
+
+        //System.out.println("sourceOffsetY = " + sourceOffsetY + " shape0[2] = " + shape0[2] + " sourceOffsetX = " + sourceOffsetX + " shape0[3] = " + shape0[3]);
+        //System.out.println("origin " + origin[0] + " " + origin[1]);
+
+        final int outerYEnd = (sourceOffsetY + (sourceHeight - 1) * sourceStepY) / shape0[2];
+        final int outerXEnd = (sourceOffsetX + (sourceWidth - 1) * sourceStepX) / shape0[3];
+
+        //System.out.println("sourceHeight = " + sourceHeight + " sourceStepY = " + sourceStepY + " outerYEnd = " + outerYEnd);
+        //System.out.println("sourceWidth = " + sourceWidth + " sourceStepX = " + sourceStepX + " outerXEnd = " + outerXEnd);
+
+        final int[] shape = {outerYEnd - origin[0] + 1, outerXEnd - origin[1] + 1, shape0[2], shape0[3], shape0[4]};
+
+        try {
+
+            final Array srcArray = var.read(origin, shape);
+            final int[] idx = new int[4];
+
+            for (int i = 0; i < destHeight; i++) {
+
+                // srcY is wrt to what is read in srcArray
+                final int srcY = (sourceOffsetY - shape0[2] * origin[0]) + i * sourceStepY;
+                idx[0] = srcY / shape[2];
+
+                for (int j = 0; j < destWidth; j++) {
+
+                    // srcX is wrt to what is read in srcArray
+                    final int srcX = (sourceOffsetX - shape0[3] * origin[1]) + j * sourceStepX;
+
+                    idx[1] = srcX / shape[3];
+                    idx[2] = srcY - idx[0] * shape[2];
+                    idx[3] = srcX - idx[1] * shape[3];
+
+                    final int srcIdx = (idx[0] * shape[1] * shape[2] * shape[3]) +
+                            (idx[1] * shape[2] * shape[3]) +
+                            (idx[2] * shape[3]) +
+                            idx[3];
+
+                    final int destIdx = i * destWidth + j;
+
+                    destBuffer.setElemFloatAt(destIdx, srcArray.getFloat(srcIdx));
+                }
+            }
+
+        } catch (InvalidRangeException e) {
+
+            SystemUtils.LOG.severe("Sentinel1OCNReader.readDataForRank5Variable: InvalidRangeException when reading variable "
+                    + var.getFullName() + " " + e.getMessage());
+        } catch (Exception e) {
+
+            SystemUtils.LOG.severe("Sentinel1OCNReader.readDataForRank5Variable: IOException when reading variable "
+                    + var.getFullName()  + " " + e.getMessage());
         }
     }
 
