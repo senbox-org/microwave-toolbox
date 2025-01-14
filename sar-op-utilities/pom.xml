@@ -53,6 +53,7 @@
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>edu.emory.mathcs</groupId>

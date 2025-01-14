@@ -22,19 +22,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.jlinda</groupId>
-            <artifactId>jlinda-nest</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-ui</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-core</artifactId>
         </dependency>
@@ -58,9 +45,7 @@
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-dem</artifactId>
         </dependency>
-
     </dependencies>
-
 
     <build>
         <plugins>

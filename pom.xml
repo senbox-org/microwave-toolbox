@@ -230,6 +230,11 @@
             </dependency>
             <dependency>
                 <groupId>org.esa.snap</groupId>
+                <artifactId>snap-runtime</artifactId>
+                <version>${snap.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.esa.snap</groupId>
                 <artifactId>snap-ui</artifactId>
                 <version>${snap.version}</version>
             </dependency>
@@ -428,6 +433,22 @@
                 <groupId>org.jblas</groupId>
                 <artifactId>jblas</artifactId>
                 <version>${jblas.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jfree</groupId>
+                <artifactId>jfreechart</artifactId>
+                <version>1.5.4</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>xml-apis</groupId>
+                        <artifactId>xml-apis</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.lowagie</groupId>
+                        <artifactId>itext</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
         </dependencies>
