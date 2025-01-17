@@ -1901,7 +1901,7 @@ public class InterferogramOp extends Operator {
         final double burstAzTime = 0.5 * (subSwath[subSwathIndex - 1].burstFirstLineTime[prodBurstIndex] +
                 subSwath[subSwathIndex - 1].burstLastLineTime[prodBurstIndex]);
 
-        final Burst mstBurst = getETADBurst(burstAzTime);
+        final Burst mstBurst = getETADBurst(burstAzTime, subSwath[subSwathIndex - 1].subSwathName, sourceProduct);
         if (mstBurst == null) {
             return null;
         }
@@ -1929,7 +1929,7 @@ public class InterferogramOp extends Operator {
         return etadPhase;
     }
 
-    private Burst getETADBurst(final double burstAzTime) {
+    public static Burst getETADBurst(final double burstAzTime, final String subSwathName, final Product sourceProduct) {
 
         final MetadataElement etadElem = sourceProduct.getMetadataRoot().getElement("ETAD_Product_Metadata");
         final MetadataElement annotationElem = etadElem.getElement("annotation");
@@ -1939,11 +1939,15 @@ public class InterferogramOp extends Operator {
 
         for (MetadataElement elem : elements) {
             final MetadataElement burstCoverageElem = elem.getElement("burstCoverage");
+            final MetadataElement burstDataElem = elem.getElement("burstData");
+            final String swathID = burstDataElem.getAttributeString("swathID").toLowerCase();
+            if (!subSwathName.toLowerCase().equals(swathID)) {
+                continue;
+            }
             final MetadataElement temporalCoverageElem = burstCoverageElem.getElement("temporalCoverage");
             final double azimuthTimeMin = getTime(temporalCoverageElem, "azimuthTimeMin").getMJD()*Constants.secondsInDay;
             final double azimuthTimeMax = getTime(temporalCoverageElem, "azimuthTimeMax").getMJD()*Constants.secondsInDay;
             if (burstAzTime > azimuthTimeMin && burstAzTime < azimuthTimeMax) {
-                final MetadataElement burstDataElem = elem.getElement("burstData");
                 final MetadataElement rangeTimeMinElem = temporalCoverageElem.getElement("rangeTimeMin");
                 final MetadataElement rangeTimeMaxElem = temporalCoverageElem.getElement("rangeTimeMax");
                 final MetadataElement gridInformationElem = elem.getElement("gridInformation");
@@ -2035,7 +2039,7 @@ public class InterferogramOp extends Operator {
         final double mstBurstAzTime = 0.5 * (subSwath[subSwathIndex - 1].burstFirstLineTime[prodBurstIndex] +
                 subSwath[subSwathIndex - 1].burstLastLineTime[prodBurstIndex]);
 
-        final Burst mstBurst = getETADBurst(mstBurstAzTime);
+        final Burst mstBurst = getETADBurst(mstBurstAzTime, subSwath[subSwathIndex - 1].subSwathName, sourceProduct);
         if (mstBurst == null) {
             return null;
         }

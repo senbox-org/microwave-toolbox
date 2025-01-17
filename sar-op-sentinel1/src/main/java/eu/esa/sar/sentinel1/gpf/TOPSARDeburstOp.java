@@ -112,7 +112,6 @@ public final class TOPSARDeburstOp extends Operator {
             validator.checkIfSentinel1Product();
             validator.checkProductType(new String[]{"SLC"});
             validator.checkAcquisitionMode(new String[]{"IW","EW"});
-            validator.checkIfSourceBandsMatch();
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
@@ -124,7 +123,9 @@ public final class TOPSARDeburstOp extends Operator {
             subSwath = su.getSubSwath();
             numOfSubSwath = su.getNumOfSubSwath();
 
-            //checkIfSplitProduct();
+            if (numOfSubSwath > 1) {
+                validator.checkIfSourceBandsMatch();
+            }
 
             if (selectedPolarisations == null || selectedPolarisations.length == 0) {
                 selectedPolarisations = su.getPolarizations();
