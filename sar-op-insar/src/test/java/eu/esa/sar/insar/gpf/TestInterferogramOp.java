@@ -42,7 +42,7 @@ public class TestInterferogramOp {
     @Before
     public void setUp() {
         // If the file does not exist: the test will be ignored
-//        assumeTrue(inputFile1 + " not found", inputFile1.exists());
+        assumeTrue(inputFile1 + " not found", inputFile1.exists());
     }
 
     static {
