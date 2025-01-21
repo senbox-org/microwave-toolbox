@@ -16,7 +16,7 @@
 package eu.esa.sar.io.gamma;
 
 import com.bc.ceres.core.ProgressMonitor;
-import com.bc.ceres.glevel.MultiLevelImage;
+import com.bc.ceres.multilevel.MultiLevelImage;
 import eu.esa.sar.commons.io.FileImageOutputStreamExtImpl;
 import eu.esa.sar.io.gamma.header.GammaConstants;
 import eu.esa.sar.io.gamma.header.HeaderDEMWriter;
