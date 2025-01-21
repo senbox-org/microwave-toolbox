@@ -16,7 +16,7 @@
 package eu.esa.sar.io.capella;
 
 import com.bc.ceres.annotation.STTM;
-import com.bc.ceres.glevel.MultiLevelImage;
+import com.bc.ceres.multilevel.MultiLevelImage;
 import eu.esa.sar.commons.test.MetadataValidator;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
