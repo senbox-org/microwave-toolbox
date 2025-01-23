@@ -255,6 +255,10 @@ public class CreateStackOp extends Operator {
                         targetProduct.addBand(targetBand);
 
                         ProductUtils.copyRasterDataNodeProperties(srcBand, targetBand);
+                        if(targetBand.getValidPixelExpression() != null) {
+                            targetBand.setValidPixelExpression(srcBand.getValidPixelExpression().replace(srcBand.getName(), targetBand.getName()));
+                        }
+
                         if (extent.equals(MASTER_EXTENT)) {
                             targetBand.setSourceImage(srcBand.getSourceImage());
                         }
@@ -295,6 +299,10 @@ public class CreateStackOp extends Operator {
                         targetProduct.addBand(targetBand);
 
                         ProductUtils.copyRasterDataNodeProperties(srcBand, targetBand);
+                        if(targetBand.getValidPixelExpression() != null) {
+                            targetBand.setValidPixelExpression(srcBand.getValidPixelExpression().replace(srcBand.getName(), targetBand.getName()));
+                        }
+
                         if (!isResampling && extent.equals(MASTER_EXTENT) && srcProduct.isCompatibleProduct(targetProduct, 1.0e-3f)) {
                             targetBand.setSourceImage(srcBand.getSourceImage());
                         }
@@ -340,7 +348,7 @@ public class CreateStackOp extends Operator {
 
             // set non-elevation areas to no data value for the master bands using the slave bands
             if (!extent.equals(MAX_EXTENT)) {
-                DEMAssistedCoregistrationOp.setMasterValidPixelExpression(targetProduct, true);
+                //DEMAssistedCoregistrationOp.setMasterValidPixelExpression(targetProduct, true);
             }
 
         } catch (Throwable e) {
