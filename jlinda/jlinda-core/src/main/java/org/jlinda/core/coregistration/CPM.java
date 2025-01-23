@@ -297,7 +297,7 @@ public class CPM implements PolynomialModel {
         }
     }
 
-    public void computeCPM() {
+    public void computeCPM() throws Exception {
 
         if (!doEstimation) {
             switch (cpmDegree) {
@@ -334,7 +334,7 @@ public class CPM implements PolynomialModel {
 
     }
 
-    private void estimateCPM() {
+    private void estimateCPM() throws Exception{
 
         //logger.info("Start EJML Estimation");
 
@@ -530,7 +530,7 @@ public class CPM implements PolynomialModel {
 
             //logger.info("TIME FOR DATA preparation for TESTING: {}"+ stopWatch.lap("Testing Setup"));
 
-            /** overal model test (variance factor) */
+            /** overall model test (variance factor) */
             double overAllModelTest_L = 0;
             double overAllModelTest_P = 0;
 
@@ -562,11 +562,19 @@ public class CPM implements PolynomialModel {
             /** find maxima's */
             // azimuth
             winL = absArgmax(wTest_L);
+            if(winL == -1) {
+                logger.warning("COREGPM: No valid window found for azimuth direction. Exiting iterations.");
+                throw new Exception("COREGPM: No valid window found for azimuth direction. Exiting iterations.");
+            }
             double maxWinL = Math.abs(wTest_L.get(winL));
             //logger.info("maximum wtest statistic azimuth = {} for window number: {} "+ maxWinL+ index.getQuick(winL));
 
             // range
             winP = absArgmax(wTest_P);
+            if(winP == -1) {
+                logger.warning("COREGPM: No valid window found for range direction. Exiting iterations.");
+                throw new Exception("COREGPM: No valid window found for range direction. Exiting iterations.");
+            }
             double maxWinP = Math.abs(wTest_P.get(winP));
             //logger.info("maximum wtest statistic range = {} for window number: {} "+ maxWinP+ index.getQuick(winP));
 
@@ -575,10 +583,6 @@ public class CPM implements PolynomialModel {
             for (int i = 0; i < numObservations; i++) {
                 wTestSum.set(i, FastMath.pow(wTest_L.get(i), 2) + FastMath.pow(wTest_P.get(i), 2));
             }
-
-            maxWSum_idx = absArgmax(wTest_P);
-            double maxWSum = wTest_P.get(winP);
-            //logger.info("Detected outlier: summed sqr.wtest = {}; observation: {}"+ maxWSum+ index.getQuick(maxWSum_idx));
 
             /** Test if we are estimationDone yet */
             // check on number of observations
@@ -604,9 +608,11 @@ public class CPM implements PolynomialModel {
             if (estimationDone) {
                 if (overAllModelTest_L > 10) {
                     logger.warning("COREGPM: Overall Model Test, Lines = {} is larger than 10. (Suggest model or a priori sigma not correct.)"+ overAllModelTest_L);
+                    throw new Exception("COREGPM: Overall Model Test, Lines = " + overAllModelTest_L + " is larger than 10. (Suggest model or a priori sigma not correct.)");
                 }
                 if (overAllModelTest_P > 10) {
                     logger.warning("COREGPM: Overall Model Test, Pixels = {} is larger than 10. (Suggest model or a priori sigma not correct.)"+ overAllModelTest_P);
+                    throw new Exception("COREGPM: Overall Model Test, Pixels = " + overAllModelTest_P + " is larger than 10. (Suggest model or a priori sigma not correct.)");
                 }
 
                 /** if a priori sigma is correct, max wtest should be something like 1.96 */
