@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.fex.gpf.changedetection;
 
+import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -28,6 +29,7 @@ public class TestChangeDetectionOp {
 
 
     @Test()
+    @STTM("SNAP-3930")
     public void test_log_ratio() throws Exception {
         Product srcProduct = createProduct();
 
