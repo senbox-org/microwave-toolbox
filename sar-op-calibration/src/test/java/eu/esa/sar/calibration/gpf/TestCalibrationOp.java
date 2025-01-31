@@ -44,6 +44,7 @@ public class TestCalibrationOp extends ProcessorTest {
         assumeTrue(TestData.inputERS_IMP + "not found", TestData.inputERS_IMP.exists());
         assumeTrue(TestData.inputERS_IMS + "not found", TestData.inputERS_IMS.exists());
         assumeTrue(TestData.inputS1_GRD + "not found", TestData.inputS1_GRD.exists());
+        assumeTrue(TestData.inputS1C_GRD + "not found", TestData.inputS1C_GRD.exists());
         assumeTrue(TestData.inputS1_StripmapSLC + "not found", TestData.inputS1_StripmapSLC.exists());
     }
 
@@ -58,7 +59,7 @@ public class TestCalibrationOp extends ProcessorTest {
     public void testProcessingASAR_WSM_beta0() throws Exception {
 
         final float[] expected = new float[] {0.05965894f, 0.04252025f, 0.044032857f};
-        processFile(TestData.inputASAR_WSM, "beta0_VV", expected, true);
+        processFile(TestData.inputASAR_WSM, "beta0_VV", 0, 0, expected, true);
     }
 
     @Test
@@ -90,6 +91,14 @@ public class TestCalibrationOp extends ProcessorTest {
     }
 
     @Test
+    @STTM("SNAP-3939")
+    public void testProcessingS1C_GRD() throws Exception {
+
+        final float[] expected = new float[] {0f,0f,0f};
+        processFile(TestData.inputS1C_GRD, "sigma0_VV", expected);
+    }
+
+    @Test
     public void testProcessingS1_StripmapSLC() throws Exception {
 
         final float[] expected = new float[] {0.03781468f,0.14200227f,0.3646295f};
@@ -114,10 +123,11 @@ public class TestCalibrationOp extends ProcessorTest {
      * @throws Exception general exception
      */
     private void processFile(final File inputFile, final String bandName, final float[] expected) throws Exception {
-        processFile(inputFile, bandName, expected, false);
+        processFile(inputFile, bandName, 0, 0, expected, false);
     }
 
-    private void processFile(final File inputFile, final String bandName, final float[] expected,
+    private void processFile(final File inputFile, final String bandName,
+                             final int x, final int y, final float[] expected,
                              boolean outputBeta0) throws Exception {
 
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
@@ -134,7 +144,7 @@ public class TestCalibrationOp extends ProcessorTest {
             final Product targetProduct = op.getTargetProduct();
             TestUtils.verifyProduct(targetProduct, true, true, true);
 
-            TestUtils.comparePixels(targetProduct, bandName, expected);
+            TestUtils.comparePixels(targetProduct, bandName, x, y, expected);
         }
     }
 }
