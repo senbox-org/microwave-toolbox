@@ -16,6 +16,8 @@
 package eu.esa.sar.io.sentinel1;
 
 import eu.esa.sar.io.netcdf.NetCDFUtils;
+import org.esa.snap.core.dataio.geocoding.ComponentGeoCoding;
+import org.esa.snap.core.dataio.geocoding.GeoCodingFactory;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dataio.netcdf.util.MetadataUtils;
@@ -202,7 +204,9 @@ public class Sentinel1OCNReader {
 
             // Add bands to product...
 
-            int idx = file.indexOf("-ocn-");
+            int idx = file.indexOf("-");
+            final String subswath = file.substring(idx+1, file.indexOf('-', file.indexOf('-') + 1)).toUpperCase();
+            idx = file.indexOf("-ocn-");
             final String pol = file.substring(idx + 5, idx + 7).toUpperCase();
 
             idx = file.lastIndexOf('-');
@@ -216,6 +220,9 @@ public class Sentinel1OCNReader {
                 }
 
                 String suffix = "_IMG" + imageNum + "_" + pol;
+                if(mode.equals("WV")) {
+                    suffix = "_"+ subswath + suffix;
+                }
                 String bandName;
                 final int[] shape = variable.getShape();
 
@@ -225,7 +232,7 @@ public class Sentinel1OCNReader {
                         // The data has been added as part of annotation for the variable under "Values".
                         break;
                     case 2: {
-                        bandName = variable.getFullName() + suffix;
+                        bandName = createBandName(variable.getFullName(), suffix);
                         addBand(product, bandName, variable, shape[1], shape[0]);
                         bandNameNCFileMap.put(bandName, netcdfFile);
 
@@ -243,8 +250,8 @@ public class Sentinel1OCNReader {
                         // All other rank 3 variables are oswAzSize x oswRaSize x oswPartitions
                         // To be consistent, the bands will be (oswAzSize*oswPartitions) rows by oswRaSize columns.
 
-                        for(int swath = 1; swath <= shape[2]; ++swath) {
-                            bandName = variable.getFullName() +'_'+ mode + swath + suffix;
+                        for(int cell = 1; cell <= shape[2]; ++cell) {
+                            bandName = createBandName(variable.getFullName() +"_Swath" + cell, suffix);
                             // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1] (cols).
                             // So band width = shape[1] and band height = shape[0]*shape[2]
                             addBand(product, bandName, variable, shape[1], shape[0]);// * shape[2]);
@@ -262,7 +269,7 @@ public class Sentinel1OCNReader {
                         // shape[2] is height of "inner" grid.
                         // shape[3] is width of "inner" grid.
 
-                        bandName = variable.getFullName() + suffix;
+                        bandName = createBandName(variable.getFullName(), suffix);
                         // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1]*shape[3] (cols).
                         // So band width = shape[1]*shape[3] and band height = shape[0]*shape[2]
                         addBand(product, bandName, variable, shape[1] * shape[3], shape[0] * shape[2]);
@@ -272,7 +279,7 @@ public class Sentinel1OCNReader {
 
                     case 5: {
 
-                        bandName = variable.getFullName() + suffix;
+                        bandName = createBandName(variable.getFullName(), suffix);
                         // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1]*shape[3] (cols).
                         // So band width = shape[1]*shape[3] and band height = shape[0]*shape[2]
                         addBand(product, bandName, variable, shape[1] * shape[3], shape[0] * shape[2]);
@@ -289,31 +296,65 @@ public class Sentinel1OCNReader {
         }
     }
 
-    public void addGeoCodingToBands(final Product product) {
+    private String createBandName(String name, String suffix) {
+        return name + suffix;
+    }
 
-    /*    final Band[] bands = product.getBands();
+    public void addGeoCodingToBands(final Product product) throws IOException {
 
+        final Band[] bands = product.getBands();
         for (Band band : bands) {
-
-            final String bandName = band.getName();
-            if (bandName.substring(7).equals("rvlRadVel") ||
-                bandName.substring(7).equals("owiWindSpeed")    ) {
-
-                final String bandNamePrefix = bandName.substring(0,10);
-                final Band latBand = product.getBand(bandNamePrefix + "Lat");
-                final Band lonBand = product.getBand(bandNamePrefix + "Lon");
-
-                if (latBand == null || lonBand == null) {
-                    System.out.println("Sentinel1OCNReader.addDisplayBands: missing " + bandName + " Lat and/or Lon: latBand is " + latBand + " lonBand is " + lonBand);
-                    continue;
-                }
-
-                final int searchRadius = 5; // TODO No idea what this should be
-                PixelGeoCoding pixGeoCoding = new PixelGeoCoding(latBand, lonBand, null, searchRadius);
-                band.setGeoCoding(pixGeoCoding);
+            GeoCoding geoCoding = findGeoCoding(bands, band);
+            if(geoCoding != null) {
+                band.setGeoCoding(geoCoding);
             }
         }
-*/
+    }
+
+    ComponentGeoCoding findGeoCoding(final Band[] bands, Band band) throws IOException {
+        final String bandName = band.getName();
+        final String prefix = bandName.substring(0, 3);
+        final String imgName = bandName.substring(bandName.indexOf("_IMG"));
+        final String swath = getSwath(bandName);
+
+        Band latBand = null, lonBand = null;
+        for (Band b : bands) {
+            final String name = b.getName();
+            if(name.contains(prefix) && name.contains(imgName)) {
+                if(name.contains("Lat")) {
+                    if(swath != null && name.contains("Swath") && !name.contains(swath)) {
+                        continue;
+                    }
+                    latBand = b;
+                } else if(name.contains("Lon")) {
+                    if(swath != null && name.contains("Swath") && !name.contains(swath)) {
+                        continue;
+                    }
+                    lonBand = b;
+                }
+            }
+        }
+
+        if (latBand != null && lonBand != null) {
+            return GeoCodingFactory.createPixelGeoCoding(latBand, lonBand);
+        }
+        return null;
+    }
+
+    String getSwath(String name) {
+        if(!name.contains("Swath"))
+            return null;
+        int a = name.indexOf("_Swath");
+        int b = name.indexOf('_', a + 1);
+        return name.substring(a, b);
+    }
+
+    int getSwathNumber(final String bandName) {
+        String swath = getSwath(bandName);
+        if(swath != null) {
+            return Integer.parseInt(swath.substring(6)) -1;
+        }
+        return 0;
     }
 
     private void addBand(final Product product, String bandName, final Variable variable, final int width, final int height) {
@@ -456,16 +497,6 @@ public class Sentinel1OCNReader {
 
             SystemUtils.LOG.severe("Sentinel1OCNReader.readDataForRank3Variable: InvalidRangeException when reading variable " + var.getFullName());
         }
-    }
-
-    private int getSwathNumber(final String bandName) {
-        if(mode.equals("IW")) {
-            if(bandName.contains("IW2"))
-                return 1;
-            else if(bandName.contains("IW3"))
-                return 2;
-        }
-        return 0;
     }
 
     private synchronized void readDataForRank4Variable(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
