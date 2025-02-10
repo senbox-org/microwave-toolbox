@@ -90,6 +90,17 @@
                 <attr name="helpId" stringvalue="ReactivOp"/>
                 <attr name="icon" stringvalue="esaIcon"/>
             </file>
+            <file name="eu-esa-sar-fex-gpf-RPCAOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="RPCA Change Detection"/>
+                <attr name="operatorName" stringvalue="RPCA-Change-Detection"/>
+                <attr name="dialogTitle" stringvalue="RPCA Change Detection"/>
+                <attr name="targetProductNameSuffix" stringvalue="_change"/>
+                <attr name="ShortDescription" stringvalue="RPCA based Change Detection"/>
+                <attr name="helpId" stringvalue="RPCAOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
         </folder>
     </folder>
 
@@ -142,6 +153,10 @@
                 <file name="eu-esa-sar-fex-gpf-ReactivOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-ReactivOp-Action.instance"/>
                     <attr name="position" intvalue="510"/>
+                </file>
+                <file name="eu-esa-sar-fex-gpf-RPCAOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-RPCAOp-Action.instance"/>
+                    <attr name="position" intvalue="520"/>
                 </file>
             </folder>
         </folder>
