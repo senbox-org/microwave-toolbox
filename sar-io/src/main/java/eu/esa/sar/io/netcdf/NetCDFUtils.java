@@ -236,6 +236,8 @@ public class NetCDFUtils {
     private static int getProductDataType(final DataType dataType, final boolean unsigned, final boolean rasterDataOnly) {
         if (dataType == DataType.BYTE) {
             return unsigned ? ProductData.TYPE_UINT8 : ProductData.TYPE_INT8;
+        } else if(dataType == DataType.UBYTE) {
+            return ProductData.TYPE_UINT8;
         } else if(dataType == DataType.USHORT) {
             return ProductData.TYPE_UINT16;
         } else if (dataType == DataType.SHORT) {
@@ -251,13 +253,9 @@ public class NetCDFUtils {
         } else if (dataType == DataType.DOUBLE) {
             return ProductData.TYPE_FLOAT64;
         } else if (!rasterDataOnly) {
-            if (dataType == DataType.CHAR) {
-                return ProductData.TYPE_ASCII;
-            } else if (dataType == DataType.STRING) {
+            if (dataType == DataType.CHAR || dataType == DataType.STRING) {
                 return ProductData.TYPE_ASCII;
             }
-        } else if(dataType == DataType.UBYTE) {
-            return ProductData.TYPE_UINT8;
         } else if (dataType == DataType.CHAR) {
             return unsigned ? ProductData.TYPE_UINT8 : ProductData.TYPE_INT8;
         }
