@@ -167,7 +167,7 @@ public class TestSentinel1ProductReader extends ReaderTest {
         Product prod = testReader(inputS1_WV_OCN.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        assertTrue(prod.containsBand("oswCartSpecRe_IMG001_VV"));
+        assertTrue(prod.containsBand("oswCartSpecRe_WV1_IMG001_VV"));
         //validator.validateProduct();
         validator.validateMetadata();
     }
