@@ -60,8 +60,8 @@ public class RPCAOp extends Operator {
             rasterDataNodeType = Band.class, label = "Source Bands")
     private String[] sourceBandNames;
 
-    @Parameter(description = "Mask threshold", interval = "[0, *)", defaultValue = "0.5", label = "Mask threshold")
-    private float maskThreshold = 0.5f;
+//    @Parameter(description = "Mask threshold", interval = "[0, *)", defaultValue = "0.5", label = "Mask threshold")
+//    private float maskThreshold = 0.5f;
 
     @Parameter(description = "Include source bands", defaultValue = "false", label = "Include source bands")
     private boolean includeSourceBands = false;
@@ -71,7 +71,11 @@ public class RPCAOp extends Operator {
     private HashMap<Band, Band> targetBandToSourceBandMap = new HashMap<>(2);
     private Band[] bandsToDecompose = null;
 
+    private double lambda = 0.0;
+    private double rho = 0.0;
+    private double rhoInv = 0.0;
     private double overlapPercentage = 0.0;
+    private double lambdaOverRho = 0.0;
     private int maxIteration = 50;
     private double tolerance = 1.0e-14;
 
@@ -86,6 +90,8 @@ public class RPCAOp extends Operator {
 
             createTargetProduct();
 
+            setParameters();
+
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
@@ -97,6 +103,20 @@ public class RPCAOp extends Operator {
         validator.checkIfSARProduct();
         validator.checkIfCoregisteredStack();
         validator.checkIfGRD();
+    }
+
+    private void setParameters() {
+
+        final Band[] sourceBands = OperatorUtils.getSourceBands(sourceProduct, sourceBandNames, true);
+        double sumMean = 0.0;
+        for (final Band srcBand : sourceBands) {
+            final Stx stx = srcBand.getStx();
+            sumMean += stx.getMean();
+        }
+        rho = 1.0 / (4.0 * sumMean);
+        rhoInv = 1.0 / rho;
+        lambda = 1.0 / Math.sqrt(Math.max(sourceImageWidth, sourceImageHeight));
+        lambdaOverRho = lambda * rhoInv;
     }
 
     private void createTargetProduct() {
@@ -198,7 +218,7 @@ public class RPCAOp extends Operator {
                         final int tgtIdx = tgtIndex.getIndex(x);
                         final int xx = x - sx0;
                         final int r = xx * sh + yy;
-                        tgtData.setElemDoubleAt(tgtIdx, matS[r][c]>maskThreshold?matS[r][c]:0.0);
+                        tgtData.setElemDoubleAt(tgtIdx, Math.max(matS[r][c], 0.0));
                     }
                 }
             }
@@ -216,11 +236,6 @@ public class RPCAOp extends Operator {
         final Matrix X = new Matrix(matX);
         final Matrix S = new Matrix(new double[m][n]);
         final Matrix Y = new Matrix(new double[m][n]);
-
-        final double rho = m * n / (4.0 * norm1(X));
-        final double rhoInv = 1.0 / rho;
-        final double lambda = 1.0 / Math.sqrt(Math.max(m, n));
-        final double lambdaOverRho = lambda * rhoInv;
 
         for (int i = 0; i < maxIteration; ++i) {
 
