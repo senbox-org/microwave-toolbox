@@ -86,8 +86,6 @@ public class RPCAOp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
-            checkSourceProductValidity();
-
             createTargetProduct();
 
             setParameters();
@@ -95,14 +93,6 @@ public class RPCAOp extends Operator {
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
-    }
-
-    private void checkSourceProductValidity() {
-
-        final InputProductValidator validator = new InputProductValidator(sourceProduct);
-        validator.checkIfSARProduct();
-        validator.checkIfCoregisteredStack();
-        validator.checkIfGRD();
     }
 
     private void setParameters() {
