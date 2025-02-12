@@ -1,0 +1,55 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+
+
+    
+    <title>Help - RPCA Change Detection</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+
+<table class="header">
+
+    <tbody>
+    <tr class="header">
+
+        <td class="header">&nbsp;RPCA Change Detection</td>
+
+
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+
+    </tr>
+
+    </tbody>
+</table>
+
+
+<h3>RPCA Change Detection</h3>&nbsp;&nbsp; This operator implemented a
+Robust Principal Component Analysis (RPCA) based change detection
+algorithm as given in [1]. <br><br>Robust principal component analysis
+(RPCA) is a powerful data analysis tool which decomposes a given matrix
+into two parts: a low rank matrix and a sparse matrix. When applied to
+an image, RPCA decomposes the image into two parts: one related to the
+background and one related to the targets. In the context of change
+detection, the RPCA is applied to a matrix formed by a pair of
+vectorized images. The sparse content in the decomposition result can
+be separated into two parts corresponding to the targets in both
+images. Users can further improve the detection result by&nbsp;applying
+thresholding or any morphological operations to the target images.<br><h4>Input</h4>
+<ul><li>The input to this operator could be a coregistered stack of Sentinel-1 IW GRD products.</li></ul>
+
+<h4>Output</h4>
+<ul><li>The output are the target bands corresponding to the input images.</li></ul><h4>Parameters Used</h4>&nbsp;&nbsp;&nbsp;The following parameters are used by the operator:
+<ol>
+    <li>Source Bands: All bands of the source product. User can
+select two bands for change detection. If no bands are selected, then
+by default all bands are used.</li><li>Include source bands: if the checkbox is selected, all
+bands&nbsp;of the source product will be included in the target product
+together with the&nbsp;bands of the detected targets. </li></ol><div style="margin-left: 40px;"><img style="width: 434px; height: 441px;" alt="" src="images/rpca_change_detection_dlg.jpg">&nbsp;<br></div>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. RPCA Change Detection dialog box<br><p style="font-style: italic;">Reference:</p>
+
+<p> [1] Schwartz, C.; Ramos, L.P.; Duarte, L.T.; Pinho, M.d.S.;
+Pettersson, M.I.; Vu, V.T.; Machado, R. Change Detection in UWB SAR
+Images Based on Robust Principal Component Analysis. Remote Sens. 2020,
+12, 1916.<br></p>
+
+<hr>
+</body></html>
