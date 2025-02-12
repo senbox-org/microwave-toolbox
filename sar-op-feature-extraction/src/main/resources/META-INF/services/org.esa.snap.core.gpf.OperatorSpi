@@ -12,4 +12,5 @@ eu.esa.sar.fex.gpf.changedetection.ChangeDetectionOp$Spi
 eu.esa.sar.fex.gpf.SubGraphOp$Spi
 eu.esa.sar.fex.gpf.decisiontree.DecisionTreeOp$Spi
 eu.esa.sar.fex.gpf.changedetection.ReactivOp$Spi
+eu.esa.sar.fex.gpf.changedetection.RPCAOp$Spi
 
