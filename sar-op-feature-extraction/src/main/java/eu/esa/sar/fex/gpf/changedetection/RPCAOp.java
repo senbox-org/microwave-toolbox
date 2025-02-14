@@ -60,8 +60,11 @@ public class RPCAOp extends Operator {
             rasterDataNodeType = Band.class, label = "Source Bands")
     private String[] sourceBandNames;
 
-//    @Parameter(description = "Mask threshold", interval = "[0, *)", defaultValue = "0.5", label = "Mask threshold")
-//    private float maskThreshold = 0.5f;
+    @Parameter(description = "Mask threshold", interval = "(0, 1)", defaultValue = "0.05", label = "Mask threshold")
+    private float maskThreshold = 0.05f;
+
+    @Parameter(description = "Regularization parameter", interval = "(0, 1)", defaultValue = "0.01", label = "Lambda")
+    private float lambda = 0.01f;
 
     @Parameter(description = "Include source bands", defaultValue = "false", label = "Include source bands")
     private boolean includeSourceBands = false;
@@ -71,7 +74,6 @@ public class RPCAOp extends Operator {
     private HashMap<Band, Band> targetBandToSourceBandMap = new HashMap<>(2);
     private Band[] bandsToDecompose = null;
 
-    private double lambda = 0.0;
     private double rho = 0.0;
     private double rhoInv = 0.0;
     private double overlapPercentage = 0.0;
@@ -105,7 +107,6 @@ public class RPCAOp extends Operator {
         }
         rho = 1.0 / (4.0 * sumMean);
         rhoInv = 1.0 / rho;
-        lambda = 1.0 / Math.sqrt(Math.max(sourceImageWidth, sourceImageHeight));
         lambdaOverRho = lambda * rhoInv;
     }
 
@@ -132,11 +133,22 @@ public class RPCAOp extends Operator {
                 ProductUtils.copyBand(bandName, sourceProduct, bandName, targetProduct, true);
             }
 
-            Band tgtBand = targetProduct.addBand(bandName + MASK_NAME, ProductData.TYPE_FLOAT32);
+            Band tgtBand = targetProduct.addBand(bandName + SPARSE_NAME, ProductData.TYPE_FLOAT32);
             tgtBand.setUnit(srcBand.getUnit());
-            tgtBand.setDescription("Potential changes in image");
+            tgtBand.setDescription("Detected targets in image");
             targetBandToSourceBandMap.put(tgtBand, srcBand);
             bandsToDecompose[b++] = tgtBand;
+
+            //create mask
+            String expression = tgtBand.getName() + " > "+ maskThreshold + " ? 1 : 0";
+            final Mask mask = new Mask(bandName + MASK_NAME, sourceImageWidth, sourceImageHeight, Mask.BandMathsType.INSTANCE);
+            mask.setDescription("Change");
+            mask.getImageConfig().setValue("color", Color.RED);
+            mask.getImageConfig().setValue("transparency", 0.7);
+            mask.getImageConfig().setValue("expression", expression);
+            mask.setNoDataValue(0);
+            mask.setNoDataValueUsed(true);
+            targetProduct.getMaskGroup().add(mask);
         }
     }
 
