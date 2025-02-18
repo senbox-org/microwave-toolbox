@@ -167,6 +167,10 @@
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.fex.gpf.ui.decisiontree.DecisionTreeOpUI"/>
             <attr name="operatorName" stringvalue="DecisionTree"/>
         </file>
+        <file name="eu.esa.sar.fex.changedetection.RPCAOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.fex.gpf.ui.changedetection.RPCAOpUI"/>
+            <attr name="operatorName" stringvalue="RPCA-Change-Detection"/>
+        </file>
     </folder>
 
     <folder name="LayerSources">

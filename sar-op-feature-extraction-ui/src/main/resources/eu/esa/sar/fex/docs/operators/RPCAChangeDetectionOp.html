@@ -41,9 +41,14 @@ thresholding or any morphological operations to the target images.<br><h4>Input<
 <ol>
     <li>Source Bands: All bands of the source product. User can
 select two bands for change detection. If no bands are selected, then
-by default all bands are used.</li><li>Include source bands: if the checkbox is selected, all
+by default all bands are used.</li><li>Mask threshold: <span style="color: rgb(0, 0, 0); font-family: Verdana,Arial,Helvetica,sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; white-space: normal; background-color: rgb(255, 255, 255); display: inline ! important; float: none;">Threshold
+used in creating the change mask. Pixel in the target band
+with&nbsp;value that is greater than this threshold will be masked as
+1, otherwise 0.</span></li><li><span style="color: rgb(0, 0, 0); font-family: Verdana,Arial,Helvetica,sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; white-space: normal; background-color: rgb(255, 255, 255); display: inline ! important; float: none;">Lambda:
+A regularization parameter that balances the background and target
+terms. Lower lambda value results in more detected targets. <br></span></li><li>Include source bands: If the checkbox is selected, all
 bands&nbsp;of the source product will be included in the target product
-together with the&nbsp;bands of the detected targets. </li></ol><div style="margin-left: 40px;"><img style="width: 434px; height: 441px;" alt="" src="images/rpca_change_detection_dlg.jpg">&nbsp;<br></div>
+together with the&nbsp;bands of the detected targets. </li></ol><div style="margin-left: 40px;"><img style="width: 487px; height: 445px;" alt="" src="images/rpca_change_detection_dlg.jpg">&nbsp;<br></div>
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. RPCA Change Detection dialog box<br><p style="font-style: italic;">Reference:</p>
 
 <p> [1] Schwartz, C.; Ramos, L.P.; Duarte, L.T.; Pinho, M.d.S.;

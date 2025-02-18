@@ -39,16 +39,18 @@ public class RPCAOpTest {
         final Product srcProduct = createProduct();
         RPCAOp op = new RPCAOp();
         op.setSourceProduct(srcProduct);
+        op.setParameter("maskThreshold", 0.05f);
+        op.setParameter("lambda", 0.316f);
 
         // get targetProduct: execute initialize()
         final Product targetProduct = op.getTargetProduct();
 
-        final Band mstBand = targetProduct.getBand("Sigma0_VV_mst_03Feb2018_change");
+        final Band mstBand = targetProduct.getBand("Sigma0_VV_mst_03Feb2018_sparse");
         if (mstBand == null) {
             throw new IOException(mstBand + " not found");
         }
 
-        final Band slvBand = targetProduct.getBand("Sigma0_VV_slv1_15Feb2018_change");
+        final Band slvBand = targetProduct.getBand("Sigma0_VV_slv1_15Feb2018_sparse");
         if (slvBand == null) {
             throw new IOException(slvBand + " not found");
         }
