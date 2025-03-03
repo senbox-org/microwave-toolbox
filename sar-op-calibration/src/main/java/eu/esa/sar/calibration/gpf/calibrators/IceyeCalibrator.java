@@ -215,9 +215,9 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
                     dn = i * i + q * q;
                     if (dn > 0.0) {
                         if (tgtBandUnit == Unit.UnitType.REAL) {
-                            phaseTerm = i / Math.sqrt(dn);
+                            phaseTerm = i / FastMath.sqrt(dn);
                         } else if (tgtBandUnit == Unit.UnitType.IMAGINARY) {
-                            phaseTerm = q / Math.sqrt(dn);
+                            phaseTerm = q / FastMath.sqrt(dn);
                         }
                     } else {
                         phaseTerm = 0.0;
@@ -233,13 +233,13 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
                 } else {
                     //K * DN2, calibrated_dB=10*log10(calibrated), DN2=square(S_I)+square(S_Q)
                     if (isComplex) { // SLC
-                        sigma = calibrationFactor * dn * Math.sin(incidenceAngle.getPixelDouble(x, y) * Constants.DTOR);
+                        sigma = calibrationFactor * dn * FastMath.sin(incidenceAngle.getPixelDouble(x, y) * Constants.DTOR);
                     } else { // GRD
                         sigma = calibrationFactor * dn;
                     }
 
                     if (isComplex && outputImageInComplex) {
-                        sigma = Math.sqrt(sigma)*phaseTerm;
+                        sigma = FastMath.sqrt(sigma)*phaseTerm;
                     }
                 }
 
@@ -247,7 +247,7 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
                     if (sigma < underFlowFloat) {
                         sigma = -underFlowFloat;
                     } else {
-                        sigma = 10.0 * Math.log10(sigma);
+                        sigma = 10.0 * FastMath.log10(sigma);
                     }
                 }
 
