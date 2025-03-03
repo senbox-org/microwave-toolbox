@@ -101,7 +101,9 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
 
             getCalibrationFactor();
 
-            getTiePointGridData(sourceProduct);
+            if (isComplex) {
+                getTiePointGridData(sourceProduct);
+            }
 
             if (mustUpdateMetadata) {
                 updateTargetProductMetadata();
@@ -230,7 +232,11 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
                     sigma = dn;
                 } else {
                     //K * DN2, calibrated_dB=10*log10(calibrated), DN2=square(S_I)+square(S_Q)
-                    sigma = calibrationFactor * dn * Math.sin(incidenceAngle.getPixelDouble(x, y) * Constants.DTOR);
+                    if (isComplex) { // SLC
+                        sigma = calibrationFactor * dn * Math.sin(incidenceAngle.getPixelDouble(x, y) * Constants.DTOR);
+                    } else { // GRD
+                        sigma = calibrationFactor * dn;
+                    }
 
                     if (isComplex && outputImageInComplex) {
                         sigma = Math.sqrt(sigma)*phaseTerm;
