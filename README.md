@@ -57,7 +57,7 @@ the option *'Create module groups for multi-module Maven projects'*. Everything 
 	  -Dsun.java2d.noddraw=true
 	  -Dsun.java2d.dpiaware=false
 	  -DTopSecurityManager.disable=true
-	  -Xms1024m
+	  -Xms256m
 	  -Xmx22024m
 	  -Dorg.netbeans.level=INFO
 	  -Dsnap.debug=true
