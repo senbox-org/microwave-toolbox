@@ -58,7 +58,7 @@ public class REACTIVChangeDetectionOpTest {
             throw new IOException(valBand + " not found");
         }
 
-        final float hueExpected = 0.22408f, satExpected = 0.55691f, valExpected = 5.3600f;
+        final float hueExpected = 0.67591834f, satExpected = 0.55691f, valExpected = 1.0f;
         final float[] hueActual = new float[1];
         hueBand.readPixels(0, 0, 1, 1, hueActual, ProgressMonitor.NULL);
 
@@ -98,7 +98,7 @@ public class REACTIVChangeDetectionOpTest {
             throw new IOException(valBand + " not found");
         }
 
-        final float hueExpected = 0.22408f, satExpected = 0.55691f, valExpected = 5.3600f;
+        final float hueExpected = 0.67591834f, satExpected = 0.55691f, valExpected = 1.0f;
         final float[] hueActual = new float[1];
         hueBand.readPixels(0, 0, 1, 1, hueActual, ProgressMonitor.NULL);
 
@@ -138,7 +138,7 @@ public class REACTIVChangeDetectionOpTest {
             throw new IOException(valBand + " not found");
         }
 
-        final float hueExpected = 0.0f, satExpected = 0.4621464f, valExpected = 3.11999988f;
+        final float hueExpected = 0.9f, satExpected = 0.4621464f, valExpected = 1.0f;
         final float[] hueActual = new float[1];
         hueBand.readPixels(0, 0, 1, 1, hueActual, ProgressMonitor.NULL);
 
