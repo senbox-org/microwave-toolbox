@@ -123,7 +123,9 @@ public final class TOPSARDeburstOp extends Operator {
             subSwath = su.getSubSwath();
             numOfSubSwath = su.getNumOfSubSwath();
 
-            //checkIfSplitProduct();
+            if (numOfSubSwath > 1) {
+                validator.checkIfSourceBandsMatch();
+            }
 
             if (selectedPolarisations == null || selectedPolarisations.length == 0) {
                 selectedPolarisations = su.getPolarizations();

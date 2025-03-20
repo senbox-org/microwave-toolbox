@@ -47,8 +47,6 @@ public class TestSentinel1GDALProductReader extends ReaderTest {
         assumeTrue(inputS1_COGGRD + " not found", inputS1_COGGRD.exists());
         assumeTrue(inputS1_COGGRD_ZIP + " not found", inputS1_COGGRD_ZIP.exists());
         assumeTrue(inputS1_COGGRD_COMPRESSED_ZIP + " not found", inputS1_COGGRD_COMPRESSED_ZIP.exists());
-
-        productOptions.verifyBands = false;
     }
 
     public TestSentinel1GDALProductReader() {

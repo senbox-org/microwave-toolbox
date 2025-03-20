@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.fex.gpf;
+package eu.esa.sar.fex.gpf.changedetection;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
@@ -48,11 +48,11 @@ import java.util.Map;
  */
 
 @OperatorMetadata(alias = "Change-Detection",
-        category = "Radar/SAR Applications",
+        category = "Raster/Change Detection",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
-        copyright = "Copyright (C) 2015 by Array Systems Computing Inc.",
-        description = "Change Detection.")
+        copyright = "Copyright (C) 2025 by SkyWatch Space Applications Inc.",
+        description = "Log Ratio Change Detection.")
 public class ChangeDetectionOp extends Operator {
 
     @SourceProduct(alias = "source")
@@ -73,23 +73,31 @@ public class ChangeDetectionOp extends Operator {
     @Parameter(description = "Include source bands", defaultValue = "false", label = "Include source bands")
     private boolean includeSourceBands = false;
 
-    @Parameter(description = "Output Log Ratio", defaultValue = "false", label = "Output Log Ratio")
-    private boolean outputLogRatio = false;
+    @Parameter(description = "Output Difference", defaultValue = "false", label = "Output Difference")
+    private boolean outputDifference = false;
 
-    private int sourceImageWidth;
-    private int sourceImageHeight;
-    private String ratioBandName;
+    @Parameter(description = "Output Ratio", defaultValue = "false", label = "Output Ratio")
+    private boolean outputRatio = false;
 
+    @Parameter(description = "Output Log Ratio", defaultValue = "true", label = "Output Log Ratio")
+    private boolean outputLogRatio = true;
+
+    @Parameter(description = "Output Normalized Ratio", defaultValue = "false", label = "Output Normalized Ratio")
+    private boolean outputNormalizedRatio = false;
+
+    private static final String DIFFERENCE_BAND_NAME = "difference";
     private static final String RATIO_BAND_NAME = "ratio";
     private static final String LOG_RATIO_BAND_NAME = "log_ratio";
+    private static final String NORMALIZED_RATIO_BAND_NAME = "normalized_ratio";
     private static final String MASK_NAME = "_change";
 
     @Override
     public void initialize() throws OperatorException {
 
         try {
-            sourceImageWidth = sourceProduct.getSceneRasterWidth();
-            sourceImageHeight = sourceProduct.getSceneRasterHeight();
+            if(!outputRatio && !outputLogRatio && !outputNormalizedRatio) {
+                throw new OperatorException("Please select an output");
+            }
 
             createTargetProduct();
 
@@ -104,6 +112,9 @@ public class ChangeDetectionOp extends Operator {
      * @throws Exception The exception.
      */
     private void createTargetProduct() {
+
+        int sourceImageWidth = sourceProduct.getSceneRasterWidth();
+        int sourceImageHeight = sourceProduct.getSceneRasterHeight();
 
         targetProduct = new Product(sourceProduct.getName(),
                 sourceProduct.getProductType(),
@@ -163,28 +174,68 @@ public class ChangeDetectionOp extends Operator {
             }
         }
 
-        ratioBandName = RATIO_BAND_NAME;
-        if (outputLogRatio) {
-            ratioBandName = LOG_RATIO_BAND_NAME;
+        Band srcBand1 = sourceProduct.getBand(sourceBandNames[0]);
+        String expression = null;
+        Band targetBand = null;
+
+        if (outputDifference) {
+            final Band targetRatioBand = new Band(DIFFERENCE_BAND_NAME, ProductData.TYPE_FLOAT32,
+                    srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
+
+            targetRatioBand.setNoDataValue(0);
+            targetRatioBand.setNoDataValueUsed(true);
+            targetRatioBand.setUnit("diff");
+
+            targetProduct.addBand(targetRatioBand);
+
+            expression = targetRatioBand.getName() + " > "+ maskUpperThreshold+" ? 1 : " + targetRatioBand.getName() + " < "+maskLowerThreshold+" ? -1 : 0";
+            targetBand = targetRatioBand;
         }
 
-        final Band targetRatioBand = new Band(ratioBandName, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
+        if (outputRatio) {
+            final Band targetRatioBand = new Band(RATIO_BAND_NAME, ProductData.TYPE_FLOAT32,
+                    srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
 
-        targetRatioBand.setNoDataValue(0);
-        targetRatioBand.setNoDataValueUsed(true);
-        if (outputLogRatio) {
-            targetRatioBand.setUnit("log_ratio");
-        } else {
+            targetRatioBand.setNoDataValue(0);
+            targetRatioBand.setNoDataValueUsed(true);
             targetRatioBand.setUnit("ratio");
+
+            targetProduct.addBand(targetRatioBand);
+
+            expression = targetRatioBand.getName() + " > "+ maskUpperThreshold+" ? 1 : " + targetRatioBand.getName() + " < "+maskLowerThreshold+" ? -1 : 0";
+            targetBand = targetRatioBand;
         }
-        targetProduct.addBand(targetRatioBand);
+
+        if (outputLogRatio) {
+            final Band targetRatioBand = new Band(LOG_RATIO_BAND_NAME, ProductData.TYPE_FLOAT32,
+                    srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
+
+            targetRatioBand.setNoDataValue(0);
+            targetRatioBand.setNoDataValueUsed(true);
+            targetRatioBand.setUnit("log_ratio");
+            targetProduct.addBand(targetRatioBand);
+
+            expression = targetRatioBand.getName() + " > "+ maskUpperThreshold+" ? 1 : " + targetRatioBand.getName() + " < "+maskLowerThreshold+" ? -1 : 0";
+            targetBand = targetRatioBand;
+        }
+
+        if (outputNormalizedRatio) {
+            final Band targetRatioBand = new Band(NORMALIZED_RATIO_BAND_NAME, ProductData.TYPE_FLOAT32,
+                    srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
+
+            targetRatioBand.setNoDataValue(0);
+            targetRatioBand.setNoDataValueUsed(true);
+            targetRatioBand.setUnit("ratio");
+            targetProduct.addBand(targetRatioBand);
+
+            expression = targetRatioBand.getName() + " > 0.2 ? 1 : " + targetRatioBand.getName() + " < 0 ? -1 : 0";
+            targetBand = targetRatioBand;
+        }
 
         //create Mask
-        String expression = targetRatioBand.getName() + " > "+ maskUpperThreshold+" ? 1 : " + targetRatioBand.getName() + " < "+maskLowerThreshold+" ? -1 : 0";
-
-        final Mask mask = new Mask(targetRatioBand.getName() + MASK_NAME,
-                targetRatioBand.getRasterWidth(),
-                targetRatioBand.getRasterHeight(),
+        final Mask mask = new Mask(targetBand.getName() + MASK_NAME,
+                targetBand.getRasterWidth(),
+                targetBand.getRasterHeight(),
                 Mask.BandMathsType.INSTANCE);
 
         mask.setDescription("Change");
@@ -224,9 +275,27 @@ public class ChangeDetectionOp extends Operator {
             final Double noDataValueN = nominatorBand.getNoDataValue();
             final Double noDataValueD = denominatorBand.getNoDataValue();
 
-            final Band targetRatioBand = targetProduct.getBand(ratioBandName);
-            final Tile targetRatioTile = targetTiles.get(targetRatioBand);
-            final ProductData ratioData = targetRatioTile.getDataBuffer();
+            ProductData diffData = null, ratioData = null, logRatioData = null, normalizedRatioData = null;
+            if(outputDifference) {
+                final Band targetRatioBand = targetProduct.getBand(DIFFERENCE_BAND_NAME);
+                final Tile targetRatioTile = targetTiles.get(targetRatioBand);
+                diffData = targetRatioTile.getDataBuffer();
+            }
+            if(outputRatio) {
+                final Band targetRatioBand = targetProduct.getBand(RATIO_BAND_NAME);
+                final Tile targetRatioTile = targetTiles.get(targetRatioBand);
+                ratioData = targetRatioTile.getDataBuffer();
+            }
+            if(outputLogRatio) {
+                final Band targetRatioBand = targetProduct.getBand(LOG_RATIO_BAND_NAME);
+                final Tile targetRatioTile = targetTiles.get(targetRatioBand);
+                logRatioData = targetRatioTile.getDataBuffer();
+            }
+            if(outputNormalizedRatio) {
+                final Band targetRatioBand = targetProduct.getBand(NORMALIZED_RATIO_BAND_NAME);
+                final Tile targetRatioTile = targetTiles.get(targetRatioBand);
+                normalizedRatioData = targetRatioTile.getDataBuffer();
+            }
 
             final TileIndex trgIndex = new TileIndex(targetTiles.get(targetTiles.keySet().iterator().next()));
             final TileIndex srcIndex = new TileIndex(nominatorTile);
@@ -245,16 +314,36 @@ public class ChangeDetectionOp extends Operator {
                     final double vN = nominatorData.getElemDoubleAt(srcIdx);
                     final double vD = denominatorData.getElemDoubleAt(srcIdx);
                     if (noDataValueN.equals(vN) || noDataValueD.equals(vD) || vN <= 0.0 || vD <= 0.0) {
-                        ratioData.setElemFloatAt(trgIdx, 0.0f);
+                        if(outputDifference) {
+                            diffData.setElemFloatAt(trgIdx, 0.0f);
+                        }
+                        if(outputRatio) {
+                            ratioData.setElemFloatAt(trgIdx, 0.0f);
+                        }
+                        if(outputLogRatio) {
+                            logRatioData.setElemFloatAt(trgIdx, 0.0f);
+                        }
+                        if(outputNormalizedRatio) {
+                            normalizedRatioData.setElemFloatAt(trgIdx, 0.0f);
+                        }
                         continue;
                     }
 
                     vRatio = vN / vD;
-                    if (outputLogRatio) {
-                        vRatio = Math.log(Math.max(vRatio, Constants.EPS));
+                    if(outputDifference) {
+                        diffData.setElemFloatAt(trgIdx, (float) (vN - vD));
                     }
-
-                    ratioData.setElemFloatAt(trgIdx, (float) vRatio);
+                    if(outputRatio) {
+                        ratioData.setElemFloatAt(trgIdx, (float) vRatio);
+                    }
+                    if(outputLogRatio) {
+                        vRatio = Math.log(Math.max(vRatio, Constants.EPS));
+                        logRatioData.setElemFloatAt(trgIdx, (float) vRatio);
+                    }
+                    if(outputNormalizedRatio) {
+                        double normalizedValue = (vN - vD) / (vN + vD);
+                        normalizedRatioData.setElemFloatAt(trgIdx, (float) normalizedValue);
+                    }
                 }
             }
 

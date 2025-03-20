@@ -381,11 +381,9 @@ public class CrossCorrelationOp extends Operator {
             sourceRasterMap.put(targetBand, srcBand);
             gcpsComputedMap.put(srcBand, false);
 
-            if (srcBand == masterBand1 || srcBand == masterBand2 || oneSlaveProcessed ||
+            if (!(srcBand == masterBand1 || srcBand == masterBand2 || oneSlaveProcessed ||
                     (srcBand != slvBand1 && slvBand1 != null) ||
-                    StringUtils.contains(masterBandNames, srcBand.getName())) {
-                targetBand.setSourceImage(srcBand.getSourceImage());
-            } else {
+                    StringUtils.contains(masterBandNames, srcBand.getName()))) {
                 final String unit = srcBand.getUnit();
                 if (!oneSlaveProcessed && (unit == null || !unit.contains(Unit.IMAGINARY))) {
                     oneSlaveProcessed = true;
@@ -522,13 +520,14 @@ public class CrossCorrelationOp extends Operator {
                 } else {
                     copyFirstTargetBandGCPs(firstTargetBand, targetBand);
                 }
+            }
 
-                // copy slave data to target
-                if (slaveBand == primarySlaveBand) {
-                    final Tile targetTile = targetTileMap.get(targetBand);
-                    if (targetTile != null) {
-                        targetTile.setRawSamples(getSourceTile(slaveBand, targetRectangle).getRawSamples());
-                    }
+            // copy slave data to target
+            for (Band targetBand : targetProduct.getBands()) {
+                final Band slaveBand = sourceRasterMap.get(targetBand);
+                final Tile targetTile = targetTileMap.get(targetBand);
+                if (targetTile != null) {
+                    targetTile.setRawSamples(getSourceTile(slaveBand, targetRectangle).getRawSamples());
                 }
             }
 
@@ -660,8 +659,8 @@ public class CrossCorrelationOp extends Operator {
             double groundRangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 1);
             final double azimuthSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing, 1);
             final boolean srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
-            if (!srgrFlag) {
-                final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
+            final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
+            if (!srgrFlag && incidenceAngle != null) {
                 final double incidenceAngleAtCentreRangePixel =
                         incidenceAngle.getPixelDouble(sourceImageWidth / 2f, sourceImageHeight / 2f);
                 groundRangeSpacing /= FastMath.sin(incidenceAngleAtCentreRangePixel * Constants.DTOR);

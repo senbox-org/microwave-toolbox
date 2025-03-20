@@ -16,6 +16,8 @@
 package eu.esa.sar.io.sentinel1;
 
 import eu.esa.sar.io.netcdf.NetCDFUtils;
+import org.esa.snap.core.dataio.geocoding.ComponentGeoCoding;
+import org.esa.snap.core.dataio.geocoding.GeoCodingFactory;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dataio.netcdf.util.MetadataUtils;
@@ -202,7 +204,9 @@ public class Sentinel1OCNReader {
 
             // Add bands to product...
 
-            int idx = file.indexOf("-ocn-");
+            int idx = file.indexOf("-");
+            final String subswath = file.substring(idx+1, file.indexOf('-', file.indexOf('-') + 1)).toUpperCase();
+            idx = file.indexOf("-ocn-");
             final String pol = file.substring(idx + 5, idx + 7).toUpperCase();
 
             idx = file.lastIndexOf('-');
@@ -216,6 +220,9 @@ public class Sentinel1OCNReader {
                 }
 
                 String suffix = "_IMG" + imageNum + "_" + pol;
+                if(mode.equals("WV")) {
+                    suffix = "_"+ subswath + suffix;
+                }
                 String bandName;
                 final int[] shape = variable.getShape();
 
@@ -225,7 +232,7 @@ public class Sentinel1OCNReader {
                         // The data has been added as part of annotation for the variable under "Values".
                         break;
                     case 2: {
-                        bandName = variable.getFullName() + suffix;
+                        bandName = createBandName(variable.getFullName(), suffix);
                         addBand(product, bandName, variable, shape[1], shape[0]);
                         bandNameNCFileMap.put(bandName, netcdfFile);
 
@@ -243,8 +250,8 @@ public class Sentinel1OCNReader {
                         // All other rank 3 variables are oswAzSize x oswRaSize x oswPartitions
                         // To be consistent, the bands will be (oswAzSize*oswPartitions) rows by oswRaSize columns.
 
-                        for(int swath = 1; swath <= shape[2]; ++swath) {
-                            bandName = variable.getFullName() +'_'+ mode + swath + suffix;
+                        for(int cell = 1; cell <= shape[2]; ++cell) {
+                            bandName = createBandName(variable.getFullName() +"_Swath" + cell, suffix);
                             // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1] (cols).
                             // So band width = shape[1] and band height = shape[0]*shape[2]
                             addBand(product, bandName, variable, shape[1], shape[0]);// * shape[2]);
@@ -262,7 +269,17 @@ public class Sentinel1OCNReader {
                         // shape[2] is height of "inner" grid.
                         // shape[3] is width of "inner" grid.
 
-                        bandName = variable.getFullName() + suffix;
+                        bandName = createBandName(variable.getFullName(), suffix);
+                        // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1]*shape[3] (cols).
+                        // So band width = shape[1]*shape[3] and band height = shape[0]*shape[2]
+                        addBand(product, bandName, variable, shape[1] * shape[3], shape[0] * shape[2]);
+                        bandNameNCFileMap.put(bandName, netcdfFile);
+                        break;
+                    }
+
+                    case 5: {
+
+                        bandName = createBandName(variable.getFullName(), suffix);
                         // Tbe band will have dimensions: shape[0]*shape[2] (rows) by shape[1]*shape[3] (cols).
                         // So band width = shape[1]*shape[3] and band height = shape[0]*shape[2]
                         addBand(product, bandName, variable, shape[1] * shape[3], shape[0] * shape[2]);
@@ -271,38 +288,73 @@ public class Sentinel1OCNReader {
                     }
 
                     default:
-                        SystemUtils.LOG.severe("SentinelOCNReader.addNetCDFMetadataAndBands: ERROR invalid variable rank " + variable.getRank() + " for " + variable.getFullName());
+                        SystemUtils.LOG.severe("SentinelOCNReader.addNetCDFMetadataAndBands: ERROR invalid variable rank "
+                                + variable.getRank() + " for " + variable.getFullName());
                         break;
                 }
             }
         }
     }
 
-    public void addGeoCodingToBands(final Product product) {
+    private String createBandName(String name, String suffix) {
+        return name + suffix;
+    }
 
-    /*    final Band[] bands = product.getBands();
+    public void addGeoCodingToBands(final Product product) throws IOException {
 
+        final Band[] bands = product.getBands();
         for (Band band : bands) {
-
-            final String bandName = band.getName();
-            if (bandName.substring(7).equals("rvlRadVel") ||
-                bandName.substring(7).equals("owiWindSpeed")    ) {
-
-                final String bandNamePrefix = bandName.substring(0,10);
-                final Band latBand = product.getBand(bandNamePrefix + "Lat");
-                final Band lonBand = product.getBand(bandNamePrefix + "Lon");
-
-                if (latBand == null || lonBand == null) {
-                    System.out.println("Sentinel1OCNReader.addDisplayBands: missing " + bandName + " Lat and/or Lon: latBand is " + latBand + " lonBand is " + lonBand);
-                    continue;
-                }
-
-                final int searchRadius = 5; // TODO No idea what this should be
-                PixelGeoCoding pixGeoCoding = new PixelGeoCoding(latBand, lonBand, null, searchRadius);
-                band.setGeoCoding(pixGeoCoding);
+            GeoCoding geoCoding = findGeoCoding(bands, band);
+            if(geoCoding != null) {
+                band.setGeoCoding(geoCoding);
             }
         }
-*/
+    }
+
+    ComponentGeoCoding findGeoCoding(final Band[] bands, Band band) throws IOException {
+        final String bandName = band.getName();
+        final String prefix = bandName.substring(0, 3);
+        final String imgName = bandName.substring(bandName.indexOf("_IMG"));
+        final String swath = getSwath(bandName);
+
+        Band latBand = null, lonBand = null;
+        for (Band b : bands) {
+            final String name = b.getName();
+            if(name.contains(prefix) && name.contains(imgName)) {
+                if(name.contains("Lat")) {
+                    if(swath != null && name.contains("Swath") && !name.contains(swath)) {
+                        continue;
+                    }
+                    latBand = b;
+                } else if(name.contains("Lon")) {
+                    if(swath != null && name.contains("Swath") && !name.contains(swath)) {
+                        continue;
+                    }
+                    lonBand = b;
+                }
+            }
+        }
+
+        if (latBand != null && lonBand != null) {
+            return GeoCodingFactory.createPixelGeoCoding(latBand, lonBand);
+        }
+        return null;
+    }
+
+    String getSwath(String name) {
+        if(!name.contains("Swath"))
+            return null;
+        int a = name.indexOf("_Swath");
+        int b = name.indexOf('_', a + 1);
+        return name.substring(a, b);
+    }
+
+    int getSwathNumber(final String bandName) {
+        String swath = getSwath(bandName);
+        if(swath != null) {
+            return Integer.parseInt(swath.substring(6)) -1;
+        }
+        return 0;
     }
 
     private void addBand(final Product product, String bandName, final Variable variable, final int width, final int height) {
@@ -367,6 +419,14 @@ public class Sentinel1OCNReader {
             case 4:
                 readDataForRank4Variable(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
                         sourceStepX, sourceStepY, var, destWidth, destHeight, destBuffer);
+                break;
+            case 5:
+                readDataForRank5Variable(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
+                        sourceStepX, sourceStepY, var, destWidth, destHeight, destBuffer);
+                break;
+            default:
+                SystemUtils.LOG.severe("SentinelOCNReader.readData: ERROR invalid variable rank "
+                        + var.getRank() + " for " + var.getFullName());
                 break;
         }
     }
@@ -439,16 +499,6 @@ public class Sentinel1OCNReader {
         }
     }
 
-    private int getSwathNumber(final String bandName) {
-        if(mode.equals("IW")) {
-            if(bandName.contains("IW2"))
-                return 1;
-            else if(bandName.contains("IW3"))
-                return 2;
-        }
-        return 0;
-    }
-
     private synchronized void readDataForRank4Variable(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
                                           int sourceStepX, int sourceStepY, Variable var,
                                           int destWidth, int destHeight, ProductData destBuffer) {
@@ -511,6 +561,72 @@ public class Sentinel1OCNReader {
         } catch (InvalidRangeException e) {
 
             SystemUtils.LOG.severe("Sentinel1OCNReader.readDataForRank4Variable: InvalidRangeException when reading variable " + var.getFullName());
+        }
+    }
+
+    private synchronized void readDataForRank5Variable(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
+                                                       int sourceStepX, int sourceStepY, Variable var,
+                                                       int destWidth, int destHeight, ProductData destBuffer) {
+
+        final int[] shape0 = var.getShape();
+
+        // shape0[0] is height of "outer" grid.
+        // shape0[1] is width of "outer" grid.
+        // shape0[2] is height of "inner" grid.
+        // shape0[3] is width of "inner" grid.
+
+        final int[] origin = {sourceOffsetY / shape0[2], sourceOffsetX / shape0[3], 0, 0, 0};
+
+        //System.out.println("sourceOffsetY = " + sourceOffsetY + " shape0[2] = " + shape0[2] + " sourceOffsetX = " + sourceOffsetX + " shape0[3] = " + shape0[3]);
+        //System.out.println("origin " + origin[0] + " " + origin[1]);
+
+        final int outerYEnd = (sourceOffsetY + (sourceHeight - 1) * sourceStepY) / shape0[2];
+        final int outerXEnd = (sourceOffsetX + (sourceWidth - 1) * sourceStepX) / shape0[3];
+
+        //System.out.println("sourceHeight = " + sourceHeight + " sourceStepY = " + sourceStepY + " outerYEnd = " + outerYEnd);
+        //System.out.println("sourceWidth = " + sourceWidth + " sourceStepX = " + sourceStepX + " outerXEnd = " + outerXEnd);
+
+        final int[] shape = {outerYEnd - origin[0] + 1, outerXEnd - origin[1] + 1, shape0[2], shape0[3], shape0[4]};
+
+        try {
+
+            final Array srcArray = var.read(origin, shape);
+            final int[] idx = new int[4];
+
+            for (int i = 0; i < destHeight; i++) {
+
+                // srcY is wrt to what is read in srcArray
+                final int srcY = (sourceOffsetY - shape0[2] * origin[0]) + i * sourceStepY;
+                idx[0] = srcY / shape[2];
+
+                for (int j = 0; j < destWidth; j++) {
+
+                    // srcX is wrt to what is read in srcArray
+                    final int srcX = (sourceOffsetX - shape0[3] * origin[1]) + j * sourceStepX;
+
+                    idx[1] = srcX / shape[3];
+                    idx[2] = srcY - idx[0] * shape[2];
+                    idx[3] = srcX - idx[1] * shape[3];
+
+                    final int srcIdx = (idx[0] * shape[1] * shape[2] * shape[3]) +
+                            (idx[1] * shape[2] * shape[3]) +
+                            (idx[2] * shape[3]) +
+                            idx[3];
+
+                    final int destIdx = i * destWidth + j;
+
+                    destBuffer.setElemFloatAt(destIdx, srcArray.getFloat(srcIdx));
+                }
+            }
+
+        } catch (InvalidRangeException e) {
+
+            SystemUtils.LOG.severe("Sentinel1OCNReader.readDataForRank5Variable: InvalidRangeException when reading variable "
+                    + var.getFullName() + " " + e.getMessage());
+        } catch (Exception e) {
+
+            SystemUtils.LOG.severe("Sentinel1OCNReader.readDataForRank5Variable: IOException when reading variable "
+                    + var.getFullName()  + " " + e.getMessage());
         }
     }
 

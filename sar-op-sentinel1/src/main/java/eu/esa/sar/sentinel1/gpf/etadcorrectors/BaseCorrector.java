@@ -36,6 +36,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
     protected Product sourceProduct;
     protected Product targetProduct;
+    protected Product etadProduct;
 	protected ETADUtils etadUtils;
     protected boolean etadDataLoaded = false;
     protected Resampling selectedResampling;
@@ -52,7 +53,7 @@ import java.util.concurrent.locks.ReentrantLock;
     protected boolean sumOfRangeCorrections = false;
     protected boolean resamplingImage = false;
     protected boolean outputPhaseCorrections = false;
-    protected boolean tropToHeightGradientComputed = false;
+    protected boolean tropoToHeightGradientComputed = false;
 
     protected static final String TROPOSPHERIC_CORRECTION_RG = "troposphericCorrectionRg";
     protected static final String IONOSPHERIC_CORRECTION_RG = "ionosphericCorrectionRg";
@@ -64,8 +65,10 @@ import java.util.concurrent.locks.ReentrantLock;
     protected static final String SUM_OF_CORRECTIONS_RG = "sumOfCorrectionsRg";
     protected static final String SUM_OF_CORRECTIONS_AZ = "sumOfCorrectionsAz";
     protected static final String HEIGHT = "height";
+    protected static final String GRADIENT = "gradient";
     protected static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
     protected static final String ETAD_HEIGHT = "etadHeight";
+    protected static final String ETAD_GRADIENT = "etadGradient";
     protected static final String PRODUCT_SUFFIX = "_etad";
 
     protected final Map<String, double[][]> correctionMap = new ConcurrentHashMap<>();
@@ -100,6 +103,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
     public void setEtadUtils(final ETADUtils etadUtils) {
         this.etadUtils = etadUtils;
+    }
+
+    public void setEtadProduct(final Product etadProduct) {
+        this.etadProduct = etadProduct;
     }
 
     public void setTroposphericCorrectionRg(final boolean flag) {

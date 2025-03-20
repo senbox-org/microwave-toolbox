@@ -18,8 +18,11 @@ package eu.esa.sar.calibration.gpf;
 import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
+import org.esa.snap.core.datamodel.MetadataAttribute;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +47,7 @@ public class TestCalibrationOp extends ProcessorTest {
         assumeTrue(TestData.inputERS_IMP + "not found", TestData.inputERS_IMP.exists());
         assumeTrue(TestData.inputERS_IMS + "not found", TestData.inputERS_IMS.exists());
         assumeTrue(TestData.inputS1_GRD + "not found", TestData.inputS1_GRD.exists());
+        assumeTrue(TestData.inputS1C_GRD + "not found", TestData.inputS1C_GRD.exists());
         assumeTrue(TestData.inputS1_StripmapSLC + "not found", TestData.inputS1_StripmapSLC.exists());
     }
 
@@ -58,7 +62,7 @@ public class TestCalibrationOp extends ProcessorTest {
     public void testProcessingASAR_WSM_beta0() throws Exception {
 
         final float[] expected = new float[] {0.05965894f, 0.04252025f, 0.044032857f};
-        processFile(TestData.inputASAR_WSM, "beta0_VV", expected, true);
+        processFile(TestData.inputASAR_WSM, "beta0_VV", 0, 0, expected, true);
     }
 
     @Test
@@ -90,6 +94,14 @@ public class TestCalibrationOp extends ProcessorTest {
     }
 
     @Test
+    @STTM("SNAP-3939")
+    public void testProcessingS1C_GRD() throws Exception {
+
+        final float[] expected = new float[] {0f,0f,0f};
+        processFile(TestData.inputS1C_GRD, "sigma0_VV", expected);
+    }
+
+    @Test
     public void testProcessingS1_StripmapSLC() throws Exception {
 
         final float[] expected = new float[] {0.03781468f,0.14200227f,0.3646295f};
@@ -102,7 +114,31 @@ public class TestCalibrationOp extends ProcessorTest {
 
         final float[] expected = new float[] {0.01825511f,0.04138892f,0.04425726f};
         processFile(TestData.inputCapella_StripmapSLC, "sigma0_HH", expected);
-        System.out.println();
+    }
+
+    @Test
+    @STTM("SNAP-3559")
+    public void testProcessingIceye_GRD() throws Exception {
+
+        Product srcProduct = TestUtils.createProduct("GRD", 10, 10);
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(srcProduct);
+        absRoot.setAttributeString(AbstractMetadata.MISSION, "Iceye");
+        absRoot.setAttributeString(AbstractMetadata.ACQUISITION_MODE, "Stripmap");
+        absRoot.setAttributeString(AbstractMetadata.SAMPLE_TYPE, "DETECTED");
+        absRoot.setAttributeDouble(AbstractMetadata.radar_frequency, 5405.000454334349);
+
+        final MetadataElement origRoot = AbstractMetadata.addOriginalProductMetadata(srcProduct.getMetadataRoot());
+        final MetadataAttribute attribute = new MetadataAttribute("calibration_factor", 31, 1);
+        attribute.setUnit("dB");
+        attribute.setDescription("Calibration constant");
+        attribute.setReadOnly(false);
+        attribute.getData().setElemDouble(1.8627006757903795E-4);
+        origRoot.addAttribute(attribute);
+
+        TestUtils.createBand(srcProduct, "Amplitude_VV", 10, 10);
+
+        final float[] expected = new float[] {0.000186270067579038f, 0.000745080270316152f, 0.00167643060821134f};
+        processFile(srcProduct, "Sigma0_VV", 0, 0, expected, false);
     }
 
     /**
@@ -114,27 +150,34 @@ public class TestCalibrationOp extends ProcessorTest {
      * @throws Exception general exception
      */
     private void processFile(final File inputFile, final String bandName, final float[] expected) throws Exception {
-        processFile(inputFile, bandName, expected, false);
+        processFile(inputFile, bandName, 0, 0, expected, false);
     }
 
-    private void processFile(final File inputFile, final String bandName, final float[] expected,
+    private void processFile(final File inputFile, final String bandName,
+                             final int x, final int y, final float[] expected,
                              boolean outputBeta0) throws Exception {
 
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
-
-            final CalibrationOp op = (CalibrationOp) spi.createOperator();
-            assertNotNull(op);
-            if(outputBeta0) {
-                //op.setParameter("outputBetaBand", true);
-                op.setParameter("createBetaBand", true);
-            }
-            op.setSourceProduct(sourceProduct);
-
-            // get targetProduct: execute initialize()
-            final Product targetProduct = op.getTargetProduct();
-            TestUtils.verifyProduct(targetProduct, true, true, true);
-
-            TestUtils.comparePixels(targetProduct, bandName, expected);
+            processFile(sourceProduct, bandName, x, y, expected, outputBeta0);
         }
+    }
+
+    private void processFile(Product sourceProduct, final String bandName,
+                             final int x, final int y, final float[] expected,
+                             boolean outputBeta0) throws Exception {
+
+        final CalibrationOp op = (CalibrationOp) spi.createOperator();
+        assertNotNull(op);
+        if(outputBeta0) {
+            //op.setParameter("outputBetaBand", true);
+            op.setParameter("createBetaBand", true);
+        }
+        op.setSourceProduct(sourceProduct);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true, true);
+
+        TestUtils.comparePixels(targetProduct, bandName, x, y, expected);
     }
 }

@@ -336,9 +336,12 @@ public class SRGROp extends Operator {
     /**
      * Get near range incidence angle (in degree).
      */
-    private void getNearRangeIncidenceAngle() {
+    private void getNearRangeIncidenceAngle() throws Exception {
 
         final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
+        if(incidenceAngle == null) {
+            throw new OperatorException("incidence_angle tie point grid not found in product");
+        }
         final double alphaFirst = incidenceAngle.getPixelDouble(0.5, 0.5);
         final double alphaLast = incidenceAngle.getPixelDouble(sourceImageWidth - 0.5f, 0.5f);
         if (alphaFirst <= alphaLast) {

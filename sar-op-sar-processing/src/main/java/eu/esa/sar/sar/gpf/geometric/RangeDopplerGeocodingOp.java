@@ -163,7 +163,7 @@ public class RangeDopplerGeocodingOp extends Operator {
     private double standardGridOriginY = 0;
 
     @Parameter(defaultValue = "true", label = "Mask out areas with no elevation", description = "Mask the sea with no data value (faster)")
-    private boolean nodataValueAtSea = true;
+    protected boolean nodataValueAtSea = true;
 
     @Parameter(defaultValue = "false", label = "Save DEM as band")
     private boolean saveDEM = false;

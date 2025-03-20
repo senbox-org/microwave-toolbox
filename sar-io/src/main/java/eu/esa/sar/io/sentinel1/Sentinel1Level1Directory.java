@@ -110,6 +110,11 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         return ImageIOFile.createImageInputStream(inStream, bandDimensions);
     }
 
+    private String createWVImageName(String swath, int imageNumber) {
+        String padImageNum = StringUtils.padNum(imageNumber, 3, '0');
+        return swath + "_IMG" + padImageNum;
+    }
+
     @Override
     protected void addBands(final Product product) {
 
@@ -133,9 +138,9 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     tpgPrefix = swath;
                 } else if(isWV()) {
                     final int imageNumber = bandMetadata.getAttributeInt("image_number");
-                    String padImageNum = StringUtils.padNum(imageNumber, 3, '0');
-                    suffix = swath + "_IMG" + padImageNum + '_' + pol;
-                    tpgPrefix = swath + "_IMG" + padImageNum;
+                    String imageName = createWVImageName(swath, imageNumber);
+                    suffix = imageName + '_' + pol;
+                    tpgPrefix = imageName;
                 }
             }
 
@@ -313,6 +318,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         double heightSum = 0.0;
 
         int numBands = 0;
+        int orbitStartNum = 1;
         final String annotFolder = getRootFolder() + "annotation";
         final String[] filenames = listFiles(annotFolder);
         if (filenames != null) {
@@ -339,7 +345,8 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
                 if(isWV() && adsHeader.containsAttribute("imageNumber")) {
                     int imageNumber = adsHeader.getAttributeInt("imageNumber");
-                    bandRootName = bandRootName + "_" + imageNumber;
+                    String imageName = createWVImageName(swath, imageNumber);
+                    bandRootName = AbstractMetadata.BAND_PREFIX + imageName + '_' + pol;
                 }
 
                 final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
@@ -365,6 +372,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
 
                 final MetadataElement imageAnnotation = prodElem.getElement("imageAnnotation");
                 final MetadataElement imageInformation = imageAnnotation.getElement("imageInformation");
+                final MetadataElement generalAnnotation = prodElem.getElement("generalAnnotation");
 
                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
                                               Integer.parseInt(adsHeader.getAttributeString("missionDataTakeId")));
@@ -389,7 +397,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     // these should be the same for all swaths
                     // set to absRoot
 
-                    final MetadataElement generalAnnotation = prodElem.getElement("generalAnnotation");
                     final MetadataElement productInformation = generalAnnotation.getElement("productInformation");
                     final MetadataElement processingInformation = imageAnnotation.getElement("processingInformation");
                     final MetadataElement swathProcParamsList = processingInformation.getElement("swathProcParamsList");
@@ -435,11 +442,15 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                                                       imageInformation.getAttributeInt("numberOfSamples"));
                     }
 
-                    addOrbitStateVectors(absRoot, generalAnnotation.getElement("orbitList"));
+                    addOrbitStateVectors(absRoot, generalAnnotation.getElement("orbitList"), 1);
                     addSRGRCoefficients(absRoot, prodElem.getElement("coordinateConversion"));
                     addDopplerCentroidCoefficients(absRoot, prodElem.getElement("dopplerCentroid"));
 
                     commonMetadataRetrieved = true;
+                }
+
+                if(isWV()) {
+                    orbitStartNum += addOrbitStateVectors(absRoot, generalAnnotation.getElement("orbitList"), orbitStartNum);
                 }
 
                 ++numBands;
@@ -518,12 +529,12 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         }
     }
 
-    private void addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList) {
+    private int addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList, int startNum) {
         final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
 
         final MetadataElement[] stateVectorElems = orbitList.getElements();
-        for (int i = 1; i <= stateVectorElems.length; ++i) {
-            addVector(AbstractMetadata.orbit_vector, orbitVectorListElem, stateVectorElems[i - 1], i);
+        for (int i = startNum; i < startNum + stateVectorElems.length; ++i) {
+            addVector(AbstractMetadata.orbit_vector, orbitVectorListElem, stateVectorElems[i - startNum], i);
         }
 
         // set state vector time
@@ -533,10 +544,15 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
                                           ReaderUtils.getTime(stateVectorElems[0], "time", sentinelDateFormat));
         }
+
+        return stateVectorElems.length;
     }
 
     private void addVector(final String name, final MetadataElement orbitVectorListElem,
                                   final MetadataElement orbitElem, final int num) {
+        if(orbitVectorListElem.containsElement(name + num))
+            return;
+
         final MetadataElement orbitVectorElem = new MetadataElement(name + num);
 
         final MetadataElement positionElem = orbitElem.getElement("position");

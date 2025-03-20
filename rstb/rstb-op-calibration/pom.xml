@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.csa.rstb</groupId>
         <artifactId>rstb</artifactId>
-        <version>12.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>rstb-op-calibration</artifactId>
@@ -18,14 +18,6 @@
         <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>ceres-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-jai</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-glayer</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>

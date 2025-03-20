@@ -19,13 +19,17 @@ import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.cloud.opendata.DataSpaces;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 
 import static org.junit.Assert.assertEquals;
@@ -52,6 +56,7 @@ public class TestS1ETADCorrectionOp {
     }
 
     @Test
+    @STTM("SNAP-3910")
     public void testTOPSCorrectorInSAR() throws Exception {
         try(final Product sourceProduct = TestUtils.readSourceProduct(S1_IW_SLC)) {
 
@@ -66,8 +71,33 @@ public class TestS1ETADCorrectionOp {
             final Product targetProduct = op.getTargetProduct();
             TestUtils.verifyProduct(targetProduct, true, true, true);
 
-            final float[] expected = new float[] {-618.87842f, -618.94830f, -619.01825f};
-            TestUtils.comparePixels(targetProduct, "etadPhaseCorrection_IW1", expected);
+            final float[] expected = new float[] {-602.80945f, -608.42346f, -614.2902f};
+            final TiePointGrid phaseTPG = targetProduct.getTiePointGrid("etadPhaseCorrection_IW1_3");
+            final float[] points = phaseTPG.getTiePoints();
+            for (int i = 0; i < expected.length; ++i) {
+                if ((Math.abs(expected[i] - points[i]) > 0.0001)) {
+                    String msg = "actual:";
+                    for (int j = 0; j < expected.length; ++j) {
+                        msg += points[j] + ", ";
+                    }
+                    TestUtils.log.info(msg);
+                    msg = "expected:";
+                    for (float anExpected : expected) {
+                        msg += anExpected + ", ";
+                    }
+                    TestUtils.log.info(msg);
+                    throw new IOException("Mismatch [" + i + "] " + points[i] + " is not " + expected[i] + " for " +
+                            targetProduct.getName() + " TPG: " + "etadPhaseCorrection_IW1_3");
+                }
+            }
+
+            int numOfETADTpgs = 0;
+            for (TiePointGrid tpg : targetProduct.getTiePointGrids()) {
+                if (tpg.getName().startsWith("etad")) {
+                    numOfETADTpgs++;
+                }
+            }
+            Assert.assertEquals(3, numOfETADTpgs, 0);
         }
     }
 

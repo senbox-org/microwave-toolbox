@@ -49,11 +49,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The operator performs principle component analysis for user selected master/slave pairs.
+ * The operator performs principal component analysis for user selected master/slave pairs.
  */
 
-@OperatorMetadata(alias = "Principle-Components",
-        description = "Principle Component Analysis",
+@OperatorMetadata(alias = "Principal-Components",
+        description = "Principal Component Analysis",
         category = "Raster/Image Analysis",
         version = "1.0",
         authors = "Jun Lu, Luis Veci",

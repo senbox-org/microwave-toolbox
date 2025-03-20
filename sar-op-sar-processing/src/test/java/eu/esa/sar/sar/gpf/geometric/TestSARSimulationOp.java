@@ -57,7 +57,8 @@ public class TestSARSimulationOp extends ProcessorTest {
 
     private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN","ETAD"};
     private static final String[] exceptionExemptions = {"not supported", "not be map projected", "outside of SRTM valid area",
-                "Source product should first be deburst"};
+                "Source product should first be deburst",
+                "incidence_angle tie point grid not found in product"};
 
     /**
      * Processes a product and compares it to processed product known to be correct

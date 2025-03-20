@@ -48,7 +48,7 @@ import java.util.List;
 
 public final class Sentinel1Calibrator extends BaseCalibrator implements Calibrator {
 
-    private static final String[] SUPPORTED_MISSIONS = new String[] {"SENTINEL-1A","SENTINEL-1B"};
+    private static final String[] SUPPORTED_MISSIONS = new String[] {"SENTINEL-1A","SENTINEL-1B","SENTINEL-1C","SENTINEL-1D"};
 
     private CalibrationInfo[] calibration = null;
     private boolean isMultiSwath = false;

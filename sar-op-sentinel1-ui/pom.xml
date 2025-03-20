@@ -21,7 +21,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>12.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-sentinel1-ui</artifactId>
@@ -34,10 +34,6 @@
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-sentinel1</artifactId>
             <version>${microwavetbx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>

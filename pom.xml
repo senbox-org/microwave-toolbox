@@ -6,7 +6,7 @@
 
     <groupId>eu.esa.microwavetbx</groupId>
     <artifactId>microwave-toolbox</artifactId>
-    <version>12.0.0-SNAPSHOT</version>
+    <version>13.0.0-SNAPSHOT</version>
     <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
     <description>Tools for SAR Earth Observation</description>
@@ -15,10 +15,11 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <netbeans.version>RELEASE113</netbeans.version>
+        <netbeans.version>RELEASE210</netbeans.version>
         <javahelp.version>2.0.05</javahelp.version>
         <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
+        <jvm.version>21</jvm.version>
 
         <skipTests>false</skipTests>
         <surefire.jvm.args>-enableassertions</surefire.jvm.args>
@@ -28,15 +29,15 @@
         <sonar.java.binaries>**/classes</sonar.java.binaries>
         <sonar.exclusions>*/src</sonar.exclusions>
 
-        <snap.version>12.0.0-SNAPSHOT</snap.version>
-        <snap-help-system.version>1.0.0</snap-help-system.version>
+        <snap.version>13.0.0-SNAPSHOT</snap.version>
+        <snap-help-system.version>1.0.2</snap-help-system.version>
         <!--
             microwavetbx.version is the Maven module version.
             microwavetbx.nbmSpecVersion is the NetBeans module specification version.
             It is used to filter manifest.mf and set the manifest's "OpenIDE-Module-Specification-Version" header.
             This is necessary to make NetBeans modules updatable and independent of the Maven version (= microwavetbx.version).
         -->
-        <microwavetbx.version>12.0.0-SNAPSHOT</microwavetbx.version>
+        <microwavetbx.version>13.0.0-SNAPSHOT</microwavetbx.version>
 
         <junit.version>4.13.2</junit.version>
         <mockito.version>5.3.1</mockito.version>
@@ -58,7 +59,6 @@
         <jsoup.version>1.16.1</jsoup.version>
         <jtransforms.version>2.4</jtransforms.version>
         <opencsv.version>2.1</opencsv.version>
-
     </properties>
 
     <modules>
@@ -226,6 +226,11 @@
             <dependency>
                 <groupId>org.esa.snap</groupId>
                 <artifactId>snap-gpf-ui</artifactId>
+                <version>${snap.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.esa.snap</groupId>
+                <artifactId>snap-runtime</artifactId>
                 <version>${snap.version}</version>
             </dependency>
             <dependency>
@@ -430,6 +435,22 @@
                 <version>${jblas.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>org.jfree</groupId>
+                <artifactId>jfreechart</artifactId>
+                <version>1.5.4</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>xml-apis</groupId>
+                        <artifactId>xml-apis</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.lowagie</groupId>
+                        <artifactId>itext</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -446,10 +467,10 @@
             <plugins>
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.12.1</version>
+                    <version>3.13.0</version>
                     <configuration>
-                        <source>11</source>
-                        <target>11</target>
+                        <source>${jvm.version}</source>
+                        <target>${jvm.version}</target>
                         <debug>true</debug>
                         <encoding>UTF-8</encoding>
                         <excludes>
@@ -488,12 +509,6 @@
                                 <spacesPerTab>4</spacesPerTab>
                             </indent>
                         </pom>
-                        <yml>
-                            <includes>
-                                <include>*.yml</include>
-                            </includes>
-                            <prettier/>
-                        </yml>
                     </configuration>
                 </plugin>
 
@@ -584,7 +599,7 @@
 
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.2.5</version>
+                    <version>3.5.0</version>
                     <configuration>
                         <enableAssertions>true</enableAssertions>
                         <!--  to test from the command line mvn test -DskipTests=false -->
@@ -609,7 +624,7 @@
                 <plugin>
                     <groupId>org.apache.netbeans.utilities</groupId>
                     <artifactId>nbm-maven-plugin</artifactId>
-                    <version>4.4</version>
+                    <version>14.0</version>
                     <extensions>true</extensions>
                     <dependencies>
                         <dependency>
@@ -719,7 +734,7 @@
                                     <version>[3.2.5,)</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>11</version>
+                                    <version>${jvm.version}</version>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>

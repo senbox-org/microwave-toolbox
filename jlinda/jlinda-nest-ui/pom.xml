@@ -5,7 +5,7 @@
     <parent>
         <artifactId>jlinda</artifactId>
         <groupId>org.jlinda</groupId>
-        <version>12.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <name>jLinda SNAP Support UI</name>
@@ -20,19 +20,6 @@
             <groupId>org.jlinda</groupId>
             <artifactId>jlinda-core</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jlinda</groupId>
-            <artifactId>jlinda-nest</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-ui</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
@@ -58,9 +45,7 @@
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-dem</artifactId>
         </dependency>
-
     </dependencies>
-
 
     <build>
         <plugins>
