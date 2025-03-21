@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.iogdal.sentinel1;
+package eu.esa.sar.iogdal.biomass;
 
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
@@ -29,10 +29,10 @@ import static org.junit.Assume.assumeTrue;
  * Validates input products using commonly used verifications
  */
 @Ignore("Handled by S1 Reader")
-public class TestS1GRDInputProductValidator extends ReaderTest {
+public class TestBiomassInputProductValidator extends ReaderTest {
 
-    public TestS1GRDInputProductValidator() {
-        super(new Sentinel1GDALProductReaderPlugIn());
+    public TestBiomassInputProductValidator() {
+        super(new BiomassProductReaderPlugIn());
     }
 
     @Before
