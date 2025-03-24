@@ -15,18 +15,21 @@
  */
 package eu.esa.sar.calibration.gpf;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
-import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -92,6 +95,36 @@ public class TestRemoveThermalNoiseOp {
                 assertEquals(6065.0, floatValues[2], 0.0001);
             }
         }
+    }
+
+    @Test
+    @STTM("SNAP-3862")
+    public void testProcessingS1_TOPS_SL2() throws Exception {
+        int w = 10;
+        int h = 148;
+        try (final Product sourceProduct = createTOPSSLCProduct(w, h)) {
+            try (final Product targetProduct = process(sourceProduct)) {
+                final Band band = targetProduct.getBand("Intensity_IW1_VH");
+                assertNotNull(band);
+
+                final float[] floatValues = new float[8];
+                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+
+                assertEquals(0.0f, floatValues[0], 0.0001);
+                assertEquals(1.4611448f, floatValues[1], 0.0001);
+                assertEquals(7.4621906f, floatValues[2], 0.0001);
+            }
+        }
+    }
+
+    private Product createTOPSSLCProduct(final int w, final int h) throws IOException {
+        Product srcProduct = TestUtils.createProduct("SLC", w, h);
+        TestUtils.createBand(srcProduct, "i_IW1_VH", ProductData.TYPE_INT16, Unit.REAL, w, h, true);
+        TestUtils.createBand(srcProduct, "q_IW1_VH", ProductData.TYPE_INT16, Unit.IMAGINARY, w, h, true);
+
+        AbstractMetadataIO.Load(srcProduct, srcProduct.getMetadataRoot(), new File("src/test/resources/metadata.xml"));
+
+        return srcProduct;
     }
 
     /**

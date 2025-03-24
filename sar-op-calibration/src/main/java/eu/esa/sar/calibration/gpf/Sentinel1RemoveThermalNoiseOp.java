@@ -1037,6 +1037,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
         Sentinel1Utils.NoiseAzimuthVector[] noiseAzimuthVectors = null;
         Sentinel1Utils.NoiseVector[] noiseRangeVectors = null;
+        int numVectorsToSkip = 0;
 
         for (MetadataElement dataSetListElem : noiseDataSetListElem) {
 
@@ -1054,6 +1055,10 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
             MetadataElement noiseRangeVectorListElem = noiElem.getElement("noiseRangeVectorList");
             noiseRangeVectors = Sentinel1Utils.getNoiseVector(noiseRangeVectorListElem);
+
+            MetadataElement adsHeaderElem = noiElem.getElement("adsHeader");
+            final double startTime = Sentinel1Utils.getTime(adsHeaderElem, "startTime").getMJD();
+            numVectorsToSkip = getNumVectorsToSkip(startTime, noiseRangeVectors);
         }
 
         final MetadataElement annotationElem = origMetadataRoot.getElement("annotation");
@@ -1072,20 +1077,33 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
             linesPerBurst = swathTimingElem.getAttributeInt("linesPerBurst");
             //final int samplesPerBurst = swathTimingElem.getAttributeInt("samplesPerBurst");
-            final MetadataElement burstListElem = swathTimingElem.getElement("burstList");
-            final MetadataElement[] burstListArray = burstListElem.getElements();
-            for (int i = 0; i < burstListArray.length; i++) {
-                final double time = Sentinel1Utils.getTime(burstListArray[i], "azimuthTime").getMJD();
-                burstToRangeVectorMap.put("burst_" + i, getBurstRangeVectorByTime(time, noiseRangeVectors));
-            }
+//            final MetadataElement burstListElem = swathTimingElem.getElement("burstList");
+//            final MetadataElement[] burstListArray = burstListElem.getElements();
+//            for (int i = 0; i < burstListArray.length; i++) {
+//                final double time = Sentinel1Utils.getTime(burstListArray[i], "azimuthTime").getMJD();
+//                burstToRangeVectorMap.put("burst_" + i, getBurstRangeVectorByTime(time, noiseRangeVectors));
+//            }
         }
 
         // create noise matrix for the tile
         double[][] noiseMatrix = new double[h][w];
         populateNoiseMatrixForTOPSSLC(
-                noiseAzimuthVectors[0], burstToRangeVectorMap, linesPerBurst, x0, y0, w, h, noiseMatrix);
+                noiseAzimuthVectors[0], noiseRangeVectors, numVectorsToSkip, linesPerBurst, x0, y0, w, h, noiseMatrix);
 
         return noiseMatrix;
+    }
+
+    private int getNumVectorsToSkip(final double startTime, final Sentinel1Utils.NoiseVector[] noiseRangeVectors) {
+
+        int closest = 0;
+        for (int j = 1; j < noiseRangeVectors.length; j++) {
+            if (Math.abs(startTime - noiseRangeVectors[j].timeMJD) <
+                    Math.abs(startTime - noiseRangeVectors[closest].timeMJD)) {
+                closest = j;
+            }
+        }
+
+        return closest;
     }
 
     private Sentinel1Utils.NoiseVector getBurstRangeVector(
@@ -1117,8 +1135,8 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     }
 
     private void populateNoiseMatrixForTOPSSLC(final Sentinel1Utils.NoiseAzimuthVector noiseAzimuthVector,
-                                               final HashMap<String, Sentinel1Utils.NoiseVector> burstToRangeVectorMap,
-                                               final int linesPerBurst,
+                                               final Sentinel1Utils.NoiseVector[] noiseRangeVectors,
+                                               final int numVectorsToSkip, final int linesPerBurst,
                                                final int x0, final int y0, final int w, final int h,
                                                final double[][] noiseMatrix) {
 
@@ -1134,7 +1152,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
         for (int y = y0; y <= yMax; ++y) {
             final int yy = y - y0;
             final int burstIdx = y / linesPerBurst;
-            final Sentinel1Utils.NoiseVector noiseRangeVector = burstToRangeVectorMap.get("burst_" + burstIdx);
+            final Sentinel1Utils.NoiseVector noiseRangeVector = noiseRangeVectors[burstIdx + numVectorsToSkip];
             if (noiseRangeVector.line != currentNoiseVectorLine) {
                 currentNoiseVectorLine = noiseRangeVector.line;
                 interpolNoiseRangeVector(noiseRangeVector, x0, xMax, interpolatedRangeVector);
