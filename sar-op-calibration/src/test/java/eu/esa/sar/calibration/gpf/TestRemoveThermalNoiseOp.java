@@ -22,13 +22,14 @@ import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.Unit;
-import org.esa.snap.engine_utilities.gpf.OperatorUtils;
+import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -45,8 +46,8 @@ public class TestRemoveThermalNoiseOp {
     @Before
     public void setUp() {
         // If any of the file does not exist: the test will be ignored
-//        assumeTrue(inputFile1 + "not found", inputFile1.exists());
-//        assumeTrue(inputFile2 + "not found", inputFile2.exists());
+        assumeTrue(inputFile1 + "not found", inputFile1.exists());
+        assumeTrue(inputFile2 + "not found", inputFile2.exists());
     }
 
     static {
@@ -98,43 +99,10 @@ public class TestRemoveThermalNoiseOp {
 
     @Test
     @STTM("SNAP-3862")
-    public void testProcessingS1_TOPS_SLC() throws Exception {
-        try (final Product sourceProduct = TestUtils.readSourceProduct(new File(
-                "src/test/resources/S1A_IW_SLC__1SDV_20181115T125000_20181115T125015_024599_02B387_2799_split.dim"))) {
-
-            sourceProduct.removeTiePointGrid(sourceProduct.getTiePointGrid("latitude"));
-            sourceProduct.removeTiePointGrid(sourceProduct.getTiePointGrid("longitude"));
-            sourceProduct.removeTiePointGrid(sourceProduct.getTiePointGrid("incident_angle"));
-            sourceProduct.removeTiePointGrid(sourceProduct.getTiePointGrid("elevation_angle"));
-            sourceProduct.removeTiePointGrid(sourceProduct.getTiePointGrid("slant_range_time"));
-            sourceProduct.removeBand(sourceProduct.getBand("i_IW1_VH"));
-            sourceProduct.removeBand(sourceProduct.getBand("q_IW1_VH"));
-            sourceProduct.removeBand(sourceProduct.getBand("Intensity_IW1_VH"));
-
-            final int w = sourceProduct.getSceneRasterWidth();
-            final int h = sourceProduct.getSceneRasterHeight();
-            final TiePointGrid latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE, 2, 2, 0.5f, 0.5f,
-                    w, h, new float[]{9.0802f, 9.235484f, 9.41406f, 9.569095f});
-            final TiePointGrid lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE, 2, 2, 0.5f, 0.5f,
-                    w, h, new float[]{79.81333f, 80.58029f, 79.74476f, 80.51244f});
-            final TiePointGrid incGrid = new TiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE, 2, 2, 0.5f, 0.5f,
-                    w, h, new float[]{30.814592f, 36.57208f, 30.816704f, 36.573723f});
-            final TiePointGrid eleGrid = new TiePointGrid(OperatorUtils.TPG_ELEVATION_ANGLE, 2, 2, 0.5f, 0.5f,
-                    w, h, new float[]{27.498474f, 32.483097f, 27.500357f, 32.48455f});
-            final TiePointGrid srtGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME, 2, 2, 0.5f, 0.5f,
-                    w, h, new float[]{5330301.5f, 5649082.0f, 5330301.5f, 5649082.0f});
-            final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
-
-            sourceProduct.addTiePointGrid(latGrid);
-            sourceProduct.addTiePointGrid(lonGrid);
-            sourceProduct.addTiePointGrid(incGrid);
-            sourceProduct.addTiePointGrid(eleGrid);
-            sourceProduct.addTiePointGrid(srtGrid);
-            sourceProduct.setSceneGeoCoding(tpGeoCoding);
-
-            TestUtils.createBand(sourceProduct, "i_IW1_VH", ProductData.TYPE_INT16, Unit.REAL, w, h, true);
-            TestUtils.createBand(sourceProduct, "q_IW1_VH", ProductData.TYPE_INT16, Unit.IMAGINARY, w, h, true);
-
+    public void testProcessingS1_TOPS_SL2() throws Exception {
+        int w = 10;
+        int h = 148;
+        try (final Product sourceProduct = createTOPSSLCProduct(w, h)) {
             try (final Product targetProduct = process(sourceProduct)) {
                 final Band band = targetProduct.getBand("Intensity_IW1_VH");
                 assertNotNull(band);
@@ -142,11 +110,21 @@ public class TestRemoveThermalNoiseOp {
                 final float[] floatValues = new float[8];
                 band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
 
-                assertEquals(0.0, floatValues[0], 0.0001);
-                assertEquals(0.0, floatValues[1], 0.0001);
-                assertEquals(0.0, floatValues[2], 0.0001);
+                assertEquals(0.0f, floatValues[0], 0.0001);
+                assertEquals(1.4611448f, floatValues[1], 0.0001);
+                assertEquals(7.4621906f, floatValues[2], 0.0001);
             }
         }
+    }
+
+    private Product createTOPSSLCProduct(final int w, final int h) throws IOException {
+        Product srcProduct = TestUtils.createProduct("SLC", w, h);
+        TestUtils.createBand(srcProduct, "i_IW1_VH", ProductData.TYPE_INT16, Unit.REAL, w, h, true);
+        TestUtils.createBand(srcProduct, "q_IW1_VH", ProductData.TYPE_INT16, Unit.IMAGINARY, w, h, true);
+
+        AbstractMetadataIO.Load(srcProduct, srcProduct.getMetadataRoot(), new File("src/test/resources/metadata.xml"));
+
+        return srcProduct;
     }
 
     /**
