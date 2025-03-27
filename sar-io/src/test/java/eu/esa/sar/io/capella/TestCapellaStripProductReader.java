@@ -16,15 +16,13 @@
 package eu.esa.sar.io.capella;
 
 import com.bc.ceres.annotation.STTM;
-import com.bc.ceres.glevel.MultiLevelImage;
+import com.bc.ceres.multilevel.MultiLevelImage;
 import eu.esa.sar.commons.test.MetadataValidator;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.gpf.Tile;
 import org.junit.Before;
 import org.junit.Test;
 

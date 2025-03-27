@@ -160,7 +160,7 @@
       <attrib name="MISSION" value="ENVISAT" type="41" desc="Satellite mission" />
       <attrib name="ACQUISITION_MODE" value="Stripmap" type="41" desc="Acquisition mode" />
       <attrib name="BEAMS" value="" type="41" desc="Beams used" />
-      <attrib name="SWATH" value="IS2" type="41" desc="Swath Name" />
+      <attrib name="SWATH" value="IW1" type="41" desc="Swath Name" />
       <attrib name="PROC_TIME" value="11-MAY-2018 11:43:54.000000" type="51" unit="utc" desc="Processed time" />
       <attrib name="Processing_system_identifier" value="ASAR/6.03" type="41" desc="Processing system identifier" />
       <attrib name="CYCLE" value="68" type="12" desc="Cycle" />
@@ -392,7 +392,7 @@
         <attrib name="range_window_coefficient" value="99999.0" type="31" unit="" desc="Range window coefficient" />
         <attrib name="bistatic_correction_applied" value="0" type="20" unit="flag" desc="" />
         <attrib name="metadata_version" value="7.0" type="41" unit="" desc="AbsMetadata version" />
-        <attrib name="Slave_bands" value="i_VV_slv1_25Aug2007 q_VV_slv1_25Aug2007" type="41" />
+        <attrib name="Slave_bands" value="i_VH_slv1_25Aug2007 q_VH_slv1_25Aug2007 i_VV_slv1_25Aug2007 q_VV_slv1_25Aug2007" type="41" />
       </ASA_IMS_1PNESA20070825_134215_000000172061_00067_28678_0000_25Aug2007>
       <ASA_IMS_1PNESA20061223_134214_000000182054_00067_25171_0000_23Dec2006>
         <Orbit_State_Vectors>
@@ -546,9 +546,9 @@
         <attrib name="range_window_coefficient" value="99999.0" type="31" unit="" desc="Range window coefficient" />
         <attrib name="bistatic_correction_applied" value="0" type="20" unit="flag" desc="" />
         <attrib name="metadata_version" value="7.0" type="41" unit="" desc="AbsMetadata version" />
-        <attrib name="Slave_bands" value="i_VV_slv2_23Dec2006 q_VV_slv2_23Dec2006" type="41" />
+        <attrib name="Slave_bands" value="i_VH_slv2_23Dec2006 q_VH_slv2_23Dec2006 i_VV_slv2_23Dec2006 q_VV_slv2_23Dec2006" type="41" />
       </ASA_IMS_1PNESA20061223_134214_000000182054_00067_25171_0000_23Dec2006>
-      <attrib name="Master_bands" value="i_VV_mst_26Apr2008 q_VV_mst_26Apr2008" type="41" />
+      <attrib name="Master_bands" value="i_VH_mst_26Apr2008 q_VH_mst_26Apr2008 i_VV_mst_26Apr2008 q_VV_mst_26Apr2008" type="41" />
     </Slave_Metadata>
   </Abstracted_Metadata>
   <tie-point-grids>

@@ -25,12 +25,12 @@ import java.util.Hashtable;
 import java.util.Vector;
 
 
-class ColorBar implements ImageProducer {
+class ColorBar implements ImageProducer, AutoCloseable{
     private final ColourScale colourScale;
     private ColorModel model;
     private static final Dimension barSize = new Dimension(24, 256);
-    private static final byte barPixels[] = new byte[barSize.height];
-    private static final int barRGBPixels[] = new int[barSize.height];
+    private static final byte[] barPixels = new byte[barSize.height];
+    private static final int[] barRGBPixels = new int[barSize.height];
 
     private final Dimension imageSize = new Dimension(barSize.width, barSize.height);
     private final Rectangle imageArea = new Rectangle(imageSize);
@@ -63,8 +63,8 @@ class ColorBar implements ImageProducer {
     }
 
     private synchronized void removeAllConsumers() {
-        for (Enumeration elem = theConsumers.elements(); elem.hasMoreElements(); ) {
-            ImageConsumer ic = (ImageConsumer) elem.nextElement();
+        for (Enumeration<ImageConsumer> elem = theConsumers.elements(); elem.hasMoreElements(); ) {
+            ImageConsumer ic = elem.nextElement();
             ic.imageComplete(3);
             if (isConsumer(ic))
                 ic.imageComplete(1);
@@ -91,17 +91,16 @@ class ColorBar implements ImageProducer {
             ic.setHints(hints);
     }
 
-    private synchronized Enumeration getConsumers() {
+    private Enumeration<ImageConsumer> getConsumers() {
         return theConsumers.elements();
     }
 
-    private synchronized void addConsumerToList(ImageConsumer ic) {
+    private void addConsumerToList(ImageConsumer ic) {
         theConsumers.addElement(ic);
     }
 
     @Override
-    protected void finalize() throws Throwable {
-        super.finalize();
+    public void close() {
         removeAllConsumers();
     }
 
@@ -135,9 +134,9 @@ class ColorBar implements ImageProducer {
     }
 
     private synchronized void resend(Rectangle area) {
-        final Enumeration con = getConsumers();
+        final Enumeration<ImageConsumer> con = getConsumers();
         while (con.hasMoreElements()) {
-            final ImageConsumer ic = (ImageConsumer) con.nextElement();
+            final ImageConsumer ic = con.nextElement();
             try {
                 deliverPixels(ic, area);
                 if (isConsumer(ic))
@@ -151,8 +150,8 @@ class ColorBar implements ImageProducer {
 
     private synchronized void resendColorModel() {
         ImageConsumer ic;
-        for (Enumeration elem = getConsumers(); elem.hasMoreElements(); ic.setColorModel(model))
-            ic = (ImageConsumer) elem.nextElement();
+        for (Enumeration<ImageConsumer> elem = getConsumers(); elem.hasMoreElements(); ic.setColorModel(model))
+            ic = elem.nextElement();
     }
 
     private void deliverPixels(ImageConsumer ic, Rectangle area) {

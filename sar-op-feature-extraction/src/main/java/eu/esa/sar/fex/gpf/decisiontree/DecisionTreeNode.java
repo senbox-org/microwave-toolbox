@@ -151,7 +151,7 @@ public class DecisionTreeNode {
         depth = -1;
         expLength = 0;
         addNode(this, list, 0, 0, 0);
-        array = list.toArray(new DecisionTreeNode[list.size()]);
+        array = list.toArray(new DecisionTreeNode[0]);
         return array;
     }
 

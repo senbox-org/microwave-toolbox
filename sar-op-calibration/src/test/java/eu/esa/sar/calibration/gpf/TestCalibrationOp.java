@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -16,14 +16,15 @@
 package eu.esa.sar.calibration.gpf;
 
 import com.bc.ceres.annotation.STTM;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
+import org.esa.snap.core.datamodel.MetadataAttribute;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
-import org.esa.snap.engine_utilities.gpf.TestProcessor;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -34,41 +35,34 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit test for Calibration Operator.
  */
-public class TestCalibrationOp {
-
-    static {
-        TestUtils.initTestEnvironment();
-    }
+public class TestCalibrationOp extends ProcessorTest {
 
     private final static OperatorSpi spi = new CalibrationOp.Spi();
-    private TestProcessor testProcessor;
-
-    private String[] productTypeExemptions = {"_BP", "XCA", "RAW", "WVW", "WVI", "WVS", "WSS", "OCN", "DOR", "GeoTIFF", "SCS_U"};
-    private String[] exceptionExemptions = {"not supported", "numbands is zero",
-            "calibration has already been applied",
-            "The product has already been calibrated",
-            "Cannot apply calibration to coregistered product",
-            "WV is not a valid acquisition mode from: IW,EW,SM"
-    };
 
     @Before
     public void setUp() {
-        testProcessor = SARTests.createTestProcessor();
-
         // If any of the file does not exist: the test will be ignored
         assumeTrue(TestData.inputASAR_WSM + "not found", TestData.inputASAR_WSM.exists());
         assumeTrue(TestData.inputASAR_IMS + "not found", TestData.inputASAR_IMS.exists());
         assumeTrue(TestData.inputERS_IMP + "not found", TestData.inputERS_IMP.exists());
         assumeTrue(TestData.inputERS_IMS + "not found", TestData.inputERS_IMS.exists());
         assumeTrue(TestData.inputS1_GRD + "not found", TestData.inputS1_GRD.exists());
+        assumeTrue(TestData.inputS1C_GRD + "not found", TestData.inputS1C_GRD.exists());
         assumeTrue(TestData.inputS1_StripmapSLC + "not found", TestData.inputS1_StripmapSLC.exists());
     }
 
     @Test
-    public void testProcessingASAR_WSM() throws Exception {
+    public void testProcessingASAR_WSM_Sigma0() throws Exception {
 
         final float[] expected = new float[] {0.027908697724342346f, 0.019894488155841827f, 0.020605698227882385f};
         processFile(TestData.inputASAR_WSM, "sigma0_VV", expected);
+    }
+
+    @Test
+    public void testProcessingASAR_WSM_beta0() throws Exception {
+
+        final float[] expected = new float[] {0.05965894f, 0.04252025f, 0.044032857f};
+        processFile(TestData.inputASAR_WSM, "beta0_VV", 0, 0, expected, true);
     }
 
     @Test
@@ -100,6 +94,14 @@ public class TestCalibrationOp {
     }
 
     @Test
+    @STTM("SNAP-3939")
+    public void testProcessingS1C_GRD() throws Exception {
+
+        final float[] expected = new float[] {0f,0f,0f};
+        processFile(TestData.inputS1C_GRD, "sigma0_VV", expected);
+    }
+
+    @Test
     public void testProcessingS1_StripmapSLC() throws Exception {
 
         final float[] expected = new float[] {0.03781468f,0.14200227f,0.3646295f};
@@ -112,7 +114,31 @@ public class TestCalibrationOp {
 
         final float[] expected = new float[] {0.01825511f,0.04138892f,0.04425726f};
         processFile(TestData.inputCapella_StripmapSLC, "sigma0_HH", expected);
-        System.out.println();
+    }
+
+    @Test
+    @STTM("SNAP-3559")
+    public void testProcessingIceye_GRD() throws Exception {
+
+        Product srcProduct = TestUtils.createProduct("GRD", 10, 10);
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(srcProduct);
+        absRoot.setAttributeString(AbstractMetadata.MISSION, "Iceye");
+        absRoot.setAttributeString(AbstractMetadata.ACQUISITION_MODE, "Stripmap");
+        absRoot.setAttributeString(AbstractMetadata.SAMPLE_TYPE, "DETECTED");
+        absRoot.setAttributeDouble(AbstractMetadata.radar_frequency, 5405.000454334349);
+
+        final MetadataElement origRoot = AbstractMetadata.addOriginalProductMetadata(srcProduct.getMetadataRoot());
+        final MetadataAttribute attribute = new MetadataAttribute("calibration_factor", 31, 1);
+        attribute.setUnit("dB");
+        attribute.setDescription("Calibration constant");
+        attribute.setReadOnly(false);
+        attribute.getData().setElemDouble(1.8627006757903795E-4);
+        origRoot.addAttribute(attribute);
+
+        TestUtils.createBand(srcProduct, "Amplitude_VV", 10, 10);
+
+        final float[] expected = new float[] {0.000186270067579038f, 0.000745080270316152f, 0.00167643060821134f};
+        processFile(srcProduct, "Sigma0_VV", 0, 0, expected, false);
     }
 
     /**
@@ -124,72 +150,34 @@ public class TestCalibrationOp {
      * @throws Exception general exception
      */
     private void processFile(final File inputFile, final String bandName, final float[] expected) throws Exception {
+        processFile(inputFile, bandName, 0, 0, expected, false);
+    }
+
+    private void processFile(final File inputFile, final String bandName,
+                             final int x, final int y, final float[] expected,
+                             boolean outputBeta0) throws Exception {
 
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
-
-            final CalibrationOp op = (CalibrationOp) spi.createOperator();
-            assertNotNull(op);
-            op.setSourceProduct(sourceProduct);
-
-            // get targetProduct: execute initialize()
-            final Product targetProduct = op.getTargetProduct();
-            TestUtils.verifyProduct(targetProduct, true, true, true);
-
-            TestUtils.comparePixels(targetProduct, bandName, expected);
+            processFile(sourceProduct, bandName, x, y, expected, outputBeta0);
         }
     }
 
-    @Test
-    public void testProcessAllASAR() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsASAR, "ENVISAT", productTypeExemptions, null);
-    }
+    private void processFile(Product sourceProduct, final String bandName,
+                             final int x, final int y, final float[] expected,
+                             boolean outputBeta0) throws Exception {
 
-    @Test
-    public void testProcessAllERS() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsERS, "ERS CEOS", productTypeExemptions, null);
-    }
+        final CalibrationOp op = (CalibrationOp) spi.createOperator();
+        assertNotNull(op);
+        if(outputBeta0) {
+            //op.setParameter("outputBetaBand", true);
+            op.setParameter("createBetaBand", true);
+        }
+        op.setSourceProduct(sourceProduct);
 
-    @Test
-    public void testProcessAllALOS() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsALOS, "ALOS PALSAR CEOS", productTypeExemptions, null);
-    }
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        TestUtils.verifyProduct(targetProduct, true, true, true);
 
-    @Test
-    @Ignore("Disable for now. Problem with GeoTiff reader")
-    public void testProcessAllALOS2() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsALOS2, "ALOS-2", productTypeExemptions, exceptionExemptions);
-    }
-
-    @Test
-    @Ignore("Disable for now. Not all Cosmo products are supported")
-    public void testProcessAllCosmo() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsCosmoSkymed, "CosmoSkymed", productTypeExemptions, exceptionExemptions);
-    }
-
-    @Test
-    public void testProcessAllTSX() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsTerraSarX, "TerraSarX", productTypeExemptions, exceptionExemptions);
-    }
-
-    @Test
-    public void testProcessAllSentinel1() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsSentinel1, "SENTINEL-1", productTypeExemptions, exceptionExemptions);
-    }
-
-    @Test
-    public void testProcessAllK5() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsK5, "Kompsat5", productTypeExemptions, exceptionExemptions);
-    }
-
-    @Test
-    @Ignore
-    public void testProcessAllJERS() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsJERS, "JERS", productTypeExemptions, exceptionExemptions);
-    }
-
-    @Test
-    @Ignore
-    public void testProcessAllIceye() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsIceye, "ICEYE", productTypeExemptions, exceptionExemptions);
+        TestUtils.comparePixels(targetProduct, bandName, x, y, expected);
     }
 }

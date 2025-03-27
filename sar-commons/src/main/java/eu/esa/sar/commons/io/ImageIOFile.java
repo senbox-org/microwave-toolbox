@@ -33,6 +33,7 @@ import java.awt.image.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Iterator;
 
 /**
@@ -245,7 +246,14 @@ public class ImageIOFile {
         param.setSourceSubsampling(sourceStepX, sourceStepY,
                 sourceOffsetX % sourceStepX,
                 sourceOffsetY % sourceStepY);
-        final Raster data = getData(param, destOffsetX, destOffsetY, destWidth, destHeight);
+        
+        // Read only the required region
+        param.setSourceRegion(new Rectangle(destOffsetX, destOffsetY, destWidth, destHeight));
+        
+        final Raster data;
+        synchronized (reader) {
+            data = getData(param, destOffsetX, destOffsetY, destWidth, destHeight);
+        }
 
         final DataBuffer dataBuffer = data.getDataBuffer();
         final SampleModel sampleModel = data.getSampleModel();
@@ -254,6 +262,7 @@ public class ImageIOFile {
         final Object dest = destBuffer.getElems();
 
         try {
+            // Use direct buffer access when possible
             if (dest instanceof int[] && (dataBufferType == DataBuffer.TYPE_USHORT || dataBufferType == DataBuffer.TYPE_SHORT
                     || dataBufferType == DataBuffer.TYPE_INT)) {
                 sampleModel.getSamples(0, 0, destWidth, destHeight, sampleOffset, (int[]) dest, dataBuffer);
@@ -262,34 +271,31 @@ public class ImageIOFile {
             } else if (dataBufferType == DataBuffer.TYPE_DOUBLE && dest instanceof double[]) {
                 sampleModel.getSamples(0, 0, destWidth, destHeight, sampleOffset, (double[]) dest, dataBuffer);
             } else {
+                // Fallback to using a temporary array
                 final double[] dArray = new double[destWidth * destHeight];
-                sampleModel.getSamples(0, 0, data.getWidth(), data.getHeight(), sampleOffset, dArray, dataBuffer);
+                sampleModel.getSamples(0, 0, destWidth, destHeight, sampleOffset, dArray, dataBuffer);
 
-                int i = 0;
-                for (double value : dArray) {
-                    destBuffer.setElemDoubleAt(i++, value);
+                if (dest instanceof double[]) {
+                    System.arraycopy(dArray, 0, dest, 0, dArray.length);
+                } else {
+                    for (int i = 0; i < dArray.length; i++) {
+                        destBuffer.setElemDoubleAt(i, dArray[i]);
+                    }
                 }
             }
         } catch (Exception e) {
-            try {
-                final double[] dArray = new double[destWidth * destHeight];
-                sampleModel.getSamples(0, 0, data.getWidth(), data.getHeight(), sampleOffset, dArray, dataBuffer);
-
-                int i = 0;
-                for (double value : dArray) {
-                    destBuffer.setElemDoubleAt(i++, value);
-                }
-            } catch (Exception e2) {
-
-                int size = destWidth * destHeight;
-                for (int i = 0; i < size; ++i) {
-                    destBuffer.setElemDoubleAt(i++, 0);
-                }
+            SystemUtils.LOG.warning("Error reading image data: " + e.getMessage());
+            if (dest instanceof double[]) {
+                Arrays.fill((double[]) dest, 0.0);
+            } else if (dest instanceof float[]) {
+                Arrays.fill((float[]) dest, 0.0f);
+            } else if (dest instanceof int[]) {
+                Arrays.fill((int[]) dest, 0);
             }
         }
     }
 
-    private synchronized Raster getData(final ImageReadParam param,
+    private Raster getData(final ImageReadParam param,
                                         final int destOffsetX, final int destOffsetY,
                                         final int destWidth, final int destHeight) throws IOException {
         try {

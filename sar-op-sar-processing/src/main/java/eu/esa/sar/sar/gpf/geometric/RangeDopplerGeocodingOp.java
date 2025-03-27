@@ -163,7 +163,7 @@ public class RangeDopplerGeocodingOp extends Operator {
     private double standardGridOriginY = 0;
 
     @Parameter(defaultValue = "true", label = "Mask out areas with no elevation", description = "Mask the sea with no data value (faster)")
-    private boolean nodataValueAtSea = true;
+    protected boolean nodataValueAtSea = true;
 
     @Parameter(defaultValue = "false", label = "Save DEM as band")
     private boolean saveDEM = false;
@@ -327,7 +327,7 @@ public class RangeDopplerGeocodingOp extends Operator {
                     for (Band band : sourceBands) {
                         polList.add(OperatorUtils.getBandPolarization(band.getName(), absRoot));
                     }
-                    final String[] selectedPolarisations = polList.toArray(new String[polList.size()]);
+                    final String[] selectedPolarisations = polList.toArray(new String[0]);
 
                     Sentinel1Calibrator cal = (Sentinel1Calibrator) calibrator;
                     cal.setUserSelections(sourceProduct,
@@ -1137,8 +1137,6 @@ public class RangeDopplerGeocodingOp extends Operator {
                                     tileGeoRef, x0, y0, w, h, sourceProduct, true, localDEM);
 
                             if (!valid) {
-                                saveLayoverShadowMask = false;
-                                System.out.println("Cannot create layover/shadow mask due to the absent of DEM");
                                 return;
                             }
                         } catch (Throwable e) {

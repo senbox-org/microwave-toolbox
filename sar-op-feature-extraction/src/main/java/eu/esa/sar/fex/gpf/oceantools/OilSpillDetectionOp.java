@@ -56,7 +56,7 @@ import java.util.List;
 //    sar-op-feature-extraction-ui\src\main\resources\eu\esa\sar\fex\graphs\Radar\SAR Applications
 
 @OperatorMetadata(alias = "Oil-Spill-Detection",
-        category = "Radar/SAR Applications/Ocean Applications/Oil Spill Detection",
+        category = "Radar/SAR Applications/Ocean/Oil Spill Detection",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2015 by Array Systems Computing Inc.",
@@ -70,17 +70,15 @@ public class OilSpillDetectionOp extends Operator {
 
     @Parameter(description = "The list of source bands.", alias = "sourceBands",
             rasterDataNodeType = Band.class, label = "Source Bands")
-    private String[] sourceBandNames = null;
+    String[] sourceBandNames = null;
 
     @Parameter(description = "Background window dimension (km)", defaultValue = "0.5", label = "Background Window Dimension (km)")
-    private double backgroundWindowDim = 0.5;
+    double backgroundWindowDim = 0.5;
 
     @Parameter(description = "Threshold shift from background mean", defaultValue = "2.0", label = "Threshold Shift (dB)")
     private double k = 2.0;
 
-    private int sourceImageWidth = 0;
-    private int sourceImageHeight = 0;
-    private int backgroundWindowSize = 0;
+    int backgroundWindowSize = 0;
     private int halfBackgroundWindowSize = 0;
 
     private double kInLinearScale = 0.0;
@@ -97,9 +95,6 @@ public class OilSpillDetectionOp extends Operator {
 
             getMission();
 
-            sourceImageWidth = sourceProduct.getSceneRasterWidth();
-            sourceImageHeight = sourceProduct.getSceneRasterHeight();
-
             computeBackgroundWindowSize();
 
             if (k < 0) {
@@ -110,8 +105,8 @@ public class OilSpillDetectionOp extends Operator {
 
             targetProduct = new Product(sourceProduct.getName(),
                     sourceProduct.getProductType(),
-                    sourceImageWidth,
-                    sourceImageHeight);
+                    sourceProduct.getSceneRasterWidth(),
+                    sourceProduct.getSceneRasterHeight());
 
             ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
@@ -173,6 +168,9 @@ public class OilSpillDetectionOp extends Operator {
         if(absRoot == null) {
             throw new OperatorException("AbstractMetadata is null");
         }
+        if(backgroundWindowDim <= 0) {
+            throw new OperatorException("Background window dimension should be greater than 0");
+        }
 
         final double rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 1);
         final double azimuthSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing, 1);
@@ -195,7 +193,7 @@ public class OilSpillDetectionOp extends Operator {
                 if (band.getUnit() != null && band.getUnit().equals(Unit.INTENSITY))
                     bandNameList.add(band.getName());
             }
-            sourceBandNames = bandNameList.toArray(new String[bandNameList.size()]);
+            sourceBandNames = bandNameList.toArray(new String[0]);
         }
 
         final Band[] sourceBands = new Band[sourceBandNames.length];
@@ -222,12 +220,16 @@ public class OilSpillDetectionOp extends Operator {
 
             final Band targetBandMask = new Band(targetBandName,
                     ProductData.TYPE_INT8,
-                    sourceImageWidth,
-                    sourceImageHeight);
+                    targetBand.getRasterWidth(),
+                    targetBand.getRasterHeight());
             targetBandMask.setNoDataValue(0);
             targetBandMask.setNoDataValueUsed(true);
             targetBandMask.setUnit(Unit.AMPLITUDE);
             targetProduct.addBand(targetBandMask);
+        }
+
+        if(targetProduct.getNumBands() == 0) {
+            throw new OperatorException("No intensity bands selected");
         }
     }
 
@@ -254,8 +256,8 @@ public class OilSpillDetectionOp extends Operator {
 
             final int x0 = Math.max(tx0 - halfBackgroundWindowSize, 0);
             final int y0 = Math.max(ty0 - halfBackgroundWindowSize, 0);
-            final int w = Math.min(tx0 + tw - 1 + halfBackgroundWindowSize, sourceImageWidth - 1) - x0 + 1;
-            final int h = Math.min(ty0 + th - 1 + halfBackgroundWindowSize, sourceImageHeight - 1) - y0 + 1;
+            final int w = Math.min(tx0 + tw - 1 + halfBackgroundWindowSize, targetBand.getRasterWidth() - 1) - x0 + 1;
+            final int h = Math.min(ty0 + th - 1 + halfBackgroundWindowSize, targetBand.getRasterHeight() - 1) - y0 + 1;
             final Rectangle sourceTileRectangle = new Rectangle(x0, y0, w, h);
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 

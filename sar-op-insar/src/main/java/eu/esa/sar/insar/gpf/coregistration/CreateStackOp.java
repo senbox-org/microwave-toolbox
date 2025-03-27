@@ -125,6 +125,7 @@ public class CreateStackOp extends Operator {
     private final Map<Product, int[]> slaveOffsetMap = new HashMap<>(10);
 
     private boolean appendToMaster = false;
+    private boolean isResampling = false;
 
     private static final String PRODUCT_SUFFIX = "_Stack";
 
@@ -187,7 +188,8 @@ public class CreateStackOp extends Operator {
                 return;
             }
 
-            if (resamplingType.contains("NONE") && !extent.equals(MASTER_EXTENT)) {
+            isResampling = !resamplingType.contains("NONE");
+            if (!isResampling && !extent.equals(MASTER_EXTENT)) {
                 throw new OperatorException("Please select only Master extents when resampling type is None");
             }
 
@@ -253,11 +255,13 @@ public class CreateStackOp extends Operator {
                         targetProduct.addBand(targetBand);
 
                         ProductUtils.copyRasterDataNodeProperties(srcBand, targetBand);
+                        if(targetBand.getValidPixelExpression() != null) {
+                            targetBand.setValidPixelExpression(srcBand.getValidPixelExpression().replace(srcBand.getName(), targetBand.getName()));
+                        }
+
                         if (extent.equals(MASTER_EXTENT)) {
                             targetBand.setSourceImage(srcBand.getSourceImage());
                         }
-
-                        fixDependencies(targetBand, slaveBandList, suffix);
                     }
                 }
             }
@@ -281,7 +285,7 @@ public class CreateStackOp extends Operator {
                     if (targetProduct.getBand(tgtBandName) == null) {
                         final Product srcProduct = srcBand.getProduct();
                         int dataType;
-                        if (resamplingType.contains("NONE")) {
+                        if (!isResampling) {
                             dataType = srcBand.getDataType();
                         } else {
                             dataType = ProductData.TYPE_FLOAT32;
@@ -295,11 +299,13 @@ public class CreateStackOp extends Operator {
                         targetProduct.addBand(targetBand);
 
                         ProductUtils.copyRasterDataNodeProperties(srcBand, targetBand);
-                        if (extent.equals(MASTER_EXTENT) && srcProduct.isCompatibleProduct(targetProduct, 1.0e-3f)) {
-                            targetBand.setSourceImage(srcBand.getSourceImage());
+                        if(targetBand.getValidPixelExpression() != null) {
+                            targetBand.setValidPixelExpression(srcBand.getValidPixelExpression().replace(srcBand.getName(), targetBand.getName()));
                         }
 
-                        fixDependencies(targetBand, slaveBandList, suffix);
+                        if (!isResampling && extent.equals(MASTER_EXTENT) && srcProduct.isCompatibleProduct(targetProduct, 1.0e-3f)) {
+                            targetBand.setSourceImage(srcBand.getSourceImage());
+                        }
 
                         // Disable using of no data value in slave so that valid 0s will be used in the interpolation
                         srcBand.setNoDataValueUsed(false);
@@ -323,7 +329,7 @@ public class CreateStackOp extends Operator {
                                                targetProduct.getSceneGeoCoding());
             }
 
-            if (!resamplingType.contains("NONE")) {
+            if (isResampling) {
                 selectedResampling = ResamplingFactory.createResampling(resamplingType);
                 if(selectedResampling == null) {
                     throw new OperatorException("Resampling method "+ selectedResampling + " is invalid");
@@ -342,25 +348,12 @@ public class CreateStackOp extends Operator {
 
             // set non-elevation areas to no data value for the master bands using the slave bands
             if (!extent.equals(MAX_EXTENT)) {
-                DEMAssistedCoregistrationOp.setMasterValidPixelExpression(targetProduct, true);
+                //DEMAssistedCoregistrationOp.setMasterValidPixelExpression(targetProduct, true);
             }
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
-    }
-
-    private static void fixDependencies(final Band targetBand, final Band[] srcBandList, final String suffix) {
-//        String validPixelExpression = targetBand.getValidPixelExpression();
-//        if(validPixelExpression == null || validPixelExpression.isEmpty())
-//            return;
-//
-//        for(Band srcBand : srcBandList) {
-//            if(!validPixelExpression.contains(srcBand.getName() + suffix)) {
-//                validPixelExpression = validPixelExpression.replaceAll(srcBand.getName(), srcBand.getName() + suffix);
-//            }
-//        }
-//        targetBand.setValidPixelExpression(validPixelExpression);
     }
 
     private void updateMetadata() {
@@ -882,7 +875,7 @@ public class CreateStackOp extends Operator {
             final int srcImageWidth = srcProduct.getSceneRasterWidth();
             final int srcImageHeight = srcProduct.getSceneRasterHeight();
 
-            if (resamplingType.contains("NONE")) { // without resampling
+            if (!isResampling) { // without resampling
 
                 final float noDataValue = (float) targetBand.getGeophysicalNoDataValue();
                 final Rectangle targetRectangle = targetTile.getRectangle();

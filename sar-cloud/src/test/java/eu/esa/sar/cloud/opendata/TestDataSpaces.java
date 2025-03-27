@@ -41,7 +41,7 @@ public class TestDataSpaces {
         final DataSpaces dataSpaces = new DataSpaces();
 
         String query = dataSpaces.constructQuery("SENTINEL-1", "IW_ETA__AX",
-                "2024-05-03T00:50:00.000Z", "2024-05-03T00:50:00.000Z");
+                "2024-05-03T00:50:00.000Z", "2024-05-03T00:51:00.000Z");
         JSONObject response = dataSpaces.query(query);
 
         DataSpaces.Result[] results = dataSpaces.getResults(response);

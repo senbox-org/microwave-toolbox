@@ -6,7 +6,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>11.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-cloud</artifactId>
@@ -14,28 +14,17 @@
     
     <packaging>nbm</packaging>
 
-    <properties>
-        <json-simple.version>1.1.1</json-simple.version>
-        <jackson.version>2.15.1</jackson.version>
-        <json-schema-validator.version>1.4.0</json-schema-validator.version>
-        <commons-codec.version>1.15</commons-codec.version>
-        <commons-io.version>2.16.1</commons-io.version>
-        <jasypt.version>1.9.3</jasypt.version>
-    </properties>
-
     <dependencies>
 
         <dependency>
             <groupId>org.esa.snap</groupId>
-            <artifactId>snap-runtime</artifactId>
-            <version>${snap.version}</version>
+            <artifactId>ceres-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-core</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.googlecode.json-simple</groupId>
-            <artifactId>json-simple</artifactId>
-            <version>${json-simple.version}</version>
-        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -50,23 +39,18 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpcore</artifactId>
-            <version>4.4.16</version>
+            <version>${apache-httpcore.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.14</version>
+            <version>${apache-httpclient.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>commons-codec</groupId>
                     <artifactId>commons-codec</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-            <version>${commons-codec.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
@@ -89,7 +73,6 @@
                 <configuration>
                     <publicPackages>
                         <publicPackage>eu.esa.sar.*</publicPackage>
-                        <publicPackage>org.json.simple.*</publicPackage>
                         <publicPackage>com.fasterxml.jackson.*</publicPackage>
                         <publicPackage>javax.xml.stream.*</publicPackage>
                         <publicPackage>org.jasypt.*</publicPackage>

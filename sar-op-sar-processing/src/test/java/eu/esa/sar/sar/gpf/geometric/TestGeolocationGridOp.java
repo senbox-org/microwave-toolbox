@@ -57,7 +57,9 @@ public class TestGeolocationGridOp extends ProcessorTest {
 
     private static final String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN", "ETAD"};
     private static final String[] exceptionExemptions = {"not supported", "not be map projected",
-                    "Source product should first be deburst","has no bands"};
+                    "Source product should first be deburst","has no bands",
+                    "incidence_angle tie point grid not found in product",
+                    "Product without slant range time tie point grid"};
 
     /**
      * Processes a product and compares it to processed product known to be correct

@@ -205,7 +205,7 @@ public final class CompactPolDataSimulationOp extends Operator implements QuadPo
                 tgtBandList.add(targetBand);
                 targetProduct.addBand(targetBand);
             }
-            final Band[] targetBands = tgtBandList.toArray(new Band[tgtBandList.size()]);
+            final Band[] targetBands = tgtBandList.toArray(new Band[0]);
 
             bandList.addTargetBands(targetBands);
         }

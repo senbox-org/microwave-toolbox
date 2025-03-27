@@ -87,7 +87,7 @@ public class VirtualStackCoregistrationDialog extends BatchGraphDialog {
                 secondaryList.add(f);
             }
         }
-        return secondaryList.toArray(new File[secondaryList.size()]);
+        return secondaryList.toArray(new File[0]);
     }
 
     @Override

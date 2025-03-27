@@ -20,7 +20,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>11.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-utilities</artifactId>
@@ -36,7 +36,7 @@
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
-            <artifactId>ceres-glayer</artifactId>
+            <artifactId>ceres-jai</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
@@ -53,6 +53,7 @@
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>edu.emory.mathcs</groupId>

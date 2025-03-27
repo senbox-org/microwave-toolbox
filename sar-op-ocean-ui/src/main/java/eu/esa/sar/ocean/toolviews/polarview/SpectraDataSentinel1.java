@@ -88,7 +88,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         metadataList.add(createMetadataDouble("Water Depth", recElem, "oswDepth", null));
         metadataList.add(createMetadataDouble("Incidence Angle", recElem, "oswIncidenceAngle", "°"));
         metadataList.add(createMetadataDouble("Backscatter", recElem, "oswNrcs", null));
-        return metadataList.toArray(new String[metadataList.size()]);
+        return metadataList.toArray(new String[0]);
     }
 
     private String createMetadataDouble(final String name, final MetadataElement recElem, final String elemName, String unit) {
@@ -125,7 +125,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         } else if (waveProductType == WaveProductType.CROSS_SPECTRA) {
             if (spectraUnit == SpectraUnit.AMPLITUDE || spectraUnit == SpectraUnit.INTENSITY) {
                 // complex data
-                final float imagSpectrum[][] = getSpectrum(currentRec, false);
+                final float[][] imagSpectrum = getSpectrum(currentRec, false);
                 minValue = Float.MAX_VALUE;
                 maxValue = Float.MIN_VALUE;
                 for (int i = 0; i < spectrum.length; i++) {
@@ -155,7 +155,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         final float thFirst = firstDirBins + 5f;
         final float thStep = -dirBinStep;
 
-        final float radii[] = new float[spectrum[0].length + 1];
+        final float[] radii = new float[spectrum[0].length + 1];
         for (int j = 0; j <= spectrum[0].length; j++) {
             radii[j] = (float) (10000.0 / FastMath.exp(logr));
             logr += rStep;
@@ -164,12 +164,17 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         return new PolarData(spectrum, 90f + thFirst, thStep, radii, minValue, maxValue);
     }
 
+    private int getRecordNum(final String bandName) {
+        int idx = bandName.indexOf("_img");
+        String bandRecNumStr = bandName.substring(idx+4, idx + 7);
+        return Integer.parseInt(bandRecNumStr);
+    }
+
     private Band getBand(final int currentRec, final boolean getReal) throws Exception {
         for (Band band : product.getBands()) {
             try {
                 String bandName = band.getName().toLowerCase();
-                String bandRecNumStr = bandName.substring(3, 6);
-                Integer bandRecNum = Integer.parseInt(bandRecNumStr);
+                int bandRecNum = getRecordNum(bandName);
                 if (bandRecNum == currentRec + 1) {
                     if (waveProductType == WaveProductType.WAVE_SPECTRA && bandName.contains("oswpolspec")) {
                         return band;
@@ -197,7 +202,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
 
         minValue = (float) rasterNode.getStx().getMinimum();
         maxValue = (float) rasterNode.getStx().getMaximum();
-        final float spectrum[][] = new float[numDirBins][numWLBins];
+        final float[][] spectrum = new float[numDirBins][numWLBins];
 
         int index = 0;
         for (int i = 0; i < numDirBins; i++) {
@@ -208,7 +213,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         return spectrum;
     }
 
-    public String[] updateReadouts(final double rTh[], final int currentRecord) {
+    public String[] updateReadouts(final double[] rTh, final int currentRecord) {
         if (spectrum == null)
             return null;
 
@@ -229,6 +234,6 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         readoutList.add("Bin: " + (thBin + 1) + "," + (wvBin + 1) + " Element: " + element);
         readoutList.add("Value: " + spectrum[thBin][wvBin]);
 
-        return readoutList.toArray(new String[readoutList.size()]);
+        return readoutList.toArray(new String[0]);
     }
 }

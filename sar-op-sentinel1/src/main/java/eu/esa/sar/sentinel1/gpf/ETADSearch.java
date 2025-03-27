@@ -17,20 +17,22 @@ package eu.esa.sar.sentinel1.gpf;
 
 import org.esa.snap.core.datamodel.*;
 import eu.esa.sar.cloud.opendata.DataSpaces;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.json.simple.JSONObject;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.DateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 public class ETADSearch {
 
     private final DateFormat dateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss.sss");
     private final DataSpaces dataSpaces;
 
-    public ETADSearch() throws IOException {
+    public ETADSearch() {
         this.dataSpaces = new DataSpaces();
     }
 
@@ -42,8 +44,11 @@ public class ETADSearch {
         final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
         final String productType = getETADProductType(acquisitionMode);
 
-        String startDate = getTime(product.getStartTime());
-        String endDate = getTime(product.getEndTime());
+        SystemUtils.LOG.info("Searching for ETAD product type: " + productType + " for product: " + product.getName());
+        SystemUtils.LOG.info("Start time: " + product.getStartTime() + " End time: " + product.getEndTime());
+
+        String startDate = getTime(adjustMinutes(product.getStartTime(), -5));
+        String endDate = getTime(adjustMinutes(product.getEndTime(), +5));
 
         String query = dataSpaces.constructQuery("SENTINEL-1", productType, startDate, endDate);
         JSONObject response = dataSpaces.query(query);
@@ -70,5 +75,21 @@ public class ETADSearch {
 
     String getTime(final ProductData.UTC time) {
         return dateFormat.format(time.getAsDate()).replace(" ", "T") +"Z";
+    }
+
+    public static ProductData.UTC adjustMinutes(ProductData.UTC utc, int deltaSeconds) {
+        // Convert ProductData.UTC to Date
+        Date date = utc.getAsDate();
+
+        // Create a Calendar instance and set the time
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+
+        // Adjust the specified minutes
+        calendar.add(Calendar.SECOND, deltaSeconds);
+
+        // Convert back to ProductData.UTC
+        Date newDate = calendar.getTime();
+        return ProductData.UTC.create(newDate, 0);
     }
 }

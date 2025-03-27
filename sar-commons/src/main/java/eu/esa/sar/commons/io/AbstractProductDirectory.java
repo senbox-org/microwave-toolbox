@@ -94,6 +94,42 @@ public abstract class AbstractProductDirectory {
         return rootFolder;
     }
 
+    protected static MetadataElement getElem(MetadataElement elem, String... names) {
+        for(String name : names) {
+            if(elem.containsElement(name)) {
+                return elem.getElement(name);
+            }
+        }
+        return null;
+    }
+
+    protected static double getDouble(MetadataElement elem, String... names) {
+        for(String name : names) {
+            if(elem.containsAttribute(name)) {
+                return elem.getAttributeDouble(name);
+            }
+        }
+        throw new IllegalArgumentException("Metadata attribute '" + Arrays.toString(names) + "' not found");
+    }
+
+    protected static int getInt(MetadataElement elem, String... names) {
+        for(String name : names) {
+            if(elem.containsAttribute(name)) {
+                return elem.getAttributeInt(name);
+            }
+        }
+        throw new IllegalArgumentException("Metadata attribute '" + Arrays.toString(names) + "' not found");
+    }
+
+    protected static String getString(MetadataElement elem, String... names) {
+        for(String name : names) {
+            if(elem.containsAttribute(name)) {
+                return elem.getAttributeString(name);
+            }
+        }
+        throw new IllegalArgumentException("Metadata attribute '" + Arrays.toString(names) + "' not found");
+    }
+
     protected VirtualDir getProductDir() {
         return productDir;
     }
@@ -246,7 +282,7 @@ public abstract class AbstractProductDirectory {
         return list.toArray(new String[0]);
     }
 
-    private boolean isDirectory(final String path) throws IOException {
+    boolean isDirectory(final String path) throws IOException {
         if (productDir.isCompressed()) {
             if (path.contains(".")) {
                 int sepIndex = path.lastIndexOf('/');
@@ -336,7 +372,7 @@ public abstract class AbstractProductDirectory {
         product.setDescription(absRoot.getAttributeString(AbstractMetadata.SPH_DESCRIPTOR));
     }
 
-    private static void setLatLongMetadata(final Product product) {
+    protected static void setLatLongMetadata(final Product product) {
 
         final GeoCoding geoCoding = product.getSceneGeoCoding();
         if(geoCoding != null) {

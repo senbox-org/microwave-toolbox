@@ -16,6 +16,8 @@
 					<tocitem text="Speckle Divergence" target="SpeckleDivergence"/>
 				</tocitem>
                 <tocitem text="Change Detection" target="ChangeDetection"/>
+                <tocitem text="REACTIV Change Detection" target="ReactivOp"/>
+                <tocitem text="RPCA Change Detection" target="RPCAOp"/>
             </tocitem>
         </tocitem>
         <tocitem text="Raster">

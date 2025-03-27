@@ -10,7 +10,7 @@ Building Microwave Toolbox from the source
 ------------------------------
 
 1. Download and install the required build tools
-	* Install J2SE 1.8 JDK and set JAVA_HOME accordingly. 
+	* Install JAVA JDK 21 and set JAVA_HOME accordingly. 
 	* Install Maven and set MAVEN_HOME accordingly. 
 	* Install git
 2. Add `$JAVA_HOME/bin` and `$MAVEN_HOME/bin` to your PATH.
@@ -48,14 +48,37 @@ Setting up IntelliJ IDEA
 2. Import the pom.xml files of snap-engine, snap-desktop and microwave-toolbox as modules. Ensure **not** to enable
 the option *'Create module groups for multi-module Maven projects'*. Everything can be default values.
 
-3. Set the used SDK for the main project. A JDK 1.8 or later is needed.
+3. Set the used SDK for the main project. A JDK 21 or later is needed.
 
 4. Use the following configuration to run SNAP in the IDE:
 	* **Main class:** `org.esa.snap.nbexec.Launcher`
-	* **VM parameters:** `-Dsun.awt.nopixfmt=true -Dsun.java2d.noddraw=true -Dsun.java2d.dpiaware=false`
-	All VM parameters are optional
+	* **VM parameters:** `
+	  -Dsun.awt.nopixfmt=true
+	  -Dsun.java2d.noddraw=true
+	  -Dsun.java2d.dpiaware=false
+	  -DTopSecurityManager.disable=true
+	  -Xms256m
+	  -Xmx22024m
+	  -Dorg.netbeans.level=INFO
+	  -Dsnap.debug=true
+	  -Djava.security.manager=allow
+	  --add-opens
+	  java.base/java.net=ALL-UNNAMED
+	  --add-opens
+	  java.desktop/sun.awt=ALL-UNNAMED
+	  --add-opens
+	  java.base/java.security=ALL-UNNAMED
+	  --add-opens
+	  java.desktop/javax.swing=ALL-UNNAMED
+	  --add-opens
+	  java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED
+	  --add-opens
+	  java.desktop/sun.java2d=ALL-UNNAMED`	All VM parameters are optional
     * **Program arguments:** 
-    `--clusters "E:\build\SNAP\s1tbx\s1tbx-kit\target\netbeans_clusters\s1tbx";"E:\build\SNAP\s1tbx\s1tbx-kit\target\netbeans_clusters\rstb" --patches "E:\build\SNAP\snap-engine\$\target\classes";"E:\build\SNAP\s1tbx\$\target\classes";"E:\build\SNAP\s1tbx\rstb\$\target\classes"`
+    `--clusters
+"C:\ESA\microwave-toolbox\microwavetbx-kit\target\netbeans_clusters\microwavetbx";"C:\ESA\optical-toolbox\opttbx-kit\target\netbeans_clusters\opttbx";"C:\ESA\microwave-toolbox\microwavetbx-kit\target\netbeans_clusters\rstb"
+--patches
+"C:\ESA\snap-engine\$\target\classes";"C:\ESA\microwave-toolbox\$\target\classes";"C:\ESA\optical-toolbox\$\target\classes";"C:\ESA\microwave-toolbox\rstb\$\target\classes"`
     
 	* **Working directory:** `SNAP/snap-desktop/snap-application/target/snap/`
 	* **Use classpath of module:** `snap-main`

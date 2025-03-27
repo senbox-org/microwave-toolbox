@@ -6,7 +6,7 @@
 
     <groupId>eu.esa.microwavetbx</groupId>
     <artifactId>microwave-toolbox</artifactId>
-    <version>11.0.0-SNAPSHOT</version>
+    <version>13.0.0-SNAPSHOT</version>
     <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
     <description>Tools for SAR Earth Observation</description>
@@ -15,35 +15,50 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <netbeans.version>RELEASE113</netbeans.version>
+        <netbeans.version>RELEASE210</netbeans.version>
         <javahelp.version>2.0.05</javahelp.version>
         <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
+        <jvm.version>21</jvm.version>
 
         <skipTests>false</skipTests>
-        <test.jvm.maxheapsize>5024m</test.jvm.maxheapsize>
-        <test.jvm.arguments>-Xmx${test.jvm.maxheapsize}</test.jvm.arguments>
-        <surefire.jvm.args>${test.jvm.arguments} -enableassertions</surefire.jvm.args>
+        <surefire.jvm.args>-enableassertions</surefire.jvm.args>
+        <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
+        <buildDate>${maven.build.timestamp}</buildDate>
+        <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
+        <sonar.java.binaries>**/classes</sonar.java.binaries>
+        <sonar.exclusions>*/src</sonar.exclusions>
 
-        <snap.version>11.0.0-SNAPSHOT</snap.version>
-        <snap-help-system.version>1.0.0</snap-help-system.version>
+        <snap.version>13.0.0-SNAPSHOT</snap.version>
+        <snap-help-system.version>1.0.2</snap-help-system.version>
         <!--
             microwavetbx.version is the Maven module version.
             microwavetbx.nbmSpecVersion is the NetBeans module specification version.
             It is used to filter manifest.mf and set the manifest's "OpenIDE-Module-Specification-Version" header.
             This is necessary to make NetBeans modules updatable and independent of the Maven version (= microwavetbx.version).
         -->
-        <microwavetbx.version>11.0.0-SNAPSHOT</microwavetbx.version>
+        <microwavetbx.version>13.0.0-SNAPSHOT</microwavetbx.version>
 
-        <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
-        <json-simple.version>1.1.1</json-simple.version>
+        <mockito.version>5.3.1</mockito.version>
 
-        <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
-        <buildDate>${maven.build.timestamp}</buildDate>
-        <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
-        <sonar.java.binaries>**/classes</sonar.java.binaries>
-        <sonar.exclusions>*/src</sonar.exclusions>
+        <jblas.version>1.2.6-SNAP</jblas.version>
+        <json-simple.version>1.1.1</json-simple.version>
+        <jackson.version>2.17.2</jackson.version>
+
+        <apache-httpclient.version>4.5.14</apache-httpclient.version>
+        <apache-httpcore.version>4.4.16</apache-httpcore.version>
+        <commons-codec.version>1.15</commons-codec.version>
+        <commons-io.version>2.16.1</commons-io.version>
+        <commons-math3.version>3.6.1</commons-math3.version>
+        <jasypt.version>1.9.3</jasypt.version>
+        <javaml.version>0.1.7</javaml.version>
+        <jcoord.version>1.0</jcoord.version>
+        <jmatio.version>1.5</jmatio.version>
+        <json-schema-validator.version>1.5.1</json-schema-validator.version>
+        <jsoup.version>1.16.1</jsoup.version>
+        <jtransforms.version>2.4</jtransforms.version>
+        <opencsv.version>2.1</opencsv.version>
     </properties>
 
     <modules>
@@ -83,7 +98,7 @@
     <inceptionYear>2007</inceptionYear>
 
     <prerequisites>
-        <maven>3.0.5</maven>
+        <maven>3.6.3</maven>
     </prerequisites>
 
     <licenses>
@@ -211,6 +226,11 @@
             <dependency>
                 <groupId>org.esa.snap</groupId>
                 <artifactId>snap-gpf-ui</artifactId>
+                <version>${snap.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.esa.snap</groupId>
+                <artifactId>snap-runtime</artifactId>
                 <version>${snap.version}</version>
             </dependency>
             <dependency>
@@ -344,6 +364,11 @@
             </dependency>
             <dependency>
                 <groupId>eu.esa.microwavetbx</groupId>
+                <artifactId>sar-io-gdal</artifactId>
+                <version>${microwavetbx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-op-insar</artifactId>
                 <version>${microwavetbx.version}</version>
             </dependency>
@@ -357,43 +382,14 @@
             <!-- Apache ############################################# -->
 
             <dependency>
-                <groupId>commons-collections</groupId>
-                <artifactId>commons-collections</artifactId>
-                <version>3.2.2</version>
-            </dependency>
-            <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.15</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-net</groupId>
-                <artifactId>commons-net</artifactId>
-                <version>3.9.0</version>
-            </dependency>
-
-            <dependency>
-                <groupId>commons-logging</groupId>
-                <artifactId>commons-logging</artifactId>
-                <version>1.2</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-cli</groupId>
-                <artifactId>commons-cli</artifactId>
-                <version>1.5.0</version>
+                <version>${commons-codec.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-math3</artifactId>
-                <version>3.6.1</version>
-            </dependency>
-
-            <!-- Jama Matrix Algebra Library ############################################# -->
-
-            <dependency>
-                <groupId>Jama</groupId>
-                <artifactId>Jama</artifactId>
-                <version>1.0.3</version>
+                <version>${commons-math3.version}</version>
             </dependency>
 
             <!-- JUnit Libraries ############################################# -->
@@ -402,6 +398,13 @@
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
                 <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -418,18 +421,34 @@
             <dependency>
                 <groupId>org.jsoup</groupId>
                 <artifactId>jsoup</artifactId>
-                <version>1.16.1</version>
+                <version>${jsoup.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>edu.emory.mathcs</groupId>
                 <artifactId>JTransforms</artifactId>
-                <version>2.4</version>
+                <version>${jtransforms.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jblas</groupId>
                 <artifactId>jblas</artifactId>
                 <version>${jblas.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jfree</groupId>
+                <artifactId>jfreechart</artifactId>
+                <version>1.5.4</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>xml-apis</groupId>
+                        <artifactId>xml-apis</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.lowagie</groupId>
+                        <artifactId>itext</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
         </dependencies>
@@ -448,10 +467,10 @@
             <plugins>
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.11.0</version>
+                    <version>3.13.0</version>
                     <configuration>
-                        <source>11</source>
-                        <target>11</target>
+                        <source>${jvm.version}</source>
+                        <target>${jvm.version}</target>
                         <debug>true</debug>
                         <encoding>UTF-8</encoding>
                         <excludes>
@@ -490,12 +509,6 @@
                                 <spacesPerTab>4</spacesPerTab>
                             </indent>
                         </pom>
-                        <yml>
-                            <includes>
-                                <include>*.yml</include>
-                            </includes>
-                            <prettier/>
-                        </yml>
                     </configuration>
                 </plugin>
 
@@ -548,7 +561,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>versions-maven-plugin</artifactId>
-                    <version>2.3</version>
+                    <version>2.15.0</version>
                 </plugin>
 
                 <plugin>
@@ -586,7 +599,7 @@
 
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.2.5</version>
+                    <version>3.5.0</version>
                     <configuration>
                         <enableAssertions>true</enableAssertions>
                         <!--  to test from the command line mvn test -DskipTests=false -->
@@ -611,7 +624,7 @@
                 <plugin>
                     <groupId>org.apache.netbeans.utilities</groupId>
                     <artifactId>nbm-maven-plugin</artifactId>
-                    <version>4.4</version>
+                    <version>14.0</version>
                     <extensions>true</extensions>
                     <dependencies>
                         <dependency>
@@ -702,7 +715,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>1.19</version>
+                <version>1.20</version>
             </plugin>
 
             <plugin>
@@ -721,7 +734,7 @@
                                     <version>[3.2.5,)</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>11</version>
+                                    <version>${jvm.version}</version>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>

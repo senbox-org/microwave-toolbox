@@ -96,7 +96,7 @@ public class Huynen extends DecompositionBase implements Decomposition, QuadPolP
             targetBandNameList.add(T33);
         }
 
-        return targetBandNameList.toArray(new String[targetBandNameList.size()]);
+        return targetBandNameList.toArray(new String[0]);
     }
 
     /**

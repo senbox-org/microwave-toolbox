@@ -499,11 +499,15 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
 
                 final String[] secondariesNames = referenceElem.getElementNames();
                 for (int i = 0; i < secondariesNames.length; i++) {
-                    secondariesNames[i] = secondariesNames[i].substring(7);
+                    secondariesNames[i] = extractDate(secondariesNames[i]);
                 }
                 return secondariesNames;
             }
         }
         return null;
+    }
+
+    public static String extractDate(final String bandName) {
+        return bandName.substring(bandName.lastIndexOf('_') + 1);
     }
 }

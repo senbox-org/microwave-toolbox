@@ -61,6 +61,7 @@ public class TestData {
 
     //S1
     public final static File inputS1_GRD = new File(inputSAR + "S1/S1A_S1_GRDM_1SDV_20140607T172812_20140607T172836_000947_000EBD_7543.zip");
+    public final static File inputS1C_GRD = new File(inputSAR + "S1/GRD/S1C_IW_GRDH_1SDV_20250117T181329_20250117T181357_000624_000495_FC84.SAFE.zip");
     public final static File inputS1_GRDSubset = new File(inputSAR + "S1/subset_0_of_subset_1_of_S1A_S1_GRDH_1SDH_20150828T165902_20150828T165921_007466_00A4B2_84A5.dim");
     public final static File inputS1_SLC = new File(inputSAR + "S1/S1A_IW_SLC__1SDV_20180620T222319_20180620T222347_022446_026E52_B227.zip");
     public final static File inputS1_StripmapSLC = new File(inputSAR + "S1/subset_2_S1A_S1_SLC__1SSV_20140807T142342_20140807T142411_001835_001BC1_05AA.dim");

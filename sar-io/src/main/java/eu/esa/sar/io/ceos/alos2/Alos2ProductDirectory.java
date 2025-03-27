@@ -80,7 +80,7 @@ public class Alos2ProductDirectory extends AlosPalsarProductDirectory {
                 // continue
             }
         }
-        imageFiles = imgArray.toArray(new AlosPalsarImageFile[imgArray.size()]);
+        imageFiles = imgArray.toArray(new AlosPalsarImageFile[0]);
 
         sceneWidth = imageFiles[0].getRasterWidth();
         sceneHeight = imageFiles[0].getRasterHeight();

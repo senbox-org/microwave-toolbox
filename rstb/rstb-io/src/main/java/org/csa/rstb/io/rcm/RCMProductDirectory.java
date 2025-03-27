@@ -198,6 +198,10 @@ public class RCMProductDirectory extends XMLProductDirectory {
         final ImageIOFile imgCX = getImageFile("_xc");
         final ImageIOFile imgCV = getImageFile("_cv");
 
+        if(imgCH == null || imgCX == null || imgCV == null) {
+            SystemUtils.LOG.severe("Unable to read some band of this MLC product");
+            return;
+        }
         try {
             addBand(product, "C11", width, height, imgCH, 0, Unit.INTENSITY);
             addBand(product, "C12_real", width, height, imgCX, 0, Unit.REAL);
@@ -894,7 +898,7 @@ public class RCMProductDirectory extends XMLProductDirectory {
         final float[] rangeDist = new float[gridWidth * gridHeight];
         final float[] rangeTime = new float[gridWidth * gridHeight];
 
-        final coefList[] segments = segmentsArray.toArray(new coefList[segmentsArray.size()]);
+        final coefList[] segments = segmentsArray.toArray(new coefList[0]);
 
         int k = 0;
         int c = 0;

@@ -28,13 +28,10 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
-import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
-import org.esa.snap.engine_utilities.gpf.OperatorUtils;
-import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
 
 import java.awt.*;
@@ -51,17 +48,13 @@ import java.util.List;
 
 public final class Sentinel1Calibrator extends BaseCalibrator implements Calibrator {
 
-    private static final String[] SUPPORTED_MISSIONS = new String[] {"SENTINEL-1A","SENTINEL-1B"};
+    private static final String[] SUPPORTED_MISSIONS = new String[] {"SENTINEL-1A","SENTINEL-1B","SENTINEL-1C","SENTINEL-1D"};
 
     private CalibrationInfo[] calibration = null;
     private boolean isMultiSwath = false;
     private boolean priorToIPFV234 = false;
     protected final HashMap<String, CalibrationInfo> targetBandToCalInfo = new HashMap<>(2);
-    private java.util.List<String> selectedPolList = null;
-    private boolean outputSigmaBand = false;
-    private boolean outputGammaBand = false;
-    private boolean outputBetaBand = false;
-    private boolean outputDNBand = false;
+
     private CALTYPE dataType = null;
     private int subsetOffsetX = 0;
     private int subsetOffsetY = 0;
@@ -96,38 +89,10 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
     public void setAuxFileFlag(String file) {
     }
 
-    public void setUserSelections(final Product sourceProduct,
-                                  final String[] selectedPolarisations,
-                                  final boolean outputSigmaBand,
-                                  final boolean outputGammaBand,
-                                  final boolean outputBetaBand,
-                                  final boolean outputDNBand) {
-
-        this.outputSigmaBand = outputSigmaBand;
-        this.outputGammaBand = outputGammaBand;
-        this.outputBetaBand = outputBetaBand;
-        this.outputDNBand = outputDNBand;
-
-        String[] selectedPols = selectedPolarisations;
-        if (selectedPols == null || selectedPols.length == 0) {
-            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-            selectedPols = Sentinel1Utils.getProductPolarizations(absRoot);
-        }
-
-        selectedPolList = new ArrayList<>(4);
-        for (String pol : selectedPols) {
-            selectedPolList.add(pol.toUpperCase());
-        }
-
-        if (!outputSigmaBand && !outputGammaBand && !outputBetaBand && !outputDNBand) {
-            this.outputSigmaBand = true;
-        }
-    }
-
     private void validate(final Product sourceProduct) throws OperatorException {
         final InputProductValidator validator = new InputProductValidator(sourceProduct);
         validator.checkIfSentinel1Product();
-        validator.checkAcquisitionMode(new String[]{"IW", "EW", "SM"});
+        validator.checkAcquisitionMode(new String[]{"IW", "EW", "SM", "WV"});
         validator.checkProductType(new String[]{"SLC", "GRD"});
         // Need to check for isComplex because it is OK to calibrate GRD product which are always debursted.
         if(validator.isComplex() && validator.isTOPSARProduct() && validator.isDebursted()) {
@@ -347,181 +312,7 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
 
         validate(sourceProduct);
 
-        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
-                sourceProduct.getProductType(),
-                sourceProduct.getSceneRasterWidth(),
-                sourceProduct.getSceneRasterHeight());
-
-        addSelectedBands(sourceProduct, sourceBandNames);
-
-        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
-
-        return targetProduct;
-    }
-
-    private void addSelectedBands(final Product sourceProduct, final String[] sourceBandNames) {
-
-        if (outputImageInComplex) {
-            outputInComplex(sourceProduct, sourceBandNames);
-        } else {
-            outputInIntensity(sourceProduct, sourceBandNames);
-        }
-    }
-
-    private void outputInComplex(final Product sourceProduct, final String[] sourceBandNames) {
-
-        final Band[] sourceBands = OperatorUtils.getSourceBands(sourceProduct, sourceBandNames, false);
-
-        for (int i = 0; i < sourceBands.length; i += 2) {
-
-            final Band srcBandI = sourceBands[i];
-            final String unit = srcBandI.getUnit();
-            String nextUnit = null;
-            if (unit == null) {
-                throw new OperatorException("band " + srcBandI.getName() + " requires a unit");
-            } else if (unit.contains(Unit.DB)) {
-                throw new OperatorException("Calibration of bands in dB is not supported");
-            } else if (unit.contains(Unit.IMAGINARY)) {
-                throw new OperatorException("I and Q bands should be selected in pairs");
-            } else if (unit.contains(Unit.REAL)) {
-                if (i + 1 >= sourceBands.length) {
-                    throw new OperatorException("I and Q bands should be selected in pairs");
-                }
-                nextUnit = sourceBands[i + 1].getUnit();
-                if (nextUnit == null || !nextUnit.contains(Unit.IMAGINARY)) {
-                    throw new OperatorException("I and Q bands should be selected in pairs");
-                }
-            } else {
-                throw new OperatorException("Please select I and Q bands in pairs only");
-            }
-
-            final String pol = srcBandI.getName().substring(srcBandI.getName().lastIndexOf("_") + 1);
-            if (!selectedPolList.contains(pol)) {
-                continue;
-            }
-
-            final Band srcBandQ = sourceBands[i + 1];
-            final String[] srcBandNames = {srcBandI.getName(), srcBandQ.getName()};
-            targetBandNameToSourceBandName.put(srcBandNames[0], srcBandNames);
-            final Band targetBandI = new Band(srcBandNames[0],
-                    ProductData.TYPE_FLOAT32,
-                    srcBandI.getRasterWidth(),
-                    srcBandI.getRasterHeight());
-            targetBandI.setUnit(unit);
-            targetBandI.setNoDataValueUsed(true);
-            targetBandI.setNoDataValue(srcBandI.getNoDataValue());
-            targetProduct.addBand(targetBandI);
-
-            targetBandNameToSourceBandName.put(srcBandNames[1], srcBandNames);
-            final Band targetBandQ = new Band(srcBandNames[1],
-                    ProductData.TYPE_FLOAT32,
-                    srcBandQ.getRasterWidth(),
-                    srcBandQ.getRasterHeight());
-            targetBandQ.setUnit(nextUnit);
-            targetBandQ.setNoDataValueUsed(true);
-            targetBandQ.setNoDataValue(srcBandQ.getNoDataValue());
-            targetProduct.addBand(targetBandQ);
-
-            final String suffix = "_" + OperatorUtils.getSuffixFromBandName(srcBandI.getName());
-            ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, suffix);
-        }
-    }
-
-    private void outputInIntensity(final Product sourceProduct, final String[] sourceBandNames) {
-
-        final Band[] sourceBands = OperatorUtils.getSourceBands(sourceProduct, sourceBandNames, false);
-
-        for (int i = 0; i < sourceBands.length; i++) {
-
-            final Band srcBand = sourceBands[i];
-            final String unit = srcBand.getUnit();
-            if (unit == null) {
-                throw new OperatorException("band " + srcBand.getName() + " requires a unit");
-            }
-
-            if (!unit.contains(Unit.REAL) && !unit.contains(Unit.AMPLITUDE) && !unit.contains(Unit.INTENSITY)) {
-                continue;
-            }
-
-            String[] srcBandNames;
-            if (unit.contains(Unit.REAL)) { // SLC
-
-                if (i + 1 >= sourceBands.length) {
-                    throw new OperatorException("Real and imaginary bands are not in pairs");
-                }
-
-                final String nextUnit = sourceBands[i + 1].getUnit();
-                if (nextUnit == null || !nextUnit.contains(Unit.IMAGINARY)) {
-                    throw new OperatorException("Real and imaginary bands are not in pairs");
-                }
-
-                srcBandNames = new String[2];
-                srcBandNames[0] = srcBand.getName();
-                srcBandNames[1] = sourceBands[i + 1].getName();
-                ++i;
-
-            } else { // GRD or calibrated product
-
-                srcBandNames = new String[1];
-                srcBandNames[0] = srcBand.getName();
-            }
-
-            final String pol = srcBandNames[0].substring(srcBandNames[0].lastIndexOf("_") + 1);
-            if (!selectedPolList.contains(pol)) {
-                continue;
-            }
-
-            final String[] targetBandNames = createTargetBandNames(srcBandNames[0]);
-            for (String tgtBandName : targetBandNames) {
-                if (targetProduct.getBand(tgtBandName) == null) {
-
-                    targetBandNameToSourceBandName.put(tgtBandName, srcBandNames);
-
-                    final Band targetBand = new Band(tgtBandName,
-                            ProductData.TYPE_FLOAT32,
-                            srcBand.getRasterWidth(),
-                            srcBand.getRasterHeight());
-
-                    targetBand.setUnit(Unit.INTENSITY);
-                    targetBand.setDescription(srcBand.getDescription());
-                    targetBand.setNoDataValue(srcBand.getNoDataValue());
-                    targetBand.setNoDataValueUsed(srcBand.isNoDataValueUsed());
-                    targetProduct.addBand(targetBand);
-                }
-            }
-        }
-    }
-
-    /**
-     * Create target band names for given source band name.
-     *
-     * @param srcBandName The given source band name.
-     * @return The target band name array.
-     */
-    private String[] createTargetBandNames(final String srcBandName) {
-
-        final int cnt = (outputSigmaBand ? 1 : 0) + (outputGammaBand ? 1 : 0) + (outputBetaBand ? 1 : 0) + (outputDNBand ? 1 : 0);
-        String[] targetBandNames = new String[cnt];
-
-        final String pol = srcBandName.substring(srcBandName.indexOf("_"));
-        int k = 0;
-        if (outputSigmaBand) {
-            targetBandNames[k++] = "Sigma0" + pol;
-        }
-
-        if (outputGammaBand) {
-            targetBandNames[k++] = "Gamma0" + pol;
-        }
-
-        if (outputBetaBand) {
-            targetBandNames[k++] = "Beta0" + pol;
-        }
-
-        if (outputDNBand) {
-            targetBandNames[k] = "DN" + pol;
-        }
-
-        return targetBandNames;
+        return super.createTargetProduct(sourceProduct, sourceBandNames);
     }
 
     /**

@@ -10,7 +10,7 @@
     <tr class="header">
         <td class="header">&nbsp; ETAD Correction for Sentinel-1 Products<br>
         </td>
-        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
@@ -18,20 +18,25 @@
 <p> The operator applies the ETAD correction to Sentinel-1&nbsp;TOPS
 SLC, Stripmap and GRD products.
 The Extended Timing Annotation Dataset (ETAD) for Copernicus Sentinel-1
-is a new auxiliary product developed by ESA (with DLR as contractor),
-providing users with corrections to improve the geometric accuracy of
-Sentinel-1 Products. For Sentinel-1 TOPS SLC images, the&nbsp;geometric
-accuracy can be improved to centimetric levels. The product contains
-analysis-ready layers for removing the atmospheric path delays, the
-solid Earth tidal deformation, and the Sentinel-1 system specific
-effects related to the IPF SAR processor.&nbsp;The&nbsp;operator computes
+is a new auxiliary product developed by ESA in a joint effort with DLR.
+It estimates the errors caused by the geophysical effects during
+imaging and the errors introduced during the processing of the
+Sentinel-1 SLC product. With the application of the ETAD correction,
+the geometric accuracy of the Sentinel-1 SLC images could be improved
+to centimetric levels.&nbsp;</p><p>This
+operator performs ETAD correction to a given Sentinel-1 product in two
+ways depending on the user's application which corresponds to the two
+options in the UI (Figure 1) below. For Option 1, the&nbsp;operator
+computes
 for all pixels the range and azimuth offsets based on the user selected
-ETAD correction layers, then resamples the image based on the computed range and
-azimuth offsets.&nbsp;</p><p>For
+ETAD correction layers, then resamples the image based on the computed
+range and
+azimuth offsets. It is for applications where the accurate geodetic
+geolocation is required. Option 2 is for InSAR applications where
+interferogram is generated using two ETAD corrected Sentinel-1 TOPS SLC
+products.&nbsp;</p><p>For
 TOPS SLC product,&nbsp;the&nbsp;operator currently requires the users
-split the product into sub-swathes and applies the ETAD correction to
-the split product. It also requires the users to provide the ETAD
-product correspondingto the Sentinel-1 product. In future, the ETAD product will be downloaded automatically. </p><h4>Input</h4>
+split the product into sub-swathes and applies the ETAD correction to each split product.&nbsp; </p><h4>Input</h4>
 <ul>
     <li>The input to this operator could be the split Sentinel-1 TOPS SLC product, Stripmap SLC product or GRD product.</li>
 </ul>
@@ -44,14 +49,27 @@ product correspondingto the Sentinel-1 product. In future, the ETAD product will
 
 <h4>Parameters Used</h4>
 <ul>
-    <li>Resampling Type: The interpolation methods used for resampling the image. </li><li>ETAD File: The ETAD product&nbsp;provided in a SAFE product container.</li><li>ETAD
+    <li>Auto-download ETAD File: If selected, the operator will
+find the corresponding ETAD product for the source product and download
+it automatically from the Copernicus Data Space.</li><li>Specify ETAD
+File: In case the ETAD file is not available and cannot be downloaded
+automatically, users can use their ETAD product obtained from other
+sources with this option.</li><li>Option 1: This is for applications
+where accurate geolocation is required. With this option, the azimuth
+and slant range delays are estimated for each pixel and image is
+resampled to correct the errors caused by the delays.</li><li>Resampling Type: The interpolation methods used for resampling the image. </li><li>ETAD
 Correction Layers: The range and azimuth correction layers available
-for ETAD correction. Note that the "Sum Of Range Corrections" layer
+for ETAD correction. Users can select the layers that matter to their
+applications. Note that the "Sum Of Range Corrections" layer
 contains all the individual range correction layers in it, and the "Sum
 Of Azimuth Corrections" contains all the individual azimuth correction
 layers. Therefore, they should not be selected together with any of the
-individual layers.</li></ul>
-<p><img style="width: 447px; height: 445px;" alt="" src="images/S1ETADCorrectionOp.jpg"><br></p><br>
+individual layers.</li><li>Option 2: This is for InSAR applications
+where the range corrections are converted to phase correction which is
+saved as a tie point grid in the output product. This phase correction
+is eventually used by the Interferogram operator in correcting
+interferometric phase. </li></ul>
+<p><img style="width: 472px; height: 441px;" alt="" src="images/S1ETADCorrectionOp.jpg"><br></p><br>
 <h3>Reference:</h3>
 <p>[1] S1-ETAD Project: Product definition Document, Doc. ID ETAD-DLR-PS-0002, Issue 2.4, Date 06.03.2023, Page 1 of 37.</p><p>[2] S1-ETAD: Product Format Specification Document, Doc. ID ETAD-DLR-PS-0014, Issue 1.8, Date 06.03.2023, Page 1 of 63.</p>
 

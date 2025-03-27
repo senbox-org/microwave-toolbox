@@ -1,5 +1,6 @@
 package org.jlinda.core.coregistration.cross;
 
+import com.bc.ceres.annotation.STTM;
 import org.apache.commons.lang3.ArrayUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.jblas.DoubleMatrix;
@@ -22,6 +23,7 @@ import static org.jlinda.core.utils.PolyUtils.*;
  * Description: Unit test and prototypes for Cross Interferometry
  */
 @SuppressWarnings("UnnecessaryLocalVariable")
+@STTM("SNAP-3766")
 public class CrossGeometryTest {
 
     // logger

@@ -88,7 +88,7 @@ public class InSARStackOverviewDialog extends ModelessDialog {
                 fileList.add(file);
             }
         }
-        inputProductListPanel.setProductFileList(fileList.toArray(new File[fileList.size()]));
+        inputProductListPanel.setProductFileList(fileList.toArray(new File[0]));
     }
 
     private void initContent() {
@@ -267,14 +267,17 @@ public class InSARStackOverviewDialog extends ModelessDialog {
 
         try {
             final InSARStackOverview dataStack = new InSARStackOverview();
-            dataStack.setInput(imgList.toArray(new SLCImage[imgList.size()]), orbList.toArray(new Orbit[orbList.size()]));
+            dataStack.setInput(imgList.toArray(new SLCImage[0]), orbList.toArray(new Orbit[0]));
 
-            final Worker worker = new Worker(SnapApp.getDefault().getMainFrame(), "Computing Optimal InSAR Reference",
-                                             dataStack);
-            worker.executeWithBlocking();
+            if(imgList.size() > 30) {
+                final Worker worker = new Worker(SnapApp.getDefault().getMainFrame(),
+                        "Computing Optimal InSAR Reference", dataStack);
+                worker.executeWithBlocking();
 
-            return (InSARStackOverview.IfgStack[]) worker.get();
-
+                return (InSARStackOverview.IfgStack[]) worker.get();
+            } else {
+                return dataStack.getCoherenceScores(ProgressMonitor.NULL);
+            }
         } catch (Throwable t) {
             Dialogs.showError("Error:" + t.getMessage());
             return null;
@@ -291,7 +294,7 @@ public class InSARStackOverviewDialog extends ModelessDialog {
         }
 
         @Override
-        protected Object doInBackground(ProgressMonitor pm) throws Exception {
+        protected Object doInBackground(ProgressMonitor pm) {
             return dataStack.getCoherenceScores(pm);
         }
     }

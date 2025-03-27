@@ -128,7 +128,7 @@ public class SpectraDataAsar extends SpectraDataBase implements SpectraData {
                 metadataList.add("Backscatter: " + frmt.format(backscatter) + " dB");
             }
 
-            return metadataList.toArray(new String[metadataList.size()]);
+            return metadataList.toArray(new String[0]);
 
         } catch (Exception e) {
             throw new Exception("Unable to get metadata for " + spectraMetadataRoot.getName());
@@ -158,7 +158,7 @@ public class SpectraDataAsar extends SpectraDataBase implements SpectraData {
             }
         } else if (spectraUnit == SpectraUnit.AMPLITUDE || spectraUnit == SpectraUnit.INTENSITY) {
             // complex data
-            final float imagSpectrum[][] = getSpectrum(currentRec, false);
+            final float[][] imagSpectrum = getSpectrum(currentRec, false);
             minValue = Float.MAX_VALUE;
             maxValue = Float.MIN_VALUE;
             for (int i = 0; i < spectrum.length; i++) {
@@ -194,7 +194,7 @@ public class SpectraDataAsar extends SpectraDataBase implements SpectraData {
             thStep = dirBinStep;
         }
 
-        final float radii[] = new float[spectrum[0].length + 1];
+        final float[] radii = new float[spectrum[0].length + 1];
         for (int j = 0; j <= spectrum[0].length; j++) {
             radii[j] = (float) (10000.0 / FastMath.exp(logr));
             logr += rStep;
@@ -213,7 +213,7 @@ public class SpectraDataAsar extends SpectraDataBase implements SpectraData {
         final float minValue = getMinValue(getReal);
         final float maxValue = getMaxValue(getReal);
         final float scale = (maxValue - minValue) / 255f;
-        final float spectrum[][] = new float[numDirBins][numWLBins];
+        final float[][] spectrum = new float[numDirBins][numWLBins];
 
         int index = 0;
         if (waveProductType == WaveProductType.WAVE_SPECTRA) {
@@ -245,7 +245,7 @@ public class SpectraDataAsar extends SpectraDataBase implements SpectraData {
         return spectrum;
     }
 
-    public String[] updateReadouts(final double rTh[], final int currentRecord) {
+    public String[] updateReadouts(final double[] rTh, final int currentRecord) {
         if (spectrum == null)
             return null;
 
@@ -276,6 +276,6 @@ public class SpectraDataAsar extends SpectraDataBase implements SpectraData {
         readoutList.add("Bin: " + (thBin + 1) + "," + (wvBin + 1) + " Element: " + element);
         readoutList.add("Value: " + spectrum[thBin][wvBin]);
 
-        return readoutList.toArray(new String[readoutList.size()]);
+        return readoutList.toArray(new String[0]);
     }
 }

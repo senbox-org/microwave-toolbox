@@ -300,10 +300,13 @@
             </folder>
             <folder name="SAR Applications">
                 <attr name="position" intvalue="900"/>
-                <file name="eu-esa-sar-insar-gpf-coregistration-OffsetTrackingOp-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-coregistration-OffsetTrackingOp-Action.instance"/>
-                    <attr name="position" intvalue="300"/>
-                </file>
+                <folder name="Ice">
+                    <attr name="position" intvalue="50"/>
+                    <file name="eu-esa-sar-insar-gpf-coregistration-OffsetTrackingOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-coregistration-OffsetTrackingOp-Action.instance"/>
+                        <attr name="position" intvalue="300"/>
+                    </file>
+                </folder>
             </folder>
         </folder>
     </folder>
@@ -331,7 +334,7 @@
         </file>
         <file name="eu.esa.sar.insar.gpf.ui.PCAOpUI">
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.PCAOpUI"/>
-            <attr name="operatorName" stringvalue="Principle-Components"/>
+            <attr name="operatorName" stringvalue="Principal-Components"/>
         </file>
         <file name="eu.esa.sar.insar.gpf.ui.PhaseToElevationOpUI">
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.PhaseToElevationOpUI"/>

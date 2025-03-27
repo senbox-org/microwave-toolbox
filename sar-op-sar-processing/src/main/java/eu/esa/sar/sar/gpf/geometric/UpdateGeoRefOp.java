@@ -20,7 +20,6 @@ import org.apache.commons.math3.util.FastMath;
 import eu.esa.sar.commons.OrbitStateVectors;
 import eu.esa.sar.commons.SARGeocoding;
 import eu.esa.sar.commons.SARUtils;
-import org.esa.snap.core.dataio.geocoding.GeoCodingFactory;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.dem.ElevationModel;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
@@ -293,7 +292,7 @@ public final class UpdateGeoRefOp extends Operator {
                     bandNameList.add(band.getName());
                 }
             }
-            sourceBandNames = bandNameList.toArray(new String[bandNameList.size()]);
+            sourceBandNames = bandNameList.toArray(new String[0]);
         }
 
         final Band[] sourceBands = new Band[sourceBandNames.length];

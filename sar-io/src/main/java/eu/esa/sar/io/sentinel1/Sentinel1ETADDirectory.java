@@ -149,7 +149,7 @@ public class Sentinel1ETADDirectory extends XMLProductDirectory implements Senti
     }
 
     @Override
-    public Product createProduct() throws IOException {
+    public Product createProduct() throws Exception {
 
         findImages(null);
         final MetadataElement newRoot = addMetaData();

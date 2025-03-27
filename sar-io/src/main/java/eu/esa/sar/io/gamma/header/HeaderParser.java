@@ -98,7 +98,7 @@ class HeaderParser {
                     splitsTrimmed.add(trimmed);
                 }
             }
-            return splitsTrimmed.toArray(new String[splitsTrimmed.size()]);
+            return splitsTrimmed.toArray(new String[0]);
         }
     }
 

@@ -94,7 +94,7 @@ class BasicCeosProductDirectory extends CEOSProductDirectory {
                 // continue
             }
         }
-        imageFiles = imgArray.toArray(new BasicCeosImageFile[imgArray.size()]);
+        imageFiles = imgArray.toArray(new BasicCeosImageFile[0]);
 
         sceneWidth = imageFiles[0].getRasterWidth();
         sceneHeight = imageFiles[0].getRasterHeight();
