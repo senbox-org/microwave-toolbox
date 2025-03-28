@@ -20,7 +20,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>11.0.2-SNAPSHOT</version>
+        <version>11.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-insar-ui</artifactId>
@@ -104,6 +104,10 @@
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>microwavetbx-rcp</artifactId>
         </dependency>
         <dependency>
@@ -117,7 +121,15 @@
         </dependency>
         <dependency>
             <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-util-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
             <artifactId>org-openide-windows</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-util-lookup</artifactId>
         </dependency>
         <dependency>
             <groupId>org.netbeans.api</groupId>

@@ -17,28 +17,22 @@ package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.binding.dom.DefaultDomElement;
 import com.bc.ceres.binding.dom.DomElement;
-import eu.esa.sar.insar.gpf.InterferogramOp;
 import eu.esa.sar.orbits.gpf.ApplyOrbitFileOp;
 import eu.esa.sar.sentinel1.gpf.BackGeocodingOp;
 import eu.esa.sar.sentinel1.gpf.S1ETADCorrectionOp;
 import eu.esa.sar.sentinel1.gpf.TOPSARSplitOp;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.graph.Graph;
-import org.esa.snap.core.gpf.graph.GraphIO;
 import org.esa.snap.core.gpf.graph.Node;
 import org.esa.snap.core.gpf.graph.NodeSource;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.Reader;
 
 public class TestBenchmark_ETAD extends BaseBenchmarks {
 
     protected enum ProcessMode {SPLIT_ORBIT, SPLIT_ORBIT_ETAD}
-
-    final String stackGraphPath = getTestFilePath("/eu/esa/microwave/benchmark/graphs/Sentinel1-TOPS-Coregistration.xml");
-    final String ifgGraphPath = getTestFilePath("/eu/esa/microwave/benchmark/graphs/Sentinel1-TOPS-Coregistration.xml");
 
     public TestBenchmark_ETAD() {
         super("ETAD");
@@ -89,40 +83,21 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
     @Test
     public void testInSAR_Coregister_ProductIO() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, false, WriteMode.PRODUCT_IO);
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testInSAR_Coregister_GPF() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, false, WriteMode.GPF);
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, WriteMode.GPF);
     }
 
     @Test
     public void testInSAR_Coregister_Graph() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, false, WriteMode.GRAPH);
+        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, WriteMode.GRAPH);
     }
 
-    // Split -> ApplyOrbit -> ETAD -> BackGeoCoding -> Interferogram
-
-    @Test
-    public void testInSAR_Coregister_Ifg_ProductIO() throws Exception {
-        setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, true, WriteMode.PRODUCT_IO);
-    }
-
-    @Test
-    public void testInSAR_Coregister_Ifg_GPF() throws Exception {
-        setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, true, WriteMode.GPF);
-    }
-
-    @Test
-    public void testInSAR_Coregister_Ifg_Graph() throws Exception {
-        setName(new Throwable().getStackTrace()[0].getMethodName());
-        coregister(slcInSAR1, etadInSAR1, slcInSAR2, etadInSAR2, true, WriteMode.GRAPH);
-    }
 
 
 
@@ -230,7 +205,6 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
 
     private void coregister(final File srcFile1, final File etadFile1,
                             final File srcFile2, final File etadFile2,
-                            final boolean ifg,
                             final WriteMode mode) throws Exception {
         Benchmark b = new Benchmark(groupName, testName) {
             @Override
@@ -238,14 +212,10 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
                 switch (mode) {
                     case PRODUCT_IO:
                     case GPF:
-                        processStack(srcFile1, etadFile1, srcFile2, etadFile2, ifg, outputFolder, mode);
+                        processStack(srcFile1, etadFile1, srcFile2, etadFile2, outputFolder, mode);
                         break;
                     case GRAPH:
-                        if(ifg) {
-                            processStackGraph(ifgGraphPath, new File[] {srcFile1, srcFile2}, outputFolder);
-                        } else {
-                            processStackGraph(stackGraphPath, new File[] {srcFile1, srcFile2}, outputFolder);
-                        }
+                        processStackGraph(srcFile1, etadFile1, srcFile2, etadFile2, outputFolder);
                         break;
                 }
             }
@@ -254,7 +224,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
     }
 
     private void processStack(final File srcFile1, final File etadFile1,
-                              final File srcFile2, final File etadFile2, boolean ifg,
+                              final File srcFile2, final File etadFile2,
                               final File outputFolder, final WriteMode mode) throws Exception {
         try(final Product srcProduct1 = read(srcFile1)) {
             try(final Product srcProduct2 = read(srcFile2)) {
@@ -292,15 +262,7 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
                 BackGeocodingOp backGeoOp = new BackGeocodingOp();
                 backGeoOp.setSourceProducts(etadOp1.getTargetProduct(), etadOp2.getTargetProduct());
 
-                Product trgProduct;
-                if(ifg) {
-                    InterferogramOp ifgOp = new InterferogramOp();
-                    ifgOp.setSourceProduct(backGeoOp.getTargetProduct());
-
-                    trgProduct = ifgOp.getTargetProduct();
-                } else {
-                    trgProduct = backGeoOp.getTargetProduct();
-                }
+                Product trgProduct = backGeoOp.getTargetProduct();
 
                 write(trgProduct, outputFolder, mode);
 
@@ -311,14 +273,81 @@ public class TestBenchmark_ETAD extends BaseBenchmarks {
         }
     }
 
-    private void processStackGraph(final String graphPath, final File[] srcFiles, final File outputFile) throws Exception {
+    private void processStackGraph(final File srcFile1, final File etadFile1,
+                                   final File srcFile2, final File etadFile2,
+                                   final File outputFolder) throws Exception {
 
-        try (Reader fileReader = new FileReader(graphPath)) {
-            Graph graph = GraphIO.read(fileReader);
+        final Graph graph = new Graph("graph");
 
-            setIO(graph, srcFiles, outputFile, "BEAM-DIMAP");
+        final Node readNode1 = new Node("read1", "read");
+        final DomElement readParameters1 = new DefaultDomElement("parameters");
+        readParameters1.createChild("file").setValue(srcFile1.getAbsolutePath());
+        readNode1.setConfiguration(readParameters1);
+        graph.addNode(readNode1);
 
-            processGraph(graph);
-        }
+        final Node readNode2 = new Node("read2", "read");
+        final DomElement readParameters2 = new DefaultDomElement("parameters");
+        readParameters2.createChild("file").setValue(srcFile2.getAbsolutePath());
+        readNode2.setConfiguration(readParameters2);
+        graph.addNode(readNode2);
+
+        final Node splitNode1 = new Node("TOPSAR-Split1", "TOPSAR-Split");
+        splitNode1.addSource(new NodeSource("source", "read1"));
+        final DomElement splitParameters1 = new DefaultDomElement("parameters");
+        splitParameters1.createChild("subswath").setValue("IW1");
+        splitParameters1.createChild("selectedPolarisations").setValue("VV");
+        splitParameters1.createChild("lastBurstIndex").setValue("2");
+        splitNode1.setConfiguration(splitParameters1);
+        graph.addNode(splitNode1);
+
+        final Node splitNode2 = new Node("TOPSAR-Split2", "TOPSAR-Split");
+        splitNode2.addSource(new NodeSource("source", "read2"));
+        final DomElement splitParameters2 = new DefaultDomElement("parameters");
+        splitParameters2.createChild("subswath").setValue("IW1");
+        splitParameters2.createChild("selectedPolarisations").setValue("VV");
+        splitParameters2.createChild("lastBurstIndex").setValue("2");
+        splitNode2.setConfiguration(splitParameters2);
+        graph.addNode(splitNode2);
+
+        final Node applyOrbitNode1 = new Node("Apply-Orbit-File1", "Apply-Orbit-File");
+        applyOrbitNode1.addSource(new NodeSource("source", "TOPSAR-Split1"));
+        graph.addNode(applyOrbitNode1);
+
+        final Node applyOrbitNode2 = new Node("Apply-Orbit-File2", "Apply-Orbit-File");
+        applyOrbitNode2.addSource(new NodeSource("source", "TOPSAR-Split2"));
+        graph.addNode(applyOrbitNode2);
+
+        final Node etadNode1 = new Node("S1-ETAD-Correction1", "S1-ETAD-Correction");
+        etadNode1.addSource(new NodeSource("source", "Apply-Orbit-File1"));
+        final DomElement etadParameters1 = new DefaultDomElement("parameters");
+        etadParameters1.createChild("etadFile").setValue(etadFile1.getAbsolutePath());
+        etadParameters1.createChild("resamplingImage").setValue("false");
+        etadParameters1.createChild("outputPhaseCorrections").setValue("true");
+        etadNode1.setConfiguration(etadParameters1);
+        graph.addNode(etadNode1);
+
+        final Node etadNode2 = new Node("S1-ETAD-Correction2", "S1-ETAD-Correction");
+        etadNode2.addSource(new NodeSource("source", "Apply-Orbit-File2"));
+        final DomElement etadParameters2 = new DefaultDomElement("parameters");
+        etadParameters2.createChild("etadFile").setValue(etadFile2.getAbsolutePath());
+        etadParameters2.createChild("resamplingImage").setValue("false");
+        etadParameters2.createChild("outputPhaseCorrections").setValue("true");
+        etadNode2.setConfiguration(etadParameters2);
+        graph.addNode(etadNode2);
+
+        final Node backGeoCodingNode = new Node("Back-Geocoding", "Back-Geocoding");
+        backGeoCodingNode.addSource(new NodeSource("source", "S1-ETAD-Correction1"));
+        backGeoCodingNode.addSource(new NodeSource("source", "S1-ETAD-Correction2"));
+        graph.addNode(backGeoCodingNode);
+
+        final Node writeNode = new Node("write", "write");
+        final DomElement writeParameters = new DefaultDomElement("parameters");
+        final File outFile = new File(outputFolder, srcFile1.getName());
+        writeParameters.createChild("file").setValue(outFile.getAbsolutePath());
+        writeNode.setConfiguration(writeParameters);
+        writeNode.addSource(new NodeSource("source", "Back-Geocoding"));
+        graph.addNode(writeNode);
+
+        processGraph(graph);
     }
 }

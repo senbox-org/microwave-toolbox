@@ -68,7 +68,7 @@ public class ProductValidator {
         if (product == null) {
             throw new Exception("product is null");
         }
-        if (productOptions.verifyGeoCoding && !hasGeoCoding(product)) {
+        if (productOptions.verifyGeoCoding && product.getSceneGeoCoding() == null) {
             throw new Exception("geocoding is null");
         }
         if (product.getMetadataRoot() == null) {
@@ -93,19 +93,6 @@ public class ProductValidator {
         verifyTimes();
         verifyBands();
         verifyTiePointGrids();
-    }
-
-    private boolean hasGeoCoding(final Product product) {
-        boolean hasGeoCoding = product.getSceneGeoCoding() != null;
-        if(!hasGeoCoding) {
-            for(Band band : product.getBands()) {
-                if(band.getGeoCoding() != null) {
-                    hasGeoCoding = true;
-                    break;
-                }
-            }
-        }
-        return hasGeoCoding;
     }
 
     private boolean isNotValid(final String str) {

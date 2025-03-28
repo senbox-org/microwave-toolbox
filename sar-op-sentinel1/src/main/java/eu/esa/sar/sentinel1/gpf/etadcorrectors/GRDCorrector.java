@@ -16,6 +16,7 @@
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.Operator;
@@ -39,10 +40,10 @@ import java.util.StringTokenizer;
 
  public class GRDCorrector extends BaseCorrector implements Corrector {
 
-    double firstLineTime = 0.0;
-    double lastLineTime = 0.0;
-    double lineTimeInterval = 0.0;
-    double groundRangeSpacing = 0.0;
+    private double firstLineTime = 0.0;
+    private double lastLineTime = 0.0;
+    private double lineTimeInterval = 0.0;
+    private double groundRangeSpacing = 0.0;
     private SRGRCoefficientList[] srgrConvParams = null;
     private GRSRCoefficientList[] grsrConvParams = null;
 
@@ -64,7 +65,7 @@ import java.util.StringTokenizer;
         }
     }
 
-    void getSourceProductMetadata() {
+    private void getSourceProductMetadata() {
 
         try {
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
@@ -209,6 +210,7 @@ import java.util.StringTokenizer;
                                                final int burstIndex, final double[][] correction, final double scale)
             throws Exception {
 
+        Map<String, double[][]> correctionMap = new HashMap<>(10);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -225,7 +227,7 @@ import java.util.StringTokenizer;
                         groundRange - grsrConvParams[0].ground_range_origin, grsrCoefficients);
                 final double rgTime = slantRange / Constants.halfLightSpeed;
                 final ETADUtils.Burst burst = etadUtils.getBurst(azTime, rgTime);
-                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst);
+                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
             }
         }
     }

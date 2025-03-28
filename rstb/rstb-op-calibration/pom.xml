@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.csa.rstb</groupId>
         <artifactId>rstb</artifactId>
-        <version>11.0.2-SNAPSHOT</version>
+        <version>11.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>rstb-op-calibration</artifactId>
@@ -41,13 +41,11 @@
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-calibration</artifactId>
+            <artifactId>sar-commons</artifactId>
         </dependency>
-
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-commons</artifactId>
-            <scope>test</scope>
+            <artifactId>sar-op-calibration</artifactId>
         </dependency>
         <dependency>
             <groupId>org.csa.rstb</groupId>

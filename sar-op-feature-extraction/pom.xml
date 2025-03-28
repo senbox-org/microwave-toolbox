@@ -21,7 +21,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>11.0.2-SNAPSHOT</version>
+        <version>11.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-feature-extraction</artifactId>
@@ -58,6 +58,10 @@
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-raster</artifactId>
             <version>${snap.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-commons</artifactId>
         </dependency>
 
         <dependency>

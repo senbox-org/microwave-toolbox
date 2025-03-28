@@ -17,6 +17,7 @@ package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.resamp.Resampling;
 import org.esa.snap.core.gpf.Operator;
@@ -24,8 +25,6 @@ import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
-import org.esa.snap.core.util.ThreadExecutor;
-import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -67,34 +66,6 @@ import java.util.Map;
         try {
             getSourceProductMetadata();
         } catch (Throwable e) {
-            throw new OperatorException(e);
-        }
-    }
-
-    @Override
-    public synchronized void loadETADData() throws OperatorException {
-        if(etadDataLoaded) {
-            return;
-        }
-        try {
-            final ETADUtils.Burst burst = etadUtils.getBurst(1, 1, 1);
-            final String[] preLoadedLayers = new String[] {TROPOSPHERIC_CORRECTION_RG, HEIGHT,
-                    GEODETIC_CORRECTION_RG, IONOSPHERIC_CORRECTION_RG};
-
-            ThreadExecutor executor = new ThreadExecutor();
-            for(String preLoadedLayer : preLoadedLayers) {
-                ThreadRunnable runnable1 = new ThreadRunnable() {
-                    @Override
-                    public void process() {
-                        getBurstCorrection(preLoadedLayer, burst);
-                    }
-                };
-                executor.execute(runnable1);
-            }
-            executor.complete();
-
-            etadDataLoaded = true;
-        } catch (Exception e) {
             throw new OperatorException(e);
         }
     }
@@ -168,10 +139,6 @@ import java.util.Map;
             final Band heightBand = new Band(ETAD_HEIGHT, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
             heightBand.setUnit(Unit.METERS);
             targetProduct.addBand(heightBand);
-
-            final Band gradientBand = new Band(ETAD_GRADIENT, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
-            gradientBand.setUnit(Unit.RADIANS);
-            targetProduct.addBand(gradientBand);
 
         } else { // resampling image
 
@@ -290,7 +257,7 @@ import java.util.Map;
             final int xMax = x0 + w - 1;
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 
-            if (!tropoToHeightGradientComputed) {
+            if (!tropToHeightGradientComputed) {
                 computeTroposphericToHeightGradient();
             }
 
@@ -301,9 +268,6 @@ import java.util.Map;
             double[][] height = new double[h][w];
             getCorrectionForCurrentTile(HEIGHT, x0, y0, w, h, 1, height);
 
-            double[][] gradient = new double[h][w];
-            getCorrectionForCurrentTile(GRADIENT, x0, y0, w, h, 1, gradient);
-
             final Band phaseBand = targetProduct.getBand(ETAD_PHASE_CORRECTION);
             final Tile phaseTile = targetTileMap.get(phaseBand);
             final ProductData phaseData = phaseTile.getDataBuffer();
@@ -312,30 +276,22 @@ import java.util.Map;
             final Band heightBand = targetProduct.getBand(ETAD_HEIGHT);
             final Tile heightTile = targetTileMap.get(heightBand);
             final ProductData heightData = heightTile.getDataBuffer();
-            final TileIndex heightIndex = new TileIndex(heightTile);
-
-            final Band gradientBand = targetProduct.getBand(ETAD_GRADIENT);
-            final Tile gradientTile = targetTileMap.get(gradientBand);
-            final ProductData gradientData = gradientTile.getDataBuffer();
-            final TileIndex gradientIndex = new TileIndex(gradientTile);
+            final TileIndex heightIndex = new TileIndex(phaseTile);
 
             for (int y = y0; y <= yMax; ++y) {
                 phaseIndex.calculateStride(y);
                 heightIndex.calculateStride(y);
-                gradientIndex.calculateStride(y);
                 int yy = y - y0;
 
                 for (int x = x0; x <= xMax; ++x) {
                     final int phaseIdx = phaseIndex.getIndex(x);
                     final int heightIdx = heightIndex.getIndex(x);
-                    final int gradientIdx = gradientIndex.getIndex(x);
                     final int xx = x - x0;
 
                     final double delay = correction[yy][xx] + rangeTimeCalibration;
                     final double phase = -2.0 * Constants.PI * radarFrequency * delay; // delay time (s) to phase (radian)
                     phaseData.setElemDoubleAt(phaseIdx, phase);
                     heightData.setElemDoubleAt(heightIdx, height[yy][xx]);
-                    gradientData.setElemDoubleAt(gradientIdx, -2.0 * Constants.PI * radarFrequency * gradient[yy][xx]);
                 }
             }
 
@@ -346,11 +302,49 @@ import java.util.Map;
 
     private synchronized void computeTroposphericToHeightGradient() {
 
-        if (tropoToHeightGradientComputed) return;
+        if (tropToHeightGradientComputed) return;
 
-        etadUtils.computeTroposphericToHeightGradient(1, 1);
+        final double[] gradientArray = new double[1];
+        final ETADUtils.Burst burst = etadUtils.getBurst(1, 1, 1);
+        final double[][] tropCorr = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
+        final double[][] height = getBurstCorrection(HEIGHT, burst);
+        final double gradient = computeGradientForCurrentBurst(tropCorr, height);
+        gradientArray[0] = -2.0 * Constants.PI * radarFrequency * gradient;
 
-        tropoToHeightGradientComputed = true;
+        final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
+        MetadataElement etadElem = absTgt.getElement(ETAD);
+        if (etadElem == null) {
+            etadElem = new MetadataElement(ETAD);
+            absTgt.addElement(etadElem);
+        }
+        final MetadataAttribute attrib = new MetadataAttribute("gradient", ProductData.TYPE_FLOAT64, gradientArray.length);
+        attrib.getData().setElems(gradientArray);
+        etadElem.addAttribute(attrib);
+
+        tropToHeightGradientComputed = true;
+    }
+
+    private double computeGradientForCurrentBurst(final double[][] tropCorr, final double[][] height) {
+
+        final int rows = tropCorr.length;
+        final int cols = tropCorr[0].length;
+
+        double sumX = 0.0, sumX2 = 0.0, sumY = 0.0, sumXY = 0.0;
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols - 1; ++c) {
+                final double dh = height[r][c + 1] - height[r][c];
+                final double dt = tropCorr[r][c + 1] - tropCorr[r][c];
+                sumX += dh;
+                sumX2 += dh * dh;
+                sumY += dt;
+                sumXY += dh * dt;
+            }
+        }
+
+        final Matrix A = new Matrix(new double[][]{{sumX2, sumX}, {sumX, rows * (cols - 1)}});
+        final Matrix b = new Matrix(new double[]{sumXY, sumY}, 2);
+        final Matrix c = A.solve(b);
+        return c.get(0,0);
     }
 
     private void computeETADCorrPixPos(final int x0, final int y0, final int w, final int h,
@@ -395,8 +389,7 @@ import java.util.Map;
     protected void getCorrectionForCurrentTile(final String layer, final int x0, final int y0, final int w, final int h,
                                                final int burstIndex, final double[][] correction, final double scale) {
 
-        final ETADUtils.Burst burst = etadUtils.getBurst(1, 1, burstIndex);
-
+        Map<String, double[][]> correctionMap = new HashMap<>(10);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -406,7 +399,8 @@ import java.util.Map;
             for (int x = x0; x <= xMax; ++x) {
                 final int xx = x - x0;
                 final double rgTime = (slantRangeToFirstPixel + x * rangeSpacing) / Constants.halfLightSpeed;
-                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst);
+                final ETADUtils.Burst burst = etadUtils.getBurst(azTime, rgTime);
+                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
             }
         }
     }

@@ -6,7 +6,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>11.0.2-SNAPSHOT</version>
+        <version>11.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-io</artifactId>
@@ -63,7 +63,7 @@
         <dependency>
             <groupId>uk.me.jstott</groupId>
             <artifactId>jcoord</artifactId>
-            <version>${jcoord.version}</version>
+            <version>1.0</version>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>

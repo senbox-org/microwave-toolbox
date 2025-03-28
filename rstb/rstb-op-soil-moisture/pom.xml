@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.csa.rstb</groupId>
         <artifactId>rstb</artifactId>
-        <version>11.0.2-SNAPSHOT</version>
+        <version>11.0.1-SNAPSHOT</version>
     </parent>
 
     <name>RSTB Soil Moisture Retrieval</name>
@@ -36,17 +36,17 @@
         <dependency>
             <groupId>org.tallison</groupId>
             <artifactId>jmatio</artifactId>
-            <version>${jmatio.version}</version>
+            <version>1.5</version>
         </dependency>
         <dependency>
             <groupId>net.sourceforge</groupId>
             <artifactId>javaml</artifactId>
-            <version>${javaml.version}</version>
+            <version>0.1.7</version>
         </dependency>
         <dependency>
             <groupId>net.sf.opencsv</groupId>
             <artifactId>opencsv</artifactId>
-            <version>${opencsv.version}</version>
+            <version>2.1</version>
         </dependency>
     </dependencies>
 

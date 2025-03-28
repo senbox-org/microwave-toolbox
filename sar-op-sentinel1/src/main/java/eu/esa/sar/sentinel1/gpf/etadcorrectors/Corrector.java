@@ -16,6 +16,7 @@
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.ETADUtils;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.Operator;
@@ -31,9 +32,6 @@ import java.awt.*;
 public interface Corrector {
 
     void initialize() throws OperatorException;
-
-    void dispose();
-
     void setTroposphericCorrectionRg(final boolean flag);
     void setIonosphericCorrectionRg(final boolean flag);
     void setGeodeticCorrectionRg(final boolean flag);
@@ -46,13 +44,7 @@ public interface Corrector {
     void setResamplingImage(final boolean flag);
     void setOutputPhaseCorrections(final boolean flag);
     void setEtadUtils(final ETADUtils etadUtils);
-    void setEtadProduct(final Product etadProduct);
-
     Product createTargetProduct();
-
-    boolean hasETADData();
-
-    void loadETADData();
 
     /**
      * Called by the framework in order to compute a tile for the given target band.

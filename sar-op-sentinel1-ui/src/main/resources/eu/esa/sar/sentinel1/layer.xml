@@ -277,10 +277,10 @@
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-TOPSARDerampDemodOp-Action.instance"/>
                     <attr name="position" intvalue="610"/>
                 </file>
-                <file name="eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.shadow">
+                <!--file name="eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.instance"/>
                     <attr name="position" intvalue="810"/>
-                </file>
+                </file-->
             </folder>
 
         </folder>

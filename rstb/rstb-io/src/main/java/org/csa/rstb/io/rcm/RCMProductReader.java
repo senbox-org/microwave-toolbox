@@ -90,7 +90,6 @@ public class RCMProductReader extends SARReader {
             product.setProductReader(this);
 
             addQuicklook(product, Quicklook.DEFAULT_QUICKLOOK_NAME, getQuicklookFile());
-            addPauliQuicklooks(product);
 
             return product;
         } catch (Exception e) {

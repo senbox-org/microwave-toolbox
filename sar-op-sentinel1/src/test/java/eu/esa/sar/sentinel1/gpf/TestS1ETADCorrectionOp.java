@@ -23,7 +23,6 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -53,7 +52,6 @@ public class TestS1ETADCorrectionOp {
     }
 
     @Test
-    @Ignore("Disable for now. Will update it when the code is updated")
     public void testTOPSCorrectorInSAR() throws Exception {
         try(final Product sourceProduct = TestUtils.readSourceProduct(S1_IW_SLC)) {
 
@@ -74,7 +72,6 @@ public class TestS1ETADCorrectionOp {
     }
 
     @Test
-    @Ignore("Disable for now. Will update it when the code is updated")
     public void testSMCorrectorInSAR() throws Exception {
         try(final Product sourceProduct = TestUtils.readSourceProduct(S1_SM_SLC)) {
 
