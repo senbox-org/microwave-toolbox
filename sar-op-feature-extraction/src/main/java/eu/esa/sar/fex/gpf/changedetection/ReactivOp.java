@@ -17,6 +17,7 @@ package eu.esa.sar.fex.gpf.changedetection;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.dataop.downloadable.StatusProgressMonitor;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -26,6 +27,8 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.ThreadExecutor;
+import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.*;
@@ -86,6 +89,8 @@ public class ReactivOp extends Operator {
     private double timeMax = 0.0;
     private String[] prodAcqDateArray = null;
     private int numOfProducts = 0;
+    private double threshold = 0.0;
+    private boolean thresholdComputed = false; // threshold for Value normalization
 
     private static double noDataValue = 0.0;
     private static final String HUE_BAND_NAME = "hue";
@@ -321,6 +326,10 @@ public class ReactivOp extends Operator {
             throws OperatorException {
 
         try {
+            if (!thresholdComputed) {
+                computeThreshold();
+            }
+
             final int x0 = targetRectangle.x;
             final int y0 = targetRectangle.y;
             final int w = targetRectangle.width;
@@ -413,7 +422,7 @@ public class ReactivOp extends Operator {
                         continue;
                     }
 
-                    final double hue = 0.9 * (timeMax - time[yy][xx]) / (timeMax - timeMin);
+                    final double hue = 0.9 * (time[yy][xx] - timeMin) / (timeMax - timeMin);
                     hueData.setElemDoubleAt(tgtIdx, hue);
 
                     final double meanPol1 = sumPol1[yy][xx] / numOfProducts;
@@ -432,7 +441,8 @@ public class ReactivOp extends Operator {
 
                     final double meanOfMax = sumMax[yy][xx] / numOfProducts;
                     final double value = 0.4 * (max[yy][xx] + meanOfMax);
-                    valData.setElemDoubleAt(tgtIdx, value);
+                    final double normValue = value < threshold? (value / threshold) : 1.0;
+                    valData.setElemDoubleAt(tgtIdx, normValue);
                 }
             }
 
@@ -484,6 +494,107 @@ public class ReactivOp extends Operator {
         final int year = Integer.parseInt(dateStr.substring(5));
         final String timeStr = day + "-" + month + "-" + year + " 00:00:00.000000";
         return AbstractMetadata.parseUTC(timeStr).getMJD();
+    }
+
+    private synchronized void computeThreshold() {
+
+        if (thresholdComputed) return;
+
+        final Dimension tileSize = new Dimension(256, 256);
+        final Rectangle[] tileRectangles = OperatorUtils.getAllTileRectangles(sourceProduct, tileSize, 0);
+        final StatusProgressMonitor status = new StatusProgressMonitor(StatusProgressMonitor.TYPE.SUBTASK);
+        status.beginTask("Computing Value normalization threshold... ", tileRectangles.length);
+        final ThreadExecutor executor = new ThreadExecutor();
+
+        double[] sumSum2 = new double[2];
+        try {
+            for (final Rectangle rectangle : tileRectangles) {
+                final ThreadRunnable worker = new ThreadRunnable() {
+                    @Override
+                    public void process() {
+                        final int x0 = rectangle.x;
+                        final int y0 = rectangle.y;
+                        final int w = rectangle.width;
+                        final int h = rectangle.height;
+                        final int maxX = x0 + w;
+                        final int maxY = y0 + h;
+
+                        final boolean isDualPol = !pol2.equals("-");
+                        final double[][] sumMax = new double[h][w];
+                        final double[][] max = new double[h][w];
+                        for (String date : prodAcqDateArray) {
+                            final Band bandPol1 = getBand(date, pol1);
+                            final Tile tilePol1 = getSourceTile(bandPol1, rectangle);
+                            final ProductData dataBufferPol1 = tilePol1.getDataBuffer();
+                            final double noDataValuePol1 = bandPol1.getNoDataValue();
+                            final TileIndex srcIndex = new TileIndex(tilePol1);
+
+                            ProductData dataBufferPol2 = null;
+                            double noDataValuePol2 = 0;
+                            if(isDualPol) {
+                                Band bandPol2 = getBand(date, pol2);
+                                Tile tilePol2 = getSourceTile(bandPol2, rectangle);
+                                dataBufferPol2 = tilePol2.getDataBuffer();
+                                noDataValuePol2 = bandPol2.getNoDataValue();
+                            }
+
+                            for (int y = y0; y < maxY; ++y) {
+                                srcIndex.calculateStride(y);
+                                final int yy = y - y0;
+
+                                for (int x = x0; x < maxX; ++x) {
+                                    final int srcIdx = srcIndex.getIndex(x);
+                                    final int xx = x - x0;
+
+                                    final double vPol1 = dataBufferPol1.getElemDoubleAt(srcIdx);
+                                    final double vPol2 = isDualPol ? dataBufferPol2.getElemDoubleAt(srcIdx) : -9999;
+                                    if (vPol1 == noDataValuePol1 || vPol2 == noDataValuePol2) {
+                                        sumMax[yy][xx] = -1.0;
+                                        continue;
+                                    }
+                                    final double vMax = Math.max(vPol1, vPol2);
+                                    sumMax[yy][xx] += vMax;
+                                    if (max[yy][xx] < vMax) {
+                                        max[yy][xx] = vMax;
+                                    }
+                                }
+                            }
+                        }
+
+                        for (int y = y0; y < maxY; ++y) {
+                            final int yy = y - y0;
+                            for (int x = x0; x < maxX; ++x) {
+                                final int xx = x - x0;
+                                if (sumMax[yy][xx] == -1.0) {
+                                    continue;
+                                }
+
+                                final double meanOfMax = sumMax[yy][xx] / numOfProducts;
+                                final double value = 0.4 * (max[yy][xx] + meanOfMax);
+                                final double value2 = value * value;
+                                synchronized (sumSum2) {
+                                    sumSum2[0] += value;
+                                    sumSum2[1] += value2;
+                                }
+                            }
+                        }
+                    }
+                };
+                executor.execute(worker);
+                status.worked(1);
+            }
+            executor.complete();
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId() + " computeThreshold ", e);
+        } finally {
+            status.done();
+        }
+
+        final double mean = sumSum2[0] / (sourceImageWidth * sourceImageHeight);
+        final double std = Math.sqrt(sumSum2[1] / (sourceImageWidth * sourceImageHeight) - mean * mean);
+        threshold = mean + std;
+
+        thresholdComputed = true;
     }
 
 
