@@ -93,16 +93,12 @@ public class SentinelPODOrbitFile extends BaseOrbitFile implements OrbitFile {
         }
 
         if (orbitFile == null) {
-            String msg;
-            if(orbitType.startsWith(RESTITUTED)) {
-                msg = "RESORB files are no longer available from Copernicus Dataspaces";
-            } else {
-                String timeStr = absRoot.getAttributeUTC(AbstractMetadata.STATE_VECTOR_TIME).format();
-                final File destFolder = getDestFolder(missionPrefix, orbitType, year, month);
-                msg = "No valid orbit file found for " + timeStr +
+            String timeStr = absRoot.getAttributeUTC(AbstractMetadata.STATE_VECTOR_TIME).format();
+            final File destFolder = getDestFolder(missionPrefix, orbitType, year, month);
+            String msg = "No valid orbit file found for " + timeStr +
                         "\nOrbit files may be downloaded from Copernicus Dataspaces "
                         + "\nand placed in " + destFolder.getAbsolutePath();
-            }
+
             throw new IOException(msg);
         }
 
