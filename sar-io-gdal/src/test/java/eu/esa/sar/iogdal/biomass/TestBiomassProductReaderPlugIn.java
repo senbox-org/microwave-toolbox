@@ -59,8 +59,11 @@ public class TestBiomassProductReaderPlugIn extends AbstractProductReaderPlugInG
 
     @Test
     public void testValidDecodeQualification() {
-        isValidDecodeQualification(TestBiomassProductReader.input_DGM);
-        isValidDecodeQualification(TestBiomassProductReader.input_DGM_ZIP);
+        isValidDecodeQualification(TestBiomassProductReader.input_L1B_DGM);
+        isValidDecodeQualification(TestBiomassProductReader.input_L1B_DGM_ZIP);
+
+        isValidDecodeQualification(TestBiomassProductReader.input_L1A_SCS);
+        isValidDecodeQualification(TestBiomassProductReader.input_L1C_IntPhase_SCS);
 
         isInValidDecodeQualification(TestData.inputS1_GRD);
         isInValidDecodeQualification(TestData.inputS1_SLC);
