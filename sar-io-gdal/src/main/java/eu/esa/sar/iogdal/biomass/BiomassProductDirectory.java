@@ -169,21 +169,22 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
                 createVirtualIBand(product, newAbsBand, newPhaseBand, '_' + suffix);
                 createVirtualQBand(product, newAbsBand, newPhaseBand, '_' + suffix);
+                SARReader.createVirtualIntensityBand(product, newAbsBand, '_' + suffix);
 
             } else {
                 ReaderData absReaderData = bandProductMap.get(ABS);
                 Band absBand = absReaderData.bandProduct.getBandAt(cnt);
                 bandName = "Amplitude" + '_' + suffix;
-                final Band newBand = new Band(bandName, absBand.getDataType(), width, height);
-                newBand.setUnit(Unit.AMPLITUDE);
-                newBand.setNoDataValueUsed(true);
-                newBand.setNoDataValue(NoDataValue);
-                newBand.setSourceImage(absBand.getSourceImage());
+                final Band newAbsBand = new Band(bandName, absBand.getDataType(), width, height);
+                newAbsBand.setUnit(Unit.AMPLITUDE);
+                newAbsBand.setNoDataValueUsed(true);
+                newAbsBand.setNoDataValue(NoDataValue);
+                newAbsBand.setSourceImage(absBand.getSourceImage());
 
-                product.addBand(newBand);
+                product.addBand(newAbsBand);
                 AbstractMetadata.addBandToBandMap(bandMetadata, bandName);
 
-                SARReader.createVirtualIntensityBand(product, newBand, suffix);
+                SARReader.createVirtualIntensityBand(product, newAbsBand, '_' + suffix);
 
                 // add tiepointgrids and geocoding for band
                 //addTiePointGrids(product, newBand, imgName, tpgPrefix);
@@ -198,7 +199,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         final double nodatavalue = newAbsBand.getNoDataValue();
         final String expression = absBandName +" == " + nodatavalue +" ? " + nodatavalue +" : " + absBandName + " * cos(" + phaseBandName +")";
 
-        final VirtualBand virtBand = new VirtualBand("i" + '_' + suffix,
+        final VirtualBand virtBand = new VirtualBand("i" + suffix,
                 ProductData.TYPE_FLOAT32,
                 newAbsBand.getRasterWidth(),
                 newAbsBand.getRasterHeight(),
@@ -222,7 +223,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         final double nodatavalue = newAbsBand.getNoDataValue();
         final String expression = absBandName +" == " + nodatavalue +" ? " + nodatavalue +" : " + absBandName + " * sin(" + phaseBandName +")";
 
-        final VirtualBand virtBand = new VirtualBand("q" + '_' + suffix,
+        final VirtualBand virtBand = new VirtualBand("q" + suffix,
                 ProductData.TYPE_FLOAT32,
                 newAbsBand.getRasterWidth(),
                 newAbsBand.getRasterHeight(),
@@ -245,9 +246,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
         final MetadataElement origProdRoot = AbstractMetadata.addOriginalProductMetadata(root);
-
-        final String defStr = AbstractMetadata.NO_METADATA_STRING;
-        final int defInt = AbstractMetadata.NO_METADATA;
 
         final MetadataElement EarthObservation = origProdRoot.getElement("EarthObservation");
         MetadataElement metaDataProperty = EarthObservation.getElement("metaDataProperty");
@@ -286,9 +284,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         // get metadata for each band
         addBandAbstractedMetadata(absRoot, origProdRoot);
-        //addCalibrationAbstractedMetadata(origProdRoot);
-        //addNoiseAbstractedMetadata(origProdRoot);
-        //addRFIAbstractedMetadata(origProdRoot);
     }
 
     private static void setPolarizations(MetadataElement absRoot, String polarizations) {
@@ -390,10 +385,12 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                             processingParameters.getAttributeString("processorVersion"));
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME,
                             getTime(processingParameters, "productGenerationTime", biomassDateFormat));
+                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.VECTOR_SOURCE,
+                            processingParameters.getAttributeString("orbitSource"));
 
                     final MetadataElement rangeProcessingParameters = processingParameters.getElement("rangeProcessingParameters");
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_window_type,
-                            rangeProcessingParameters.getAttributeString("windowType"));
+                            rangeProcessingParameters.getAttributeString("windowType").trim());
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
                             rangeProcessingParameters.getAttributeDouble("numberOfLooks"));
                     final MetadataElement processingBandwidth = rangeProcessingParameters.getElement("processingBandwidth");
@@ -460,18 +457,27 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.num_output_lines,
                             sarImage.getAttributeInt("numberOfLines"));
 
+                    final MetadataElement radiometricCalibration = mainAnnotation.getElement("radiometricCalibration");
+                    final MetadataElement absoluteCalibrationConstantList = radiometricCalibration.getElement("absoluteCalibrationConstantList");
+                    for(MetadataElement absCalibConst : absoluteCalibrationConstantList.getElements()) {
+                        final String polarisation = absCalibConst.getAttributeString("polarisation");
+                        if(pol.equals(polarisation)) {
+                            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.calibration_factor,
+                                    absCalibConst.getAttributeDouble("absoluteCalibrationConstant", AbstractMetadata.NO_METADATA));
+                        }
+                    }
+
                     //heightSum += getBandTerrainHeight(prodElem);
+
+                    //addCalibrationAbstractedMetadata(origProdRoot);
+                    //addNoiseAbstractedMetadata(origProdRoot);
+                    //addRFIAbstractedMetadata(origProdRoot);
+
 
                     ++numBands;
                 }
             }
         }
-
-        // set average to absRoot
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
-                                      rangeSpacingTotal / (double) numBands);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
-                                      azimuthSpacingTotal / (double) numBands);
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, heightSum / filenames.length);
 
