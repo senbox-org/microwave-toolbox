@@ -19,17 +19,15 @@ import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.io.XMLProductDirectory;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.GeoCoding;
-import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
-import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.dataio.gdal.reader.plugins.GTiffDriverProductReaderPlugIn;
@@ -42,11 +40,18 @@ import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
+import ucar.ma2.Array;
+import ucar.ma2.InvalidRangeException;
+import ucar.nc2.Group;
+import ucar.nc2.NetcdfFile;
+import ucar.nc2.Variable;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
@@ -66,6 +71,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     private final transient Map<String, String> imgBandMetadataMap = new TreeMap<>();
     private String productName = "";
     private String productType = "";
+    private File netCDFLUTFile;
 
     DateFormat biomassDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd_HH:mm:ss");
 
@@ -275,7 +281,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         MetadataElement Acquisition = acquisitionParameters.getElement("Acquisition");
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PASS, Acquisition.getAttributeString("orbitDirection"));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.antenna_pointing, Acquisition.getAttributeString("antennaLookDirection"));
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.antenna_pointing, Acquisition.getAttributeString("antennaLookDirection").toLowerCase());
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.REL_ORBIT, Acquisition.getAttributeInt("orbitNumber"));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SPH_DESCRIPTOR, Acquisition.getAttributeString("missionPhase"));
 
@@ -357,6 +363,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                             acquisitionInformation.getAttributeInt("relativeOrbitNumber"));
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.CYCLE,
                             acquisitionInformation.getAttributeInt("majorCycleId"));
+                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
+                            acquisitionInformation.getAttributeInt("dataTakeId"));
 
                     // sarImage
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines,
@@ -380,6 +388,10 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
                             azimuthPixelSpacing.getAttributeDouble("azimuthPixelSpacing"));
 
+                    final MetadataElement azimuthTimeInterval = sarImage.getElement("azimuthTimeInterval");
+                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
+                            azimuthTimeInterval.getAttributeDouble("azimuthTimeInterval"));
+
                     // processingParameters
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier,
                             processingParameters.getAttributeString("processorVersion"));
@@ -390,7 +402,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
                     final MetadataElement rangeProcessingParameters = processingParameters.getElement("rangeProcessingParameters");
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_window_type,
-                            rangeProcessingParameters.getAttributeString("windowType").trim());
+                            rangeProcessingParameters.getAttributeString("windowType"));
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
                             rangeProcessingParameters.getAttributeDouble("numberOfLooks"));
                     final MetadataElement processingBandwidth = rangeProcessingParameters.getElement("processingBandwidth");
@@ -477,6 +489,15 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     ++numBands;
                 }
             }
+
+            // netcdf annotations
+            for (String metadataFile : filenames) {
+                if (!metadataFile.endsWith(".nc")) {
+                    continue;
+                }
+
+                netCDFLUTFile = getFile(annotFolder + '/' + metadataFile);
+            }
         }
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, heightSum / filenames.length);
@@ -484,65 +505,22 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
     }
 
-    private double getBandTerrainHeight(final MetadataElement prodElem) {
-        final MetadataElement generalAnnotation = prodElem.getElement("generalAnnotation");
-        final MetadataElement terrainHeightList = generalAnnotation.getElement("terrainHeightList");
+    private List<Variable> readNetCDFLUT(final NetcdfFile netcdfFile) throws IOException {
+        final List<Variable> rasters = new ArrayList<>();
+        if (netcdfFile != null) {
 
-        double heightSum = 0.0;
-
-        final MetadataElement[] heightList = terrainHeightList.getElements();
-        int cnt = 0;
-        for (MetadataElement terrainHeight : heightList) {
-            heightSum += terrainHeight.getAttributeDouble("value");
-            ++cnt;
-        }
-        return heightSum / cnt;
-    }
-
-    private void addCalibrationAbstractedMetadata(final MetadataElement origProdRoot) throws IOException {
-
-        final String annotfolder = getRootFolder() + "annotation" + '/' + "calibration";
-        addMetadataFiles(origProdRoot, annotfolder, "calibration");
-    }
-
-    private void addNoiseAbstractedMetadata(final MetadataElement origProdRoot) throws IOException {
-
-        final String annotfolder = getRootFolder() + "annotation" + '/' + "calibration";
-        addMetadataFiles(origProdRoot, annotfolder, "noise");
-    }
-
-    private void addRFIAbstractedMetadata(final MetadataElement origProdRoot) throws IOException {
-
-        final String annotfolder = getRootFolder() + "annotation" + '/' + "rfi";
-        addMetadataFiles(origProdRoot, annotfolder, "rfi");
-    }
-
-    private void addMetadataFiles(final MetadataElement origProdRoot, final String folder, final String name) throws IOException {
-
-        final String[] filenames = listFiles(folder);
-
-        if (filenames != null && filenames.length > 0) {
-            MetadataElement metaElement = origProdRoot.getElement(name);
-            if (metaElement == null) {
-                metaElement = new MetadataElement(name);
-                origProdRoot.addElement(metaElement);
-            }
-
-            for (String metadataFile : filenames) {
-                if (metadataFile.startsWith(name)) {
-
-                    final Document xmlDoc;
-                    try (final InputStream is = getInputStream(folder + '/' + metadataFile)) {
-                        xmlDoc = XMLSupport.LoadXML(is);
+            List<Group> groups = netcdfFile.getRootGroup().getGroups();
+            for(Group group : groups) {
+                final List<Variable> variables = group.getVariables();
+                for (Variable variable : variables) {
+                    final int rank = variable.getRank();
+                    if (rank >= 2) {
+                        rasters.add(variable);
                     }
-                    final Element rootElement = xmlDoc.getRootElement();
-                    final String newName = metadataFile.replace(name+"-", "");
-                    final MetadataElement nameElem = new MetadataElement(newName);
-                    metaElement.addElement(nameElem);
-                    AbstractMetadataIO.AddXMLMetadata(rootElement, nameElem);
                 }
             }
         }
+        return rasters;
     }
 
     private void addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList) {
@@ -669,112 +647,70 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
     @Override
     protected void addGeoCoding(final Product product) {
-
-        TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
-        TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
-        if (latGrid != null && lonGrid != null) {
-            setLatLongMetadata(product, latGrid, lonGrid);
-
-            final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
-            product.setSceneGeoCoding(tpGeoCoding);
-            return;
-        }
-
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-        final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
-        int numOfSubSwath;
-        switch (acquisitionMode) {
-            case "IW":
-                numOfSubSwath = 3;
-                break;
-            case "EW":
-                numOfSubSwath = 5;
-                break;
-            default:
-                numOfSubSwath = 1;
-        }
-
-        String[] bandNames = product.getBandNames();
-        Band firstSWBand = null, lastSWBand = null;
-        boolean firstSWBandFound = false, lastSWBandFound = false;
-        for (String bandName : bandNames) {
-            if (!firstSWBandFound && bandName.contains(acquisitionMode + 1)) {
-                firstSWBand = product.getBand(bandName);
-                firstSWBandFound = true;
-            }
-
-            if (!lastSWBandFound && bandName.contains(acquisitionMode + numOfSubSwath)) {
-                lastSWBand = product.getBand(bandName);
-                lastSWBandFound = true;
-            }
-        }
-        if (firstSWBand != null && lastSWBand != null) {
-
-            final GeoCoding firstSWBandGeoCoding = bandGeocodingMap.get(firstSWBand);
-            final int firstSWBandHeight = firstSWBand.getRasterHeight();
-
-            final GeoCoding lastSWBandGeoCoding = bandGeocodingMap.get(lastSWBand);
-            final int lastSWBandWidth = lastSWBand.getRasterWidth();
-            final int lastSWBandHeight = lastSWBand.getRasterHeight();
-
-            final PixelPos ulPix = new PixelPos(0, 0);
-            final PixelPos llPix = new PixelPos(0, firstSWBandHeight - 1);
-            final GeoPos ulGeo = new GeoPos();
-            final GeoPos llGeo = new GeoPos();
-            firstSWBandGeoCoding.getGeoPos(ulPix, ulGeo);
-            firstSWBandGeoCoding.getGeoPos(llPix, llGeo);
-
-            final PixelPos urPix = new PixelPos(lastSWBandWidth - 1, 0);
-            final PixelPos lrPix = new PixelPos(lastSWBandWidth - 1, lastSWBandHeight - 1);
-            final GeoPos urGeo = new GeoPos();
-            final GeoPos lrGeo = new GeoPos();
-            lastSWBandGeoCoding.getGeoPos(urPix, urGeo);
-            lastSWBandGeoCoding.getGeoPos(lrPix, lrGeo);
-
-            final float[] latCorners = {(float) ulGeo.getLat(), (float) urGeo.getLat(), (float) llGeo.getLat(), (float) lrGeo.getLat()};
-            final float[] lonCorners = {(float) ulGeo.getLon(), (float) urGeo.getLon(), (float) llGeo.getLon(), (float) lrGeo.getLon()};
-
-            ReaderUtils.addGeoCoding(product, latCorners, lonCorners);
-
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, ulGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, ulGeo.getLon());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, urGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, urGeo.getLon());
-
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, llGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, llGeo.getLon());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, lrGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lrGeo.getLon());
-
-            // add band geocoding
-            final Band[] bands = product.getBands();
-            for (Band band : bands) {
-                band.setGeoCoding(bandGeocodingMap.get(band));
-            }
-        } else {
-            try {
-                final String annotFolder = getRootFolder() + "annotation";
-                final String[] filenames = listFiles(annotFolder);
-
-                //addTiePointGrids(product, null, filenames[0], "");
-
-                latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
-                lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
-                if (latGrid != null && lonGrid != null) {
-                    setLatLongMetadata(product, latGrid, lonGrid);
-
-                    final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
-                    product.setSceneGeoCoding(tpGeoCoding);
-                }
-            } catch (IOException e) {
-                SystemUtils.LOG.severe("Unable to add tpg geocoding " + e.getMessage());
-            }
-        }
+        ProductUtils.copyGeoCoding(bandProductMap.values().iterator().next().bandProduct, product);
     }
 
     @Override
     protected void addTiePointGrids(final Product product) {
-        // replaced by call to addTiePointGrids(band)
+        try (final NetcdfFile netcdfFile = NetcdfFile.open(netCDFLUTFile.getAbsolutePath())) {
+            final List<Variable> rasters = readNetCDFLUT(netcdfFile);
+            for(Variable variable : rasters) {
+                String name = variable.getShortName();
+                int gridWidth = variable.getDimension(1).getLength();
+                int gridHeight = variable.getDimension(0).getLength();
+
+                final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
+                final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
+
+                Array dataArray = variable.read();
+                Object storage = dataArray.copyTo1DJavaArray();
+
+                float[] floatData;
+                if (storage instanceof float[]) {
+                    floatData = (float[]) storage;
+
+                } else if (storage instanceof double[]) {
+                    double[] doubleData = (double[]) storage;
+                    floatData = new float[doubleData.length];
+                    for (int i = 0; i < doubleData.length; ++i) {
+                        floatData[i] = (float) doubleData[i];
+                    }
+
+                } else {
+                    throw new Exception("  Warning: Could not cast data from variable '"
+                            + variable.getFullName() + "' to float[]. Actual array type: "
+                            + storage.getClass().getName());
+                }
+
+                if(name.equals(OperatorUtils.TPG_LATITUDE)) {
+
+                    TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
+                    if (latGrid == null) {
+                        latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
+                                gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
+                        latGrid.setUnit(Unit.DEGREES);
+                        product.addTiePointGrid(latGrid);
+                    }
+                } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
+
+                    TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
+                    if (lonGrid == null) {
+                        lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
+                                gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
+                        lonGrid.setUnit(Unit.DEGREES);
+                        product.addTiePointGrid(lonGrid);
+                    }
+                } else {
+
+                    final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
+                            gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
+                    incidentAngleGrid.setUnit(Unit.DEGREES);
+                    product.addTiePointGrid(incidentAngleGrid);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+        }
     }
 
     private void addTiePointGrids(final Product product, final Band band, final String imgXMLName, final String tpgPrefix) {
@@ -966,6 +902,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         addBands(product);
         addGeoCoding(product);
+        addTiePointGrids(product);
+        setLatLongMetadata(product);
 
         ReaderUtils.addMetadataIncidenceAngles(product);
         ReaderUtils.addMetadataProductSize(product);
