@@ -11,6 +11,7 @@
 * Updated S-1 WV and OCN products
 * Band Select for S-1 WV exports as Stripmap-like products
 * REACTIV Change Detection
+* RPCA Change Detection
 * Updated Log Ratio Change Detection
 
 ## New in Microwave Toolbox 11.0
