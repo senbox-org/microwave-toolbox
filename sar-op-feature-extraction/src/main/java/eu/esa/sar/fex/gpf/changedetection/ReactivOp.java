@@ -352,21 +352,40 @@ public class ReactivOp extends Operator {
                 sum2Pol2 = new double[h][w];
             }
 
+            boolean isBandPol1Available = false;
+            boolean isBandPol2Available = false;
             for (String date : prodAcqDateArray) {
                 final double timeProd = dateToTime(date);
-                final Band bandPol1 = getBand(date, pol1);
-                final Tile tilePol1 = getSourceTile(bandPol1, targetRectangle);
-                final ProductData dataBufferPol1 = tilePol1.getDataBuffer();
-                final double noDataValuePol1 = bandPol1.getNoDataValue();
-                final TileIndex srcIndex = new TileIndex(tilePol1);
 
+                Tile tilePol1 = null;
+                ProductData dataBufferPol1 = null;
+                double noDataValuePol1 = 0;
+                final Band bandPol1 = getBand(date, pol1);
+                if (bandPol1 != null) {
+                    tilePol1 = getSourceTile(bandPol1, targetRectangle);
+                    dataBufferPol1 = tilePol1.getDataBuffer();
+                    noDataValuePol1 = bandPol1.getNoDataValue();
+                    isBandPol1Available = true;
+                }
+
+                Tile tilePol2 = null;
                 ProductData dataBufferPol2 = null;
                 double noDataValuePol2 = 0;
                 if(isDualPol) {
                     Band bandPol2 = getBand(date, pol2);
-                    Tile tilePol2 = getSourceTile(bandPol2, targetRectangle);
-                    dataBufferPol2 = tilePol2.getDataBuffer();
-                    noDataValuePol2 = bandPol2.getNoDataValue();
+                    if (bandPol2 != null) {
+                        tilePol2 = getSourceTile(bandPol2, targetRectangle);
+                        dataBufferPol2 = tilePol2.getDataBuffer();
+                        noDataValuePol2 = bandPol2.getNoDataValue();
+                        isBandPol2Available = true;
+                    }
+                }
+
+                TileIndex srcIndex = null;
+                if (tilePol1 != null) {
+                    srcIndex = new TileIndex(tilePol1);
+                } else if (tilePol2 != null) {
+                    srcIndex = new TileIndex(tilePol2);
                 }
 
                 for (int y = y0; y < maxY; ++y) {
@@ -377,20 +396,26 @@ public class ReactivOp extends Operator {
                         final int srcIdx = srcIndex.getIndex(x);
                         final int xx = x - x0;
 
-                        final double vPol1 = dataBufferPol1.getElemDoubleAt(srcIdx);
-                        final double vPol2 = isDualPol ? dataBufferPol2.getElemDoubleAt(srcIdx) : -9999;
+                        final double vPol1 = (dataBufferPol1 != null)? dataBufferPol1.getElemDoubleAt(srcIdx) : -9999;
+                        final double vPol2 = (isDualPol && dataBufferPol2 != null) ? dataBufferPol2.getElemDoubleAt(srcIdx) : -9999;
                         if (vPol1 == noDataValuePol1 || vPol2 == noDataValuePol2) {
                             time[yy][xx] = -1.0;
                             continue;
                         }
                         final double vMax = Math.max(vPol1, vPol2);
-                        sumPol1[yy][xx] += vPol1;
 
-                        sum2Pol1[yy][xx] += vPol1 * vPol1;
-                        if(isDualPol) {
-                            sumPol2[yy][xx] += vPol2;
-                            sum2Pol2[yy][xx] += vPol2 * vPol2;
+                        if (vPol1 != -9999) {
+                            sumPol1[yy][xx] += vPol1;
+                            sum2Pol1[yy][xx] += vPol1 * vPol1;
                         }
+
+                        if(isDualPol) {
+                            if (vPol2 != -9999) {
+                                sumPol2[yy][xx] += vPol2;
+                                sum2Pol2[yy][xx] += vPol2 * vPol2;
+                            }
+                        }
+
                         sumMax[yy][xx] += vMax;
                         if (max[yy][xx] < vMax) {
                             max[yy][xx] = vMax;
@@ -425,12 +450,15 @@ public class ReactivOp extends Operator {
                     final double hue = 0.9 * (time[yy][xx] - timeMin) / (timeMax - timeMin);
                     hueData.setElemDoubleAt(tgtIdx, hue);
 
-                    final double meanPol1 = sumPol1[yy][xx] / numOfProducts;
-                    final double stdPol1 = Math.sqrt(sum2Pol1[yy][xx] / numOfProducts - meanPol1 * meanPol1);
-                    final double varCoefPol1 = stdPol1 / meanPol1;
+                    double varCoefPol1 = -9999;
+                    if (isBandPol1Available) {
+                        final double meanPol1 = sumPol1[yy][xx] / numOfProducts;
+                        final double stdPol1 = Math.sqrt(sum2Pol1[yy][xx] / numOfProducts - meanPol1 * meanPol1);
+                        varCoefPol1 = stdPol1 / meanPol1;
+                    }
 
                     double varCoefPol2 = -9999;
-                    if(isDualPol) {
+                    if(isDualPol && isBandPol2Available) {
                         final double meanPol2 = sumPol2[yy][xx] / numOfProducts;
                         final double stdPol2 = Math.sqrt(sum2Pol2[yy][xx] / numOfProducts - meanPol2 * meanPol2);
                         varCoefPol2 = stdPol2 / meanPol2;
@@ -472,7 +500,7 @@ public class ReactivOp extends Operator {
                 return band;
             }
         }
-        throw new OperatorException("No source band found: containing date " + date + " and polarization " + pol);
+        return null;
     }
 
     private Band getBand(final String prefix, final String date, final String pol) {
@@ -523,19 +551,33 @@ public class ReactivOp extends Operator {
                         final double[][] sumMax = new double[h][w];
                         final double[][] max = new double[h][w];
                         for (String date : prodAcqDateArray) {
+                            Tile tilePol1 = null;
+                            ProductData dataBufferPol1 = null;
+                            double noDataValuePol1 = 0;
                             final Band bandPol1 = getBand(date, pol1);
-                            final Tile tilePol1 = getSourceTile(bandPol1, rectangle);
-                            final ProductData dataBufferPol1 = tilePol1.getDataBuffer();
-                            final double noDataValuePol1 = bandPol1.getNoDataValue();
-                            final TileIndex srcIndex = new TileIndex(tilePol1);
+                            if (bandPol1 != null) {
+                                tilePol1 = getSourceTile(bandPol1, rectangle);
+                                dataBufferPol1 = tilePol1.getDataBuffer();
+                                noDataValuePol1 = bandPol1.getNoDataValue();
+                            }
 
+                            Tile tilePol2 = null;
                             ProductData dataBufferPol2 = null;
                             double noDataValuePol2 = 0;
                             if(isDualPol) {
                                 Band bandPol2 = getBand(date, pol2);
-                                Tile tilePol2 = getSourceTile(bandPol2, rectangle);
-                                dataBufferPol2 = tilePol2.getDataBuffer();
-                                noDataValuePol2 = bandPol2.getNoDataValue();
+                                if (bandPol2 != null) {
+                                    tilePol2 = getSourceTile(bandPol2, rectangle);
+                                    dataBufferPol2 = tilePol2.getDataBuffer();
+                                    noDataValuePol2 = bandPol2.getNoDataValue();
+                                }
+                            }
+
+                            TileIndex srcIndex = null;
+                            if (tilePol1 != null) {
+                                srcIndex = new TileIndex(tilePol1);
+                            } else if (tilePol2 != null) {
+                                srcIndex = new TileIndex(tilePol2);
                             }
 
                             for (int y = y0; y < maxY; ++y) {
@@ -546,8 +588,8 @@ public class ReactivOp extends Operator {
                                     final int srcIdx = srcIndex.getIndex(x);
                                     final int xx = x - x0;
 
-                                    final double vPol1 = dataBufferPol1.getElemDoubleAt(srcIdx);
-                                    final double vPol2 = isDualPol ? dataBufferPol2.getElemDoubleAt(srcIdx) : -9999;
+                                    final double vPol1 = (dataBufferPol1 != null)? dataBufferPol1.getElemDoubleAt(srcIdx) : -9999;
+                                    final double vPol2 = (isDualPol && dataBufferPol2 != null) ? dataBufferPol2.getElemDoubleAt(srcIdx) : -9999;
                                     if (vPol1 == noDataValuePol1 || vPol2 == noDataValuePol2) {
                                         sumMax[yy][xx] = -1.0;
                                         continue;
