@@ -8,6 +8,7 @@
         <tocitem text="Radar">
             <tocitem text="SAR Utilities">
                 <tocitem text="Resampling">
+                    <tocitem text="Band Select" target="BandSelectOp"/>
                     <tocitem text="Over Sample" target="OverSampleOp"/>
                     <tocitem text="Under Sample" target="UnderSampleOp"/>
                     <tocitem text="Demodulate" target="DemodulateOp"/>
