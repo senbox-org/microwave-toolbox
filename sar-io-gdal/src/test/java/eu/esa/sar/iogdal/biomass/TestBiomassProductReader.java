@@ -69,7 +69,7 @@ public class TestBiomassProductReader extends ReaderTest {
             final ProductValidator validator = new ProductValidator(prod, productOptions);
             validator.validateProduct();
             validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
+            validator.validateBands(new String[]{"Amplitude_S1_HH", "Intensity_S1_HH", "Amplitude_S1_HV", "Intensity_S1_HV", "Amplitude_S1_VH", "Intensity_S1_VH", "Amplitude_S1_VV", "Intensity_S1_VV"});
         }
     }
 
@@ -80,7 +80,7 @@ public class TestBiomassProductReader extends ReaderTest {
             final ProductValidator validator = new ProductValidator(prod);
             validator.validateProduct();
             validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
+            validator.validateBands(new String[]{"Amplitude_S1_HH", "Intensity_S1_HH", "Amplitude_S1_HV", "Intensity_S1_HV", "Amplitude_S1_VH", "Intensity_S1_VH", "Amplitude_S1_VV", "Intensity_S1_VV"});
         }
     }
 
@@ -91,7 +91,7 @@ public class TestBiomassProductReader extends ReaderTest {
             final ProductValidator validator = new ProductValidator(prod);
             validator.validateProduct();
             validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
+            validator.validateBands(new String[]{"Amplitude_S1_HH", "Intensity_S1_HH", "Amplitude_S1_HV", "Intensity_S1_HV", "Amplitude_S1_VH", "Intensity_S1_VH", "Amplitude_S1_VV", "Intensity_S1_VV"});
         }
     }
 
@@ -102,7 +102,7 @@ public class TestBiomassProductReader extends ReaderTest {
             final ProductValidator validator = new ProductValidator(prod, productOptions);
             validator.validateProduct();
             validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
+            validator.validateBands(new String[]{"Amplitude_S1_HH", "Phase_S1_HH", "i_S1_HH", "q_S1_HH", "Intensity_S1_HH", "Amplitude_S1_HV", "Phase_S1_HV", "i_S1_HV", "q_S1_HV", "Intensity_S1_HV", "Amplitude_S1_VH", "Phase_S1_VH", "i_S1_VH", "q_S1_VH", "Intensity_S1_VH", "Amplitude_S1_VV", "Phase_S1_VV", "i_S1_VV", "q_S1_VV", "Intensity_S1_VV"});
         }
     }
 
@@ -113,7 +113,7 @@ public class TestBiomassProductReader extends ReaderTest {
             final ProductValidator validator = new ProductValidator(prod, productOptions);
             validator.validateProduct();
             validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
+            validator.validateBands(new String[]{"Amplitude_S1_HH", "Phase_S1_HH", "i_S1_HH", "q_S1_HH", "Intensity_S1_HH", "Amplitude_S1_HV", "Phase_S1_HV", "i_S1_HV", "q_S1_HV", "Intensity_S1_HV", "Amplitude_S1_VH", "Phase_S1_VH", "i_S1_VH", "q_S1_VH", "Intensity_S1_VH", "Amplitude_S1_VV", "Phase_S1_VV", "i_S1_VV", "q_S1_VV", "Intensity_S1_VV"});
         }
     }
 }

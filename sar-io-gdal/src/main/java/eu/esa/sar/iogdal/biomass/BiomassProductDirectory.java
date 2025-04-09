@@ -41,7 +41,6 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import ucar.ma2.Array;
-import ucar.ma2.InvalidRangeException;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
@@ -121,15 +120,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 SystemUtils.LOG.severe(imgPath +" failed to open" + e.getMessage());
             }
         }
-    }
-
-    private String getBandMetadataKey(final String imgName) {
-        for(String value : imgBandMetadataMap.values()) {
-            if(imgName.startsWith(value)) {
-                return value;
-            }
-        }
-        throw new IllegalArgumentException("No metadata found for image: " + imgName);
     }
 
     @Override
@@ -319,14 +309,10 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             origProdRoot.addElement(annotationElement);
         }
 
-        // collect range and azimuth spacing
-        double rangeSpacingTotal = 0;
-        double azimuthSpacingTotal = 0;
         boolean commonMetadataRetrieved = false;
 
         double heightSum = 0.0;
 
-        int numBands = 0;
         final String annotFolder = getRootFolder() + "annotation";
         final String[] filenames = listFiles(annotFolder);
         if (filenames != null) {
@@ -434,7 +420,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 //                                                  imageInformation.getAttributeDouble("azimuthTimeInterval"));
 
 
-                    //addOrbitStateVectors(absRoot, generalAnnotation.getElement("orbitList"));
                     //addSRGRCoefficients(absRoot, prodElem.getElement("coordinateConversion"));
                     //addDopplerCentroidCoefficients(absRoot, prodElem.getElement("dopplerCentroid"));
 
@@ -484,9 +469,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     //addCalibrationAbstractedMetadata(origProdRoot);
                     //addNoiseAbstractedMetadata(origProdRoot);
                     //addRFIAbstractedMetadata(origProdRoot);
-
-
-                    ++numBands;
                 }
             }
 
@@ -500,12 +482,14 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             }
         }
 
+        readOrbitStateVectors(absRoot);
+
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, heightSum / filenames.length);
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
     }
 
-    private List<Variable> readNetCDFLUT(final NetcdfFile netcdfFile) throws IOException {
+    private List<Variable> readNetCDFLUT(final NetcdfFile netcdfFile) {
         final List<Variable> rasters = new ArrayList<>();
         if (netcdfFile != null) {
 
@@ -523,6 +507,30 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         return rasters;
     }
 
+    private void readOrbitStateVectors(final MetadataElement absRoot) throws IOException {
+        final String navFolder = getRootFolder() + "annotation/navigation";
+        final String[] filenames = listFiles(navFolder);
+        if (filenames != null) {
+            for (String metadataFile : filenames) {
+                if (!metadataFile.endsWith("_orb.xml")) {
+                    continue;
+                }
+                final Document xmlDoc;
+                try (final InputStream is = getInputStream(navFolder + '/' + metadataFile)) {
+                    xmlDoc = XMLSupport.LoadXML(is);
+                }
+                final Element rootElement = xmlDoc.getRootElement();
+                final MetadataElement orbRoot = new MetadataElement(metadataFile);
+                AbstractMetadataIO.AddXMLMetadata(rootElement, orbRoot);
+                MetadataElement fileElem = orbRoot.getElement("Earth_Observation_File");
+                MetadataElement dataBlock = fileElem.getElement("Data_Block");
+                MetadataElement orbitList = dataBlock.getElement("List_of_OSVs");
+
+                addOrbitStateVectors(absRoot, orbitList);
+            }
+        }
+    }
+
     private void addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList) {
         final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
 
@@ -536,7 +544,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 equalElems(AbstractMetadata.NO_METADATA_UTC)) {
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
-                                          ReaderUtils.getTime(stateVectorElems[0], "time", biomassDateFormat));
+                                          getTime(stateVectorElems[0], "time", biomassDateFormat));
         }
     }
 
@@ -544,24 +552,28 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                                   final MetadataElement orbitElem, final int num) {
         final MetadataElement orbitVectorElem = new MetadataElement(name + num);
 
-        final MetadataElement positionElem = orbitElem.getElement("position");
-        final MetadataElement velocityElem = orbitElem.getElement("velocity");
+        MetadataElement xElem = orbitElem.getElement("X");
+        MetadataElement yElem = orbitElem.getElement("Y");
+        MetadataElement zElem = orbitElem.getElement("Z");
+        MetadataElement vxElem = orbitElem.getElement("VX");
+        MetadataElement vyElem = orbitElem.getElement("VY");
+        MetadataElement vzElem = orbitElem.getElement("VZ");
 
         orbitVectorElem.setAttributeUTC(AbstractMetadata.orbit_vector_time,
-                                        ReaderUtils.getTime(orbitElem, "time", biomassDateFormat));
+                                        getTime(orbitElem, "UTC", biomassDateFormat));
 
         orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_pos,
-                                           positionElem.getAttributeDouble("x", 0));
+                xElem.getAttributeDouble("X", 0));
         orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_pos,
-                                           positionElem.getAttributeDouble("y", 0));
+                yElem.getAttributeDouble("Y", 0));
         orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_pos,
-                                           positionElem.getAttributeDouble("z", 0));
+                zElem.getAttributeDouble("Z", 0));
         orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_vel,
-                                           velocityElem.getAttributeDouble("x", 0));
+                vxElem.getAttributeDouble("VX", 0));
         orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_vel,
-                                           velocityElem.getAttributeDouble("y", 0));
+                vyElem.getAttributeDouble("VY", 0));
         orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_vel,
-                                           velocityElem.getAttributeDouble("z", 0));
+                vzElem.getAttributeDouble("VZ", 0));
 
         orbitVectorListElem.addElement(orbitVectorElem);
     }
@@ -881,7 +893,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     public static ProductData.UTC getTime(final MetadataElement elem, final String tag, final DateFormat sentinelDateFormat) {
 
         String start = elem.getAttributeString(tag, NO_METADATA_STRING);
-        start = start.replace("T", "_");
+        start = start.replace("UTC=", "").replace("T", "_");
 
         return AbstractMetadata.parseUTC(start, sentinelDateFormat);
     }
