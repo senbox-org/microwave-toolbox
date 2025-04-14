@@ -642,8 +642,6 @@ public class Project extends Observable {
 
         showProjectsView();
 
-        initProject(file);
-
         Document doc;
         try {
             doc = XMLSupport.LoadXML(file.getAbsolutePath());
@@ -651,6 +649,8 @@ public class Project extends Observable {
             Dialogs.showError("Unable to load " + file.toString() + ": " + e.getMessage());
             return;
         }
+
+        initProject(file);
 
         final List<ProjectSubFolder> folderList = new ArrayList<>();
         final List<ProjectFile> prodList = new ArrayList<>();
