@@ -1,4 +1,10 @@
-# Microwave Toolbox 12.0.0
+# Microwave Toolbox 13.0.0
+
+## New in Microwave Toolbox 13.0
+* [SNAP-3948] Projects menu items enabled by default
+* [SNAP-3949] Creation of project structure when opening non-existent project
+* [SNAP-3950] Project creation and XML file extension
+
 
 ## New in Microwave Toolbox 12.0
 * Support for Sentinel-1C
