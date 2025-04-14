@@ -104,17 +104,9 @@ public final class ApplyOrbitFileOp extends Operator {
 
     private int sourceImageWidth;
     private int sourceImageHeight;
-    private int targetTiePointGridHeight;
-    private int targetTiePointGridWidth;
-
-    private TiePointGrid latitude = null;
-    private TiePointGrid longitude = null;
-
     private String mission;
     private boolean isSLC;
-
     private OrbitFile orbitProvider = null;
-
     private boolean productUpdated = false;
 
     private static final String PRODUCT_SUFFIX = "_Orb";
@@ -194,8 +186,6 @@ public final class ApplyOrbitFileOp extends Operator {
                 orbitProvider = new K5OrbitFile(absRoot, polyDegree);
             }
 
-            getTiePointGrid();
-
             createTargetProduct();
 
             if (!productUpdated) {
@@ -214,18 +204,6 @@ public final class ApplyOrbitFileOp extends Operator {
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
-    }
-
-    /**
-     * Get source product tie point grids for latitude, longitude, incidence angle and slant range time.
-     */
-    private void getTiePointGrid() {
-
-        latitude = OperatorUtils.getLatitude(sourceProduct);
-        longitude = OperatorUtils.getLongitude(sourceProduct);
-
-        targetTiePointGridWidth = latitude.getGridWidth();
-        targetTiePointGridHeight = latitude.getGridHeight();
     }
 
     /**
@@ -250,8 +228,6 @@ public final class ApplyOrbitFileOp extends Operator {
                                     sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
 
-        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
-
         for (Band srcBand : sourceProduct.getBands()) {
             if (srcBand instanceof VirtualBand) {
                 ProductUtils.copyVirtualBand(targetProduct, (VirtualBand) srcBand, srcBand.getName());
@@ -259,6 +235,8 @@ public final class ApplyOrbitFileOp extends Operator {
                 ProductUtils.copyBand(srcBand.getName(), sourceProduct, targetProduct, true);
             }
         }
+
+        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
     }
 
     private synchronized void updateOrbits() throws Exception {
@@ -295,22 +273,6 @@ public final class ApplyOrbitFileOp extends Operator {
         }
 
         productUpdated = true;
-    }
-
-    /**
-     * Get corresponding sample index for a given column index in the new tie point grid.
-     *
-     * @param colIdx       The column index in the new tie point grid.
-     * @param subSamplingX the x sub sampling
-     * @return The sample index.
-     */
-    private int getSampleIndex(final int colIdx, final int subSamplingX) {
-
-        if (colIdx == targetTiePointGridWidth - 1) { // last column
-            return sourceImageWidth - 1;
-        } else { // other columns
-            return colIdx * subSamplingX;
-        }
     }
 
     /**
@@ -368,6 +330,11 @@ public final class ApplyOrbitFileOp extends Operator {
      */
     private void updateTargetProductGEOCodingJLinda() throws Exception {
 
+        TiePointGrid latitude = OperatorUtils.getLatitude(sourceProduct);
+        TiePointGrid longitude = OperatorUtils.getLongitude(sourceProduct);
+        int targetTiePointGridHeight = latitude.getGridWidth();
+        int targetTiePointGridWidth = latitude.getGridHeight();
+
         final float[] targetLatTiePoints = new float[targetTiePointGridHeight * targetTiePointGridWidth];
         final float[] targetLonTiePoints = new float[targetTiePointGridHeight * targetTiePointGridWidth];
         final float[] targetIncidenceAngleTiePoints = new float[targetTiePointGridHeight * targetTiePointGridWidth];
@@ -398,7 +365,7 @@ public final class ApplyOrbitFileOp extends Operator {
             for (int c = 0; c < targetTiePointGridWidth; c++) {
 
                 // Note: pixel for the tie-point-grid defined by (range = x, azimuth =y)
-                final int x = getSampleIndex(c, subSamplingX);
+                final int x = c == targetTiePointGridWidth - 1 ? sourceImageWidth - 1 : c * subSamplingX;
 
                 // get reference point - works with geo annotations
                 final double refLat = latitude.getPixelDouble((float) x, (float) y);

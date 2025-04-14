@@ -165,6 +165,23 @@ public class REACTIVChangeDetectionOpTest {
         assertNotNull(targetProduct.getMaskGroup().get("change"));
     }
 
+    @STTM("SNAP-3980")
+    @Test
+    public void test_REACTIV_subset_S1() {
+        final Product srcProduct = createProduct("SENTINEL-1A", "IW", "GRD", "VH", null);
+        ReactivOp op = new ReactivOp();
+        op.setSourceProduct(srcProduct);
+
+        // get targetProduct: execute initialize()
+        final Product targetProduct = op.getTargetProduct();
+        final Band hueBand = targetProduct.getBand("hue");
+        final Band satBand = targetProduct.getBand("saturation");
+        final Band valBand = targetProduct.getBand("value");
+        assertNotNull(hueBand);
+        assertNotNull(satBand);
+        assertNotNull(valBand);
+    }
+
     private Product createProduct(String mission, String acquisitionMode, String productType, String txRxPolar, String txRxPolar2) {
 
         Product srcProduct = TestUtils.createProduct("GRD", 10, 10);
