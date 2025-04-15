@@ -338,43 +338,178 @@ public class NetCDFUtils {
     }
 
     public static void addVariableMetadata(final MetadataElement root, final Variable variable, final int maxNumValuesRead) {
-        if (variable.getRank() == 1) {
-            if (variable.getDataType() == DataType.STRUCTURE) {
-                final MetadataElement element = MetadataUtils.readAttributeList(variable.getAttributes(), variable.getFullName());
-                root.addElement(element);
+        String fullName = variable.getFullName();
+        if (fullName == null || fullName.isEmpty()) {
+            SystemUtils.LOG.warning("Skipping variable with null or empty name.");
+            return;
+        }
 
-                final Structure structure = (Structure) variable;
-                final List<Variable> structVariables = structure.getVariables();
-                for (Variable structVariable : structVariables) {
-                    final String name = structVariable.getShortName();
-                    final MetadataElement structElem = new MetadataElement(name);
-                    element.addElement(structElem);
-                    MetadataUtils.addAttribute(structVariable, structElem, maxNumValuesRead);
-                }
+        // Tokenize the name by '/'
+        // Using standard split. Consider StringUtils.split(fullName, '/') for potentially cleaner handling of edge cases.
+        String[] pathParts = fullName.split("/");
+
+        // Basic validation of path parts
+        if (pathParts.length == 0 || (pathParts.length == 1 && pathParts[0].isEmpty())) {
+            // Handles cases like name="/" or name=""
+            SystemUtils.LOG.warning("Skipping variable with effectively empty path: " + fullName);
+            return;
+        }
+
+        // Find or create the hierarchical structure up to the parent level
+        MetadataElement parentElement = findOrCreateParentPathElement(root, pathParts);
+
+        // Get the final component of the path (the leaf name)
+        String leafName = pathParts[pathParts.length - 1];
+
+        // Handle cases like "a/b/" which result in an empty leafName after split
+        if (leafName.isEmpty()) {
+            if (pathParts.length > 1) {
+                // Option: Use the previous part as the name? Or skip? Let's skip for clarity.
+                SystemUtils.LOG.warning("Variable name '" + fullName + "' ends with '/' or has empty component. Skipping leaf creation.");
+                // If needed, uncomment below to use previous part:
+                // leafName = pathParts[pathParts.length - 2];
+                // SystemUtils.LOG.warning("Variable name '" + fullName + "' ends with '/'. Using '" + leafName + "' as leaf name.");
+                return; // Skip if leaf name is empty
             } else {
-                long variableSize = variable.getSize();
-                final int productDataType = getProductDataType(variable);
-                if(variableSize == 1 || productDataType == ProductData.TYPE_ASCII) {
-                    addAttribute(variable, root, maxNumValuesRead);
-                } else {
-                    final MetadataElement element = MetadataUtils.readAttributeList(variable.getAttributes(), variable.getFullName());
-                    root.addElement(element);
-
-                    addAttribute(variable, element, maxNumValuesRead);
-                }
-            }
-        } else {
-            long variableSize = variable.getSize();
-            final int productDataType = getProductDataType(variable);
-            if(variableSize == 1 || productDataType == ProductData.TYPE_ASCII) {
-                addAttribute(variable, root, maxNumValuesRead);
-            } else {
-                final MetadataElement element = MetadataUtils.readAttributeList(variable.getAttributes(), variable.getFullName());
-                root.addElement(element);
-
-                addAttribute(variable, element, maxNumValuesRead);
+                // Name was just "/" or similar resulting in single empty part after handling above zero check
+                SystemUtils.LOG.warning("Variable name '" + fullName + "' results in an empty leaf name. Skipping.");
+                return;
             }
         }
+
+        // --- Adapt the original logic to use parentElement and leafName ---
+
+        if (variable.getRank() == 1 && variable.getDataType() == DataType.STRUCTURE) {
+            // --- Structure Variable ---
+            final Structure structure = (Structure) variable;
+
+            // Check if an element with leafName already exists under the parent
+            MetadataElement structureElement = parentElement.getElement(leafName);
+            boolean elementExisted = structureElement != null;
+
+            if (!elementExisted) {
+                // Create the element for the structure itself using MetadataUtils helper
+                // This helper likely populates attributes listed in the variable's attribute list
+                structureElement = MetadataUtils.readAttributeList(variable.getAttributes(), leafName);
+                parentElement.addElement(structureElement); // Add to the correct parent
+            } else {
+                // Element already existed (was a path node). Reuse it.
+                // Optionally merge attributes if MetadataUtils.readAttributeList adds essential ones
+                // For now, just log and reuse.
+                // SystemUtils.LOG.fine("Reusing existing element '" + leafName + "' for structure variable.");
+            }
+
+            // Add elements for each member variable *inside* the structure element
+            final List<Variable> structVariables = structure.getVariables();
+            for (Variable structVariable : structVariables) {
+                final String memberName = structVariable.getShortName();
+                if (memberName == null || memberName.isEmpty()) continue;
+
+                // Check if member element already exists within the structure element
+                MetadataElement memberElem = structureElement.getElement(memberName);
+                if (memberElem == null) {
+                    memberElem = new MetadataElement(memberName);
+                    structureElement.addElement(memberElem); // Add member to structure's element
+                }
+                // Add attributes/data specific to the member variable to the member element
+                // Uses MetadataUtils.addAttribute which might be different from this class's addAttribute
+                // Ensure MetadataUtils.addAttribute exists and works as expected for structure members.
+                try {
+                    MetadataUtils.addAttribute(structVariable, memberElem, maxNumValuesRead);
+                } catch (Exception e) {
+                    // Catch potential issues if MetadataUtils.addAttribute isn't suitable here
+                    SystemUtils.LOG.severe("Failed to add attribute for structure member '" + memberName +
+                            "' using MetadataUtils.addAttribute " + e.getMessage());
+                }
+            }
+
+        } else {
+            // --- Non-Structure Variable (or Rank != 1 treated similarly) ---
+            long variableSize = variable.getSize();
+            // Use the class's internal getProductDataType method
+            final int productDataType = getProductDataType(variable);
+
+            // Check if an element for this variable already exists under the parent
+            MetadataElement leafElement = parentElement.getElement(leafName);
+            boolean elementExisted = leafElement != null;
+
+            if (productDataType != ProductData.TYPE_UNDEFINED && (variableSize == 1 || productDataType == ProductData.TYPE_ASCII)) {
+                // Simple type (single value or ASCII):
+                // Create a basic element if it doesn't exist, then add the variable's data as an attribute.
+                if (!elementExisted) {
+                    leafElement = new MetadataElement(leafName);
+                    // Add attributes listed in the variable itself to this new element *before* adding data?
+                    // This wasn't in the original logic for simple types, but might be desirable.
+                    for (Attribute att : variable.getAttributes()) {
+                        createMetadataAttributes(leafElement, att, att.getShortName());
+                    }
+                    parentElement.addElement(leafElement);
+                }
+                // Call this class's addAttribute to add the variable's data to the leafElement
+                // This method names the attribute based on shortName for simple types.
+                addAttribute(variable, leafElement, maxNumValuesRead);
+
+            } else if (productDataType != ProductData.TYPE_UNDEFINED) {
+                // Complex type (arrays other than single value/ASCII):
+                // Create element using MetadataUtils.readAttributeList if it doesn't exist, then add data attribute.
+                if (!elementExisted) {
+                    // Create element and add attributes listed in the variable's attributes via helper
+                    leafElement = MetadataUtils.readAttributeList(variable.getAttributes(), leafName);
+                    parentElement.addElement(leafElement);
+                } else {
+                    // Element already existed. Reuse it.
+                    // Optionally merge attributes from variable.getAttributes() if MetadataUtils.readAttributeList
+                    // adds essential ones that might be missing.
+                    // SystemUtils.LOG.fine("Reusing existing element '" + leafName + "' for complex variable.");
+                    // Example merge (if needed and createMetadataAttributes handles duplicates):
+                    // for (Attribute att : variable.getAttributes()) {
+                    //     createMetadataAttributes(leafElement, att, att.getShortName());
+                    // }
+                }
+
+                // Call this class's addAttribute to add the variable's data (usually named "data")
+                // as a MetadataAttribute to the leafElement.
+                addAttribute(variable, leafElement, maxNumValuesRead);
+
+            } else {
+                // Product data type is undefined/unsupported
+                SystemUtils.LOG.warning("Skipping variable '" + fullName + "' due to unsupported data type: " + variable.getDataType());
+            }
+        }
+    }
+
+    /**
+     * Helper method to find or create the parent MetadataElement based on path components.
+     * For a path "a/b/c", it ensures "a" and "b" exist hierarchically under root,
+     * and returns the MetadataElement corresponding to "b".
+     * Assumes MetadataElement has getElement(name) returning null if not found,
+     * and addElement(MetadataElement).
+     *
+     * @param root      The starting root MetadataElement.
+     * @param pathParts The array of names split by '/'.
+     * @return The parent MetadataElement for the leaf node.
+     */
+    private static MetadataElement findOrCreateParentPathElement(final MetadataElement root, final String[] pathParts) {
+        MetadataElement currentParent = root;
+        // Iterate up to the second-to-last part (the directories)
+        for (int i = 0; i < pathParts.length - 1; i++) {
+            String partName = pathParts[i];
+            if (partName == null || partName.isEmpty()) {
+                // Skip empty parts (e.g., from "//" or leading "/")
+                continue;
+            }
+
+            // Check if the child element exists
+            MetadataElement child = currentParent.getElement(partName);
+            if (child == null) {
+                // Element doesn't exist, create it
+                child = new MetadataElement(partName);
+                currentParent.addElement(child);
+            }
+            // Move down to the child for the next iteration
+            currentParent = child;
+        }
+        return currentParent; // This is the element where the leaf node should be added
     }
 
     private static int getProductDataType(Variable variable) {
