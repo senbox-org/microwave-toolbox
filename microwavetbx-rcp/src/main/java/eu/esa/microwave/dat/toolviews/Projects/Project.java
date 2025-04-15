@@ -120,12 +120,21 @@ public class Project extends Observable {
         if (file != null) {
             showProjectsView();
 
-            final String prjName = file.getName();
+            String prjName = file.getName();
+            final String extension = ".xml";
+            if (!prjName.toLowerCase().endsWith(extension)) {
+                prjName += extension;
+            }
             final String folderName = FileUtils.getFilenameWithoutExtension(prjName);
             final File prjFolder = new File(file.getParentFile(), folderName);
             if (!prjFolder.exists())
                 prjFolder.mkdir();
             final File newProjectFile = new File(prjFolder, prjName);
+
+            if (newProjectFile.exists()) {
+                Dialogs.showError("Project already exists!", "A project with the given name " + prjName + " already exists in this directory.");
+                return;
+            }
 
             initProject(newProjectFile);
             addExistingOpenedProducts();
@@ -642,8 +651,6 @@ public class Project extends Observable {
 
         showProjectsView();
 
-        initProject(file);
-
         Document doc;
         try {
             doc = XMLSupport.LoadXML(file.getAbsolutePath());
@@ -651,6 +658,8 @@ public class Project extends Observable {
             Dialogs.showError("Unable to load " + file.toString() + ": " + e.getMessage());
             return;
         }
+
+        initProject(file);
 
         final List<ProjectSubFolder> folderList = new ArrayList<>();
         final List<ProjectFile> prodList = new ArrayList<>();
