@@ -1,6 +1,23 @@
+/*
+ * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
 package eu.esa.sar.io.nisar.subreaders;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.product.Missions;
+import eu.esa.sar.io.netcdf.NcRasterDim;
 import eu.esa.sar.io.netcdf.NetCDFReader;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
 import eu.esa.sar.io.netcdf.NetcdfConstants;
@@ -36,7 +53,7 @@ import static ucar.ma2.DataType.STRUCTURE;
 public abstract class NisarSubReader {
 
     protected final Map<Band, Variable> bandMap = new HashMap<>();
-    protected final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    protected final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
     protected NetcdfFile netcdfFile = null;
     protected Product product = null;
     protected String productType;
@@ -67,7 +84,7 @@ public abstract class NisarSubReader {
 
             final int rasterHeight = rasterVariables[0].getDimension(0).getLength();
             final int rasterWidth = rasterVariables[0].getDimension(1).getLength();
-            final String productType = getProductType(groupID);
+            productType = getProductType(groupID);
 
             product = new Product(inputFile.getName(),
                     productType,
@@ -75,14 +92,10 @@ public abstract class NisarSubReader {
                     reader);
             product.setFileLocation(inputFile);
 
-            product.setDescription(getDescription(inputFile.getName(), groupID));
-            product.setStartTime(ProductData.UTC.parse(getStartTime(groupID), standardDateFormat));
-            product.setEndTime(ProductData.UTC.parse(getStopTime(groupID), standardDateFormat));
-
             addMetadataToProduct();
             addBandsToProduct();
-            addTiePointGridsToProduct();
-            addGeoCodingToProduct();
+            addTiePointGridsToProduct(groupFrequencyA);
+            addGeoCodingToProduct(rasterVariables);
             addDopplerMetadata();
 
             return product;
@@ -136,22 +149,6 @@ public abstract class NisarSubReader {
         return description;
     }
 
-    protected String getStartTime(final Group groupID) throws IOException {
-        Variable var = groupID.findVariable(NisarXConstants.ACQUISITION_START_UTC);
-        if (var == null) {
-            var = groupID.findVariable("referenceZeroDopplerStartTime");
-        }
-        return var.readScalarString().substring(0, 22);
-    }
-
-    protected String getStopTime(final Group groupID) throws IOException {
-        Variable var = groupID.findVariable(NisarXConstants.ACQUISITION_END_UTC);
-        if (var == null) {
-            var = groupID.findVariable("referenceZeroDopplerEndTime");
-        }
-        return var.readScalarString().substring(0, 22);
-    }
-
     protected abstract void addBandsToProduct();
 
     protected void addMetadataToProduct() throws Exception{
@@ -167,9 +164,262 @@ public abstract class NisarSubReader {
         addAbstractedMetadataHeader(product.getMetadataRoot());
     }
 
-    protected abstract void addAbstractedMetadataHeader(MetadataElement root) throws Exception;
+    protected void addAbstractedMetadataHeader(final MetadataElement root) throws Exception {
 
-    protected void addTiePointGridsToProduct() {
+        final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
+        final MetadataElement origMeta = AbstractMetadata.getOriginalProductMetadata(product);
+
+        MetadataElement globals = origMeta.getElement("Global_Attributes");
+        MetadataElement science = origMeta.getElement("science");
+        MetadataElement lsar = science.getElement("LSAR");
+        MetadataElement identification = lsar.getElement("identification");
+
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, product.getName());
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, Missions.NISAR);
+
+        String title = globals.getAttributeString("title");
+        product.setDescription(title);
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SPH_DESCRIPTOR, title);
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, productType);
+
+        MetadataElement lookDirection = identification.getElement("lookDirection");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.antenna_pointing,
+                lookDirection.getAttributeString("lookDirection").toLowerCase());
+
+        MetadataElement trackNumber = identification.getElement("trackNumber");
+        if(trackNumber != null) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.REL_ORBIT,
+                    trackNumber.getAttributeInt("trackNumber"));
+        }
+
+        MetadataElement absoluteOrbitNumber = identification.getElement("absoluteOrbitNumber");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT,
+            absoluteOrbitNumber.getAttributeInt("absoluteOrbitNumber"));
+
+        MetadataElement orbitPassDirection = identification.getElement("orbitPassDirection");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PASS,
+                getOrbitPass(orbitPassDirection.getAttributeString("orbitPassDirection")));
+
+        MetadataElement plannedDataTakeId = identification.getElement("plannedDataTakeId");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
+                plannedDataTakeId.getAttributeInt("plannedDataTakeId"));
+
+        MetadataElement processingDataTime = identification.getElement("processingDataTime");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME,
+                ReaderUtils.getTime(processingDataTime, "processingDataTime", standardDateFormat));
+
+        MetadataElement zeroDopplerStartTime = identification.getElement("zeroDopplerStartTime");
+        ProductData.UTC startTime = ReaderUtils.getTime(zeroDopplerStartTime, "zeroDopplerStartTime", standardDateFormat);
+        product.setStartTime(startTime);
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, startTime);
+
+        MetadataElement zeroDopplerEndTime = identification.getElement("zeroDopplerEndTime");
+        ProductData.UTC endTime = ReaderUtils.getTime(zeroDopplerEndTime, "zeroDopplerEndTime", standardDateFormat);
+        product.setEndTime(endTime);
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, endTime);
+
+        addSubReaderMetadata(absRoot, lsar);
+
+
+    }
+
+    protected void addSubReaderMetadata(final MetadataElement absRoot, final MetadataElement lsar) throws Exception {
+        MetadataElement productMeta = lsar.getElement(productType);
+        MetadataElement metadata = productMeta.getElement("metadata");
+        MetadataElement swaths = productMeta.getElement("swaths");
+
+        ////            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE,
+        ////                    netcdfFile.getRootGroup().findVariable(NisarXConstants.ACQUISITION_MODE).readScalarString());
+//
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.BEAMS, NisarXConstants.BEAMS_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME, ProductData.UTC.parse(
+//                    groupID.findVariable(NisarXConstants.PROC_TIME_UTC).readScalarString().substring(0, 22),
+//                    standardDateFormat));
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier,
+//                    NisarXConstants.NISAR_PROCESSOR_NAME_PREFIX +
+//                            groupID.findVariable(NisarXConstants.PROCESSING_SYSTEM_IDENTIFIER).readScalarString());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.CYCLE, 99999);
+//
+////            double localIncidenceAngle = groupGeolocationGrid.findVariable("incidenceAngle").readScalarFloat();
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_near, localIncidenceAngle);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_far,  localIncidenceAngle);
+
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slice_num,
+//                    NisarXConstants.SLICE_NUM_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.geo_ref_system,
+//                    NisarXConstants.GEO_REFERENCE_SYSTEM_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, ProductData.UTC.parse(
+//                    groupID.findVariable(NisarXConstants.ACQUISITION_START_UTC).readScalarString().substring(0, 22),
+//                    standardDateFormat));
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, ProductData.UTC.parse(
+//                    groupID.findVariable(NisarXConstants.ACQUISITION_END_UTC).readScalarString().substring(0, 22),
+//                    standardDateFormat));
+
+//            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.FIRST_NEAR).read().getStorage();
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, firstNear[2]);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, firstNear[3]);
+//            double[] firstFar = (double[]) netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.FIRST_FAR).read().getStorage();
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, firstFar[2]);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, firstFar[3]);
+//
+//            double[] lastNear = (double[]) netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.LAST_NEAR).read().getStorage();
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, lastNear[2]);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, lastNear[3]);
+//
+//            double[] lastFar = (double[]) netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.LAST_FAR).read().getStorage();
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, lastFar[2]);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lastFar[3]);
+//
+
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, getSampleType());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds1_tx_rx_polar,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.MDS1_TX_RX_POLAR).readScalarString());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.AZIMUTH_LOOKS).readScalarFloat());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.RANGE_LOOKS).readScalarFloat());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.SLANT_RANGE_SPACING).readScalarFloat());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.AZIMUTH_GROUND_SPACING).readScalarFloat());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.PULSE_REPETITION_FREQUENCY).readScalarFloat());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.RADAR_FREQUENCY).readScalarDouble()
+//                            / Constants.oneMillion);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.LINE_TIME_INTERVAL).readScalarDouble());
+//
+//            final int rasterWidth = netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.NUM_SAMPLES_PER_LINE).readScalarInt();
+//
+//            final int rasterHeight = netcdfFile.getRootGroup().findVariable(
+//                    NisarXConstants.NUM_OUTPUT_LINES).readScalarInt();
+//
+//            double totalSize = (rasterHeight * rasterWidth * 2 * 2) / (1024.0f * 1024.0f);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.TOT_SIZE, totalSize);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.NUM_OUTPUT_LINES).readScalarInt());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.NUM_SAMPLES_PER_LINE).readScalarInt());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.subset_offset_x,
+//                    NisarXConstants.SUBSET_OFFSET_X_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.subset_offset_y,
+//                    NisarXConstants.SUBSET_OFFSET_Y_DEFAULT_VALUE);
+//
+//            if (isComplex) {
+//                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.srgr_flag, 0);
+//            } else {
+//                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.srgr_flag, 1);
+//            }
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.AVG_SCENE_HEIGHT).readScalarDouble());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.lat_pixel_res,
+//                    NisarXConstants.LAT_PIXEL_RES_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.lon_pixel_res,
+//                    NisarXConstants.LON_PIXEL_RES_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel,
+//                    (netcdfFile.getRootGroup().findVariable(
+//                            NisarXConstants.FIRST_PIXEL_TIME).readScalarDouble() / 2) * 299792458.0);
+//
+//            int antElevCorrFlag = NisarXConstants.ANT_ELEV_CORR_FLAG_DEFAULT_VALUE;
+//            if (netcdfFile.getRootGroup().findVariable(NisarXConstants.ANT_ELEV_CORR_FLAG) != null) {
+//                antElevCorrFlag = netcdfFile.getRootGroup().findVariable(
+//                        NisarXConstants.ANT_ELEV_CORR_FLAG).readScalarInt();
+//            }
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ant_elev_corr_flag, antElevCorrFlag);
+//
+//            int rangeSpreadCompFlag = NisarXConstants.RANGE_SPREAD_COMP_FLAG_DEFAULT_VALUE;
+//            if (netcdfFile.getRootGroup().findVariable(NisarXConstants.RANGE_SPREAD_COMP_FLAG) != null) {
+//                rangeSpreadCompFlag = netcdfFile.getRootGroup().findVariable(
+//                        NisarXConstants.RANGE_SPREAD_COMP_FLAG).readScalarInt();
+//            }
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spread_comp_flag, rangeSpreadCompFlag);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.replica_power_corr_flag,
+//                    NisarXConstants.REPLICA_POWER_CORR_FLAG_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.abs_calibration_flag,
+//                    NisarXConstants.ABS_CALIBRATION_FLAG_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.calibration_factor,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.CALIBRATION_FACTOR).readScalarDouble());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.inc_angle_comp_flag,
+//                    NisarXConstants.INC_ANGLE_COMP_FLAG_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_inc_angle,
+//                    NisarXConstants.REF_INC_ANGLE_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range,
+//                    NisarXConstants.REF_SLANT_RANGE_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range_exp,
+//                    NisarXConstants.REF_SLANT_RANGE_EXP_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.rescaling_factor,
+//                    NisarXConstants.RESCALING_FACTOR_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.RANGE_SAMPLING_RATE).readScalarDouble() / 1e6);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.RANGE_BANDWIDTH).readScalarDouble() / 1e6);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth,
+//                    netcdfFile.getRootGroup().findVariable(NisarXConstants.AZIMUTH_BANDWIDTH).readScalarDouble());
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.multilook_flag,
+//                    NisarXConstants.MULTI_LOOK_FLAG_DEFAULT_VALUE);
+//
+//            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack,
+//                    NisarXConstants.CO_REGISTERED_STACK_DEFAULT_VALUE);
+//
+//            addOrbitStateVectors(absRoot);
+    }
+
+
+    protected void addTiePointGridsToProduct(final Group groupFrequencyA) throws IOException {
 
 //        final int rank = variable.getRank();
 //        final int gridWidth = variable.getDimension(rank - 1).getLength();
@@ -184,6 +434,64 @@ public abstract class NisarSubReader {
         final MetadataElement bandElem = getBandElement(product.getBandAt(0));
         addIncidenceAnglesSlantRangeTime(product, bandElem);
         addGeocodingFromMetadata(product, bandElem);
+
+
+        Variable coordXVar = netcdfFile.findVariable("/science/LSAR/RSLC/metadata/geolocationGrid/coordinateX");
+        Variable coordYVar = netcdfFile.findVariable("science/LSAR/RSLC/metadata/geolocationGrid/coordinateY");
+
+        // Check if the variables were found
+        if (coordXVar == null) {
+            System.err.println("Error: Could not find variable '" + "'");
+            System.err.println("Check the file path and the product specification.");
+            // Optional: Print file structure to help debug
+            // System.out.println("\nFile Structure:\n" + ncfile);
+            return;
+        }
+        if (coordYVar == null) {
+            System.err.println("Error: Could not find variable '" + "'");
+            System.err.println("Check the file path and the product specification.");
+            // Optional: Print file structure to help debug
+            // System.out.println("\nFile Structure:\n" + ncfile);
+            return;
+        }
+
+        System.out.println("Found variable: " + coordXVar.getFullName() + " (Type: " + coordXVar.getDataType() + ")");
+        System.out.println("Found variable: " + coordYVar.getFullName() + " (Type: " + coordYVar.getDataType() + ")");
+
+        // Read the entire 3D array data [cite: 283]
+        // The specification indicates Float64, which corresponds to double in Java [cite: 283]
+        System.out.println("Reading coordinateX data...");
+        Array coordinateXData = coordXVar.read();
+        System.out.println("Reading coordinateY data...");
+        Array coordinateYData = coordYVar.read();
+
+        // --- Access and Use the Data ---
+
+        // Get the shape of the arrays (should be 3 dimensions: height, time/northing, range/easting)
+        int[] shapeX = coordinateXData.getShape();
+        int[] shapeY = coordinateYData.getShape();
+        System.out.println("coordinateX shape: " + Arrays.toString(shapeX));
+        System.out.println("coordinateY shape: " + Arrays.toString(shapeY));
+
+        // You can work directly with the ucar.ma2.Array object, which is efficient
+        // Example: Get the value at the first index (0, 0, 0)
+        if (coordinateXData.getRank() == 3 && coordinateYData.getRank() == 3) {
+            double firstX = coordinateXData.getDouble(coordinateXData.getIndex().set(0, 0, 0));
+            double firstY = coordinateYData.getDouble(coordinateYData.getIndex().set(0, 0, 0));
+            System.out.printf("Value at index [0,0,0]: X=%.3f, Y=%.3f%n", firstX, firstY);
+        }
+
+        // Optional: Convert to a primitive Java array if needed for other libraries/processing
+        // Note: This copies all the data into memory, which can be large.
+        // double[][][] coordXJavaArray = (double[][][]) coordinateXData.copyToNDJavaArray();
+        // double[][][] coordYJavaArray = (double[][][]) coordinateYData.copyToNDJavaArray();
+        // System.out.println("Copied data to primitive Java arrays.");
+        // Now you can use coordXJavaArray[heightIndex][timeIndex][rangeIndex]
+
+    }
+
+    private static String getOrbitPass(String pass) {
+        return pass.toUpperCase().contains("ASC") ? "ASCENDING" : "DESCENDING";
     }
 
     protected void createBand(final String bandName, final int width, final int height, final String unit, final Variable var) {
@@ -439,16 +747,19 @@ public abstract class NisarSubReader {
         return bandElem;
     }
 
-    protected void addGeoCodingToProduct() throws IOException {
+    protected void addGeoCodingToProduct(Variable[] rasterVariables) throws IOException {
 
         if (product.getSceneGeoCoding() == null) {
             NetCDFReader.setTiePointGeoCoding(product);
         }
-
         if (product.getSceneGeoCoding() == null) {
             NetCDFReader.setPixelGeoCoding(product);
         }
-
+        if (product.getSceneGeoCoding() == null) {
+            NcRasterDim rasterDim = new NcRasterDim(
+                    rasterVariables[0].getDimension(0), rasterVariables[0].getDimension(1));
+            NetCDFReader.setMapGeoCoding(rasterDim, product, netcdfFile, false);
+        }
     }
 
     protected void addDopplerCentroidCoefficients() {
@@ -496,76 +807,10 @@ public abstract class NisarSubReader {
 
     protected void addDopplerMetadata() {
 
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-        final String imagingMode = absRoot.getAttributeString("ACQUISITION_MODE");
-
-        if (imagingMode.equalsIgnoreCase("spotlight")) {
-            final MetadataElement dopplerSpotlightElem = new MetadataElement("dopplerSpotlight");
-            absRoot.addElement(dopplerSpotlightElem);
-            addDopplerRateAndCentroidSpotlight(dopplerSpotlightElem);
-            addAzimuthTimeZpSpotlight(dopplerSpotlightElem);
-        }
 //        addDopplerCentroidCoefficients();
     }
 
-    protected void addDopplerRateAndCentroidSpotlight(MetadataElement elem) {
 
-        // Compute doppler rate and centroid
-        MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
-        MetadataElement dopplerRateCoeffs = origProdRoot.getElement(NisarXConstants.DR_COEFFS);
-        String dopplerRate = dopplerRateCoeffs.getAttributeString("data").split(",")[0]; // take first coefficient
-        final double fmRate = Double.parseDouble(dopplerRate);
-        final double dopplerCentroid = 0.0; // TODO: load from original metadata once it's accurate
-
-        final int rasterWidth = product.getSceneRasterWidth();
-        final double[] dopplerRateSpotlight = new double[rasterWidth];
-        final double[] dopplerCentroidSpotlight = new double[rasterWidth];
-
-        for (int i = 0; i < rasterWidth; i++) {
-            dopplerRateSpotlight[i] = fmRate;
-            dopplerCentroidSpotlight[i] = dopplerCentroid;
-        }
-
-        // Save in metadata
-        String dopplerRateSpotlightStr =
-                Arrays.toString(dopplerRateSpotlight).replace("]", "").replace("[", "");
-
-        String dopplerCentroidSpotlightStr =
-                Arrays.toString(dopplerCentroidSpotlight).replace("]", "").replace("[", "");
-
-        AbstractMetadata.addAbstractedAttribute(elem, "dopplerRateSpotlight",
-                ProductData.TYPE_ASCII, "", "Doppler Rate Spotlight");
-
-        AbstractMetadata.setAttribute(elem, "dopplerRateSpotlight", dopplerRateSpotlightStr);
-
-        AbstractMetadata.addAbstractedAttribute(elem, "dopplerCentroidSpotlight",
-                ProductData.TYPE_ASCII, "", "Doppler Centroid Spotlight");
-
-        AbstractMetadata.setAttribute(elem, "dopplerCentroidSpotlight", dopplerCentroidSpotlightStr);
-    }
-
-    protected void addAzimuthTimeZpSpotlight(MetadataElement elem) {
-        // Compute azimuth time
-        MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
-
-        final double firstAzimuthTimeZp = timeUTCtoSecs(origProdRoot.getAttributeString(
-                NisarXConstants.FIRST_LINE_TIME));
-
-        final double lastAzimuthTimeZp = timeUTCtoSecs(origProdRoot.getAttributeString(
-                NisarXConstants.LAST_LINE_TIME));
-
-        final double AzimuthTimeZpOffset = firstAzimuthTimeZp - 0.5 * (firstAzimuthTimeZp + lastAzimuthTimeZp);
-
-        // Save in metadata
-        final MetadataElement azimuthTimeZd = new MetadataElement("azimuthTimeZdSpotlight");
-
-        elem.addElement(azimuthTimeZd);
-
-        AbstractMetadata.addAbstractedAttribute(azimuthTimeZd, "AzimuthTimeZdOffset", ProductData.TYPE_FLOAT64,
-                "", "Azimuth Time Zero Doppler Offset");
-
-        AbstractMetadata.setAttribute(azimuthTimeZd, "AzimuthTimeZdOffset", AzimuthTimeZpOffset);
-    }
 
     /**
      * {@inheritDoc}

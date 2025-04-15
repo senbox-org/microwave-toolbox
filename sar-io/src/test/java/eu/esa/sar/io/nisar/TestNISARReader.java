@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -109,7 +109,7 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L1_RSLC_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
+        validator.validateProduct();
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"i","q","Intensity"});
     }
