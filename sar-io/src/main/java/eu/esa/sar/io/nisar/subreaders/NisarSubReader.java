@@ -17,8 +17,6 @@ package eu.esa.sar.io.nisar.subreaders;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.netcdf.NcRasterDim;
-import eu.esa.sar.io.netcdf.NetCDFReader;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
 import eu.esa.sar.io.netcdf.NetcdfConstants;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
@@ -27,8 +25,11 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.TiePointGeoCoding;
+import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.ma2.Array;
 import ucar.ma2.DataType;
@@ -94,8 +95,7 @@ public abstract class NisarSubReader {
 
             addMetadataToProduct();
             addBandsToProduct();
-            addTiePointGridsToProduct(groupFrequencyA);
-            addGeoCodingToProduct(rasterVariables);
+            addTiePointGridsToProduct();
             addDopplerMetadata();
 
             return product;
@@ -419,75 +419,38 @@ public abstract class NisarSubReader {
     }
 
 
-    protected void addTiePointGridsToProduct(final Group groupFrequencyA) throws IOException {
+    private TiePointGrid createTiePointGrid(final Variable var) throws IOException {
+        final int rank = var.getRank();
+        final int gridWidth = var.getDimension(rank - 1).getLength();
+        int gridHeight = var.getDimension(rank - 2).getLength();
+        if (rank >= 3 && gridHeight <= 1)
+            gridHeight = var.getDimension(rank - 3).getLength();
+        return NetCDFUtils.createTiePointGrid(var, gridWidth, gridHeight,
+                product.getSceneRasterWidth(), product.getSceneRasterHeight());
+    }
 
-//        final int rank = variable.getRank();
-//        final int gridWidth = variable.getDimension(rank - 1).getLength();
-//        int gridHeight = variable.getDimension(rank - 2).getLength();
-//        if (rank >= 3 && gridHeight <= 1)
-//            gridHeight = variable.getDimension(rank - 3).getLength();
-//        final TiePointGrid tpg = NetCDFUtils.createTiePointGrid(variable, gridWidth, gridHeight,
-//                product.getSceneRasterWidth(), product.getSceneRasterHeight());
-
-//        product.addTiePointGrid(tpg);
+    protected void addTiePointGridsToProduct() throws IOException {
 
         final MetadataElement bandElem = getBandElement(product.getBandAt(0));
         addIncidenceAnglesSlantRangeTime(product, bandElem);
-        addGeocodingFromMetadata(product, bandElem);
 
+        Variable incidenceAngleVar = netcdfFile.findVariable("/science/LSAR/"+productType+"/metadata/geolocationGrid/incidenceAngle");
+        TiePointGrid incidenceAngleGrid = createTiePointGrid(incidenceAngleVar);
+        incidenceAngleGrid.setName(OperatorUtils.TPG_INCIDENT_ANGLE);
+        product.addTiePointGrid(incidenceAngleGrid);
 
-        Variable coordXVar = netcdfFile.findVariable("/science/LSAR/RSLC/metadata/geolocationGrid/coordinateX");
-        Variable coordYVar = netcdfFile.findVariable("science/LSAR/RSLC/metadata/geolocationGrid/coordinateY");
+        Variable coordYVar = netcdfFile.findVariable("/science/LSAR/"+productType+"/metadata/geolocationGrid/coordinateY");
+        TiePointGrid latGrid = createTiePointGrid(coordYVar);
+        latGrid.setName(OperatorUtils.TPG_LATITUDE);
+        product.addTiePointGrid(latGrid);
 
-        // Check if the variables were found
-        if (coordXVar == null) {
-            System.err.println("Error: Could not find variable '" + "'");
-            System.err.println("Check the file path and the product specification.");
-            // Optional: Print file structure to help debug
-            // System.out.println("\nFile Structure:\n" + ncfile);
-            return;
-        }
-        if (coordYVar == null) {
-            System.err.println("Error: Could not find variable '" + "'");
-            System.err.println("Check the file path and the product specification.");
-            // Optional: Print file structure to help debug
-            // System.out.println("\nFile Structure:\n" + ncfile);
-            return;
-        }
+        Variable coordXVar = netcdfFile.findVariable("/science/LSAR/"+productType+"/metadata/geolocationGrid/coordinateX");
+        TiePointGrid lonGrid = createTiePointGrid(coordXVar);
+        lonGrid.setName(OperatorUtils.TPG_LONGITUDE);
+        product.addTiePointGrid(lonGrid);
 
-        System.out.println("Found variable: " + coordXVar.getFullName() + " (Type: " + coordXVar.getDataType() + ")");
-        System.out.println("Found variable: " + coordYVar.getFullName() + " (Type: " + coordYVar.getDataType() + ")");
-
-        // Read the entire 3D array data [cite: 283]
-        // The specification indicates Float64, which corresponds to double in Java [cite: 283]
-        System.out.println("Reading coordinateX data...");
-        Array coordinateXData = coordXVar.read();
-        System.out.println("Reading coordinateY data...");
-        Array coordinateYData = coordYVar.read();
-
-        // --- Access and Use the Data ---
-
-        // Get the shape of the arrays (should be 3 dimensions: height, time/northing, range/easting)
-        int[] shapeX = coordinateXData.getShape();
-        int[] shapeY = coordinateYData.getShape();
-        System.out.println("coordinateX shape: " + Arrays.toString(shapeX));
-        System.out.println("coordinateY shape: " + Arrays.toString(shapeY));
-
-        // You can work directly with the ucar.ma2.Array object, which is efficient
-        // Example: Get the value at the first index (0, 0, 0)
-        if (coordinateXData.getRank() == 3 && coordinateYData.getRank() == 3) {
-            double firstX = coordinateXData.getDouble(coordinateXData.getIndex().set(0, 0, 0));
-            double firstY = coordinateYData.getDouble(coordinateYData.getIndex().set(0, 0, 0));
-            System.out.printf("Value at index [0,0,0]: X=%.3f, Y=%.3f%n", firstX, firstY);
-        }
-
-        // Optional: Convert to a primitive Java array if needed for other libraries/processing
-        // Note: This copies all the data into memory, which can be large.
-        // double[][][] coordXJavaArray = (double[][][]) coordinateXData.copyToNDJavaArray();
-        // double[][][] coordYJavaArray = (double[][][]) coordinateYData.copyToNDJavaArray();
-        // System.out.println("Copied data to primitive Java arrays.");
-        // Now you can use coordXJavaArray[heightIndex][timeIndex][rangeIndex]
-
+        final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
+        product.setSceneGeoCoding(tpGeoCoding);
     }
 
     private static String getOrbitPass(String pass) {
@@ -567,60 +530,6 @@ public abstract class NisarSubReader {
         } catch (IOException e) {
             SystemUtils.LOG.severe(e.getMessage());
 
-        }
-    }
-
-    protected void addGeocodingFromMetadata(
-            final Product product, final MetadataElement bandElem) {
-
-        if (bandElem == null) return;
-
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-
-        try {
-            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.FIRST_NEAR).read().getStorage();
-
-            double[] firstFar = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.FIRST_FAR).read().getStorage();
-
-            double[] lastNear = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.LAST_NEAR).read().getStorage();
-
-            double[] lastFar = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.LAST_FAR).read().getStorage();
-
-            final double latUL = firstNear[2];
-            final double lonUL = firstNear[3];
-            final double latUR = firstFar[2];
-            final double lonUR = firstFar[3];
-            final double latLL = lastNear[2];
-            final double lonLL = lastNear[3];
-            final double latLR = lastFar[2];
-            final double lonLR = lastFar[3];
-
-            absRoot.setAttributeDouble(AbstractMetadata.first_near_lat, latUL);
-            absRoot.setAttributeDouble(AbstractMetadata.first_near_long, lonUL);
-            absRoot.setAttributeDouble(AbstractMetadata.first_far_lat, latUR);
-            absRoot.setAttributeDouble(AbstractMetadata.first_far_long, lonUR);
-            absRoot.setAttributeDouble(AbstractMetadata.last_near_lat, latLL);
-            absRoot.setAttributeDouble(AbstractMetadata.last_near_long, lonLL);
-            absRoot.setAttributeDouble(AbstractMetadata.last_far_lat, latLR);
-            absRoot.setAttributeDouble(AbstractMetadata.last_far_long, lonLR);
-
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
-                    netcdfFile.getRootGroup().findVariable(NisarXConstants.SLANT_RANGE_SPACING).readScalarDouble());
-
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
-                    netcdfFile.getRootGroup().findVariable(NisarXConstants.AZIMUTH_GROUND_SPACING).readScalarDouble());
-
-            final double[] latCorners = new double[]{latUL, latUR, latLL, latLR};
-            final double[] lonCorners = new double[]{lonUL, lonUR, lonLL, lonLR};
-
-            ReaderUtils.addGeoCoding(product, latCorners, lonCorners);
-
-        } catch (Exception e) {
-            SystemUtils.LOG.severe(e.getMessage());
         }
     }
 
@@ -745,21 +654,6 @@ public abstract class NisarSubReader {
             }
         }
         return bandElem;
-    }
-
-    protected void addGeoCodingToProduct(Variable[] rasterVariables) throws IOException {
-
-        if (product.getSceneGeoCoding() == null) {
-            NetCDFReader.setTiePointGeoCoding(product);
-        }
-        if (product.getSceneGeoCoding() == null) {
-            NetCDFReader.setPixelGeoCoding(product);
-        }
-        if (product.getSceneGeoCoding() == null) {
-            NcRasterDim rasterDim = new NcRasterDim(
-                    rasterVariables[0].getDimension(0), rasterVariables[0].getDimension(1));
-            NetCDFReader.setMapGeoCoding(rasterDim, product, netcdfFile, false);
-        }
     }
 
     protected void addDopplerCentroidCoefficients() {

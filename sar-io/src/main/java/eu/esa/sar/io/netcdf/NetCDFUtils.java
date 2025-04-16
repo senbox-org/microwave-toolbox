@@ -89,9 +89,19 @@ public class NetCDFUtils {
         final double subSamplingY = (double) sceneHeight / (double) (gridHeight - 1);
 
         final Array data = variable.read();
-        final float[] dataArray = new float[(int) data.getSize()]; //(float[])data.copyTo1DJavaArray();
-        for (int i = 0; i < data.getSize(); ++i) {
-            dataArray[i] = data.getFloat(i);
+
+        final float[] dataArray = new float[gridWidth*gridHeight];
+        if (data.getRank() == 3) {
+            int i = 0;
+            for(int h=0;h<gridHeight;++h) {
+                for(int w=0;w<gridWidth;++w) {
+                    dataArray[i++] = data.getFloat(data.getIndex().set(0, h, w));
+                }
+            }
+        } else {
+            for (int i = 0; i < dataArray.length; ++i) {
+                dataArray[i] = data.getFloat(i);
+            }
         }
 
         final TiePointGrid tpg = new TiePointGrid(variable.getShortName(), gridWidth, gridHeight, 0, 0,
