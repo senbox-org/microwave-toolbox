@@ -20,6 +20,7 @@ import eu.esa.sar.commons.product.Missions;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
 import eu.esa.sar.io.netcdf.NetcdfConstants;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
+import eu.esa.sar.io.pcidsk.UTM2LatLon;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
@@ -28,13 +29,16 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.core.util.geotiff.EPSGCodes;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.ma2.Array;
 import ucar.ma2.DataType;
 import ucar.ma2.StructureData;
 import ucar.ma2.StructureMembers;
+import ucar.nc2.Attribute;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
@@ -429,6 +433,59 @@ public abstract class NisarSubReader {
                 product.getSceneRasterWidth(), product.getSceneRasterHeight());
     }
 
+    private static class Grids {
+        TiePointGrid latGrid;
+        TiePointGrid lonGrid;
+    }
+
+    private Grids createTiePointGridFromUTM(final int epsg, final Variable varX, final Variable varY) throws IOException {
+        final int rank = varX.getRank();
+        final int gridWidth = varX.getDimension(rank - 1).getLength();
+        int gridHeight = varX.getDimension(rank - 2).getLength();
+        if (rank >= 3 && gridHeight <= 1)
+            gridHeight = varX.getDimension(rank - 3).getLength();
+        final int sceneWidth = product.getSceneRasterWidth();
+        final int sceneHeight = product.getSceneRasterHeight();
+        final double subSamplingX = (double) sceneWidth / (double) (gridWidth - 1);
+        final double subSamplingY = (double) sceneHeight / (double) (gridHeight - 1);
+
+        TiePointGrid eastingTPG = NetCDFUtils.createTiePointGrid(varX, gridWidth, gridHeight, sceneWidth, sceneHeight);
+        TiePointGrid northingTPG = NetCDFUtils.createTiePointGrid(varY, gridWidth, gridHeight, sceneWidth, sceneHeight);
+
+        final int length = gridWidth * gridHeight;
+        float[] easting = eastingTPG.getTiePoints();
+        float[] northing = northingTPG.getTiePoints();
+        final float[] latTiePoints = new float[length];
+        final float[] lonTiePoints = new float[length];
+
+        String epsgName = EPSGCodes.getInstance().getName(epsg);
+        String zone = epsgName.substring(epsgName.lastIndexOf("_")+1);
+        String row = "N";
+        if(zone.endsWith("S")) {
+            row = "A";  // southern rows
+        }
+        zone = zone.substring(0, zone.length()-1);
+
+        UTM2LatLon conv = new UTM2LatLon();
+        for(int i=0; i < length; ++i) {
+            final String utmStr = zone + " " + row + " " + easting[i] + " " + northing[i];
+            final double latlon[] = conv.convertUTMToLatLong(utmStr);
+            latTiePoints[i] = (float) latlon[0];
+            lonTiePoints[i] = (float) latlon[1];
+        }
+
+        Grids grids = new Grids();
+        grids.latGrid = new TiePointGrid("latitude", gridWidth, gridHeight, 0.5f, 0.5f,
+                subSamplingX, subSamplingY, latTiePoints);
+        grids.latGrid.setUnit(Unit.DEGREES);
+
+        grids.lonGrid = new TiePointGrid("longitude", gridWidth, gridHeight, 0.5f, 0.5f,
+                subSamplingX, subSamplingY, lonTiePoints, TiePointGrid.DISCONT_AT_180);
+        grids.lonGrid.setUnit(Unit.DEGREES);
+
+        return grids;
+    }
+
     protected void addTiePointGridsToProduct() throws IOException {
 
         final MetadataElement bandElem = getBandElement(product.getBandAt(0));
@@ -440,13 +497,24 @@ public abstract class NisarSubReader {
         product.addTiePointGrid(incidenceAngleGrid);
 
         Variable coordYVar = netcdfFile.findVariable("/science/LSAR/"+productType+"/metadata/geolocationGrid/coordinateY");
-        TiePointGrid latGrid = createTiePointGrid(coordYVar);
-        latGrid.setName(OperatorUtils.TPG_LATITUDE);
-        product.addTiePointGrid(latGrid);
+        Variable coordXVar = netcdfFile.findVariable("/science/LSAR/" + productType + "/metadata/geolocationGrid/coordinateX");
+        String unit = coordYVar.findAttribute("units").toString();
 
-        Variable coordXVar = netcdfFile.findVariable("/science/LSAR/"+productType+"/metadata/geolocationGrid/coordinateX");
-        TiePointGrid lonGrid = createTiePointGrid(coordXVar);
-        lonGrid.setName(OperatorUtils.TPG_LONGITUDE);
+        TiePointGrid latGrid, lonGrid;
+        if(unit.contains("meter")) {
+            Variable epsgVar = netcdfFile.findVariable("/science/LSAR/"+productType+"/metadata/geolocationGrid/epsg");
+            Grids grids = createTiePointGridFromUTM(epsgVar.readScalarInt(), coordXVar, coordYVar);
+            latGrid = grids.latGrid;
+            lonGrid = grids.lonGrid;
+        } else {
+            latGrid = createTiePointGrid(coordYVar);
+            latGrid.setName(OperatorUtils.TPG_LATITUDE);
+
+            lonGrid = createTiePointGrid(coordXVar);
+            lonGrid.setName(OperatorUtils.TPG_LONGITUDE);
+        }
+
+        product.addTiePointGrid(latGrid);
         product.addTiePointGrid(lonGrid);
 
         final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
