@@ -35,10 +35,10 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.ma2.Array;
+import ucar.ma2.ArrayStructure;
 import ucar.ma2.DataType;
 import ucar.ma2.StructureData;
 import ucar.ma2.StructureMembers;
-import ucar.nc2.Attribute;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
@@ -768,11 +768,8 @@ public abstract class NisarSubReader {
     }
 
     protected void addDopplerMetadata() {
-
 //        addDopplerCentroidCoefficients();
     }
-
-
 
     /**
      * {@inheritDoc}
@@ -807,6 +804,8 @@ public abstract class NisarSubReader {
                 }
 
                 if (isComplexData) {
+                    ArrayStructure arrayStruct = (ArrayStructure) array;
+
                     StructureData[] row = (StructureData[]) array.get1DJavaArray(STRUCTURE);
                     final float[] tempArray = new float[row.length];
                     for (int i = 0; i < row.length; ++i) {
@@ -816,6 +815,60 @@ public abstract class NisarSubReader {
                         tempArray[i] = row[i].convertScalarFloat(complexMemberName);
                     }
                     System.arraycopy(tempArray, 0, destBuffer.getElems(), y * destWidth, destWidth);
+
+//                    StructureData[] row = (StructureData[]) array.get1DJavaArray(STRUCTURE);
+//                    final float[] realPartBuffer = new float[row.length];
+//                    final float[] imaginaryPartBuffer = new float[row.length];
+//
+//                    find(arrayStruct, "real");
+//                    find(arrayStruct, "r");
+//                    find(arrayStruct, "i");
+//                    find(arrayStruct, "HH_r");
+//                    find(arrayStruct, "HH_i");
+//                    find(arrayStruct, "HH");
+//
+//                    ByteBuffer bb =  arrayStruct.getDataAsByteBuffer();
+//                    for (int i = 0; i < row.length; ++i) {
+//                        realPartBuffer[i] = bb.getFloat(i * 8);     // assuming 4 bytes real + 4 bytes imag
+//                        imaginaryPartBuffer[i] = bb.getFloat(i * 8 + 4);
+//                    }
+
+//                    for (int i = 0; i < row.length; ++i) {
+//                        StructureMembers structmembers = row[i].getStructureMembers();
+//
+//                        List<StructureMembers.Member> members = row[i].getMembers();
+//                        for (StructureMembers.Member member : members) {
+//                            System.out.println("Member name: " + member.getName());
+//                        }
+//
+//                        read(row[i], "real");
+//                        read(row[i], "r");
+//                        read(row[i], "i");
+//                        read(row[i], "HH_r");
+//                        read(row[i], "HH_i");
+//                        read(row[i], "HH");
+//
+//
+//                        // Get the data for the real and imaginary parts
+//                        double realValue = row[i].convertScalarDouble("r");
+//                        double imaginaryValue = row[i].convertScalarDouble("i");
+//
+//                        realPartBuffer[i] = (float) realValue;
+//                        imaginaryPartBuffer[i] = (float) imaginaryValue;
+//
+//                        // If your ProductData can handle complex numbers directly,
+//                        // you might want to store them as such instead of separate real/imaginary arrays.
+//                        // For example, if destBuffer is of type ComplexDouble[], you would do:
+//                        // ((ComplexDouble[]) destBuffer.getElems())[y * destWidth + i] = new ComplexDouble(realValue, imaginaryValue);
+//                    }
+
+                    // Assuming your destBuffer is designed to hold interleaved real and imaginary values
+                    // (e.g., [real1, imag1, real2, imag2, ...])
+//                    for (int i = 0; i < row.length; i++) {
+//                        destBuffer.setElemFloatAt(y * destWidth * 2 + i * 2, realPartBuffer[i]);
+//                        destBuffer.setElemFloatAt(y * destWidth * 2 + i * 2 + 1, imaginaryPartBuffer[i]);
+//                    }
+
                 } else {
                     float[] tempArray = (float[]) array.get1DJavaArray(Float.TYPE);
                     System.arraycopy(tempArray, 0, destBuffer.getElems(), y * destWidth, destWidth);
@@ -830,6 +883,27 @@ public abstract class NisarSubReader {
             System.out.println(e.getMessage());
         } finally {
             pm.done();
+        }
+    }
+
+    private void read(StructureData row, String name) {
+        try {
+            Array memberArray = row.getArray(name);
+            System.out.println("success " +name);
+        } catch (Exception e) {
+            System.out.println("failed " + name +" " +e.getMessage());
+        }
+    }
+
+    private void find(ArrayStructure row, String name) {
+        try {
+            StructureMembers.Member memberArray = row.findMember(name);
+            if(memberArray != null)
+                System.out.println("success " +name);
+            else
+                System.out.println("not found " +name);
+        } catch (Exception e) {
+            System.out.println("failed " + name +" " +e.getMessage());
         }
     }
 }
