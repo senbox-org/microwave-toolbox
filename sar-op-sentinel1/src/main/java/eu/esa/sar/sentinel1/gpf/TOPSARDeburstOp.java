@@ -411,7 +411,7 @@ public final class TOPSARDeburstOp extends Operator {
     /**
      * Update target product metadata.
      */
-    private void updateTargetProductMetadata() throws IOException {
+    private void updateTargetProductMetadata() throws Exception {
 
         updateAbstractMetadata();
         updateOriginalMetadata();
@@ -574,7 +574,7 @@ public final class TOPSARDeburstOp extends Operator {
         return pointElem;
     }
 
-    private void updateOriginalMetadata() throws IOException {
+    private void updateOriginalMetadata() throws Exception {
 
         updateSwathTiming();
 
@@ -613,7 +613,7 @@ public final class TOPSARDeburstOp extends Operator {
         return "S1"+mission.substring(mission.length()-1, mission.length());
     }
 
-    private void updateCalibrationVector() throws IOException {
+    private void updateCalibrationVector() throws Exception {
 
         final String[] selectedPols = Sentinel1Utils.getProductPolarizations(absRoot);
         final MetadataElement origMeta = AbstractMetadata.getOriginalProductMetadata(sourceProduct);
@@ -675,7 +675,7 @@ public final class TOPSARDeburstOp extends Operator {
         origProdRoot.addElement(calibration);
     }
 
-    private String getMergedPixels(final String pol) {
+    private String getMergedPixels(final String pol) throws Exception {
 
         final StringBuilder mergedPixelStr = new StringBuilder("");
         for (int s = 0; s < numOfSubSwath; s++) {
@@ -694,7 +694,7 @@ public final class TOPSARDeburstOp extends Operator {
         return mergedPixelStr.toString();
     }
 
-    private String getMergedVector(final String vectorName, final String pol, final int vectorIndex) {
+    private String getMergedVector(final String vectorName, final String pol, final int vectorIndex) throws Exception {
 
         final StringBuilder mergedVectorStr = new StringBuilder("");
         for (int s = 0; s < numOfSubSwath; s++) {
