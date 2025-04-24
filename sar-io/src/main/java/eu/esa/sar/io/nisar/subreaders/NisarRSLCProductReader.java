@@ -19,7 +19,6 @@ import eu.esa.sar.io.netcdf.NcRasterDim;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -58,12 +57,6 @@ public class NisarRSLCProductReader extends NisarSubReader {
         }
 
         return rasterVariables.toArray(new Variable[0]);
-    }
-
-    @Override
-    protected void addSubReaderMetadata(final MetadataElement absRoot, final MetadataElement lsar) throws Exception {
-
-
     }
 
     @Override

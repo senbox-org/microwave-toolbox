@@ -15,18 +15,18 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
-import eu.esa.sar.commons.product.Missions;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
+import hdf.object.FileFormat;
+import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.MetadataElement;
+import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.SystemUtils;
-import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
+import java.io.File;
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,8 +34,74 @@ import java.util.Map;
 
 public class NisarGCOVProductReader extends NisarSubReader {
 
+    private FileFormat h5File;
+
     public NisarGCOVProductReader() {
         productType = "GCOV";
+    }
+
+    protected void open(final File inputFile) throws IOException {
+        try {
+            final FileFormat h5FileFormat = FileFormat.getFileFormat(FileFormat.FILE_TYPE_HDF5);
+            this.h5File = h5FileFormat.createInstance(inputFile.getAbsolutePath(), FileFormat.READ);
+            this.h5File.open();
+
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        super.close();
+        if (this.h5File != null) {
+            try {
+                this.h5File.close();
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        }
+    }
+
+    /**
+     * Provides an implementation of the <code>readProductNodes</code> interface method. Clients implementing this
+     * method can be sure that the input object and eventually the subset information has already been set.
+     * <p/>
+     * <p>This method is called as a last step in the <code>readProductNodes(input, subsetInfo)</code> method.
+     */
+    @Override
+    public Product readProduct(final ProductReader reader, final File inputFile) throws IOException {
+        open(inputFile);
+
+        try {
+            final hdf.object.Group rootNode = (hdf.object.Group) h5File.getRootObject();
+
+            final Group groupLSAR = getLSARGroup();
+            final Group groupID = getIndenificationGroup(groupLSAR);
+            final Group groupFrequencyA = getFrequencyAGroup(groupLSAR);
+
+            Variable[] rasterVariables = getRasterVariables(groupFrequencyA);
+
+            final int rasterHeight = rasterVariables[0].getDimension(0).getLength();
+            final int rasterWidth = rasterVariables[0].getDimension(1).getLength();
+            productType = getProductType(groupID);
+
+            product = new Product(inputFile.getName(),
+                    productType,
+                    rasterWidth, rasterHeight,
+                    reader);
+            product.setFileLocation(inputFile);
+
+            addMetadataToProduct();
+            addBandsToProduct();
+            addTiePointGridsToProduct();
+            addDopplerMetadata();
+
+            return product;
+        } catch (Exception e) {
+            SystemUtils.LOG.severe(e.getMessage());
+            return null;
+        }
     }
 
     @Override
@@ -58,11 +124,6 @@ public class NisarGCOVProductReader extends NisarSubReader {
         }
 
         return rasterVariables.toArray(new Variable[0]);
-    }
-
-    @Override
-    protected void addSubReaderMetadata(final MetadataElement absRoot, final MetadataElement lsar) throws Exception {
-
     }
 
     @Override

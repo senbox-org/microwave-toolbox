@@ -15,18 +15,10 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
-import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.nisar.util.NisarXConstants;
-import org.esa.snap.core.datamodel.MetadataElement;
-import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.util.SystemUtils;
-import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
-import java.io.IOException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,11 +51,6 @@ public class NisarGOFFProductReader extends NisarSubReader {
         }
 
         return rasterVariables.toArray(new Variable[0]);
-    }
-
-    @Override
-    protected void addSubReaderMetadata(final MetadataElement absRoot, final MetadataElement lsar) throws Exception {
-
     }
 
     @Override

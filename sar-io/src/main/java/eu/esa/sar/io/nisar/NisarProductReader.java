@@ -28,15 +28,12 @@ import eu.esa.sar.io.nisar.subreaders.NisarRUNWProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarSMEProductReader;
 import eu.esa.sar.io.nisar.subreaders.NisarSubReader;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
-import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
-import ucar.nc2.NetcdfFile;
 
 import java.io.File;
 import java.io.IOException;
@@ -87,19 +84,7 @@ public class NisarProductReader extends SARReader {
                 }
             }
 
-            final NetcdfFile netcdfFile = NetcdfFile.open(inputFile.getPath());
-            if (netcdfFile == null) {
-                close();
-                throw new IllegalFileFormatException(inputFile.getName() +
-                        " Could not be interpreted by the reader.");
-            }
-
-            if (netcdfFile.getRootGroup().getGroups().isEmpty()) {
-                close();
-                throw new IllegalFileFormatException("No netCDF groups found.");
-            }
-
-            Product product = subReader.readProduct(this, netcdfFile, inputFile);
+            Product product = subReader.readProduct(this, inputFile);
 
             addCommonSARMetadata(product);
             setQuicklookBandName(product);
