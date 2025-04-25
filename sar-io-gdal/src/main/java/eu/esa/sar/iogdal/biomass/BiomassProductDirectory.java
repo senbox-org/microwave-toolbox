@@ -713,7 +713,13 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                         product.addTiePointGrid(lonGrid);
                     }
                 } else {
-
+                    if(name.toLowerCase().equals("incidenceangle")) {
+                        name = OperatorUtils.TPG_INCIDENT_ANGLE;
+                    } else if(name.toLowerCase().equals("elevationangle")) {
+                        name = OperatorUtils.TPG_ELEVATION_ANGLE;
+                    } else if(name.toLowerCase().equals("terrainslope")) {
+                        name = "terrain_slope";
+                    }
                     final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
                             gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
                     incidentAngleGrid.setUnit(Unit.DEGREES);

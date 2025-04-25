@@ -57,10 +57,14 @@ public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
         Path path = ReaderUtils.getPathFromInput(input);
         if (path != null) {
             if(Files.isDirectory(path)) {
-                //path = path.resolve(PRODUCT_HEADER_NAME);
-                //if(!Files.exists(path)) {
-                    return DecodeQualification.UNABLE;
-                //}
+                File[] files = path.toFile().listFiles();
+                for(File file : files) {
+                    final String filename = file.getName().toLowerCase();
+                    if (filename.startsWith(PRODUCT_PREFIX.toLowerCase()) && filename.endsWith(PRODUCT_EXT.toLowerCase())) {
+                        return DecodeQualification.INTENDED;
+                    }
+                }
+                return DecodeQualification.UNABLE;
             }
 
             if(path.getFileName() != null) {
