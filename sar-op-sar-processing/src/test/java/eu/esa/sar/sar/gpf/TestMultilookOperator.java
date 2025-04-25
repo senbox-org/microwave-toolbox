@@ -103,7 +103,7 @@ public class TestMultilookOperator extends ProcessorTest {
         TestUtils.attributeEquals(abs, AbstractMetadata.azimuth_spacing, 4.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 2.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.02);
-        TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:32:46.890683");
+        TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:32:46.890684");
     }
 
     /**

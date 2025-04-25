@@ -445,7 +445,7 @@ public class IceyeSLCProductReader extends SARReader {
         }
     }
 
-    private void addDopplerMetadata() {
+    private void addDopplerMetadata() throws IOException {
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
         final String imagingMode = absRoot.getAttributeString("ACQUISITION_MODE");
 
@@ -488,11 +488,10 @@ public class IceyeSLCProductReader extends SARReader {
         AbstractMetadata.setAttribute(elem, "dopplerCentroidSpotlight", dopplerCentroidSpotlightStr);
     }
 
-    private void addAzimuthTimeZpSpotlight(MetadataElement elem) {
+    private void addAzimuthTimeZpSpotlight(MetadataElement elem) throws IOException {
         // Compute azimuth time
-        MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
-        final double firstAzimuthTimeZp = timeUTCtoSecs(origProdRoot.getAttributeString(IceyeXConstants.FIRST_LINE_TIME));
-        final double lastAzimuthTimeZp = timeUTCtoSecs(origProdRoot.getAttributeString(IceyeXConstants.LAST_LINE_TIME));
+        final double firstAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_LINE_TIME).readScalarString());
+        final double lastAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeXConstants.LAST_LINE_TIME).readScalarString());
         final double AzimuthTimeZpOffset = firstAzimuthTimeZp - 0.5 * (firstAzimuthTimeZp + lastAzimuthTimeZp);
 
         // Save in metadata
