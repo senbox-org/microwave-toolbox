@@ -292,12 +292,12 @@
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.instance"/>
                     <attr name="position" intvalue="810"/>
                 </file>
-            </folder>
-            <folder name="SAR Utilities">
-                <file name="eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.instance"/>
-                    <attr name="position" intvalue="2300"/>
-                </file>
+                <folder name="Utilities">
+                    <file name="eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.instance"/>
+                        <attr name="position" intvalue="2300"/>
+                    </file>
+                </folder>
             </folder>
         </folder>
     </folder>

@@ -25,8 +25,6 @@
 				<tocitem text="EAP Phase Correction" target="EAPPhaseCorrection"/>
                 <tocitem text="TOPSAR Deramp Demod" target="TOPSARDerampDemodOp"/>
                 <tocitem text="ETAD Correction for Sentinel-1 product" target="S1ETADCorrectionOp"/>
-            </tocitem>
-            <tocitem text="SAR Utilities">
                 <tocitem text="ETAD Deburst" target="ETADDeburstOp"/>
             </tocitem>
         </tocitem>
