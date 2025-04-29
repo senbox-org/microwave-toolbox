@@ -181,9 +181,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 AbstractMetadata.addBandToBandMap(bandMetadata, bandName);
 
                 SARReader.createVirtualIntensityBand(product, newAbsBand, '_' + suffix);
-
-                // add tiepointgrids and geocoding for band
-                //addTiePointGrids(product, newBand, imgName, tpgPrefix);
             }
             ++cnt;
         }
@@ -421,7 +418,9 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
 
                     //addSRGRCoefficients(absRoot, prodElem.getElement("coordinateConversion"));
-                    //addDopplerCentroidCoefficients(absRoot, prodElem.getElement("dopplerCentroid"));
+
+                    final MetadataElement dopplerParameters = mainAnnotation.getElement("dopplerParameters");
+                    addDopplerCentroidCoefficients(absRoot, dopplerParameters);
 
                     commonMetadataRetrieved = true;
                 }
@@ -617,8 +616,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
     }
 
-    private void addDopplerCentroidCoefficients(
-            final MetadataElement absRoot, final MetadataElement dopplerCentroid) {
+    private void addDopplerCentroidCoefficients(final MetadataElement absRoot, final MetadataElement dopplerCentroid) {
         if (dopplerCentroid == null) return;
         final MetadataElement dcEstimateList = dopplerCentroid.getElement("dcEstimateList");
         if (dcEstimateList == null) return;
