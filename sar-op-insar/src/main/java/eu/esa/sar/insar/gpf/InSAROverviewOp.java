@@ -143,7 +143,7 @@ public class InSAROverviewOp extends Operator {
                 JSONObject secondary = new JSONObject();
                 secondaries.add(secondary);
 
-                MetadataElement secMeta = ifgPair.getMasterMetadata().getAbstractedMetadata();
+                MetadataElement secMeta = ifgPair.getSlaveMetadata().getAbstractedMetadata();
                 writeProductDetails(secondary, secMeta.getProduct(), secMeta);
 
                 JSONObject overview = new JSONObject();
