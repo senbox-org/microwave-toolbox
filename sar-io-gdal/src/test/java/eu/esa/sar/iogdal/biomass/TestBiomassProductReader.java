@@ -108,7 +108,7 @@ public class TestBiomassProductReader extends ReaderTest {
 
     @Test
     public void testOpeningFile_L1C_SCS() throws Exception {
-        try(Product prod = testReader(input_L1A_SCS.toPath())) {
+        try(Product prod = testReader(input_L1C_IntPhase_SCS.toPath())) {
 
             final ProductValidator validator = new ProductValidator(prod, productOptions);
             validator.validateProduct();

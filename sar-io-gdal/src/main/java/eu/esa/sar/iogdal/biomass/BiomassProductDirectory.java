@@ -29,7 +29,6 @@ import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
-import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.dataio.gdal.reader.plugins.GTiffDriverProductReaderPlugIn;
 import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -70,6 +69,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     private final transient Map<String, String> imgBandMetadataMap = new TreeMap<>();
     private String productName = "";
     private String productType = "";
+    private String annotationName = "";
     private File netCDFLUTFile;
 
     DateFormat biomassDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd_HH:mm:ss");
@@ -140,6 +140,9 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             if (isSLC()) {
                 ReaderData absReaderData = bandProductMap.get(ABS);
                 ReaderData phaseReaderData = bandProductMap.get(PHASE);
+                if(absReaderData.bandProduct.getNumBands() <= cnt) {
+                    continue;
+                }
                 Band absBand = absReaderData.bandProduct.getBandAt(cnt);
                 Band phaseBand = phaseReaderData.bandProduct.getBandAt(cnt);
 
@@ -300,17 +303,22 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     private void addBandAbstractedMetadata(final MetadataElement absRoot,
                                            final MetadataElement origProdRoot) throws IOException {
 
-        MetadataElement annotationElement = origProdRoot.getElement("annotation");
+        this.annotationName = "annotation";
+        String annotFolder = getRootFolder() + annotationName;
+        if(!exists(annotFolder)) {
+            this.annotationName = "annotation_primary";
+            annotFolder = getRootFolder() + annotationName;
+        }
+
+        MetadataElement annotationElement = origProdRoot.getElement(annotationName);
         if (annotationElement == null) {
-            annotationElement = new MetadataElement("annotation");
+            annotationElement = new MetadataElement(annotationName);
             origProdRoot.addElement(annotationElement);
         }
 
         boolean commonMetadataRetrieved = false;
-
         double heightSum = 0.0;
 
-        final String annotFolder = getRootFolder() + "annotation";
         final String[] filenames = listFiles(annotFolder);
         if (filenames != null) {
             for (String metadataFile : filenames) {
@@ -410,17 +418,20 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency,
                             value.getAttributeDouble("value"));
 
-//
 //                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
 //                                                  productInformation.getAttributeDouble("rangeSamplingRate") / Constants.oneMillion);
 //                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
 //                                                  imageInformation.getAttributeDouble("azimuthTimeInterval"));
 
-
                     //addSRGRCoefficients(absRoot, prodElem.getElement("coordinateConversion"));
 
                     final MetadataElement dopplerParameters = mainAnnotation.getElement("dopplerParameters");
                     addDopplerCentroidCoefficients(absRoot, dopplerParameters);
+
+                    if(mainAnnotation.containsElement("geometry")) {
+                        final MetadataElement geometry = mainAnnotation.getElement("geometry");
+                        addTiePointGrids(geometry);
+                    }
 
                     commonMetadataRetrieved = true;
                 }
@@ -481,6 +492,34 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             }
         }
 
+        // coregistered
+        String coregAnnotationName = "annotation_coregistered";
+        String coregAnnotFolder = getRootFolder() + coregAnnotationName;
+        if(exists(coregAnnotFolder)) {
+            MetadataElement coregAnnotationElement = origProdRoot.getElement(coregAnnotationName);
+            if (coregAnnotationElement == null) {
+                coregAnnotationElement = new MetadataElement(coregAnnotationName);
+                origProdRoot.addElement(coregAnnotationElement);
+            }
+
+            final String[] coregFilenames = listFiles(coregAnnotFolder);
+            if (coregFilenames != null) {
+                for (String metadataFile : coregFilenames) {
+                    if (!metadataFile.endsWith(".xml")) {
+                        continue;
+                    }
+                    final Document xmlDoc;
+                    try (final InputStream is = getInputStream(coregAnnotFolder + '/' + metadataFile)) {
+                        xmlDoc = XMLSupport.LoadXML(is);
+                    }
+                    final Element rootElement = xmlDoc.getRootElement();
+                    final MetadataElement nameElem = new MetadataElement(metadataFile);
+                    coregAnnotationElement.addElement(nameElem);
+                    AbstractMetadataIO.AddXMLMetadata(rootElement, nameElem);
+                }
+            }
+        }
+
         readOrbitStateVectors(absRoot);
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, heightSum / filenames.length);
@@ -507,7 +546,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     }
 
     private void readOrbitStateVectors(final MetadataElement absRoot) throws IOException {
-        final String navFolder = getRootFolder() + "annotation/navigation";
+        final String navFolder = getRootFolder() + annotationName + "/navigation";
         final String[] filenames = listFiles(navFolder);
         if (filenames != null) {
             for (String metadataFile : filenames) {
@@ -629,7 +668,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             dopplerCentroidCoefficientsElem.addElement(dopplerListElem);
             ++listCnt;
 
-            final ProductData.UTC utcTime = ReaderUtils.getTime(elem, "azimuthTime", biomassDateFormat);
+            final ProductData.UTC utcTime = getTime(elem, "azimuthTime", biomassDateFormat);
             dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, utcTime);
 
             final double refTime = elem.getAttributeDouble("t0", 0) * 1e9; // s to ns
@@ -662,6 +701,11 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
     @Override
     protected void addTiePointGrids(final Product product) {
+
+        if(netCDFLUTFile == null) {
+            return;
+        }
+
         try (final NetcdfFile netcdfFile = NetcdfFile.open(netCDFLUTFile.getAbsolutePath())) {
             final List<Variable> rasters = readNetCDFLUT(netcdfFile);
             for(Variable variable : rasters) {
@@ -729,143 +773,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
     }
 
-    private void addTiePointGrids(final Product product, final Band band, final String imgXMLName, final String tpgPrefix) {
+    private void addTiePointGrids(final MetadataElement geometryElem) {
 
-        //System.out.println("S1L1Dir.addTiePointGrids: band = " + band.getName() + " imgXMLName = " + imgXMLName + " tpgPrefix = " + tpgPrefix);
-
-        String pre = "";
-        if (!tpgPrefix.isEmpty())
-            pre = tpgPrefix + '_';
-
-        final TiePointGrid existingLatTPG = product.getTiePointGrid(pre + OperatorUtils.TPG_LATITUDE);
-        final TiePointGrid existingLonTPG = product.getTiePointGrid(pre + OperatorUtils.TPG_LONGITUDE);
-        if (existingLatTPG != null && existingLonTPG != null) {
-            if(band != null) {
-                // reuse geocoding
-                final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(existingLatTPG, existingLonTPG);
-                band.setGeoCoding(tpGeoCoding);
-            }
-            return;
-        }
-        //System.out.println("add new TPG for band = " + band.getName());
-        final String annotation = FileUtils.exchangeExtension(imgXMLName, ".xml");
-        final MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
-        final MetadataElement annotationElem = origProdRoot.getElement("annotation");
-        final MetadataElement imgElem = annotationElem.getElement(annotation);
-        final MetadataElement productElem = imgElem.getElement("product");
-        final MetadataElement geolocationGrid = productElem.getElement("geolocationGrid");
-        final MetadataElement geolocationGridPointList = geolocationGrid.getElement("geolocationGridPointList");
-
-        final MetadataElement[] geoGrid = geolocationGridPointList.getElements();
-
-        //System.out.println("geoGrid.length = " + geoGrid.length);
-
-        final double[] latList = new double[geoGrid.length];
-        final double[] lonList = new double[geoGrid.length];
-        final double[] incidenceAngleList = new double[geoGrid.length];
-        final double[] elevAngleList = new double[geoGrid.length];
-        final double[] rangeTimeList = new double[geoGrid.length];
-        final int[] x = new int[geoGrid.length];
-        final int[] y = new int[geoGrid.length];
-
-        // Loop through the list of geolocation grid points, assuming that it represents a row-major rectangular grid.
-        int gridWidth = 0, gridHeight = 0;
-        int i = 0;
-        for (MetadataElement ggPoint : geoGrid) {
-            latList[i] = ggPoint.getAttributeDouble("latitude", 0);
-            lonList[i] = ggPoint.getAttributeDouble("longitude", 0);
-            incidenceAngleList[i] = ggPoint.getAttributeDouble("incidenceAngle", 0);
-            elevAngleList[i] = ggPoint.getAttributeDouble("elevationAngle", 0);
-            rangeTimeList[i] = ggPoint.getAttributeDouble("slantRangeTime", 0) * Constants.oneBillion; // s to ns
-
-            x[i] = (int) ggPoint.getAttributeDouble("pixel", 0);
-            y[i] = (int) ggPoint.getAttributeDouble("line", 0);
-            if (x[i] == 0) {
-                // This means we are at the start of a new line
-                if (gridWidth == 0) // Here we are implicitly assuming that the pixel horizontal spacing is assumed to be the same from line to line.
-                    gridWidth = i;
-                ++gridHeight;
-            }
-            ++i;
-        }
-
-        if (crossAntimeridian(lonList)) {
-            for (int j = 0; j < lonList.length; ++j) {
-                if (lonList[j] < 0.0) lonList[j] += 360.0;
-            }
-        }
-
-        //System.out.println("geoGrid w = " + gridWidth + "; h = " + gridHeight);
-
-        final int newGridWidth = gridWidth;
-        final int newGridHeight = gridHeight;
-        final float[] newLatList = new float[newGridWidth * newGridHeight];
-        final float[] newLonList = new float[newGridWidth * newGridHeight];
-        final float[] newIncList = new float[newGridWidth * newGridHeight];
-        final float[] newElevList = new float[newGridWidth * newGridHeight];
-        final float[] newslrtList = new float[newGridWidth * newGridHeight];
-        int sceneRasterWidth = product.getSceneRasterWidth();
-        int sceneRasterHeight = product.getSceneRasterHeight();
-        if(band != null) {
-            sceneRasterWidth = band.getRasterWidth();
-            sceneRasterHeight = band.getRasterHeight();
-        }
-
-        final double subSamplingX = (double) sceneRasterWidth / (newGridWidth - 1);
-        final double subSamplingY = (double) sceneRasterHeight / (newGridHeight - 1);
-
-
-        TiePointGrid latGrid = product.getTiePointGrid(pre + OperatorUtils.TPG_LATITUDE);
-        if (latGrid == null) {
-            latGrid = new TiePointGrid(pre + OperatorUtils.TPG_LATITUDE,
-                                       newGridWidth, newGridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, newLatList);
-            latGrid.setUnit(Unit.DEGREES);
-            product.addTiePointGrid(latGrid);
-        }
-
-        TiePointGrid lonGrid = product.getTiePointGrid(pre + OperatorUtils.TPG_LONGITUDE);
-        if (lonGrid == null) {
-            lonGrid = new TiePointGrid(pre + OperatorUtils.TPG_LONGITUDE,
-                                       newGridWidth, newGridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, newLonList, TiePointGrid.DISCONT_AT_180);
-            lonGrid.setUnit(Unit.DEGREES);
-            product.addTiePointGrid(lonGrid);
-        }
-
-        if (product.getTiePointGrid(pre + OperatorUtils.TPG_INCIDENT_ANGLE) == null) {
-            final TiePointGrid incidentAngleGrid = new TiePointGrid(pre + OperatorUtils.TPG_INCIDENT_ANGLE,
-                                                                    newGridWidth, newGridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, newIncList);
-            incidentAngleGrid.setUnit(Unit.DEGREES);
-            product.addTiePointGrid(incidentAngleGrid);
-        }
-
-        if (product.getTiePointGrid(pre + OperatorUtils.TPG_ELEVATION_ANGLE) == null) {
-            final TiePointGrid elevAngleGrid = new TiePointGrid(pre + OperatorUtils.TPG_ELEVATION_ANGLE,
-                                                                newGridWidth, newGridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, newElevList);
-            elevAngleGrid.setUnit(Unit.DEGREES);
-            product.addTiePointGrid(elevAngleGrid);
-        }
-
-        if (product.getTiePointGrid(pre + OperatorUtils.TPG_SLANT_RANGE_TIME) == null) {
-            final TiePointGrid slantRangeGrid = new TiePointGrid(pre + OperatorUtils.TPG_SLANT_RANGE_TIME,
-                                                                 newGridWidth, newGridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, newslrtList);
-            slantRangeGrid.setUnit(Unit.NANOSECONDS);
-            product.addTiePointGrid(slantRangeGrid);
-        }
-
-        final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
-
-        if(band != null) {
-            bandGeocodingMap.put(band, tpGeoCoding);
-        }
-    }
-
-    private boolean crossAntimeridian(final double[] lonList) {
-        for (int i = 1; i < lonList.length; ++i) {
-            if (Math.abs(lonList[i] - lonList[i - 1]) > 350.0 ) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static void setLatLongMetadata(Product product, TiePointGrid latGrid, TiePointGrid lonGrid) {
