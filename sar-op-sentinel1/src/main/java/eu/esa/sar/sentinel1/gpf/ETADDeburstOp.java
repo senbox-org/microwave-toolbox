@@ -57,8 +57,8 @@ public class ETADDeburstOp extends Operator {
     private String selectedSwath = "IW1";
 
     @Parameter(valueSet = {"troposphericCorrectionRg", "ionosphericCorrectionRg", "geodeticCorrectionRg",
-    "dopplerShiftCorrectionRg", "geodeticCorrectionAz", "bistaticShiftCorrectionAz", "fmMismatchCorrectionAz",
-    "sumOfAzimuthCorrections", "sumOfRangeCorrections"}, defaultValue = "ionosphericCorrectionRg", label = "Correction layer")
+    "dopplerRangeShiftRg", "geodeticCorrectionAz", "bistaticCorrectionAz", "fmMismatchCorrectionAz",
+    "sumOfCorrectionsAz", "sumOfCorrectionsRg"}, defaultValue = "ionosphericCorrectionRg", label = "Correction layer")
     private String selectedLayer = "ionosphericCorrectionRg";
 
     private ETADUtils etadUtils = null;
