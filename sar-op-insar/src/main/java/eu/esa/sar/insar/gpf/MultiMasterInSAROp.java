@@ -159,9 +159,6 @@ public class MultiMasterInSAROp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
-            // 1. The input should be a stack product
-            // 2. Has a band starting with "elevation"
-            // 3. In the case of TOPS mode, it should have been deburst
             checkSourceProductValidity();
 
             polarisations = OperatorUtils.getPolarisations(sourceProduct);
