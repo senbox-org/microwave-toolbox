@@ -1,6 +1,7 @@
 package eu.esa.sar.insar.gpf;
 
 import com.bc.ceres.annotation.STTM;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
@@ -124,6 +125,18 @@ public class TestMultiReferenceInSAR {
                 assertNotNull(targetProduct.getBand(coherenceBandName));
             }
         }
+    }
+
+    @Test
+    @STTM("SNAP-3846")
+    public void test_sourceProduct_is_not_coregistered_stack() throws Exception {
+        Product sourceProduct = createStackProduct();
+        final MetadataElement absRoot = sourceProduct.getMetadataRoot();
+        absRoot.setAttributeInt("coregistered_stack", 0);
+
+        MultiMasterInSAROp op = new MultiMasterInSAROp();
+        op.setSourceProduct(sourceProduct);
+        assertThrows(OperatorException.class, () -> { op.initialize(); });
     }
 
     private Product createStackProduct() throws IOException {
