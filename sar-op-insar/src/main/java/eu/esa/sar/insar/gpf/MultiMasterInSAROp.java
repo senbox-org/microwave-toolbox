@@ -34,10 +34,7 @@ import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
-import org.esa.snap.engine_utilities.gpf.OperatorUtils;
-import org.esa.snap.engine_utilities.gpf.StackUtils;
-import org.esa.snap.engine_utilities.gpf.TileIndex;
-import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import org.esa.snap.engine_utilities.gpf.*;
 import org.jlinda.core.SLCImage;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.Point;
@@ -162,6 +159,11 @@ public class MultiMasterInSAROp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
+            // 1. The input should be a stack product
+            // 2. Has a band starting with "elevation"
+            // 3. In the case of TOPS mode, it should have been deburst
+            checkSourceProductValidity();
+
             polarisations = OperatorUtils.getPolarisations(sourceProduct);
             if (polarisations.length == 0) {
                 polarisations = new String[]{""};
@@ -181,6 +183,13 @@ public class MultiMasterInSAROp extends Operator {
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
+    }
+
+    private void checkSourceProductValidity() {
+
+        final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        validator.checkIfSARProduct();
+        validator.checkIfCoregisteredStack();
     }
 
     /**
@@ -313,7 +322,8 @@ public class MultiMasterInSAROp extends Operator {
             }
         }
         if (elevationBandName == null) {
-            throw new OperatorException("Elevation band is missing in input product.");
+            throw new OperatorException("Elevation band is missing in input product. Please add elevation band " +
+                    "using the Add Elevation Band function.");
         }
 
         // Create band for incidence angle
