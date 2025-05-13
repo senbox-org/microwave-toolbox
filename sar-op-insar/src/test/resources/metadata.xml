@@ -222,7 +222,7 @@
       <attrib name="range_bandwidth" value="16.0" type="31" unit="MHz" desc="Bandwidth total in range" />
       <attrib name="azimuth_bandwidth" value="1316.0" type="31" unit="Hz" desc="Bandwidth total in azimuth" />
       <attrib name="multilook_flag" value="0" type="20" unit="flag" desc="Product multilooked" />
-      <attrib name="coregistered_stack" value="0" type="20" unit="flag" desc="Coregistration applied" />
+      <attrib name="coregistered_stack" value="1" type="20" unit="flag" desc="Coregistration applied" />
       <attrib name="chirp_power" value="0.0" type="31" unit="dB" desc="Chirp power" />
       <attrib name="external_calibration_file" value="ASA_XCA_AXVIEC20090311_104037_20070204_165113_20080731_235959" type="41" desc="External calibration file used" />
       <attrib name="orbit_state_vector_file" value="DOR_VOR_AXVF-P20120425_180000_20080425_215527_20080427_002327" type="41" desc="Orbit file used" />
