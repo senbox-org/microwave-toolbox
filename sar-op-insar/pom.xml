@@ -68,11 +68,6 @@
         </dependency>
 
         <dependency>
-            <groupId>edu.emory.mathcs</groupId>
-            <artifactId>JTransforms</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io</artifactId>
             <scope>test</scope>
