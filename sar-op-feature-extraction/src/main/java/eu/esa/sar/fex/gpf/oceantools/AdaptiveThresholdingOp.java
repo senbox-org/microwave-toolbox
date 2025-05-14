@@ -253,11 +253,12 @@ public class AdaptiveThresholdingOp extends Operator {
                 if (!targetProduct.containsBand(srcBandName)) {
                     ProductUtils.copyBand(srcBandName, sourceProduct, targetProduct, true);
                 }
+                final Band targetBand = targetProduct.getBand(srcBandName);
 
                 final Band targetBandMask = new Band(targetBandName,
                         ProductData.TYPE_INT8,
-                        targetProduct.getSceneRasterWidth(),
-                        targetProduct.getSceneRasterHeight());
+                        targetBand.getRasterWidth(),
+                        targetBand.getRasterHeight());
 
                 targetBandMask.setUnit(Unit.AMPLITUDE);
                 targetBandMask.setNoDataValue(0);
