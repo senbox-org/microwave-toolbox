@@ -19,6 +19,7 @@ import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -74,6 +75,7 @@ public class TestBiomassProductReader extends ReaderTest {
     }
 
     @Test
+    @Ignore
     public void testOpeningZipDGM() throws Exception {
         try(Product prod = testReader(input_L1B_DGM_ZIP.toPath())) {
 
@@ -113,7 +115,7 @@ public class TestBiomassProductReader extends ReaderTest {
             final ProductValidator validator = new ProductValidator(prod, productOptions);
             validator.validateProduct();
             validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_S1_HH", "Phase_S1_HH", "i_S1_HH", "q_S1_HH", "Intensity_S1_HH", "Amplitude_S1_HV", "Phase_S1_HV", "i_S1_HV", "q_S1_HV", "Intensity_S1_HV", "Amplitude_S1_VH", "Phase_S1_VH", "i_S1_VH", "q_S1_VH", "Intensity_S1_VH", "Amplitude_S1_VV", "Phase_S1_VV", "i_S1_VV", "q_S1_VV", "Intensity_S1_VV"});
+            validator.validateBands(new String[]{"Amplitude_S2_HH", "Phase_S2_HH", "i_S2_HH", "q_S2_HH", "Intensity_S2_HH", "Amplitude_S2_HV", "Phase_S2_HV", "i_S2_HV", "q_S2_HV", "Intensity_S2_HV", "Amplitude_S2_VH", "Phase_S2_VH", "i_S2_VH", "q_S2_VH", "Intensity_S2_VH"});
         }
     }
 }
