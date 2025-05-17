@@ -60,6 +60,27 @@
         <jtransforms.version>2.4</jtransforms.version>
         <jfreechart.version>1.5.5</jfreechart.version>
         <opencsv.version>2.3</opencsv.version>
+
+        <plugin.maven-antrun.version>3.1.0</plugin.maven-antrun.version>
+        <plugin.maven-clean.version>3.4.1</plugin.maven-clean.version>
+        <plugin.maven-compiler.version>3.14.0</plugin.maven-compiler.version>
+        <plugin.maven-deploy.version>3.1.4</plugin.maven-deploy.version>
+        <plugin.maven-enforcer.version>3.5.0</plugin.maven-enforcer.version>
+        <plugin.maven-install.version>3.1.4</plugin.maven-install.version>
+        <plugin.maven-jar.version>3.4.2</plugin.maven-jar.version>
+        <plugin.maven-javadoc.version>3.11.2</plugin.maven-javadoc.version>
+        <plugin.maven-site.version>4.0.0-M16</plugin.maven-site.version>
+        <plugin.maven-surefire.version>3.5.3</plugin.maven-surefire.version>
+        <plugin.maven-resources.version>3.3.1</plugin.maven-resources.version>
+        <plugin.maven-assembly.version>3.4.0</plugin.maven-assembly.version>
+        <plugin.maven-source.version>3.3.1</plugin.maven-source.version>
+        <plugin.maven-versions.version>2.18.0</plugin.maven-versions.version>
+
+        <plugin.build-helper.version>3.6.0</plugin.build-helper.version>
+        <plugin.jacoco.version>0.8.13</plugin.jacoco.version>
+        <plugin.license.version>2.5.0</plugin.license.version>
+        <plugin.ndm-maven.version>14.3</plugin.ndm-maven.version>
+        <plugin.spotless.version>2.44.4</plugin.spotless.version>
     </properties>
 
     <modules>
@@ -455,7 +476,6 @@
         </dependencies>
     </dependencyManagement>
 
-
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -468,7 +488,7 @@
             <plugins>
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.13.0</version>
+                    <version>${plugin.maven-compiler.version}</version>
                     <configuration>
                         <source>${jvm.version}</source>
                         <target>${jvm.version}</target>
@@ -483,7 +503,7 @@
                 <plugin>
                     <groupId>com.diffplug.spotless</groupId>
                     <artifactId>spotless-maven-plugin</artifactId>
-                    <version>2.40.0</version>
+                    <version>${plugin.spotless.version}</version>
                     <configuration>
                         <java>
                             <includes>
@@ -515,7 +535,7 @@
 
                 <plugin>
                     <artifactId>maven-resources-plugin</artifactId>
-                    <version>3.3.1</version>
+                    <version>${plugin.maven-resources.version}</version>
                     <configuration>
                         <encoding>UTF-8</encoding>
                     </configuration>
@@ -544,30 +564,30 @@
 
                 <plugin>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>3.1.1</version>
+                    <version>${plugin.maven-deploy.version}</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-install-plugin</artifactId>
-                    <version>3.1.1</version>
+                    <version>${plugin.maven-install.version}</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>3.12.1</version>
+                    <version>${plugin.maven-site.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.3.2</version>
+                    <version>${plugin.maven-clean.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>versions-maven-plugin</artifactId>
-                    <version>2.15.0</version>
+                    <version>${plugin.maven-versions.version}</version>
                 </plugin>
 
                 <plugin>
                     <artifactId>maven-source-plugin</artifactId>
-                    <version>3.3.1</version>
+                    <version>${plugin.maven-source.version}</version>
                     <executions>
                         <execution>
                             <phase>verify</phase>
@@ -585,7 +605,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>${plugin.maven-javadoc.version}</version>
                     <configuration>
                         <maxmemory>600m</maxmemory>
                         <links>
@@ -600,7 +620,7 @@
 
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>${plugin.maven-surefire.version}</version>
                     <configuration>
                         <enableAssertions>true</enableAssertions>
                         <!--  to test from the command line mvn test -DskipTests=false -->
@@ -625,7 +645,7 @@
                 <plugin>
                     <groupId>org.apache.netbeans.utilities</groupId>
                     <artifactId>nbm-maven-plugin</artifactId>
-                    <version>14.0</version>
+                    <version>${plugin.ndm-maven.version}</version>
                     <extensions>true</extensions>
                     <dependencies>
                         <dependency>
@@ -652,7 +672,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>build-helper-maven-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>${plugin.build-helper.version}</version>
                     <executions>
                         <execution>
                             <id>create-nbmSpecVersion</id>
@@ -685,7 +705,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.4.0</version>
+                    <version>${plugin.maven-jar.version}</version>
                     <executions>
                         <execution>
                             <goals>
@@ -696,7 +716,6 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-
 
         <plugins>
             <plugin>
@@ -716,13 +735,13 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>1.20</version>
+                <version>${plugin.license.version}</version>
             </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>${plugin.maven-enforcer.version}</version>
                 <executions>
                     <execution>
                         <id>enforce-versions</id>
@@ -732,7 +751,7 @@
                         <configuration>
                             <rules>
                                 <requireMavenVersion>
-                                    <version>[3.2.5,)</version>
+                                    <version>[3.6.3,)</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
                                     <version>${jvm.version}</version>
@@ -756,7 +775,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>${plugin.jacoco.version}</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
@@ -782,7 +801,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>${plugin.maven-javadoc.version}</version>
                 <reportSets>
                     <reportSet>
                         <id>aggregate</id>
