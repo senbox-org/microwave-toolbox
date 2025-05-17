@@ -19,6 +19,7 @@
         <javahelp.version>2.0.05</javahelp.version>
         <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
+        <maven-prerequisite.version>3.6.3</maven-prerequisite.version>
         <jvm.version>21</jvm.version>
 
         <skipTests>false</skipTests>
@@ -75,7 +76,6 @@
         <plugin.maven-assembly.version>3.4.0</plugin.maven-assembly.version>
         <plugin.maven-source.version>3.3.1</plugin.maven-source.version>
         <plugin.maven-versions.version>2.18.0</plugin.maven-versions.version>
-
         <plugin.build-helper.version>3.6.0</plugin.build-helper.version>
         <plugin.jacoco.version>0.8.13</plugin.jacoco.version>
         <plugin.license.version>2.5.0</plugin.license.version>
@@ -120,7 +120,7 @@
     <inceptionYear>2007</inceptionYear>
 
     <prerequisites>
-        <maven>3.6.3</maven>
+        <maven>${maven-prerequisite.version}</maven>
     </prerequisites>
 
     <licenses>
@@ -751,7 +751,7 @@
                         <configuration>
                             <rules>
                                 <requireMavenVersion>
-                                    <version>[3.6.3,)</version>
+                                    <version>[${maven-prerequisite.version},)</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
                                     <version>${jvm.version}</version>
