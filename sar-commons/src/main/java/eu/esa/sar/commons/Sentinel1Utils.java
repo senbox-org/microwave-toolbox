@@ -469,22 +469,6 @@ public final class Sentinel1Utils {
         return orbit;
     }
 
-    /**
-     * Get noise vectors for each sub-swath and each polarization.
-     */
-    private void getSubSwathNoiseVectors() {
-
-        for (int i = 0; i < numOfSubSwath; i++) {
-            for (String pol:polarizations) {
-                if (pol != null) {
-                    final Band srcBand = getSourceBand(subSwath[i].subSwathName, pol);
-                    final NoiseVector[] noiseVectors = getNoiseVector(srcBand);
-                    subSwath[i].noise.put(pol, noiseVectors);
-                }
-            }
-        }
-    }
-
     private Band getSourceBand(final String subSwathName, final String polarization) {
 
         final Band[] sourceBands = sourceProduct.getBands();
@@ -494,118 +478,6 @@ public final class Sentinel1Utils {
             }
         }
         return null;
-    }
-
-    private NoiseVector[] getNoiseVector(final Band band) {
-
-        final MetadataElement bandAbsMetadata = AbstractMetadata.getBandAbsMetadata(absRoot, band);
-        final String annotation = bandAbsMetadata.getAttributeString(AbstractMetadata.annotation);
-        final MetadataElement noiseElem = origProdRoot.getElement("noise");
-        final MetadataElement bandNoise = noiseElem.getElement(annotation);
-        final MetadataElement noise = bandNoise.getElement("noise");
-        final MetadataElement noiseVectorListElem = noise.getElement("noiseVectorList");
-        final MetadataElement[] list = noiseVectorListElem.getElements();
-
-        final List<NoiseVector> noiseVectorList = new ArrayList<>(5);
-        for (MetadataElement noiseVectorElem : list) {
-            final ProductData.UTC time = getTime(noiseVectorElem, "azimuthTime");
-            final int line = Integer.parseInt(noiseVectorElem.getAttributeString("line"));
-
-            final MetadataElement pixelElem = noiseVectorElem.getElement("pixel");
-            final String pixel = pixelElem.getAttributeString("pixel");
-            final int count = Integer.parseInt(pixelElem.getAttributeString("count"));
-            final MetadataElement noiseLutElem = noiseVectorElem.getElement("noiseLut");
-            final String noiseLUT = noiseLutElem.getAttributeString("noiseLut");
-
-            final int[] pixelArray = new int[count];
-            final float[] noiseLUTArray = new float[count];
-            final String delim = pixel.contains("\t") ? "\t" : " ";
-            addToArray(pixelArray, 0, pixel, delim);
-            addToArray(noiseLUTArray, 0, noiseLUT, delim);
-
-            noiseVectorList.add(new NoiseVector(time, line, pixelArray, noiseLUTArray));
-        }
-        return noiseVectorList.toArray(new NoiseVector[0]);
-    }
-
-    /**
-     * Get noise vectors for each sub-swath and each polarization.
-     */
-    private void getSubSwathCalibrationVectors(final boolean outputSigmaBand,
-                                               final boolean outputBetaBand,
-                                               final boolean outputGammaBand,
-                                               final boolean outputDNBand) {
-
-        for (int i = 0; i < numOfSubSwath; i++) {
-            for (String pol:polarizations) {
-                if (pol != null) {
-                    final CalibrationVector[] calibrationVectors = getCalibrationVector(
-                            i+1, pol, outputSigmaBand, outputBetaBand, outputGammaBand, outputDNBand);
-
-                    subSwath[i].calibration.put(pol, calibrationVectors);
-                }
-            }
-        }
-    }
-
-    private CalibrationVector[] getCalibrationVector(final int subSwathIndex,
-                                                     final String polarization,
-                                                     final boolean outputSigmaBand,
-                                                     final boolean outputBetaBand,
-                                                     final boolean outputGammaBand,
-                                                     final boolean outputDNBand) {
-
-        final MetadataElement calibrationVectorListElem = getCalibrationVectorList(subSwathIndex, polarization);
-        final MetadataElement[] list = calibrationVectorListElem.getElements();
-
-        final List<CalibrationVector> calibrationVectorList = new ArrayList<>(5);
-        for (MetadataElement calibrationVectorElem : list) {
-            final ProductData.UTC time = getTime(calibrationVectorElem, "azimuthTime");
-            final int line = Integer.parseInt(calibrationVectorElem.getAttributeString("line"));
-
-            final MetadataElement pixelElem = calibrationVectorElem.getElement("pixel");
-            final String pixel = pixelElem.getAttributeString("pixel");
-            final int count = Integer.parseInt(pixelElem.getAttributeString("count"));
-            final int[] pixelArray = new int[count];
-            final String delim = pixel.contains("\t") ? "\t" : " ";
-            addToArray(pixelArray, 0, pixel, delim);
-
-            float[] sigmaNoughtArray = null;
-            if (outputSigmaBand) {
-                final MetadataElement sigmaNoughtElem = calibrationVectorElem.getElement("sigmaNought");
-                final String sigmaNought = sigmaNoughtElem.getAttributeString("sigmaNought");
-                sigmaNoughtArray = new float[count];
-                addToArray(sigmaNoughtArray, 0, sigmaNought, delim);
-            }
-
-            float[] betaNoughtArray = null;
-            if (outputBetaBand) {
-                final MetadataElement betaNoughtElem = calibrationVectorElem.getElement("betaNought");
-                final String betaNought = betaNoughtElem.getAttributeString("betaNought");
-                betaNoughtArray = new float[count];
-                addToArray(betaNoughtArray, 0, betaNought, delim);
-            }
-
-            float[] gammaArray = null;
-            if (outputGammaBand) {
-                final MetadataElement gammaElem = calibrationVectorElem.getElement("gamma");
-                final String gamma = gammaElem.getAttributeString("gamma");
-                gammaArray = new float[count];
-                addToArray(gammaArray, 0, gamma, delim);
-            }
-
-            float[] dnArray = null;
-            if (outputDNBand) {
-                final MetadataElement dnElem = calibrationVectorElem.getElement("dn");
-                final String dn = dnElem.getAttributeString("dn");
-                dnArray = new float[count];
-                addToArray(dnArray, 0, dn, delim);
-            }
-
-            calibrationVectorList.add(new CalibrationVector(
-                    time, line, pixelArray, sigmaNoughtArray, betaNoughtArray, gammaArray, dnArray));
-        }
-        return calibrationVectorList.toArray(new CalibrationVector[0]);
     }
 
     /**
@@ -928,19 +800,24 @@ public final class Sentinel1Utils {
     }
 
     // =================================================================================
-    private MetadataElement getCalibrationVectorList(final int subSwathIndex, final String polarization) {
+    private MetadataElement getCalibrationVectorList(final int subSwathIndex, final String polarization) throws Exception {
 
         final Band srcBand = getSourceBand(subSwath[subSwathIndex - 1].subSwathName, polarization);
+        assert srcBand != null;
         final MetadataElement bandAbsMetadata = AbstractMetadata.getBandAbsMetadata(absRoot, srcBand);
-        final String annotation = bandAbsMetadata.getAttributeString(AbstractMetadata.annotation);
-        final MetadataElement calibrationElem = origProdRoot.getElement("calibration");
-        final MetadataElement bandCalibration = calibrationElem.getElement(annotation);
-        final MetadataElement calibration = bandCalibration.getElement("calibration");
-        return calibration.getElement("calibrationVectorList");
+        if (bandAbsMetadata != null) {
+            final String annotation = bandAbsMetadata.getAttributeString(AbstractMetadata.annotation);
+            final MetadataElement calibrationElem = origProdRoot.getElement("calibration");
+            final MetadataElement bandCalibration = calibrationElem.getElement(annotation);
+            final MetadataElement calibration = bandCalibration.getElement("calibration");
+            return calibration.getElement("calibrationVectorList");
+        } else {
+            throw new Exception("Band metadata not found for " + srcBand.getName());
+        }
     }
 
     public float[] getCalibrationVector(
-            final int subSwathIndex, final String polarization, final int vectorIndex, final String vectorName) {
+            final int subSwathIndex, final String polarization, final int vectorIndex, final String vectorName) throws Exception {
 
         final MetadataElement calibrationVectorListElem = getCalibrationVectorList(subSwathIndex, polarization);
         final MetadataElement[] list = calibrationVectorListElem.getElements();
@@ -955,7 +832,7 @@ public final class Sentinel1Utils {
     }
 
     public int[] getCalibrationPixel(
-            final int subSwathIndex, final String polarization, final int vectorIndex) {
+            final int subSwathIndex, final String polarization, final int vectorIndex) throws Exception {
 
         final MetadataElement calibrationVectorListElem = getCalibrationVectorList(subSwathIndex, polarization);
         final MetadataElement[] list = calibrationVectorListElem.getElements();
@@ -1155,38 +1032,6 @@ public final class Sentinel1Utils {
         return polArray;
     }
 
-    public static String[] getProductSubswaths(final MetadataElement absRoot) {
-
-        final MetadataElement[] elems = absRoot.getElements();
-        final List<String> swathList = new ArrayList<>(4);
-        for (MetadataElement elem : elems) {
-            if (elem.getName().contains("Band_")) {
-                final String swath = elem.getAttributeString("swath", null);
-                if (swath != null && !swathList.contains(swath)) {
-                    swathList.add(swath);
-                }
-            }
-        }
-
-        if (swathList.size() > 0) {
-            return swathList.toArray(new String[0]);
-        }
-
-        final Product sourceProduct = absRoot.getProduct();
-        final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
-        final String[] sourceBandNames = sourceProduct.getBandNames();
-        for (String bandName:sourceBandNames) {
-            if (bandName.contains(acquisitionMode)) {
-                final int idx = bandName.indexOf(acquisitionMode);
-                final String subSwathName = bandName.substring(idx, idx + 3);
-                if (!swathList.contains(subSwathName)) {
-                    swathList.add(subSwathName);
-                }
-            }
-        }
-        return swathList.toArray(new String[0]);
-    }
-
     public static ProductData.UTC getTime(final MetadataElement elem, final String tag) {
 
         String start = elem.getAttributeString(tag, AbstractMetadata.NO_METADATA_STRING);
@@ -1232,28 +1077,6 @@ public final class Sentinel1Utils {
             }
         }
         return 0;
-    }
-
-    private static boolean contains(final String[] list, final String tag) {
-        for(String s : list) {
-            if(s.contains(tag))
-                return true;
-        }
-        return false;
-    }
-
-    /**
-     * Get azimuth time for given line index in given sub-swath.
-     * @param y Line index in given sub-swath.
-     * @param subSwathIndex Sub-swath index (start from 1).
-     * @return The azimuth time.
-     */
-    public double getAzimuthTime(final int y, final int subSwathIndex) {
-
-        final int burstIdx = y / subSwath[subSwathIndex - 1].linesPerBurst;
-        final int lineIdxInBurst = y - burstIdx * subSwath[subSwathIndex - 1].linesPerBurst;
-        return subSwath[subSwathIndex - 1].burstFirstLineTime[burstIdx] +
-                lineIdxInBurst * subSwath[subSwathIndex - 1].azimuthTimeInterval;
     }
 
     /**

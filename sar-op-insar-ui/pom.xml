@@ -20,7 +20,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>12.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-insar-ui</artifactId>
@@ -99,12 +99,12 @@
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
-            <artifactId>snap-product-library-ui-v2</artifactId>
-            <version>${snap.version}</version>
+            <artifactId>snap-netcdf</artifactId>
         </dependency>
         <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-commons</artifactId>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-product-library-ui-v2</artifactId>
+            <version>${snap.version}</version>
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
@@ -116,20 +116,17 @@
         </dependency>
 
         <dependency>
+            <groupId>org.jfree</groupId>
+            <artifactId>jfreechart</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-openide-util</artifactId>
         </dependency>
         <dependency>
             <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-util-ui</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
             <artifactId>org-openide-windows</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-util-lookup</artifactId>
         </dependency>
         <dependency>
             <groupId>org.netbeans.api</groupId>

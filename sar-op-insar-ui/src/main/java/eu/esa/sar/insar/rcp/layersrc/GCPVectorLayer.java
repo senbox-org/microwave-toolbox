@@ -54,7 +54,7 @@ public class GCPVectorLayer extends Layer {
     private void getData() {
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
         if (absRoot != null) {
-            final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, band);
+            final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, band.getName(), false);
             if (bandElem != null) {
                 final MetadataElement warpDataElem = bandElem.getElement("WarpData");
                 if (warpDataElem != null) {

@@ -527,5 +527,8 @@ public class InterferogramOpUI extends BaseOperatorUI {
         }
         externalDEMBrowseButton.setVisible(flag);
         externalDEMApplyEGMCheckBox.setVisible(flag);
+        if (flag) {
+            externalDEMApplyEGMCheckBox.setSelected(externalDEMApplyEGM);
+        }
     }
 }

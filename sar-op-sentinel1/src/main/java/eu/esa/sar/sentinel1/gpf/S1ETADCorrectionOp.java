@@ -17,7 +17,7 @@ package eu.esa.sar.sentinel1.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.cloud.opendata.DataSpaces;
-import eu.esa.sar.commons.ETADUtils;
+import eu.esa.sar.sentinel1.gpf.etadcorrectors.ETADUtils;
 import eu.esa.sar.sentinel1.gpf.etadcorrectors.Corrector;
 import eu.esa.sar.sentinel1.gpf.etadcorrectors.GRDCorrector;
 import eu.esa.sar.sentinel1.gpf.etadcorrectors.SMCorrector;
@@ -124,6 +124,7 @@ public class S1ETADCorrectionOp extends Operator {
 
     private Resampling selectedResampling = null;
     private ETADUtils etadUtils = null;
+    private Product etadProduct = null;
 
 
     /**
@@ -153,7 +154,7 @@ public class S1ETADCorrectionOp extends Operator {
 
             getSourceProductMetadata();
 
-            getEtadUtils();
+            createETADUtils();
 
             getResampling();
 
@@ -163,6 +164,16 @@ public class S1ETADCorrectionOp extends Operator {
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    @Override
+    public void dispose() {
+        if (etadUtils != null) {
+            etadUtils.dispose();
+        }
+        if(etadCorrector != null) {
+            etadCorrector.dispose();
         }
     }
 
@@ -183,27 +194,25 @@ public class S1ETADCorrectionOp extends Operator {
             throw new OperatorException("No correction layer is selected");
         }
 
+        if(!resamplingImage) {
+            outputPhaseCorrections = true;
+        }
+
         if (outputPhaseCorrections && !((acquisitionMode.equals("IW") || acquisitionMode.equals("SM")) && productType.equals("SLC"))) {
             throw new OperatorException("Option 2 is for Sentinel-1 IW SLC and SM SLC product only");
         }
     }
 
-    private void getEtadUtils() throws Exception {
-
-        if (etadFile != null) {
-                etadUtils = createETADUtils();
-        }
-    }
-
-    private synchronized ETADUtils createETADUtils() throws Exception {
+    private void createETADUtils() throws Exception {
         if(etadUtils != null) {
-            return etadUtils;
+            return;
         }
+
         if(etadFile == null) {
             ETADSearch etadSearch = new ETADSearch();
             DataSpaces.Result[] results = etadSearch.search(sourceProduct);
 
-            if(results.length == 0) {
+            if (results.length == 0) {
                 throw new OperatorException("ETAD product not found");
             }
 
@@ -211,12 +220,12 @@ public class S1ETADCorrectionOp extends Operator {
             etadFile = etadSearch.download(results[0], outputFolder);
         }
 
-        Product etadProduct = getETADProduct(etadFile);
+        // disposed of in etadUtils.dispose()
+        etadProduct = ProductIO.readProduct(etadFile);
 
         validateETADProduct(sourceProduct, etadProduct);
 
         etadUtils = new ETADUtils(etadProduct);
-        return etadUtils;
     }
 
     private void getResampling() {
@@ -243,6 +252,8 @@ public class S1ETADCorrectionOp extends Operator {
         etadCorrector.setSumOfRangeCorrections(sumOfRangeCorrections);
         etadCorrector.setResamplingImage(resamplingImage);
         etadCorrector.setOutputPhaseCorrections(outputPhaseCorrections);
+        etadCorrector.setEtadUtils(etadUtils);
+        etadCorrector.setEtadProduct(etadProduct);
         etadCorrector.initialize();
         targetProduct = etadCorrector.createTargetProduct();
     }
@@ -264,17 +275,6 @@ public class S1ETADCorrectionOp extends Operator {
         } else {
             throw new OperatorException("The source product is currently not supported for ETAD correction");
         }
-    }
-
-    private Product getETADProduct(final File etadFile) {
-
-        try {
-            return ProductIO.readProduct(etadFile);
-        } catch(Throwable e) {
-            OperatorUtils.catchOperatorException(getId(), e);
-        }
-        return null;
-
     }
 
     private void validateETADProduct(final Product sourceProduct, final Product etadProduct) {
@@ -301,7 +301,7 @@ public class S1ETADCorrectionOp extends Operator {
             final double etadStopTime = ETADUtils.getTime(etadHeaderElem, "stopTime").getMJD()* Constants.secondsInDay;
 
             if (srcStartTime < etadStartTime || srcStopTime > etadStopTime) {
-                //throw new OperatorException("The selected ETAD product does not match the source product");
+                throw new OperatorException("The selected ETAD product does not match the source product");
             }
 
         } catch(Throwable e) {
@@ -333,10 +333,10 @@ public class S1ETADCorrectionOp extends Operator {
             throws OperatorException {
 
         try {
-            if (etadUtils == null) {
-                etadUtils = createETADUtils();
-                etadCorrector.setEtadUtils(etadUtils);
-            }
+            // JL: This should only for InSAR case
+//            if(outputPhaseCorrections && !etadCorrector.hasETADData()) {
+//                etadCorrector.loadETADData();
+//            }
 
             etadCorrector.computeTileStack(targetTileMap, targetRectangle, pm, this);
         } catch (Throwable e) {

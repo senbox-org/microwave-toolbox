@@ -30,6 +30,7 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
+import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.core.util.math.MathUtils;
@@ -109,6 +110,11 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         return ImageIOFile.createImageInputStream(inStream, bandDimensions);
     }
 
+    private String createWVImageName(String swath, int imageNumber) {
+        String padImageNum = StringUtils.padNum(imageNumber, 3, '0');
+        return swath + "_IMG" + padImageNum;
+    }
+
     @Override
     protected void addBands(final Product product) {
 
@@ -132,8 +138,9 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     tpgPrefix = swath;
                 } else if(isWV()) {
                     final int imageNumber = bandMetadata.getAttributeInt("image_number");
-                    suffix = swath + "_IMG" + imageNumber + '_' + pol;
-                    tpgPrefix = swath + "_IMG" + imageNumber;
+                    String imageName = createWVImageName(swath, imageNumber);
+                    suffix = imageName + '_' + pol;
+                    tpgPrefix = imageName;
                 }
             }
 
@@ -311,6 +318,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         double heightSum = 0.0;
 
         int numBands = 0;
+        int orbitStartNum = 1;
         final String annotFolder = getRootFolder() + "annotation";
         final String[] filenames = listFiles(annotFolder);
         if (filenames != null) {
@@ -337,7 +345,8 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                 String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
                 if(isWV() && adsHeader.containsAttribute("imageNumber")) {
                     int imageNumber = adsHeader.getAttributeInt("imageNumber");
-                    bandRootName = bandRootName + "_" + imageNumber;
+                    String imageName = createWVImageName(swath, imageNumber);
+                    bandRootName = AbstractMetadata.BAND_PREFIX + imageName + '_' + pol;
                 }
 
                 final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
@@ -363,6 +372,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
 
                 final MetadataElement imageAnnotation = prodElem.getElement("imageAnnotation");
                 final MetadataElement imageInformation = imageAnnotation.getElement("imageInformation");
+                final MetadataElement generalAnnotation = prodElem.getElement("generalAnnotation");
 
                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
                                               Integer.parseInt(adsHeader.getAttributeString("missionDataTakeId")));
@@ -387,7 +397,6 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     // these should be the same for all swaths
                     // set to absRoot
 
-                    final MetadataElement generalAnnotation = prodElem.getElement("generalAnnotation");
                     final MetadataElement productInformation = generalAnnotation.getElement("productInformation");
                     final MetadataElement processingInformation = imageAnnotation.getElement("processingInformation");
                     final MetadataElement swathProcParamsList = processingInformation.getElement("swathProcParamsList");
@@ -433,11 +442,15 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                                                       imageInformation.getAttributeInt("numberOfSamples"));
                     }
 
-                    addOrbitStateVectors(absRoot, generalAnnotation.getElement("orbitList"));
+                    addOrbitStateVectors(absRoot, generalAnnotation.getElement("orbitList"), 1);
                     addSRGRCoefficients(absRoot, prodElem.getElement("coordinateConversion"));
                     addDopplerCentroidCoefficients(absRoot, prodElem.getElement("dopplerCentroid"));
 
                     commonMetadataRetrieved = true;
+                }
+
+                if(isWV()) {
+                    orbitStartNum += addOrbitStateVectors(absRoot, generalAnnotation.getElement("orbitList"), orbitStartNum);
                 }
 
                 ++numBands;
@@ -516,12 +529,12 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         }
     }
 
-    private void addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList) {
+    private int addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList, int startNum) {
         final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
 
         final MetadataElement[] stateVectorElems = orbitList.getElements();
-        for (int i = 1; i <= stateVectorElems.length; ++i) {
-            addVector(AbstractMetadata.orbit_vector, orbitVectorListElem, stateVectorElems[i - 1], i);
+        for (int i = startNum; i < startNum + stateVectorElems.length; ++i) {
+            addVector(AbstractMetadata.orbit_vector, orbitVectorListElem, stateVectorElems[i - startNum], i);
         }
 
         // set state vector time
@@ -531,10 +544,15 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
                                           ReaderUtils.getTime(stateVectorElems[0], "time", sentinelDateFormat));
         }
+
+        return stateVectorElems.length;
     }
 
     private void addVector(final String name, final MetadataElement orbitVectorListElem,
                                   final MetadataElement orbitElem, final int num) {
+        if(orbitVectorListElem.containsElement(name + num))
+            return;
+
         final MetadataElement orbitVectorElem = new MetadataElement(name + num);
 
         final MetadataElement positionElem = orbitElem.getElement("position");
@@ -651,63 +669,51 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
         final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
-        int numOfSubSwath;
-        switch (acquisitionMode) {
-            case "IW":
-                numOfSubSwath = 3;
-                break;
-            case "EW":
-                numOfSubSwath = 5;
-                break;
-            case "WV":
-                numOfSubSwath = 2;
-                break;
-            default:
-                numOfSubSwath = 1;
-        }
 
         if (product.getNumBands() > 0) {
-            Band firstSWBand = product.getBandAt(0);
-            Band lastSWBand = product.getBandAt(product.getNumBands() - 1);
+            if(!acquisitionMode.equals("WV")) {
+                Band firstSWBand = product.getBandAt(0);
+                Band lastSWBand = product.getBandAt(product.getNumBands() - 1);
 
-            String firstSWName = firstSWBand.getName().substring(firstSWBand.getName().indexOf(acquisitionMode), firstSWBand.getName().lastIndexOf('_')) + '_';
-            String lastSWName = lastSWBand.getName().substring(lastSWBand.getName().indexOf(acquisitionMode), lastSWBand.getName().lastIndexOf('_')) + '_';
+                String firstSWName = firstSWBand.getName().substring(firstSWBand.getName().indexOf(acquisitionMode), firstSWBand.getName().lastIndexOf('_')) + '_';
+                String lastSWName = lastSWBand.getName().substring(lastSWBand.getName().indexOf(acquisitionMode), lastSWBand.getName().lastIndexOf('_')) + '_';
 
-            final GeoCoding firstSWBandGeoCoding = bandGeocodingMap.get(firstSWName);
-            final int firstSWBandHeight = firstSWBand.getRasterHeight();
+                final GeoCoding firstSWBandGeoCoding = bandGeocodingMap.get(firstSWName);
+                final int firstSWBandHeight = firstSWBand.getRasterHeight();
 
-            final GeoCoding lastSWBandGeoCoding = bandGeocodingMap.get(lastSWName);
-            final int lastSWBandWidth = lastSWBand.getRasterWidth();
-            final int lastSWBandHeight = lastSWBand.getRasterHeight();
+                final GeoCoding lastSWBandGeoCoding = bandGeocodingMap.get(lastSWName);
+                final int lastSWBandWidth = lastSWBand.getRasterWidth();
+                final int lastSWBandHeight = lastSWBand.getRasterHeight();
 
-            final PixelPos ulPix = new PixelPos(0, 0);
-            final PixelPos llPix = new PixelPos(0, firstSWBandHeight - 1);
-            final GeoPos ulGeo = new GeoPos();
-            final GeoPos llGeo = new GeoPos();
-            firstSWBandGeoCoding.getGeoPos(ulPix, ulGeo);
-            firstSWBandGeoCoding.getGeoPos(llPix, llGeo);
+                final PixelPos ulPix = new PixelPos(0, 0);
+                final PixelPos llPix = new PixelPos(0, firstSWBandHeight - 1);
+                final GeoPos ulGeo = new GeoPos();
+                final GeoPos llGeo = new GeoPos();
+                firstSWBandGeoCoding.getGeoPos(ulPix, ulGeo);
+                firstSWBandGeoCoding.getGeoPos(llPix, llGeo);
 
-            final PixelPos urPix = new PixelPos(lastSWBandWidth - 1, 0);
-            final PixelPos lrPix = new PixelPos(lastSWBandWidth - 1, lastSWBandHeight - 1);
-            final GeoPos urGeo = new GeoPos();
-            final GeoPos lrGeo = new GeoPos();
-            lastSWBandGeoCoding.getGeoPos(urPix, urGeo);
-            lastSWBandGeoCoding.getGeoPos(lrPix, lrGeo);
+                final PixelPos urPix = new PixelPos(lastSWBandWidth - 1, 0);
+                final PixelPos lrPix = new PixelPos(lastSWBandWidth - 1, lastSWBandHeight - 1);
+                final GeoPos urGeo = new GeoPos();
+                final GeoPos lrGeo = new GeoPos();
+                lastSWBandGeoCoding.getGeoPos(urPix, urGeo);
+                lastSWBandGeoCoding.getGeoPos(lrPix, lrGeo);
 
-            final float[] latCorners = {(float) ulGeo.getLat(), (float) urGeo.getLat(), (float) llGeo.getLat(), (float) lrGeo.getLat()};
-            final float[] lonCorners = {(float) ulGeo.getLon(), (float) urGeo.getLon(), (float) llGeo.getLon(), (float) lrGeo.getLon()};
+                final float[] latCorners = {(float) ulGeo.getLat(), (float) urGeo.getLat(), (float) llGeo.getLat(), (float) lrGeo.getLat()};
+                final float[] lonCorners = {(float) ulGeo.getLon(), (float) urGeo.getLon(), (float) llGeo.getLon(), (float) lrGeo.getLon()};
 
-            ReaderUtils.addGeoCoding(product, latCorners, lonCorners);
+                ReaderUtils.addGeoCoding(product, latCorners, lonCorners);
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, ulGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, ulGeo.getLon());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, urGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, urGeo.getLon());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, ulGeo.getLat());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, ulGeo.getLon());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, urGeo.getLat());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, urGeo.getLon());
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, llGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, llGeo.getLon());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, lrGeo.getLat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lrGeo.getLon());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, llGeo.getLat());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, llGeo.getLon());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, lrGeo.getLat());
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lrGeo.getLon());
+            }
 
             // add band geocoding
             final Band[] bands = product.getBands();

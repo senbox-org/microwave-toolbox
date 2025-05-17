@@ -23,7 +23,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>12.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <name>Microwave Toolbox Benchmark Tests</name>
@@ -62,6 +62,12 @@
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-io-gdal</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io-ephemeris</artifactId>
+            <version>${microwavetbx.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

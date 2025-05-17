@@ -49,7 +49,7 @@ import java.util.Map;
  */
 
 @OperatorMetadata(alias = "IEM-Hybrid-Inversion",
-        category = "Radar/Soil Moisture",
+        category = "Radar/SAR Applications/Soil Moisture",
         description = "Performs IEM inversion using Hybrid approach")
 public class IEMHybridInverOp extends IEMInverBase {
 

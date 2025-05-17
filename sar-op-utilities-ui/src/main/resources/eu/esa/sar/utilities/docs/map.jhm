@@ -6,6 +6,7 @@
 <map version="2.0">
 
     <!--Utility Operators-->
+    <mapID target="BandSelectOp" url="operators/BandSelectOp.html"/>
     <mapID target="OverSampleOp" url="operators/OverSampleOp.html"/>
     <mapID target="UnderSampleOp" url="operators/UnderSampleOp.html"/>
     <mapID target="DemodulateOp" url="operators/DemodulateOp.html"/>

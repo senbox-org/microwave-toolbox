@@ -191,6 +191,17 @@
                 <attr name="helpId" stringvalue="S1ETADCorrectionOp"/>
                 <attr name="icon" stringvalue="esaIcon"/>
             </file>
+            <file name="eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="S-1 ETAD Deburst"/>
+                <attr name="operatorName" stringvalue="ETAD-Deburst"/>
+                <attr name="dialogTitle" stringvalue="S-1 ETAD Deburst"/>
+                <attr name="ShortDescription" stringvalue="Deburst ETAD Product"/>
+                <attr name="targetProductNameSuffix" stringvalue="_deb"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+                <attr name="helpId" stringvalue="ETADDeburstOp"/>
+            </file>
         </folder>
     </folder>
 
@@ -281,8 +292,13 @@
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.instance"/>
                     <attr name="position" intvalue="810"/>
                 </file>
+                <folder name="Utilities">
+                    <file name="eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.instance"/>
+                        <attr name="position" intvalue="2300"/>
+                    </file>
+                </folder>
             </folder>
-
         </folder>
     </folder>
 

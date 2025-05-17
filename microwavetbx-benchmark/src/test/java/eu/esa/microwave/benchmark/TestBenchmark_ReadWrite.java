@@ -17,10 +17,8 @@ package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.binding.dom.DefaultDomElement;
 import com.bc.ceres.binding.dom.DomElement;
-import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.graph.Graph;
-import org.esa.snap.core.gpf.graph.GraphProcessor;
 import org.esa.snap.core.gpf.graph.Node;
 import org.esa.snap.core.gpf.graph.NodeSource;
 import org.junit.Ignore;
@@ -136,7 +134,7 @@ public class TestBenchmark_ReadWrite extends BaseBenchmarks {
         b.run();
     }
 
-    private static void processReadWriteGraph(final File file, final File outputFolder) throws Exception {
+    private void processReadWriteGraph(final File file, final File outputFolder) throws Exception {
 
         final Graph graph = new Graph("graph");
 
@@ -154,7 +152,6 @@ public class TestBenchmark_ReadWrite extends BaseBenchmarks {
         writeNode.addSource(new NodeSource("source", "read"));
         graph.addNode(writeNode);
 
-        final GraphProcessor processor = new GraphProcessor();
-        processor.executeGraph(graph, ProgressMonitor.NULL);
+        processGraph(graph);
     }
 }

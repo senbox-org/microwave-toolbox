@@ -198,9 +198,8 @@ public class SpeckleFilterOp extends Operator {
     /**
      * Create target product.
      *
-     * @throws Exception The exception.
      */
-    private void createTargetProduct() throws Exception {
+    private void createTargetProduct() {
 
         targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
                 sourceProduct.getProductType(),
@@ -286,7 +285,6 @@ public class SpeckleFilterOp extends Operator {
      * @throws OperatorException If an error occurs during computation of the target raster.
      */
     @Override
-
     public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
 
         try {
@@ -297,7 +295,6 @@ public class SpeckleFilterOp extends Operator {
             pm.done();
         }
     }
-
 
     /**
      * The SPI is used to register this operator in the graph processing framework

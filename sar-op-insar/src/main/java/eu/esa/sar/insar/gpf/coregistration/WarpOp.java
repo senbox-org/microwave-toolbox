@@ -156,6 +156,7 @@ public class WarpOp extends Operator {
     private static final String DEMOD_PHASE_PREFIX = "DemodPhase";
     private static final String ETAD_PHASE_CORRECTION_PREFIX = "etadPhaseCorrection";
     private static final String ETAD_HEIGHT_PREFIX = "etadHeight";
+    private static final String ETAD_GRADIENT_PREFIX = "etadGradient";
     private Interpolation interpDemodPhase = Interpolation.getInstance(Interpolation.INTERP_BILINEAR);
     private final Map<Band, Band> demodPhaseMap = new HashMap<>(10);
     private final Map<Band, Band> etadBandMap = new HashMap<>(10);
@@ -205,6 +206,7 @@ public class WarpOp extends Operator {
                     inSAROptimized = true;
                 } else {
                     cpmWtestCriticalValue = 1.0f;
+                    inSAROptimized = false;
                 }
             } else {
                 inSAROptimized = false;
@@ -357,7 +359,9 @@ public class WarpOp extends Operator {
                     for (Band band : sourceBands) {
                         final String bandName = band.getName();
                         final String timeStamp = srcBand.getName().substring(srcBand.getName().lastIndexOf('_'));
-                        if ((bandName.startsWith(ETAD_PHASE_CORRECTION_PREFIX) || bandName.startsWith(ETAD_HEIGHT_PREFIX))
+                        if ((bandName.startsWith(ETAD_PHASE_CORRECTION_PREFIX) ||
+                                bandName.startsWith(ETAD_HEIGHT_PREFIX) ||
+                                bandName.startsWith(ETAD_GRADIENT_PREFIX))
                                 && bandName.contains(timeStamp)) {
                             etadBandMap.put(band, srcBand);
                         }
@@ -430,7 +434,7 @@ public class WarpOp extends Operator {
             targetProduct.setEndTime(endTime);
 
         } else {
-            // only if its a full coregistered stack including master band
+            // only if it's a full coregistered stack including master band
             AbstractMetadata.setAttribute(absTgt, AbstractMetadata.coregistered_stack, 1);
         }
     }
@@ -470,7 +474,8 @@ public class WarpOp extends Operator {
             if (srcBand.getName().startsWith(DEMOD_PHASE_PREFIX)) {
                 realSrcBand = demodPhaseMap.get(srcBand);
             } else if (srcBand.getName().startsWith(ETAD_PHASE_CORRECTION_PREFIX) ||
-                    srcBand.getName().startsWith(ETAD_HEIGHT_PREFIX)) {
+                    srcBand.getName().startsWith(ETAD_HEIGHT_PREFIX) ||
+                    srcBand.getName().startsWith(ETAD_GRADIENT_PREFIX)) {
                 realSrcBand = etadBandMap.get(srcBand);
             } else {
                 // get real part, assuming srcBand is imaginary
@@ -480,9 +485,6 @@ public class WarpOp extends Operator {
                     realSrcBand = srcBand;
             }
 
-            // create source image
-            final Tile sourceRaster = getSourceTile(srcBand, targetRectangle);
-
             if (pm.isCanceled())
                 return;
 
@@ -490,17 +492,8 @@ public class WarpOp extends Operator {
             if (!warpData.isValid())
                 return;
 
-            final RenderedImage srcImage = sourceRaster.getRasterDataNode().getSourceImage();
-
             // get warped image (demodulation bands can be interpolated linearly)
-            RenderedOp warpedImage;
-            if (srcBand.getName().startsWith(DEMOD_PHASE_PREFIX)) {
-                warpedImage = JAIFunctions.createWarpImage(warpData.getJAIWarp(), srcImage,
-                                                           interpDemodPhase, null);
-            } else {
-                warpedImage = JAIFunctions.createWarpImage(warpData.getJAIWarp(), srcImage,
-                                                           interp, interpTable);
-            }
+            RenderedOp warpedImage = createWarp(srcBand, targetRectangle, warpData);
 
             // copy warped image data to target
             final float[] dataArray = warpedImage.getData(targetRectangle).getSamples(x0, y0, w, h, 0, (float[]) null);
@@ -511,6 +504,21 @@ public class WarpOp extends Operator {
             OperatorUtils.catchOperatorException(getId(), e);
         } finally {
             pm.done();
+        }
+    }
+
+    private synchronized RenderedOp createWarp(final Band srcBand, final Rectangle targetRectangle,
+                                               final PolynomialModel warpData) {
+        // create source image
+        final Tile sourceRaster = getSourceTile(srcBand, targetRectangle);
+        final RenderedImage srcImage = sourceRaster.getRasterDataNode().getSourceImage();
+
+        if (srcBand.getName().startsWith(DEMOD_PHASE_PREFIX)) {
+            return JAIFunctions.createWarpImage(warpData.getJAIWarp(), srcImage,
+                    interpDemodPhase, null);
+        } else {
+            return JAIFunctions.createWarpImage(warpData.getJAIWarp(), srcImage,
+                    interp, interpTable);
         }
     }
 
@@ -532,6 +540,25 @@ public class WarpOp extends Operator {
             throw new OperatorException("The DEM '" + demName + "' has not been installed.");
         }
         demNoDataValue = demDescriptor.getNoDataValue();
+    }
+
+    private ProductNodeGroup<Placemark> getGCPGroup(final Band srcBand) {
+        ProductNodeGroup<Placemark> slaveGCPGroup = GCPManager.instance().getGcpGroup(srcBand);
+        if (slaveGCPGroup.getNodeCount() < 3) {
+            // find others for same slave product
+            final String slvProductName = StackUtils.getSlaveProductName(sourceProduct, srcBand, null);
+            for (Band band : sourceProduct.getBands()) {
+                if (band != srcBand && !StringUtils.contains(masterBandNames, band.getName())) {
+                    final String productName = StackUtils.getSlaveProductName(sourceProduct, band, null);
+                    if (slvProductName != null && slvProductName.equals(productName)) {
+                        slaveGCPGroup = GCPManager.instance().getGcpGroup(band);
+                        if (slaveGCPGroup.getNodeCount() >= 3)
+                            break;
+                    }
+                }
+            }
+        }
+        return slaveGCPGroup;
     }
 
     private synchronized void getWarpData(final Rectangle targetRectangle) throws Exception {
@@ -558,96 +585,103 @@ public class WarpOp extends Operator {
         }
 
         // for all slave bands or band pairs compute a warp
-        boolean appendFlag = false;
-        int slaveMetaCnt = 0;
+        final int slaveMetaCnt = 0;
         final Band[] sourceBands = sourceProduct.getBands();
-        for (int i = 0; i < sourceBands.length; i++) {
 
-            final Band srcBand = sourceProduct.getBandAt(i);
-            if (StringUtils.contains(masterBandNames, srcBand.getName()))
-                continue;
+        if (inSAROptimized) {
+            boolean appendFlag = false;
+            for (int i = 0; i < sourceBands.length; i++) {
 
-            if (complexCoregistration && !srcBand.getUnit().equals(Unit.REAL))
-                continue;
+                final Band srcBand = sourceProduct.getBandAt(i);
+                if (StringUtils.contains(masterBandNames, srcBand.getName()))
+                    continue;
 
-            ProductNodeGroup<Placemark> slaveGCPGroup = GCPManager.instance().getGcpGroup(srcBand);
-            if (slaveGCPGroup.getNodeCount() < 3) {
-                // find others for same slave product
-                final String slvProductName = StackUtils.getSlaveProductName(sourceProduct, srcBand, null);
-                for (Band band : sourceProduct.getBands()) {
-                    if (band != srcBand && !StringUtils.contains(masterBandNames, band.getName())) {
-                        final String productName = StackUtils.getSlaveProductName(sourceProduct, band, null);
-                        if (slvProductName != null && slvProductName.equals(productName)) {
-                            slaveGCPGroup = GCPManager.instance().getGcpGroup(band);
-                            if (slaveGCPGroup.getNodeCount() >= 3)
-                                break;
-                        }
+                if (complexCoregistration && !srcBand.getUnit().equals(Unit.REAL))
+                    continue;
+
+                final ProductNodeGroup<Placemark> slaveGCPGroup = getGCPGroup(srcBand);
+
+                try {
+                    final CPM cpm = new CPM(warpPolynomialOrder, maxIterations, cpmWtestCriticalValue,
+                            masterWindow, masterGCPGroup, slaveGCPGroup);
+                    warpDataMap.put(srcBand, cpm);
+
+                    final int nodeCount = slaveGCPGroup.getNodeCount();
+                    if (nodeCount < 3) {
+                        cpm.noRedundancy = true;
+                        continue;
                     }
+
+                    // setup slave metadata
+                    if (demRefinement && !cpm.noRedundancy) {
+
+                        // get height for corresponding points
+                        double[] heightArray = new double[nodeCount];
+                        final List<Placemark> slaveGCPList = new ArrayList<>();
+
+                        for (int j = 0; j < nodeCount; j++) {
+
+                            // work only with windows that survived threshold for this slave
+                            slaveGCPList.add(slaveGCPGroup.get(j));
+                            final Placemark sPin = slaveGCPList.get(j);
+                            final Placemark mPin = masterGCPGroup.get(sPin.getName());
+                            final PixelPos mGCPPos = mPin.getPixelPos();
+
+                            double[] phiLamPoint = masterOrbit.lph2ell(mGCPPos.y, mGCPPos.x, 0, masterMeta);
+                            PixelPos demIndexPoint = dem.getIndex(new GeoPos((phiLamPoint[0] * org.jlinda.core.Constants.RTOD), (phiLamPoint[1] * org.jlinda.core.Constants.RTOD)));
+
+                            double height = dem.getSample(demIndexPoint.x, demIndexPoint.y);
+
+                            if (Double.isNaN(height)) {
+                                height = demNoDataValue;
+                            }
+
+                            heightArray[j] = height;
+                        }
+
+                        final MetadataElement slaveRoot = targetProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(slaveMetaCnt);
+                        final SLCImage slaveMeta = new SLCImage(slaveRoot, targetProduct);
+                        final Orbit slaveOrbit = new Orbit(slaveRoot, ORBIT_INTERP_DEGREE);
+                        cpm.setDemNoDataValue(demNoDataValue);
+                        cpm.setUpDEMRefinement(masterMeta, masterOrbit, slaveMeta, slaveOrbit, heightArray);
+                        cpm.setUpDemOffset();
+                    }
+
+                    cpm.computeCPM();
+                    cpm.computeEstimationStats();
+                    cpm.wrapJaiWarpPolynomial();
+
+                    if (cpm.noRedundancy) {
+                        continue;
+                    }
+
+                    if (!appendFlag) {
+                        appendFlag = true;
+                    }
+
+                    //outputCoRegistrationInfo(sourceProduct, warpPolynomialOrder, cpm, appendFlag, srcBand.getName());
+
+                } catch (Exception e) {
+                    SystemUtils.LOG.warning("Error computing complex polynomial model. Continuing with computeWARPPolynomialFromGCPs " + e.getMessage());
+                    inSAROptimized = false;
+                    warpDataMap.clear();
+                    break;
                 }
             }
+        }
 
-            if (inSAROptimized) {
-                final CPM cpm = new CPM(warpPolynomialOrder, maxIterations, cpmWtestCriticalValue,
-                                        masterWindow, masterGCPGroup, slaveGCPGroup);
-                warpDataMap.put(srcBand, cpm);
+        if(!inSAROptimized) {
+            boolean appendFlag = false;
+            for (int i = 0; i < sourceBands.length; i++) {
 
-                final int nodeCount = slaveGCPGroup.getNodeCount();
-                if (nodeCount < 3) {
-                    cpm.noRedundancy = true;
+                final Band srcBand = sourceProduct.getBandAt(i);
+                if (StringUtils.contains(masterBandNames, srcBand.getName()))
                     continue;
-                }
 
-                // setup slave metadata
-                if (demRefinement && !cpm.noRedundancy) {
-
-                    // get height for corresponding points
-                    double[] heightArray = new double[nodeCount];
-                    final List<Placemark> slaveGCPList = new ArrayList<>();
-
-                    for (int j = 0; j < nodeCount; j++) {
-
-                        // work only with windows that survived threshold for this slave
-                        slaveGCPList.add(slaveGCPGroup.get(j));
-                        final Placemark sPin = slaveGCPList.get(j);
-                        final Placemark mPin = masterGCPGroup.get(sPin.getName());
-                        final PixelPos mGCPPos = mPin.getPixelPos();
-
-                        double[] phiLamPoint = masterOrbit.lph2ell(mGCPPos.y, mGCPPos.x, 0, masterMeta);
-                        PixelPos demIndexPoint = dem.getIndex(new GeoPos((phiLamPoint[0] * org.jlinda.core.Constants.RTOD), (phiLamPoint[1] * org.jlinda.core.Constants.RTOD)));
-
-                        double height = dem.getSample(demIndexPoint.x, demIndexPoint.y);
-
-                        if (Double.isNaN(height)) {
-                            height = demNoDataValue;
-                        }
-
-                        heightArray[j] = height;
-                    }
-
-                    final MetadataElement slaveRoot = targetProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(slaveMetaCnt);
-                    final SLCImage slaveMeta = new SLCImage(slaveRoot, targetProduct);
-                    final Orbit slaveOrbit = new Orbit(slaveRoot, ORBIT_INTERP_DEGREE);
-                    cpm.setDemNoDataValue(demNoDataValue);
-                    cpm.setUpDEMRefinement(masterMeta, masterOrbit, slaveMeta, slaveOrbit, heightArray);
-                    cpm.setUpDemOffset();
-                }
-
-                cpm.computeCPM();
-                cpm.computeEstimationStats();
-                cpm.wrapJaiWarpPolynomial();
-
-                if (cpm.noRedundancy) {
+                if (complexCoregistration && !srcBand.getUnit().equals(Unit.REAL))
                     continue;
-                }
 
-                if (!appendFlag) {
-                    appendFlag = true;
-                }
-
-                //outputCoRegistrationInfo(sourceProduct, warpPolynomialOrder, cpm, appendFlag, srcBand.getName());
-
-                addSlaveGCPs(cpm, srcBand.getName());
-            } else {
+                final ProductNodeGroup<Placemark> slaveGCPGroup = getGCPGroup(srcBand);
 
                 final WarpData warpData = new WarpData(slaveGCPGroup);
                 warpDataMap.put(srcBand, warpData);
@@ -658,7 +692,7 @@ public class WarpOp extends Operator {
                 }
 
                 warpData.computeWARPPolynomialFromGCPs(sourceProduct, srcBand, warpPolynomialOrder, masterGCPGroup,
-                                                       maxIterations, rmsThreshold, appendFlag);
+                        maxIterations, rmsThreshold, appendFlag);
 
                 if (!warpData.isValid()) {
                     continue;
@@ -667,9 +701,11 @@ public class WarpOp extends Operator {
                 if (!appendFlag) {
                     appendFlag = true;
                 }
-
-                addSlaveGCPs(warpData, targetBand.getName());
             }
+        }
+
+        for(Band band : warpDataMap.keySet()) {
+            addSlaveGCPs(warpDataMap.get(band), band.getName());
         }
 
         announceGCPWarning();
@@ -699,10 +735,8 @@ public class WarpOp extends Operator {
         final Set<Band> bandSet = warpDataMap.keySet();
 
         for (Band band : bandSet) {
-            final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, band);
-            if(bandElem == null) {
-                throw new OperatorException("Band metadata not found for band " + band.getName());
-            }
+            final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, band.getName(), true);
+
             MetadataElement warpDataElem = bandElem.getElement("WarpData");
             if (warpDataElem == null) {
                 warpDataElem = new MetadataElement("WarpData");

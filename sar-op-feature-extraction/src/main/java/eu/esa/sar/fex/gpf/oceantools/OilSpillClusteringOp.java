@@ -44,7 +44,7 @@ import java.util.List;
  * clustered and then discriminated based on the size of the cluster.
  */
 @OperatorMetadata(alias = "Oil-Spill-Clustering",
-        category = "Radar/SAR Applications/Ocean Applications/Oil Spill Detection",
+        category = "Radar/SAR Applications/Ocean/Oil Spill Detection",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2015 by Array Systems Computing Inc.",
@@ -59,8 +59,6 @@ public class OilSpillClusteringOp extends Operator {
     @Parameter(description = "Minimum cluster size", defaultValue = "0.1", label = "Minimum Cluster Size (sq km)")
     private double minClusterSizeInKm2 = 0.1;
 
-    private int sourceImageWidth = 0;
-    private int sourceImageHeight = 0;
     private int minClusterSizeInPixels = 0;
 
     private MetadataElement absRoot = null;
@@ -71,8 +69,6 @@ public class OilSpillClusteringOp extends Operator {
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
             getPixelSpacings();
-
-            getSourceImageDimension();
 
             createTargetProduct();
 
@@ -95,22 +91,14 @@ public class OilSpillClusteringOp extends Operator {
     }
 
     /**
-     * Get source image dimension.
-     */
-    private void getSourceImageDimension() {
-        sourceImageWidth = sourceProduct.getSceneRasterWidth();
-        sourceImageHeight = sourceProduct.getSceneRasterHeight();
-    }
-
-    /**
      * Create target product.
      */
     private void createTargetProduct() {
 
         targetProduct = new Product(sourceProduct.getName(),
                 sourceProduct.getProductType(),
-                sourceImageWidth,
-                sourceImageHeight);
+                sourceProduct.getSceneRasterWidth(),
+                sourceProduct.getSceneRasterHeight());
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
@@ -168,8 +156,8 @@ public class OilSpillClusteringOp extends Operator {
 
             final int x0 = Math.max(tx0 - minClusterSizeInPixels, 0);
             final int y0 = Math.max(ty0 - minClusterSizeInPixels, 0);
-            final int w = Math.min(tw + 2 * minClusterSizeInPixels, sourceImageWidth);
-            final int h = Math.min(th + 2 * minClusterSizeInPixels, sourceImageHeight);
+            final int w = Math.min(tw + 2 * minClusterSizeInPixels, targetBand.getRasterWidth());
+            final int h = Math.min(th + 2 * minClusterSizeInPixels, targetBand.getRasterHeight());
             final Rectangle sourceTileRectangle = new Rectangle(x0, y0, w, h);
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 

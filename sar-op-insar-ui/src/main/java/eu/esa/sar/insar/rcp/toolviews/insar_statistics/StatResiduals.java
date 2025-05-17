@@ -114,7 +114,7 @@ public class StatResiduals implements InSARStatistic {
 
         final Band[] bands = product.getBands();
         for (Band band : bands) {
-            final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, band);
+            final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, band.getName(), false);
             if (bandElem != null) {
                 MetadataElement warpDataElem = bandElem.getElement("WarpData");
                 if (warpDataElem != null) {

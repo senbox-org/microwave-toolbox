@@ -20,7 +20,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>12.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-sar-processing-ui</artifactId>
@@ -73,18 +73,8 @@
             <version>${microwavetbx.version}</version>
         </dependency>
         <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-insar</artifactId>
-            <version>${microwavetbx.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-dem</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-netbeans-api-annotations-common</artifactId>
         </dependency>
     </dependencies>
 

@@ -1,0 +1,517 @@
+<?xml version="1.0"?>
+<Metadata>
+  <ETAD_Product_Metadata>
+  <annotation>
+    <etadProduct>
+      <etadBurstList>
+        <attrib name="count" value="3" type="41" desc="count" />
+        <etadBurst1>
+          <burstData>
+            <attrib name="bIndex" value="17" type="41" desc="bIndex" />
+            <attrib name="pIndex" value="1" type="41" desc="pIndex" />
+            <attrib name="sIndex" value="1" type="41" desc="sIndex" />
+            <attrib name="productID" value="S1A_IW_SLC__1SDV_20200914T173116_20200914T173143_034358_03FEBE_116E.SAFE" type="41" desc="Product ID" />
+            <attrib name="swathID" value="IW1" type="41" desc="swathID" />
+            <burstId>
+              <attrib name="absolute" value="73796620" type="41" desc="absolute" />
+              <attrib name="source" value="SETAP" type="41" desc="source" />
+              <attrib name="burstId" value="343931" type="41" desc="burstId" />
+			</burstId>
+          </burstData>
+          <burstCoverage>
+            <temporalCoverage>
+              <rangeTimeMin>
+                <attrib name="rangeTimeMin" value="5.33519029533375232E-03" type="41" desc="rangeTimeMin" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+			  </rangeTimeMin>
+              <rangeTimeMax>
+                <attrib name="rangeTimeMax" value="5.67672053829064698E-03" type="41" desc="rangeTimeMax" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+			  </rangeTimeMax>
+              <attrib name="azimuthTimeMin" value="2020-09-14T17:31:31.231672" type="41" desc="azimuthTimeMin" />
+              <attrib name="azimuthTimeMax" value="2020-09-14T17:31:34.398827" type="41" desc="azimuthTimeMax" />
+            </temporalCoverage>
+            <spatialCoverage>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.42850418090820312E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="4.04063415527343750E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="5.20818786621093750E+02" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="EarlyAzimuthNearRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.44389228820800781E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="5.18729352951049805E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="8.57020812988281250E+02" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="EarlyAzimuthFarRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.44745407104492188E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="3.98543500900268555E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="3.84889770507812500E+02" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="LateAzimuthNearRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.46283721923828125E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="5.13465547561645508E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="6.06808349609375000E+02" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="LateAzimuthFarRange" type="41" desc="corner" />
+              </coordinates>
+            </spatialCoverage>
+            <incidenceAngleRange>
+              <iMin>
+                <attrib name="iMin" value="3.04218445938837334E+01" type="41" desc="iMin" />
+                <attrib name="unit" value="degree" type="41" desc="unit" />
+              </iMin>
+              <iMax>
+                <attrib name="iMax" value="3.66783207990229485E+01" type="41" desc="iMax" />
+                <attrib name="unit" value="degree" type="41" desc="unit" />
+              </iMax>
+            </incidenceAngleRange>
+          </burstCoverage>
+          <gridInformation>
+            <gridStartAzimuthTime>
+              <attrib name="gridStartAzimuthTime" value="1.46334310850439806E+01" type="41" desc="gridStartAzimuthTime" />
+              <attrib name="unit" value="s" type="41" desc="unit" />
+            </gridStartAzimuthTime>
+            <gridStartRangeTime>
+              <attrib name="gridStartRangeTime" value="0.00000000000000000E+00" type="41" desc="gridStartRangeTime" />
+              <attrib name="unit" value="s" type="41" desc="unit" />
+            </gridStartRangeTime>
+            <gridDimensions>
+              <attrib name="azimuthExtent" value="109" type="41" desc="azimuthExtent" />
+              <attrib name="rangeExtent" value="421" type="41" desc="rangeExtent" />
+            </gridDimensions>
+            <gridSampling>
+              <range>
+                <attrib name="range" value="8.13167245135459925E-07" type="41" desc="range" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+              </range>
+              <azimuth>
+                <attrib name="azimuth" value="2.93255131964809401E-02" type="41" desc="azimuth" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+              </azimuth>
+            </gridSampling>
+            <gridGroundSampling>
+              <nearRange>
+                <attrib name="nearRange" value="2.40389715988041843E+02" type="41" desc="nearRange" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </nearRange>
+              <farRange>
+                <attrib name="farRange" value="2.04161183362265547E+02" type="41" desc="farRange" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </farRange>
+              <azimuth>
+                <attrib name="azimuth" value="1.98934334793736298E+02" type="41" desc="azimuth" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </azimuth>
+              <averageZeroDopplerVelocity>
+                <attrib name="averageZeroDopplerVelocity" value="6.78366081646640760E+03" type="41" desc="averageZeroDopplerVelocity" />
+                <attrib name="unit" value="m/s" type="41" desc="unit" />
+              </averageZeroDopplerVelocity>
+            </gridGroundSampling>
+            <polarisationChannels>
+              <attrib name="numberOfPolarisationChannels" value="2" type="41" desc="numberOfPolarisationChannels" />
+              <relativePolarisationOffsets>
+                <attrib name="polarisation" value="VV" type="41" desc="polarisation" />
+                <attrib name="referencePolarisation" value="true" type="41" desc="referencePolarisation" />
+                <rangeOffset>
+                  <attrib name="rangeOffset" value="0.00000000000000000E+00" type="41" desc="rangeOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </rangeOffset>
+                <azimuthOffset>
+                  <attrib name="azimuthOffset" value="0.00000000000000000E+00" type="41" desc="azimuthOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </azimuthOffset>
+              </relativePolarisationOffsets>
+              <relativePolarisationOffsets>
+                <attrib name="polarisation" value="VH" type="41" desc="polarisation" />
+                <attrib name="referencePolarisation" value="false" type="41" desc="referencePolarisation" />
+                <rangeOffset>
+                  <attrib name="rangeOffset" value="0.00000000000000000E+00" type="41" desc="rangeOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </rangeOffset>
+                <azimuthOffset>
+                  <attrib name="azimuthOffset" value="0.00000000000000000E+00" type="41" desc="azimuthOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </azimuthOffset>
+              </relativePolarisationOffsets>
+            </polarisationChannels>
+          </gridInformation>
+        </etadBurst1>
+        <etadBurst2>
+          <burstData>
+            <attrib name="bIndex" value="18" type="41" desc="bIndex" />
+            <attrib name="pIndex" value="1" type="41" desc="pIndex" />
+            <attrib name="sIndex" value="2" type="41" desc="sIndex" />
+            <attrib name="productID" value="S1A_IW_SLC__1SDV_20200914T173116_20200914T173143_034358_03FEBE_116E.SAFE" type="41" desc="Product ID" />
+            <attrib name="swathID" value="IW2" type="41" desc="swathID" />
+            <burstId>
+              <attrib name="absolute" value="73796620" type="41" desc="absolute" />
+              <attrib name="source" value="SETAP" type="41" desc="source" />
+              <attrib name="burstId" value="343931" type="41" desc="burstId" />
+			</burstId>
+          </burstData>
+          <burstCoverage>
+            <temporalCoverage>
+              <rangeTimeMin>
+                <attrib name="rangeTimeMin" value="5.64500701573036282E-03" type="41" desc="rangeTimeMin" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+			  </rangeTimeMin>
+              <rangeTimeMax>
+                <attrib name="rangeTimeMax" value="6.04671163482728077E-03" type="41" desc="rangeTimeMax" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+			  </rangeTimeMax>
+              <attrib name="azimuthTimeMin" value="2020-09-14T17:31:32.199413" type="41" desc="azimuthTimeMin" />
+              <attrib name="azimuthTimeMax" value="2020-09-14T17:31:35.366569" type="41" desc="azimuthTimeMax" />
+            </temporalCoverage>
+            <spatialCoverage>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.44837722778320312E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="5.07031154632568359E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="6.70993469238281250E+02" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="EarlyAzimuthNearRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.46332092285156250E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="6.27475738525390625E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="2.05908105468750000E+03" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="EarlyAzimuthFarRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.46730384826660156E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="5.01595258712768555E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="3.47896209716796875E+02" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="LateAzimuthNearRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.48218154907226562E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="6.21826028823852539E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="1.21605993652343750E+03" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="LateAzimuthFarRange" type="41" desc="corner" />
+              </coordinates>
+            </spatialCoverage>
+            <incidenceAngleRange>
+              <iMin>
+                <attrib name="iMin" value="3.61001855659851714E+01" type="41" desc="iMin" />
+                <attrib name="unit" value="degree" type="41" desc="unit" />
+              </iMin>
+              <iMax>
+                <attrib name="iMax" value="4.20071075555621007E+01" type="41" desc="iMax" />
+                <attrib name="unit" value="degree" type="41" desc="unit" />
+              </iMax>
+            </incidenceAngleRange>
+          </burstCoverage>
+          <gridInformation>
+            <gridStartAzimuthTime>
+              <attrib name="gridStartAzimuthTime" value="1.56011730205278525E+01" type="41" desc="gridStartAzimuthTime" />
+              <attrib name="unit" value="s" type="41" desc="unit" />
+            </gridStartAzimuthTime>
+            <gridStartRangeTime>
+              <attrib name="gridStartRangeTime" value="3.09816720396610505E-04" type="41" desc="gridStartRangeTime" />
+              <attrib name="unit" value="s" type="41" desc="unit" />
+            </gridStartRangeTime>
+            <gridDimensions>
+              <attrib name="azimuthExtent" value="109" type="41" desc="azimuthExtent" />
+              <attrib name="rangeExtent" value="495" type="41" desc="rangeExtent" />
+            </gridDimensions>
+            <gridSampling>
+              <range>
+                <attrib name="range" value="8.13167245135459925E-07" type="41" desc="range" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+              </range>
+              <azimuth>
+                <attrib name="azimuth" value="2.93255131964809401E-02" type="41" desc="azimuth" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+              </azimuth>
+            </gridSampling>
+            <gridGroundSampling>
+              <nearRange>
+                <attrib name="nearRange" value="2.06746222298829480E+02" type="41" desc="nearRange" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </nearRange>
+              <farRange>
+                <attrib name="farRange" value="1.82184034362365026E+02" type="41" desc="farRange" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </farRange>
+              <azimuth>
+                <attrib name="azimuth" value="1.98486975046663446E+02" type="41" desc="azimuth" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </azimuth>
+              <averageZeroDopplerVelocity>
+                <attrib name="averageZeroDopplerVelocity" value="6.76840584909122299E+03" type="41" desc="averageZeroDopplerVelocity" />
+                <attrib name="unit" value="m/s" type="41" desc="unit" />
+              </averageZeroDopplerVelocity>
+            </gridGroundSampling>
+            <polarisationChannels>
+              <attrib name="numberOfPolarisationChannels" value="2" type="41" desc="numberOfPolarisationChannels" />
+              <relativePolarisationOffsets>
+                <attrib name="polarisation" value="VV" type="41" desc="polarisation" />
+                <attrib name="referencePolarisation" value="true" type="41" desc="referencePolarisation" />
+                <rangeOffset>
+                  <attrib name="rangeOffset" value="0.00000000000000000E+00" type="41" desc="rangeOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </rangeOffset>
+                <azimuthOffset>
+                  <attrib name="azimuthOffset" value="0.00000000000000000E+00" type="41" desc="azimuthOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </azimuthOffset>
+              </relativePolarisationOffsets>
+              <relativePolarisationOffsets>
+                <attrib name="polarisation" value="VH" type="41" desc="polarisation" />
+                <attrib name="referencePolarisation" value="false" type="41" desc="referencePolarisation" />
+                <rangeOffset>
+                  <attrib name="rangeOffset" value="0.00000000000000000E+00" type="41" desc="rangeOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </rangeOffset>
+                <azimuthOffset>
+                  <attrib name="azimuthOffset" value="0.00000000000000000E+00" type="41" desc="azimuthOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </azimuthOffset>
+              </relativePolarisationOffsets>
+            </polarisationChannels>
+          </gridInformation>
+        </etadBurst2>
+        <etadBurst3>
+          <burstData>
+            <attrib name="bIndex" value="19" type="41" desc="bIndex" />
+            <attrib name="pIndex" value="1" type="41" desc="pIndex" />
+            <attrib name="sIndex" value="3" type="41" desc="sIndex" />
+            <attrib name="productID" value="S1A_IW_SLC__1SDV_20200914T173116_20200914T173143_034358_03FEBE_116E.SAFE" type="41" desc="Product ID" />
+            <attrib name="swathID" value="IW3" type="41" desc="swathID" />
+            <burstId>
+              <attrib name="absolute" value="73796620" type="41" desc="absolute" />
+              <attrib name="source" value="SETAP" type="41" desc="source" />
+              <attrib name="burstId" value="343931" type="41" desc="burstId" />
+			</burstId>
+          </burstData>
+          <burstCoverage>
+            <temporalCoverage>
+              <rangeTimeMin>
+                <attrib name="rangeTimeMin" value="6.01581127951213244E-03" type="41" desc="rangeTimeMin" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+			  </rangeTimeMin>
+              <rangeTimeMax>
+                <attrib name="rangeTimeMax" value="6.40369205544174744E-03" type="41" desc="rangeTimeMax" />
+                <attrib name="unit" value="s" type="41" desc="unit" />
+			  </rangeTimeMax>
+              <attrib name="azimuthTimeMin" value="2020-09-14T17:31:33.137830" type="41" desc="azimuthTimeMin" />
+              <attrib name="azimuthTimeMax" value="2020-09-14T17:31:36.334311" type="41" desc="azimuthTimeMax" />
+              <azimuthTimeMin></azimuthTimeMin>
+              <azimuthTimeMax></azimuthTimeMax>
+              <rangeTimeMin unit="s"></rangeTimeMin>
+              <rangeTimeMax unit="s"></rangeTimeMax>
+            </temporalCoverage>
+            <spatialCoverage>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.46782379150390625E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="6.16662883758544922E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="1.45645336914062500E+03" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="EarlyAzimuthNearRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.47975158691406250E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="7.20860481262207031E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="1.08138635253906250E+03" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="EarlyAzimuthFarRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.48716430664062500E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="6.13527870178222656E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="2.46870703125000000E+03" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="LateAzimuthNearRange" type="41" desc="corner" />
+              </coordinates>
+              <coordinates>
+                <latitude>
+                  <attrib name="latitude" value="4.49894065856933594E+01" type="41" desc="latitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</latitude>
+                <longitude>
+                  <attrib name="longitude" value="7.16862583160400391E+00" type="41" desc="longitude" />
+                  <attrib name="unit" value="degree" type="41" desc="unit" />
+				</longitude>
+                <height>
+                  <attrib name="height" value="1.25070227050781250E+03" type="41" desc="height" />
+                  <attrib name="unit" value="m" type="41" desc="unit" />
+				</height>
+                <attrib name="corner" value="LateAzimuthFarRange" type="41" desc="corner" />
+              </coordinates>
+            </spatialCoverage>
+            <incidenceAngleRange>
+              <iMin>
+                <attrib name="iMin" value="4.15515977504016192E+01" type="41" desc="iMin" />
+                <attrib name="unit" value="degree" type="41" desc="unit" />
+              </iMin>
+              <iMax>
+                <attrib name="iMax" value="4.60134647988516861E+01" type="41" desc="iMax" />
+                <attrib name="unit" value="degree" type="41" desc="unit" />
+              </iMax>
+            </incidenceAngleRange>
+          </burstCoverage>
+          <gridInformation>
+            <gridStartAzimuthTime>
+              <attrib name="gridStartAzimuthTime" value="1.65395894428152417E+01" type="41" desc="gridStartAzimuthTime" />
+              <attrib name="unit" value="s" type="41" desc="unit" />
+            </gridStartAzimuthTime>
+            <gridStartRangeTime>
+              <attrib name="gridStartRangeTime" value="6.80620984178380121E-04" type="41" desc="gridStartRangeTime" />
+              <attrib name="unit" value="s" type="41" desc="unit" />
+            </gridStartRangeTime>
+            <gridDimensions>
+              <attrib name="azimuthExtent" value="110" type="41" desc="azimuthExtent" />
+              <attrib name="rangeExtent" value="478" type="41" desc="rangeExtent" />
+            </gridDimensions>
+            <gridSampling>
+              <range unit="s">8.13167245135459925E-07</range>
+              <azimuth unit="s">2.93255131964809401E-02</azimuth>
+            </gridSampling>
+            <gridGroundSampling>
+              <nearRange>
+                <attrib name="nearRange" value="1.83549302679055586E+02" type="41" desc="nearRange" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </nearRange>
+              <farRange>
+                <attrib name="farRange" value="1.69438407699372590E+02" type="41" desc="farRange" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </farRange>
+              <azimuth>
+                <attrib name="azimuth" value="1.98023219546569777E+02" type="41" desc="azimuth" />
+                <attrib name="unit" value="m" type="41" desc="unit" />
+              </azimuth>
+              <averageZeroDopplerVelocity>
+                <attrib name="averageZeroDopplerVelocity" value="6.75259178653802883E+03" type="41" desc="averageZeroDopplerVelocity" />
+                <attrib name="unit" value="m/s" type="41" desc="unit" />
+              </averageZeroDopplerVelocity>
+            </gridGroundSampling>
+            <polarisationChannels>
+              <attrib name="numberOfPolarisationChannels" value="2" type="41" desc="numberOfPolarisationChannels" />
+              <relativePolarisationOffsets>
+                <attrib name="polarisation" value="VV" type="41" desc="polarisation" />
+                <attrib name="referencePolarisation" value="true" type="41" desc="referencePolarisation" />
+                <rangeOffset>
+                  <attrib name="rangeOffset" value="0.00000000000000000E+00" type="41" desc="rangeOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </rangeOffset>
+                <azimuthOffset>
+                  <attrib name="azimuthOffset" value="0.00000000000000000E+00" type="41" desc="azimuthOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </azimuthOffset>
+              </relativePolarisationOffsets>
+              <relativePolarisationOffsets>
+                <attrib name="polarisation" value="VH" type="41" desc="polarisation" />
+                <attrib name="referencePolarisation" value="false" type="41" desc="referencePolarisation" />
+                <rangeOffset>
+                  <attrib name="rangeOffset" value="0.00000000000000000E+00" type="41" desc="rangeOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </rangeOffset>
+                <azimuthOffset>
+                  <attrib name="azimuthOffset" value="0.00000000000000000E+00" type="41" desc="azimuthOffset" />
+                  <attrib name="unit" value="s" type="41" desc="unit" />
+                </azimuthOffset>
+              </relativePolarisationOffsets>
+            </polarisationChannels>
+          </gridInformation>
+        </etadBurst3>
+      </etadBurstList>
+    </etadProduct>
+  </annotation>
+  </ETAD_Product_Metadata>
+</Metadata>

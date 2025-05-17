@@ -15,10 +15,8 @@
  */
 package eu.esa.sar.sentinel1.gpf.etadcorrectors;
 
-import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.Sentinel1Utils;
-import eu.esa.sar.commons.ETADUtils;
 import eu.esa.sar.sentinel1.gpf.BackGeocodingOp;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.*;
@@ -27,13 +25,16 @@ import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.ThreadExecutor;
+import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.*;
 
 import java.awt.*;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,9 +52,7 @@ import java.util.Map;
     private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private double noDataValue = 0.0;
-    private double radarFrequency = 0.0;
-    private static final String ETAD = "ETAD";
-
+    double radarFrequency = 0.0;
 
     /**
      * Default constructor. The graph processing framework
@@ -66,6 +65,19 @@ import java.util.Map;
     @Override
     public void initialize() throws OperatorException {
         try {
+            if (resamplingImage) { // resampling image
+                initializeForOption1();
+            } else { // InSAR
+                initializeForOption2();
+            }
+        } catch (Throwable e) {
+            throw new OperatorException(e);
+        }
+    }
+
+    private void initializeForOption1() {
+
+        try {
             mSU = new Sentinel1Utils(sourceProduct);
             mSubSwath = mSU.getSubSwath();
             mSU.computeDopplerRate();
@@ -75,7 +87,7 @@ import java.util.Map;
             if (mSubSwathNames.length != 1) {
                 throw new OperatorException("Split product is expected.");
             }
-            
+
             subSwathIndex = 1; // subSwathIndex is always 1 because of split product
             swathIndexStr = mSubSwathNames[0].substring(2);
             subSwath = mSubSwath[subSwathIndex - 1];
@@ -92,61 +104,205 @@ import java.util.Map;
         }
     }
 
+    private void initializeForOption2() {
+
+        try {
+            mSU = new Sentinel1Utils(sourceProduct);
+            mSubSwath = mSU.getSubSwath();
+            mSU.computeDopplerRate();
+            mSU.computeReferenceTime();
+
+            final String[] mSubSwathNames = mSU.getSubSwathNames();
+            if (mSubSwathNames.length != 1) {
+                throw new OperatorException("Split product is expected.");
+            }
+
+            subSwathIndex = 1; // subSwathIndex is always 1 because of split product
+            swathIndexStr = mSubSwathNames[0].substring(2);
+            subSwath = mSubSwath[subSwathIndex - 1];
+
+            final Band masterBandI = BackGeocodingOp.getBand(sourceProduct, "i_", swathIndexStr, mSU.getPolarizations()[0]);
+            if(masterBandI != null && masterBandI.isNoDataValueUsed()) {
+                noDataValue = masterBandI.getNoDataValue();
+            }
+
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            radarFrequency = absRoot.getAttributeDouble(AbstractMetadata.radar_frequency) * 1E6; // MHz to Hz
+        } catch (Throwable e) {
+            throw new OperatorException(e);
+        }
+    }
+
+    // Not used
+    @Override
+    public synchronized void loadETADData() throws OperatorException {
+        if(etadDataLoaded) {
+            return;
+        }
+        try {
+            final String[] preLoadedLayers = new String[] {TROPOSPHERIC_CORRECTION_RG, HEIGHT,
+                    GEODETIC_CORRECTION_RG, IONOSPHERIC_CORRECTION_RG};
+
+            final int prodSubswathIndex = getSubSwathIndex(subSwath.subSwathName);
+            final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
+            final int[] burstIndexArray = etadUtils.getBurstIndexArray(pIndex, prodSubswathIndex);
+
+            ThreadExecutor executor = new ThreadExecutor();
+            for (int burstIndex : burstIndexArray) {
+                final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
+
+                for (String preLoadedLayer : preLoadedLayers) {
+                    ThreadRunnable runnable1 = new ThreadRunnable() {
+                        @Override
+                        public void process() {
+                            getBurstCorrection(preLoadedLayer, burst);
+                        }
+                    };
+                    executor.execute(runnable1);
+                }
+            }
+            executor.complete();
+
+            etadDataLoaded = true;
+        } catch (Exception e) {
+            throw new OperatorException(e);
+        }
+    }
+
     @Override
     public Product createTargetProduct() {
 
         targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX, sourceProduct.getProductType(),
                 sourceImageWidth, sourceImageHeight);
 
-        if (outputPhaseCorrections) {
-
-            for (Band srcBand : sourceProduct.getBands()) {
-                if (srcBand instanceof VirtualBand) {
-                    continue;
-                }
-
-                final Band targetBand = ProductUtils.copyBand(srcBand.getName(), sourceProduct, targetProduct, true);
-
-                if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
-                    int idx = targetProduct.getBandIndex(targetBand.getName());
-                    ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
-                }
-            }
-
-            final String phaseBandName = ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName;
-            final Band phaseBand = new Band(phaseBandName, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
-            phaseBand.setUnit(Unit.RADIANS);
-            targetProduct.addBand(phaseBand);
-
-            final String heightBandName = ETAD_HEIGHT + "_" + subSwath.subSwathName;
-            final Band heightBand = new Band(heightBandName, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
-            heightBand.setUnit(Unit.METERS);
-            targetProduct.addBand(heightBand);
-
-        } else { // resampling image
-
-            for (Band srcBand : sourceProduct.getBands()) {
-                if (srcBand instanceof VirtualBand) {
-                    continue;
-                }
-
-                final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
-                        srcBand.getRasterWidth(), srcBand.getRasterHeight());
-
-                targetBand.setUnit(srcBand.getUnit());
-                targetBand.setDescription(srcBand.getDescription());
-                targetProduct.addBand(targetBand);
-
-                if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
-                    int idx = targetProduct.getBandIndex(targetBand.getName());
-                    ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
-                }
-            }
+        if (resamplingImage) { // resampling image
+            createTargetProductForOption1();
+        } else { // InSAR
+            createTargetProductForOption2();
         }
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
+        // Copy ETAD product metadata to target
+        final MetadataElement tgtRoot = targetProduct.getMetadataRoot();
+        final MetadataElement tgtETADElem = new MetadataElement("ETAD_Product_Metadata");
+        MetadataElement etadMetadataElem = etadProduct.getMetadataRoot().getElement("Original_Product_Metadata");
+        ProductUtils.copyMetadata(etadMetadataElem, tgtETADElem);
+        tgtRoot.addElement(tgtETADElem);
+
         return targetProduct;
+    }
+
+    private void createTargetProductForOption1() {
+
+        for (Band srcBand : sourceProduct.getBands()) {
+            if (srcBand instanceof VirtualBand) {
+                continue;
+            }
+
+            final Band targetBand = new Band(srcBand.getName(), ProductData.TYPE_FLOAT32,
+                    srcBand.getRasterWidth(), srcBand.getRasterHeight());
+
+            targetBand.setUnit(srcBand.getUnit());
+            targetBand.setDescription(srcBand.getDescription());
+            targetProduct.addBand(targetBand);
+
+            if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
+                int idx = targetProduct.getBandIndex(targetBand.getName());
+                ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
+            }
+        }
+    }
+
+    private void createTargetProductForOption2() {
+
+        for (Band srcBand : sourceProduct.getBands()) {
+            if (srcBand instanceof VirtualBand) {
+                continue;
+            }
+
+            final Band targetBand = ProductUtils.copyBand(srcBand.getName(), sourceProduct, targetProduct, true);
+
+            if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
+                int idx = targetProduct.getBandIndex(targetBand.getName());
+                ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
+            }
+        }
+        
+        final int prodSubswathIndex = getSubSwathIndex(subSwath.subSwathName);
+        final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
+        etadUtils.computeTroposphericToHeightGradient(pIndex, prodSubswathIndex);
+
+        final int[] burstIndexArray = etadUtils.getBurstIndexArray(pIndex, prodSubswathIndex);
+        for (int burstIndex : burstIndexArray) {
+            final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
+            if (!isValidBurst(burst)) {
+                continue;
+            }
+
+            final double[][] phase = computeRangeTimeCorrectionPhase(burst);
+            final double[][] height = getBurstCorrection(HEIGHT, burst);
+            final double[][] gradient = convertGradientToPhase(getBurstCorrection(GRADIENT, burst));
+
+            saveBurstDataAsTiePointGrid(phase, ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName + "_" + burstIndex);
+            saveBurstDataAsTiePointGrid(height, ETAD_HEIGHT + "_" + subSwath.subSwathName + "_" + burstIndex);
+            saveBurstDataAsTiePointGrid(gradient, ETAD_GRADIENT + "_" + subSwath.subSwathName + "_" + burstIndex);
+        }
+    }
+
+    private boolean isValidBurst(final ETADUtils.Burst etadBurst) {
+
+        for (int b = 0; b < subSwath.numOfBursts; b++) {
+            if (Math.abs(subSwath.burstFirstLineTime[b] - etadBurst.azimuthTimeMin) < 0.1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private double[][] convertGradientToPhase(final double[][] gradient) {
+
+        final int rows = gradient.length;
+        final int cols = gradient[0].length;
+        final double[][] phase = new double[rows][cols];
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                phase[r][c] = -2.0 * Constants.PI * radarFrequency * gradient[r][c];
+            }
+        }
+        return phase;
+    }
+
+    private void saveBurstDataAsTiePointGrid(final double[][] burstData, final String tpgName) {
+
+        final int rows = burstData.length;
+        final int cols = burstData[0].length;
+        final float[] tiePointData = new float[rows*cols];
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                tiePointData[r*cols + c] = (float)burstData[r][c];
+            }
+        }
+        sourceProduct.addTiePointGrid(new TiePointGrid(tpgName, cols, rows, 0, 0, 1, 1, tiePointData));
+    }
+
+    private double[][] computeRangeTimeCorrectionPhase(final ETADUtils.Burst burst) {
+
+        final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
+        final double[][] tropo = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
+        final double[][] geodeticRg = getBurstCorrection(GEODETIC_CORRECTION_RG, burst);
+        final double[][] ionosphericRg = getBurstCorrection(IONOSPHERIC_CORRECTION_RG, burst);
+
+        final int rows = tropo.length;
+        final int cols = tropo[0].length;
+        final double[][] phase = new double[rows][cols];
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                final double delay = tropo[r][c] + geodeticRg[r][c] - ionosphericRg[r][c] + rangeTimeCalibration;
+                phase[r][c] = -2.0 * Constants.PI * radarFrequency * delay; // delay time (s) to phase (radian)
+            }
+        }
+        return phase;
     }
 
     /**
@@ -169,7 +325,7 @@ import java.util.Map;
             final int th = targetRectangle.height;
             final int tyMax = ty0 + th;
             final int txMax = tx0 + tw;
-//            System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
+            //System.out.println("x0 = " + tx0 + ", y0 = " + ty0 + ", w = " + tw + ", h = " + th);
 
             for (int burstIndex = 0; burstIndex < subSwath.numOfBursts; burstIndex++) {
                 final int firstLineIdx = burstIndex * subSwath.linesPerBurst;
@@ -186,134 +342,47 @@ import java.util.Map;
                 final int nth = ntyMax - nty0;
                 //System.out.println("burstIndex = " + burstIndex + ": ntx0 = " + ntx0 + ", nty0 = " + nty0 + ", ntw = " + ntw + ", nth = " + nth);
 
-                if (resamplingImage) {
-                    computePartialTileResampleImage(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
-                } else { // outputInSARPhaseCorrections
-                    computePartialTileOutputCorrections(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
+                if (resamplingImage) { // resample image
+                    computePartialTileForOption1(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
+                } else { // InSAR
+                    computePartialTileForOption2(burstIndex, ntx0, nty0, ntw, nth, targetTileMap, op);
                 }
             }
 
         } catch (Throwable e) {
             throw new OperatorException(e);
         }
+    }
+
+    private static int getSubSwathIndex(String subSwathName) {
+        int prodSubswathIndex = -1;
+        if (subSwathName.equalsIgnoreCase("iw1")) {
+            prodSubswathIndex = 1;
+        } else if (subSwathName.equalsIgnoreCase("iw2")) {
+            prodSubswathIndex = 2;
+        } else if (subSwathName.equalsIgnoreCase("iw3")) {
+            prodSubswathIndex = 3;
+        }
+        return prodSubswathIndex;
     }
 
     private synchronized void computeTroposphericToHeightGradient() {
 
-        if (tropToHeightGradientComputed) return;
+        if (tropoToHeightGradientComputed) return;
 
-        int prodSubswathIndex = -1;
-        if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
-            prodSubswathIndex = 1;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
-            prodSubswathIndex = 2;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
-            prodSubswathIndex = 3;
-        }
-
+        final int prodSubswathIndex = getSubSwathIndex(subSwath.subSwathName);
         final int pIndex = etadUtils.getProductIndex(sourceProduct.getName());
-        final int[] burstIndexArray = etadUtils.getBurstIndexArray(pIndex, prodSubswathIndex);
+        etadUtils.computeTroposphericToHeightGradient(pIndex, prodSubswathIndex);
 
-        final double[] gradientArray = new double[burstIndexArray.length];
-        int i = 0;
-        for (int burstIndex : burstIndexArray) {
-            final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
-            final double[][] tropCorr = getBurstCorrection(TROPOSPHERIC_CORRECTION_RG, burst);
-            final double[][] height = getBurstCorrection(HEIGHT, burst);
-            final double gradient = computeGradientForCurrentBurst(tropCorr, height);
-            gradientArray[i++] = -2.0 * Constants.PI * radarFrequency * gradient;
-        }
-
-        final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
-        MetadataElement etadElem = absTgt.getElement(ETAD);
-        if (etadElem == null) {
-            etadElem = new MetadataElement(ETAD);
-            absTgt.addElement(etadElem);
-        }
-        final MetadataAttribute attrib = new MetadataAttribute("gradient", ProductData.TYPE_FLOAT64, gradientArray.length);
-        attrib.getData().setElems(gradientArray);
-        etadElem.addAttribute(attrib);
-
-        tropToHeightGradientComputed = true;
+        tropoToHeightGradientComputed = true;
     }
 
-    private double computeGradientForCurrentBurst(final double[][] tropCorr, final double[][] height) {
-
-        final int rows = tropCorr.length;
-        final int cols = tropCorr[0].length;
-
-        double sumX = 0.0, sumX2 = 0.0, sumY = 0.0, sumXY = 0.0;
-        for (int r = 0; r < rows; ++r) {
-            for (int c = 0; c < cols - 1; ++c) {
-                final double dh = height[r][c + 1] - height[r][c];
-                final double dt = tropCorr[r][c + 1] - tropCorr[r][c];
-                sumX += dh;
-                sumX2 += dh * dh;
-                sumY += dt;
-                sumXY += dh * dt;
-            }
-        }
-
-        final Matrix A = new Matrix(new double[][]{{sumX2, sumX}, {sumX, rows * (cols - 1)}});
-        final Matrix b = new Matrix(new double[]{sumXY, sumY}, 2);
-        final Matrix c = A.solve(b);
-        return c.get(0,0);
+    private void computePartialTileForOption2(final int mBurstIndex,
+                                              final int x0, final int y0, final int w, final int h,
+                                              final Map<Band, Tile> targetTileMap, final Operator op) {
     }
 
-    private void computePartialTileOutputCorrections(final int subSwathIndex, final int mBurstIndex,
-                                                     final int x0, final int y0, final int w, final int h,
-                                                     final Map<Band, Tile> targetTileMap, final Operator op) {
-
-        try {
-            if (!tropToHeightGradientComputed) {
-                computeTroposphericToHeightGradient();
-            }
-
-            double[][] correction = new double[h][w];
-            getInSARRangeTimeCorrectionForCurrentTile(x0, y0, w, h, mBurstIndex, correction);
-            final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
-
-            double[][] height = new double[h][w];
-            getCorrectionForCurrentTile(HEIGHT, x0, y0, w, h, mBurstIndex, height);
-
-            final String phaseBandName = ETAD_PHASE_CORRECTION + "_" + subSwath.subSwathName;
-            final Band phaseBand = targetProduct.getBand(phaseBandName);
-            final Tile phaseTile = targetTileMap.get(phaseBand);
-            final ProductData phaseData = phaseTile.getDataBuffer();
-            final TileIndex phaseIndex = new TileIndex(phaseTile);
-
-            final String heightBandName = ETAD_HEIGHT + "_" + subSwath.subSwathName;
-            final Band heightBand = targetProduct.getBand(heightBandName);
-            final Tile heightTile = targetTileMap.get(heightBand);
-            final ProductData heightData = heightTile.getDataBuffer();
-            final TileIndex heightIndex = new TileIndex(phaseTile);
-
-            final int xMax = x0 + w - 1;
-            final int yMax = y0 + h - 1;
-
-            for (int y = y0; y <= yMax; ++y) {
-                phaseIndex.calculateStride(y);
-                heightIndex.calculateStride(y);
-                int yy = y - y0;
-
-                for (int x = x0; x <= xMax; ++x) {
-                    final int phaseIdx = phaseIndex.getIndex(x);
-                    final int heightIdx = heightIndex.getIndex(x);
-                    final int xx = x - x0;
-
-                    final double delay = correction[yy][xx] + rangeTimeCalibration;
-                    final double phase = -2.0 * Constants.PI * radarFrequency * delay; // delay time (s) to phase (radian)
-                    phaseData.setElemDoubleAt(phaseIdx, phase);
-                    heightData.setElemDoubleAt(heightIdx, height[yy][xx]);
-                }
-            }
-
-        } catch (Throwable e) {
-            throw new OperatorException(e);
-        }
-    }
-
-    private void computePartialTileResampleImage(final int subSwathIndex, final int mBurstIndex,
+    private void computePartialTileForOption1(final int subSwathIndex, final int mBurstIndex,
                                                  final int x0, final int y0, final int w, final int h,
                                                  final Map<Band, Tile> targetTileMap, final Operator op) {
 
@@ -416,11 +485,11 @@ import java.util.Map;
                                                final int prodBurstIndex, final double[][] correction, final double scale) {
 
         int prodSubswathIndex = -1;
-        if (subSwath.subSwathName.toLowerCase().equals("iw1")) {
+        if (subSwath.subSwathName.equalsIgnoreCase("iw1")) {
             prodSubswathIndex = 1;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw2")) {
+        } else if (subSwath.subSwathName.equalsIgnoreCase("iw2")) {
             prodSubswathIndex = 2;
-        } else if (subSwath.subSwathName.toLowerCase().equals("iw3")) {
+        } else if (subSwath.subSwathName.equalsIgnoreCase("iw3")) {
             prodSubswathIndex = 3;
         }
 
@@ -429,7 +498,6 @@ import java.util.Map;
         final int burstIndex = etadUtils.getBurstIndex(pIndex, prodSubswathIndex, burstAzTime);
         final ETADUtils.Burst burst = etadUtils.getBurst(pIndex, prodSubswathIndex, burstIndex);
 
-        Map<String, double[][]> correctionMap = new HashMap<>(10);
         final int xMax = x0 + w - 1;
         final int yMax = y0 + h - 1;
 
@@ -442,7 +510,7 @@ import java.util.Map;
                 final int xx = x - x0;
                 final double rgTime = 2.0 * (subSwath.slrTimeToFirstPixel + x * mSU.rangeSpacing / Constants.lightSpeed);
 
-                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst, correctionMap);
+                correction[yy][xx] += scale * getCorrection(layer, azTime, rgTime, burst);
             }
         }
     }

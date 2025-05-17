@@ -6,7 +6,7 @@
     <parent>
         <artifactId>jlinda</artifactId>
         <groupId>org.jlinda</groupId>
-        <version>12.0.0-SNAPSHOT</version>
+        <version>13.0.0-SNAPSHOT</version>
     </parent>
 
     <name>jLinda SNAP Support</name>
@@ -32,6 +32,10 @@
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
+            <artifactId>ceres-glayer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
             <artifactId>snap-core</artifactId>
         </dependency>
         <dependency>
@@ -53,11 +57,6 @@
         <dependency>
             <groupId>org.jblas</groupId>
             <artifactId>jblas</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.esa.snap</groupId>
-            <artifactId>snap-envi-reader</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

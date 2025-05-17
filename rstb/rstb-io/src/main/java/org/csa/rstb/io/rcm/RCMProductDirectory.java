@@ -198,6 +198,10 @@ public class RCMProductDirectory extends XMLProductDirectory {
         final ImageIOFile imgCX = getImageFile("_xc");
         final ImageIOFile imgCV = getImageFile("_cv");
 
+        if(imgCH == null || imgCX == null || imgCV == null) {
+            SystemUtils.LOG.severe("Unable to read some band of this MLC product");
+            return;
+        }
         try {
             addBand(product, "C11", width, height, imgCH, 0, Unit.INTENSITY);
             addBand(product, "C12_real", width, height, imgCX, 0, Unit.REAL);

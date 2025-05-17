@@ -105,6 +105,51 @@ public class TestInSAROverviewOp extends ProcessorTest {
         assertEquals("Please add a list of source products of two or more products", exception.getMessage());
     }
 
+    @Test
+    @STTM("SNAP-4004")
+    public void testSecondaryInJSON() throws Exception {
+        File[] santorini_files = new File[] { santorini_3, santorini_4 };
+        List<Product> products = readProducts(santorini_files);
+        JSONObject json = InSAROverviewOp.produceInSAROverview(products.toArray(new Product[0]));
+
+        System.out.println(json.toJSONString());
+        assert(json.containsKey("reference"));
+        assert(json.containsKey("secondary"));
+
+        JSONObject reference = (JSONObject) json.get("reference");
+        final String refProdName = (String)reference.get("product_name");
+        final String refFile = (String)reference.get("file");
+        final String refPass = (String)reference.get("pass");
+        final String refOrbitFile = (String)reference.get("orbit_state_vector_file");
+        assert(refProdName.equals("subset_3_of_ASA_IMS_1PNUPA20040225_200558_000000162024_00329_10403_7640"));
+        assert(refFile.equals(santorini_3.getPath()));
+        assert(refPass.equals("ASCENDING"));
+        assert(refOrbitFile.equals("AUX_FRO_AXVPDS20040301_104631_20040224_221000_20040227_005000"));
+
+        JSONArray secondaries = (JSONArray) json.get("secondary");
+        for(Object o : secondaries) {
+            JSONObject secondary = (JSONObject) o;
+            final String secProdName = (String)secondary.get("product_name");
+            final String secFile = (String)secondary.get("file");
+            final String secStartTime = (String)secondary.get("start_time");
+            assert(secProdName.equals("subset_4_of_ASA_IMS_1PNUPA20040331_200601_000000162025_00329_10904_7641"));
+            assert(secFile.equals(santorini_4.getPath()));
+            assert(secStartTime.equals("31-MAR-2004 20:06:08.498146"));
+
+            JSONObject overview = (JSONObject) secondary.get("insar_overview");
+            final float coh = (float)overview.get("coherence");
+            final float perpBaseLine = (float)overview.get("perpendicular_baseline_m");
+            final float tempBaseLine = (float)overview.get("temporal_baseline_days");
+            final float amb = (float)overview.get("height_of_ambiguity_m");
+            final float dopDiff = (float)overview.get("doppler_difference_hz");
+            assertEquals(coh, 0.24187608f, 1e-5f);
+            assertEquals(perpBaseLine, -898.3998f, 1e-5f);
+            assertEquals(tempBaseLine, -35.00003f, 1e-5f);
+            assertEquals(amb, 10.122804f, 1e-5f);
+            assertEquals(dopDiff, -8.076843f, 1e-5f);
+        }
+    }
+
     public void process(final List<Product> products) throws Exception {
 
         final InSAROverviewOp op = (InSAROverviewOp) spi.createOperator();
