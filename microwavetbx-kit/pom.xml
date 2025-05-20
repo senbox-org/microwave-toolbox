@@ -48,7 +48,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>${plugin.maven-antrun.version}</version>
                 <executions>
                     <execution>
                         <id>copy-jars</id>
