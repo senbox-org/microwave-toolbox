@@ -411,6 +411,9 @@ public class CoherenceOpUI extends BaseOperatorUI {
         }
         externalDEMBrowseButton.setVisible(flag);
         externalDEMApplyEGMCheckBox.setVisible(flag);
+        if (flag) {
+            externalDEMApplyEGMCheckBox.setSelected(externalDEMApplyEGM);
+        }
     }
 
     private void enableSubtractFlatEarthPhaseParameters(boolean flag) {

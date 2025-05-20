@@ -251,18 +251,19 @@ public class AdaptiveThresholdingOp extends Operator {
                 targetBandNameToSourceBandName.put(targetBandName, srcBandName);
 
                 if (!targetProduct.containsBand(srcBandName)) {
-                    final Band targetBand = ProductUtils.copyBand(srcBandName, sourceProduct, targetProduct, true);
-
-                    final Band targetBandMask = new Band(targetBandName,
-                            ProductData.TYPE_INT8,
-                            targetBand.getRasterWidth(),
-                            targetBand.getRasterHeight());
-
-                    targetBandMask.setUnit(Unit.AMPLITUDE);
-                    targetBandMask.setNoDataValue(0);
-                    targetBandMask.setNoDataValueUsed(true);
-                    targetProduct.addBand(targetBandMask);
+                    ProductUtils.copyBand(srcBandName, sourceProduct, targetProduct, true);
                 }
+                final Band targetBand = targetProduct.getBand(srcBandName);
+
+                final Band targetBandMask = new Band(targetBandName,
+                        ProductData.TYPE_INT8,
+                        targetBand.getRasterWidth(),
+                        targetBand.getRasterHeight());
+
+                targetBandMask.setUnit(Unit.AMPLITUDE);
+                targetBandMask.setNoDataValue(0);
+                targetBandMask.setNoDataValueUsed(true);
+                targetProduct.addBand(targetBandMask);
             }
         }
     }
