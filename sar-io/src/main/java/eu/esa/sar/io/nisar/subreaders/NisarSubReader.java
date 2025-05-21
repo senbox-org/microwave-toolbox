@@ -139,11 +139,6 @@ public abstract class NisarSubReader {
         return groupSwaths.findGroup("frequencyA");
     }
 
-    protected Group getMetadataGroup(final Group groupLSAR) {
-        final Group groupProductType = groupLSAR.findGroup(productType);
-        return groupProductType.findGroup("metadata");
-    }
-
     protected Group[] getPolarizationGroups(final Group group) {
         List<Group> polGroups = new ArrayList<>();
         final Group groupHH = group.findGroup("HH");
@@ -408,17 +403,6 @@ public abstract class NisarSubReader {
         return NisarXConstants.DETECTED;
     }
 
-    protected double timeUTCtoSecs(String myDate) {
-
-        ProductData.UTC localDateTime = null;
-        try {
-            localDateTime = ProductData.UTC.parse(myDate, standardDateFormat);
-        } catch (ParseException e) {
-            SystemUtils.LOG.severe(e.getMessage());
-        }
-        return localDateTime.getMJD() * 24.0 * 3600.0;
-    }
-
     protected void addOrbitStateVectors(final MetadataElement absRoot) {
 
         try {
@@ -478,21 +462,6 @@ public abstract class NisarSubReader {
             SystemUtils.LOG.severe(e.getMessage());
 
         }
-    }
-
-    protected MetadataElement getBandElement(final Band band) {
-
-        final MetadataElement root = AbstractMetadata.getOriginalProductMetadata(product);
-        final Variable variable = bandMap.get(band);
-        final String varName = variable.getShortName();
-        MetadataElement bandElem = null;
-        for (MetadataElement elem : root.getElements()) {
-            if (elem.getName().equalsIgnoreCase(varName)) {
-                bandElem = elem;
-                break;
-            }
-        }
-        return bandElem;
     }
 
     protected void addDopplerCentroidCoefficients() {

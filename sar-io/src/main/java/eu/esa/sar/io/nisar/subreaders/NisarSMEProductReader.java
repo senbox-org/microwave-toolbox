@@ -15,10 +15,12 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,5 +73,15 @@ public class NisarSMEProductReader extends NisarSubReader {
         createBand("Waterbody_fraction", rasterWidth, rasterHeight, Unit.SOIL_MOISTURE, Waterbody_fraction);
 
         createBand("landcover", rasterWidth, rasterHeight, Unit.CLASS, landcover);
+    }
+
+    @Override
+    protected void addAbstractedMetadataHeader(final MetadataElement root) throws Exception {
+
+    }
+
+    @Override
+    protected void addTiePointGridsToProduct() throws IOException {
+
     }
 }
