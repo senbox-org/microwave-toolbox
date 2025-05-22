@@ -132,24 +132,15 @@ public class CapellaProductDirectory extends JSONProductDirectory {
             firstLineTime = ReaderUtils.getTime(collect, "start_timestamp", standardDateFormat);
         }
 
-        //double delta_line_time = imageGeometry.getAttributeDouble("delta_line_time");
-
-        final MetadataElement centerPixel = image.getElement("center_pixel");
-        final ProductData.UTC centerTime = ReaderUtils.getTime(centerPixel, "center_time", standardDateFormat);
-
+        double delta_line_time = imageGeometry.getAttributeDouble("delta_line_time");
         final double firstTime = firstLineTime.getMJD() * 24.0 * 3600.0;
-        final double midTime = centerTime.getMJD() * 24.0 * 3600.0;
-        final double imageDuration = (midTime - firstTime) * 2.0;
-        //final double deltaTime = (height - 1) * delta_line_time;
-        //final double lastTime = firstTime + deltaTime;
-        final double lastTime = firstTime + imageDuration;
+        final double deltaTime = (height - 1) * delta_line_time;
+        final double lastTime = firstTime + deltaTime;
         final ProductData.UTC lastLineTime = new ProductData.UTC(lastTime / 3600.0 / 24.0);
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, firstLineTime);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, lastLineTime);
-        //AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval, delta_line_time);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
-                ReaderUtils.getLineTimeInterval(firstLineTime, lastLineTime, height));
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval, delta_line_time);
 
         final MetadataElement state = collect.getElement("state");
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PASS, state.getAttributeString("direction", "unknown").toUpperCase());
