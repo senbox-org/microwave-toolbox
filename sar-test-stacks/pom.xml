@@ -51,6 +51,18 @@
             <artifactId>sar-op-insar</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-op-sentinel1</artifactId>
+            <version>${microwavetbx.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io-ephemeris</artifactId>
+            <version>${microwavetbx.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.csa.rstb</groupId>
@@ -63,6 +75,12 @@
             <artifactId>rstb-op-polarimetric-tools</artifactId>
             <version>${microwavetbx.version}</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>net.sf.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>${opencsv.version}</version>
         </dependency>
 
         <dependency>
