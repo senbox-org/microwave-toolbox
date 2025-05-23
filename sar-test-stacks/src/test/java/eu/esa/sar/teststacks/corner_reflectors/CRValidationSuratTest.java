@@ -33,21 +33,30 @@ public class CRValidationSuratTest extends BaseCRTest {
     private final static File S1_GRD_Surat = new File(TestData.inputSAR + "S1/corner_reflectors/GA/Surat/S1A_IW_GRDH_1SDV_20250413T192217_20250413T192242_058742_0746BD_0527.SAFE.zip");
     private final static String Surat_CSV = "/eu/esa/sar/teststacks/corner_reflectors/GA/surat_basin_queensland_calibration_targets.csv";
 
-    private File tempFolder = new File("/tmp/corner_reflectors/GA");
+    public CRValidationSuratTest() {
+        super("Surat");
+    }
 
     @Before
     public void setUp() {
         // If any of the file does not exist: the test will be ignored
         assumeTrue(S1_GRD_Surat + " not found", S1_GRD_Surat.exists());
-        tempFolder.mkdirs();
     }
 
     @Test
     public void testGA() throws IOException {
-        List<String[]> csv = readCSVFile(Surat_CSV);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
 
         Product product = ProductIO.readProduct(S1_GRD_Surat);
         Assert.assertNotNull(product);
+
+        addCornerReflectorPins(product);
+
+        write(product);
+    }
+
+    private void addCornerReflectorPins(Product trgProduct) throws IOException {
+        final List<String[]> csv = readCSVFile(Surat_CSV);
 
         for (String[] line : csv) {
             String id = line[0];
@@ -63,10 +72,7 @@ public class CRValidationSuratTest extends BaseCRTest {
             double alt = Double.parseDouble(line[5]);
 
             // add a placemark at each corner reflector
-            addPin(product, id, lat, lon);
+            addPin(trgProduct, id, lat, lon);
         }
-
-        ProductIO.writeProduct(product, tempFolder.getAbsolutePath() +"/"+ product.getName()+".dim", "BEAM-DIMAP");
     }
-
 }

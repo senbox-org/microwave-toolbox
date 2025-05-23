@@ -37,44 +37,48 @@ public class CRValidationRosamondTest extends BaseCRTest {
     private final static File S1_SLC_Rosamond = new File(TestData.inputSAR + "S1/corner_reflectors/JPL/Rosamond/S1A_IW_SLC__1SDV_20250415T135221_20250415T135248_058768_0747CA_07E0.SAFE.zip");
     private final static String Rosamond_CSV = "/eu/esa/sar/teststacks/corner_reflectors/JPL/2025-05-22_0000_Rosamond-corner-reflectors_with_plate_motion.csv";
 
-    private File tempFolder = new File("/tmp/corner_reflectors/JPL");
+    public CRValidationRosamondTest() {
+        super("Rosamond");
+    }
 
     @Before
     public void setUp() {
         // If any of the file does not exist: the test will be ignored
         assumeTrue(S1_GRD_Rosamond + " not found", S1_GRD_Rosamond.exists());
         assumeTrue(S1_SLC_Rosamond + " not found", S1_SLC_Rosamond.exists());
-        tempFolder.mkdirs();
     }
 
     @Test
-    public void testJPL_Rosamond_GRD() throws IOException {
-        List<String[]> csv = readCSVFile(Rosamond_CSV);
+    public void testJPL_Rosamond_GRD1() throws IOException {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
 
         Product product = ProductIO.readProduct(S1_GRD_Rosamond);
         Assert.assertNotNull(product);
 
-        for (String[] line : csv) {
-            String id = line[0];
-            // skip the header
-            if (id.contains("ID")) {
-                continue;
-            }
+        addCornerReflectorPins(product);
 
-            double lat = Double.parseDouble(line[1]);
-            double lon = Double.parseDouble(line[2]);
-            double alt = Double.parseDouble(line[3]);
-
-            // add a placemark at each corner reflector
-            addPin(product, id, lat, lon);
-        }
-
-        ProductIO.writeProduct(product, tempFolder.getAbsolutePath() +"/"+ product.getName()+".dim", "BEAM-DIMAP");
+        write(product);
     }
 
     @Test
-    public void testJPL_Rosamond_SLC() throws IOException {
-        List<String[]> csv = readCSVFile(Rosamond_CSV);
+    public void testJPL_Rosamond_GRD2() throws IOException {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product product = ProductIO.readProduct(S1_GRD_Rosamond);
+        Assert.assertNotNull(product);
+
+        ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
+        applyOrbitOp.setSourceProduct(product);
+        Product trgProduct = applyOrbitOp.getTargetProduct();
+
+        addCornerReflectorPins(trgProduct);
+
+        write(product);
+    }
+
+    @Test
+    public void testJPL_Rosamond_SLC1() throws IOException {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
 
         Product product = ProductIO.readProduct(S1_SLC_Rosamond);
         Assert.assertNotNull(product);
@@ -91,6 +95,62 @@ public class CRValidationRosamondTest extends BaseCRTest {
         deburstOp.setSourceProduct(splitOp.getTargetProduct());
         Product trgProduct = deburstOp.getTargetProduct();
 
+        addCornerReflectorPins(trgProduct);
+
+        write(trgProduct);
+    }
+
+    @Test
+    public void testJPL_Rosamond_SLC2() throws IOException {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product product = ProductIO.readProduct(S1_SLC_Rosamond);
+        Assert.assertNotNull(product);
+
+        TOPSARSplitOp splitOp = new TOPSARSplitOp();
+        splitOp.setSourceProduct(product);
+        splitOp.setParameter("subswath", "IW2");
+        splitOp.setParameter("selectedPolarisations", "VV");
+
+        ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
+        applyOrbitOp.setSourceProduct(splitOp.getTargetProduct());
+
+        TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
+        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        Product trgProduct = deburstOp.getTargetProduct();
+
+        addCornerReflectorPins(trgProduct);
+
+        write(trgProduct);
+    }
+
+    @Test
+    public void testJPL_Rosamond_SLC3() throws IOException {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product product = ProductIO.readProduct(S1_SLC_Rosamond);
+        Assert.assertNotNull(product);
+
+        TOPSARSplitOp splitOp = new TOPSARSplitOp();
+        splitOp.setSourceProduct(product);
+        splitOp.setParameter("subswath", "IW2");
+        splitOp.setParameter("selectedPolarisations", "VV");
+
+        TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
+        deburstOp.setSourceProduct(splitOp.getTargetProduct());
+
+        ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
+        applyOrbitOp.setSourceProduct(deburstOp.getTargetProduct());
+        Product trgProduct = applyOrbitOp.getTargetProduct();
+
+        addCornerReflectorPins(trgProduct);
+
+        write(trgProduct);
+    }
+
+    private void addCornerReflectorPins(Product trgProduct) throws IOException {
+        final List<String[]> csv = readCSVFile(Rosamond_CSV);
+
         for (String[] line : csv) {
             String id = line[0];
             // skip the header
@@ -105,8 +165,6 @@ public class CRValidationRosamondTest extends BaseCRTest {
             // add a placemark at each corner reflector
             addPin(trgProduct, id, lat, lon);
         }
-
-        ProductIO.writeProduct(trgProduct, tempFolder.getAbsolutePath() +"/"+ trgProduct.getName()+".dim", "BEAM-DIMAP");
     }
 
 }
