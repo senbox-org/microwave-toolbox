@@ -16,30 +16,38 @@
 package eu.esa.sar.teststacks.corner_reflectors;
 
 import au.com.bytecode.opencsv.CSVReader;
+import eu.esa.sar.commons.test.ProcessorTest;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.PinDescriptor;
 import org.esa.snap.core.datamodel.Placemark;
 import org.esa.snap.core.datamodel.PlacemarkDescriptor;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.gpf.main.GPT;
+import org.esa.snap.core.util.SystemUtils;
 import org.junit.Assert;
 
+import javax.media.jai.JAI;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
+import java.util.logging.Logger;
 
-public class BaseCRTest {
+public class BaseCRTest extends ProcessorTest {
 
     private final PlacemarkDescriptor pinDescriptor = PinDescriptor.getInstance();
     private final File baseFolder = new File("/tmp/corner_reflectors");
     private final File tempFolder;
     private String testName = "";
+    private static final Logger LOG = Logger.getLogger("test");
 
     protected BaseCRTest(String folder) {
         this.tempFolder = new File(baseFolder, folder);
         tempFolder.mkdirs();
+
+        debugEnvironment();
     }
 
     protected void setName(String name) {
@@ -65,5 +73,44 @@ public class BaseCRTest {
         ProductIO.writeProduct(product,
                 tempFolder.getAbsolutePath() +"/"+ product.getName()+testName+".dim",
                 "BEAM-DIMAP");
+    }
+
+    public static void debugEnvironment() {
+        SystemUtils.init3rdPartyLibs(GPT.class);
+
+        LOG.info("ApplicationDataDir: " + SystemUtils.getApplicationDataDir());
+        LOG.info("ApplicationHomeDir: " + SystemUtils.getApplicationHomeDir());
+        LOG.info("AuxDataPath: " + SystemUtils.getAuxDataPath());
+        LOG.info("CacheDir: " + SystemUtils.getCacheDir());
+
+        final File etcFolder = new File(SystemUtils.getApplicationDataDir(), "etc");
+        etcFolder.mkdirs();
+
+        final StringBuilder debugStr = new StringBuilder("Runtime: ");
+        final Runtime runtime = Runtime.getRuntime();
+        debugStr.append(" Processors: " + runtime.availableProcessors());
+        debugStr.append(" Max memory: " + fromBytes(runtime.maxMemory()));
+
+        debugStr.append(" Cache size: " + fromBytes(JAI.getDefaultInstance().getTileCache().getMemoryCapacity()));
+        debugStr.append(" Tile parallelism: " + JAI.getDefaultInstance().getTileScheduler().getParallelism());
+        debugStr.append(" SNAP Tile size: " + (int) JAI.getDefaultTileSize().getWidth() + " x " +
+                (int) JAI.getDefaultTileSize().getHeight() + " pixels");
+        LOG.info(debugStr.toString());
+
+    }
+
+    public static final int K = 1024;
+    public static final int M = K * 1024;
+    public static final int G = M * 1024;
+
+    public static String fromBytes(final long bytes) {
+        if (bytes > G) {
+            return String.format("%.1f GB", (double) bytes / G);
+        } else if (bytes > M) {
+            return String.format("%.1f MB", (double) bytes / M);
+        } else if (bytes > K) {
+            return String.format("%.1f KB", (double) bytes / K);
+        }
+        return String.format("%d B", bytes);
     }
 }

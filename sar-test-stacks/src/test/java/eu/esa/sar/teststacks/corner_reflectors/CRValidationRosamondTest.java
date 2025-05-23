@@ -17,6 +17,7 @@ package eu.esa.sar.teststacks.corner_reflectors;
 
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.orbits.gpf.ApplyOrbitFileOp;
+import eu.esa.sar.sar.gpf.geometric.RangeDopplerGeocodingOp;
 import eu.esa.sar.sentinel1.gpf.TOPSARDeburstOp;
 import eu.esa.sar.sentinel1.gpf.TOPSARSplitOp;
 import org.esa.snap.core.dataio.ProductIO;
@@ -55,9 +56,14 @@ public class CRValidationRosamondTest extends BaseCRTest {
         Product product = ProductIO.readProduct(S1_GRD_Rosamond);
         Assert.assertNotNull(product);
 
-        addCornerReflectorPins(product);
+        RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
+        terrainCorrectionOp.setSourceProduct(product);
+        terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
+        Product trgProduct = terrainCorrectionOp.getTargetProduct();
 
-        write(product);
+        addCornerReflectorPins(trgProduct);
+
+        write(trgProduct);
     }
 
     @Test
@@ -69,11 +75,15 @@ public class CRValidationRosamondTest extends BaseCRTest {
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
         applyOrbitOp.setSourceProduct(product);
-        Product trgProduct = applyOrbitOp.getTargetProduct();
+
+        RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
+        terrainCorrectionOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
+        Product trgProduct = terrainCorrectionOp.getTargetProduct();
 
         addCornerReflectorPins(trgProduct);
 
-        write(product);
+        write(trgProduct);
     }
 
     @Test
