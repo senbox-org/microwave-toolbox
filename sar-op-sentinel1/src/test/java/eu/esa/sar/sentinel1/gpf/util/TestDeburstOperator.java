@@ -90,4 +90,26 @@ public class TestDeburstOperator extends ProcessorTest {
             }
         }
     }
+
+    @Test
+    @STTM("SNAP-4029")
+    public void testTargetProductDim() throws Exception {
+        Assume.assumeTrue("Input file does not exist - Skipping test", inputFile.exists());
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
+
+            final TOPSARDeburstOp op = new TOPSARDeburstOp();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
+
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false);
+
+            final int expWidth = 68069; // expected target product width
+            final int expHeight = 13332; // expected target product height
+
+            assertEquals(expWidth, targetProduct.getSceneRasterWidth());
+            assertEquals(expHeight, targetProduct.getSceneRasterHeight());
+        }
+    }
 }
