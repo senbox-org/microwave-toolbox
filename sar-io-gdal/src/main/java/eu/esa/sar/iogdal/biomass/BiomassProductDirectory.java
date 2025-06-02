@@ -61,11 +61,10 @@ import static org.esa.snap.engine_utilities.datamodel.AbstractMetadata.NO_METADA
  */
 public class BiomassProductDirectory extends XMLProductDirectory {
 
-    //private static final GTiffDriverProductReaderPlugIn readerPlugin = new GTiffDriverProductReaderPlugIn();
-    private static final GeoTiffProductReaderPlugIn readerPlugin = new GeoTiffProductReaderPlugIn();
+    private static final GTiffDriverProductReaderPlugIn readerPlugin = new GTiffDriverProductReaderPlugIn();
+    //private static final GeoTiffProductReaderPlugIn readerPlugin = new GeoTiffProductReaderPlugIn();
     private final Map<String, ReaderData> bandProductMap = new TreeMap<>();
 
-    private final Map<Band, TiePointGeoCoding> bandGeocodingMap = new TreeMap<>();
     private final transient Map<String, String> imgBandMetadataMap = new TreeMap<>();
     private String productName = "";
     private String productType = "";

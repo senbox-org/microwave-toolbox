@@ -17,6 +17,7 @@ package eu.esa.sar.iogdal.biomass;
 
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -33,20 +34,15 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestBiomassProductReader extends ReaderTest {
 
-    //private static String pathPrefix = TestData.inputSAR;
-    private static String pathPrefix = "E:/EO/";
-    //public final static File input_L1B_DGM = new File(pathPrefix+"BIOMASS/L1A_and_L1B/BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP/bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnqp.xml");
-    public final static File input_L1B_DGM = new File(pathPrefix+"BIOMASS/L1A_and_L1B/BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP_converted/bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnqp.xml");
+    private static String pathPrefix = TestData.inputSAR;
+    public final static File input_L1B_DGM = new File(pathPrefix+"BIOMASS/L1A_and_L1B/BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP/bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnqp.xml");
 
     public final static File input_L1B_DGM_ZIP = new File(pathPrefix+"BIOMASS/L1A_and_L1B/BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP.zip");
     public final static File input_L1B_DGM_Folder = new File(pathPrefix+"BIOMASS/L1A_and_L1B/BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP");
 
-    //public final static File input_L1A_SCS = new File(pathPrefix+"BIOMASS/L1A_and_L1B/BIO_S1_SCS__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNPU/bio_s1_scs__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnpu.xml");
-    public final static File input_L1A_SCS = new File(pathPrefix+"BIOMASS/L1A_and_L1B/BIO_S1_SCS__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNPU_converted/bio_s1_scs__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnpu.xml");
+    public final static File input_L1A_SCS = new File(pathPrefix+"BIOMASS/L1A_and_L1B/BIO_S1_SCS__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNPU/bio_s1_scs__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnpu.xml");
 
-    //public final static File input_L1C_IntPhase_SCS = new File(pathPrefix+"BIOMASS/L1C_INT_phase/BIO_S2_STA__1S_20170125T163833_20170125T163900_T_G03_M03_C03_T000_F001_01_CYW6AO/bio_s2_sta__1s_20170125t163833_20170125t163900_t_g03_m03_c03_t000_f001_01_cyw6ao.xml");
-    public final static File input_L1C_IntPhase_SCS = new File(pathPrefix+"BIOMASS/L1C_INT_phase/BIO_S2_STA__1S_20170125T163833_20170125T163900_T_G03_M03_C03_T000_F001_01_CYW6AO_converted/bio_s2_sta__1s_20170125t163833_20170125t163900_t_g03_m03_c03_t000_f001_01_cyw6ao.xml");
-
+    public final static File input_L1C_IntPhase_SCS = new File(pathPrefix+"BIOMASS/L1C_INT_phase/BIO_S2_STA__1S_20170125T163833_20170125T163900_T_G03_M03_C03_T000_F001_01_CYW6AO/bio_s2_sta__1s_20170125t163833_20170125t163900_t_g03_m03_c03_t000_f001_01_cyw6ao.xml");
 
     final static ProductValidator.Options productOptions = new ProductValidator.Options();
 
