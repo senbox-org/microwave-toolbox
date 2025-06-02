@@ -60,9 +60,17 @@ public class CRValidationSuratTest extends BaseCRTest {
 
         addCornerReflectorPins(product);
 
-        computeCRGeoLocationError(product);
-
         write(product);
+    }
+
+    @Test
+    public void testGeolocationErrors() throws IOException {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product product = ProductIO.readProduct(S1_GRD_Surat);
+        Assert.assertNotNull(product);
+
+        computeCRGeoLocationError(product);
     }
 
     private void addCornerReflectorPins(Product trgProduct) throws IOException {
@@ -96,6 +104,10 @@ public class CRValidationSuratTest extends BaseCRTest {
         final List<String[]> csv = readCSVFile(Surat_CSV);
         PixelPos expCRPos = new PixelPos();
 
+        System.out.println("ID  CR_x  CR_y  exp_CR_x  exp_CR_y  xShift  yShift");
+        double sumXShift = 0.0;
+        double sumYShift = 0.0;
+        int count = 0;
         for (String[] line : csv) {
             String id = line[0];
             // skip the header
@@ -117,11 +129,19 @@ public class CRValidationSuratTest extends BaseCRTest {
             }
 
             // compute x and y shift in meters
-            final double xShift = (imgCRPos.x - expCRPos.x) * rgSpacing;
-            final double yShift = (imgCRPos.y - expCRPos.y) * azSpacing;
-            System.out.println(id + ": CR_x = " + imgCRPos.x + ", CR_y = " + imgCRPos.y + ", exp_CR_x = " + expCRPos.x
-            + ", exp_CR_y = " + expCRPos.y + ", xShift = " + xShift + ", yShift = " + yShift);
+            final double xShift = (expCRPos.x - imgCRPos.x) * rgSpacing;
+            final double yShift = (expCRPos.y - imgCRPos.y) * azSpacing;
+//            final double xShift = (expCRPos.x - imgCRPos.x);
+//            final double yShift = (expCRPos.y - imgCRPos.y);
+            sumXShift += xShift;
+            sumYShift += yShift;
+            count++;
+            System.out.println(id + "  " + imgCRPos.x + "  " + imgCRPos.y + "  " + expCRPos.x
+            + "  " + expCRPos.y + "  " + xShift + "  " + yShift);
         }
+        final double meanXShift = sumXShift / count;
+        final double meanYShift = sumYShift / count;
+        System.out.println("# of CRs = " + count + ", meanXShift = " + meanXShift + ", meanYShift = " + meanYShift);
     }
 
     private static PixelPos findCRPosition(final PixelPos expCRPos, final Product product) {
