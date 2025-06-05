@@ -34,6 +34,12 @@ public interface SARProductReaderPlugIn extends ProductReaderPlugIn {
         if (folder.isDirectory()) {
             final File[] fileList = folder.listFiles();
             if (fileList != null) {
+                // root directory first
+                for (File f : fileList) {
+                    if (isPrimaryMetadataFileName(f.getName())) {
+                        return f;
+                    }
+                }
                 for (File f : fileList) {
                     if (f.isDirectory()) {
                         final File[] fileList2 = f.listFiles();
@@ -44,8 +50,6 @@ public interface SARProductReaderPlugIn extends ProductReaderPlugIn {
                                 }
                             }
                         }
-                    } else if (isPrimaryMetadataFileName(f.getName())) {
-                        return f;
                     }
                 }
             }

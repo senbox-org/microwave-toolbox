@@ -196,10 +196,10 @@ public final class TOPSARDeburstOp extends Operator {
      */
     private void computeTargetWidthAndHeight() {
 
-        targetHeight = (int)((targetLastLineTime - targetFirstLineTime) / targetLineTimeInterval);
+        targetHeight = (int) Math.round((targetLastLineTime - targetFirstLineTime) / targetLineTimeInterval + 1);
 
-        targetWidth = (int)((targetSlantRangeTimeToLastPixel - targetSlantRangeTimeToFirstPixel) /
-                targetDeltaSlantRangeTime);
+        targetWidth = (int) Math.round((targetSlantRangeTimeToLastPixel - targetSlantRangeTimeToFirstPixel) /
+                targetDeltaSlantRangeTime + 1);
     }
 
     private void computeSubSwathEffectStartEndPixels() {
@@ -355,24 +355,24 @@ public final class TOPSARDeburstOp extends Operator {
      */
     private void createTiePointGrids() {
 
-        final int gridWidth = 20;
-        final int gridHeight = 5;
+        final int gridWidth = 21;
+        final int gridHeight = 11;
 
-        final int subSamplingX = targetWidth / gridWidth;
-        final int subSamplingY = targetHeight / gridHeight;
+        final float subSamplingX = targetWidth / (gridWidth - 1.0f);
+        final float subSamplingY = targetHeight / (gridHeight - 1.0f);
 
-        final int maxList = (gridWidth+1) * (gridHeight+1);
+        final int maxList = gridWidth * gridHeight;
         final float[] latList = new float[maxList];
         final float[] lonList = new float[maxList];
         final float[] slrtList = new float[maxList];
         final float[] incList = new float[maxList];
 
         int k = 0;
-        for (int i = 0; i <= gridHeight; i++) {
-            final int y = i * subSamplingY;
+        for (int i = 0; i < gridHeight; i++) {
+            final float y = Math.min(i * subSamplingY, targetHeight - 1);
             final double azTime = targetFirstLineTime + y * targetLineTimeInterval;
-            for (int j = 0; j <= gridWidth; j++) {
-                final int x = j * subSamplingX;
+            for (int j = 0; j < gridWidth; j++) {
+                final float x = Math.min(j * subSamplingX, targetWidth - 1);
                 final double slrTime = targetSlantRangeTimeToFirstPixel + x * targetDeltaSlantRangeTime;
                 latList[k] = (float)su.getLatitude(azTime, slrTime);
                 lonList[k] = (float)su.getLongitude(azTime, slrTime);
@@ -383,16 +383,16 @@ public final class TOPSARDeburstOp extends Operator {
         }
 
         final TiePointGrid latGrid = new TiePointGrid(
-                OperatorUtils.TPG_LATITUDE, gridWidth+1, gridHeight+1, 0, 0, subSamplingX, subSamplingY, latList);
+                OperatorUtils.TPG_LATITUDE, gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, latList);
 
         final TiePointGrid lonGrid = new TiePointGrid(
-                OperatorUtils.TPG_LONGITUDE, gridWidth+1, gridHeight+1, 0, 0, subSamplingX, subSamplingY, lonList);
+                OperatorUtils.TPG_LONGITUDE, gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, lonList);
 
         final TiePointGrid slrtGrid = new TiePointGrid(
-                OperatorUtils.TPG_SLANT_RANGE_TIME, gridWidth+1, gridHeight+1, 0, 0, subSamplingX, subSamplingY, slrtList);
+                OperatorUtils.TPG_SLANT_RANGE_TIME, gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, slrtList);
 
         final TiePointGrid incGrid = new TiePointGrid(
-                OperatorUtils.TPG_INCIDENT_ANGLE, gridWidth+1, gridHeight+1, 0, 0, subSamplingX, subSamplingY, incList);
+                OperatorUtils.TPG_INCIDENT_ANGLE, gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, incList);
 
         latGrid.setUnit(Unit.DEGREES);
         lonGrid.setUnit(Unit.DEGREES);

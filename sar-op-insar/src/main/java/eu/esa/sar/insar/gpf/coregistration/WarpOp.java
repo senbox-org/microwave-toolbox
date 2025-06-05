@@ -355,7 +355,7 @@ public class WarpOp extends Operator {
                 }
 
                 // find slave etad band corresponding to srcBand
-                if (srcBand.getUnit().equals(Unit.REAL)) {
+                if (srcBand.getUnit() != null && srcBand.getUnit().equals(Unit.REAL)) {
                     for (Band band : sourceBands) {
                         final String bandName = band.getName();
                         final String timeStamp = srcBand.getName().substring(srcBand.getName().lastIndexOf('_'));
