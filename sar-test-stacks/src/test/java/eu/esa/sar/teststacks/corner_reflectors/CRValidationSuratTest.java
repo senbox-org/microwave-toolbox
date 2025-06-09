@@ -15,13 +15,35 @@
  */
 package eu.esa.sar.teststacks.corner_reflectors;
 
+import com.bc.ceres.multilevel.MultiLevelImage;
+import eu.esa.sar.commons.OrbitStateVectors;
+import eu.esa.sar.commons.SARGeocoding;
+import eu.esa.sar.commons.SARUtils;
 import eu.esa.sar.commons.test.TestData;
+import eu.esa.sar.insar.gpf.support.SARPosition;
 import org.esa.snap.core.dataio.ProductIO;
-import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.gpf.Tile;
+import org.esa.snap.core.gpf.internal.TileImpl;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.datamodel.OrbitStateVector;
+import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.eo.Constants;
+import org.esa.snap.engine_utilities.eo.GeoUtils;
+import org.esa.snap.engine_utilities.gpf.OperatorUtils;
+import org.esa.snap.engine_utilities.gpf.TileIndex;
+import org.jblas.ComplexDoubleMatrix;
+import org.jblas.DoubleMatrix;
+import org.jblas.Solve;
+import org.jlinda.core.Window;
+import org.jlinda.core.utils.LinearAlgebraUtils;
+import org.jlinda.core.utils.SpectralUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.awt.*;
+import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -31,23 +53,44 @@ import static org.junit.Assume.assumeTrue;
 public class CRValidationSuratTest extends BaseCRTest {
 
     private final static File S1_GRD_Surat = new File(TestData.inputSAR + "S1/corner_reflectors/GA/Surat/S1A_IW_GRDH_1SDV_20250413T192217_20250413T192242_058742_0746BD_0527.SAFE.zip");
+    private final static File S1_SLC_Surat = new File("D:/Output/S1A_IW_SLC__1SSV_20231225T083315_20231225T083343_051808_064216_090C_Cal_NR_Deb_Orb_ML_TF.dim");
     private final static String Surat_CSV = "/eu/esa/sar/teststacks/corner_reflectors/GA/surat_basin_queensland_calibration_targets.csv";
 
-    private File tempFolder = new File("/tmp/corner_reflectors/GA");
+    public CRValidationSuratTest() {
+        super("Surat");
+    }
 
     @Before
     public void setUp() {
         // If any of the file does not exist: the test will be ignored
         assumeTrue(S1_GRD_Surat + " not found", S1_GRD_Surat.exists());
-        tempFolder.mkdirs();
+        assumeTrue(S1_SLC_Surat + " not found", S1_SLC_Surat.exists());
     }
 
     @Test
     public void testGA() throws IOException {
-        List<String[]> csv = readCSVFile(Surat_CSV);
+        setName(new Throwable().getStackTrace()[0].getMethodName());
 
         Product product = ProductIO.readProduct(S1_GRD_Surat);
         Assert.assertNotNull(product);
+
+        addCornerReflectorPins(product);
+
+        write(product);
+    }
+
+    @Test
+    public void testGeolocationErrors() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product product = ProductIO.readProduct(S1_SLC_Surat);
+        Assert.assertNotNull(product);
+
+        computeCRGeoLocationError(product);
+    }
+
+    private void addCornerReflectorPins(Product trgProduct) throws IOException {
+        final List<String[]> csv = readCSVFile(Surat_CSV);
 
         for (String[] line : csv) {
             String id = line[0];
@@ -63,10 +106,369 @@ public class CRValidationSuratTest extends BaseCRTest {
             double alt = Double.parseDouble(line[5]);
 
             // add a placemark at each corner reflector
-            addPin(product, id, lat, lon);
+            addPin(trgProduct, id, lat, lon);
         }
-
-        ProductIO.writeProduct(product, tempFolder.getAbsolutePath() +"/"+ product.getName()+".dim", "BEAM-DIMAP");
     }
 
+    private void computeCRGeoLocationError(Product srcProduct) throws Exception {
+
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(srcProduct);
+        final double rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
+        final double azimuthSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing);
+        final double firstLineUTC = AbstractMetadata.parseUTC(absRoot.getAttributeString(AbstractMetadata.first_line_time)).getMJD(); // in days
+        final double lastLineUTC = AbstractMetadata.parseUTC(absRoot.getAttributeString(AbstractMetadata.last_line_time)).getMJD(); // in days
+        final double lineTimeInterval = absRoot.getAttributeDouble(AbstractMetadata.line_time_interval) / Constants.secondsInDay; // s to day
+        final double wavelength = SARUtils.getRadarWavelength(absRoot);
+        final boolean srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
+        final int sourceImageWidth = srcProduct.getSceneRasterWidth();
+        final int sourceImageHeight = srcProduct.getSceneRasterHeight();
+        final OrbitStateVector[] orbitStateVectors = AbstractMetadata.getOrbitStateVectors(absRoot);
+        double nearEdgeSlantRange = 0.0;
+        AbstractMetadata.SRGRCoefficientList[] srgrConvParams = null;
+        if (srgrFlag) {
+            srgrConvParams = AbstractMetadata.getSRGRCoefficients(absRoot);
+        } else {
+            nearEdgeSlantRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        }
+        final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(srcProduct);
+        final boolean nearRangeOnLeft = SARGeocoding.isNearRangeOnLeft(incidenceAngle, sourceImageWidth);
+        final OrbitStateVectors orbit = new OrbitStateVectors(orbitStateVectors, firstLineUTC, lineTimeInterval, sourceImageHeight);
+
+        final SARPosition sarPosition = new SARPosition(
+                firstLineUTC,
+                lastLineUTC,
+                lineTimeInterval,
+                wavelength,
+                rangeSpacing,
+                sourceImageWidth,
+                srgrFlag,
+                nearEdgeSlantRange,
+                nearRangeOnLeft,
+                orbit,
+                srgrConvParams
+        );
+        sarPosition.setTileConstraints(0, 0, sourceImageWidth, sourceImageHeight);
+        final SARPosition.PositionData posData = new SARPosition.PositionData();
+
+        final List<String[]> csv = readCSVFile(Surat_CSV);
+        double sumXShift = 0.0;
+        double sumYShift = 0.0;
+        int count = 0;
+        System.out.println("ID  CR_x  CR_y  exp_CR_x  exp_CR_y  xShift  yShift");
+        for (String[] line : csv) {
+            String id = line[0];
+            // skip the header
+            if (id.contains("ID")) {
+                continue;
+            }
+
+            String type = line[1];
+            String description = line[2];
+            double lat = Double.parseDouble(line[3]);
+            double lon = Double.parseDouble(line[4]);
+            double alt = Double.parseDouble(line[5]);
+
+            // compute the expected CR position in pixels
+            GeoUtils.geo2xyzWGS84(lat, lon, alt, posData.earthPoint);
+            if (!sarPosition.getPosition(posData))
+                continue;
+
+            // find peak position in image in the neighbourhood of the expected CR position
+            final PixelPos imgCRPos = findCRPosition(posData.azimuthIndex, posData.rangeIndex, srcProduct);
+            if (imgCRPos == null){
+                continue;
+            }
+
+            // compute x and y shift in meters
+            final double xShift = (posData.rangeIndex - imgCRPos.x) * rangeSpacing;
+            final double yShift = (posData.azimuthIndex - imgCRPos.y) * azimuthSpacing;
+//            final double xShift = (posData.rangeIndex - imgCRPos.x);
+//            final double yShift = (posData.azimuthIndex - imgCRPos.y);
+            sumXShift += xShift;
+            sumYShift += yShift;
+            count++;
+            System.out.println(id + "  " + imgCRPos.x + "  " + imgCRPos.y + "  " + posData.rangeIndex
+            + "  " + posData.azimuthIndex + "  " + xShift + "  " + yShift);
+        }
+        final double meanXShift = sumXShift / count;
+        final double meanYShift = sumYShift / count;
+        System.out.println("# of CRs = " + count + ", meanXShift = " + meanXShift + ", meanYShift = " + meanYShift);
+    }
+
+    private static PixelPos findCRPosition(final double expY, final double expX, final Product srcProduct) {
+
+        final int maxShift = 16;
+        final int patchSize = 2 * maxShift + 1;
+
+        final PixelPos initPeakPos = getInitialPeakPosition(expX, expY, maxShift, srcProduct);
+        if (initPeakPos == null) {
+            return null;
+        }
+
+        // measure accurate peak position by up sampling
+        // 1. get subset image centered at (maxX, maxY)
+        final double[][] img = getSubsetImage(initPeakPos, maxShift, srcProduct);
+        if (img == null) {
+            return null;
+        }
+
+        // 2. create a Hamming window
+        final double[] hamming = createHammingWindow(patchSize);
+
+        // 3. filter the subset image with Hamming window
+        final double[][] fltImg = filterImage(img, hamming);
+        if (fltImg == null) {
+            return null;
+        }
+
+        // 4. up sample the subset image by 8 times
+        final int upSamplingFactor = 8;
+        final double[][] upImg = upSamplingImage(fltImg, upSamplingFactor, patchSize);
+
+        // 5. find peak position in the up sampled image
+        final PixelPos finePeakPos = getAccuratePeakPosition(upImg);
+        if (finePeakPos == null) {
+            return null;
+        }
+
+        // 6. convert the up sampled peak position to normal peak position
+        final double fineX = initPeakPos.x - maxShift + finePeakPos.x / upSamplingFactor;
+        final double fineY = initPeakPos.y - maxShift + finePeakPos.y / upSamplingFactor;
+
+        return new PixelPos(fineX, fineY);
+    }
+
+    private static PixelPos getInitialPeakPosition(final double expX, final double expY, final int maxShift,
+                                                   final Product srcProduct) {
+
+        final int xc = (int)expX;
+        final int yc = (int)expY;
+        final int x0 = xc - maxShift;
+        final int y0 = yc - maxShift;
+        final int xMax = xc + maxShift;
+        final int yMax = yc + maxShift;
+        if (x0 < 0 || y0 < 0 || xMax >= srcProduct.getSceneRasterWidth() || yMax >= srcProduct.getSceneRasterHeight()) {
+            return null;
+        }
+
+        final Rectangle sourceRectangle = new Rectangle(x0, y0, 2*maxShift + 1,  2*maxShift + 1);
+        final Band srcBand = getIntensityBand(srcProduct);
+        if (srcBand == null) {
+            return null;
+        }
+        final Tile srcTile = getSourceTile(srcBand, sourceRectangle);
+        final ProductData srcData = srcTile.getDataBuffer();
+        final TileIndex srcIndex = new TileIndex(srcTile);
+
+        // get the initial peak position in integers
+        double maxV = 0.0;
+        int maxX = -1;
+        int maxY = -1;
+        for (int y = y0; y <= yMax; ++y) {
+            srcIndex.calculateStride(y);
+            for (int x = x0; x <= xMax; ++x) {
+                final int srcIdx = srcIndex.getIndex(x);
+                final double v = srcData.getElemDoubleAt(srcIdx);
+                if (v > maxV) {
+                    maxV = v;
+                    maxX = x;
+                    maxY = y;
+                }
+            }
+        }
+        if (maxX == -1 || maxY == -1) {
+            return null;
+        } else {
+            return new PixelPos(maxX, maxY);
+        }
+    }
+
+    private static Tile getSourceTile(RasterDataNode rasterDataNode, Rectangle region) {
+        MultiLevelImage image = rasterDataNode.getSourceImage();
+        Raster awtRaster = image.getData(region);
+        return new TileImpl(rasterDataNode, awtRaster);
+    }
+
+    private static Band getIntensityBand(final Product srcProduct) {
+        for (Band band : srcProduct.getBands()) {
+            final String unit = band.getUnit();
+            if (unit.contains(Unit.AMPLITUDE) || unit.contains(Unit.INTENSITY)) {
+                return band;
+            }
+        }
+        return null;
+    }
+
+    private static double[][] getSubsetImage(final PixelPos initPeakPos, final int maxShift, final Product srcProduct) {
+
+        final int xc = (int)initPeakPos.x;
+        final int yc = (int)initPeakPos.y;
+        final int x0 = xc - maxShift;
+        final int y0 = yc - maxShift;
+        final int xMax = xc + maxShift;
+        final int yMax = yc + maxShift;
+        if (x0 < 0 || y0 < 0 || xMax >= srcProduct.getSceneRasterWidth() || yMax >= srcProduct.getSceneRasterHeight()) {
+            return null;
+        }
+
+        final Rectangle sourceRectangle = new Rectangle(x0, y0, 2*maxShift + 1,  2*maxShift + 1);
+        final Band srcBand = getIntensityBand(srcProduct);
+        if (srcBand == null) {
+            return null;
+        }
+        final Tile srcTile = getSourceTile(srcBand, sourceRectangle);
+        final ProductData srcData = srcTile.getDataBuffer();
+        final TileIndex srcIndex = new TileIndex(srcTile);
+
+        double[][] subsetImg = new double[2*maxShift + 1][2*maxShift + 1];
+        for (int y = y0; y <= yMax; ++y) {
+            srcIndex.calculateStride(y);
+            final int yy = y - y0;
+            for (int x = x0; x <= xMax; ++x) {
+                final int srcIdx = srcIndex.getIndex(x);
+                final int xx = x - x0;
+                subsetImg[yy][xx] = srcData.getElemDoubleAt(srcIdx);
+            }
+        }
+        return subsetImg;
+    }
+
+    private static double[] createHammingWindow(final int winLen) {
+
+        final double[] win = new double[winLen];
+        for (int i = 0; i < winLen; ++i) {
+            win[i] = 0.54 - 0.46 * Math.cos (2.0 * Math.PI * i / (winLen - 1));
+        }
+        return win;
+    }
+
+    private static double[][] filterImage(final double[][] img, final double[] hamming) {
+
+        final int rows = img.length;
+        final int cols = img[0].length;
+        if (hamming.length != rows || hamming.length != cols) {
+            return null;
+        }
+
+        final double[][] filImg = new double[rows][cols];
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                filImg[r][c] = img[r][c] * hamming[r] * hamming[c];
+            }
+        }
+        return filImg;
+    }
+
+    private static double[][] upSamplingImage(final double[][] fltImg, final int upSamplingFactor, final int patchSize) {
+
+        final int mid = patchSize / 2;
+        final int patchSizeUp = upSamplingFactor * patchSize;
+
+        // compute image spectrum
+        final ComplexDoubleMatrix fltImgMat = new ComplexDoubleMatrix(new DoubleMatrix(fltImg));
+        SpectralUtils.fft2D_inplace(fltImgMat);
+
+        // perform zero padding
+        final ComplexDoubleMatrix specZP = ComplexDoubleMatrix.zeros(patchSizeUp, patchSizeUp);
+
+        // ul
+        final int[] rowIndicesUL = new int[mid + 1];
+        final int[] colIndicesUL = new int[mid + 1];
+        for (int r = 0; r <= mid; ++r) {rowIndicesUL[r] = r;}
+        for (int c = 0; c <= mid; ++c) {colIndicesUL[c] = c;}
+        final ComplexDoubleMatrix ul = fltImgMat.get(rowIndicesUL, colIndicesUL);
+        org.jlinda.core.Window winIn = new org.jlinda.core.Window();
+        org.jlinda.core.Window winOutUL = new Window(0, mid, 0, mid);
+        LinearAlgebraUtils.setdata(specZP, winOutUL, ul, winIn);
+
+        // ur
+        final int[] rowIndicesUR = new int[mid + 1];
+        final int[] colIndicesUR = new int[patchSize - mid];
+        for (int r = 0; r <= mid; ++r) {rowIndicesUR[r] = r;}
+        for (int c = mid; c < patchSize; ++c) {colIndicesUR[c - mid] = c;}
+        final ComplexDoubleMatrix ur = fltImgMat.get(rowIndicesUR, colIndicesUR);
+        org.jlinda.core.Window winOutUR = new Window(0, mid, patchSizeUp - patchSize + mid, patchSizeUp - 1);
+        LinearAlgebraUtils.setdata(specZP, winOutUR, ur, winIn);
+
+        // ll
+        final int[] rowIndicesLL = new int[patchSize - mid];
+        final int[] colIndicesLL = new int[mid + 1];
+        for (int r = mid; r < patchSize; ++r) {rowIndicesLL[r - mid] = r;}
+        for (int c = 0; c <= mid; ++c) {colIndicesLL[c] = c;}
+        final ComplexDoubleMatrix ll = fltImgMat.get(rowIndicesLL, colIndicesLL);
+        org.jlinda.core.Window winOutLL = new Window(patchSizeUp - patchSize + mid, patchSizeUp - 1, 0, mid);
+        LinearAlgebraUtils.setdata(specZP, winOutLL, ll, winIn);
+
+        // lr
+        final int[] rowIndicesLR = new int[patchSize - mid];
+        final int[] colIndicesLR = new int[patchSize - mid];
+        for (int r = mid; r < patchSize; ++r) {rowIndicesLR[r - mid] = r;}
+        for (int c = mid; c < patchSize; ++c) {colIndicesLR[c - mid] = c;}
+        final ComplexDoubleMatrix lr = fltImgMat.get(rowIndicesLR, colIndicesLR);
+        org.jlinda.core.Window winOutLR = new Window(patchSizeUp - patchSize + mid, patchSizeUp - 1,
+                patchSizeUp - patchSize + mid, patchSizeUp - 1);
+        LinearAlgebraUtils.setdata(specZP, winOutLR, lr, winIn);
+
+        for (int c = 0; c < patchSizeUp; ++c) {
+            specZP.put(mid, c, specZP.get(mid, c).mul(0.5));
+            specZP.put(patchSizeUp - patchSize + mid, c, specZP.get(patchSizeUp - patchSize + mid, c).mul(0.5));
+        }
+        for (int r = 0; r < patchSizeUp; ++r) {
+            specZP.put(r, mid, specZP.get(r, mid).mul(0.5));
+            specZP.put(r, patchSizeUp - patchSize + mid, specZP.get(r, patchSizeUp - patchSize + mid).mul(0.5));
+        }
+
+        // ifft
+        SpectralUtils.invfft2D_inplace(specZP);
+        DoubleMatrix imgUpMat = specZP.real();
+        return imgUpMat.toArray2();
+    }
+
+    private static PixelPos getAccuratePeakPosition(final double[][] upImg) {
+
+        final int rows = upImg.length;
+        final int cols = upImg[0].length;
+        double max = Double.MIN_VALUE;
+        int maxX = -1;
+        int maxY = -1;
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                if (max < upImg[r][c]) {
+                    max = upImg[r][c];
+                    maxX = c;
+                    maxY = r;
+                }
+            }
+        }
+        if (maxX == -1 || maxY == -1) {
+            return null;
+        }
+
+        if (maxX > 0 && maxX < cols - 1 && maxY > 0 && maxY < rows - 1) {
+            final double[] f = new double[]{
+                    upImg[maxY - 1][maxX - 1], upImg[maxY][maxX - 1], upImg[maxY + 1][maxX - 1],
+                    upImg[maxY - 1][maxX], upImg[maxY][maxX], upImg[maxY + 1][maxX],
+                    upImg[maxY - 1][maxX + 1], upImg[maxY][maxX + 1], upImg[maxY + 1][maxX + 1]};
+
+            final double[][] A = {{1, -1, -1, 1, 1, 1}, {1, -1, 0, 1, 0, 0}, {1, -1, 1, 1, -1, 1},
+                    {1, 0, -1, 0, 0, 1}, {1, 0, 0, 0, 0, 0}, {1, 0, 1, 0, 0, 1}, {1, 1, -1, 1, -1, 1},
+                    {1, 1, 0, 1, 0, 0}, {1, 1, 1, 1, 1, 1}};
+
+            final DoubleMatrix fMat = new DoubleMatrix(f);
+            final DoubleMatrix AMat = new DoubleMatrix(A);
+            final DoubleMatrix cMat = Solve.pinv(AMat).mmul(fMat);
+
+            final double[][] B = {{-2.0*cMat.get(3), -cMat.get(4)}, {-cMat.get(4), -2.0*cMat.get(5)}};
+            final double[] b = {cMat.get(1), cMat.get(2)};
+            final DoubleMatrix BMat = new DoubleMatrix(B);
+            final DoubleMatrix bMat = new DoubleMatrix(b);
+            final DoubleMatrix pMat = Solve.solve(BMat, bMat);
+            final double fineMaxX = maxX + pMat.get(0);
+            final double finalMaxY = maxY + pMat.get(1);
+            return new PixelPos(fineMaxX, finalMaxY);
+
+        } else {
+            return new PixelPos(maxX, maxY);
+        }
+    }
 }
