@@ -1,0 +1,50 @@
+name: Rebase patch branch & open review-only PR
+on:
+  schedule:                         # Tue & Fri 10:00 UTC – adjust as you like
+    - cron:  '0 10 * * 2,5'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      # Add upstream and fetch latest commits
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/senbox-org/microwave-toolbox.git
+          git fetch --prune upstream
+
+      # Fast-forward master so it mirrors upstream exactly
+      - name: Sync master
+        run: |
+          git switch master
+          git merge --ff-only upstream/main
+          git push origin master
+
+      # Rebase the patched-main branch onto the latest master
+      - name: Rebase patched-main
+        run: |
+          git switch patched-main
+          git rebase master
+          git push --force-with-lease origin patched-main
+
+      # Create or update a *draft* PR just for visual diff / CI
+      - name: Open or update review PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: patched-main        # head
+          base: master               # base
+          title: "🚀 Automated rebase of patched-main (review only)"
+          body: |
+            This draft PR shows the current one-line patch rebased onto upstream.
+            **Do not merge.** Close/reopen as you wish – the workflow will recreate it.
+          draft: true                # keeps it out of the merge queue
+          labels: do-not-merge, automated
