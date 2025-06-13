@@ -101,7 +101,7 @@ public final class TOPSARSplitOp extends Operator {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
             validator.checkIfSentinel1Product();
-            validator.checkIfMultiSwathTOPSARProduct();
+            // validator.checkIfMultiSwathTOPSARProduct();
             validator.checkProductType(new String[]{"SLC"});
             validator.checkAcquisitionMode(new String[]{"IW", "EW"});
 
