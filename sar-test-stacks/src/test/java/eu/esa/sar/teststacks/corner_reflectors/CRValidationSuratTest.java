@@ -195,6 +195,77 @@ public class CRValidationSuratTest extends BaseCRTest {
     private void computeCRGeoLocationError(String crCSV, Product srcProduct) throws Exception {
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(srcProduct);
+        if (absRoot.getAttributeInt(AbstractMetadata.is_terrain_corrected) == 1) {
+            computeCRGeoLocationErrorTC(crCSV, srcProduct);
+        } else {
+            computeCRGeoLocationErrorNonTC(crCSV, srcProduct);
+        }
+
+    }
+
+    private void computeCRGeoLocationErrorTC(String crCSV, Product srcProduct) throws Exception {
+
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(srcProduct);
+        final double rgSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
+        final double azSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing);
+        final GeoCoding geoCoding = srcProduct.getSceneGeoCoding();
+
+        final List<String[]> csv = readCSVFile(crCSV);
+        PixelPos expCRPos = new PixelPos();
+
+        System.out.println("ID  CR_x  CR_y  exp_CR_x  exp_CR_y  xShift  yShift");
+        double sumXShift = 0.0;
+        double sumYShift = 0.0;
+        int count = 0;
+        List<Double> xShifts = new java.util.ArrayList<>();
+        List<Double> yShifts = new java.util.ArrayList<>();
+
+        for (String[] line : csv) {
+            String id = line[0];
+            // skip the header
+            if (id.contains("ID")) {
+                continue;
+            }
+
+            String type = line[1];
+            String description = line[2];
+            double lat = Double.parseDouble(line[3]);
+            double lon = Double.parseDouble(line[4]);
+            double alt = Double.parseDouble(line[5]);
+
+            // find peak position in image in the neighbourhood of true CR position
+            geoCoding.getPixelPos(new GeoPos(lat, lon), expCRPos);
+            final PixelPos imgCRPos = FindCRPosition.findCRPosition(expCRPos.y, expCRPos.x, srcProduct);
+            if (imgCRPos == null){
+                continue;
+            }
+
+            // compute x and y shift in meters
+            final double xShift = (expCRPos.x - imgCRPos.x) * rgSpacing;
+            final double yShift = (expCRPos.y - imgCRPos.y) * azSpacing;
+            sumXShift += xShift;
+            sumYShift += yShift;
+            count++;
+
+            xShifts.add(xShift);
+            yShifts.add(yShift);
+
+            System.out.println(id + "  " + imgCRPos.x + "  " + imgCRPos.y + "  " + expCRPos.x
+                    + "  " + expCRPos.y + "  " + xShift + "  " + yShift);
+        }
+        final double meanXShift = sumXShift / count;
+        final double meanYShift = sumYShift / count;
+        System.out.println("# of CRs = " + count + ", meanXShift = " + meanXShift + ", meanYShift = " + meanYShift);
+
+        Plot plot = new Plot("CR Geolocation Error " + testName);
+        plot.addData(xShifts.stream().mapToDouble(Double::doubleValue).toArray(),
+                yShifts.stream().mapToDouble(Double::doubleValue).toArray());
+        plot.saveAsPng(tempFolder.getAbsolutePath() + "/CR_GeoLocation_Error" + testName + ".png");
+    }
+
+    private void computeCRGeoLocationErrorNonTC(String crCSV, Product srcProduct) throws Exception {
+
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(srcProduct);
         final double rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
         final double azimuthSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing);
         final double firstLineUTC = AbstractMetadata.parseUTC(absRoot.getAttributeString(AbstractMetadata.first_line_time)).getMJD(); // in days
@@ -267,8 +338,6 @@ public class CRValidationSuratTest extends BaseCRTest {
             // compute x and y shift in meters
             final double xShift = (posData.rangeIndex - imgCRPos.x) * rangeSpacing;
             final double yShift = (posData.azimuthIndex - imgCRPos.y) * azimuthSpacing;
-//            final double xShift = (posData.rangeIndex - imgCRPos.x);
-//            final double yShift = (posData.azimuthIndex - imgCRPos.y);
             sumXShift += xShift;
             sumYShift += yShift;
             count++;
