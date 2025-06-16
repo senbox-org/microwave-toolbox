@@ -39,8 +39,8 @@ public class BaseCRTest extends ProcessorTest {
 
     private final PlacemarkDescriptor pinDescriptor = PinDescriptor.getInstance();
     private final File baseFolder = new File("/tmp/corner_reflectors");
-    private final File tempFolder;
-    private String testName = "";
+    protected final File tempFolder;
+    protected String testName = "";
     private static final Logger LOG = Logger.getLogger("test");
 
     protected BaseCRTest(String folder) {
