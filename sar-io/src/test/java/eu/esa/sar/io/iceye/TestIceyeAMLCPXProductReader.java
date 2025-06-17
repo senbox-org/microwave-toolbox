@@ -30,7 +30,7 @@ public class TestIceyeAMLCPXProductReader extends ReaderTest {
 
     final static MetadataValidator.Options options = new MetadataValidator.Options();
 
-    private String[] exceptionExemptions = { "not supported" };
+    private final String[] exceptionExemptions = { "not supported" };
 
     public TestIceyeAMLCPXProductReader() {
         super(new IceyeProductReaderPlugIn());

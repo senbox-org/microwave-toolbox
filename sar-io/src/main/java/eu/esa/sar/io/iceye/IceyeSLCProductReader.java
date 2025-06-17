@@ -490,8 +490,8 @@ public class IceyeSLCProductReader extends SARReader {
 
     private void addAzimuthTimeZpSpotlight(MetadataElement elem) throws IOException {
         // Compute azimuth time
-        final double firstAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_LINE_TIME).readScalarString());
-        final double lastAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeXConstants.LAST_LINE_TIME).readScalarString());
+        final double firstAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_LINE_TIME).readScalarString());
+        final double lastAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeConstants.LAST_LINE_TIME).readScalarString());
         final double AzimuthTimeZpOffset = firstAzimuthTimeZp - 0.5 * (firstAzimuthTimeZp + lastAzimuthTimeZp);
 
         // Save in metadata

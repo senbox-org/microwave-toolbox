@@ -329,11 +329,11 @@ public class IceyeGRDProductReader extends SARReader {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier,
                     tiffFeilds.get(IceyeConstants.PROCESSING_SYSTEM_IDENTIFIER.toUpperCase()));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.CYCLE,
-                    Integer.valueOf(tiffFeilds.get(IceyeConstants.CYCLE.toUpperCase())));
+                    Integer.parseInt(tiffFeilds.get(IceyeConstants.CYCLE.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.REL_ORBIT,
-                    Integer.valueOf(tiffFeilds.get(IceyeConstants.REL_ORBIT.toUpperCase())));
+                    Integer.parseInt(tiffFeilds.get(IceyeConstants.REL_ORBIT.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT,
-                    Integer.valueOf(tiffFeilds.get(IceyeConstants.ABS_ORBIT.toUpperCase())));
+                    Integer.parseInt(tiffFeilds.get(IceyeConstants.ABS_ORBIT.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_near,
                     Double.valueOf(tiffFeilds.get(IceyeConstants.INCIDENCE_NEAR.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_far,
@@ -372,19 +372,19 @@ public class IceyeGRDProductReader extends SARReader {
                     tiffFeilds.get(IceyeConstants.MDS1_TX_RX_POLAR.toUpperCase()));
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks,
-                    Float.valueOf(tiffFeilds.get(IceyeConstants.AZIMUTH_LOOKS.toUpperCase())));
+                    Float.parseFloat(tiffFeilds.get(IceyeConstants.AZIMUTH_LOOKS.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
-                    Float.valueOf(tiffFeilds.get(IceyeConstants.RANGE_LOOKS.toUpperCase())));
+                    Float.parseFloat(tiffFeilds.get(IceyeConstants.RANGE_LOOKS.toUpperCase())));
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
-                    Float.valueOf(tiffFeilds.get(IceyeConstants.RANGE_SPACING.toUpperCase())));
+                    Float.parseFloat(tiffFeilds.get(IceyeConstants.RANGE_SPACING.toUpperCase())));
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
-                    Float.valueOf(tiffFeilds.get(IceyeConstants.AZIMUTH_SPACING.toUpperCase())));
+                    Float.parseFloat(tiffFeilds.get(IceyeConstants.AZIMUTH_SPACING.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency,
-                    Float.valueOf(tiffFeilds.get(IceyeConstants.PULSE_REPETITION_FREQUENCY.toUpperCase())));
+                    Float.parseFloat(tiffFeilds.get(IceyeConstants.PULSE_REPETITION_FREQUENCY.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency,
-                    Double.valueOf(tiffFeilds.get(IceyeConstants.RADAR_FREQUENCY.toUpperCase()))
+                    Double.parseDouble(tiffFeilds.get(IceyeConstants.RADAR_FREQUENCY.toUpperCase()))
                             / Constants.oneMillion);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
                     Double.valueOf(tiffFeilds.get(IceyeConstants.LINE_TIME_INTERVAL.toUpperCase())));
@@ -394,10 +394,10 @@ public class IceyeGRDProductReader extends SARReader {
             double totalSize = (rasterHeight * rasterWidth * 2 * 2) / (1024.0f * 1024.0f);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.TOT_SIZE, totalSize);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines,
-                    Integer.valueOf(tiffFeilds.get(IceyeConstants.NUM_OUTPUT_LINES.toUpperCase())));
+                    Integer.parseInt(tiffFeilds.get(IceyeConstants.NUM_OUTPUT_LINES.toUpperCase())));
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line,
-                    Integer.valueOf(tiffFeilds.get(IceyeConstants.NUM_SAMPLES_PER_LINE.toUpperCase())));
+                    Integer.parseInt(tiffFeilds.get(IceyeConstants.NUM_SAMPLES_PER_LINE.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.subset_offset_x,
                     IceyeConstants.SUBSET_OFFSET_X_DEFAULT_VALUE);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.subset_offset_y,
@@ -419,14 +419,14 @@ public class IceyeGRDProductReader extends SARReader {
 
             int antElevCorrFlag = IceyeConstants.ANT_ELEV_CORR_FLAG_DEFAULT_VALUE;
             if (tiffFeilds.get(IceyeConstants.ANT_ELEV_CORR_FLAG.toUpperCase()) != null) {
-                antElevCorrFlag = Integer.valueOf(tiffFeilds.get(IceyeConstants.ANT_ELEV_CORR_FLAG.toUpperCase()));
+                antElevCorrFlag = Integer.parseInt(tiffFeilds.get(IceyeConstants.ANT_ELEV_CORR_FLAG.toUpperCase()));
             }
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ant_elev_corr_flag, antElevCorrFlag);
 
             int rangeSpreadCompFlag = IceyeConstants.RANGE_SPREAD_COMP_FLAG_DEFAULT_VALUE;
             if (tiffFeilds.get(IceyeConstants.RANGE_SPREAD_COMP_FLAG.toUpperCase()) != null) {
                 rangeSpreadCompFlag = Integer
-                        .valueOf(tiffFeilds.get(IceyeConstants.RANGE_SPREAD_COMP_FLAG.toUpperCase()));
+                        .parseInt(tiffFeilds.get(IceyeConstants.RANGE_SPREAD_COMP_FLAG.toUpperCase()));
             }
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spread_comp_flag, rangeSpreadCompFlag);
 
@@ -447,9 +447,9 @@ public class IceyeGRDProductReader extends SARReader {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.rescaling_factor,
                     IceyeConstants.RESCALING_FACTOR_DEFAULT_VALUE);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
-                    Double.valueOf(tiffFeilds.get(IceyeConstants.RANGE_SAMPLING_RATE.toUpperCase())) / 1e6);
+                    Double.parseDouble(tiffFeilds.get(IceyeConstants.RANGE_SAMPLING_RATE.toUpperCase())) / 1e6);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth,
-                    Double.valueOf(tiffFeilds.get(IceyeConstants.RANGE_BANDWIDTH.toUpperCase())) / 1e6);
+                    Double.parseDouble(tiffFeilds.get(IceyeConstants.RANGE_BANDWIDTH.toUpperCase())) / 1e6);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth,
                     Double.valueOf(tiffFeilds.get(IceyeConstants.AZIMUTH_BANDWIDTH.toUpperCase())));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.multilook_flag,
@@ -460,7 +460,7 @@ public class IceyeGRDProductReader extends SARReader {
             addOrbitStateVectors(absRoot);
             addSRGRCoefficients(absRoot);
 
-        } catch (ParseException e) {
+        } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
 
         }
@@ -474,10 +474,12 @@ public class IceyeGRDProductReader extends SARReader {
 
         final ProductData.UTC utcTime;
         try {
-            utcTime = ProductData.UTC.parse(tiffFeilds.get(IceyeConstants.GRSR_ZERO_DOPPLER_TIME.toUpperCase()),
-                    standardDateFormat);
-            srgrListElem.setAttributeUTC(AbstractMetadata.srgr_coef_time, utcTime);
-        } catch (ParseException e) {
+            String zeroDopplerTime = tiffFeilds.get(IceyeConstants.GRSR_ZERO_DOPPLER_TIME.toUpperCase());
+            if(zeroDopplerTime != null) {
+                utcTime = ProductData.UTC.parse(zeroDopplerTime, standardDateFormat);
+                srgrListElem.setAttributeUTC(AbstractMetadata.srgr_coef_time, utcTime);
+            }
+        } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
         }
 
@@ -536,7 +538,7 @@ public class IceyeGRDProductReader extends SARReader {
 
                 orbitVectorListElem.addElement(orbitVectorElem);
             }
-        } catch (ParseException e) {
+        } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
         }
 
@@ -555,27 +557,31 @@ public class IceyeGRDProductReader extends SARReader {
             utcTime = ProductData.UTC.parse(convertDateStringToStringArray(
                     tiffFeilds.get(IceyeConstants.DC_ESTIMATE_TIME_UTC.toUpperCase()))[0], standardDateFormat);
             dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, utcTime);
-        } catch (ParseException e) {
+        } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
         }
 
-        AbstractMetadata.addAbstractedAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
-                ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
-        AbstractMetadata.setAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
-                Double.valueOf(tiffFeilds.get(IceyeConstants.DC_REFERENCE_PIXEL_TIME.toUpperCase())) * 1e9);
+        try {
+            AbstractMetadata.addAbstractedAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
+                    ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
+            AbstractMetadata.setAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
+                    Double.parseDouble(tiffFeilds.get(IceyeConstants.DC_REFERENCE_PIXEL_TIME.toUpperCase())) * 1e9);
 
-        int dimensionColumn = Integer.valueOf(tiffFeilds.get(IceyeConstants.DC_ESTIMATE_POLY_ORDER.toUpperCase())) + 1;
+            int dimensionColumn = Integer.parseInt(tiffFeilds.get(IceyeConstants.DC_ESTIMATE_POLY_ORDER.toUpperCase())) + 1;
 
-        String[] coefValueS = convertDateStringToStringArrayBySpace(
-                tiffFeilds.get(IceyeConstants.DC_ESTIMATE_COEFFS.toUpperCase()));
+            String[] coefValueS = convertDateStringToStringArrayBySpace(
+                    tiffFeilds.get(IceyeConstants.DC_ESTIMATE_COEFFS.toUpperCase()));
 
-        for (int i = 0; i < dimensionColumn; i++) {
-            final double coefValue = Double.parseDouble(coefValueS[i]);
-            final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + '.' + (i + 1));
-            dopplerListElem.addElement(coefElem);
-            AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.dop_coef,
-                    ProductData.TYPE_FLOAT64, "", "Doppler Centroid Coefficient");
-            AbstractMetadata.setAttribute(coefElem, AbstractMetadata.dop_coef, coefValue);
+            for (int i = 0; i < dimensionColumn; i++) {
+                final double coefValue = Double.parseDouble(coefValueS[i]);
+                final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + '.' + (i + 1));
+                dopplerListElem.addElement(coefElem);
+                AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.dop_coef,
+                        ProductData.TYPE_FLOAT64, "", "Doppler Centroid Coefficient");
+                AbstractMetadata.setAttribute(coefElem, AbstractMetadata.dop_coef, coefValue);
+            }
+        } catch (Exception e) {
+            SystemUtils.LOG.severe(e.getMessage());
         }
     }
 
@@ -706,8 +712,11 @@ public class IceyeGRDProductReader extends SARReader {
 
         final List<CoefList> segmentsArray = new ArrayList<>();
 
-        String[] coeffArray = convertDateStringToStringArrayBySpace(
-                tiffFeilds.get(IceyeConstants.GRSR_COEFFICIENTS.toUpperCase()));
+        String grsr = tiffFeilds.get(IceyeConstants.GRSR_COEFFICIENTS.toUpperCase());
+        if(grsr == null) {
+            return;
+        }
+        String[] coeffArray = convertDateStringToStringArrayBySpace(grsr);
         final CoefList coefList = new CoefList();
 
         try {
@@ -716,7 +725,7 @@ public class IceyeGRDProductReader extends SARReader {
                             standardDateFormat)
                     .getMJD() * 24 * 3600;
 
-            coefList.grOrigin = Double.valueOf(tiffFeilds.get(IceyeConstants.GRSR_GROUND_RANGE_ORIGIN.toUpperCase()));
+            coefList.grOrigin = Double.parseDouble(tiffFeilds.get(IceyeConstants.GRSR_GROUND_RANGE_ORIGIN.toUpperCase()));
             segmentsArray.add(coefList);
             for (String coefString : coeffArray) {
                 coefList.coefficients.add(Double.parseDouble(coefString));
@@ -884,7 +893,7 @@ public class IceyeGRDProductReader extends SARReader {
         }
     }
 
-    class CoefList {
+    static class CoefList {
         final List<Double> coefficients = new ArrayList<>();
         double utcSeconds = 0.0;
         double grOrigin = 0.0;

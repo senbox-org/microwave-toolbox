@@ -36,7 +36,7 @@ public class TestIceyeOpenAll extends ReaderTest {
     private final static File[] iceyeSLCFiles = SARTests.loadFilePath(inputIceyeFolder + "SLC");
     private final static File[] iceyeGRDFiles = SARTests.loadFilePath(inputIceyeFolder + "GRD");
 
-    private String[] exceptionExemptions = {"not supported"};
+    private final String[] exceptionExemptions = {"not supported"};
 
     public TestIceyeOpenAll() {
         super(new IceyeProductReaderPlugIn());
@@ -48,7 +48,7 @@ public class TestIceyeOpenAll extends ReaderTest {
      * @throws Exception anything
      */
     @Test
-    public void testOpenAll() {
+    public void testOpenAll() throws Exception {
         TestProcessor testProcessor = new TestProcessor(100, 100, 100, 100, 100, true, false);
 
         File[] folderPaths = new File[] {new File(inputIceyeFolder)};
