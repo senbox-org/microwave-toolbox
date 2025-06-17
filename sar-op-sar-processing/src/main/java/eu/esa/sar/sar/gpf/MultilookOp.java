@@ -294,7 +294,7 @@ public final class MultilookOp extends Operator {
         boolean noBandsSelected = sourceBandNames == null || sourceBandNames.length == 0;
 
         OperatorUtils.addSelectedBands(
-                sourceProduct, sourceBandNames, targetProduct, targetBandNameToSourceBandName, outputIntensity, false);
+                sourceProduct, sourceBandNames, targetProduct, targetBandNameToSourceBandName, outputIntensity, true);
 
         if (!outputIntensity && noBandsSelected) { // add virtual bands
 
@@ -341,9 +341,9 @@ public final class MultilookOp extends Operator {
 
         int k = 0;
         for (int j = 0; j < gridHeight; j++) {
-            final float y = (nAzLooks - 1) / 2 + Math.min(j * subSamplingY, targetImageHeight - 1) * nAzLooks;
+            final float y = (nAzLooks - 1) / 2.0f + Math.min(j * subSamplingY, targetImageHeight - 1) * nAzLooks;
             for (int i = 0; i < gridWidth; i++) {
-                final float x = (nRgLooks - 1) / 2 + Math.min(i * subSamplingX, targetImageWidth - 1) * nRgLooks;
+                final float x = (nRgLooks - 1) / 2.0f + Math.min(i * subSamplingX, targetImageWidth - 1) * nRgLooks;
                 newTiePointPos[k] = new PixelPos();
                 newTiePointPos[k].x = x;
                 newTiePointPos[k].y = y;
