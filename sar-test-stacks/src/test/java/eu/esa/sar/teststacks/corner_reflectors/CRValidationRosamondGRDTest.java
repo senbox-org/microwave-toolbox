@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.teststacks.corner_reflectors;
 
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.orbits.gpf.ApplyOrbitFileOp;
 import eu.esa.sar.sar.gpf.MultilookOp;
@@ -25,6 +26,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,6 +35,7 @@ import java.util.List;
 
 import static org.junit.Assume.assumeTrue;
 
+@RunWith(LongTestRunner.class)
 public class CRValidationRosamondGRDTest extends BaseCRTest {
 
     private final static File S1_GRD_Rosamond = new File(TestData.inputSAR + "S1/corner_reflectors/JPL/Rosamond/S1A_IW_GRDH_1SDV_20250427T135223_20250427T135248_058943_074EF3_3768.SAFE.zip");

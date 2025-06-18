@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.teststacks.corner_reflectors;
 
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.orbits.gpf.ApplyOrbitFileOp;
 import eu.esa.sar.sar.gpf.MultilookOp;
@@ -25,6 +26,7 @@ import org.esa.snap.core.datamodel.*;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,6 +35,7 @@ import java.util.List;
 
 import static org.junit.Assume.assumeTrue;
 
+@RunWith(LongTestRunner.class)
 public class CRValidationSuratSLCTest extends BaseCRTest {
 
     private final static File S1_SLC_Surat = new File(TestData.inputSAR + "S1/corner_reflectors/GA/Surat/S1A_IW_SLC__1SSV_20231225T083315_20231225T083343_051808_064216_090C.SAFE.zip");
