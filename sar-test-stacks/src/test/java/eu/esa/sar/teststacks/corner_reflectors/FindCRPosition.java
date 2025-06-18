@@ -16,6 +16,7 @@
 package eu.esa.sar.teststacks.corner_reflectors;
 
 import com.bc.ceres.multilevel.MultiLevelImage;
+import eu.esa.sar.teststacks.corner_reflectors.utils.Plot;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.PixelPos;
@@ -35,17 +36,19 @@ import org.jlinda.core.utils.SpectralUtils;
 
 import java.awt.*;
 import java.awt.image.Raster;
+import java.io.File;
 
 public class FindCRPosition {
 
-    private static final int maxShift = 16;//16;
-    private static final int patchSize = 2 * maxShift + 1;
+    private static final int maxShift = 32;
+    private static final int patchSize = 2 * 32 + 1;
     private static final int upSamplingFactor = 8;
 
-    public static PixelPos findCRPosition(final double expY, final double expX, final Product srcProduct) {
+    public static PixelPos findCRPosition(final File folder, final double expY, final double expX, final Product srcProduct) {
 
         final PixelPos initPeakPos = getInitialPeakPosition(expX, expY, srcProduct);
         if (initPeakPos == null) {
+            System.err.println("Error: Could not find initial peak.");
             return null;
         }
 
@@ -53,8 +56,14 @@ public class FindCRPosition {
         // 1. get subset image centered at (maxX, maxY)
         final double[][] img = getSubsetImage(initPeakPos, srcProduct);
         if (img == null) {
+            System.err.println("Error: Could not get subset image.");
             return null;
         }
+
+        // --- Plotting the original subset with initial peak ---
+        PixelPos expectedInSubset = new PixelPos(maxShift, maxShift); // Center of the patch
+        PixelPos detectedInSubset = new PixelPos(initPeakPos.x - (int)expX + maxShift, initPeakPos.y - (int)expY + maxShift);
+        Plot.plotAndSaveImage(img, expectedInSubset, detectedInSubset, new File(folder, "initial_peak_detection_"+expY+"_"+expX+".png"));
 
         // 2. create a Hamming window
         final double[] hamming = createHammingWindow(patchSize);
@@ -62,6 +71,7 @@ public class FindCRPosition {
         // 3. filter the subset image with Hamming window
         final double[][] fltImg = filterImage(img, hamming);
         if (fltImg == null) {
+            System.err.println("Error: Could not filter image.");
             return null;
         }
 
@@ -71,8 +81,12 @@ public class FindCRPosition {
         // 5. find peak position in the up sampled image
         final PixelPos finePeakPos = getAccuratePeakPosition(upImg);
         if (finePeakPos == null) {
+            System.err.println("Error: Could not find accurate peak in up-sampled image.");
             return null;
         }
+
+        // --- Plotting the up-sampled image with fine peak ---
+        Plot.plotAndSaveImage(upImg, null, finePeakPos, new File(folder, "upsampled_peak_detection_"+expY+"_"+expX+".png"));
 
         // 6. convert the up sampled peak position to normal peak position
         final double fineX = initPeakPos.x - maxShift + finePeakPos.x / upSamplingFactor;
@@ -93,7 +107,7 @@ public class FindCRPosition {
             return null;
         }
 
-        final Rectangle sourceRectangle = new Rectangle(x0, y0, 2*maxShift + 1,  2*maxShift + 1);
+        final Rectangle sourceRectangle = new Rectangle(x0, y0, patchSize,  patchSize);
         final Band srcBand = getIntensityBand(srcProduct);
         if (srcBand == null) {
             return null;
@@ -102,15 +116,23 @@ public class FindCRPosition {
         final ProductData srcData = srcTile.getDataBuffer();
         final TileIndex srcIndex = new TileIndex(srcTile);
 
-        // get the initial peak position in integers
         double maxV = 0.0;
         int maxX = -1;
         int maxY = -1;
+        double sumV = 0.0; // For mean
+        double sumSqV = 0.0; // For std_dev
+        int count = 0;
+
         for (int y = y0; y <= yMax; ++y) {
             srcIndex.calculateStride(y);
             for (int x = x0; x <= xMax; ++x) {
                 final int srcIdx = srcIndex.getIndex(x);
                 final double v = srcData.getElemDoubleAt(srcIdx);
+
+                sumV += v;
+                sumSqV += v * v;
+                count++;
+
                 if (v > maxV) {
                     maxV = v;
                     maxX = x;
@@ -118,11 +140,31 @@ public class FindCRPosition {
                 }
             }
         }
+
         if (maxX == -1 || maxY == -1) {
-            return null;
-        } else {
-            return new PixelPos(maxX, maxY);
+            return null; // No data found, or all zeros
         }
+
+        // --- Peak Validation ---
+        double meanV = sumV / count;
+        double stdDevV = FastMath.sqrt((sumSqV / count) - (meanV * meanV));
+
+        // Example threshold: peak must be 'k' standard deviations above the mean
+        final double k = 5.0; // This value needs empirical tuning
+        if (maxV < (meanV + k * stdDevV)) {
+            // Peak is not strong enough relative to the background
+            System.out.println("Warning: Detected peak at (" + maxX + ", " + maxY + ") is not significant enough (maxV: " + maxV + ", meanV: " + meanV + ", stdDevV: " + stdDevV + ").");
+            return null; // Indicate that no valid CR peak was found
+        }
+
+        // Additional check: minimum absolute intensity (if applicable)
+        final double minCRIntensity = 100.0; // Example value, highly dependent on data
+        if (maxV < minCRIntensity) {
+            System.out.println("Warning: Detected peak intensity " + maxV + " is below minimum expected CR intensity " + minCRIntensity + ".");
+            return null;
+        }
+
+        return new PixelPos(maxX, maxY);
     }
 
     private static Tile getSourceTile(RasterDataNode rasterDataNode, Rectangle region) {
@@ -159,7 +201,7 @@ public class FindCRPosition {
             return null;
         }
 
-        final Rectangle sourceRectangle = new Rectangle(x0, y0, 2*maxShift + 1,  2*maxShift + 1);
+        final Rectangle sourceRectangle = new Rectangle(x0, y0, patchSize,  patchSize);
         final Band srcBand = getIntensityBand(srcProduct);
         if (srcBand == null) {
             return null;
@@ -168,7 +210,7 @@ public class FindCRPosition {
         final ProductData srcData = srcTile.getDataBuffer();
         final TileIndex srcIndex = new TileIndex(srcTile);
 
-        double[][] subsetImg = new double[2*maxShift + 1][2*maxShift + 1];
+        double[][] subsetImg = new double[patchSize][patchSize];
         for (int y = y0; y <= yMax; ++y) {
             srcIndex.calculateStride(y);
             final int yy = y - y0;

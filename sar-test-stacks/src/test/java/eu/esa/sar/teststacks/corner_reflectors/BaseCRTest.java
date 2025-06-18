@@ -170,7 +170,7 @@ public abstract class BaseCRTest extends ProcessorTest {
         for (GeoPoint crPoint : crPoints) {
             // find peak position in image in the neighbourhood of true CR position
             geoCoding.getPixelPos(new GeoPos(crPoint.lat, crPoint.lon), expCRPos);
-            final PixelPos imgCRPos = FindCRPosition.findCRPosition(expCRPos.y, expCRPos.x, srcProduct);
+            final PixelPos imgCRPos = FindCRPosition.findCRPosition(tempFolder, expCRPos.y, expCRPos.x, srcProduct);
             if (imgCRPos == null){
                 continue;
             }
@@ -190,6 +190,8 @@ public abstract class BaseCRTest extends ProcessorTest {
         }
         final double meanXShift = sumXShift / count;
         final double meanYShift = sumYShift / count;
+
+        System.out.println("--------------------------------------------------");
         System.out.println("# of CRs = " + count + ", meanXShift = " + meanXShift + ", meanYShift = " + meanYShift);
 
         Plot plot = new Plot("CR Geolocation Error " + testName);
@@ -252,7 +254,7 @@ public abstract class BaseCRTest extends ProcessorTest {
                 continue;
 
             // find peak position in image in the neighbourhood of the expected CR position
-            final PixelPos imgCRPos = FindCRPosition.findCRPosition(posData.azimuthIndex, posData.rangeIndex, srcProduct);
+            final PixelPos imgCRPos = FindCRPosition.findCRPosition(tempFolder, posData.azimuthIndex, posData.rangeIndex, srcProduct);
             if (imgCRPos == null){
                 continue;
             }
