@@ -27,10 +27,8 @@ import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
-import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dataio.gdal.reader.plugins.GTiffDriverProductReaderPlugIn;
-import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
@@ -62,7 +60,6 @@ import static org.esa.snap.engine_utilities.datamodel.AbstractMetadata.NO_METADA
 public class BiomassProductDirectory extends XMLProductDirectory {
 
     private static final GTiffDriverProductReaderPlugIn readerPlugin = new GTiffDriverProductReaderPlugIn();
-    //private static final GeoTiffProductReaderPlugIn readerPlugin = new GeoTiffProductReaderPlugIn();
     private final Map<String, ReaderData> bandProductMap = new TreeMap<>();
 
     private final transient Map<String, String> imgBandMetadataMap = new TreeMap<>();
@@ -427,11 +424,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     final MetadataElement dopplerParameters = mainAnnotation.getElement("dopplerParameters");
                     addDopplerCentroidCoefficients(absRoot, dopplerParameters);
 
-                    if(mainAnnotation.containsElement("geometry")) {
-                        final MetadataElement geometry = mainAnnotation.getElement("geometry");
-                        addTiePointGrids(geometry);
-                    }
-
                     commonMetadataRetrieved = true;
                 }
 
@@ -695,7 +687,11 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
     @Override
     protected void addGeoCoding(final Product product) {
-        ProductUtils.copyGeoCoding(bandProductMap.values().iterator().next().bandProduct, product);
+
+        final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(
+                product.getTiePointGrid(OperatorUtils.TPG_LATITUDE), product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE));
+
+        product.setSceneGeoCoding(tpGeoCoding);
     }
 
     @Override
@@ -772,27 +768,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
     }
 
-    private void addTiePointGrids(final MetadataElement geometryElem) {
-
-    }
-
-    private static void setLatLongMetadata(Product product, TiePointGrid latGrid, TiePointGrid lonGrid) {
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-
-        final int w = product.getSceneRasterWidth();
-        final int h = product.getSceneRasterHeight();
-
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, latGrid.getPixelDouble(0, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, lonGrid.getPixelDouble(0, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, latGrid.getPixelDouble(w, 0));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, lonGrid.getPixelDouble(w, 0));
-
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, latGrid.getPixelDouble(0, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, lonGrid.getPixelDouble(0, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, latGrid.getPixelDouble(w, h));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lonGrid.getPixelDouble(w, h));
-    }
-
     @Override
     protected String getProductName() {
         return productName;
@@ -825,8 +800,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         updateProduct(product, newRoot);
 
         addBands(product);
-        addGeoCoding(product);
         addTiePointGrids(product);
+        addGeoCoding(product);
         setLatLongMetadata(product);
 
         ReaderUtils.addMetadataIncidenceAngles(product);
