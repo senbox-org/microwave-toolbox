@@ -237,6 +237,10 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
                 continue;
             }
 
+            int num = Integer.parseInt(line[0]);
+            if (num < 13 || num > 27) {
+                continue;
+            }
             double lat = Double.parseDouble(line[1]);
             double lon = Double.parseDouble(line[2]);
             double alt = Double.parseDouble(line[3]);

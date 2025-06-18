@@ -132,13 +132,19 @@ public class FindCRPosition {
     }
 
     private static Band getIntensityBand(final Product srcProduct) {
+        Band firstBand = null;
         for (Band band : srcProduct.getBands()) {
             final String unit = band.getUnit();
             if (unit.contains(Unit.AMPLITUDE) || unit.contains(Unit.INTENSITY)) {
-                return band;
+                if (firstBand == null) {
+                    firstBand = band;
+                }
+                if (band.getName().toLowerCase().contains("vv") || band.getName().toLowerCase().contains("hh")) {
+                    return band;
+                }
             }
         }
-        return null;
+        return firstBand;
     }
 
     private static double[][] getSubsetImage(final PixelPos initPeakPos, final Product srcProduct) {
