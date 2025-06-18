@@ -45,7 +45,7 @@ public class CRValidationRosamondGRDTest extends BaseCRTest {
     private String csvFile = Rosamond_CSV;
 
     public CRValidationRosamondGRDTest() {
-        super("Rosamond");
+        super("Rosamond/GRD");
     }
 
     @Before

@@ -47,7 +47,7 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
     private String csvFile = Rosamond_CSV;
 
     public CRValidationRosamondSLCTest() {
-        super("Rosamond");
+        super("Rosamond/SLC");
     }
 
     @Before
