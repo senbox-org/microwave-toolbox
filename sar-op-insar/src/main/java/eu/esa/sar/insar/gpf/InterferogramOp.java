@@ -2040,7 +2040,7 @@ public class InterferogramOp extends Operator {
                 subSwath[subSwathIndex - 1].burstLastLineTime[prodBurstIndex]);
 
         final Burst mstBurst = getETADBurst(mstBurstAzTime, subSwath[subSwathIndex - 1].subSwathName, sourceProduct);
-        if (mstBurst == null) {
+        if (mstBurst == null || !mstSlvBurstMap.containsKey(mstBurst.bIndex)) {
             return null;
         }
 

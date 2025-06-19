@@ -473,14 +473,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 }
             }
 
-            // netcdf annotations
-            for (String metadataFile : filenames) {
-                if (!metadataFile.endsWith(".nc")) {
-                    continue;
-                }
-
-                netCDFLUTFile = getFile(annotFolder + '/' + metadataFile);
-            }
+            netCDFLUTFile = findNetCDFLUTFile(filenames, annotFolder);
         }
 
         // coregistered
@@ -509,6 +502,10 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     AbstractMetadataIO.AddXMLMetadata(rootElement, nameElem);
                 }
             }
+
+            if(netCDFLUTFile == null) {
+                netCDFLUTFile = findNetCDFLUTFile(coregFilenames, coregAnnotFolder);
+            }
         }
 
         readOrbitStateVectors(absRoot);
@@ -516,6 +513,15 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, heightSum / filenames.length);
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
+    }
+
+    private File findNetCDFLUTFile(final String[] filenames, final String annotFolder) throws IOException {
+        for (String metadataFile : filenames) {
+            if (metadataFile.endsWith(".nc")) { // netcdf annotations
+                return getFile(annotFolder + '/' + metadataFile);
+            }
+        }
+        return null;
     }
 
     private List<Variable> readNetCDFLUT(final NetcdfFile netcdfFile) {
