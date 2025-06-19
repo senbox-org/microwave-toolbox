@@ -37,7 +37,7 @@ import static org.junit.Assume.assumeTrue;
 @RunWith(LongTestRunner.class)
 public class CRValidationSuratGRDTest extends BaseCRTest {
 
-    private final static File S1_GRD_Surat = new File(TestData.inputSAR + "S1/corner_reflectors/GA/Surat/S1A_IW_GRDH_1SDV_20250413T192217_20250413T192242_058742_0746BD_0527.SAFE.zip");
+    private final static File S1_GRD_Surat = new File(TestData.inputSAR + "S1/corner_reflectors/GA/Surat/S1A_IW_GRDH_1SSV_20231225T083316_20231225T083341_051808_064216_FBB8.zip");
     private final static String Surat_CSV = "/eu/esa/sar/teststacks/corner_reflectors/GA/surat_basin_queensland_calibration_targets.csv";
 
     private File S1_GRD = S1_GRD_Surat;
