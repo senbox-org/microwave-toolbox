@@ -115,6 +115,14 @@ public abstract class BaseCRTest extends ProcessorTest {
                 "BEAM-DIMAP");
     }
 
+    protected double getGroundPixelSpacingInMeters(Product product) throws Exception {
+
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(product);
+        final double azimuthSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.azimuth_spacing);
+        double rangeSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.range_spacing);
+        return Math.min(azimuthSpacing, rangeSpacing);
+    }
+
     public static void debugEnvironment() {
         SystemUtils.init3rdPartyLibs(GPT.class);
 

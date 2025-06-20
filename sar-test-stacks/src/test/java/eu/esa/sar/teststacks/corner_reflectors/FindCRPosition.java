@@ -108,7 +108,7 @@ public class FindCRPosition {
         }
 
         final Rectangle sourceRectangle = new Rectangle(x0, y0, patchSize,  patchSize);
-        final Band srcBand = getIntensityBand(srcProduct);
+        final Band srcBand = getTestBand(srcProduct);
         if (srcBand == null) {
             return null;
         }
@@ -157,12 +157,13 @@ public class FindCRPosition {
             return null; // Indicate that no valid CR peak was found
         }
 
+        // Commented the code below because it leads to empty result for NRB tests
         // Additional check: minimum absolute intensity (if applicable)
-        final double minCRIntensity = 100.0; // Example value, highly dependent on data
-        if (maxV < minCRIntensity) {
-            System.out.println("Warning: Detected peak intensity " + maxV + " is below minimum expected CR intensity " + minCRIntensity + ".");
-            return null;
-        }
+//        final double minCRIntensity = 100.0; // Example value, highly dependent on data
+//        if (maxV < minCRIntensity) {
+//            System.out.println("Warning: Detected peak intensity " + maxV + " is below minimum expected CR intensity " + minCRIntensity + ".");
+//            return null;
+//        }
 
         return new PixelPos(maxX, maxY);
     }
@@ -173,7 +174,7 @@ public class FindCRPosition {
         return new TileImpl(rasterDataNode, awtRaster);
     }
 
-    private static Band getIntensityBand(final Product srcProduct) {
+    private static Band getTestBand(final Product srcProduct) {
         Band firstBand = null;
         for (Band band : srcProduct.getBands()) {
             final String unit = band.getUnit();
@@ -202,7 +203,7 @@ public class FindCRPosition {
         }
 
         final Rectangle sourceRectangle = new Rectangle(x0, y0, patchSize,  patchSize);
-        final Band srcBand = getIntensityBand(srcProduct);
+        final Band srcBand = getTestBand(srcProduct);
         if (srcBand == null) {
             return null;
         }

@@ -101,7 +101,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
         terrainCorrectionOp.setSourceProduct(srcProduct);
-        terrainCorrectionOp.setParameter("demName", "SRTM 3Sec");
+        terrainCorrectionOp.setParameter("demName", "SRTM 1Sec HGT");
         Product trgProduct = terrainCorrectionOp.getTargetProduct();
 
         computeCRGeoLocationError(csvFile, trgProduct);
