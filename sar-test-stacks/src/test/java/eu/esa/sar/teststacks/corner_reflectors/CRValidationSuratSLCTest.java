@@ -16,10 +16,12 @@
 package eu.esa.sar.teststacks.corner_reflectors;
 
 import com.bc.ceres.test.LongTestRunner;
+import eu.esa.sar.calibration.gpf.CalibrationOp;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.orbits.gpf.ApplyOrbitFileOp;
 import eu.esa.sar.sar.gpf.MultilookOp;
 import eu.esa.sar.sar.gpf.geometric.RangeDopplerGeocodingOp;
+import eu.esa.sar.sar.gpf.geometric.TerrainFlatteningOp;
 import eu.esa.sar.sentinel1.gpf.TOPSARDeburstOp;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.*;
@@ -106,7 +108,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     }
 
     @Test
-    public void testGeolocationErrors_SLC_Orbit_TC() throws Exception {
+    public void testGeolocationErrors_SLC_Orbit_TC_Cop30() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
         Product srcProduct = ProductIO.readProduct(S1_SLC);
@@ -120,6 +122,58 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
         terrainCorrectionOp.setSourceProduct(deburstOp.getTargetProduct());
+        terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
+        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+
+        computeCRGeoLocationError(csvFile, trgProduct);
+    }
+
+    @Test
+    public void testGeolocationErrors_SLC_Orbit_TC_SRTM() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Assert.assertNotNull(srcProduct);
+
+        ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
+        applyOrbitOp.setSourceProduct(srcProduct);
+
+        TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
+        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+
+        RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
+        terrainCorrectionOp.setSourceProduct(deburstOp.getTargetProduct());
+        terrainCorrectionOp.setParameter("demName", "SRTM 3sec");
+        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+
+        computeCRGeoLocationError(csvFile, trgProduct);
+    }
+
+    @Test
+    public void testGeolocationErrors_SLC_Orbit_TF_TC_Cop30() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Assert.assertNotNull(srcProduct);
+
+        ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
+        applyOrbitOp.setSourceProduct(srcProduct);
+
+        TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
+        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+
+        CalibrationOp calibrationOp = new CalibrationOp();
+        calibrationOp.setSourceProduct(deburstOp.getTargetProduct());
+        calibrationOp.setParameter("outputSigmaBand", false);
+        calibrationOp.setParameter("outputBetaBand", true);
+        calibrationOp.setParameter("outputGammaBand", false);
+
+        TerrainFlatteningOp terrainFlatteningOp = new TerrainFlatteningOp();
+        terrainFlatteningOp.setSourceProduct(calibrationOp.getTargetProduct());
+        terrainFlatteningOp.setParameter("demName", "Copernicus 30m Global DEM");
+
+        RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
+        terrainCorrectionOp.setSourceProduct(terrainFlatteningOp.getTargetProduct());
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
         Product trgProduct = terrainCorrectionOp.getTargetProduct();
 

@@ -16,10 +16,12 @@
 package eu.esa.sar.teststacks.corner_reflectors;
 
 import com.bc.ceres.test.LongTestRunner;
+import eu.esa.sar.calibration.gpf.CalibrationOp;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.orbits.gpf.ApplyOrbitFileOp;
 import eu.esa.sar.sar.gpf.MultilookOp;
 import eu.esa.sar.sar.gpf.geometric.RangeDopplerGeocodingOp;
+import eu.esa.sar.sar.gpf.geometric.TerrainFlatteningOp;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Assert;
@@ -37,7 +39,7 @@ import static org.junit.Assume.assumeTrue;
 @RunWith(LongTestRunner.class)
 public class CRValidationSuratGRDTest extends BaseCRTest {
 
-    private final static File S1_GRD_Surat = new File(TestData.inputSAR + "S1/corner_reflectors/GA/Surat/S1A_IW_GRDH_1SSV_20231225T083316_20231225T083341_051808_064216_FBB8.zip");
+    private final static File S1_GRD_Surat = new File(TestData.inputSAR + "S1/corner_reflectors/GA/Surat/S1A_IW_GRDH_1SSV_20231225T083316_20231225T083341_051808_064216_FBB8.SAFE.zip");
     private final static String Surat_CSV = "/eu/esa/sar/teststacks/corner_reflectors/GA/surat_basin_queensland_calibration_targets.csv";
 
     private File S1_GRD = S1_GRD_Surat;
@@ -76,7 +78,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
     }
 
     @Test
-    public void testGeolocationErrors_GRD_TC() throws Exception {
+    public void testGeolocationErrors_GRD_TC_Cop30() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
         Product srcProduct = ProductIO.readProduct(S1_GRD);
@@ -85,6 +87,21 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
         terrainCorrectionOp.setSourceProduct(srcProduct);
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
+        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+
+        computeCRGeoLocationError(csvFile, trgProduct);
+    }
+
+    @Test
+    public void testGeolocationErrors_GRD_TC_SRTM() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product srcProduct = ProductIO.readProduct(S1_GRD);
+        Assert.assertNotNull(srcProduct);
+
+        RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
+        terrainCorrectionOp.setSourceProduct(srcProduct);
+        terrainCorrectionOp.setParameter("demName", "SRTM 3Sec");
         Product trgProduct = terrainCorrectionOp.getTargetProduct();
 
         computeCRGeoLocationError(csvFile, trgProduct);
@@ -102,6 +119,34 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
         terrainCorrectionOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
+        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+
+        computeCRGeoLocationError(csvFile, trgProduct);
+    }
+
+    @Test
+    public void testGeolocationErrors_GRD_orbit_Cal_TF_TC() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+
+        Product srcProduct = ProductIO.readProduct(S1_GRD);
+        Assert.assertNotNull(srcProduct);
+
+        ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
+        applyOrbitOp.setSourceProduct(srcProduct);
+
+        CalibrationOp calibrationOp = new CalibrationOp();
+        calibrationOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        calibrationOp.setParameter("outputSigmaBand", false);
+        calibrationOp.setParameter("outputBetaBand", true);
+        calibrationOp.setParameter("outputGammaBand", false);
+
+        TerrainFlatteningOp terrainFlatteningOp = new TerrainFlatteningOp();
+        terrainFlatteningOp.setSourceProduct(calibrationOp.getTargetProduct());
+        terrainFlatteningOp.setParameter("demName", "Copernicus 30m Global DEM");
+
+        RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
+        terrainCorrectionOp.setSourceProduct(terrainFlatteningOp.getTargetProduct());
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
         Product trgProduct = terrainCorrectionOp.getTargetProduct();
 

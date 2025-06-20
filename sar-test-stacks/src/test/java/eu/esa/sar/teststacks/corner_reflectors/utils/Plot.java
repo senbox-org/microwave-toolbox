@@ -18,7 +18,7 @@ import java.io.IOException;
 public class Plot {
 
     private final XYChart chart;
-    private double range = 150.0;
+    private double range = 20.0;
 
     public Plot(String title) {
         this.chart = new XYChartBuilder()
