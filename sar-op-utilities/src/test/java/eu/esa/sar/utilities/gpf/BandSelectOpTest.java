@@ -16,16 +16,12 @@
 package eu.esa.sar.utilities.gpf;
 
 import com.bc.ceres.annotation.STTM;
-import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.FlagCoding;
-import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.datamodel.VirtualBand;
+import org.esa.snap.core.datamodel.*;
 import org.junit.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import java.awt.*;
+
+import static org.junit.Assert.*;
 
 /**
  * @author Marco Peters
@@ -38,9 +34,11 @@ public class BandSelectOpTest {
         selectOp.setParameterDefaultValues();
         selectOp.setSourceProduct("source", createSourceProduct());
         selectOp.setParameter("sourceBands", "b1");
+        selectOp.setParameter("sourceMasks", "m1");
         Product targetProduct = selectOp.getTargetProduct();
         assertTrue(targetProduct.containsBand("b1"));
         assertFalse(targetProduct.containsBand("v1"));
+        assertTrue(targetProduct.getMaskGroup().contains("m1"));
         assertTrue(targetProduct.getFlagCodingGroup().contains("fcoding"));
         assertTrue(targetProduct.containsBand("fband"));
     }
@@ -54,6 +52,7 @@ public class BandSelectOpTest {
         Product targetProduct = selectOp.getTargetProduct();
         assertFalse(targetProduct.containsBand("b1"));
         assertTrue(targetProduct.containsBand("v1"));
+        assertFalse(targetProduct.getMaskGroup().contains("m1"));
         assertTrue(targetProduct.getFlagCodingGroup().contains("fcoding"));
         assertTrue(targetProduct.containsBand("fband"));
     }
@@ -62,6 +61,7 @@ public class BandSelectOpTest {
         Product product = new Product("test", "type", 10, 10);
         product.addBand("b1", ProductData.TYPE_INT16);
         product.addBand(new VirtualBand("v1", ProductData.TYPE_FLOAT32, 10, 10, "x+y"));
+        product.addMask("m1", "b1 == 1", "descr", Color.CYAN, 0.5);
         FlagCoding fcoding = new FlagCoding("fcoding");
         fcoding.addFlag("flag1", 0x01, "description");
         fcoding.addFlag("flag2", 0x02, "description");
@@ -135,5 +135,78 @@ public class BandSelectOpTest {
         String[] actualSubImages = BandSelectOp.getSubImages(bandNames);
 
         assertArrayEquals(expectedSubImages, actualSubImages);
+    }
+
+    @Test
+    @STTM("SNAP-3984")
+    public void testMultipleMasksSelection() {
+        BandSelectOp selectOp = new BandSelectOp();
+        selectOp.setParameterDefaultValues();
+        Product src = createSourceProduct();
+        src.addMask("m2", "b1 == 2", "descr", Color.MAGENTA, 0.5);
+        selectOp.setSourceProduct("source", src);
+        selectOp.setParameter("sourceBands", "b1");
+        selectOp.setParameter("sourceMasks", "m1,m2");
+        Product tgt = selectOp.getTargetProduct();
+        assertTrue(tgt.getMaskGroup().contains("m1"));
+        assertTrue(tgt.getMaskGroup().contains("m2"));
+    }
+
+    @Test
+    @STTM("SNAP-3984")
+    public void testEmptyMaskSelection() {
+        BandSelectOp selectOp = new BandSelectOp();
+        selectOp.setParameterDefaultValues();
+        selectOp.setSourceProduct("source", createSourceProduct());
+        selectOp.setParameter("sourceBands", "b1");
+        selectOp.setParameter("sourceMasks", new String[0]);
+        Product tgt = selectOp.getTargetProduct();
+        assertEquals(0, tgt.getMaskGroup().getNodeNames().length);
+    }
+
+    @Test
+    @STTM("SNAP-3984")
+    public void testIncludeReferencesTrue() {
+        BandSelectOp op = new BandSelectOp();
+        op.setParameterDefaultValues();
+        Product src = createSourceProduct();
+
+        src.addBand("b5", ProductData.TYPE_INT16);
+        src.addBand("b6", ProductData.TYPE_INT16);
+        src.addMask("m2", "b5 == 0", "descr", Color.BLUE, 0.5);
+        VirtualBand vb = new VirtualBand("v2", ProductData.TYPE_FLOAT32, 10,10, "b5 + b6");
+        src.addBand(vb);
+        op.setSourceProduct("source", src);
+        op.setParameter("sourceBands", "v2");
+        op.setParameter("includeReferences", true);
+        Product tgt = op.getTargetProduct();
+
+        assertTrue(tgt.containsBand("v2"));
+        assertTrue(tgt.containsBand("b5"));
+        assertTrue(tgt.containsBand("b6"));
+        assertFalse(tgt.getMaskGroup().contains("m2"));
+    }
+
+    @Test
+    @STTM("SNAP-3984")
+    public void testIncludeReferencesFalse() {
+        BandSelectOp op = new BandSelectOp();
+        op.setParameterDefaultValues();
+        Product src = createSourceProduct();
+
+        src.addBand("b5", ProductData.TYPE_INT16);
+        src.addBand("b6", ProductData.TYPE_INT16);
+        src.addMask("m2", "b5 == 0", "descr", Color.BLUE, 0.5);
+        VirtualBand vb = new VirtualBand("v2", ProductData.TYPE_FLOAT32, 10,10, "b5 + b6");
+        src.addBand(vb);
+        op.setSourceProduct("source", src);
+        op.setParameter("sourceBands", "v2");
+        op.setParameter("includeReferences", false);
+        Product tgt = op.getTargetProduct();
+
+        assertTrue(tgt.containsBand("v2"));
+        assertFalse(tgt.containsBand("b5"));
+        assertFalse(tgt.containsBand("b6"));
+        assertFalse(tgt.getMaskGroup().contains("m2"));
     }
 }
