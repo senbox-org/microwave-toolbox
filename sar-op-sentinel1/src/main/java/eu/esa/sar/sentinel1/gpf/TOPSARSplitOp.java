@@ -66,6 +66,9 @@ public final class TOPSARSplitOp extends Operator {
     @Parameter(description = "The list of source bands.", label = "Subswath")
     private String subswath = null;
 
+     @Parameter(description = "Enable processing of single-swath products", defaultValue = "false", label = "Enable Single Swath Mode")
+    private boolean enableSingleSwathMode = false;
+
     @Parameter(description = "The list of polarisations", label = "Polarisations")
     private String[] selectedPolarisations;
 
@@ -101,7 +104,9 @@ public final class TOPSARSplitOp extends Operator {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
             validator.checkIfSentinel1Product();
-            validator.checkIfMultiSwathTOPSARProduct();
+            if (!enableSingleSwathMode) {
+                validator.checkIfMultiSwathTOPSARProduct();
+            }
             validator.checkProductType(new String[]{"SLC"});
             validator.checkAcquisitionMode(new String[]{"IW", "EW"});
 
