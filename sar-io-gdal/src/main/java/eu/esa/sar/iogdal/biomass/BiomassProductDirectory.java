@@ -522,7 +522,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 //                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
 //                                                  imageInformation.getAttributeDouble("azimuthTimeInterval"));
 
-            //addSRGRCoefficients(absRoot, prodElem.getElement("coordinateConversion"));
+            final MetadataElement rangeCoordinateConversion = sarImage.getElement("rangeCoordinateConversion");
+            addSRGRCoefficients(absRoot, rangeCoordinateConversion);
 
             final MetadataElement dopplerParameters = mainAnnotation.getElement("dopplerParameters");
             addDopplerCentroidCoefficients(absRoot, dopplerParameters);
@@ -680,28 +681,32 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         orbitVectorListElem.addElement(orbitVectorElem);
     }
 
-    private void addSRGRCoefficients(final MetadataElement absRoot, final MetadataElement coordinateConversion) {
-        if (coordinateConversion == null) return;
-        final MetadataElement coordinateConversionList = coordinateConversion.getElement("coordinateConversionList");
+    private void addSRGRCoefficients(final MetadataElement absRoot, final MetadataElement rangeCoordinateConversion) {
+
+        final int count = rangeCoordinateConversion.getAttributeInt("count");
+        if (count == 0) return;
+
+        final MetadataElement[] coordinateConversionList = rangeCoordinateConversion.getElements();
         if (coordinateConversionList == null) return;
 
         final MetadataElement srgrCoefficientsElem = absRoot.getElement(AbstractMetadata.srgr_coefficients);
 
         int listCnt = 1;
-        for (MetadataElement elem : coordinateConversionList.getElements()) {
+        for (MetadataElement elem : coordinateConversionList) {
             final MetadataElement srgrListElem = new MetadataElement(AbstractMetadata.srgr_coef_list + '.' + listCnt);
             srgrCoefficientsElem.addElement(srgrListElem);
             ++listCnt;
 
-            final ProductData.UTC utcTime = ReaderUtils.getTime(elem, "azimuthTime", biomassDateFormat);
+            final ProductData.UTC utcTime = getTime(elem, "azimuthTime", biomassDateFormat);
             srgrListElem.setAttributeUTC(AbstractMetadata.srgr_coef_time, utcTime);
 
-            final double grOrigin = elem.getAttributeDouble("gr0", 0);
+            final double grOrigin = elem.getElement("gr0").getAttributeDouble("gr0", 0);
             AbstractMetadata.addAbstractedAttribute(srgrListElem, AbstractMetadata.ground_range_origin,
                                                     ProductData.TYPE_FLOAT64, "m", "Ground Range Origin");
             AbstractMetadata.setAttribute(srgrListElem, AbstractMetadata.ground_range_origin, grOrigin);
 
-            final String coeffStr = elem.getElement("grsrCoefficients").getAttributeString("grsrCoefficients", "");
+            final String coeffStr = elem.getElement("groundToSlantCoefficients").
+                    getAttributeString("groundToSlantCoefficients", "");
             if (!coeffStr.isEmpty()) {
                 final StringTokenizer st = new StringTokenizer(coeffStr);
                 int cnt = 1;
