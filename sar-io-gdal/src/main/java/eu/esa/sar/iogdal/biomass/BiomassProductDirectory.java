@@ -647,7 +647,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 equalElems(AbstractMetadata.NO_METADATA_UTC)) {
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
-                                          getTime(stateVectorElems[0], "time", biomassDateFormat));
+                                          getTime(stateVectorElems[0], "UTC", biomassDateFormat));
         }
     }
 
@@ -867,7 +867,11 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     public Product createProduct() throws IOException {
 
         final MetadataElement newRoot = addMetaData();
-        findImages(newRoot);
+
+        final boolean isMonitoringProd = isMonitoringProd();
+        if (!isMonitoringProd) {
+            findImages(newRoot);
+        }
 
         final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
 
@@ -877,7 +881,9 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         final Product product = new Product(getProductName(), getProductType(), sceneWidth, sceneHeight);
         updateProduct(product, newRoot);
 
-        addBands(product);
+        if (!isMonitoringProd) {
+            addBands(product);
+        }
         addTiePointGrids(product);
         addGeoCoding(product);
         setLatLongMetadata(product);
@@ -886,5 +892,9 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         ReaderUtils.addMetadataProductSize(product);
 
         return product;
+    }
+
+    private boolean isMonitoringProd() {
+        return productName.toLowerCase().contains("__1m");
     }
 }
