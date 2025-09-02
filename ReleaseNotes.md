@@ -1,6 +1,10 @@
 # Microwave Toolbox 13.0.0
 
 ## New in Microwave Toolbox 13.0
+* Improved geolocation accuracy for multilooked terrain corrected graphs
+* Support for BIOMASS products
+* Support for NISAR products
+* Support for ICEYE CSI products
 * [SNAP-3948] Projects menu items enabled by default
 * [SNAP-3949] Creation of project structure when opening non-existent project
 * [SNAP-3950] Project creation and XML file extension
