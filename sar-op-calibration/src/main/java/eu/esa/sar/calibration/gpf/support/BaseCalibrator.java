@@ -202,7 +202,9 @@ public class BaseCalibrator {
             final Band srcBandQ = sourceBands[i + 1];
             final String[] srcBandNames = {srcBandI.getName(), srcBandQ.getName()};
             targetBandNameToSourceBandName.put(srcBandNames[0], srcBandNames);
-            final Band targetBandI = targetProduct.addBand(srcBandNames[0], ProductData.TYPE_FLOAT32);
+            final Band targetBandI = new Band(
+                    srcBandNames[0], ProductData.TYPE_FLOAT32, srcBandI.getRasterWidth(), srcBandI.getRasterHeight());
+            targetProduct.addBand(targetBandI);
             targetBandI.setUnit(unit);
             targetBandI.setNoDataValueUsed(true);
             targetBandI.setNoDataValue(srcBandI.getNoDataValue());
@@ -213,7 +215,9 @@ public class BaseCalibrator {
             }
 
             targetBandNameToSourceBandName.put(srcBandNames[1], srcBandNames);
-            final Band targetBandQ = targetProduct.addBand(srcBandNames[1], ProductData.TYPE_FLOAT32);
+            final Band targetBandQ = new Band(
+                    srcBandNames[1], ProductData.TYPE_FLOAT32, srcBandQ.getRasterWidth(), srcBandQ.getRasterHeight());
+            targetProduct.addBand(targetBandQ);
             targetBandQ.setUnit(nextUnit);
             targetBandQ.setNoDataValueUsed(true);
             targetBandQ.setNoDataValue(srcBandQ.getNoDataValue());

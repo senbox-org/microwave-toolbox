@@ -2,7 +2,7 @@ package eu.esa.sar.io.iceye;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
-import eu.esa.sar.io.iceye.util.IceyeXConstants;
+import eu.esa.sar.io.iceye.util.IceyeConstants;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
@@ -23,12 +23,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class IceyeProductReader extends SARReader {
 
     private AtomicBoolean isTiff = new AtomicBoolean();
+    private AtomicBoolean isNewFormat = new AtomicBoolean();
     private ProductReader reader;
 
     /**
      * Constructs a new abstract product reader.
      *
-     * @param readerPlugIn the reader plug-in which created this reader, can be <code>null</code> for internal reader
+     * @param readerPlugIn the reader plug-in which created this reader, can be
+     *                     <code>null</code> for internal reader
      *                     implementations
      */
     public IceyeProductReader(final ProductReaderPlugIn readerPlugIn) {
@@ -36,27 +38,36 @@ public class IceyeProductReader extends SARReader {
     }
 
     /**
-     * Provides an implementation of the <code>readProductNodes</code> interface method. Clients implementing this
-     * method can be sure that the input object and eventually the subset information has already been set.
+     * Provides an implementation of the <code>readProductNodes</code> interface
+     * method. Clients implementing this
+     * method can be sure that the input object and eventually the subset
+     * information has already been set.
      * <p/>
-     * <p>This method is called as a last step in the <code>readProductNodes(input, subsetInfo)</code> method.
+     * <p>
+     * This method is called as a last step in the
+     * <code>readProductNodes(input, subsetInfo)</code> method.
      */
     @Override
     protected Product readProductNodesImpl() {
         try {
             final Path inputPath = ReaderUtils.getPathFromInput(getInput());
-            if(inputPath == null) {
+            if (inputPath == null) {
                 throw new Exception("Unable to read " + getInput());
             }
             File inputFile = inputPath.toFile();
             String fileName = inputFile.getName().toLowerCase();
 
-            if(fileName.startsWith(IceyeXConstants.ICEYE_FILE_PREFIX.toLowerCase())) {
+            if (fileName.startsWith(IceyeConstants.ICEYE_FILE_PREFIX.toLowerCase())) {
                 if (fileName.endsWith(".xml")) {
                     inputFile = FileUtils.exchangeExtension(inputFile, ".h5");
-                    if(!inputFile.exists()) {
+                    if (!inputFile.exists()) {
                         inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
                     }
+                    fileName = inputFile.getName().toLowerCase();
+                }
+
+                if (fileName.endsWith(".json")) {
+                    inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
                     fileName = inputFile.getName().toLowerCase();
                 }
 
@@ -65,9 +76,19 @@ public class IceyeProductReader extends SARReader {
                     reader = new IceyeSLCProductReader(getReaderPlugIn());
                 } else if (fileName.endsWith(".tif")) {
                     isTiff.set(true);
-                    reader = new IceyeGRDProductReader(getReaderPlugIn());
+                    if (fileName.endsWith("aml.tif")) {
+                        isNewFormat.set(true);
+                        reader = new IceyeAMLProductReader(getReaderPlugIn());
+                    } else if (fileName.contains("cpx.tif")) {
+                        isNewFormat.set(true);
+                        reader = new IceyeCPXProductReader(getReaderPlugIn());
+                    } else {
+                        reader = new IceyeGRDProductReader(getReaderPlugIn());
+                        isNewFormat.set(false);
+                    }
                 }
             }
+
             return reader.readProductNodes(inputFile, getSubsetDef());
         } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
@@ -88,15 +109,23 @@ public class IceyeProductReader extends SARReader {
      */
     @Override
     protected void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
-                                          int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
-                                          int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
-                                          ProgressMonitor pm) throws IOException {
-        if(isTiff.get()) {
-            ((IceyeGRDProductReader)reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
-                    sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer, pm);
+            int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
+            int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
+            ProgressMonitor pm) throws IOException {
+        if (isNewFormat.get()) {
+            ((IceyeAMLCPXProductReader) reader).readBandRasterDataImpl(sourceOffsetX, sourceOffsetY, sourceWidth,
+                    sourceHeight, sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight,
+                    destBuffer, pm);
+        } else if (isTiff.get()) {
+            ((IceyeGRDProductReader) reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth,
+                    sourceHeight,
+                    sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer,
+                    pm);
         } else {
-            ((IceyeSLCProductReader)reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight,
-                    sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer, pm);
+            ((IceyeSLCProductReader) reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth,
+                    sourceHeight,
+                    sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer,
+                    pm);
         }
     }
 }
