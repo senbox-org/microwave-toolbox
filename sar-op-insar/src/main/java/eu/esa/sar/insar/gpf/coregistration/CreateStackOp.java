@@ -377,6 +377,18 @@ public class CreateStackOp extends Operator {
                 inputAttrb.getData().setElems(attrib.getData().getElemString());
             }
         }
+
+        if (isBiomassL1c()) {
+            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack, 1);
+        }
+    }
+
+    private boolean isBiomassL1c() {
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+        final MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(targetProduct);
+        final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION);
+        return mission.toLowerCase().contains("biomass") && (origProdRoot.getElement("annotation_coregistered") != null);
     }
 
     public static void getBaselines(final Product[] sourceProduct, final Product targetProduct) {

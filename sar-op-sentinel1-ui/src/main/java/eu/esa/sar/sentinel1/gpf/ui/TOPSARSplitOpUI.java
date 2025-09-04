@@ -99,26 +99,33 @@ public class TOPSARSplitOpUI extends BaseOperatorUI {
     public void initParameters() {
 
         if (sourceProducts != null && sourceProducts.length > 0) {
-            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProducts[0]);
 
-            final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+            final String[] subSwathList = getSubSwathNames();
             subswathCombo.removeAllItems();
-            if (acquisitionMode.equals("IW")) {
-                subswathCombo.addItem("IW1");
-                subswathCombo.addItem("IW2");
-                subswathCombo.addItem("IW3");
-            } else if (acquisitionMode.equals("EW")) {
-                subswathCombo.addItem("EW1");
-                subswathCombo.addItem("EW2");
-                subswathCombo.addItem("EW3");
-                subswathCombo.addItem("EW4");
-                subswathCombo.addItem("EW5");
+            for (String sw : subSwathList) {
+                subswathCombo.addItem(sw);
             }
-            String subswath = (String) paramMap.get("subswath");
-            if (subswath == null) {
-                subswath = acquisitionMode + '1';
-            }
-            subswathCombo.setSelectedItem(subswath);
+            subswathCombo.setSelectedItem(subSwathList[0]);
+
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProducts[0]);
+//            final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+//            subswathCombo.removeAllItems();
+//            if (acquisitionMode.equals("IW")) {
+//                subswathCombo.addItem("IW1");
+//                subswathCombo.addItem("IW2");
+//                subswathCombo.addItem("IW3");
+//            } else if (acquisitionMode.equals("EW")) {
+//                subswathCombo.addItem("EW1");
+//                subswathCombo.addItem("EW2");
+//                subswathCombo.addItem("EW3");
+//                subswathCombo.addItem("EW4");
+//                subswathCombo.addItem("EW5");
+//            }
+//            String subswath = (String) paramMap.get("subswath");
+//            if (subswath == null) {
+//                subswath = acquisitionMode + '1';
+//            }
+//            subswathCombo.setSelectedItem(subswath);
 
             OperatorUIUtils.initParamList(polList, Sentinel1Utils.getProductPolarizations(absRoot),
                     (String[]) paramMap.get("selectedPolarisations"));
@@ -133,7 +140,8 @@ public class TOPSARSplitOpUI extends BaseOperatorUI {
 
             }
 
-            burstRange.setMaximum(swathBurstsMap.get(subswath));
+            burstRange.setMaximum(swathBurstsMap.get(subSwathList[0]));
+//            burstRange.setMaximum(swathBurstsMap.get(subswath));
 
             worldMapUI.getModel().setAutoZoomEnabled(true);
             worldMapUI.getModel().setProducts(sourceProducts);
@@ -148,6 +156,35 @@ public class TOPSARSplitOpUI extends BaseOperatorUI {
         if (burstRange.getHighValue() > burstRange.getMaximum()) {
             burstRange.setHighValue(burstRange.getMaximum());
         }
+    }
+
+    private String[] getSubSwathNames() {
+        final List<String> subSwathNameList = new ArrayList<>(4);
+        for (String bandName : sourceProducts[0].getBandNames()) {
+            String subSwathName = null;
+            if (bandName.contains("IW1")) {
+                subSwathName = "IW1";
+            } else if (bandName.contains("IW2")) {
+                subSwathName = "IW2";
+            } else if (bandName.contains("IW3")) {
+                subSwathName = "IW3";
+            } else if (bandName.contains("EW1")) {
+                subSwathName = "EW1";
+            } else if (bandName.contains("EW2")) {
+                subSwathName = "EW2";
+            } else if (bandName.contains("EW3")) {
+                subSwathName = "EW3";
+            } else if (bandName.contains("EW4")) {
+                subSwathName = "EW4";
+            } else if (bandName.contains("EW5")) {
+                subSwathName = "EW5";
+            }
+
+            if (subSwathName != null && !subSwathNameList.contains(subSwathName)) {
+                subSwathNameList.add(subSwathName);
+            }
+        }
+        return subSwathNameList.toArray(new String[0]);
     }
 
     @Override

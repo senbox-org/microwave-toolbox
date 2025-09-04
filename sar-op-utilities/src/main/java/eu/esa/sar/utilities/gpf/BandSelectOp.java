@@ -15,13 +15,8 @@
  */
 package eu.esa.sar.utilities.gpf;
 
-import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.MetadataAttribute;
-import org.esa.snap.core.datamodel.MetadataElement;
-import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.datamodel.TiePointGrid;
-import org.esa.snap.core.datamodel.VirtualBand;
+import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.dataop.barithm.BandArithmetic;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -29,15 +24,16 @@ import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
+import org.esa.snap.core.jexp.ParseException;
+import org.esa.snap.core.jexp.Term;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 
 import java.awt.*;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,7 +42,7 @@ import java.util.regex.Pattern;
  */
 
 @OperatorMetadata(alias = "BandSelect",
-        category = "Raster/Data Conversion",
+        category = "Raster",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2024 by SkyWatch Space Applications Inc.",
@@ -70,6 +66,14 @@ public final class BandSelectOp extends Operator {
 
     @Parameter(description = "Band name regular expression pattern", label = "Band Name Pattern")
     private String bandNamePattern;
+
+    @Parameter(label = "Source masks", description = "The source masks for the computation.", rasterDataNodeType = Mask.class, alias = "sourceMasks")
+    private String[] sourceMaskNames;
+
+    @Parameter(label = "Include references",
+            description = "Add dependent bands and masks",
+            defaultValue = "true")
+    private boolean includeReferences;
 
     private final static String SUFFIX = "_subset";
 
@@ -105,6 +109,31 @@ public final class BandSelectOp extends Operator {
             addSelectedBands(selectedBands);
 
             ProductUtils.copyProductNodes(sourceProduct, targetProduct);
+
+            if (sourceMaskNames != null) {
+                Set<String> keep = new HashSet<>(Arrays.asList(sourceMaskNames));
+                ProductNodeGroup<Mask> maskGroup = targetProduct.getMaskGroup();
+                String[] targetMasks = maskGroup.getNodeNames();
+                for (String m : targetMasks) {
+                    if (!keep.contains(m)) {
+                        maskGroup.remove(maskGroup.get(m));
+                    }
+                }
+            }
+
+            if (includeReferences) {
+                ProductUtils.copyFlagBandsWithoutMasks(sourceProduct, targetProduct, true);
+                ArrayList<String> refBands = new ArrayList<>();
+                ArrayList<String>  refMasks = new ArrayList<>();
+                for (String name : sourceBandNames) {
+                    collectNotIncludedReferences(name, refBands, refMasks);
+                }
+                refBands.removeAll(Arrays.asList(sourceBandNames));
+                refMasks.removeAll(sourceMaskNames != null
+                        ? Arrays.asList(sourceMaskNames) : Collections.emptyList());
+                refBands.forEach(b -> ProductUtils.copyBand(b, sourceProduct, targetProduct, true));
+                refMasks.forEach(m -> ProductUtils.copyMasks(sourceProduct, targetProduct, new String[]{m}, true));
+            }
 
             String[] subImages = getSubImages(targetProduct.getBandNames());
 
@@ -284,6 +313,69 @@ public final class BandSelectOp extends Operator {
             }
         }
         return false;
+    }
+
+    private void collectNotIncludedReferences(String nodeName, ArrayList<String> referencedBandNames, ArrayList<String> referencedMaskNames) {
+        RasterDataNode rasterDataNode = sourceProduct.getRasterDataNode(nodeName);
+        if (rasterDataNode == null) {
+            throw new OperatorException(String.format("Source product does not contain a raster named '%s'.", nodeName));
+        }
+        final String validPixelExpression = rasterDataNode.getValidPixelExpression();
+        collectReferencedRastersInExpression(validPixelExpression, referencedBandNames, referencedMaskNames);
+
+        if (rasterDataNode instanceof VirtualBand || rasterDataNode instanceof Mask) {
+            String strExpression = getRasterDataNodeExpression (rasterDataNode);
+            collectReferencedRastersInExpression(strExpression, referencedBandNames, referencedMaskNames);
+        }
+    }
+
+    private String getRasterDataNodeExpression(RasterDataNode rasterDataNode){
+        if (rasterDataNode == null )
+            return null;
+        String strExpression = null;
+        if (rasterDataNode instanceof VirtualBand) {
+            strExpression = ((VirtualBand) rasterDataNode).getExpression();
+        }else if  (rasterDataNode instanceof Mask) {
+            Mask mask = (Mask) rasterDataNode;
+            if (mask.getImageType() == Mask.BandMathsType.INSTANCE) {
+                strExpression = Mask.BandMathsType.getExpression(mask);
+            } else if (mask.getImageType() == Mask.RangeType.INSTANCE) {
+                strExpression = Mask.RangeType.getRasterName(mask);
+            }
+        }
+        return strExpression;
+    }
+
+    private void collectReferencedRastersInExpression(String expression, ArrayList<String> referencedBandNames, ArrayList<String> referencedMaskNames) {
+        if (expression == null || expression.trim().isEmpty()) {
+            return;
+        }
+        try {
+            final Term term = sourceProduct.parseExpression(expression);
+            final RasterDataNode[] refRasters = BandArithmetic.getRefRasters(term);
+            for (RasterDataNode refRaster : refRasters) {
+                final String refNodeName = refRaster.getName();
+                Band bandNode =  sourceProduct.getBand(refNodeName) ;
+                if ( bandNode!= null){
+                    if (!referencedBandNames.contains(refNodeName)) {
+                        referencedBandNames.add(refNodeName);
+                    }
+                    final String bandExpression = getRasterDataNodeExpression (bandNode);
+                    collectReferencedRastersInExpression(bandExpression, referencedBandNames, referencedMaskNames);
+                }
+
+                Mask maskNode =  sourceProduct.getMaskGroup().get(refNodeName) ;
+                if (maskNode != null){
+                    if (!referencedMaskNames.contains(refNodeName)) {
+                        referencedMaskNames.add(refNodeName);
+                    }
+                    final String maskExpression = getRasterDataNodeExpression (maskNode);
+                    collectReferencedRastersInExpression(maskExpression, referencedBandNames, referencedMaskNames);
+                }
+            }
+        } catch (ParseException e) {
+            getLogger().log(Level.WARNING, e.getMessage(), e);
+        }
     }
 
     /**
