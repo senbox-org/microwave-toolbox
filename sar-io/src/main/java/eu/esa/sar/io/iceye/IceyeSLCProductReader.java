@@ -3,7 +3,7 @@ package eu.esa.sar.io.iceye;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.iceye.util.IceyeXConstants;
+import eu.esa.sar.io.iceye.util.IceyeConstants;
 import eu.esa.sar.io.netcdf.NetCDFReader;
 import eu.esa.sar.io.netcdf.NetCDFUtils;
 import eu.esa.sar.io.netcdf.NetcdfConstants;
@@ -59,7 +59,7 @@ public class IceyeSLCProductReader extends SARReader {
         final MetadataElement globalElem = AbstractMetadata.getOriginalProductMetadata(product).getElement(NetcdfConstants.GLOBAL_ATTRIBUTES_NAME);
         try {
             if (globalElem != null) {
-                final String polStr = netcdfFile.getRootGroup().findVariable(IceyeXConstants.MDS1_TX_RX_POLAR).readScalarString();
+                final String polStr = netcdfFile.getRootGroup().findVariable(IceyeConstants.MDS1_TX_RX_POLAR).readScalarString();
                 if (!polStr.isEmpty())
                     return polStr;
             }
@@ -88,14 +88,14 @@ public class IceyeSLCProductReader extends SARReader {
             final float subSamplingX = product.getSceneRasterWidth() / (float) (gridWidth - 1);
             final float subSamplingY = product.getSceneRasterHeight() / (float) (gridHeight - 1);
 
-            final double[] incidenceAngles = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.INCIDENCE_ANGLES).read().getStorage();
+            final double[] incidenceAngles = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.INCIDENCE_ANGLES).read().getStorage();
 
             final double nearRangeAngle = incidenceAngles[0];
             final double farRangeAngle = incidenceAngles[incidenceAngles.length - 1];
 
-            final double firstRangeTime = netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_PIXEL_TIME).readScalarDouble() * Constants.sTOns;
-            final double samplesPerLine = netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_SAMPLES_PER_LINE).readScalarDouble();
-            final double rangeSamplingRate = netcdfFile.getRootGroup().findVariable(IceyeXConstants.RANGE_SAMPLING_RATE).readScalarDouble();
+            final double firstRangeTime = netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_PIXEL_TIME).readScalarDouble() * Constants.sTOns;
+            final double samplesPerLine = netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_SAMPLES_PER_LINE).readScalarDouble();
+            final double rangeSamplingRate = netcdfFile.getRootGroup().findVariable(IceyeConstants.RANGE_SAMPLING_RATE).readScalarDouble();
             final double lastRangeTime = firstRangeTime + samplesPerLine / rangeSamplingRate * Constants.sTOns;
 
             final float[] incidenceCorners = new float[]{(float) nearRangeAngle, (float) farRangeAngle, (float) nearRangeAngle, (float) farRangeAngle};
@@ -128,10 +128,10 @@ public class IceyeSLCProductReader extends SARReader {
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
 
         try {
-            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_NEAR).read().getStorage();
-            double[] firstFar = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_FAR).read().getStorage();
-            double[] lastNear = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.LAST_NEAR).read().getStorage();
-            double[] lastFar = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.LAST_FAR).read().getStorage();
+            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_NEAR).read().getStorage();
+            double[] firstFar = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_FAR).read().getStorage();
+            double[] lastNear = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.LAST_NEAR).read().getStorage();
+            double[] lastFar = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.LAST_FAR).read().getStorage();
 
 
             final double latUL = firstNear[2];
@@ -153,9 +153,9 @@ public class IceyeSLCProductReader extends SARReader {
             absRoot.setAttributeDouble(AbstractMetadata.last_far_long, lonLR);
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
-                    netcdfFile.getRootGroup().findVariable(IceyeXConstants.SLANT_RANGE_SPACING).readScalarDouble());
+                    netcdfFile.getRootGroup().findVariable(IceyeConstants.SLANT_RANGE_SPACING).readScalarDouble());
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
-                    netcdfFile.getRootGroup().findVariable(IceyeXConstants.AZIMUTH_GROUND_SPACING).readScalarDouble());
+                    netcdfFile.getRootGroup().findVariable(IceyeConstants.AZIMUTH_GROUND_SPACING).readScalarDouble());
 
             final double[] latCorners = new double[]{latUL, latUR, latLL, latLR};
             final double[] lonCorners = new double[]{lonUL, lonUR, lonLL, lonLR};
@@ -198,9 +198,9 @@ public class IceyeSLCProductReader extends SARReader {
             }
             this.netcdfFile = tempNetcdfFile;
 
-            final String productType = this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.PRODUCT_TYPE).readScalarString();
-            final int rasterWidth = this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_SAMPLES_PER_LINE).readScalarInt();
-            final int rasterHeight = this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_OUTPUT_LINES).readScalarInt();
+            final String productType = this.netcdfFile.getRootGroup().findVariable(IceyeConstants.PRODUCT_TYPE).readScalarString();
+            final int rasterWidth = this.netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_SAMPLES_PER_LINE).readScalarInt();
+            final int rasterHeight = this.netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_OUTPUT_LINES).readScalarInt();
 
             product = new Product(inputFile.getName(),
                     productType,
@@ -208,13 +208,13 @@ public class IceyeSLCProductReader extends SARReader {
                     this);
             product.setFileLocation(inputFile);
             StringBuilder description = new StringBuilder();
-            description.append(this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.PRODUCT).readScalarString()).append(" - ");
-            description.append(this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.PRODUCT_TYPE).readScalarString()).append(" - ");
-            description.append(this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.SPH_DESCRIPTOR).readScalarString()).append(" - ");
-            description.append(this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.MISSION).readScalarString());
+            description.append(this.netcdfFile.getRootGroup().findVariable(IceyeConstants.PRODUCT).readScalarString()).append(" - ");
+            description.append(this.netcdfFile.getRootGroup().findVariable(IceyeConstants.PRODUCT_TYPE).readScalarString()).append(" - ");
+            description.append(this.netcdfFile.getRootGroup().findVariable(IceyeConstants.SPH_DESCRIPTOR).readScalarString()).append(" - ");
+            description.append(this.netcdfFile.getRootGroup().findVariable(IceyeConstants.MISSION).readScalarString());
             product.setDescription(description.toString());
-            product.setStartTime(ProductData.UTC.parse(this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.ACQUISITION_START_UTC).readScalarString(), standardDateFormat));
-            product.setEndTime(ProductData.UTC.parse(this.netcdfFile.getRootGroup().findVariable(IceyeXConstants.ACQUISITION_END_UTC).readScalarString(), standardDateFormat));
+            product.setStartTime(ProductData.UTC.parse(this.netcdfFile.getRootGroup().findVariable(IceyeConstants.ACQUISITION_START_UTC).readScalarString(), standardDateFormat));
+            product.setEndTime(ProductData.UTC.parse(this.netcdfFile.getRootGroup().findVariable(IceyeConstants.ACQUISITION_END_UTC).readScalarString(), standardDateFormat));
             addMetadataToProduct();
             addBandsToProduct();
             addTiePointGridsToProduct();
@@ -261,106 +261,106 @@ public class IceyeSLCProductReader extends SARReader {
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
 
         try {
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, netcdfFile.getRootGroup().findVariable(IceyeXConstants.PRODUCT).readScalarString());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, netcdfFile.getRootGroup().findVariable(IceyeXConstants.PRODUCT_TYPE).readScalarString());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SPH_DESCRIPTOR, netcdfFile.getRootGroup().findVariable(IceyeXConstants.SPH_DESCRIPTOR).readScalarString());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, netcdfFile.getRootGroup().findVariable(IceyeConstants.PRODUCT).readScalarString());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, netcdfFile.getRootGroup().findVariable(IceyeConstants.PRODUCT_TYPE).readScalarString());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SPH_DESCRIPTOR, netcdfFile.getRootGroup().findVariable(IceyeConstants.SPH_DESCRIPTOR).readScalarString());
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, Missions.ICEYE);
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, netcdfFile.getRootGroup().findVariable(IceyeXConstants.ACQUISITION_MODE).readScalarString());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.antenna_pointing, netcdfFile.getRootGroup().findVariable(IceyeXConstants.ANTENNA_POINTING).readScalarString());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.BEAMS, IceyeXConstants.BEAMS_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, netcdfFile.getRootGroup().findVariable(IceyeConstants.ACQUISITION_MODE).readScalarString());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.antenna_pointing, netcdfFile.getRootGroup().findVariable(IceyeConstants.ANTENNA_POINTING).readScalarString());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.BEAMS, IceyeConstants.BEAMS_DEFAULT_VALUE);
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME, ProductData.UTC.parse(netcdfFile.getRootGroup().findVariable(IceyeXConstants.PROC_TIME_UTC).readScalarString(), standardDateFormat));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME, ProductData.UTC.parse(netcdfFile.getRootGroup().findVariable(IceyeConstants.PROC_TIME_UTC).readScalarString(), standardDateFormat));
 
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier, IceyeXConstants.ICEYE_PROCESSOR_NAME_PREFIX + netcdfFile.getRootGroup().findVariable(IceyeXConstants.PROCESSING_SYSTEM_IDENTIFIER).readScalarFloat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.CYCLE, netcdfFile.getRootGroup().findVariable(IceyeXConstants.CYCLE).readScalarInt());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.REL_ORBIT, netcdfFile.getRootGroup().findVariable(IceyeXConstants.REL_ORBIT).readScalarInt());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT, netcdfFile.getRootGroup().findVariable(IceyeXConstants.ABS_ORBIT).readScalarInt());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier, IceyeConstants.ICEYE_PROCESSOR_NAME_PREFIX + netcdfFile.getRootGroup().findVariable(IceyeConstants.PROCESSING_SYSTEM_IDENTIFIER).readScalarFloat());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.CYCLE, netcdfFile.getRootGroup().findVariable(IceyeConstants.CYCLE).readScalarInt());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.REL_ORBIT, netcdfFile.getRootGroup().findVariable(IceyeConstants.REL_ORBIT).readScalarInt());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT, netcdfFile.getRootGroup().findVariable(IceyeConstants.ABS_ORBIT).readScalarInt());
 
-            double[] localIncidenceAngles = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.INCIDENCE_ANGLES).read().getStorage();
+            double[] localIncidenceAngles = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.INCIDENCE_ANGLES).read().getStorage();
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_near, localIncidenceAngles[0]);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_far, localIncidenceAngles[localIncidenceAngles.length - 1]);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slice_num, IceyeXConstants.SLICE_NUM_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id, IceyeXConstants.DATA_TAKE_ID_DEFAULT_VALUE);
-            String geoRefSystem = IceyeXConstants.GEO_REFERENCE_SYSTEM_DEFAULT_VALUE;
-            if (netcdfFile.getRootGroup().findVariable(IceyeXConstants.GEO_REFERENCE_SYSTEM) != null) {
-                geoRefSystem = netcdfFile.getRootGroup().findVariable(IceyeXConstants.GEO_REFERENCE_SYSTEM).readScalarString();
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slice_num, IceyeConstants.SLICE_NUM_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id, IceyeConstants.DATA_TAKE_ID_DEFAULT_VALUE);
+            String geoRefSystem = IceyeConstants.GEO_REFERENCE_SYSTEM_DEFAULT_VALUE;
+            if (netcdfFile.getRootGroup().findVariable(IceyeConstants.GEO_REFERENCE_SYSTEM) != null) {
+                geoRefSystem = netcdfFile.getRootGroup().findVariable(IceyeConstants.GEO_REFERENCE_SYSTEM).readScalarString();
             }
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.geo_ref_system, geoRefSystem);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, ProductData.UTC.parse(netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_LINE_TIME).readScalarString(), standardDateFormat));
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, ProductData.UTC.parse(netcdfFile.getRootGroup().findVariable(IceyeXConstants.LAST_LINE_TIME).readScalarString(), standardDateFormat));
-            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_NEAR).read().getStorage();
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, ProductData.UTC.parse(netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_LINE_TIME).readScalarString(), standardDateFormat));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, ProductData.UTC.parse(netcdfFile.getRootGroup().findVariable(IceyeConstants.LAST_LINE_TIME).readScalarString(), standardDateFormat));
+            double[] firstNear = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_NEAR).read().getStorage();
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_lat, firstNear[2]);
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_near_long, firstNear[3]);
-            double[] firstFar = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_FAR).read().getStorage();
+            double[] firstFar = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_FAR).read().getStorage();
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_lat, firstFar[2]);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_far_long, firstFar[3]);
-            double[] lastNear = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.LAST_NEAR).read().getStorage();
+            double[] lastNear = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.LAST_NEAR).read().getStorage();
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_lat, lastNear[2]);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_near_long, lastNear[3]);
-            double[] lastFar = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.LAST_FAR).read().getStorage();
+            double[] lastFar = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.LAST_FAR).read().getStorage();
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_lat, lastFar[2]);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_far_long, lastFar[3]);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PASS, netcdfFile.getRootGroup().findVariable(IceyeXConstants.PASS).readScalarString());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PASS, netcdfFile.getRootGroup().findVariable(IceyeConstants.PASS).readScalarString());
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, getSampleType());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds1_tx_rx_polar, netcdfFile.getRootGroup().findVariable(IceyeXConstants.MDS1_TX_RX_POLAR).readScalarString());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds1_tx_rx_polar, netcdfFile.getRootGroup().findVariable(IceyeConstants.MDS1_TX_RX_POLAR).readScalarString());
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks, netcdfFile.getRootGroup().findVariable(IceyeXConstants.AZIMUTH_LOOKS).readScalarFloat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks, netcdfFile.getRootGroup().findVariable(IceyeXConstants.RANGE_LOOKS).readScalarFloat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, netcdfFile.getRootGroup().findVariable(IceyeXConstants.SLANT_RANGE_SPACING).readScalarFloat());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks, netcdfFile.getRootGroup().findVariable(IceyeConstants.AZIMUTH_LOOKS).readScalarFloat());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks, netcdfFile.getRootGroup().findVariable(IceyeConstants.RANGE_LOOKS).readScalarFloat());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, netcdfFile.getRootGroup().findVariable(IceyeConstants.SLANT_RANGE_SPACING).readScalarFloat());
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, netcdfFile.getRootGroup().findVariable(IceyeXConstants.AZIMUTH_GROUND_SPACING).readScalarFloat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency, netcdfFile.getRootGroup().findVariable(IceyeXConstants.PULSE_REPETITION_FREQUENCY).readScalarFloat());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency, netcdfFile.getRootGroup().findVariable(IceyeXConstants.RADAR_FREQUENCY).readScalarDouble() / Constants.oneMillion);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval, netcdfFile.getRootGroup().findVariable(IceyeXConstants.LINE_TIME_INTERVAL).readScalarDouble());
-            final int rasterWidth = netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_SAMPLES_PER_LINE).readScalarInt();
-            final int rasterHeight = netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_OUTPUT_LINES).readScalarInt();
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, netcdfFile.getRootGroup().findVariable(IceyeConstants.AZIMUTH_GROUND_SPACING).readScalarFloat());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency, netcdfFile.getRootGroup().findVariable(IceyeConstants.PULSE_REPETITION_FREQUENCY).readScalarFloat());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency, netcdfFile.getRootGroup().findVariable(IceyeConstants.RADAR_FREQUENCY).readScalarDouble() / Constants.oneMillion);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval, netcdfFile.getRootGroup().findVariable(IceyeConstants.LINE_TIME_INTERVAL).readScalarDouble());
+            final int rasterWidth = netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_SAMPLES_PER_LINE).readScalarInt();
+            final int rasterHeight = netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_OUTPUT_LINES).readScalarInt();
             double totalSize = (rasterHeight * rasterWidth * 2 * 2) / (1024.0f * 1024.0f);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.TOT_SIZE, totalSize);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines, netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_OUTPUT_LINES).readScalarInt());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines, netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_OUTPUT_LINES).readScalarInt());
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line, netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_SAMPLES_PER_LINE).readScalarInt());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.subset_offset_x, IceyeXConstants.SUBSET_OFFSET_X_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.subset_offset_y, IceyeXConstants.SUBSET_OFFSET_Y_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line, netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_SAMPLES_PER_LINE).readScalarInt());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.subset_offset_x, IceyeConstants.SUBSET_OFFSET_X_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.subset_offset_y, IceyeConstants.SUBSET_OFFSET_Y_DEFAULT_VALUE);
             if (isComplex) {
                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.srgr_flag, 0);
             } else {
                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.srgr_flag, 1);
             }
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, netcdfFile.getRootGroup().findVariable(IceyeXConstants.AVG_SCENE_HEIGHT).readScalarDouble());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, netcdfFile.getRootGroup().findVariable(IceyeConstants.AVG_SCENE_HEIGHT).readScalarDouble());
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.lat_pixel_res, IceyeXConstants.LAT_PIXEL_RES_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.lon_pixel_res, IceyeXConstants.LON_PIXEL_RES_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel, (netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_PIXEL_TIME).readScalarDouble() / 2) * 299792458.0);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.lat_pixel_res, IceyeConstants.LAT_PIXEL_RES_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.lon_pixel_res, IceyeConstants.LON_PIXEL_RES_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel, (netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_PIXEL_TIME).readScalarDouble() / 2) * 299792458.0);
 
-            int antElevCorrFlag = IceyeXConstants.ANT_ELEV_CORR_FLAG_DEFAULT_VALUE;
-            if (netcdfFile.getRootGroup().findVariable(IceyeXConstants.ANT_ELEV_CORR_FLAG) != null) {
-                antElevCorrFlag = netcdfFile.getRootGroup().findVariable(IceyeXConstants.ANT_ELEV_CORR_FLAG).readScalarInt();
+            int antElevCorrFlag = IceyeConstants.ANT_ELEV_CORR_FLAG_DEFAULT_VALUE;
+            if (netcdfFile.getRootGroup().findVariable(IceyeConstants.ANT_ELEV_CORR_FLAG) != null) {
+                antElevCorrFlag = netcdfFile.getRootGroup().findVariable(IceyeConstants.ANT_ELEV_CORR_FLAG).readScalarInt();
             }
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ant_elev_corr_flag, antElevCorrFlag);
 
-            int rangeSpreadCompFlag = IceyeXConstants.RANGE_SPREAD_COMP_FLAG_DEFAULT_VALUE;
-            if (netcdfFile.getRootGroup().findVariable(IceyeXConstants.RANGE_SPREAD_COMP_FLAG) != null) {
-                rangeSpreadCompFlag = netcdfFile.getRootGroup().findVariable(IceyeXConstants.RANGE_SPREAD_COMP_FLAG).readScalarInt();
+            int rangeSpreadCompFlag = IceyeConstants.RANGE_SPREAD_COMP_FLAG_DEFAULT_VALUE;
+            if (netcdfFile.getRootGroup().findVariable(IceyeConstants.RANGE_SPREAD_COMP_FLAG) != null) {
+                rangeSpreadCompFlag = netcdfFile.getRootGroup().findVariable(IceyeConstants.RANGE_SPREAD_COMP_FLAG).readScalarInt();
             }
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spread_comp_flag, rangeSpreadCompFlag);
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.replica_power_corr_flag, IceyeXConstants.REPLICA_POWER_CORR_FLAG_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.abs_calibration_flag, IceyeXConstants.ABS_CALIBRATION_FLAG_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.calibration_factor, netcdfFile.getRootGroup().findVariable(IceyeXConstants.CALIBRATION_FACTOR).readScalarDouble());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.inc_angle_comp_flag, IceyeXConstants.INC_ANGLE_COMP_FLAG_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_inc_angle, IceyeXConstants.REF_INC_ANGLE_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range, IceyeXConstants.REF_SLANT_RANGE_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range_exp, IceyeXConstants.REF_SLANT_RANGE_EXP_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.rescaling_factor, IceyeXConstants.RESCALING_FACTOR_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate, netcdfFile.getRootGroup().findVariable(IceyeXConstants.RANGE_SAMPLING_RATE).readScalarDouble() / 1e6);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth, netcdfFile.getRootGroup().findVariable(IceyeXConstants.RANGE_BANDWIDTH).readScalarDouble() / 1e6);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth, netcdfFile.getRootGroup().findVariable(IceyeXConstants.AZIMUTH_BANDWIDTH).readScalarDouble());
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.multilook_flag, IceyeXConstants.MULTI_LOOK_FLAG_DEFAULT_VALUE);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack, IceyeXConstants.CO_REGISTERED_STACK_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.replica_power_corr_flag, IceyeConstants.REPLICA_POWER_CORR_FLAG_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.abs_calibration_flag, IceyeConstants.ABS_CALIBRATION_FLAG_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.calibration_factor, netcdfFile.getRootGroup().findVariable(IceyeConstants.CALIBRATION_FACTOR).readScalarDouble());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.inc_angle_comp_flag, IceyeConstants.INC_ANGLE_COMP_FLAG_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_inc_angle, IceyeConstants.REF_INC_ANGLE_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range, IceyeConstants.REF_SLANT_RANGE_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range_exp, IceyeConstants.REF_SLANT_RANGE_EXP_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.rescaling_factor, IceyeConstants.RESCALING_FACTOR_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate, netcdfFile.getRootGroup().findVariable(IceyeConstants.RANGE_SAMPLING_RATE).readScalarDouble() / 1e6);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth, netcdfFile.getRootGroup().findVariable(IceyeConstants.RANGE_BANDWIDTH).readScalarDouble() / 1e6);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth, netcdfFile.getRootGroup().findVariable(IceyeConstants.AZIMUTH_BANDWIDTH).readScalarDouble());
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.multilook_flag, IceyeConstants.MULTI_LOOK_FLAG_DEFAULT_VALUE);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack, IceyeConstants.COREGISTERED_STACK_DEFAULT_VALUE);
 
 
             addOrbitStateVectors(absRoot);
@@ -376,15 +376,15 @@ public class IceyeSLCProductReader extends SARReader {
             final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
 
 
-            final int numPoints = netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUMBER_OF_STATE_VECTORS).readScalarInt();
-            char[] stateVectorTime = (char[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.STATE_VECTOR_TIME).read().getStorage();
-            int utcDimension = netcdfFile.getRootGroup().findVariable(IceyeXConstants.STATE_VECTOR_TIME).getDimension(2).getLength();
-            final double[] satellitePositionX = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.ORBIT_VECTOR_N_X_POS).read().getStorage();
-            final double[] satellitePositionY = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.ORBIT_VECTOR_N_Y_POS).read().getStorage();
-            final double[] satellitePositionZ = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.ORBIT_VECTOR_N_Z_POS).read().getStorage();
-            final double[] satelliteVelocityX = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.ORBIT_VECTOR_N_X_VEL).read().getStorage();
-            final double[] satelliteVelocityY = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.ORBIT_VECTOR_N_Y_VEL).read().getStorage();
-            final double[] satelliteVelocityZ = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.ORBIT_VECTOR_N_Z_VEL).read().getStorage();
+            final int numPoints = netcdfFile.getRootGroup().findVariable(IceyeConstants.NUMBER_OF_STATE_VECTORS).readScalarInt();
+            char[] stateVectorTime = (char[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.STATE_VECTOR_TIME).read().getStorage();
+            int utcDimension = netcdfFile.getRootGroup().findVariable(IceyeConstants.STATE_VECTOR_TIME).getDimension(2).getLength();
+            final double[] satellitePositionX = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.ORBIT_VECTOR_N_X_POS).read().getStorage();
+            final double[] satellitePositionY = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.ORBIT_VECTOR_N_Y_POS).read().getStorage();
+            final double[] satellitePositionZ = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.ORBIT_VECTOR_N_Z_POS).read().getStorage();
+            final double[] satelliteVelocityX = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.ORBIT_VECTOR_N_X_VEL).read().getStorage();
+            final double[] satelliteVelocityY = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.ORBIT_VECTOR_N_Y_VEL).read().getStorage();
+            final double[] satelliteVelocityZ = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.ORBIT_VECTOR_N_Z_VEL).read().getStorage();
             int start = 0;
             String utc = new String(Arrays.copyOfRange(stateVectorTime, 0, utcDimension - 1));
             ProductData.UTC stateVectorUTC = ProductData.UTC.parse(utc, standardDateFormat);
@@ -428,8 +428,8 @@ public class IceyeSLCProductReader extends SARReader {
         AbstractMetadata.setAttribute(dopplerListElem, AbstractMetadata.slant_range_time, 0.0);
         try {
 
-            int dimensionColumn = netcdfFile.getRootGroup().findVariable(IceyeXConstants.DC_ESTIMATE_COEFFS).getDimension(1).getLength();
-            double[] coefValueS = (double[]) netcdfFile.getRootGroup().findVariable(IceyeXConstants.DC_ESTIMATE_COEFFS).read().getStorage();
+            int dimensionColumn = netcdfFile.getRootGroup().findVariable(IceyeConstants.DC_ESTIMATE_COEFFS).getDimension(1).getLength();
+            double[] coefValueS = (double[]) netcdfFile.getRootGroup().findVariable(IceyeConstants.DC_ESTIMATE_COEFFS).read().getStorage();
 
             for (int i = 0; i < dimensionColumn; i++) {
                 final double coefValue = coefValueS[i];
@@ -461,7 +461,7 @@ public class IceyeSLCProductReader extends SARReader {
     private void addDopplerRateAndCentroidSpotlight(MetadataElement elem) {
         // Compute doppler rate and centroid
         MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
-        MetadataElement dopplerRateCoeffs = origProdRoot.getElement(IceyeXConstants.DR_COEFFS);
+        MetadataElement dopplerRateCoeffs = origProdRoot.getElement(IceyeConstants.DR_COEFFS);
         String dopplerRate = dopplerRateCoeffs.getAttributeString("data").split(",")[0]; // take first coefficient
         final double fmRate = Double.parseDouble(dopplerRate);
         final double dopplerCentroid = 0.0; // TODO: load from original metadata once it's accurate
@@ -490,8 +490,8 @@ public class IceyeSLCProductReader extends SARReader {
 
     private void addAzimuthTimeZpSpotlight(MetadataElement elem) throws IOException {
         // Compute azimuth time
-        final double firstAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeXConstants.FIRST_LINE_TIME).readScalarString());
-        final double lastAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeXConstants.LAST_LINE_TIME).readScalarString());
+        final double firstAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeConstants.FIRST_LINE_TIME).readScalarString());
+        final double lastAzimuthTimeZp = timeUTCtoSecs(netcdfFile.getRootGroup().findVariable(IceyeConstants.LAST_LINE_TIME).readScalarString());
         final double AzimuthTimeZpOffset = firstAzimuthTimeZp - 0.5 * (firstAzimuthTimeZp + lastAzimuthTimeZp);
 
         // Save in metadata
@@ -514,36 +514,36 @@ public class IceyeSLCProductReader extends SARReader {
 
     private String getSampleType() {
         try {
-            if (IceyeXConstants.SLC.equalsIgnoreCase(netcdfFile.getRootGroup().findVariable(IceyeXConstants.SPH_DESCRIPTOR).readScalarString())) {
+            if (IceyeConstants.SLC.equalsIgnoreCase(netcdfFile.getRootGroup().findVariable(IceyeConstants.SPH_DESCRIPTOR).readScalarString())) {
                 isComplex = true;
-                return IceyeXConstants.COMPLEX;
+                return IceyeConstants.COMPLEX;
             }
         } catch (IOException e) {
             SystemUtils.LOG.severe(e.getMessage());
         }
         isComplex = false;
-        return IceyeXConstants.DETECTED;
+        return IceyeConstants.DETECTED;
     }
 
     private void addBandsToProduct() {
         int cnt = 1;
         Map<String, Variable> variables = new HashMap<>();
-        Variable siBand = netcdfFile.getRootGroup().findVariable(IceyeXConstants.S_I);
-        Variable sqBand = netcdfFile.getRootGroup().findVariable(IceyeXConstants.S_Q);
-        Variable amplitudeBand = netcdfFile.getRootGroup().findVariable(IceyeXConstants.S_AMPLITUDE);
+        Variable siBand = netcdfFile.getRootGroup().findVariable(IceyeConstants.S_I);
+        Variable sqBand = netcdfFile.getRootGroup().findVariable(IceyeConstants.S_Q);
+        Variable amplitudeBand = netcdfFile.getRootGroup().findVariable(IceyeConstants.S_AMPLITUDE);
         if (siBand != null) {
-            variables.put(IceyeXConstants.S_I, siBand);
+            variables.put(IceyeConstants.S_I, siBand);
         }
         if (sqBand != null) {
-            variables.put(IceyeXConstants.S_Q, sqBand);
+            variables.put(IceyeConstants.S_Q, sqBand);
         }
         if (amplitudeBand != null) {
-            variables.put(IceyeXConstants.S_AMPLITUDE, amplitudeBand);
+            variables.put(IceyeConstants.S_AMPLITUDE, amplitudeBand);
         }
         try {
 
-            final int width = netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_SAMPLES_PER_LINE).readScalarInt();
-            final int height = netcdfFile.getRootGroup().findVariable(IceyeXConstants.NUM_OUTPUT_LINES).readScalarInt();
+            final int width = netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_SAMPLES_PER_LINE).readScalarInt();
+            final int height = netcdfFile.getRootGroup().findVariable(IceyeConstants.NUM_OUTPUT_LINES).readScalarInt();
 
             String cntStr = "";
             if (variables.size() > 1) {
@@ -556,31 +556,31 @@ public class IceyeSLCProductReader extends SARReader {
             }
 
             if (isComplex) {
-                final Band bandI = NetCDFUtils.createBand(variables.get(IceyeXConstants.S_I), width, height);
+                final Band bandI = NetCDFUtils.createBand(variables.get(IceyeConstants.S_I), width, height);
                 createUniqueBandName(product, bandI, "i" + cntStr);
                 bandI.setUnit(Unit.REAL);
                 bandI.setNoDataValue(0);
                 bandI.setNoDataValueUsed(true);
                 product.addBand(bandI);
-                bandMap.put(bandI, variables.get(IceyeXConstants.S_I));
+                bandMap.put(bandI, variables.get(IceyeConstants.S_I));
 
-                final Band bandQ = NetCDFUtils.createBand(variables.get(IceyeXConstants.S_Q), width, height);
+                final Band bandQ = NetCDFUtils.createBand(variables.get(IceyeConstants.S_Q), width, height);
                 createUniqueBandName(product, bandQ, "q" + cntStr);
                 bandQ.setUnit(Unit.IMAGINARY);
                 bandQ.setNoDataValue(0);
                 bandQ.setNoDataValueUsed(true);
                 product.addBand(bandQ);
-                bandMap.put(bandQ, variables.get(IceyeXConstants.S_Q));
+                bandMap.put(bandQ, variables.get(IceyeConstants.S_Q));
 
                 ReaderUtils.createVirtualIntensityBand(product, bandI, bandQ, cntStr);
             } else {
-                final Band band = NetCDFUtils.createBand(variables.get(IceyeXConstants.S_AMPLITUDE), width, height);
+                final Band band = NetCDFUtils.createBand(variables.get(IceyeConstants.S_AMPLITUDE), width, height);
                 createUniqueBandName(product, band, "Amplitude" + cntStr);
                 band.setUnit(Unit.AMPLITUDE);
                 band.setNoDataValue(0);
                 band.setNoDataValueUsed(true);
                 product.addBand(band);
-                bandMap.put(band, variables.get(IceyeXConstants.S_AMPLITUDE));
+                bandMap.put(band, variables.get(IceyeConstants.S_AMPLITUDE));
 
                 createVirtualIntensityBand(product, band, cntStr);
             }
