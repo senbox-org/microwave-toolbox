@@ -43,6 +43,8 @@ public class BandSelectOpUI extends BaseOperatorUI {
     private final JLabel subImageLabel = new JLabel("Imagette:");
     private final JList bandList = new JList();
     private final JTextField bandNamePattern = new JTextField();
+    private final JList maskList = new JList();
+    private final JLabel maskLabel = new JLabel("Source Masks:");
 
     @Override
     public JComponent CreateOpTab(String operatorName, Map<String, Object> parameterMap, AppContext appContext) {
@@ -78,7 +80,7 @@ public class BandSelectOpUI extends BaseOperatorUI {
 
             boolean hasSubImages = subImages.length > 0;
             subImageList.setVisible(hasSubImages);
-            subImageLabel.setVisible(hasSubImages);
+            subImageLabel.setEnabled(hasSubImages);
 
             OperatorUIUtils.initParamList(subImageList, subImages,
                     (String[])paramMap.get("selectedSubImages"));
@@ -94,6 +96,13 @@ public class BandSelectOpUI extends BaseOperatorUI {
         OperatorUIUtils.initParamList(bandList, getBandNames());
 
         bandNamePattern.setText((String)paramMap.get("bandNamePattern"));
+
+        String[] maskNames = sourceProducts[0].getMaskGroup().getNodeNames();
+        OperatorUIUtils.initParamList(maskList, maskNames, (String[])paramMap.get("sourceMasks"));
+
+        boolean hasMasks = maskNames.length > 0;
+        maskList.setVisible(hasMasks);
+        maskLabel.setEnabled(hasMasks);
     }
 
     private void onUpdateBandList() {
@@ -132,6 +141,7 @@ public class BandSelectOpUI extends BaseOperatorUI {
         OperatorUIUtils.updateParamList(polList, paramMap, "selectedPolarisations");
         OperatorUIUtils.updateParamList(subImageList, paramMap, "selectedSubImages");
         OperatorUIUtils.updateParamList(bandList, paramMap, OperatorUIUtils.SOURCE_BAND_NAMES);
+        OperatorUIUtils.updateParamList(maskList, paramMap, "sourceMasks");
 
         paramMap.put("bandNamePattern", bandNamePattern.getText());
     }
@@ -150,6 +160,9 @@ public class BandSelectOpUI extends BaseOperatorUI {
 
         gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, "Band Name Pattern:", bandNamePattern);
+
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, maskLabel, new JScrollPane(maskList));
 
         DialogUtils.fillPanel(contentPane, gbc);
 
