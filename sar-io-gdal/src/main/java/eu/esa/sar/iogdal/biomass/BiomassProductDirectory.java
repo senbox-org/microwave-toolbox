@@ -42,11 +42,7 @@ import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
 
-import javax.media.jai.JAI;
-import javax.media.jai.RenderedOp;
-import javax.media.jai.operator.PolarToComplexDescriptor;
 import java.awt.*;
-import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -147,32 +143,29 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 Band absBand = absReaderData.bandProduct.getBandAt(cnt);
                 Band phaseBand = phaseReaderData.bandProduct.getBandAt(cnt);
 
-                // polar to complex conversion
-                final RenderedImage absImage = absBand.getSourceImage();
-                final RenderedImage phaseImage = phaseBand.getSourceImage();
-                RenderedOp complexImage = PolarToComplexDescriptor.create(absImage, phaseImage, null);
-                RenderedOp realImage = JAI.create("BandSelect", complexImage, new int[] {0});
-                RenderedOp imagImage = JAI.create("BandSelect", complexImage, new int[] {1});
+                bandName = "Amplitude" + '_' + suffix;
+                final Band newAbsBand = new Band(bandName, absBand.getDataType(), width, height);
+                newAbsBand.setUnit(Unit.AMPLITUDE);
+                newAbsBand.setNoDataValueUsed(true);
+                newAbsBand.setNoDataValue(NoDataValue);
+                newAbsBand.setSourceImage(absBand.getSourceImage());
 
-                bandName = "i" + '_' + suffix;
-                final Band iBand = new Band(bandName, ProductData.TYPE_FLOAT32, width, height);
-                iBand.setUnit(Unit.REAL);
-                iBand.setNoDataValueUsed(true);
-                iBand.setNoDataValue(NoDataValue);
-                iBand.setSourceImage(realImage);
-                product.addBand(iBand);
+                product.addBand(newAbsBand);
                 AbstractMetadata.addBandToBandMap(bandMetadata, bandName);
 
-                bandName = "q" + '_' + suffix;
-                final Band qBand = new Band(bandName, ProductData.TYPE_FLOAT32, width, height);
-                qBand.setUnit(Unit.IMAGINARY);
-                qBand.setNoDataValueUsed(true);
-                qBand.setNoDataValue(NoDataValue);
-                qBand.setSourceImage(imagImage);
-                product.addBand(qBand);
+                bandName = "Phase" + '_' + suffix;
+                final Band newPhaseBand = new Band(bandName, phaseBand.getDataType(), width, height);
+                newPhaseBand.setUnit(Unit.PHASE);
+                newPhaseBand.setNoDataValueUsed(true);
+                newPhaseBand.setNoDataValue(NoDataValue);
+                newPhaseBand.setSourceImage(phaseBand.getSourceImage());
+
+                product.addBand(newPhaseBand);
                 AbstractMetadata.addBandToBandMap(bandMetadata, bandName);
 
-                createVirtualIntensityBand(product, iBand, qBand, '_' + suffix);
+                createVirtualIBand(product, newAbsBand, newPhaseBand, '_' + suffix);
+                createVirtualQBand(product, newAbsBand, newPhaseBand, '_' + suffix);
+                SARReader.createVirtualIntensityBand(product, newAbsBand, '_' + suffix);
 
             } else {
 
@@ -191,33 +184,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             }
             ++cnt;
         }
-    }
-
-    public static Band createVirtualIntensityBand(
-            final Product product, final Band iBand, final Band qBand, final String suffix) {
-
-        final String iBandName = iBand.getName();
-        final String qBandName = qBand.getName();
-        final double nodatavalue = iBand.getNoDataValue();
-        final String expression = iBandName +" == " + nodatavalue +" ? " + nodatavalue +" : " +
-                iBandName + " * " + iBandName + " + " + qBandName + " * " + qBandName;
-
-        final VirtualBand virtBand = new VirtualBand("Intensity" + suffix,
-                ProductData.TYPE_FLOAT32,
-                iBand.getRasterWidth(),
-                iBand.getRasterHeight(),
-                expression);
-        virtBand.setUnit(Unit.INTENSITY);
-        virtBand.setDescription("Intensity from complex data");
-        virtBand.setNoDataValueUsed(true);
-        virtBand.setNoDataValue(nodatavalue);
-
-        if (iBand.getGeoCoding() != product.getSceneGeoCoding()) {
-            virtBand.setGeoCoding(iBand.getGeoCoding());
-        }
-
-        product.addBand(virtBand);
-        return virtBand;
     }
 
     public static Band createVirtualIBand(final Product product, final Band newAbsBand, final Band newPhaseBand, final String suffix) {
