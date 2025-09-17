@@ -38,6 +38,7 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import ucar.ma2.Array;
+import ucar.ma2.DataType;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
@@ -748,63 +749,51 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         try (final NetcdfFile netcdfFile = NetcdfFile.open(netCDFLUTFile.getAbsolutePath())) {
             final List<Variable> rasters = readNetCDFLUT(netcdfFile);
             for(Variable variable : rasters) {
-                String name = variable.getShortName();
-                int gridWidth = variable.getDimension(1).getLength();
-                int gridHeight = variable.getDimension(0).getLength();
+                try {
+                    String name = variable.getShortName();
+                    int gridWidth = variable.getDimension(1).getLength();
+                    int gridHeight = variable.getDimension(0).getLength();
 
-                final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
-                final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
+                    final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
+                    final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
 
-                Array dataArray = variable.read();
-                Object storage = dataArray.copyTo1DJavaArray();
+                    Array dataArray = variable.read();
+                    // Convert array data to a 1D float array, regardless of original type.
+                    float[] floatData = (float[]) dataArray.get1DJavaArray(DataType.FLOAT);
 
-                float[] floatData;
-                if (storage instanceof float[]) {
-                    floatData = (float[]) storage;
+                    if(name.equals(OperatorUtils.TPG_LATITUDE)) {
 
-                } else if (storage instanceof double[]) {
-                    double[] doubleData = (double[]) storage;
-                    floatData = new float[doubleData.length];
-                    for (int i = 0; i < doubleData.length; ++i) {
-                        floatData[i] = (float) doubleData[i];
-                    }
+                        TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
+                        if (latGrid == null) {
+                            latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
+                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
+                            latGrid.setUnit(Unit.DEGREES);
+                            product.addTiePointGrid(latGrid);
+                        }
+                    } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
 
-                } else {
-                    throw new Exception("  Warning: Could not cast data from variable '"
-                            + variable.getFullName() + "' to float[]. Actual array type: "
-                            + storage.getClass().getName());
-                }
-
-                if(name.equals(OperatorUtils.TPG_LATITUDE)) {
-
-                    TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
-                    if (latGrid == null) {
-                        latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
+                        TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
+                        if (lonGrid == null) {
+                            lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
+                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
+                            lonGrid.setUnit(Unit.DEGREES);
+                            product.addTiePointGrid(lonGrid);
+                        }
+                    } else {
+                        if(name.equalsIgnoreCase("incidenceangle")) {
+                            name = OperatorUtils.TPG_INCIDENT_ANGLE;
+                        } else if(name.equalsIgnoreCase("elevationangle")) {
+                            name = OperatorUtils.TPG_ELEVATION_ANGLE;
+                        } else if(name.equalsIgnoreCase("terrainslope")) {
+                            name = "terrain_slope";
+                        }
+                        final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
                                 gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                        latGrid.setUnit(Unit.DEGREES);
-                        product.addTiePointGrid(latGrid);
+                        incidentAngleGrid.setUnit(Unit.DEGREES);
+                        product.addTiePointGrid(incidentAngleGrid);
                     }
-                } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
-
-                    TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
-                    if (lonGrid == null) {
-                        lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
-                                gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
-                        lonGrid.setUnit(Unit.DEGREES);
-                        product.addTiePointGrid(lonGrid);
-                    }
-                } else {
-                    if(name.toLowerCase().equals("incidenceangle")) {
-                        name = OperatorUtils.TPG_INCIDENT_ANGLE;
-                    } else if(name.toLowerCase().equals("elevationangle")) {
-                        name = OperatorUtils.TPG_ELEVATION_ANGLE;
-                    } else if(name.toLowerCase().equals("terrainslope")) {
-                        name = "terrain_slope";
-                    }
-                    final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
-                            gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                    incidentAngleGrid.setUnit(Unit.DEGREES);
-                    product.addTiePointGrid(incidentAngleGrid);
+                } catch (Exception e) {
+                    System.out.println("Error reading netCDFLUT file: " + e.getMessage());
                 }
             }
         } catch (Exception e) {
