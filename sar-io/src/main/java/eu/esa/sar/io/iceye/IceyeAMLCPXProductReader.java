@@ -501,7 +501,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
     static double applyPolynomial(double[] coeffs, double t) {
         double sum = coeffs[coeffs.length - 1];
         for (int i = coeffs.length-1; i > 0 ; i--) {
-            sum += sum * t + coeffs[i-1];
+            sum = sum * t + coeffs[i-1];
         }
         return sum;
     }
