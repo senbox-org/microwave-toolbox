@@ -127,114 +127,51 @@ public final class Orbit {
         computeCoefficients();
     }
 
-    // TODO: make generic so it can work with arrays of lines as well: see matlab implementation
     public Point lph2xyz(final double line, final double pixel, final double height, final SLCImage slcimage) throws Exception {
-
-        Point satellitePosition;
-        Point satelliteVelocity;
-        Point ellipsoidPosition; // returned
-
-        // allocate matrices
-        double[] equationSet = new double[3];
-        double[][] partialsXYZ = new double[3][3];
-
-        double azTime = slcimage.line2ta(line);
-        double rgTime = slcimage.pix2tr(pixel);
-
-        satellitePosition = getXYZ(azTime);
-        satelliteVelocity = getXYZDot(azTime);
-
-        // initial value
-        ellipsoidPosition = slcimage.getApproxXYZCentreOriginal();
-
-        // iterate for the solution
-        for (int iter = 0; iter <= MAXITER; iter++) {
-
-            // update equations and solve system
-
-            Point dsat_P = ellipsoidPosition.min(satellitePosition);
-
-            equationSet[0] = -eq1_Doppler(satelliteVelocity, dsat_P);
-            equationSet[1] = -eq2_Range(dsat_P, rgTime);
-            equationSet[2] = -eq3_Ellipsoid(ellipsoidPosition, height);
-
-            partialsXYZ[0][0] = satelliteVelocity.x;
-            partialsXYZ[0][1] = satelliteVelocity.y;
-            partialsXYZ[0][2] = satelliteVelocity.z;
-            partialsXYZ[1][0] = 2 * dsat_P.x;
-            partialsXYZ[1][1] = 2 * dsat_P.y;
-            partialsXYZ[1][2] = 2 * dsat_P.z;
-            partialsXYZ[2][0] = (2 * ellipsoidPosition.x) / (FastMath.pow(ell_a + height, 2));
-            partialsXYZ[2][1] = (2 * ellipsoidPosition.y) / (FastMath.pow(ell_a + height, 2));
-            partialsXYZ[2][2] = (2 * ellipsoidPosition.z) / (FastMath.pow(ell_b + height, 2));
-
-            // solve system [NOTE!] orbit has to be normalized, otherwise close to singular
-            // DoubleMatrix ellipsoidPositionSolution = Solve.solve(partialsXYZ, equationSet);
-//            double[] ellipsoidPositionSolution = Solve.solve(new DoubleMatrix(partialsXYZ), new DoubleMatrix(equationSet)).toArray();
-            double[] ellipsoidPositionSolution = LinearAlgebraUtils.solve33(partialsXYZ, equationSet);
-
-            // update solution
-            ellipsoidPosition.x += ellipsoidPositionSolution[0];
-            ellipsoidPosition.y += ellipsoidPositionSolution[1];
-            ellipsoidPosition.z += ellipsoidPositionSolution[2];
-
-            // check convergence
-            if (Math.abs(ellipsoidPositionSolution[0]) < CRITERPOS &&
-                    Math.abs(ellipsoidPositionSolution[1]) < CRITERPOS &&
-                    Math.abs(ellipsoidPositionSolution[2]) < CRITERPOS) {
-                //logger.info("INFO: ellipsoidPosition (converged): {"+ellipsoidPosition+"} ");
-                break;
-
-            } else if (iter >= MAXITER) {
-//                MAXITER = MAXITER + 1;
-                //logger.warning("line, pix -> x,y,z: maximum iterations ( {"+MAXITER+"} ) reached.");
-                //logger.warning("Criterium (m): {"+CRITERPOS+"}  dx,dy,dz = {"+ ArrayUtils.toString(ellipsoidPositionSolution)+"}");
-
-                if (MAXITER > 10) {
-                    logger.severe("lp2xyz : MAXITER limit reached! lp2xyz() estimation is diverging?!");
-                    throw new Exception("Orbit.lp2xyz : MAXITER limit reached! lp2xyz() estimation is diverging?!");
-                }
-
-            }
-        }
-
-        return new Point(ellipsoidPosition);
+        final double azTime = slcimage.line2ta(line);
+        final double rgTime = slcimage.pix2tr(pixel);
+        final Point approxXYZ = slcimage.getApproxXYZCentreOriginal();
+        return lph2xyz(azTime, rgTime, height, approxXYZ);
     }
 
     public Point lph2xyz(final double azTime, final double rgTime, final double height, final Point approxXYZCentre)
             throws Exception {
 
-        Point satellitePosition;
-        Point satelliteVelocity;
         Point ellipsoidPosition = new Point(approxXYZCentre); // returned
 
         // allocate matrices
         double[] equationSet = new double[3];
         double[][] partialsXYZ = new double[3][3];
 
-        satellitePosition = getXYZ(azTime);
-        satelliteVelocity = getXYZDot(azTime);
+        // Use combined method to get satellite state
+        final SatPos satPos = getSatPos(azTime);
+        final Point satellitePosition = satPos.position;
+        final Point satelliteVelocity = satPos.velocity;
+
+        // Pre-calculate constant terms for the loop
+        final double rgTime2 = rgTime * rgTime;
+        final double ellA_h_2 = FastMath.pow(ell_a + height, 2);
+        final double ellB_h_2 = FastMath.pow(ell_b + height, 2);
 
         // iterate for the solution
         for (int iter = 0; iter <= MAXITER; iter++) {
 
             // update equations and solve system
-
-            Point dsat_P = ellipsoidPosition.min(satellitePosition);
+            final Point dsat_P = ellipsoidPosition.min(satellitePosition);
 
             equationSet[0] = -eq1_Doppler(satelliteVelocity, dsat_P);
-            equationSet[1] = -eq2_Range(dsat_P, rgTime);
+            equationSet[1] = -(dsat_P.norm2() - SOL * SOL * rgTime2);
             equationSet[2] = -eq3_Ellipsoid(ellipsoidPosition, height);
 
             partialsXYZ[0][0] = satelliteVelocity.x;
             partialsXYZ[0][1] = satelliteVelocity.y;
             partialsXYZ[0][2] = satelliteVelocity.z;
-            partialsXYZ[1][0] = 2 * dsat_P.x;
-            partialsXYZ[1][1] = 2 * dsat_P.y;
-            partialsXYZ[1][2] = 2 * dsat_P.z;
-            partialsXYZ[2][0] = (2 * ellipsoidPosition.x) / (FastMath.pow(ell_a + height, 2));
-            partialsXYZ[2][1] = (2 * ellipsoidPosition.y) / (FastMath.pow(ell_a + height, 2));
-            partialsXYZ[2][2] = (2 * ellipsoidPosition.z) / (FastMath.pow(ell_b + height, 2));
+            partialsXYZ[1][0] = 2.0 * dsat_P.x;
+            partialsXYZ[1][1] = 2.0 * dsat_P.y;
+            partialsXYZ[1][2] = 2.0 * dsat_P.z;
+            partialsXYZ[2][0] = (2.0 * ellipsoidPosition.x) / ellA_h_2;
+            partialsXYZ[2][1] = (2.0 * ellipsoidPosition.y) / ellA_h_2;
+            partialsXYZ[2][2] = (2.0 * ellipsoidPosition.z) / ellB_h_2;
 
             double[] ellipsoidPositionSolution = LinearAlgebraUtils.solve33(partialsXYZ, equationSet);
 
@@ -294,13 +231,11 @@ public final class Orbit {
         int iter;
         double solution = 0;
         for (iter = 0; iter <= MAXITER; ++iter) {
-            Point satellitePosition = getXYZ(timeAzimuth);
-            Point satelliteVelocity = getXYZDot(timeAzimuth);
-            Point satelliteAcceleration = getXYZDotDot(timeAzimuth);
-            delta = pointOnEllips.min(satellitePosition);
+            SatPos satPos = getSatPos(timeAzimuth);
+            delta = pointOnEllips.min(satPos.position);
 
             // update solution
-            solution = -eq1_Doppler(satelliteVelocity, delta) / eq1_Doppler_dt(delta, satelliteVelocity, satelliteAcceleration);
+            solution = -eq1_Doppler(satPos.velocity, delta) / eq1_Doppler_dt(delta, satPos.velocity, satPos.acceleration);
             timeAzimuth += solution;
 
             if (Math.abs(solution) < CRITERTIM) {
@@ -334,13 +269,11 @@ public final class Orbit {
         int iter;
         double solution = 0;
         for (iter = 0; iter <= MAXITER; ++iter) {
-            Point satellitePosition = getXYZ(timeAzimuth);
-            Point satelliteVelocity = getXYZDot(timeAzimuth);
-            Point satelliteAcceleration = getXYZDotDot(timeAzimuth);
-            delta = pointOnEllips.min(satellitePosition);
+            SatPos satPos = getSatPos(timeAzimuth);
+            delta = pointOnEllips.min(satPos.position);
 
             // update solution
-            solution = -eq1_Doppler(satelliteVelocity, delta) / eq1_Doppler_dt(delta, satelliteVelocity, satelliteAcceleration);
+            solution = -eq1_Doppler(satPos.velocity, delta) / eq1_Doppler_dt(delta, satPos.velocity, satPos.acceleration);
             timeAzimuth += solution;
 
             if (Math.abs(solution) < CRITERTIM) {
@@ -393,12 +326,53 @@ public final class Orbit {
         return Ellipsoid.xyz2ell(lph2xyz(sarPixel.x, sarPixel.y, height, slcimage));
     }
 
-    public Point getXYZ(final double azTime) {
+    public static class SatPos {
+        public Point position;
+        public Point velocity;
+        public Point acceleration;
 
-        //if (azTime < time[0] || azTime > time[numStateVectors - 1]) {
-        //    logger.warning("getXYZ() interpolation at: " + azTime + " is outside interval time axis: ("
-        //            + time[0] + ", " + time[numStateVectors - 1] + ").");
-        //}
+        public SatPos(Point position, Point velocity, Point acceleration) {
+            this.position = position;
+            this.velocity = velocity;
+            this.acceleration = acceleration;
+        }
+    }
+
+    public SatPos getSatPos(final double azTime) {
+        // Normalize time for polynomial evaluation
+        final double t = (azTime - time[time.length / 2]) / 10.0;
+
+        // Horner's method for simultaneous evaluation of polynomial and its derivatives
+        // P(t) = c_n*t^n + ... + c_1*t + c_0
+        // P'(t) = n*c_n*t^(n-1) + ... + c_1
+        // P''(t) = n*(n-1)*c_n*t^(n-2) + ... + 2*c_2
+        double posX = coeff_X[poly_degree], posY = coeff_Y[poly_degree], posZ = coeff_Z[poly_degree];
+        double velX = 0, velY = 0, velZ = 0;
+        double accX = 0, accY = 0, accZ = 0;
+
+        for (int i = poly_degree - 1; i >= 0; i--) {
+            accX = accX * t + 2 * velX;
+            accY = accY * t + 2 * velY;
+            accZ = accZ * t + 2 * velZ;
+
+            velX = velX * t + posX;
+            velY = velY * t + posY;
+            velZ = velZ * t + posZ;
+
+            posX = posX * t + coeff_X[i];
+            posY = posY * t + coeff_Y[i];
+            posZ = posZ * t + coeff_Z[i];
+        }
+
+        // Apply scaling factors for derivatives (due to normalized time)
+        // Velocity is dP/d(azTime) = dP/dt * dt/d(azTime) = P' * (1/10)
+        // Acceleration is d^2P/d(azTime)^2 = d/d(azTime)(P'/10) = d/dt(P'/10) * dt/d(azTime) = (P''/10) * (1/10) = P''/100
+        return new SatPos(new Point(posX, posY, posZ),
+                new Point(velX / 10.0, velY / 10.0, velZ / 10.0),
+                new Point(accX / 100.0, accY / 100.0, accZ / 100.0));
+    }
+
+    public Point getXYZ(final double azTime) {
 
         // normalize time
         double azTimeNormal = (azTime - time[time.length / 2]) / 10.0;
@@ -411,15 +385,8 @@ public final class Orbit {
 
     public Point getXYZDot(double azTime) {
 
-        //if (azTime < time[0] || azTime > time[numStateVectors - 1]) {
-        //    logger.warning("getXYZDot() interpolation at: " + azTime + " is outside interval time axis: ("
-        //            + time[0] + ", " + time[numStateVectors - 1] + ").");
-        //}
-
-        //TODO: spline support!
-
         // normalize time
-        azTime = (azTime - time[numStateVectors / 2]) / 10.0;
+        azTime = (azTime - time[time.length / 2]) / 10.0;
 
         int DEGREE = coeff_X.length - 1;
 
@@ -481,50 +448,6 @@ public final class Orbit {
     public double eq3_Ellipsoid(final Point pointOnEllips, final double semiMajorA, final double semiMinorB, final double height) {
         return ((pointOnEllips.x*pointOnEllips.x + pointOnEllips.y*pointOnEllips.y) / FastMath.pow(semiMajorA + height, 2)) +
                 FastMath.pow(pointOnEllips.z / (semiMinorB + height), 2) - 1.0;
-    }
-
-    // TODO: sanity checks
-    public Point[][] dumpOrbit() {
-
-        if (numStateVectors == 0) {
-            System.out.println("Exiting Orbit.dumporbit(), no orbit data available.");
-        }
-
-        final double dt = 0.25;
-
-        logger.info("dumporbits: MAXITER: " + MAXITER + "; " +
-                "CRITERPOS: " + CRITERPOS + "m; " +
-                "CRITERTIM: " + CRITERTIM + "s");
-
-        //  ______ Evaluate polynomial orbit for t1:dt:tN ______
-        int outputLines = 1 + (int) ((time[numStateVectors - 1] - time[0]) / dt);
-
-        double azTime = time[0];
-        Point[][] dumpedOrbit = new Point[outputLines][3];
-
-        for (int i = 0; i < outputLines; ++i) {
-            dumpedOrbit[i][0] = getXYZ(azTime);
-            dumpedOrbit[i][1] = getXYZDot(azTime);
-            dumpedOrbit[i][2] = getXYZDotDot(azTime);
-            azTime += dt;
-        }
-
-        return dumpedOrbit;
-
-    }
-
-    public void showOrbit() {
-
-        logger.info("Time of orbit ephemerides: " + time.toString());
-        logger.info("Orbit ephemerides x:" + data_X.toString());
-        logger.info("Orbit ephemerides y:" + data_Y.toString());
-        logger.info("Orbit ephemerides z:" + data_Z.toString());
-
-        if (isInterpolated) {
-            logger.info("Estimated coefficients x(t):" + coeff_X.toString());
-            logger.info("Estimated coefficients y(t):" + coeff_Y.toString());
-            logger.info("Estimated coefficients z(t):" + coeff_Z.toString());
-        }
     }
 
     public int getNumStateVectors() {
@@ -590,4 +513,3 @@ public final class Orbit {
         return (metadata.getPRF() / metadata.getAzimuthBandwidth()) * (this.computeAzimuthDelta(sarPixel, metadata) / metadata.getMlAz());
     }
 }
-
