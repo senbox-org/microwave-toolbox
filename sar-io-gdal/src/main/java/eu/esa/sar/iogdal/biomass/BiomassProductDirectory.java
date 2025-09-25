@@ -317,7 +317,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
 
         boolean commonMetadataRetrieved = false;
-        double heightSum = 0.0;
 
         final String[] filenames = listFiles(annotFolder);
         if (filenames != null) {
@@ -379,8 +378,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
 
         readOrbitStateVectors(absRoot);
-
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, heightSum / filenames.length);
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
     }
