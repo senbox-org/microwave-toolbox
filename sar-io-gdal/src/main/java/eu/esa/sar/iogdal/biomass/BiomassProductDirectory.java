@@ -80,7 +80,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         ProductReader reader;
         Product bandProduct;
     }
-    
+
     @Override
     public void close() throws IOException {
         super.close();
@@ -457,18 +457,20 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             final MetadataElement rangeProcessingParameters = processingParameters.getElement("rangeProcessingParameters");
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_window_type,
                     rangeProcessingParameters.getAttributeString("windowType"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_window_coefficient,
+                    rangeProcessingParameters.getAttributeDouble("windowCoefficient"));
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
                     rangeProcessingParameters.getAttributeDouble("numberOfLooks"));
-            final MetadataElement processingBandwidth = rangeProcessingParameters.getElement("processingBandwidth");
+            final MetadataElement rangeTotalBandwidth = rangeProcessingParameters.getElement("totalBandwidth");
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth,
-                    processingBandwidth.getAttributeDouble("processingBandwidth") / Constants.oneMillion);
+                    rangeTotalBandwidth.getAttributeDouble("totalBandwidth") / Constants.oneMillion);
 
             final MetadataElement azimuthProcessingParameters = processingParameters.getElement("azimuthProcessingParameters");
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks,
                     azimuthProcessingParameters.getAttributeDouble("numberOfLooks"));
-            final MetadataElement azimuthProcessingBandwidth = azimuthProcessingParameters.getElement("processingBandwidth");
+            final MetadataElement azimuthTotalBandwidth = azimuthProcessingParameters.getElement("totalBandwidth");
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth,
-                    azimuthProcessingBandwidth.getAttributeDouble("processingBandwidth") / Constants.oneMillion);
+                    azimuthTotalBandwidth.getAttributeDouble("totalBandwidth"));
 
             // instrumentParameters
             final MetadataElement radarCarrierFrequency = instrumentParameters.getElement("radarCarrierFrequency");
@@ -481,10 +483,10 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency,
                     value.getAttributeDouble("value"));
 
-//                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
-//                                                  productInformation.getAttributeDouble("rangeSamplingRate") / Constants.oneMillion);
-//                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
-//                                                  imageInformation.getAttributeDouble("azimuthTimeInterval"));
+            MetadataElement rangeTimeIntervalElem = sarImage.getElement("rangeTimeInterval");
+            double rangeTimeInterval = rangeTimeIntervalElem.getAttributeDouble("rangeTimeInterval");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
+                    (1.0/rangeTimeInterval) / Constants.oneMillion);
 
             final MetadataElement rangeCoordinateConversion = sarImage.getElement("rangeCoordinateConversion");
             addSRGRCoefficients(absRoot, rangeCoordinateConversion);
@@ -522,6 +524,11 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     sarImage.getAttributeInt("numberOfSamples"));
             AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.num_output_lines,
                     sarImage.getAttributeInt("numberOfLines"));
+
+            final MetadataElement azimuthTimeInterval = sarImage.getElement("azimuthTimeInterval");
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.line_time_interval,
+                    azimuthTimeInterval.getAttributeDouble("azimuthTimeInterval"));
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.SAMPLE_TYPE, isSLC() ? "COMPLEX" : "DETECTED");
 
             final MetadataElement radiometricCalibration = mainAnnotation.getElement("radiometricCalibration");
             final MetadataElement absoluteCalibrationConstantList = radiometricCalibration.getElement("absoluteCalibrationConstantList");
@@ -704,7 +711,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             final ProductData.UTC utcTime = getTime(elem, "azimuthTime", biomassDateFormat);
             dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, utcTime);
 
-            final double refTime = elem.getAttributeDouble("t0", 0) * 1e9; // s to ns
+            MetadataElement t0Elem = elem.getElement("t0");
+            final double refTime = t0Elem.getAttributeDouble("t0", 0) * 1e9; // s to ns
             AbstractMetadata.addAbstractedAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
                                                     ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
             AbstractMetadata.setAttribute(dopplerListElem, AbstractMetadata.slant_range_time, refTime);
@@ -783,6 +791,14 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                             name = OperatorUtils.TPG_ELEVATION_ANGLE;
                         } else if(name.equalsIgnoreCase("terrainslope")) {
                             name = "terrain_slope";
+                        } else if(name.equalsIgnoreCase("height")) {
+                            double sum = 0;
+                            for(float val : floatData) {
+                                sum += val;
+                            }
+                            double avgHeight = sum / floatData.length;
+                            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+                            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, avgHeight);
                         }
                         final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
                                 gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
