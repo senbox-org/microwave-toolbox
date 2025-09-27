@@ -69,6 +69,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     private String productType = "";
     private String annotationName = "";
     private File netCDFLUTFile;
+    private double firstSampleSlantRangeTime;
+    private double lastSampleSlantRangeTime;
 
     DateFormat biomassDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd_HH:mm:ss");
 
@@ -426,9 +428,13 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line,
                     sarImage.getAttributeInt("numberOfSamples"));
 
-            final MetadataElement firstSampleSlantRangeTime = sarImage.getElement("firstSampleSlantRangeTime");
+            final MetadataElement firstSampleSlantRangeTimeElem = sarImage.getElement("firstSampleSlantRangeTime");
+            final MetadataElement lastSampleSlantRangeTimeElem = sarImage.getElement("lastSampleSlantRangeTime");
+            firstSampleSlantRangeTime = firstSampleSlantRangeTimeElem.getAttributeDouble("firstSampleSlantRangeTime");
+            lastSampleSlantRangeTime = lastSampleSlantRangeTimeElem.getAttributeDouble("lastSampleSlantRangeTime");
+
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel,
-                    firstSampleSlantRangeTime.getAttributeDouble("firstSampleSlantRangeTime") * Constants.halfLightSpeed);
+                    firstSampleSlantRangeTime * Constants.halfLightSpeed);
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time,
                     getTime(sarImage, "firstLineAzimuthTime", biomassDateFormat));
@@ -809,8 +815,39 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     System.out.println("Error reading netCDFLUT file: " + e.getMessage());
                 }
             }
+
+            addSlantRangeTimeTPG(product);
         } catch (Exception e) {
             System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+        }
+    }
+
+    private void addSlantRangeTimeTPG(final Product product) {
+        final int gridWidth = 4;
+        final int gridHeight = 4;
+        final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
+        final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
+
+        final double firstSample = firstSampleSlantRangeTime * 1e9; // s to ns
+        final double lastSample = lastSampleSlantRangeTime * 1e9; // s to ns
+
+        final double[] slantRangeCorners = new double[4];
+        slantRangeCorners[0] = firstSample;
+        slantRangeCorners[1] = lastSample;
+        slantRangeCorners[2] = slantRangeCorners[0];
+        slantRangeCorners[3] = slantRangeCorners[1];
+
+        if (product.getTiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME) == null) {
+            final float[] fineSlantRangeTimes = new float[gridWidth * gridHeight];
+            ReaderUtils.createFineTiePointGrid(
+                    2, 2, gridWidth, gridHeight, slantRangeCorners, fineSlantRangeTimes);
+
+            final TiePointGrid slantRangeTimeGrid = new TiePointGrid(
+                    OperatorUtils.TPG_SLANT_RANGE_TIME, gridWidth, gridHeight, 0, 0,
+                    subSamplingX, subSamplingY, fineSlantRangeTimes);
+
+            slantRangeTimeGrid.setUnit(Unit.NANOSECONDS);
+            product.addTiePointGrid(slantRangeTimeGrid);
         }
     }
 
