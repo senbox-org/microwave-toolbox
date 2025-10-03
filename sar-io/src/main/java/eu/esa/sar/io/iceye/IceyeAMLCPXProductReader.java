@@ -219,7 +219,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
 
         addMetaString(absRoot, AbstractMetadata.PASS, IceyeConstants.PASS);
         addMetaUTC(absRoot, AbstractMetadata.PROC_TIME, IceyeConstants.PROC_TIME);
-        addMetaString(absRoot, AbstractMetadata.ProcessingSystemIdentifier, IceyeConstants.ProcessngSystemIdentifier);
+        addMetaString(absRoot, AbstractMetadata.ProcessingSystemIdentifier, IceyeConstants.ProcessingSystemIdentifier);
         addMetaDouble(absRoot, AbstractMetadata.incidence_near, IceyeConstants.incidence_near);
         addMetaDouble(absRoot, AbstractMetadata.incidence_far, IceyeConstants.incidence_far);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.geo_ref_system, IceyeConstants.geo_ref_system_default);
