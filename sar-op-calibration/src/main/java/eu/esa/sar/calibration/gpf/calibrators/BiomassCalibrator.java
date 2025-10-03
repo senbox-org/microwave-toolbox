@@ -258,9 +258,12 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
 
                     double calValue = dn * calibrationFactor;
                     if (dn == trgFloorValue) {
-                        while((float)calValue < 0.00001) {
+                        final int max_iter = 1000;
+                        int iter = 0;
+                        while( (float)calValue < 0.00001 && iter < max_iter) {
                             dn *= 2;
                             calValue = dn * calibrationFactor;
+                            iter += 1;
                         }
                     }
 
