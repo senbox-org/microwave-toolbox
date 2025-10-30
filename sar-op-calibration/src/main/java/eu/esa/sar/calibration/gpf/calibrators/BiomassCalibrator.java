@@ -28,14 +28,14 @@ import org.esa.snap.core.gpf.Tile;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
-import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
 
 import java.awt.*;
 import java.io.File;
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Calibration for ESA Biomass data products.
@@ -80,12 +80,6 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
     public void setAuxFileFlag(String file) {
     }
 
-    private void validate(final Product sourceProduct) throws OperatorException {
-        final InputProductValidator validator = new InputProductValidator(sourceProduct);
-        validator.checkAcquisitionMode(new String[]{"SM"});
-        validator.checkProductType(new String[]{"SCS", "DGM"});
-    }
-
     /**
 
      */
@@ -96,8 +90,6 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
             this.calibrationOp = op;
             this.sourceProduct = srcProduct;
             this.targetProduct = tgtProduct;
-
-            validate(sourceProduct);
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
@@ -151,17 +143,80 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
         }
     }
 
-    /**
-     * Create target product.
-     */
     @Override
-    public Product createTargetProduct(final Product sourceProduct, final String[] sourceBandNames) {
+    protected void outputInComplex(final Product sourceProduct, final String[] sourceBandNames) {
 
-        validate(sourceProduct);
+        final Band[] allBands = getSourceBands(sourceProduct, sourceBandNames, true);
 
-        return super.createTargetProduct(sourceProduct, sourceBandNames);
+        List<Band> sourceBandsList = new ArrayList<>();
+        for(Band band : allBands) {
+            String unit = band.getUnit();
+            if(unit.contains(Unit.REAL) || unit.contains(Unit.IMAGINARY)) {
+                sourceBandsList.add(band);
+            }
+        }
+        final Band[] sourceBands = sourceBandsList.toArray(new Band[0]);
+
+        for (int i = 0; i < sourceBands.length; i += 2) {
+
+            final Band srcBandI = sourceBands[i];
+            final String unit = srcBandI.getUnit();
+            String nextUnit;
+            if (unit == null) {
+                throw new OperatorException("band " + srcBandI.getName() + " requires a unit");
+            } else if (unit.contains(Unit.DB)) {
+                throw new OperatorException("Calibration of bands in dB is not supported");
+            } else if (unit.contains(Unit.IMAGINARY)) {
+                throw new OperatorException("I and Q bands should be selected in pairs");
+            } else if (unit.contains(Unit.REAL)) {
+                if (i + 1 >= sourceBands.length) {
+                    throw new OperatorException("I and Q bands should be selected in pairs");
+                }
+                nextUnit = sourceBands[i + 1].getUnit();
+                if (nextUnit == null || !nextUnit.contains(Unit.IMAGINARY)) {
+                    throw new OperatorException("I and Q bands should be selected in pairs");
+                }
+            } else {
+                throw new OperatorException("Please select I and Q bands in pairs only");
+            }
+
+            final String pol = srcBandI.getName().substring(srcBandI.getName().lastIndexOf("_") + 1);
+            if (!selectedPolList.isEmpty() && !selectedPolList.contains(pol)) {
+                continue;
+            }
+
+            final Band srcBandQ = sourceBands[i + 1];
+            final String[] srcBandNames = {srcBandI.getName(), srcBandQ.getName()};
+            targetBandNameToSourceBandName.put(srcBandNames[0], srcBandNames);
+            final Band targetBandI = new Band(
+                    srcBandNames[0], ProductData.TYPE_FLOAT32, srcBandI.getRasterWidth(), srcBandI.getRasterHeight());
+            targetProduct.addBand(targetBandI);
+            targetBandI.setUnit(unit);
+            targetBandI.setNoDataValueUsed(true);
+            targetBandI.setNoDataValue(srcBandI.getNoDataValue());
+
+            if(srcBandI.hasGeoCoding()) {
+                // copy band geocoding after target band added to target product
+                ProductUtils.copyGeoCoding(srcBandI, targetBandI);
+            }
+
+            targetBandNameToSourceBandName.put(srcBandNames[1], srcBandNames);
+            final Band targetBandQ = new Band(
+                    srcBandNames[1], ProductData.TYPE_FLOAT32, srcBandQ.getRasterWidth(), srcBandQ.getRasterHeight());
+            targetProduct.addBand(targetBandQ);
+            targetBandQ.setUnit(nextUnit);
+            targetBandQ.setNoDataValueUsed(true);
+            targetBandQ.setNoDataValue(srcBandQ.getNoDataValue());
+
+            if(srcBandQ.hasGeoCoding()) {
+                // copy band geocoding after target band added to target product
+                ProductUtils.copyGeoCoding(srcBandQ, targetBandQ);
+            }
+
+            final String suffix = '_' + OperatorUtils.getSuffixFromBandName(srcBandI.getName());
+            ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, suffix);
+        }
     }
-
 
     /**
      * Called by the framework in order to compute a tile for the given target band.
@@ -216,6 +271,8 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
 
             final CALTYPE calType = getCalibrationType(targetBandName);
             float trgFloorValue = Sentinel1RemoveThermalNoiseOp.trgFloorValue;
+            double srcNodataValue = sourceBand1.getNoDataValue();
+            double trgNodataValue = targetBand.getNoDataValue();
 
             double i, q, phaseTerm = 0.0;
             for (int y = y0; y < maxY; ++y) {
@@ -224,6 +281,12 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
 
                 for (int x = x0; x < maxX; ++x) {
                     final int srcIdx = srcIndex.getIndex(x);
+
+                    double dn = srcData1.getElemDoubleAt(srcIdx);
+                    if(dn == srcNodataValue) {
+                        tgtData.setElemDoubleAt(trgIndex.getIndex(x), trgNodataValue);
+                        continue;
+                    }
 
                     double calibrationFactor = 1.0;
                     if (calType != null) {
@@ -234,7 +297,6 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
                         calibrationFactor /= getLutValue(dataType, x, y);
                     }
 
-                    double dn = srcData1.getElemDoubleAt(srcIdx);
                     if (isUnitAmplitude) {
                         dn *= dn;
                     } else if (isUnitIntensitydB) {
