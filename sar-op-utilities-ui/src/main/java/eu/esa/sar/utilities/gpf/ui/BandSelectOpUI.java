@@ -97,7 +97,7 @@ public class BandSelectOpUI extends BaseOperatorUI {
 
         bandNamePattern.setText((String)paramMap.get("bandNamePattern"));
 
-        String[] maskNames = sourceProducts[0].getMaskGroup().getNodeNames();
+        String[] maskNames = (sourceProducts != null && sourceProducts.length > 0) ? sourceProducts[0].getMaskGroup().getNodeNames() : new String[0];
         OperatorUIUtils.initParamList(maskList, maskNames, (String[])paramMap.get("sourceMasks"));
 
         boolean hasMasks = maskNames.length > 0;
