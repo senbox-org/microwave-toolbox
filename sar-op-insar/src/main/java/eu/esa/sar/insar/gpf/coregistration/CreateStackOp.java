@@ -154,17 +154,7 @@ public class CreateStackOp extends Operator {
             }
 
             if (masterBandNames == null || masterBandNames.length == 0 || getMasterProduct(masterBandNames[0]) == null) {
-                final Product defaultProd = sourceProduct[0];
-                if (defaultProd != null) {
-                    final Band defaultBand = defaultProd.getBandAt(0);
-                    if (defaultBand != null) {
-                        if (defaultBand.getUnit() != null && defaultBand.getUnit().equals(Unit.REAL))
-                            masterBandNames = new String[]{defaultProd.getBandAt(0).getName(),
-                                    defaultProd.getBandAt(1).getName()};
-                        else
-                            masterBandNames = new String[]{defaultBand.getName()};
-                    }
-                }
+                masterBandNames = getMasterBands();
                 if (masterBandNames.length == 0) {
                     targetProduct = OperatorUtils.createDummyTargetProduct(sourceProduct);
                     return;
@@ -356,6 +346,26 @@ public class CreateStackOp extends Operator {
         }
     }
 
+    private String[] getMasterBands() {
+        String[] masterBandNames = new String[] {};
+        final Product defaultProd = sourceProduct[0];
+        if (defaultProd != null) {
+            int index = 0;
+            for(Band band : defaultProd.getBands()) {
+                if (band.getUnit() != null && band.getUnit().equals(Unit.REAL)) {
+                    masterBandNames = new String[]{band.getName(),
+                            defaultProd.getBandAt(index + 1).getName()};
+                    break;
+                }
+                ++index;
+            }
+            if(masterBandNames.length == 0) {
+                masterBandNames = new String[]{defaultProd.getBandAt(0).getName()};
+            }
+        }
+        return masterBandNames;
+    }
+
     private void updateMetadata() {
         final MetadataElement abstractedMetadata = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if(abstractedMetadata != null) {
@@ -377,6 +387,18 @@ public class CreateStackOp extends Operator {
                 inputAttrb.getData().setElems(attrib.getData().getElemString());
             }
         }
+
+        if (isBiomassL1c()) {
+            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack, 1);
+        }
+    }
+
+    private boolean isBiomassL1c() {
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+        final MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(targetProduct);
+        final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION);
+        return mission.toLowerCase().contains("biomass") && (origProdRoot.getElement("annotation_coregistered") != null);
     }
 
     public static void getBaselines(final Product[] sourceProduct, final Product targetProduct) {
@@ -511,14 +533,24 @@ public class CreateStackOp extends Operator {
         if (slaveBandNames == null || slaveBandNames.length == 0 || contains(masterBandNames, slaveBandNames[0])) {
             for (Product slvProduct : sourceProduct) {
                 for (Band band : slvProduct.getBands()) {
-                    if (band.getUnit() != null && band.getUnit().equals(Unit.PHASE))
+                    String bandUnit = band.getUnit();
+                    if (bandUnit != null && bandUnit.equals(Unit.PHASE))
                         continue;
-                    if (band instanceof VirtualBand)
+                    if (band instanceof VirtualBand && !(bandUnit != null && (bandUnit.equals(Unit.REAL) || bandUnit.equals(Unit.IMAGINARY))))
                         continue;
                     if (slvProduct == masterProduct && (band == masterBands[0] || band == masterBands[1] || appendToMaster))
                         continue;
 
-                    bandList.add(band);
+                    if(bandUnit == null) {
+                        bandList.add(band);
+                    } else {
+                        for (Band mstBand : masterBands) {
+                            if(bandUnit.equals(mstBand.getUnit())) {
+                                bandList.add(band);
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         } else {

@@ -107,6 +107,7 @@ public final class TOPSARSplitOp extends Operator {
             if (!enableSingleSwathMode) {
                 validator.checkIfMultiSwathTOPSARProduct();
             }
+            validator.isTOPSARProduct();
             validator.checkProductType(new String[]{"SLC"});
             validator.checkAcquisitionMode(new String[]{"IW", "EW"});
 
@@ -173,6 +174,14 @@ public final class TOPSARSplitOp extends Operator {
                     selectedTPGList.add(srcTPG.getName());
                 }
             }
+
+            final boolean foundSwathTPG = !selectedTPGList.isEmpty();
+            if (!foundSwathTPG) {
+                for (TiePointGrid srcTPG : sourceProduct.getTiePointGrids()) {
+                    selectedTPGList.add(srcTPG.getName());
+                }
+            }
+
             subsetDef.addNodeNames(selectedTPGList.toArray(new String[0]));
 
             final int x = 0;
@@ -192,11 +201,13 @@ public final class TOPSARSplitOp extends Operator {
 
             targetProduct = subsetBuilder.readProductNodes(sourceProduct, subsetDef);
 
-            targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("latitude"));
-            targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("longitude"));
+            if (foundSwathTPG) {
+                targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("latitude"));
+                targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("longitude"));
 
-            for (TiePointGrid tpg : targetProduct.getTiePointGrids()) {
-                tpg.setName(tpg.getName().replace(subswath + "_", ""));
+                for (TiePointGrid tpg : targetProduct.getTiePointGrids()) {
+                    tpg.setName(tpg.getName().replace(subswath + "_", ""));
+                }
             }
 
             GeoCoding geoCoding = new TiePointGeoCoding(targetProduct.getTiePointGrid("latitude"),

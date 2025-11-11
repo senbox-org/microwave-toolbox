@@ -1,10 +1,20 @@
 # Microwave Toolbox 13.0.0
 
 ## New in Microwave Toolbox 13.0
+* Improved geolocation accuracy for multilooked terrain corrected graphs
+* Support for BIOMASS products
+* Support for NISAR products
+* Support for ICEYE CSI products
 * [SNAP-3948] Projects menu items enabled by default
 * [SNAP-3949] Creation of project structure when opening non-existent project
 * [SNAP-3950] Project creation and XML file extension
-
+* [SNAP-3877] NullPointerException in code that uses AbstractMetadata.getBandAbsMetadata(...)
+* [SNAP-3862] Thermal noise removal cannot handle S1 TOPS split product with a subset of bursts
+* [SNAP-3979] REACTIV operator fails for subset S1 product with only VH polarization
+* [SNAP-3999] Band Select operator help location differs from the location of the operator
+* [SNAP-4000] Center frequencies are not set correctly in Ionospheric Correction operator
+* [SNAP-3984] Investigate overlap in functionality between band extraction and band select
+* [SNAP-4036] Validation of point target geolocation accuracy
 
 ## New in Microwave Toolbox 12.0
 * Support for Sentinel-1C

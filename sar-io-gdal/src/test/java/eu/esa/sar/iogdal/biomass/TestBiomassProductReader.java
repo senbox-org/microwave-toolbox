@@ -111,7 +111,7 @@ public class TestBiomassProductReader extends ReaderTest {
             final ProductValidator validator = new ProductValidator(prod, productOptions);
             validator.validateProduct();
             validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_S2_HH", "Phase_S2_HH", "i_S2_HH", "q_S2_HH", "Intensity_S2_HH", "Amplitude_S2_HV", "Phase_S2_HV", "i_S2_HV", "q_S2_HV", "Intensity_S2_HV", "Amplitude_S2_VH", "Phase_S2_VH", "i_S2_VH", "q_S2_VH", "Intensity_S2_VH"});
+            validator.validateBands(new String[]{"Amplitude_S2_HH", "Phase_S2_HH", "i_S2_HH", "q_S2_HH", "Intensity_S2_HH", "Amplitude_S2_VV", "Phase_S2_VV", "i_S2_VV", "q_S2_VV", "Intensity_S2_VV", "Amplitude_S2_XX", "Phase_S2_XX", "i_S2_XX", "q_S2_XX", "Intensity_S2_XX"});
         }
     }
 }

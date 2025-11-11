@@ -38,10 +38,12 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import ucar.ma2.Array;
+import ucar.ma2.DataType;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,6 +69,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     private String productType = "";
     private String annotationName = "";
     private File netCDFLUTFile;
+    private double firstSampleSlantRangeTime;
+    private double lastSampleSlantRangeTime;
 
     DateFormat biomassDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd_HH:mm:ss");
 
@@ -78,7 +82,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         ProductReader reader;
         Product bandProduct;
     }
-    
+
     @Override
     public void close() throws IOException {
         super.close();
@@ -167,6 +171,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 SARReader.createVirtualIntensityBand(product, newAbsBand, '_' + suffix);
 
             } else {
+
                 ReaderData absReaderData = bandProductMap.get(ABS);
                 Band absBand = absReaderData.bandProduct.getBandAt(cnt);
                 bandName = "Amplitude" + '_' + suffix;
@@ -175,7 +180,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 newAbsBand.setNoDataValueUsed(true);
                 newAbsBand.setNoDataValue(NoDataValue);
                 newAbsBand.setSourceImage(absBand.getSourceImage());
-
                 product.addBand(newAbsBand);
                 AbstractMetadata.addBandToBandMap(bandMetadata, bandName);
 
@@ -299,6 +303,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     private void addBandAbstractedMetadata(final MetadataElement absRoot,
                                            final MetadataElement origProdRoot) throws IOException {
 
+        final boolean isL1c = isL1C(origProdRoot);
+
         this.annotationName = "annotation";
         String annotFolder = getRootFolder() + annotationName;
         if(!exists(annotFolder)) {
@@ -313,7 +319,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
 
         boolean commonMetadataRetrieved = false;
-        double heightSum = 0.0;
 
         final String[] filenames = listFiles(annotFolder);
         if (filenames != null) {
@@ -330,146 +335,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 annotationElement.addElement(nameElem);
                 AbstractMetadataIO.AddXMLMetadata(rootElement, nameElem);
 
-                final MetadataElement mainAnnotation = nameElem.getElement("mainAnnotation");
-                final MetadataElement acquisitionInformation = mainAnnotation.getElement("acquisitionInformation");
-                final MetadataElement sarImage = mainAnnotation.getElement("sarImage");
-                final MetadataElement processingParameters = mainAnnotation.getElement("processingParameters");
-                final MetadataElement instrumentParameters = mainAnnotation.getElement("instrumentParameters");
-
-                if (!commonMetadataRetrieved) {
-                    // these should be the same for all swaths
-                    // set to absRoot
-
-                    // acquisitionInformation
-                    productType = acquisitionInformation.getAttributeString("productType");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, productType);
-
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT,
-                            acquisitionInformation.getAttributeInt("absoluteOrbitNumber"));
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.REL_ORBIT,
-                            acquisitionInformation.getAttributeInt("relativeOrbitNumber"));
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.CYCLE,
-                            acquisitionInformation.getAttributeInt("majorCycleId"));
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
-                            acquisitionInformation.getAttributeInt("dataTakeId"));
-
-                    // sarImage
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines,
-                            sarImage.getAttributeInt("numberOfLines"));
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line,
-                            sarImage.getAttributeInt("numberOfSamples"));
-
-                    final MetadataElement firstSampleSlantRangeTime = sarImage.getElement("firstSampleSlantRangeTime");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel,
-                            firstSampleSlantRangeTime.getAttributeDouble("firstSampleSlantRangeTime") * Constants.halfLightSpeed);
-
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time,
-                            getTime(sarImage, "firstLineAzimuthTime", biomassDateFormat));
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time,
-                            getTime(sarImage, "lastLineAzimuthTime", biomassDateFormat));
-
-                    final MetadataElement rangePixelSpacing = sarImage.getElement("rangePixelSpacing");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
-                            rangePixelSpacing.getAttributeDouble("rangePixelSpacing"));
-                    final MetadataElement azimuthPixelSpacing = sarImage.getElement("azimuthPixelSpacing");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
-                            azimuthPixelSpacing.getAttributeDouble("azimuthPixelSpacing"));
-
-                    final MetadataElement azimuthTimeInterval = sarImage.getElement("azimuthTimeInterval");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
-                            azimuthTimeInterval.getAttributeDouble("azimuthTimeInterval"));
-
-                    // processingParameters
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier,
-                            processingParameters.getAttributeString("processorVersion"));
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME,
-                            getTime(processingParameters, "productGenerationTime", biomassDateFormat));
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.VECTOR_SOURCE,
-                            processingParameters.getAttributeString("orbitSource"));
-
-                    final MetadataElement rangeProcessingParameters = processingParameters.getElement("rangeProcessingParameters");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_window_type,
-                            rangeProcessingParameters.getAttributeString("windowType"));
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
-                            rangeProcessingParameters.getAttributeDouble("numberOfLooks"));
-                    final MetadataElement processingBandwidth = rangeProcessingParameters.getElement("processingBandwidth");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth,
-                            processingBandwidth.getAttributeDouble("processingBandwidth") / Constants.oneMillion);
-
-                    final MetadataElement azimuthProcessingParameters = processingParameters.getElement("azimuthProcessingParameters");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks,
-                            azimuthProcessingParameters.getAttributeDouble("numberOfLooks"));
-                    final MetadataElement azimuthProcessingBandwidth = azimuthProcessingParameters.getElement("processingBandwidth");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth,
-                            azimuthProcessingBandwidth.getAttributeDouble("processingBandwidth") / Constants.oneMillion);
-
-                    // instrumentParameters
-                    final MetadataElement radarCarrierFrequency = instrumentParameters.getElement("radarCarrierFrequency");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency,
-                            radarCarrierFrequency.getAttributeDouble("radarCarrierFrequency") / Constants.oneMillion);
-
-                    final MetadataElement prfList = instrumentParameters.getElement("prfList");
-                    final MetadataElement prf = prfList.getElement("prf");
-                    final MetadataElement value = prf.getElement("value");
-                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency,
-                            value.getAttributeDouble("value"));
-
-//                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
-//                                                  productInformation.getAttributeDouble("rangeSamplingRate") / Constants.oneMillion);
-//                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
-//                                                  imageInformation.getAttributeDouble("azimuthTimeInterval"));
-
-                    //addSRGRCoefficients(absRoot, prodElem.getElement("coordinateConversion"));
-
-                    final MetadataElement dopplerParameters = mainAnnotation.getElement("dopplerParameters");
-                    addDopplerCentroidCoefficients(absRoot, dopplerParameters);
-
-                    commonMetadataRetrieved = true;
-                }
-
-                final MetadataElement polarisationList = acquisitionInformation.getElement("polarisationList");
-                final String swath = acquisitionInformation.getAttributeString("swath");
-
-                for(MetadataAttribute attrib : polarisationList.getAttributes()) {
-                    if (!attrib.getName().equals("polarisation")) {
-                        continue;
-                    }
-
-                    final String pol = attrib.getData().getElemString();
-                    final ProductData.UTC startTime = getTime(acquisitionInformation, "startTime", biomassDateFormat);
-                    final ProductData.UTC stopTime = getTime(acquisitionInformation, "stopTime", biomassDateFormat);
-
-                    final String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
-                    final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
-                    final String imgName = metadataFile.substring(0, metadataFile.lastIndexOf("_annot"));
-                    imgBandMetadataMap.put(bandRootName, imgName);
-
-                    AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.SWATH, swath);
-                    AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.polarization, pol);
-                    AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.annotation, metadataFile);
-                    AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.first_line_time, startTime);
-                    AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.last_line_time, stopTime);
-
-                    AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.num_samples_per_line,
-                            sarImage.getAttributeInt("numberOfSamples"));
-                    AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.num_output_lines,
-                            sarImage.getAttributeInt("numberOfLines"));
-
-                    final MetadataElement radiometricCalibration = mainAnnotation.getElement("radiometricCalibration");
-                    final MetadataElement absoluteCalibrationConstantList = radiometricCalibration.getElement("absoluteCalibrationConstantList");
-                    for(MetadataElement absCalibConst : absoluteCalibrationConstantList.getElements()) {
-                        final String polarisation = absCalibConst.getAttributeString("polarisation");
-                        if(pol.equals(polarisation)) {
-                            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.calibration_factor,
-                                    absCalibConst.getAttributeDouble("absoluteCalibrationConstant", AbstractMetadata.NO_METADATA));
-                        }
-                    }
-
-                    //heightSum += getBandTerrainHeight(prodElem);
-
-                    //addCalibrationAbstractedMetadata(origProdRoot);
-                    //addNoiseAbstractedMetadata(origProdRoot);
-                    //addRFIAbstractedMetadata(origProdRoot);
+                if (!isL1c) {
+                    commonMetadataRetrieved = addBandMetadata(absRoot, nameElem, metadataFile, commonMetadataRetrieved);
                 }
             }
 
@@ -500,6 +367,10 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     final MetadataElement nameElem = new MetadataElement(metadataFile);
                     coregAnnotationElement.addElement(nameElem);
                     AbstractMetadataIO.AddXMLMetadata(rootElement, nameElem);
+
+                    if (isL1c) {
+                        commonMetadataRetrieved = addBandMetadata(absRoot, nameElem, metadataFile, commonMetadataRetrieved);
+                    }
                 }
             }
 
@@ -510,9 +381,178 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         readOrbitStateVectors(absRoot);
 
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, heightSum / filenames.length);
-
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
+    }
+
+    private boolean isL1C(final MetadataElement origProdRoot) {
+
+        final MetadataElement EarthObservation = origProdRoot.getElement("EarthObservation");
+        final MetadataElement metaDataProperty = EarthObservation.getElement("metaDataProperty");
+        final MetadataElement EarthObservationMetaData = metaDataProperty.getElement("EarthObservationMetaData");
+        final MetadataElement processing = EarthObservationMetaData.getElement("processing");
+        final MetadataElement processingInformation = processing.getElement("ProcessingInformation");
+        final String processingLevel = processingInformation.getAttributeString("processingLevel");
+        return (processingLevel.toLowerCase().contains("l1c"));
+    }
+
+    private boolean addBandMetadata(MetadataElement absRoot, final MetadataElement nameElem,
+                                    final String metadataFile, final boolean commonMetadataRetrieved) {
+
+        final MetadataElement mainAnnotation = nameElem.getElement("mainAnnotation");
+        final MetadataElement acquisitionInformation = mainAnnotation.getElement("acquisitionInformation");
+        final MetadataElement sarImage = mainAnnotation.getElement("sarImage");
+        final MetadataElement processingParameters = mainAnnotation.getElement("processingParameters");
+        final MetadataElement instrumentParameters = mainAnnotation.getElement("instrumentParameters");
+
+        boolean commonMetadataAvailable = false;
+        if (!commonMetadataRetrieved) {
+            // these should be the same for all swaths
+            // set to absRoot
+
+            // acquisitionInformation
+            productType = acquisitionInformation.getAttributeString("productType");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, productType);
+
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT,
+                    acquisitionInformation.getAttributeInt("absoluteOrbitNumber"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.REL_ORBIT,
+                    acquisitionInformation.getAttributeInt("relativeOrbitNumber"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.CYCLE,
+                    acquisitionInformation.getAttributeInt("majorCycleId"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
+                    acquisitionInformation.getAttributeInt("dataTakeId"));
+
+            // sarImage
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines,
+                    sarImage.getAttributeInt("numberOfLines"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line,
+                    sarImage.getAttributeInt("numberOfSamples"));
+
+            final MetadataElement firstSampleSlantRangeTimeElem = sarImage.getElement("firstSampleSlantRangeTime");
+            final MetadataElement lastSampleSlantRangeTimeElem = sarImage.getElement("lastSampleSlantRangeTime");
+            firstSampleSlantRangeTime = firstSampleSlantRangeTimeElem.getAttributeDouble("firstSampleSlantRangeTime");
+            lastSampleSlantRangeTime = lastSampleSlantRangeTimeElem.getAttributeDouble("lastSampleSlantRangeTime");
+
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel,
+                    firstSampleSlantRangeTime * Constants.halfLightSpeed);
+
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time,
+                    getTime(sarImage, "firstLineAzimuthTime", biomassDateFormat));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time,
+                    getTime(sarImage, "lastLineAzimuthTime", biomassDateFormat));
+
+            final MetadataElement rangePixelSpacing = sarImage.getElement("rangePixelSpacing");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
+                    rangePixelSpacing.getAttributeDouble("rangePixelSpacing"));
+            final MetadataElement azimuthPixelSpacing = sarImage.getElement("azimuthPixelSpacing");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
+                    azimuthPixelSpacing.getAttributeDouble("azimuthPixelSpacing"));
+
+            final MetadataElement azimuthTimeInterval = sarImage.getElement("azimuthTimeInterval");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval,
+                    azimuthTimeInterval.getAttributeDouble("azimuthTimeInterval"));
+
+            // processingParameters
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier,
+                    processingParameters.getAttributeString("processorVersion"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME,
+                    getTime(processingParameters, "productGenerationTime", biomassDateFormat));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.VECTOR_SOURCE,
+                    processingParameters.getAttributeString("orbitSource"));
+
+            final MetadataElement rangeProcessingParameters = processingParameters.getElement("rangeProcessingParameters");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_window_type,
+                    rangeProcessingParameters.getAttributeString("windowType"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_window_coefficient,
+                    rangeProcessingParameters.getAttributeDouble("windowCoefficient"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
+                    rangeProcessingParameters.getAttributeDouble("numberOfLooks"));
+            final MetadataElement rangeTotalBandwidth = rangeProcessingParameters.getElement("totalBandwidth");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth,
+                    rangeTotalBandwidth.getAttributeDouble("totalBandwidth") / Constants.oneMillion);
+
+            final MetadataElement azimuthProcessingParameters = processingParameters.getElement("azimuthProcessingParameters");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks,
+                    azimuthProcessingParameters.getAttributeDouble("numberOfLooks"));
+            final MetadataElement azimuthTotalBandwidth = azimuthProcessingParameters.getElement("totalBandwidth");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth,
+                    azimuthTotalBandwidth.getAttributeDouble("totalBandwidth"));
+
+            // instrumentParameters
+            final MetadataElement radarCarrierFrequency = instrumentParameters.getElement("radarCarrierFrequency");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency,
+                    radarCarrierFrequency.getAttributeDouble("radarCarrierFrequency") / Constants.oneMillion);
+
+            final MetadataElement prfList = instrumentParameters.getElement("prfList");
+            final MetadataElement prf = prfList.getElement("prf");
+            final MetadataElement value = prf.getElement("value");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency,
+                    value.getAttributeDouble("value"));
+
+            MetadataElement rangeTimeIntervalElem = sarImage.getElement("rangeTimeInterval");
+            double rangeTimeInterval = rangeTimeIntervalElem.getAttributeDouble("rangeTimeInterval");
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
+                    (1.0/rangeTimeInterval) / Constants.oneMillion);
+
+            final MetadataElement rangeCoordinateConversion = sarImage.getElement("rangeCoordinateConversion");
+            addSRGRCoefficients(absRoot, rangeCoordinateConversion);
+
+            final MetadataElement dopplerParameters = mainAnnotation.getElement("dopplerParameters");
+            addDopplerCentroidCoefficients(absRoot, dopplerParameters);
+
+            commonMetadataAvailable = true;
+        }
+
+        final MetadataElement polarisationList = acquisitionInformation.getElement("polarisationList");
+        final String swath = acquisitionInformation.getAttributeString("swath");
+
+        for(MetadataAttribute attrib : polarisationList.getAttributes()) {
+            if (!attrib.getName().equals("polarisation")) {
+                continue;
+            }
+
+            final String pol = attrib.getData().getElemString();
+            final ProductData.UTC startTime = getTime(acquisitionInformation, "startTime", biomassDateFormat);
+            final ProductData.UTC stopTime = getTime(acquisitionInformation, "stopTime", biomassDateFormat);
+
+            final String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
+            final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
+            final String imgName = metadataFile.substring(0, metadataFile.lastIndexOf("_annot"));
+            imgBandMetadataMap.put(bandRootName, imgName);
+
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.SWATH, swath);
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.polarization, pol);
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.annotation, metadataFile);
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.first_line_time, startTime);
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.last_line_time, stopTime);
+
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.num_samples_per_line,
+                    sarImage.getAttributeInt("numberOfSamples"));
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.num_output_lines,
+                    sarImage.getAttributeInt("numberOfLines"));
+
+            final MetadataElement azimuthTimeInterval = sarImage.getElement("azimuthTimeInterval");
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.line_time_interval,
+                    azimuthTimeInterval.getAttributeDouble("azimuthTimeInterval"));
+            AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.SAMPLE_TYPE, isSLC() ? "COMPLEX" : "DETECTED");
+
+            final MetadataElement radiometricCalibration = mainAnnotation.getElement("radiometricCalibration");
+            final MetadataElement absoluteCalibrationConstantList = radiometricCalibration.getElement("absoluteCalibrationConstantList");
+            for(MetadataElement absCalibConst : absoluteCalibrationConstantList.getElements()) {
+                final String polarisation = absCalibConst.getAttributeString("polarisation");
+                if(pol.equals(polarisation)) {
+                    AbstractMetadata.setAttribute(bandAbsRoot, AbstractMetadata.calibration_factor,
+                            absCalibConst.getAttributeDouble("absoluteCalibrationConstant", AbstractMetadata.NO_METADATA));
+                }
+            }
+
+            //heightSum += getBandTerrainHeight(prodElem);
+
+            //addCalibrationAbstractedMetadata(origProdRoot);
+            //addNoiseAbstractedMetadata(origProdRoot);
+            //addRFIAbstractedMetadata(origProdRoot);
+        }
+        return commonMetadataAvailable;
     }
 
     private File findNetCDFLUTFile(final String[] filenames, final String annotFolder) throws IOException {
@@ -543,7 +583,12 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     }
 
     private void readOrbitStateVectors(final MetadataElement absRoot) throws IOException {
-        final String navFolder = getRootFolder() + annotationName + "/navigation";
+
+        String navFolder = getRootFolder() + "annotation/navigation";
+        if(!exists(navFolder)) {
+            navFolder = getRootFolder() + "annotation_coregistered/navigation";
+        }
+
         final String[] filenames = listFiles(navFolder);
         if (filenames != null) {
             for (String metadataFile : filenames) {
@@ -579,7 +624,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 equalElems(AbstractMetadata.NO_METADATA_UTC)) {
 
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
-                                          getTime(stateVectorElems[0], "time", biomassDateFormat));
+                                          getTime(stateVectorElems[0], "UTC", biomassDateFormat));
         }
     }
 
@@ -613,28 +658,32 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         orbitVectorListElem.addElement(orbitVectorElem);
     }
 
-    private void addSRGRCoefficients(final MetadataElement absRoot, final MetadataElement coordinateConversion) {
-        if (coordinateConversion == null) return;
-        final MetadataElement coordinateConversionList = coordinateConversion.getElement("coordinateConversionList");
+    private void addSRGRCoefficients(final MetadataElement absRoot, final MetadataElement rangeCoordinateConversion) {
+
+        final int count = rangeCoordinateConversion.getAttributeInt("count");
+        if (count == 0) return;
+
+        final MetadataElement[] coordinateConversionList = rangeCoordinateConversion.getElements();
         if (coordinateConversionList == null) return;
 
         final MetadataElement srgrCoefficientsElem = absRoot.getElement(AbstractMetadata.srgr_coefficients);
 
         int listCnt = 1;
-        for (MetadataElement elem : coordinateConversionList.getElements()) {
+        for (MetadataElement elem : coordinateConversionList) {
             final MetadataElement srgrListElem = new MetadataElement(AbstractMetadata.srgr_coef_list + '.' + listCnt);
             srgrCoefficientsElem.addElement(srgrListElem);
             ++listCnt;
 
-            final ProductData.UTC utcTime = ReaderUtils.getTime(elem, "azimuthTime", biomassDateFormat);
+            final ProductData.UTC utcTime = getTime(elem, "azimuthTime", biomassDateFormat);
             srgrListElem.setAttributeUTC(AbstractMetadata.srgr_coef_time, utcTime);
 
-            final double grOrigin = elem.getAttributeDouble("gr0", 0);
+            final double grOrigin = elem.getElement("gr0").getAttributeDouble("gr0", 0);
             AbstractMetadata.addAbstractedAttribute(srgrListElem, AbstractMetadata.ground_range_origin,
                                                     ProductData.TYPE_FLOAT64, "m", "Ground Range Origin");
             AbstractMetadata.setAttribute(srgrListElem, AbstractMetadata.ground_range_origin, grOrigin);
 
-            final String coeffStr = elem.getElement("grsrCoefficients").getAttributeString("grsrCoefficients", "");
+            final String coeffStr = elem.getElement("groundToSlantCoefficients").
+                    getAttributeString("groundToSlantCoefficients", "");
             if (!coeffStr.isEmpty()) {
                 final StringTokenizer st = new StringTokenizer(coeffStr);
                 int cnt = 1;
@@ -668,7 +717,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             final ProductData.UTC utcTime = getTime(elem, "azimuthTime", biomassDateFormat);
             dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, utcTime);
 
-            final double refTime = elem.getAttributeDouble("t0", 0) * 1e9; // s to ns
+            MetadataElement t0Elem = elem.getElement("t0");
+            final double refTime = t0Elem.getAttributeDouble("t0", 0) * 1e9; // s to ns
             AbstractMetadata.addAbstractedAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
                                                     ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
             AbstractMetadata.setAttribute(dopplerListElem, AbstractMetadata.slant_range_time, refTime);
@@ -710,67 +760,94 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         try (final NetcdfFile netcdfFile = NetcdfFile.open(netCDFLUTFile.getAbsolutePath())) {
             final List<Variable> rasters = readNetCDFLUT(netcdfFile);
             for(Variable variable : rasters) {
-                String name = variable.getShortName();
-                int gridWidth = variable.getDimension(1).getLength();
-                int gridHeight = variable.getDimension(0).getLength();
+                try {
+                    String name = variable.getShortName();
+                    int gridWidth = variable.getDimension(1).getLength();
+                    int gridHeight = variable.getDimension(0).getLength();
 
-                final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
-                final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
+                    final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
+                    final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
 
-                Array dataArray = variable.read();
-                Object storage = dataArray.copyTo1DJavaArray();
+                    Array dataArray = variable.read();
+                    // Convert array data to a 1D float array, regardless of original type.
+                    float[] floatData = (float[]) dataArray.get1DJavaArray(DataType.FLOAT);
 
-                float[] floatData;
-                if (storage instanceof float[]) {
-                    floatData = (float[]) storage;
+                    if(name.equals(OperatorUtils.TPG_LATITUDE)) {
 
-                } else if (storage instanceof double[]) {
-                    double[] doubleData = (double[]) storage;
-                    floatData = new float[doubleData.length];
-                    for (int i = 0; i < doubleData.length; ++i) {
-                        floatData[i] = (float) doubleData[i];
-                    }
+                        TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
+                        if (latGrid == null) {
+                            latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
+                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
+                            latGrid.setUnit(Unit.DEGREES);
+                            product.addTiePointGrid(latGrid);
+                        }
+                    } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
 
-                } else {
-                    throw new Exception("  Warning: Could not cast data from variable '"
-                            + variable.getFullName() + "' to float[]. Actual array type: "
-                            + storage.getClass().getName());
-                }
-
-                if(name.equals(OperatorUtils.TPG_LATITUDE)) {
-
-                    TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
-                    if (latGrid == null) {
-                        latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
+                        TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
+                        if (lonGrid == null) {
+                            lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
+                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
+                            lonGrid.setUnit(Unit.DEGREES);
+                            product.addTiePointGrid(lonGrid);
+                        }
+                    } else {
+                        if(name.equalsIgnoreCase("incidenceangle")) {
+                            name = OperatorUtils.TPG_INCIDENT_ANGLE;
+                        } else if(name.equalsIgnoreCase("elevationangle")) {
+                            name = OperatorUtils.TPG_ELEVATION_ANGLE;
+                        } else if(name.equalsIgnoreCase("terrainslope")) {
+                            name = "terrain_slope";
+                        } else if(name.equalsIgnoreCase("height")) {
+                            double sum = 0;
+                            for(float val : floatData) {
+                                sum += val;
+                            }
+                            double avgHeight = sum / floatData.length;
+                            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+                            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, avgHeight);
+                        }
+                        final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
                                 gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                        latGrid.setUnit(Unit.DEGREES);
-                        product.addTiePointGrid(latGrid);
+                        incidentAngleGrid.setUnit(Unit.DEGREES);
+                        product.addTiePointGrid(incidentAngleGrid);
                     }
-                } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
-
-                    TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
-                    if (lonGrid == null) {
-                        lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
-                                gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
-                        lonGrid.setUnit(Unit.DEGREES);
-                        product.addTiePointGrid(lonGrid);
-                    }
-                } else {
-                    if(name.toLowerCase().equals("incidenceangle")) {
-                        name = OperatorUtils.TPG_INCIDENT_ANGLE;
-                    } else if(name.toLowerCase().equals("elevationangle")) {
-                        name = OperatorUtils.TPG_ELEVATION_ANGLE;
-                    } else if(name.toLowerCase().equals("terrainslope")) {
-                        name = "terrain_slope";
-                    }
-                    final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
-                            gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                    incidentAngleGrid.setUnit(Unit.DEGREES);
-                    product.addTiePointGrid(incidentAngleGrid);
+                } catch (Exception e) {
+                    System.out.println("Error reading netCDFLUT file: " + e.getMessage());
                 }
             }
+
+            addSlantRangeTimeTPG(product);
         } catch (Exception e) {
             System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+        }
+    }
+
+    private void addSlantRangeTimeTPG(final Product product) {
+        final int gridWidth = 4;
+        final int gridHeight = 4;
+        final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
+        final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
+
+        final double firstSample = firstSampleSlantRangeTime * 1e9; // s to ns
+        final double lastSample = lastSampleSlantRangeTime * 1e9; // s to ns
+
+        final double[] slantRangeCorners = new double[4];
+        slantRangeCorners[0] = firstSample;
+        slantRangeCorners[1] = lastSample;
+        slantRangeCorners[2] = slantRangeCorners[0];
+        slantRangeCorners[3] = slantRangeCorners[1];
+
+        if (product.getTiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME) == null) {
+            final float[] fineSlantRangeTimes = new float[gridWidth * gridHeight];
+            ReaderUtils.createFineTiePointGrid(
+                    2, 2, gridWidth, gridHeight, slantRangeCorners, fineSlantRangeTimes);
+
+            final TiePointGrid slantRangeTimeGrid = new TiePointGrid(
+                    OperatorUtils.TPG_SLANT_RANGE_TIME, gridWidth, gridHeight, 0, 0,
+                    subSamplingX, subSamplingY, fineSlantRangeTimes);
+
+            slantRangeTimeGrid.setUnit(Unit.NANOSECONDS);
+            product.addTiePointGrid(slantRangeTimeGrid);
         }
     }
 
@@ -795,7 +872,11 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     public Product createProduct() throws IOException {
 
         final MetadataElement newRoot = addMetaData();
-        findImages(newRoot);
+
+        final boolean isMonitoringProd = isMonitoringProd();
+        if (!isMonitoringProd) {
+            findImages(newRoot);
+        }
 
         final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
 
@@ -805,7 +886,9 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         final Product product = new Product(getProductName(), getProductType(), sceneWidth, sceneHeight);
         updateProduct(product, newRoot);
 
-        addBands(product);
+        if (!isMonitoringProd) {
+            addBands(product);
+        }
         addTiePointGrids(product);
         addGeoCoding(product);
         setLatLongMetadata(product);
@@ -814,5 +897,9 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         ReaderUtils.addMetadataProductSize(product);
 
         return product;
+    }
+
+    private boolean isMonitoringProd() {
+        return productName.toLowerCase().contains("__1m");
     }
 }
