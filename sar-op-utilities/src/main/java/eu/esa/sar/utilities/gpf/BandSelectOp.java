@@ -125,10 +125,12 @@ public final class BandSelectOp extends Operator {
                 ProductUtils.copyFlagBandsWithoutMasks(sourceProduct, targetProduct, true);
                 ArrayList<String> refBands = new ArrayList<>();
                 ArrayList<String>  refMasks = new ArrayList<>();
-                for (String name : sourceBandNames) {
-                    collectNotIncludedReferences(name, refBands, refMasks);
+                if (sourceBandNames != null){
+                    for (String name : sourceBandNames) {
+                        collectNotIncludedReferences(name, refBands, refMasks);
+                    }
+                    refBands.removeAll(Arrays.asList(sourceBandNames));
                 }
-                refBands.removeAll(Arrays.asList(sourceBandNames));
                 refMasks.removeAll(sourceMaskNames != null
                         ? Arrays.asList(sourceMaskNames) : Collections.emptyList());
                 refBands.forEach(b -> ProductUtils.copyBand(b, sourceProduct, targetProduct, true));
