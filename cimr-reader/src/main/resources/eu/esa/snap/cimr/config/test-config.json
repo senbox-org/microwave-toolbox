@@ -1,0 +1,94 @@
+{
+  "variables": [
+    {
+      "name": "C_BAND_raw_bt_h_feed1",
+      "valueVarName": "raw_bt_h",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    },
+    {
+      "name": "C_BAND_raw_bt_v_feed1",
+      "valueVarName": "raw_bt_v",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    },
+    {
+      "name": "C_BAND_raw_bt_h_feed2",
+      "valueVarName": "raw_bt_h",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed2", "C_BAND_longitude_feed2"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    },
+    {
+      "name": "C_BAND_raw_bt_v_feed2",
+      "valueVarName": "raw_bt_v",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed2", "C_BAND_longitude_feed2"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    }
+  ],
+  "tiepointVariables": [
+    {
+      "name": "C_BAND_altitude_feed1",
+      "valueVarName": "altitude",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    }
+  ],
+  "geometries": [
+    {
+      "name": "C_BAND_latitude_feed1",
+      "valueVarName": "latitude",
+      "band": "C_BAND",
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    },
+    {
+      "name": "C_BAND_longitude_feed1",
+      "valueVarName": "longitude",
+      "band": "C_BAND",
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    },
+    {
+      "name": "C_BAND_latitude_feed2",
+      "valueVarName": "latitude",
+      "band": "C_BAND",
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    },
+    {
+      "name": "C_BAND_longitude_feed2",
+      "valueVarName": "longitude",
+      "band": "C_BAND",
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double"
+    }
+  ]
+}
