@@ -15,20 +15,24 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.dataio.netcdf.util.NetcdfFileOpener;
 import ucar.nc2.NetcdfFile;
 
+import java.awt.*;
+import java.awt.image.Raster;
+import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
 
 
 public class CimrL1BProductReader extends AbstractProductReader {
 
-    NetcdfFile ncFile;
-    CimrReaderContext readerContext;
+    private NetcdfFile ncFile;
+    private CimrReaderContext readerContext;
 
 
     public CimrL1BProductReader(ProductReaderPlugIn readerPlugIn) {
         super(readerPlugIn);
     }
 
+    // TODO BL write tests
     @Override
     protected Product readProductNodesImpl() throws IOException {
         final String path = getInputPath();
@@ -52,7 +56,9 @@ public class CimrL1BProductReader extends AbstractProductReader {
 
     @Override
     protected void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight, int sourceStepX, int sourceStepY, Band destBand, int destOffsetX, int destOffsetY, int destWidth, int destHeight, ProductData destBuffer, ProgressMonitor pm) throws IOException {
-        // TODO add direct exception here, this should not be called
+        final RenderedImage image = destBand.getSourceImage();
+        final Raster data = image.getData(new Rectangle(destOffsetX, destOffsetY, destWidth, destHeight));
+        data.getDataElements(destOffsetX, destOffsetY, destWidth, destHeight, destBuffer.getElems());
     }
 
     @Override
