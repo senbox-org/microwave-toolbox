@@ -50,7 +50,9 @@ public class CimrConfigLoader {
                 e.feedIndex,
                 kind,
                 e.dimensions,
-                e.dataType
+                e.dataType,
+                e.unit,
+                e.description
         );
     }
 }

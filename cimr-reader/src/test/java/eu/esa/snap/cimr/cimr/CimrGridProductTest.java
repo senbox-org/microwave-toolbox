@@ -29,7 +29,7 @@ public class CimrGridProductTest {
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
         CimrBandDescriptor band2 = new CimrBandDescriptor(
                 "X_raw_bt_v_feed1", "raw_bt_h", CimrFrequencyBand.X_BAND,
@@ -37,7 +37,7 @@ public class CimrGridProductTest {
                 "/Data/Measurement_Data/C_BAND/",
                 2, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         double[] data1 = {1.0, 2.0};
@@ -68,7 +68,7 @@ public class CimrGridProductTest {
                 "/Geolocation/", 0,
                 CimrDescriptorKind.TIEPOINT_VARIABLE,
                 new String[] {"n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
         CimrBandDescriptor measDesc = new CimrBandDescriptor(
                 "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
@@ -76,7 +76,7 @@ public class CimrGridProductTest {
                 "/Data/Measurement_Data/C_BAND/", 0,
                 CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         CimrDescriptorSet descriptorSet = new CimrDescriptorSet(
@@ -112,7 +112,7 @@ public class CimrGridProductTest {
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
         GridBandDataSource ds = new GlobalGridBandDataSource(2, 1, new double[]{1.0, 2.0});
         product.addBand(band, ds);

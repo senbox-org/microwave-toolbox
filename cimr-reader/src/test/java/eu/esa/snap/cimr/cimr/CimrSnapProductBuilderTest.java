@@ -34,7 +34,7 @@ public class CimrSnapProductBuilderTest {
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         double[] data = {1.0, 2.0};
@@ -72,7 +72,8 @@ public class CimrSnapProductBuilderTest {
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "K",
+                "Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)"
         );
 
         double[] data = {1.0, 2.0};
@@ -87,6 +88,13 @@ public class CimrSnapProductBuilderTest {
         assertNotNull(product.getFileLocation());
         assertTrue(product.getFileLocation().getPath().endsWith(path));
         assertEquals("L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND", product.getAutoGrouping().toString());
+
+        Band band = product.getBand("C_raw_bt_h_feed1");
+        assertEquals("K", band.getUnit());
+        assertEquals("Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)", band.getDescription());
+        assertEquals(Double.NaN, band.getNoDataValue(), doubleErr);
+        assertTrue(band.isNoDataValueSet());
+        assertEquals(43300000f, band.getSpectralWavelength(), doubleErr);
     }
 
     @Test
@@ -106,7 +114,7 @@ public class CimrSnapProductBuilderTest {
                 "/Data/Measurement_Data/C_BAND/",
                 0, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
         CimrBandDescriptor band2 = new CimrBandDescriptor(
                 "band2", "raw2", CimrFrequencyBand.X_BAND,
@@ -114,7 +122,7 @@ public class CimrSnapProductBuilderTest {
                 "/Data/Measurement_Data/X_BAND/",
                 0, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_X_BAND", "n_feeds_X_BAND"},
-                "double"
+                "double", "", ""
         );
 
         GridBandDataSource ds1 = new GlobalGridBandDataSource(2, 1, new double[]{1.0, 2.0});

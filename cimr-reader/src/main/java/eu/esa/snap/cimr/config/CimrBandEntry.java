@@ -10,4 +10,6 @@ public class CimrBandEntry {
     public int feedIndex;
     public String[] dimensions;
     public String dataType;
+    public String unit = "";
+    public String description = "";
 }

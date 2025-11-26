@@ -96,7 +96,9 @@ public class CimrDescriptorSetTest {
                 0,
                 CimrDescriptorKind.GEOMETRY,
                 new String[]{"n_scans", "n_samples_C_BAND"},
-                "double"
+                "double",
+                "",
+                ""
         );
     }
 }

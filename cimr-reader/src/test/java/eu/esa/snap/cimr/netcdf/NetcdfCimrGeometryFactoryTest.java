@@ -84,7 +84,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 rootPath,
                 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
         CimrBandDescriptor lonDesc = new CimrBandDescriptor(
                 "lon_c", "lon_c", CimrFrequencyBand.C_BAND,
@@ -92,7 +92,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 rootPath,
                 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
@@ -101,7 +101,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 rootPath,
                 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Arrays.asList(latDesc, lonDesc), dims);
@@ -181,14 +181,14 @@ public class NetcdfCimrGeometryFactoryTest {
                 new String[]{},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
         CimrBandDescriptor lonDesc = new CimrBandDescriptor(
                 "lon_c", "lon_c", CimrFrequencyBand.C_BAND,
                 new String[]{},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
@@ -196,7 +196,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 new String[]{"lat_c", "lon_c"},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Arrays.asList(latDesc, lonDesc), dims);
@@ -228,7 +228,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 null,
                 "root", 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         factory.getOrCreateGeometry(varDesc);
@@ -284,7 +284,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 new String[]{},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
@@ -292,7 +292,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 new String[]{"lat_c", "lon_c"},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Collections.singletonList(latDesc), dims);
@@ -352,14 +352,14 @@ public class NetcdfCimrGeometryFactoryTest {
                 new String[]{},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
         CimrBandDescriptor lonDesc = new CimrBandDescriptor(
                 "lon_c", "lon_c", CimrFrequencyBand.C_BAND,
                 new String[]{},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
@@ -367,7 +367,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 new String[]{"lat_c", "lon_c"},
                 rootPath, 1, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
 
         NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Arrays.asList(latDesc, lonDesc), dims);

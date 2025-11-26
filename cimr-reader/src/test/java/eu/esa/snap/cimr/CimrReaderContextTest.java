@@ -218,7 +218,7 @@ public class CimrReaderContextTest {
                 new String[]{"lat", "lon"},
                 "/Data", 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double", "", ""
         );
         CimrDescriptorSet descriptorSet = new CimrDescriptorSet(
                 Collections.singletonList(varDesc),
@@ -307,7 +307,9 @@ public class CimrReaderContextTest {
                 0,
                 CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double",
+                "",
+                ""
         );
     }
 

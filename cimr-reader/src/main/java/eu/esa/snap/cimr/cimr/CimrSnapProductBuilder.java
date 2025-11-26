@@ -59,7 +59,12 @@ public class CimrSnapProductBuilder {
             GridBandDataSource dataSource = e.getValue();
 
             Band band = product.addBand(desc.getName(), ProductData.TYPE_FLOAT64);
-            // TODO set noDataValue, description, unit, spectral_wavelength on band
+            band.setDescription(desc.getDescription());
+            band.setUnit(desc.getUnit());
+            band.setNoDataValue(Double.NaN);
+            band.setNoDataValueUsed(true);
+            band.setSpectralWavelength(desc.getBand().getSpectralWaveLength());
+
             CimrGridMultiLevelSource.attachToBand(band, dataSource, mlModel);
         }
     }

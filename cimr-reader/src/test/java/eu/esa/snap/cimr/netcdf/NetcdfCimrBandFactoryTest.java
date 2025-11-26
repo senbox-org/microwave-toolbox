@@ -71,7 +71,9 @@ public class NetcdfCimrBandFactoryTest {
                 0,
                 CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double",
+                "",
+                ""
         );
 
         GeoPos[][][] tp = new GeoPos[nScans][nSamples][1];
@@ -142,7 +144,9 @@ public class NetcdfCimrBandFactoryTest {
                 0,
                 CimrDescriptorKind.TIEPOINT_VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double",
+                "",
+                ""
         );
 
         GeoPos[][][] tp = new GeoPos[nScans][nTiepoints][1];
@@ -204,7 +208,9 @@ public class NetcdfCimrBandFactoryTest {
                 0,
                 CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double",
+                "",
+                ""
         );
 
         GeoPos[][][] tp = new GeoPos[1][2][1];

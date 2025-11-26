@@ -98,7 +98,9 @@ public class LazyGridBandDataSourceTest {
                 0,
                 CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
-                "double"
+                "double",
+                "",
+                ""
         );
     }
 }
