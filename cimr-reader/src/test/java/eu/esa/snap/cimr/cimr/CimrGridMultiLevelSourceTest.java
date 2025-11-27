@@ -4,9 +4,10 @@ package eu.esa.snap.cimr.cimr;
 import com.bc.ceres.multilevel.MultiLevelModel;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelImage;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelModel;
+import eu.esa.snap.cimr.grid.GlobalGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
+import eu.esa.snap.cimr.grid.PlateCarreeProjection;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
@@ -27,9 +28,7 @@ public class CimrGridMultiLevelSourceTest {
     public void testLevel0ImageMatchesGridValues() {
         int width = 2;
         int height = 2;
-
-        Product product = new Product("T", "T", width, height);
-        Band band = product.addBand("test", ProductData.TYPE_FLOAT64);
+        Band band = new Band("test", ProductData.TYPE_FLOAT64, width, height);
 
         GridBandDataSource grid = new GridBandDataSource() {
             @Override
@@ -61,11 +60,9 @@ public class CimrGridMultiLevelSourceTest {
     public void testAttachToBand_setsSourceImageAndUsesGridValues() {
         int width = 2;
         int height = 2;
+        Band band = new Band("test", ProductData.TYPE_FLOAT64, width, height);
 
-        Product product = new Product("T", "T", width, height);
-        Band band = product.addBand("test", ProductData.TYPE_FLOAT64);
-
-        GridBandDataSource grid = new GridBandDataSource() {
+        GridBandDataSource dataSource = new GridBandDataSource() {
             @Override
             public double getSample(int x, int y) {
                 return x + 10 * y;
@@ -77,9 +74,14 @@ public class CimrGridMultiLevelSourceTest {
             }
         };
 
-        MultiLevelModel model = new DefaultMultiLevelModel(1, new AffineTransform(), width, height);
+        PlateCarreeProjection projection = new PlateCarreeProjection(
+                width, height,
+                -180.0, 90.0,
+                360.0 / width, 180.0 / height
+        );
+        GlobalGrid globalGrid = new GlobalGrid(projection, width, height);
 
-        CimrGridMultiLevelSource.attachToBand(band, grid, model);
+        CimrGridMultiLevelSource.attachToBand(band, dataSource, globalGrid);
 
         assertNotNull(band.getSourceImage());
         assertTrue(band.getSourceImage() instanceof DefaultMultiLevelImage);
@@ -94,5 +96,11 @@ public class CimrGridMultiLevelSourceTest {
         assertEquals(1.0,  raster.getSampleDouble(1, 0, 0), doubleErr);
         assertEquals(10.0, raster.getSampleDouble(0, 1, 0), doubleErr);
         assertEquals(11.0, raster.getSampleDouble(1, 1, 0), doubleErr);
+
+        RenderedImage level1 = mli.getImage(1);
+        assertEquals(1, level1.getWidth());
+        assertEquals(1, level1.getHeight());
+        raster = level1.getData(new Rectangle(0, 0, 1, 1));
+        assertEquals(5.5,  raster.getSampleDouble(0, 0, 0), doubleErr);
     }
 }
