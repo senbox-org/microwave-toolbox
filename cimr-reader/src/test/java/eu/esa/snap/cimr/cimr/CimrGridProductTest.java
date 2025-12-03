@@ -25,7 +25,7 @@ public class CimrGridProductTest {
 
         CimrBandDescriptor band1 = new CimrBandDescriptor(
                 "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
-                new String[] {""},
+                new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
@@ -33,7 +33,7 @@ public class CimrGridProductTest {
         );
         CimrBandDescriptor band2 = new CimrBandDescriptor(
                 "X_raw_bt_v_feed1", "raw_bt_h", CimrFrequencyBand.X_BAND,
-                new String[] {""},
+                new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 2, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
@@ -64,7 +64,7 @@ public class CimrGridProductTest {
 
         CimrBandDescriptor tieDesc = new CimrBandDescriptor(
                 "altitude", "altitude", CimrFrequencyBand.C_BAND,
-                new String[] {"lat", "lon"},
+                new String[] {"lat", "lon"}, new String[] {""},
                 "/Geolocation/", 0,
                 CimrDescriptorKind.TIEPOINT_VARIABLE,
                 new String[] {"n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"},
@@ -72,7 +72,7 @@ public class CimrGridProductTest {
         );
         CimrBandDescriptor measDesc = new CimrBandDescriptor(
                 "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
-                new String[] {"lat", "lon"},
+                new String[] {"lat", "lon"}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/", 0,
                 CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
@@ -108,7 +108,7 @@ public class CimrGridProductTest {
 
         CimrBandDescriptor band = new CimrBandDescriptor(
                 "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
-                new String[] {""},
+                new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},

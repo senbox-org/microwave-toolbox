@@ -46,6 +46,7 @@ public class CimrConfigLoader {
                 e.valueVarName,
                 band,
                 e.geometryNames,
+                e.footprintVars,
                 e.groupPath,
                 e.feedIndex,
                 kind,

@@ -30,7 +30,7 @@ public class CimrSnapProductBuilderTest {
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
                 "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
-                new String[] {""},
+                new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
@@ -68,7 +68,7 @@ public class CimrSnapProductBuilderTest {
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
                 "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
-                new String[] {""},
+                new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
@@ -110,7 +110,7 @@ public class CimrSnapProductBuilderTest {
 
         CimrBandDescriptor band1 = new CimrBandDescriptor(
                 "band1", "raw1", CimrFrequencyBand.C_BAND,
-                new String[] {""},
+                new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 0, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
@@ -118,7 +118,7 @@ public class CimrSnapProductBuilderTest {
         );
         CimrBandDescriptor band2 = new CimrBandDescriptor(
                 "band2", "raw2", CimrFrequencyBand.X_BAND,
-                new String[] {""},
+                new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/X_BAND/",
                 0, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_X_BAND", "n_feeds_X_BAND"},

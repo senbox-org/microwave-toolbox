@@ -6,6 +6,7 @@ public class CimrBandEntry {
     public String valueVarName;
     public String band;
     public String[] geometryNames;
+    public String[] footprintVars;
     public String groupPath;
     public int feedIndex;
     public String[] dimensions;

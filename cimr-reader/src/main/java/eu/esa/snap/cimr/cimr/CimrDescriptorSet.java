@@ -19,7 +19,25 @@ public class CimrDescriptorSet {
     }
 
     public CimrBandDescriptor getGeometryByName(String name) {
-        for (CimrBandDescriptor descriptor : geometries) {
+        for (CimrBandDescriptor descriptor : this.geometries) {
+            if (descriptor.getName().equals(name)) {
+                return descriptor;
+            }
+        }
+        return null;
+    }
+
+    public CimrBandDescriptor getTpVariableByName(String name) {
+        for (CimrBandDescriptor descriptor : this.tiepointVariables) {
+            if (descriptor.getName().equals(name)) {
+                return descriptor;
+            }
+        }
+        return null;
+    }
+
+    public CimrBandDescriptor getMeasurementByName(String name) {
+        for (CimrBandDescriptor descriptor : this.measurements) {
             if (descriptor.getName().equals(name)) {
                 return descriptor;
             }
@@ -28,14 +46,14 @@ public class CimrDescriptorSet {
     }
 
     public List<CimrBandDescriptor> getMeasurements() {
-        return measurements;
+        return this.measurements;
     }
 
     public List<CimrBandDescriptor> getGeometries() {
-        return geometries;
+        return this.geometries;
     }
 
     public List<CimrBandDescriptor> getTiepointVariables() {
-        return tiepointVariables;
+        return this.tiepointVariables;
     }
 }

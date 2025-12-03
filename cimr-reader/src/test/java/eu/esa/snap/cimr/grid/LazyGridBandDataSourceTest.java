@@ -94,6 +94,7 @@ public class LazyGridBandDataSourceTest {
                 "valueVar",
                 CimrFrequencyBand.C_BAND,
                 new String[]{"lat", "lon"},
+                new String[] {""},
                 "/dummy/path",
                 0,
                 CimrDescriptorKind.VARIABLE,

@@ -20,12 +20,12 @@ public class CimrConfigLoaderTest {
         CimrDescriptorSet set = CimrConfigLoader.load("test-config.json");
         assertNotNull(set);
 
-        List<CimrBandDescriptor> meas      = set.getMeasurements();
-        List<CimrBandDescriptor> tpVars    = set.getTiepointVariables();
-        List<CimrBandDescriptor> tpGeoms   = set.getGeometries();
+        List<CimrBandDescriptor> meas = set.getMeasurements();
+        List<CimrBandDescriptor> tpVars = set.getTiepointVariables();
+        List<CimrBandDescriptor> tpGeoms = set.getGeometries();
 
         assertEquals(4, meas.size());
-        assertEquals(1, tpVars.size());
+        assertEquals(7, tpVars.size());
         assertEquals(4, tpGeoms.size());
 
 
@@ -39,6 +39,7 @@ public class CimrConfigLoaderTest {
         assertArrayEquals(new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"}, m0.getDimensions());
         assertEquals("double", m0.getDataType());
         assertArrayEquals(new String[]{"C_BAND_latitude_feed1", "C_BAND_longitude_feed1"}, m0.getGeometryNames());
+        assertArrayEquals(new String[]{"C_BAND_footprint_minor_axis_feed1", "C_BAND_footprint_major_axis_feed1", "C_BAND_geometric_rot_angle_feed1"}, m0.getFootprintVars());
         assertEquals("K", m0.getUnit());
         assertEquals("Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)", m0.getDescription());
 
@@ -53,6 +54,7 @@ public class CimrConfigLoaderTest {
         assertArrayEquals(new String[]{"n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"}, tpVal0.getDimensions());
         assertEquals("double", tpVal0.getDataType());
         assertArrayEquals(new String[]{"C_BAND_latitude_feed1", "C_BAND_longitude_feed1"}, tpVal0.getGeometryNames());
+        assertArrayEquals(new String[]{"C_BAND_footprint_minor_axis_feed1", "C_BAND_footprint_major_axis_feed1", "C_BAND_geometric_rot_angle_feed1"}, tpVal0.getFootprintVars());
         assertEquals("m", tpVal0.getUnit());
         assertEquals("Altitude for intersection of the LOS with the earth surface for the C band Earth views", tpVal0.getDescription());
 

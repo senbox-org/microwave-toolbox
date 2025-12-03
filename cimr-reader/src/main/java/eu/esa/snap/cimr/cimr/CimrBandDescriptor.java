@@ -7,6 +7,7 @@ public class CimrBandDescriptor {
     private final String valueVarName;
     private final CimrFrequencyBand band;
     private final String[] geometryNames;
+    private final String[] footprintVars;
     private final String groupPath;
     private final int feedIndex;
     private final CimrDescriptorKind kind;
@@ -16,11 +17,12 @@ public class CimrBandDescriptor {
     private final String description;
 
 
-    public CimrBandDescriptor(String name, String valueVarName, CimrFrequencyBand band, String[] geometryNames, String groupPath, int feedIndex, CimrDescriptorKind kind, String[] dimensions, String dataType, String unit, String description) {
+    public CimrBandDescriptor(String name, String valueVarName, CimrFrequencyBand band, String[] geometryNames, String[] footprintVars, String groupPath, int feedIndex, CimrDescriptorKind kind, String[] dimensions, String dataType, String unit, String description) {
         this.name = name;
         this.valueVarName = valueVarName;
         this.band = band;
         this.geometryNames = geometryNames;
+        this.footprintVars = footprintVars;
         this.groupPath = groupPath;
         this.feedIndex = feedIndex;
         this.kind = kind;
@@ -44,6 +46,10 @@ public class CimrBandDescriptor {
 
     public String[] getGeometryNames() {
         return geometryNames;
+    }
+
+    public String[] getFootprintVars() {
+        return footprintVars;
     }
 
     public String getGroupPath() {

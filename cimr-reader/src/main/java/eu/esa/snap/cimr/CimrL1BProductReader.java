@@ -20,6 +20,7 @@ import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 
 public class CimrL1BProductReader extends AbstractProductReader {
@@ -72,6 +73,17 @@ public class CimrL1BProductReader extends AbstractProductReader {
             this.readerContext = null;
         }
         super.close();
+    }
+
+    public List<CimrFootprint> getFootprints(String name) {
+        CimrBandDescriptor desc = this.readerContext.getDescriptorSet().getMeasurementByName(name);
+        if (desc == null) {
+            desc = this.readerContext.getDescriptorSet().getTpVariableByName(name);
+        }
+        if (desc == null) {
+            return List.of();
+        }
+        return this.readerContext.getOrCreateFootprints(desc);
     }
 
 

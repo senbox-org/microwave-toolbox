@@ -95,8 +95,7 @@ public class PlateCarreeProjection implements GridProjection {
         return new AffineTransform(
                 deltaLon, 0.0,
                 0.0,     -deltaLat,
-                lonMin + 0.5 * deltaLon,
-                latMax - 0.5 * deltaLat
+                lonMin, latMax
         );
     }
 }

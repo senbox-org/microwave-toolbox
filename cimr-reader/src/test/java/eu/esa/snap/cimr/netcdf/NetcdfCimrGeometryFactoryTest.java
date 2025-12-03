@@ -80,7 +80,7 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor latDesc = new CimrBandDescriptor(
                 "lat_c", "lat_c", CimrFrequencyBand.C_BAND,
-                new String[]{},
+                new String[]{}, new String[] {""},
                 rootPath,
                 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
@@ -88,7 +88,7 @@ public class NetcdfCimrGeometryFactoryTest {
         );
         CimrBandDescriptor lonDesc = new CimrBandDescriptor(
                 "lon_c", "lon_c", CimrFrequencyBand.C_BAND,
-                new String[]{},
+                new String[]{}, new String[] {""},
                 rootPath,
                 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
@@ -97,7 +97,7 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
                 "altitude", "altitude", CimrFrequencyBand.C_BAND,
-                new String[]{"lat_c", "lon_c"},
+                new String[]{"lat_c", "lon_c"}, new String[] {""},
                 rootPath,
                 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
@@ -178,14 +178,14 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor latDesc = new CimrBandDescriptor(
                 "lat_c", "lat_c", CimrFrequencyBand.C_BAND,
-                new String[]{},
+                new String[]{}, new String[] {},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
         );
         CimrBandDescriptor lonDesc = new CimrBandDescriptor(
                 "lon_c", "lon_c", CimrFrequencyBand.C_BAND,
-                new String[]{},
+                new String[]{}, new String[] {},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
@@ -193,7 +193,7 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
                 "altitude", "altitude", CimrFrequencyBand.C_BAND,
-                new String[]{"lat_c", "lon_c"},
+                new String[]{"lat_c", "lon_c"}, new String[] {},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
@@ -225,7 +225,7 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
                 "altitude", "altitude", CimrFrequencyBand.C_BAND,
-                null,
+                null, new String[] {},
                 "root", 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
@@ -281,7 +281,7 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor latDesc = new CimrBandDescriptor(
                 "lat_c", "lat_c", CimrFrequencyBand.C_BAND,
-                new String[]{},
+                new String[]{}, new String[] {},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
@@ -289,7 +289,7 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
                 "altitude", "altitude", CimrFrequencyBand.C_BAND,
-                new String[]{"lat_c", "lon_c"},
+                new String[]{"lat_c", "lon_c"}, new String[] {},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
@@ -349,14 +349,14 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor latDesc = new CimrBandDescriptor(
                 "lat_c", "lat_c", CimrFrequencyBand.C_BAND,
-                new String[]{},
+                new String[]{}, new String[] {},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
         );
         CimrBandDescriptor lonDesc = new CimrBandDescriptor(
                 "lon_c", "lon_c", CimrFrequencyBand.C_BAND,
-                new String[]{},
+                new String[]{}, new String[] {},
                 rootPath, 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
@@ -364,7 +364,7 @@ public class NetcdfCimrGeometryFactoryTest {
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
                 "altitude", "altitude", CimrFrequencyBand.C_BAND,
-                new String[]{"lat_c", "lon_c"},
+                new String[]{"lat_c", "lon_c"}, new String[] {},
                 rootPath, 1, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""

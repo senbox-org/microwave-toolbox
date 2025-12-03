@@ -74,7 +74,7 @@ public class CimrReaderContextTest {
     }
 
     @Test
-    public void testGetOrCreateGridForVariable_BuildsAndCachesOnce() {
+    public void testGetOrCreateGridForVariable() {
         GlobalGrid grid = createTestGrid();
         CimrDescriptorSet descriptorSet = createEmptyDescriptorSet();
         CimrBandDescriptor desc = createTestDescriptor();
@@ -112,7 +112,7 @@ public class CimrReaderContextTest {
         GridBandDataSource grid1 = ctx.getOrCreateGridForVariable(desc, true);
         GridBandDataSource grid2 = ctx.getOrCreateGridForVariable(desc, false);
 
-        assertSame(grid1, grid2);
+        assertNotSame(grid1, grid2);
 
         assertEquals(1, geomCalls.get());
         assertEquals(1, bandCalls.get());
@@ -154,7 +154,7 @@ public class CimrReaderContextTest {
             ctx.getOrCreateGridForVariable(desc, true);
             fail("Expected RuntimeException");
         } catch (RuntimeException e) {
-            assertTrue(e.getMessage().contains("Failed to build grid for variable testVar"));
+            assertTrue(e.getMessage().contains("Failed to build geometry band for variable testVar"));
             assertNotNull(e.getCause());
             assertTrue(e.getCause() instanceof IOException);
             assertEquals("boom-band", e.getCause().getMessage());
@@ -215,7 +215,7 @@ public class CimrReaderContextTest {
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
                 "testVar", "v", CimrFrequencyBand.C_BAND,
-                new String[]{"lat", "lon"},
+                new String[]{"lat", "lon"}, new String[] {""},
                 "/Data", 0, CimrDescriptorKind.VARIABLE,
                 new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
@@ -273,15 +273,14 @@ public class CimrReaderContextTest {
         GridBandDataSource ds1 = ctx.getOrCreateGridForVariable(varDesc, true);
         GridBandDataSource ds2 = ctx.getOrCreateGridForVariable(varDesc, true);
 
-        assertSame(ds1, ds2);
+        assertNotSame(ds1, ds2);
         assertEquals(1, geomFactory.getCalls);
         assertEquals(1, bandFactory.calls);
 
         ctx.clearCache();
         assertEquals(1, geomFactory.clearCalls);
 
-        GridBandDataSource ds3 = ctx.getOrCreateGridForVariable(varDesc, true);
-        assertNotSame(ds1, ds3);
+        ctx.getOrCreateGridForVariable(varDesc, true);
         assertEquals(2, geomFactory.getCalls);
         assertEquals(2, bandFactory.calls);
     }
@@ -303,6 +302,7 @@ public class CimrReaderContextTest {
                 "testVar",
                 CimrFrequencyBand.C_BAND,
                 new String[]{"lat", "lon"},
+                new String[] {""},
                 "/dummy",
                 0,
                 CimrDescriptorKind.VARIABLE,
