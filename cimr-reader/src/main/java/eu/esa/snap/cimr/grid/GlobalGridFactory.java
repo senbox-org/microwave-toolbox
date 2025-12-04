@@ -7,7 +7,7 @@ public class GlobalGridFactory {
         int width  = (int) Math.round(360.0 / cellSizeDeg);
         int height = (int) Math.round(180.0 / cellSizeDeg);
 
-        double lonMin = 0.0;
+        double lonMin = -180.0;
         double latMax = 90.0;
 
         PlateCarreeProjection proj = new PlateCarreeProjection(

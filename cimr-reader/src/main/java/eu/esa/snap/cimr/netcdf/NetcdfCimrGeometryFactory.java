@@ -82,9 +82,9 @@ public class NetcdfCimrGeometryFactory {
         for (int s = 0; s < nScans; s++) {
             for (int tp = 0; tp < nTiePoints; tp++) {
                 idx.set(s, tp, 0);
-                float lat = (float) latData.getDouble(idx);
-                float lon = (float) lonData.getDouble(idx);
-                tiePoints[s][tp][0] = new GeoPos(lat, lon);
+                double lat = latData.getDouble(idx);
+                double lon = lonData.getDouble(idx);
+                tiePoints[s][tp][0] = new GeoPos(lat, ensureLongitude(lon));
             }
         }
 
@@ -106,5 +106,11 @@ public class NetcdfCimrGeometryFactory {
 
     public void clearCache() {
         this.cache.clear();
+    }
+
+    private double ensureLongitude(double lon) {
+        while (lon > 180.0) lon -= 360.0;
+        while (lon <= -180.0) lon += 360.0;
+        return lon;
     }
 }
