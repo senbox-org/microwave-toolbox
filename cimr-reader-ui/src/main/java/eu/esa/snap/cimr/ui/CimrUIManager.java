@@ -63,10 +63,12 @@ public class CimrUIManager {
             // add footprints
             CimrL1BProductReader cimrReader = getCimrReader(newView);
             if (cimrReader != null) {
-                String band = newView.getRaster().getName();
+                RasterDataNode raster = newView.getRaster();
+                String band = raster.getName();
                 List<CimrFootprint> fps = cimrReader.getFootprints(band);
                 if (!fps.isEmpty()) {
                     CimrFootprintOverlay.INSTANCE.setFootprints(fps);
+                    CimrFootprintOverlay.INSTANCE.setRaster(raster);
                     newView.getLayerCanvas().addOverlay(CimrFootprintOverlay.INSTANCE);
                 }
             }

@@ -5,6 +5,7 @@ import com.bc.ceres.grender.Rendering;
 import com.bc.ceres.grender.Viewport;
 import eu.esa.snap.cimr.cimr.CimrFootprint;
 import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.RasterDataNode;
 import org.junit.Test;
 
 import java.awt.*;
@@ -33,10 +34,13 @@ public class CimrFootprintOverlayTest {
         LayerCanvas canvas = mock(LayerCanvas.class);
         Rendering rendering = mock(Rendering.class);
         Viewport vp = mock(Viewport.class);
+        RasterDataNode raster = mock(RasterDataNode.class);
+        CimrFootprintOverlay.INSTANCE.setRaster(raster);
 
         when(canvas.getViewport()).thenReturn(vp);
         when(vp.getModelToViewTransform()).thenReturn(new AffineTransform());
         when(rendering.getGraphics()).thenReturn(g2d);
+        when(raster.getImageInfo()).thenReturn(null);
 
         // should not throw exception
         overlay.paintOverlay(canvas, rendering);

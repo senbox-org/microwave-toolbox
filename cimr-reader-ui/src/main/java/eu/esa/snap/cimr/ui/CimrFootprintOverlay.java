@@ -4,6 +4,10 @@ import com.bc.ceres.glayer.swing.LayerCanvas;
 import com.bc.ceres.grender.Rendering;
 import com.bc.ceres.grender.Viewport;
 import eu.esa.snap.cimr.cimr.CimrFootprint;
+import org.esa.snap.core.datamodel.ColorPaletteDef;
+import org.esa.snap.core.datamodel.ImageInfo;
+import org.esa.snap.core.datamodel.RasterDataNode;
+import org.esa.snap.core.image.ImageManager;
 
 import java.awt.*;
 import java.awt.geom.*;
@@ -15,6 +19,7 @@ public class CimrFootprintOverlay implements LayerCanvas.Overlay {
     public static final CimrFootprintOverlay INSTANCE = new CimrFootprintOverlay();
 
     private List<CimrFootprint> footprints;
+    private RasterDataNode raster;
 
     private CimrFootprintOverlay() {}
 
@@ -22,8 +27,16 @@ public class CimrFootprintOverlay implements LayerCanvas.Overlay {
         this.footprints = footprints;
     }
 
+    public void setRaster(RasterDataNode raster) {
+        this.raster = raster;
+    }
+
     @Override
     public void paintOverlay(LayerCanvas canvas, Rendering rendering) {
+        if (footprints == null || footprints.isEmpty()) {
+            return;
+        }
+
         Graphics2D g = rendering.getGraphics();
 
         Color oldColor = g.getColor();
@@ -31,6 +44,16 @@ public class CimrFootprintOverlay implements LayerCanvas.Overlay {
 
         Viewport vp = canvas.getViewport();
         AffineTransform m2vBase = vp.getModelToViewTransform();
+
+        ImageInfo imageInfo = raster.getImageInfo();
+        Color baseColor = Color.WHITE;
+        Color[] fullPalette = null;
+        ColorPaletteDef cpd = null;
+
+        if (imageInfo != null) {
+            cpd = imageInfo.getColorPaletteDef();
+            fullPalette = ImageManager.createColorPalette(imageInfo);
+        }
 
         for (CimrFootprint fp : footprints) {
             double cx = fp.getGeoPos().getLon();
@@ -45,7 +68,11 @@ public class CimrFootprintOverlay implements LayerCanvas.Overlay {
             Shape rotatedModelShape = rotModel.createTransformedShape(modelEllipse);
             Shape viewEllipse = m2vBase.createTransformedShape(rotatedModelShape);
 
-            g.setColor(new Color(255, 255, 255, 255));
+            if (imageInfo != null && cpd != null) {
+                baseColor = getColorForValue(cpd, fullPalette, fp.getValue());
+            }
+
+            g.setColor(baseColor);
             g.fill(viewEllipse);
         }
 
@@ -53,4 +80,17 @@ public class CimrFootprintOverlay implements LayerCanvas.Overlay {
         g.setColor(oldColor);
     }
 
+    private Color getColorForValue(ColorPaletteDef cpd, Color[] fullPalette, double value) {
+        int numColors = cpd.getNumColors();
+        double min = cpd.getMinDisplaySample();
+        double max = cpd.getMaxDisplaySample();
+
+        double v = Math.max(min, Math.min(max, value));
+        double f = (v - min) / (max - min);
+
+        int idx = (int) Math.round(f * (numColors - 1));
+        idx = Math.max(0, Math.min(idx, numColors));
+
+        return fullPalette[idx];
+    }
 }
