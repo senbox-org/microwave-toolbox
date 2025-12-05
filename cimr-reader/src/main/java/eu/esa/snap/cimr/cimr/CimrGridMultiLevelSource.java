@@ -5,7 +5,7 @@ import com.bc.ceres.multilevel.MultiLevelSource;
 import com.bc.ceres.multilevel.support.AbstractMultiLevelSource;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelImage;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelModel;
-import eu.esa.snap.cimr.grid.GlobalGrid;
+import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.image.ResolutionLevel;
@@ -35,7 +35,7 @@ public class CimrGridMultiLevelSource extends AbstractMultiLevelSource {
         return new CimrGridOpImage(targetBand, resLevel, gridDataSource);
     }
 
-    public static void attachToBand(Band band, GridBandDataSource gridDataSource, GlobalGrid grid) {
+    public static void attachToBand(Band band, GridBandDataSource gridDataSource, CimrGrid grid) {
         AffineTransform imageToModel = grid.getProjection().getAffineTransform(grid);
         MultiLevelModel model = new DefaultMultiLevelModel(MLM_LEVEL_COUNT, imageToModel, grid.getWidth(), grid.getHeight());
 

@@ -4,7 +4,7 @@ package eu.esa.snap.cimr.cimr;
 import com.bc.ceres.multilevel.MultiLevelModel;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelImage;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelModel;
-import eu.esa.snap.cimr.grid.GlobalGrid;
+import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.PlateCarreeProjection;
 import org.esa.snap.core.datamodel.Band;
@@ -79,9 +79,9 @@ public class CimrGridMultiLevelSourceTest {
                 -180.0, 90.0,
                 360.0 / width, 180.0 / height
         );
-        GlobalGrid globalGrid = new GlobalGrid(projection, width, height);
+        CimrGrid cimrGrid = new CimrGrid(projection, width, height);
 
-        CimrGridMultiLevelSource.attachToBand(band, dataSource, globalGrid);
+        CimrGridMultiLevelSource.attachToBand(band, dataSource, cimrGrid);
 
         assertNotNull(band.getSourceImage());
         assertTrue(band.getSourceImage() instanceof DefaultMultiLevelImage);

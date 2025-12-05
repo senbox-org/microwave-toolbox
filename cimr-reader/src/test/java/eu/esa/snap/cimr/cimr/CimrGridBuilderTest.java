@@ -13,9 +13,9 @@ public class CimrGridBuilderTest {
     public void build_whenUseAverageTrue_usesMapAverage() {
         RecordingMapper mapper = new RecordingMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
-        GlobalGrid grid = GlobalGridFactory.createGlobalPlateCarree(10.0);
+        CimrGrid grid = CimrGridFactory.createGlobalPlateCarree(10.0);
 
-        GlobalGridBandDataSource result = builder.build(null, grid, true);
+        CimrGridBandDataSource result = builder.build(null, grid, true);
 
         assertTrue(mapper.mapAverageCalled);
         assertFalse(mapper.mapNearestCalled);
@@ -28,9 +28,9 @@ public class CimrGridBuilderTest {
     public void build_whenUseAverageFalse_usesMapNearest() {
         RecordingMapper mapper = new RecordingMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
-        GlobalGrid grid = GlobalGridFactory.createGlobalPlateCarree(10.0);
+        CimrGrid grid = CimrGridFactory.createGlobalPlateCarree(10.0);
 
-        GlobalGridBandDataSource result = builder.build(null, grid, false);
+        CimrGridBandDataSource result = builder.build(null, grid, false);
 
         assertFalse(mapper.mapAverageCalled);
         assertTrue(mapper.mapNearestCalled);
@@ -43,11 +43,11 @@ public class CimrGridBuilderTest {
         boolean mapAverageCalled;
         boolean mapNearestCalled;
         CimrBand lastBand;
-        GlobalGrid lastGrid;
+        CimrGrid lastGrid;
         GridBandDataSource lastTarget;
 
         @Override
-        public void mapAverage(CimrBand band, GlobalGrid grid, GridBandDataSource target) {
+        public void mapAverage(CimrBand band, CimrGrid grid, GridBandDataSource target) {
             mapAverageCalled = true;
             lastBand = band;
             lastGrid = grid;
@@ -55,7 +55,7 @@ public class CimrGridBuilderTest {
         }
 
         @Override
-        public void mapNearest(CimrBand band, GlobalGrid grid, GridBandDataSource target) {
+        public void mapNearest(CimrBand band, CimrGrid grid, GridBandDataSource target) {
             mapNearestCalled = true;
             lastBand = band;
             lastGrid = grid;

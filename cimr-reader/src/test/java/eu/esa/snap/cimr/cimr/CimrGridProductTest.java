@@ -19,7 +19,7 @@ public class CimrGridProductTest {
                 0.0, 1.0,
                 1.0, 1.0
         );
-        GlobalGrid grid = new GlobalGrid(proj, 2,1);
+        CimrGrid grid = new CimrGrid(proj, 2,1);
 
         CimrGridProduct product = new CimrGridProduct(grid);
 
@@ -42,8 +42,8 @@ public class CimrGridProductTest {
 
         double[] data1 = {1.0, 2.0};
         double[] data2 = {10.0, 20.0};
-        GridBandDataSource ds1 = new GlobalGridBandDataSource(2, 1, data1);
-        GridBandDataSource ds2 = new GlobalGridBandDataSource(2, 1, data2);
+        GridBandDataSource ds1 = new CimrGridBandDataSource(2, 1, data1);
+        GridBandDataSource ds2 = new CimrGridBandDataSource(2, 1, data2);
 
         product.addBand(band1, ds1);
         product.addBand(band2, ds2);
@@ -60,7 +60,7 @@ public class CimrGridProductTest {
     @Test
     public void testBuildLazyCreatesBandsFromDescriptorSet() {
         PlateCarreeProjection proj = new PlateCarreeProjection(2, 1, 0.0, 1.0, 1.0, 1.0);
-        GlobalGrid grid = new GlobalGrid(proj, 2, 1);
+        CimrGrid grid = new CimrGrid(proj, 2, 1);
 
         CimrBandDescriptor tieDesc = new CimrBandDescriptor(
                 "altitude", "altitude", CimrFrequencyBand.C_BAND,
@@ -103,7 +103,7 @@ public class CimrGridProductTest {
     @Test(expected = UnsupportedOperationException.class)
     public void testGetBandsIsUnmodifiable() {
         PlateCarreeProjection proj = new PlateCarreeProjection(2, 1, 0.0, 1.0, 1.0, 1.0);
-        GlobalGrid grid = new GlobalGrid(proj, 2, 1);
+        CimrGrid grid = new CimrGrid(proj, 2, 1);
         CimrGridProduct product = new CimrGridProduct(grid);
 
         CimrBandDescriptor band = new CimrBandDescriptor(
@@ -114,7 +114,7 @@ public class CimrGridProductTest {
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
         );
-        GridBandDataSource ds = new GlobalGridBandDataSource(2, 1, new double[]{1.0, 2.0});
+        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[]{1.0, 2.0});
         product.addBand(band, ds);
 
         product.getBands().put(band, ds);

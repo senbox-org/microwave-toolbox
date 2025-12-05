@@ -22,7 +22,7 @@ public class CimrReaderContextTest {
 
     @Test
     public void testConstructorAndGetters() {
-        GlobalGrid grid = createTestGrid();
+        CimrGrid grid = createTestGrid();
         CimrDescriptorSet descriptorSet = createEmptyDescriptorSet();
 
         NetcdfCimrGeometryFactory geomFactory = new NetcdfCimrGeometryFactory(null, Collections.emptyList(), null);
@@ -42,7 +42,7 @@ public class CimrReaderContextTest {
 
     @Test
     public void testGetOrCreateGeometry_DelegatesAndWrapsCheckedException() {
-        GlobalGrid grid = createTestGrid();
+        CimrGrid grid = createTestGrid();
         CimrDescriptorSet descriptorSet = createEmptyDescriptorSet();
         CimrBandDescriptor desc = createTestDescriptor();
 
@@ -75,7 +75,7 @@ public class CimrReaderContextTest {
 
     @Test
     public void testGetOrCreateGridForVariable() {
-        GlobalGrid grid = createTestGrid();
+        CimrGrid grid = createTestGrid();
         CimrDescriptorSet descriptorSet = createEmptyDescriptorSet();
         CimrBandDescriptor desc = createTestDescriptor();
 
@@ -122,7 +122,7 @@ public class CimrReaderContextTest {
 
     @Test
     public void testGetOrCreateGridForVariable_WrapsBandFactoryCheckedException() {
-        GlobalGrid grid = createTestGrid();
+        CimrGrid grid = createTestGrid();
         CimrDescriptorSet descriptorSet = createEmptyDescriptorSet();
         CimrBandDescriptor desc = createTestDescriptor();
 
@@ -163,7 +163,7 @@ public class CimrReaderContextTest {
 
     @Test
     public void testGetOrCreateGridForVariable_PropagatesGeometryRuntimeException() {
-        GlobalGrid grid = createTestGrid();
+        CimrGrid grid = createTestGrid();
         CimrDescriptorSet descriptorSet = createEmptyDescriptorSet();
         CimrBandDescriptor desc = createTestDescriptor();
 
@@ -211,7 +211,7 @@ public class CimrReaderContextTest {
                 0.0, 0.0,
                 1.0, 1.0
         );
-        GlobalGrid grid = new GlobalGrid(proj, 2, 1);
+        CimrGrid grid = new CimrGrid(proj, 2, 1);
 
         CimrBandDescriptor varDesc = new CimrBandDescriptor(
                 "testVar", "v", CimrFrequencyBand.C_BAND,
@@ -287,13 +287,13 @@ public class CimrReaderContextTest {
 
 
 
-    private GlobalGrid createTestGrid() {
+    private CimrGrid createTestGrid() {
         PlateCarreeProjection proj = new PlateCarreeProjection(
                 1, 1,
                 -0.5, 0.5,
                 1.0, 1.0
         );
-        return new GlobalGrid(proj, 1, 1);
+        return new CimrGrid(proj, 1, 1);
     }
 
     private CimrBandDescriptor createTestDescriptor() {

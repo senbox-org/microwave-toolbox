@@ -3,14 +3,14 @@ package eu.esa.snap.cimr.grid;
 import java.util.Arrays;
 
 
-public class GlobalGridBandDataSource implements GridBandDataSource {
+public class CimrGridBandDataSource implements GridBandDataSource {
 
     private final int width;
     private final int height;
     private final double[] data;
 
 
-    public GlobalGridBandDataSource(int width, int height, double[] data) {
+    public CimrGridBandDataSource(int width, int height, double[] data) {
         if (data.length != width * height) {
             throw new IllegalArgumentException("data length must be width * height");
         }
@@ -20,10 +20,10 @@ public class GlobalGridBandDataSource implements GridBandDataSource {
     }
 
 
-    public static GlobalGridBandDataSource createEmpty(int width, int height) {
+    public static CimrGridBandDataSource createEmpty(int width, int height) {
         double[] data = new double[width * height];
         Arrays.fill(data, Double.NaN);
-        return new GlobalGridBandDataSource(width, height, data);
+        return new CimrGridBandDataSource(width, height, data);
     }
 
     public int getWidth() {

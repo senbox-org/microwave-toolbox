@@ -14,7 +14,7 @@ public class LazyCrsGeoCodingTest {
 
     @Test
     public void test_canGetFlagsAndIsGlobalDoNotInitDelegate() throws Exception {
-        GlobalGrid grid = mock(GlobalGrid.class);
+        CimrGrid grid = mock(CimrGrid.class);
 
         LazyCrsGeoCoding gc = new LazyCrsGeoCoding(grid);
 
@@ -28,7 +28,7 @@ public class LazyCrsGeoCodingTest {
 
     @Test
     public void test_delegateIsCreatedLazilyAndReusedForAllDelegatingMethods() throws Exception {
-        GlobalGrid grid = GlobalGridFactory.createGlobalPlateCarree(1.0);  // ggf. Aufruf anpassen
+        CimrGrid grid = CimrGridFactory.createGlobalPlateCarree(1.0);
         LazyCrsGeoCoding gc = new LazyCrsGeoCoding(grid);
 
         assertNull(getField(gc, "delegate"));
@@ -58,7 +58,7 @@ public class LazyCrsGeoCodingTest {
 
     @Test
     public void wrapsDelegateCreationFailuresInRuntimeException() {
-        GlobalGrid badGrid = mock(GlobalGrid.class);
+        CimrGrid badGrid = mock(CimrGrid.class);
         when(badGrid.getWidth()).thenReturn(10);
         when(badGrid.getHeight()).thenReturn(10);
         when(badGrid.getProjection()).thenThrow(new RuntimeException("boom"));
@@ -77,7 +77,7 @@ public class LazyCrsGeoCodingTest {
 
     @Test(expected = IllegalStateException.class)
     public void cloneThrowsIllegalStateException() {
-        GlobalGrid grid = GlobalGridFactory.createGlobalPlateCarree(1.0);
+        CimrGrid grid = CimrGridFactory.createGlobalPlateCarree(1.0);
         LazyCrsGeoCoding gc = new LazyCrsGeoCoding(grid);
 
         gc.clone();

@@ -11,10 +11,10 @@ import java.awt.geom.AffineTransform;
 
 public class LazyCrsGeoCoding implements GeoCoding {
 
-    private final GlobalGrid grid;
+    private final CimrGrid grid;
     private GeoCoding delegate;
 
-    public LazyCrsGeoCoding(GlobalGrid grid) {
+    public LazyCrsGeoCoding(CimrGrid grid) {
         this.grid = grid;
     }
 

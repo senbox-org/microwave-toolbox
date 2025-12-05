@@ -9,7 +9,7 @@ import java.awt.*;
 public class GeometryBandToGridMapper {
 
 
-    public void mapNearest(CimrBand band, GlobalGrid grid, GridBandDataSource target) {
+    public void mapNearest(CimrBand band, CimrGrid grid, GridBandDataSource target) {
         Point gridPoint = new Point();
 
         for (int ss = 0; ss < band.getScanCount(); ss++) {
@@ -28,7 +28,7 @@ public class GeometryBandToGridMapper {
         }
     }
 
-    public void mapAverage(CimrBand band, GlobalGrid grid, GridBandDataSource target) {
+    public void mapAverage(CimrBand band, CimrGrid grid, GridBandDataSource target) {
         int width = grid.getWidth();
         int height = grid.getHeight();
 

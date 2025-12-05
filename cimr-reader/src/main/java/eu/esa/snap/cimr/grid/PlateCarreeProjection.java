@@ -86,7 +86,7 @@ public class PlateCarreeProjection implements GridProjection {
     }
 
     @Override
-    public AffineTransform getAffineTransform(GlobalGrid grid) {
+    public AffineTransform getAffineTransform(CimrGrid grid) {
         double lonMin = grid.getProjection().getLonMin();
         double latMax = grid.getProjection().getLatMax();
         double deltaLon = grid.getProjection().getDeltaLon();

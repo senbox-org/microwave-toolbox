@@ -5,7 +5,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 
-public class GlobalGridBandDataSourceTest {
+public class CimrGridBandDataSourceTest {
 
     @Test
     public void testGetSample_basicLayout() {
@@ -15,7 +15,7 @@ public class GlobalGridBandDataSourceTest {
                 1.0, 2.0,
                 3.0, 4.0
         };
-        GlobalGridBandDataSource ds = new GlobalGridBandDataSource(width, height, data);
+        CimrGridBandDataSource ds = new CimrGridBandDataSource(width, height, data);
 
         assertEquals(1.0, ds.getSample(0, 0), 1e-12);
         assertEquals(2.0, ds.getSample(1, 0), 1e-12);
@@ -25,7 +25,7 @@ public class GlobalGridBandDataSourceTest {
 
     @Test
     public void testCreateEmpty_initialNaN() {
-        GlobalGridBandDataSource ds = GlobalGridBandDataSource.createEmpty(2, 2);
+        CimrGridBandDataSource ds = CimrGridBandDataSource.createEmpty(2, 2);
 
         assertTrue(Double.isNaN(ds.getSample(0, 0)));
         assertTrue(Double.isNaN(ds.getSample(1, 0)));
@@ -35,7 +35,7 @@ public class GlobalGridBandDataSourceTest {
 
     @Test
     public void testSetSample() {
-        GlobalGridBandDataSource ds = GlobalGridBandDataSource.createEmpty(2, 1);
+        CimrGridBandDataSource ds = CimrGridBandDataSource.createEmpty(2, 1);
 
         ds.setSample(0, 0, 42.0);
         ds.setSample(1, 0, 7.0);
@@ -46,18 +46,18 @@ public class GlobalGridBandDataSourceTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructor_invalidLength_throws() {
-        new GlobalGridBandDataSource(2, 2, new double[]{1.0, 2.0, 3.0});
+        new CimrGridBandDataSource(2, 2, new double[]{1.0, 2.0, 3.0});
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetSample_outOfBounds_throws() {
-        GlobalGridBandDataSource ds = GlobalGridBandDataSource.createEmpty(2, 2);
+        CimrGridBandDataSource ds = CimrGridBandDataSource.createEmpty(2, 2);
         ds.getSample(2, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testSetSample_outOfBounds_throws() {
-        GlobalGridBandDataSource ds = GlobalGridBandDataSource.createEmpty(2, 2);
+        CimrGridBandDataSource ds = CimrGridBandDataSource.createEmpty(2, 2);
         ds.setSample(-1, 0, 5.0);
     }
 }

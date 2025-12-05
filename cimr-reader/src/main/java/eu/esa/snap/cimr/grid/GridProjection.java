@@ -14,7 +14,7 @@ public interface GridProjection {
     boolean geoPosToGrid(GeoPos lat, Point out);
 
     CoordinateReferenceSystem getCrs()  throws FactoryException;
-    AffineTransform getAffineTransform(GlobalGrid grid);
+    AffineTransform getAffineTransform(CimrGrid grid);
 
     double getLonMin();
     double getLatMax();

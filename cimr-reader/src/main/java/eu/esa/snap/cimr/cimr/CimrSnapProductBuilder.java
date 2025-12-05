@@ -1,6 +1,6 @@
 package eu.esa.snap.cimr.cimr;
 
-import eu.esa.snap.cimr.grid.GlobalGrid;
+import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.LazyCrsGeoCoding;
 import org.esa.snap.core.datamodel.Band;
@@ -18,7 +18,7 @@ public class CimrSnapProductBuilder {
 
 
     public static Product buildProduct(String productName, String productType, CimrGridProduct cimrProduct, String path) throws Exception {
-        GlobalGrid grid = cimrProduct.getGlobalGrid();
+        CimrGrid grid = cimrProduct.getGlobalGrid();
         Product product = new Product(productName, productType, grid.getWidth(), grid.getHeight());
 
         addGeoCoding(grid, product);
@@ -30,14 +30,14 @@ public class CimrSnapProductBuilder {
         return product;
     }
 
-    private static void addGeoCoding(GlobalGrid grid, Product product) {
+    private static void addGeoCoding(CimrGrid grid, Product product) {
         GeoCoding geoCoding = new LazyCrsGeoCoding(grid);
         product.setSceneGeoCoding(geoCoding);
     }
 
 
     private static void addBands(CimrGridProduct cimrProduct, Product product) {
-        GlobalGrid grid = cimrProduct.getGlobalGrid();
+        CimrGrid grid = cimrProduct.getGlobalGrid();
 
         for (Map.Entry<CimrBandDescriptor, GridBandDataSource> e : cimrProduct.getBands().entrySet()) {
             CimrBandDescriptor desc = e.getKey();

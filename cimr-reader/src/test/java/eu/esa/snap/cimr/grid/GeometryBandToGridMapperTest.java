@@ -17,10 +17,10 @@ public class GeometryBandToGridMapperTest {
                 -10.0, 81.0,
                 1.0, 1.0
         );
-        GlobalGrid grid = new GlobalGrid(projection, 4, 2);
+        CimrGrid grid = new CimrGrid(projection, 4, 2);
         CimrBand swath = new DummyCimrBand();
 
-        GlobalGridBandDataSource target = GlobalGridBandDataSource.createEmpty(4, 2);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(4, 2);
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
         mapper.mapNearest(swath, grid, target);
@@ -40,10 +40,10 @@ public class GeometryBandToGridMapperTest {
     @Test
     public void testMap_simpleCase_mapAverage() {
         PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, -180, 90, 360, 180);
-        GlobalGrid grid = new GlobalGrid(proj, 1, 1);
+        CimrGrid grid = new CimrGrid(proj, 1, 1);
 
         CimrBand swath = new DummyCimrBand();
-        GlobalGridBandDataSource target = GlobalGridBandDataSource.createEmpty(1, 1);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
         mapper.mapAverage(swath, grid, target);
 

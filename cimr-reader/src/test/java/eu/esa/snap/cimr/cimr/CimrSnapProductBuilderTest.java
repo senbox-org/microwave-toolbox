@@ -1,7 +1,7 @@
 package eu.esa.snap.cimr.cimr;
 
-import eu.esa.snap.cimr.grid.GlobalGridBandDataSource;
-import eu.esa.snap.cimr.grid.GlobalGrid;
+import eu.esa.snap.cimr.grid.CimrGridBandDataSource;
+import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.PlateCarreeProjection;
 import org.esa.snap.core.datamodel.Band;
@@ -24,9 +24,9 @@ public class CimrSnapProductBuilderTest {
                 0.0, 1.0,
                 1.0, 1.0
         );
-        GlobalGrid globalGrid = new GlobalGrid(proj, 2, 1);
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
 
-        CimrGridProduct gridProduct = new CimrGridProduct(globalGrid);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
                 "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
@@ -38,7 +38,7 @@ public class CimrSnapProductBuilderTest {
         );
 
         double[] data = {1.0, 2.0};
-        GridBandDataSource ds = new GlobalGridBandDataSource(2, 1, data);
+        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, data);
         gridProduct.addBand(bandDesc, ds);
 
         Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path");
@@ -62,9 +62,9 @@ public class CimrSnapProductBuilderTest {
                 0.0, 1.0,
                 1.0, 1.0
         );
-        GlobalGrid globalGrid = new GlobalGrid(proj, 2, 1);
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
 
-        CimrGridProduct gridProduct = new CimrGridProduct(globalGrid);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
                 "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
@@ -77,7 +77,7 @@ public class CimrSnapProductBuilderTest {
         );
 
         double[] data = {1.0, 2.0};
-        GridBandDataSource ds = new GlobalGridBandDataSource(2, 1, data);
+        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, data);
         gridProduct.addBand(bandDesc, ds);
 
         String path = "some\\path\\file.nc";
@@ -104,9 +104,9 @@ public class CimrSnapProductBuilderTest {
                 0.0, 1.0,
                 1.0, 1.0
         );
-        GlobalGrid globalGrid = new GlobalGrid(proj, 2, 1);
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
 
-        CimrGridProduct gridProduct = new CimrGridProduct(globalGrid);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor band1 = new CimrBandDescriptor(
                 "band1", "raw1", CimrFrequencyBand.C_BAND,
@@ -125,8 +125,8 @@ public class CimrSnapProductBuilderTest {
                 "double", "", ""
         );
 
-        GridBandDataSource ds1 = new GlobalGridBandDataSource(2, 1, new double[]{1.0, 2.0});
-        GridBandDataSource ds2 = new GlobalGridBandDataSource(2, 1, new double[]{10.0, 20.0});
+        GridBandDataSource ds1 = new CimrGridBandDataSource(2, 1, new double[]{1.0, 2.0});
+        GridBandDataSource ds2 = new CimrGridBandDataSource(2, 1, new double[]{10.0, 20.0});
 
         gridProduct.addBand(band1, ds1);
         gridProduct.addBand(band2, ds2);
@@ -153,9 +153,9 @@ public class CimrSnapProductBuilderTest {
                 0.0, 1.0,
                 1.0, 1.0
         );
-        GlobalGrid globalGrid = new GlobalGrid(proj, 4, 2);
+        CimrGrid cimrGrid = new CimrGrid(proj, 4, 2);
 
-        CimrGridProduct gridProduct = new CimrGridProduct(globalGrid);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         Product product = CimrSnapProductBuilder.buildProduct("EMPTY", "CIMR_GRID", gridProduct, "path");
 

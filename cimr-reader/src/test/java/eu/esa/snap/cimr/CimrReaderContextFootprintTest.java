@@ -6,7 +6,7 @@ import eu.esa.snap.cimr.cimr.CimrFootprint;
 import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.CimrGeometry;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
-import eu.esa.snap.cimr.grid.GlobalGrid;
+import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrBandFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrFootprintFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
@@ -39,7 +39,7 @@ public class CimrReaderContextFootprintTest {
     private CimrDescriptorSet descriptorSet;
 
     @Mock
-    private GlobalGrid globalGrid;
+    private CimrGrid cimrGrid;
 
     @Mock
     private NetcdfCimrGeometryFactory geometryFactory;
@@ -90,7 +90,7 @@ public class CimrReaderContextFootprintTest {
 
     @Before
     public void setUp() throws Exception {
-        context = new CimrReaderContext(ncFile, descriptorSet, globalGrid, geometryFactory, bandFactory);
+        context = new CimrReaderContext(ncFile, descriptorSet, cimrGrid, geometryFactory, bandFactory);
 
         Field ff = CimrReaderContext.class.getDeclaredField("footprintFactory");
         ff.setAccessible(true);

@@ -2,6 +2,7 @@ package eu.esa.snap.cimr.netcdf;
 
 import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
 import eu.esa.snap.cimr.cimr.CimrDimensions;
+import eu.esa.snap.cimr.grid.CimrBoundingBox;
 import eu.esa.snap.cimr.grid.CimrTiepointGeometry;
 import eu.esa.snap.cimr.grid.CimrGeometry;
 import org.esa.snap.core.datamodel.GeoPos;
@@ -112,5 +113,10 @@ public class NetcdfCimrGeometryFactory {
         while (lon > 180.0) lon -= 360.0;
         while (lon <= -180.0) lon += 360.0;
         return lon;
+    }
+
+    public CimrBoundingBox getBoundingBox(CimrBandDescriptor variableDesc, double cellSizeDeg) throws InvalidRangeException, IOException {
+        CimrGeometry bbGeometry = getOrCreateGeometry(variableDesc);
+        return CimrBoundingBox.create(bbGeometry, cellSizeDeg);
     }
 }

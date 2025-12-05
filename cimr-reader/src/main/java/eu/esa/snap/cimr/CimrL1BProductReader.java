@@ -3,8 +3,9 @@ package eu.esa.snap.cimr;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.snap.cimr.cimr.*;
 import eu.esa.snap.cimr.config.CimrConfigLoader;
-import eu.esa.snap.cimr.grid.GlobalGrid;
-import eu.esa.snap.cimr.grid.GlobalGridFactory;
+import eu.esa.snap.cimr.grid.CimrBoundingBox;
+import eu.esa.snap.cimr.grid.CimrGrid;
+import eu.esa.snap.cimr.grid.CimrGridFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrBandFactory;
 import org.esa.snap.core.dataio.AbstractProductReader;
@@ -13,6 +14,7 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.dataio.netcdf.util.NetcdfFileOpener;
+import ucar.ma2.InvalidRangeException;
 import ucar.nc2.NetcdfFile;
 
 import java.awt.*;
@@ -57,6 +59,7 @@ public class CimrL1BProductReader extends AbstractProductReader {
 
     @Override
     protected void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight, int sourceStepX, int sourceStepY, Band destBand, int destOffsetX, int destOffsetY, int destWidth, int destHeight, ProductData destBuffer, ProgressMonitor pm) throws IOException {
+        // TODO BL handle destination offsets
         final RenderedImage image = destBand.getSourceImage();
         final Raster data = image.getData(new Rectangle(destOffsetX, destOffsetY, destWidth, destHeight));
         data.getDataElements(destOffsetX, destOffsetY, destWidth, destHeight, destBuffer.getElems());
@@ -99,14 +102,17 @@ public class CimrL1BProductReader extends AbstractProductReader {
         return (String) input;
     }
 
-    private CimrReaderContext initContext(NetcdfFile ncFile) throws IOException {
+    private CimrReaderContext initContext(NetcdfFile ncFile) throws IOException, InvalidRangeException {
         CimrDescriptorSet descriptorSet = CimrConfigLoader.load("cimr-l1b-config.json");
         CimrDimensions dimensions = CimrDimensions.from(ncFile);
 
-        GlobalGrid globalGrid = GlobalGridFactory.createGlobalPlateCarree(0.1);
+        CimrBandDescriptor bbDescriptor = descriptorSet.getMeasurements().getFirst();
         NetcdfCimrGeometryFactory geometryFactory = new NetcdfCimrGeometryFactory(ncFile, descriptorSet.getGeometries(), dimensions);
+        CimrBoundingBox bBox = geometryFactory.getBoundingBox(bbDescriptor, CimrGridFactory.DEFAULT_CELL_SIZE_DEG);
+
+        CimrGrid cimrGrid = CimrGridFactory.createPlateCarreeFromBoundingBox(bBox);
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(ncFile, dimensions);
 
-        return new CimrReaderContext(ncFile, descriptorSet, globalGrid, geometryFactory, bandFactory);
+        return new CimrReaderContext(ncFile, descriptorSet, cimrGrid, geometryFactory, bandFactory);
     }
 }

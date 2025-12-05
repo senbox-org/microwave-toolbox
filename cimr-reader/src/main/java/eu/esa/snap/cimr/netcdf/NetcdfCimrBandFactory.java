@@ -56,6 +56,7 @@ public class NetcdfCimrBandFactory {
             int sampleCount = getSampleCount(desc);
             values = new double[nScans][sampleCount];
 
+            // TODO extract Tiepoint interpolation
             for (int s = 0; s < nScans; s++) {
                 for (int smp = 0; smp < sampleCount; smp++) {
                     double t  = (double) smp * (nSamples - 1) / (double) (sampleCount - 1);

@@ -1,8 +1,8 @@
 package eu.esa.snap.cimr.cimr;
 
 import eu.esa.snap.cimr.grid.CimrBand;
-import eu.esa.snap.cimr.grid.GlobalGrid;
-import eu.esa.snap.cimr.grid.GlobalGridBandDataSource;
+import eu.esa.snap.cimr.grid.CimrGrid;
+import eu.esa.snap.cimr.grid.CimrGridBandDataSource;
 import eu.esa.snap.cimr.grid.GeometryBandToGridMapper;
 
 
@@ -15,8 +15,8 @@ public class CimrGridBuilder {
         this.mapper = mapper;
     }
 
-    public GlobalGridBandDataSource build(CimrBand band, GlobalGrid grid, boolean useAverage) {
-        GlobalGridBandDataSource target = GlobalGridBandDataSource.createEmpty(grid.getWidth(), grid.getHeight());
+    public CimrGridBandDataSource build(CimrBand band, CimrGrid grid, boolean useAverage) {
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(grid.getWidth(), grid.getHeight());
         if (useAverage) {
             mapper.mapAverage(band, grid, target);
         } else {

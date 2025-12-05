@@ -9,9 +9,9 @@ import java.awt.*;
 import static org.junit.Assert.*;
 
 
-public class GlobalGridTest {
+public class CimrGridTest {
 
-    GlobalGrid grid;
+    CimrGrid grid;
 
     @Before
     public void setUp() {
@@ -20,7 +20,7 @@ public class GlobalGridTest {
                 -180.0, 90.0,
                 1.0, 1.0
         );
-        grid = new GlobalGrid(proj, 180, 360);
+        grid = new CimrGrid(proj, 180, 360);
     }
 
     @Test

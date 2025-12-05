@@ -23,9 +23,9 @@ public class CimrGridBuilderTest {
                 0.0, 1.0,
                 1.0, 1.0
         );
-        GlobalGrid grid =  new GlobalGrid(proj, 1, 1);
+        CimrGrid grid =  new CimrGrid(proj, 1, 1);
 
-        GlobalGridBandDataSource target = builder.build(swath, grid, true);
+        CimrGridBandDataSource target = builder.build(swath, grid, true);
 
         assertEquals(41.0, target.getSample(0, 0), doubleErr);
         assertEquals(1, target.getWidth());
@@ -43,9 +43,9 @@ public class CimrGridBuilderTest {
                 0.0, 1.0,
                 1.0, 1.0
         );
-        GlobalGrid grid =  new GlobalGrid(proj, 1, 1);
+        CimrGrid grid =  new CimrGrid(proj, 1, 1);
 
-        GlobalGridBandDataSource target = builder.build(swath, grid, false);
+        CimrGridBandDataSource target = builder.build(swath, grid, false);
 
         assertEquals(40.0, target.getSample(0, 0), doubleErr);
         assertEquals(1, target.getWidth());

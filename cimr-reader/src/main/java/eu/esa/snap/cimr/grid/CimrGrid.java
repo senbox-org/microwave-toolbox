@@ -5,14 +5,14 @@ import org.esa.snap.core.datamodel.GeoPos;
 import java.awt.*;
 
 
-public class GlobalGrid {
+public class CimrGrid {
 
-    private int width;
-    private int height;
+    private final int width;
+    private final int height;
     private final GridProjection projection;
 
 
-    public GlobalGrid(GridProjection projection, int width, int height) {
+    public CimrGrid(GridProjection projection, int width, int height) {
         this.projection = projection;
         this.height = height;
         this.width = width;

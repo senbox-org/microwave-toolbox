@@ -21,7 +21,7 @@ public class CimrReaderContext {
 
     private final NetcdfFile ncFile;
     private final CimrDescriptorSet descriptorSet;
-    private final GlobalGrid globalGrid;
+    private final CimrGrid cimrGrid;
     private final GeometryBandToGridMapper mapper;
     private final NetcdfCimrGeometryFactory geometryFactory;
     private final NetcdfCimrBandFactory bandFactory;
@@ -33,12 +33,12 @@ public class CimrReaderContext {
 
     public CimrReaderContext(NetcdfFile ncFile,
                              CimrDescriptorSet descriptorSet,
-                             GlobalGrid globalGrid,
+                             CimrGrid cimrGrid,
                              NetcdfCimrGeometryFactory geomFactory,
                              NetcdfCimrBandFactory bandFactory) {
         this.ncFile = ncFile;
         this.descriptorSet = descriptorSet;
-        this.globalGrid = globalGrid;
+        this.cimrGrid = cimrGrid;
         this.mapper = new GeometryBandToGridMapper();
         this.geometryFactory = geomFactory;
         this.bandFactory = bandFactory;
@@ -46,8 +46,8 @@ public class CimrReaderContext {
     }
 
 
-    public GlobalGrid getGlobalGrid() {
-        return this.globalGrid;
+    public CimrGrid getGlobalGrid() {
+        return this.cimrGrid;
     }
 
     public CimrDescriptorSet getDescriptorSet() {
@@ -57,7 +57,7 @@ public class CimrReaderContext {
     public GridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor varDesc, boolean useAverage) {
         CimrGeometryBand geometryBand = getOrCreateGeometryBand(varDesc);
         CimrGridBuilder gridBuilder = new CimrGridBuilder(this.mapper);
-        return gridBuilder.build(geometryBand, this.globalGrid, useAverage);
+        return gridBuilder.build(geometryBand, this.cimrGrid, useAverage);
     }
 
     public CimrGeometry getOrCreateGeometry(CimrBandDescriptor varDesc) {

@@ -23,7 +23,7 @@ public class LazyGridBandDataSourceTest {
                 1.0, 2.0,
                 3.0, 4.0
         };
-        GlobalGridBandDataSource delegate = new GlobalGridBandDataSource(2, 2, data);
+        CimrGridBandDataSource delegate = new CimrGridBandDataSource(2, 2, data);
 
         TestReaderContext context = new TestReaderContext(delegate);
         CimrBandDescriptor desc = createDummyDescriptor("test_band");
@@ -47,7 +47,7 @@ public class LazyGridBandDataSourceTest {
                 0.0, 0.0,
                 0.0, 0.0
         };
-        GlobalGridBandDataSource delegate = new GlobalGridBandDataSource(2, 2, data);
+        CimrGridBandDataSource delegate = new CimrGridBandDataSource(2, 2, data);
 
         TestReaderContext context = new TestReaderContext(delegate);
         CimrBandDescriptor desc = createDummyDescriptor("test_band_2");
@@ -70,9 +70,9 @@ public class LazyGridBandDataSourceTest {
         int callCount = 0;
         CimrBandDescriptor lastDescriptor;
         boolean lastUseAverage;
-        private final GlobalGridBandDataSource delegate;
+        private final CimrGridBandDataSource delegate;
 
-        TestReaderContext(GlobalGridBandDataSource delegate) {
+        TestReaderContext(CimrGridBandDataSource delegate) {
             super((NetcdfFile) null,
                     new CimrDescriptorSet(null, null, null),
                     null, null, null);
@@ -80,7 +80,7 @@ public class LazyGridBandDataSourceTest {
         }
 
         @Override
-        public GlobalGridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor descriptor, boolean useAverage) {
+        public CimrGridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor descriptor, boolean useAverage) {
             callCount++;
             lastDescriptor = descriptor;
             lastUseAverage = useAverage;

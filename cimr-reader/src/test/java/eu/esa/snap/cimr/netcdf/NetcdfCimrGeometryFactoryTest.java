@@ -5,6 +5,7 @@ import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
 import eu.esa.snap.cimr.cimr.CimrDimensions;
 import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
 import eu.esa.snap.cimr.cimr.CimrDescriptorKind;
+import eu.esa.snap.cimr.grid.CimrBoundingBox;
 import eu.esa.snap.cimr.grid.CimrGeometry;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.junit.Test;
@@ -376,5 +377,86 @@ public class NetcdfCimrGeometryFactoryTest {
         GeoPos p = geom.getGeoPos(0, 0, 0);
         assertEquals(10.0, p.getLat(), doubleErr);
         assertEquals(20.0, p.getLon(), doubleErr);
+    }
+
+
+    @Test
+    public void testGetBoundingBox() throws IOException, InvalidRangeException {
+        int nScans = 2;
+        int nTiepoints = 2;
+        int nFeeds = 2;
+        int nSamplesOut = 4;
+
+        Dimension scanDim    = new Dimension("n_scans", nScans);
+        Dimension tpDim      = new Dimension("n_tiepoints_C_BAND", nTiepoints);
+        Dimension feedDim    = new Dimension("n_feeds_C_BAND", nFeeds);
+        Dimension samplesDim = new Dimension("n_samples_C_BAND", nSamplesOut);
+
+        Group.Builder rootBuilder = Group.builder(null).setName("root");
+        rootBuilder.addDimension(scanDim)
+                .addDimension(tpDim)
+                .addDimension(feedDim)
+                .addDimension(samplesDim);
+
+        ArrayDouble.D3 latData = new ArrayDouble.D3(nScans, nTiepoints, nFeeds);
+        ArrayDouble.D3 lonData = new ArrayDouble.D3(nScans, nTiepoints, nFeeds);
+        latData.set(0, 0, 0, 1.0);
+        lonData.set(0, 0, 0, 2.0);
+        latData.set(0, 0, 1, 10.0);
+        lonData.set(0, 0, 1, 20.0);
+
+        Variable.Builder<?> latBuilder = Variable.builder()
+                .setName("lat_c")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_C_BAND n_feeds_C_BAND")
+                .setCachedData(latData, false);
+        Variable.Builder<?> lonBuilder = Variable.builder()
+                .setName("lon_c")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_C_BAND n_feeds_C_BAND")
+                .setCachedData(lonData, false);
+
+        rootBuilder.addVariable(latBuilder);
+        rootBuilder.addVariable(lonBuilder);
+
+        NetcdfFile ncFile = NetcdfFile.builder()
+                .setLocation("test")
+                .setRootGroup(rootBuilder)
+                .build();
+
+        CimrDimensions dims = CimrDimensions.from(ncFile);
+        String rootPath = "/";
+
+        CimrBandDescriptor latDesc = new CimrBandDescriptor(
+                "lat_c", "lat_c", CimrFrequencyBand.C_BAND,
+                new String[]{}, new String[] {},
+                rootPath, 0, CimrDescriptorKind.VARIABLE,
+                new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
+                "double", "", ""
+        );
+        CimrBandDescriptor lonDesc = new CimrBandDescriptor(
+                "lon_c", "lon_c", CimrFrequencyBand.C_BAND,
+                new String[]{}, new String[] {},
+                rootPath, 0, CimrDescriptorKind.VARIABLE,
+                new String[]{"n_scans", "n_tiepoints_C_BAND", "n_feeds_C_BAND"},
+                "double", "", ""
+        );
+
+        CimrBandDescriptor varDesc = new CimrBandDescriptor(
+                "altitude", "altitude", CimrFrequencyBand.C_BAND,
+                new String[]{"lat_c", "lon_c"}, new String[] {},
+                rootPath, 1, CimrDescriptorKind.VARIABLE,
+                new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
+                "double", "", ""
+        );
+
+        NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Arrays.asList(latDesc, lonDesc), dims);
+
+        CimrBoundingBox bBox = factory.getBoundingBox(varDesc, 0.02);
+
+        assertEquals(-0.5, bBox.getLatMin(), doubleErr);
+        assertEquals(-0.5, bBox.getLonMin(), doubleErr);
+        assertEquals(10.5, bBox.getLatMax(), doubleErr);
+        assertEquals(20.5, bBox.getLonMax(), doubleErr);
     }
 }
