@@ -84,6 +84,8 @@
     </properties>
 
     <modules>
+        <module>cimr-reader</module>
+        <module>cimr-reader-ui</module>
         <module>jlinda</module>
         <module>rstb</module>
         <module>sar-cloud</module>
