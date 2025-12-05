@@ -1,6 +1,6 @@
 package eu.esa.snap.cimr.netcdf;
 
-import eu.esa.snap.cimr.cimr.CimrFootprint;
+import eu.esa.snap.cimr.cimr.CimrFootprintShape;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.junit.Test;
@@ -63,7 +63,7 @@ public class NetcdfCimrFootprintFactoryTest {
         NetcdfCimrFootprintFactory factory = new NetcdfCimrFootprintFactory();
 
 
-        List<CimrFootprint> footprints = factory.createFootprints(
+        List<CimrFootprintShape> footprints = factory.createFootprintShapes(
                 geometryBand, minorAxisBand, majorAxisBand, angleBand);
 
 
@@ -72,18 +72,16 @@ public class NetcdfCimrFootprintFactoryTest {
         int idx = 0;
         for (int s = 0; s < scans; s++) {
             for (int t = 0; t < samples; t++) {
-                CimrFootprint fp = footprints.get(idx++);
+                CimrFootprintShape fp = footprints.get(idx++);
 
                 assertEquals(10.0 + s, fp.getGeoPos().getLat(), EPS);
                 assertEquals(20.0 + t, fp.getGeoPos().getLon(), EPS);
 
                 double expectedAngle     = 1.0 * s + 0.1 * t;
                 double expectedMinorAxis = 1000.0 + s + t;
-                double expectedValue     = 100.0 + 10.0 * s + t;
 
                 assertEquals(expectedAngle, fp.getAngle(), EPS);
                 assertEquals(expectedMinorAxis, fp.getMinorAxisDegree() * 111320.0, 1e-6 * 111320.0);
-                assertEquals(expectedValue, fp.getValue(), EPS);
             }
         }
     }
@@ -101,10 +99,43 @@ public class NetcdfCimrFootprintFactoryTest {
 
         NetcdfCimrFootprintFactory factory = new NetcdfCimrFootprintFactory();
 
-        List<CimrFootprint> footprints = factory.createFootprints(
+        List<CimrFootprintShape> footprints = factory.createFootprintShapes(
                 geometryBand, minorAxisBand, majorAxisBand, angleBand);
 
         assertNotNull(footprints);
         assertTrue(footprints.isEmpty());
+    }
+
+    @Test
+    public void testgetFootprintValues() {
+        CimrGeometryBand geometryBand = mock(CimrGeometryBand.class);
+
+        int scans = 2;
+        int samples = 3;
+
+        when(geometryBand.getScanCount()).thenReturn(scans);
+        when(geometryBand.getSampleCount()).thenReturn(samples);
+
+        when(geometryBand.getValue(anyInt(), anyInt())).thenAnswer(inv -> {
+            int s = inv.getArgument(0);
+            int t = inv.getArgument(1);
+            return 100.0 + 10.0 * s + t;
+        });
+
+        NetcdfCimrFootprintFactory factory = new NetcdfCimrFootprintFactory();
+
+        List<Double> values = factory.getFootprintValues(geometryBand);
+
+        assertEquals(scans * samples, values.size());
+
+        int idx = 0;
+        for (int s = 0; s < scans; s++) {
+            for (int t = 0; t < samples; t++) {
+                double value = values.get(idx++);
+
+                double expectedValue     = 100.0 + 10.0 * s + t;
+                assertEquals(expectedValue, value, EPS);
+            }
+        }
     }
 }

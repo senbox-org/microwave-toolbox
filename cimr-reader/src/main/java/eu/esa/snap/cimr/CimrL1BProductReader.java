@@ -78,13 +78,13 @@ public class CimrL1BProductReader extends AbstractProductReader {
         super.close();
     }
 
-    public List<CimrFootprint> getFootprints(String name) {
+    public CimrFootprints getFootprints(String name) {
         CimrBandDescriptor desc = this.readerContext.getDescriptorSet().getMeasurementByName(name);
         if (desc == null) {
             desc = this.readerContext.getDescriptorSet().getTpVariableByName(name);
         }
         if (desc == null) {
-            return List.of();
+            return new CimrFootprints( List.of(), List.of());
         }
         return this.readerContext.getOrCreateFootprints(desc);
     }

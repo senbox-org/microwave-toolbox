@@ -3,7 +3,8 @@ package eu.esa.snap.cimr.ui;
 import com.bc.ceres.glayer.swing.LayerCanvas;
 import com.bc.ceres.grender.Rendering;
 import com.bc.ceres.grender.Viewport;
-import eu.esa.snap.cimr.cimr.CimrFootprint;
+import eu.esa.snap.cimr.cimr.CimrFootprintShape;
+import eu.esa.snap.cimr.cimr.CimrFootprints;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.RasterDataNode;
 import org.junit.Test;
@@ -11,7 +12,8 @@ import org.junit.Test;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.mockito.Mockito.*;
 
@@ -23,10 +25,11 @@ public class CimrFootprintOverlayTest {
     public void testPaintOverlay_doesNotThrow() {
         CimrFootprintOverlay overlay = CimrFootprintOverlay.INSTANCE;
 
-        CimrFootprint fp = new CimrFootprint(
-                new GeoPos(10f, 20f), 30.0, 1000.0, 2000.0, 300.0
-        );
-        overlay.setFootprints(Collections.singletonList(fp));
+        CimrFootprintShape shape = new CimrFootprintShape(new GeoPos(10f, 20f), 30.0, 1000.0, 2000.0);
+        ArrayList<Double> values = new ArrayList<>();
+        values.add(1.0);
+
+        overlay.setFootprints(new CimrFootprints(List.of(shape), values));
 
         BufferedImage img = new BufferedImage(200, 200, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = img.createGraphics();

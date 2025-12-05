@@ -1,9 +1,6 @@
 package eu.esa.snap.cimr;
 
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDescriptorSet;
-import eu.esa.snap.cimr.cimr.CimrFootprint;
-import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
+import eu.esa.snap.cimr.cimr.*;
 import eu.esa.snap.cimr.grid.CimrGeometry;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
 import eu.esa.snap.cimr.grid.CimrGrid;
@@ -133,15 +130,15 @@ public class CimrReaderContextFootprintTest {
 
     @Test
     public void testGetOrCreateFootprints_createsFromDependenciesAndCaches() throws InvalidRangeException, IOException {
-        CimrFootprint dummyFp = new CimrFootprint(new GeoPos(10.f, 20.f), 45.0, 1000.0, 2000.0, 300.0);
-        List<CimrFootprint> expectedList = Collections.singletonList(dummyFp);
+        CimrFootprintShape dummyFp = new CimrFootprintShape(new GeoPos(10.f, 20.f), 45.0, 1000.0, 2000.0);
+        List<CimrFootprintShape> expectedList = Collections.singletonList(dummyFp);
 
-        when(footprintFactory.createFootprints(mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand))
+        when(footprintFactory.createFootprintShapes(mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand))
                 .thenReturn(expectedList);
 
-        List<CimrFootprint> first = context.getOrCreateFootprints(mainDesc);
+        CimrFootprints first = context.getOrCreateFootprints(mainDesc);
 
-        assertSame(expectedList, first);
+        assertSame(expectedList, first.getShapes());
 
         verify(descriptorSet).getTpVariableByName("FOOT_MINOR");
         verify(descriptorSet).getTpVariableByName("FOOT_MAJOR");
@@ -158,12 +155,16 @@ public class CimrReaderContextFootprintTest {
         verify(bandFactory).createGeometryBand(angleDesc, angleGeom);
 
         verify(footprintFactory, times(1))
-                .createFootprints(mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand);
+                .createFootprintShapes(mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand);
 
-        List<CimrFootprint> second = context.getOrCreateFootprints(mainDesc);
+        CimrFootprints second = context.getOrCreateFootprints(mainDesc);
 
-        assertSame(first, second);
-        verify(footprintFactory, times(1)).createFootprints(mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand);
+        assertSame(first.getShapes(), second.getShapes());
+        assertNotSame(first, second);
+        verify(footprintFactory, times(1)).createFootprintShapes(mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand);
+        verify(footprintFactory, times(2)).getFootprintValues(mainGeomBand);
+
+        assertNotSame(first.getValues(), second.getValues());
     }
 
     @Test
@@ -173,18 +174,18 @@ public class CimrReaderContextFootprintTest {
         when(otherDesc.getBand()).thenReturn(CimrFrequencyBand.C_BAND);
         when(otherDesc.getFeedIndex()).thenReturn(0);
 
-        CimrFootprint fp = new CimrFootprint(new GeoPos(0.f, 0.f), 0.0, 500.0, 1000.0, 250.0);
-        List<CimrFootprint> expected = Collections.singletonList(fp);
+        CimrFootprintShape fp = new CimrFootprintShape(new GeoPos(0.f, 0.f), 0.0, 500.0, 1000.0);
+        List<CimrFootprintShape> expected = Collections.singletonList(fp);
 
-        when(footprintFactory.createFootprints(
+        when(footprintFactory.createFootprintShapes(
                 mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand))
                 .thenReturn(expected);
 
-        List<CimrFootprint> list1 = context.getOrCreateFootprints(mainDesc);
-        List<CimrFootprint> list2 = context.getOrCreateFootprints(otherDesc);
+        List<CimrFootprintShape> list1 = context.getOrCreateFootprints(mainDesc).getShapes();
+        List<CimrFootprintShape> list2 = context.getOrCreateFootprints(otherDesc).getShapes();
 
         assertSame(list1, list2);
 
-        verify(footprintFactory, times(1)).createFootprints(mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand);
+        verify(footprintFactory, times(1)).createFootprintShapes(mainGeomBand, minorGeomBand, majorGeomBand, angleGeomBand);
     }
 }

@@ -1,9 +1,6 @@
 package eu.esa.snap.cimr;
 
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDescriptorSet;
-import eu.esa.snap.cimr.cimr.CimrFootprint;
-import eu.esa.snap.cimr.cimr.CimrGridBuilder;
+import eu.esa.snap.cimr.cimr.*;
 import eu.esa.snap.cimr.grid.*;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrFootprintFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
@@ -28,7 +25,7 @@ public class CimrReaderContext {
     private final NetcdfCimrFootprintFactory footprintFactory;
 
     private final Map<String, CimrGeometryBand> geometryBandCache = new ConcurrentHashMap<>();
-    private final Map<String, List<CimrFootprint>> footprintCache = new ConcurrentHashMap<>();
+    private final Map<String, List<CimrFootprintShape>> footprintCache = new ConcurrentHashMap<>();
 
 
     public CimrReaderContext(NetcdfFile ncFile,
@@ -84,9 +81,10 @@ public class CimrReaderContext {
         return varDesc.getBand().name() + ":" + varDesc.getValueVarName() + ":" + varDesc.getFeedIndex();
     }
 
-    public List<CimrFootprint> getOrCreateFootprints(CimrBandDescriptor varDesc) {
+    public CimrFootprints getOrCreateFootprints(CimrBandDescriptor varDesc) {
         String key = getFootprintKey(varDesc);
-        return this.footprintCache.computeIfAbsent(key, d -> {
+
+        List<CimrFootprintShape> shapes = this.footprintCache.computeIfAbsent(key, d -> {
             CimrBandDescriptor minorAxisDesc = this.descriptorSet.getTpVariableByName(varDesc.getFootprintVars()[0]);
             CimrBandDescriptor majorAxisDesc = this.descriptorSet.getTpVariableByName(varDesc.getFootprintVars()[1]);
             CimrBandDescriptor angleDesc = this.descriptorSet.getTpVariableByName(varDesc.getFootprintVars()[2]);
@@ -96,8 +94,13 @@ public class CimrReaderContext {
             CimrGeometryBand majorAxisBand = getOrCreateGeometryBand(majorAxisDesc);
             CimrGeometryBand angleBand = getOrCreateGeometryBand(angleDesc);
 
-            return footprintFactory.createFootprints(geometryBand, minorAxisBand, majorAxisBand, angleBand);
+            return footprintFactory.createFootprintShapes(geometryBand, minorAxisBand, majorAxisBand, angleBand);
         });
+
+        CimrGeometryBand geometryBand = getOrCreateGeometryBand(varDesc);
+        List<Double> values = this.footprintFactory.getFootprintValues(geometryBand);
+
+        return new CimrFootprints(shapes, values);
     }
 
     private String getFootprintKey(CimrBandDescriptor varDesc) {

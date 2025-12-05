@@ -2,20 +2,18 @@ package eu.esa.snap.cimr.cimr;
 
 import org.esa.snap.core.datamodel.GeoPos;
 
-public class CimrFootprint {
+public class CimrFootprintShape {
 
     GeoPos geoPos;
     double angle; // degree
     double minor_axis;
     double major_axis;
-    double value;
 
-    public CimrFootprint(GeoPos geoPos, double angle, double minor_axis, double major_axis, double value) {
+    public CimrFootprintShape(GeoPos geoPos, double angle, double minor_axis, double major_axis) {
         this.geoPos = geoPos;
         this.angle = angle;
         this.minor_axis = minor_axis;
         this.major_axis = major_axis;
-        this.value = value;
     }
 
     public GeoPos getGeoPos() {
@@ -24,10 +22,6 @@ public class CimrFootprint {
 
     public double getAngle() {
         return angle;
-    }
-
-    public double getValue() {
-        return value;
     }
 
     public double getMinorAxisDegree() {

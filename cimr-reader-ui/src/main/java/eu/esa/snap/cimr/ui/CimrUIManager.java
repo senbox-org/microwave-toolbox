@@ -7,7 +7,7 @@ import com.bc.ceres.glayer.LayerTypeRegistry;
 import com.bc.ceres.glayer.support.ImageLayer;
 import com.bc.ceres.glayer.support.LayerUtils;
 import eu.esa.snap.cimr.CimrL1BProductReader;
-import eu.esa.snap.cimr.cimr.CimrFootprint;
+import eu.esa.snap.cimr.cimr.CimrFootprints;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.RasterDataNode;
 import org.esa.snap.core.layer.WorldMapLayerType;
@@ -16,7 +16,6 @@ import org.esa.snap.ui.product.ProductSceneView;
 import org.openide.modules.OnStart;
 import org.openide.windows.OnShowing;
 
-import java.util.List;
 import java.util.logging.Logger;
 
 
@@ -65,8 +64,8 @@ public class CimrUIManager {
             if (cimrReader != null) {
                 RasterDataNode raster = newView.getRaster();
                 String band = raster.getName();
-                List<CimrFootprint> fps = cimrReader.getFootprints(band);
-                if (!fps.isEmpty()) {
+                CimrFootprints fps = cimrReader.getFootprints(band);
+                if (!fps.getShapes().isEmpty()) {
                     CimrFootprintOverlay.INSTANCE.setFootprints(fps);
                     CimrFootprintOverlay.INSTANCE.setRaster(raster);
                     newView.getLayerCanvas().addOverlay(CimrFootprintOverlay.INSTANCE);
@@ -74,9 +73,8 @@ public class CimrUIManager {
             }
         }
     }
-
-    // TODO BL package private for testing, 12/25
-    static CimrL1BProductReader getCimrReader(ProductSceneView view) {
+    
+    private static CimrL1BProductReader getCimrReader(ProductSceneView view) {
         RasterDataNode raster = view.getRaster();
         if (raster == null) {
             return null;
