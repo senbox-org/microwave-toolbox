@@ -20,7 +20,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>13.0.1-SNAPSHOT</version>
+        <version>13.0.1</version>
     </parent>
 
     <artifactId>sar-io-ephemeris-ui</artifactId>
