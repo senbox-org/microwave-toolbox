@@ -1,11 +1,10 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.ImageIOFile;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
-import eu.esa.sar.io.iceye.util.IceyeConstants;
+//import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
 import it.geosolutions.imageio.plugins.tiff.TIFFField;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageMetadata;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
@@ -73,7 +72,7 @@ public class IceyeGRDProductReader extends SARReader {
     protected transient final Map<Band, ImageIOFile.BandInfo> bandMap = new HashMap<>();
 
     private final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-    private Map<String, String> tiffFields = null;
+    private final Map<String, String> tiffFields = new HashMap<>();
     private Product product = null;
     private boolean isComplex = false;
 
@@ -92,7 +91,7 @@ public class IceyeGRDProductReader extends SARReader {
     public void close() throws IOException {
         if (product != null) {
             product = null;
-            tiffFields = null;
+            tiffFields.clear();
         }
         if(bandProduct != null) {
             bandProduct.dispose();
@@ -169,7 +168,7 @@ public class IceyeGRDProductReader extends SARReader {
     @Override
     protected Product readProductNodesImpl() {
         product = null;
-        tiffFields = null;
+        tiffFields.clear();
         try {
 
             final Path inputPath = ReaderUtils.getPathFromInput(getInput());
@@ -201,7 +200,6 @@ public class IceyeGRDProductReader extends SARReader {
                         "be interpreted as remote sensing bands."); /* I18N */
             }
             NodeList childNodes = document.getFirstChild().getChildNodes();
-            this.tiffFields = new HashMap<>();
             for (int i = 1; i < childNodes.getLength(); i += 2) {
                 this.tiffFields.put(childNodes.item(i).getAttributes().item(0).getNodeValue(),
                         childNodes.item(i).getTextContent());
@@ -281,12 +279,13 @@ public class IceyeGRDProductReader extends SARReader {
         addAbstractedMetadataHeader(product.getMetadataRoot());
     }
 
-    private String get(final String tag) {
+    private String get(final String tag) throws IOException {
         if (tiffFields != null && tiffFields.containsKey(tag.toUpperCase())) {
             return tiffFields.get(tag.toUpperCase());
         }
-        SystemUtils.LOG.severe("Tag '" + tag + "' not found in TIFF metadata.");
-        return null;
+        String msg = "Tag '" + tag + "' not found in TIFF metadata.";
+        SystemUtils.LOG.severe(msg);
+        throw new IOException(msg);
     }
 
     private void addAbstractedMetadataHeader(MetadataElement root) {
@@ -586,7 +585,7 @@ public class IceyeGRDProductReader extends SARReader {
         }
     }
 
-    private String getSampleType() {
+    private String getSampleType() throws IOException {
         if (IceyeConstants.SLC.equalsIgnoreCase(get(IceyeConstants.SPH_DESCRIPTOR))) {
             isComplex = true;
             return IceyeConstants.COMPLEX;
@@ -611,8 +610,8 @@ public class IceyeGRDProductReader extends SARReader {
                 ProductReader reader = geoTiffPlugIn.createReaderInstance();
                 bandProduct = reader.readProductNodes(inputFile, null);
 
-                final ImageIOFile img = new ImageIOFile(name, imgStream, GeoTiffUtils.getTiffIIOReader(imgStream), inputFile);
-                bandImageFileMap.put(img.getName(), img);
+                //final ImageIOFile img = new ImageIOFile(name, imgStream, GeoTiffUtils.getTiffIIOReader(imgStream), inputFile);
+                //bandImageFileMap.put(img.getName(), img);
 
                 int cnt = 1;
                 boolean multiband = bandProduct.getNumBands() > 1;
@@ -721,7 +720,7 @@ public class IceyeGRDProductReader extends SARReader {
         }
     }
 
-    private void addSlantRangeTime(final Product product) {
+    private void addSlantRangeTime(final Product product) throws IOException {
 
         final List<CoefList> segmentsArray = new ArrayList<>();
 
@@ -764,7 +763,7 @@ public class IceyeGRDProductReader extends SARReader {
 
             product.addTiePointGrid(slantRangeGrid);
             slantRangeGrid.setUnit(Unit.NANOSECONDS);
-        } catch (ParseException e) {
+        } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
         }
     }
@@ -776,7 +775,7 @@ public class IceyeGRDProductReader extends SARReader {
     }
 
     private void setRangeDist(MetadataElement absRoot, List<CoefList> segmentsArray, int gridWidth, int gridHeight,
-            int subSamplingX, float[] rangeDist) throws ParseException {
+            int subSamplingX, float[] rangeDist) throws Exception {
         final double lineTimeInterval = Double.parseDouble(get(IceyeConstants.LINE_TIME_INTERVAL));
         final double startSeconds = ProductData.UTC.parse(get(IceyeConstants.FIRST_LINE_TIME), standardDateFormat).getMJD()
                 * 24 * 3600;
@@ -813,7 +812,7 @@ public class IceyeGRDProductReader extends SARReader {
         }
     }
 
-    private void addGeoCodingToProduct() {
+    private void addGeoCodingToProduct() throws IOException {
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
         double[] firstNear = convertStringToDoubleArray(get(IceyeConstants.FIRST_NEAR));

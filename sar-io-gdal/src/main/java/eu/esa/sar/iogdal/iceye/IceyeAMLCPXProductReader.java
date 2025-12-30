@@ -1,12 +1,11 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
 import com.bc.ceres.core.ProgressMonitor;
 
 import eu.esa.sar.commons.io.JSONProductDirectory;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
-import eu.esa.sar.io.iceye.util.IceyeConstants;
+//import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFIFD;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageMetadata;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
@@ -75,8 +74,8 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
             final File inputFile = inputPath.toFile();
 
             inputStream = ImageIO.createImageInputStream(inputFile);
-            imageReader = (TIFFImageReader) GeoTiffUtils.getTiffIIOReader(inputStream);
-            imageReader.setInput(inputStream, false);
+            //imageReader = (TIFFImageReader) GeoTiffUtils.getTiffIIOReader(inputStream);
+            //imageReader.setInput(inputStream, false);
 
             TIFFImageMetadata tiffMetadata = (TIFFImageMetadata) imageReader.getImageMetadata(0);
 

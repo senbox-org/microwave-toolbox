@@ -4,6 +4,8 @@ import eu.esa.sar.io.AbstractProductReaderPlugInTest;
 import org.esa.snap.core.dataio.ProductReader;
 import org.junit.Test;
 
+import static eu.esa.sar.io.iceye.TestIceyeReader.SL_SLC_ImageFile;
+import static eu.esa.sar.io.iceye.TestIceyeReader.SL_SLC_MetadataFile;
 import static org.junit.Assert.*;
 
 public class TestIceyeProductReaderPlugIn extends AbstractProductReaderPlugInTest {
@@ -26,12 +28,12 @@ public class TestIceyeProductReaderPlugIn extends AbstractProductReaderPlugInTes
 
     @Test
     public void testGetDefaultFileExtensions() {
-        assertArrayEquals(new String[]{ ".TIF", ".H5", ".XML", ".JSON" }, plugin.getDefaultFileExtensions());
+        assertArrayEquals(new String[]{ ".H5", ".XML" }, plugin.getDefaultFileExtensions());
     }
 
     @Override
     protected String[] getValidPrimaryMetadataFileNames() {
-        return new String[] {"ICEYE_XYZ_EXTENDED.xml", "ICEYE_XYZ_EXTENDED.json"};
+        return new String[] {"ICEYE_XYZ_EXTENDED.xml"};
     }
 
     @Override
@@ -41,9 +43,7 @@ public class TestIceyeProductReaderPlugIn extends AbstractProductReaderPlugInTes
 
     @Test
     public void testValidDecodeQualification() {
-        isValidDecodeQualification(TestIceyeAMLCPXProductReader.inputAMLtif);
-        isValidDecodeQualification(TestIceyeAMLCPXProductReader.inputAMLjson);
-        isValidDecodeQualification(TestIceyeAMLCPXProductReader.inputCPXtif);
-        isValidDecodeQualification(TestIceyeAMLCPXProductReader.inputCPXjson);
+        isValidDecodeQualification(SL_SLC_MetadataFile);
+        isValidDecodeQualification(SL_SLC_ImageFile);
     }
 }

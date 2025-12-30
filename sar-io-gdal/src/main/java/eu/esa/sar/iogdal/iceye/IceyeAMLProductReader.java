@@ -1,9 +1,8 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
 import java.awt.image.DataBuffer;
 
 import eu.esa.sar.commons.io.SARReader;
-import eu.esa.sar.io.iceye.util.IceyeConstants;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;

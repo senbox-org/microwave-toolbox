@@ -1,8 +1,7 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
 import eu.esa.sar.commons.io.SARFileFilter;
 import eu.esa.sar.commons.io.SARProductReaderPlugIn;
-import eu.esa.sar.io.iceye.util.IceyeConstants;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.util.io.SnapFileFilter;
@@ -15,14 +14,14 @@ import java.util.Locale;
 /**
  * @author Ahmad Hamouda
  */
-public class IceyeProductReaderPlugIn implements SARProductReaderPlugIn {
+public class IceyeCOGReaderPlugIn implements SARProductReaderPlugIn {
 
-    private final String[] FILE_EXTS = { ".H5", ".XML" };
+    private final String[] FILE_EXTS = { ".TIF", ".XML", ".JSON" };
 
     private static final String[] PRODUCT_PREFIX = new String[] {"ICEYE_"};
-    private static final String PRODUCT_FORMAT = "ICEYE";
+    private static final String PRODUCT_FORMAT = "ICEYE COG";
 
-    private static final String PLUGIN_DESCRIPTION = "ICEYE Product Format";
+    private static final String PLUGIN_DESCRIPTION = "ICEYE COG Format";
     private static final Class[] VALID_INPUT_TYPES = new Class[]{Path.class, File.class, String.class};
 
     /**
@@ -71,7 +70,7 @@ public class IceyeProductReaderPlugIn implements SARProductReaderPlugIn {
      * @return a new reader instance, never <code>null</code>
      */
     public ProductReader createReaderInstance() {
-        return new IceyeProductReader(this);
+        return new IceyeCOGReader(this);
     }
 
     public SnapFileFilter getProductFileFilter() {

@@ -1,8 +1,7 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
-import eu.esa.sar.io.iceye.util.IceyeConstants;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
@@ -15,12 +14,15 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Ahmad Hamouda
  */
-public class IceyeProductReader extends SARReader {
+public class IceyeCOGReader extends SARReader {
 
+    private AtomicBoolean isTiff = new AtomicBoolean();
+    private AtomicBoolean isNewFormat = new AtomicBoolean();
     private ProductReader reader;
 
     /**
@@ -30,7 +32,7 @@ public class IceyeProductReader extends SARReader {
      *                     <code>null</code> for internal reader
      *                     implementations
      */
-    public IceyeProductReader(final ProductReaderPlugIn readerPlugIn) {
+    public IceyeCOGReader(final ProductReaderPlugIn readerPlugIn) {
         super(readerPlugIn);
     }
 
@@ -57,11 +59,29 @@ public class IceyeProductReader extends SARReader {
             if (fileName.startsWith(IceyeConstants.ICEYE_FILE_PREFIX.toLowerCase())) {
                 if (fileName.endsWith(".xml")) {
                     inputFile = FileUtils.exchangeExtension(inputFile, ".h5");
+                    if (!inputFile.exists()) {
+                        inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
+                    }
                     fileName = inputFile.getName().toLowerCase();
                 }
 
-                if (fileName.endsWith(".h5")) {
-                    reader = new IceyeSLCProductReader(getReaderPlugIn());
+                if (fileName.endsWith(".json")) {
+                    inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
+                    fileName = inputFile.getName().toLowerCase();
+                }
+
+                if (fileName.endsWith(".tif")) {
+                    isTiff.set(true);
+                    if (fileName.endsWith("aml.tif")) {
+                        isNewFormat.set(true);
+                        reader = new IceyeAMLProductReader(getReaderPlugIn());
+                    } else if (fileName.contains("cpx.tif")) {
+                        isNewFormat.set(true);
+                        reader = new IceyeCPXProductReader(getReaderPlugIn());
+                    } else {
+                        reader = new IceyeGRDProductReader(getReaderPlugIn());
+                        isNewFormat.set(false);
+                    }
                 }
             }
 
@@ -88,9 +108,15 @@ public class IceyeProductReader extends SARReader {
             int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
             int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
             ProgressMonitor pm) throws IOException {
-        ((IceyeSLCProductReader) reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth,
-                sourceHeight,
-                sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer,
-                pm);
+        if (isNewFormat.get()) {
+            ((IceyeAMLCPXProductReader) reader).readBandRasterDataImpl(sourceOffsetX, sourceOffsetY, sourceWidth,
+                    sourceHeight, sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight,
+                    destBuffer, pm);
+        } else if (isTiff.get()) {
+            ((IceyeGRDProductReader) reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth,
+                    sourceHeight,
+                    sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer,
+                    pm);
+        }
     }
 }
