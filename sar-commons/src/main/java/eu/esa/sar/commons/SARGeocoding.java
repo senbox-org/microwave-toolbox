@@ -545,13 +545,13 @@ public final class SARGeocoding {
 
         // binary search is used in finding the ground range for given slant range
         double lowerGroundRange = ground_range_origin;
-        final double lowerSlantRange = Maths.computePolynomialValue(lowerGroundRange, srgrCoeff);
+        final double lowerSlantRange = Maths.computePolynomialValue(lowerGroundRange - ground_range_origin, srgrCoeff);
         if (slantRange < lowerSlantRange) {
             return -1.0;
         }
 
         double upperGroundRange = ground_range_origin + sourceImageWidth * groundRangeSpacing;
-        final double upperSlantRange = Maths.computePolynomialValue(upperGroundRange, srgrCoeff);
+        final double upperSlantRange = Maths.computePolynomialValue(upperGroundRange - ground_range_origin, srgrCoeff);
         if (slantRange > upperSlantRange) {
             return -1.0;
         }
@@ -560,7 +560,7 @@ public final class SARGeocoding {
         while (upperGroundRange - lowerGroundRange > 0.1) {
 
             final double midGroundRange = (lowerGroundRange + upperGroundRange) / 2.0;
-            final double midSlantRange = Maths.computePolynomialValue(midGroundRange, srgrCoeff);
+            final double midSlantRange = Maths.computePolynomialValue(midGroundRange - ground_range_origin, srgrCoeff);
             if (Math.abs(midSlantRange - slantRange) < 0.1) {
                 return midGroundRange;
             } else if (midSlantRange < slantRange) {

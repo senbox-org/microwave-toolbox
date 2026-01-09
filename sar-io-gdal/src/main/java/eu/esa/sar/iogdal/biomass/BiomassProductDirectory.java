@@ -266,6 +266,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         setSLC(!productType.contains("DGM"));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, isSLC() ? "COMPLEX" : "DETECTED");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.srgr_flag, isSLC() ? 0 : 1);
 
         MetadataElement acquisitionParameters = EarthObservationEquipment.getElement("acquisitionParameters");
         MetadataElement Acquisition = acquisitionParameters.getElement("Acquisition");
@@ -379,8 +380,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             }
         }
 
-        readOrbitStateVectors(absRoot);
-
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
     }
 
@@ -396,7 +395,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     }
 
     private boolean addBandMetadata(MetadataElement absRoot, final MetadataElement nameElem,
-                                    final String metadataFile, final boolean commonMetadataRetrieved) {
+                                    final String metadataFile, final boolean commonMetadataRetrieved) throws IOException {
 
         final MetadataElement mainAnnotation = nameElem.getElement("mainAnnotation");
         final MetadataElement acquisitionInformation = mainAnnotation.getElement("acquisitionInformation");
@@ -493,6 +492,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             double rangeTimeInterval = rangeTimeIntervalElem.getAttributeDouble("rangeTimeInterval");
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
                     (1.0/rangeTimeInterval) / Constants.oneMillion);
+
+            readOrbitStateVectors(absRoot);
 
             final MetadataElement rangeCoordinateConversion = sarImage.getElement("rangeCoordinateConversion");
             addSRGRCoefficients(absRoot, rangeCoordinateConversion);
@@ -660,8 +661,14 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
     private void addSRGRCoefficients(final MetadataElement absRoot, final MetadataElement rangeCoordinateConversion) {
 
-        final int count = rangeCoordinateConversion.getAttributeInt("count");
-        if (count == 0) return;
+        int count = 0;
+        if (rangeCoordinateConversion != null) {
+            count = rangeCoordinateConversion.getAttributeInt("count", 0);
+        }
+        if (count < 2) {
+            calculateAndAddSRGRCoefficients(absRoot);
+            return;
+        }
 
         final MetadataElement[] coordinateConversionList = rangeCoordinateConversion.getElements();
         if (coordinateConversionList == null) return;
@@ -699,6 +706,136 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 }
             }
         }
+    }
+
+    private void calculateAndAddSRGRCoefficients(final MetadataElement absRoot) {
+        final MetadataElement srgrCoefficientsElem = absRoot.getElement(AbstractMetadata.srgr_coefficients);
+        final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
+
+        if (orbitVectorListElem == null || orbitVectorListElem.getNumElements() == 0) {
+            return;
+        }
+
+        final ProductData.UTC startTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time);
+        final ProductData.UTC endTime = absRoot.getAttributeUTC(AbstractMetadata.last_line_time);
+
+        if (startTime == null || endTime == null) {
+            return;
+        }
+
+        final double tStart = startTime.getMJD();
+        final double tEnd = endTime.getMJD();
+        final double buffer = 10.0 / (24.0 * 3600.0); // 10 seconds
+
+        int listCnt = 1;
+        for (MetadataElement orbitElem : orbitVectorListElem.getElements()) {
+            final ProductData.UTC time = orbitElem.getAttributeUTC(AbstractMetadata.orbit_vector_time);
+            if (time.getMJD() < tStart - buffer || time.getMJD() > tEnd + buffer) {
+                continue;
+            }
+
+            final double x = orbitElem.getAttributeDouble(AbstractMetadata.orbit_vector_x_pos);
+            final double y = orbitElem.getAttributeDouble(AbstractMetadata.orbit_vector_y_pos);
+            final double z = orbitElem.getAttributeDouble(AbstractMetadata.orbit_vector_z_pos);
+            final double satRadius = Math.sqrt(x * x + y * y + z * z);
+            final double earthRadius = 6378137.0; // WGS84 semi-major axis
+
+            final double srStart = firstSampleSlantRangeTime * Constants.halfLightSpeed;
+            final double srEnd = lastSampleSlantRangeTime * Constants.halfLightSpeed;
+
+            final int numPoints = 11;
+            final double[] groundRanges = new double[numPoints];
+            final double[] slantRanges = new double[numPoints];
+
+            // Calculate Ground Range Origin (at srStart)
+            double cosGamma0 = (satRadius * satRadius + earthRadius * earthRadius - srStart * srStart) / (2 * satRadius * earthRadius);
+            cosGamma0 = Math.max(-1.0, Math.min(1.0, cosGamma0));
+            final double gamma0 = Math.acos(cosGamma0);
+            final double grOrigin = earthRadius * gamma0;
+
+            for (int i = 0; i < numPoints; i++) {
+                final double sr = srStart + (srEnd - srStart) * i / (numPoints - 1);
+                double cosGamma = (satRadius * satRadius + earthRadius * earthRadius - sr * sr) / (2 * satRadius * earthRadius);
+                cosGamma = Math.max(-1.0, Math.min(1.0, cosGamma));
+                final double gamma = Math.acos(cosGamma);
+                final double gr = earthRadius * gamma;
+
+                groundRanges[i] = gr - grOrigin;
+                slantRanges[i] = sr;
+            }
+
+            final double[] coeffs = fitPolynomial(groundRanges, slantRanges, 3);
+
+            final MetadataElement srgrListElem = new MetadataElement(AbstractMetadata.srgr_coef_list + '.' + listCnt);
+            srgrCoefficientsElem.addElement(srgrListElem);
+            ++listCnt;
+
+            srgrListElem.setAttributeUTC(AbstractMetadata.srgr_coef_time, time);
+            AbstractMetadata.addAbstractedAttribute(srgrListElem, AbstractMetadata.ground_range_origin,
+                    ProductData.TYPE_FLOAT64, "m", "Ground Range Origin");
+            AbstractMetadata.setAttribute(srgrListElem, AbstractMetadata.ground_range_origin, grOrigin);
+
+            for (int k = 0; k < coeffs.length; k++) {
+                final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + '.' + (k + 1));
+                srgrListElem.addElement(coefElem);
+                AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.srgr_coef,
+                        ProductData.TYPE_FLOAT64, "", "SRGR Coefficient");
+                AbstractMetadata.setAttribute(coefElem, AbstractMetadata.srgr_coef, coeffs[k]);
+            }
+        }
+    }
+
+    private static double[] fitPolynomial(double[] x, double[] y, int degree) {
+        int n = x.length;
+        int m = degree + 1;
+        double[][] A = new double[m][m];
+        double[] B = new double[m];
+
+        for (int i = 0; i < n; i++) {
+            double val = 1.0;
+            for (int j = 0; j < m; j++) {
+                double val2 = 1.0;
+                for (int k = 0; k < m; k++) {
+                    A[j][k] += val * val2;
+                    val2 *= x[i];
+                }
+                B[j] += val * y[i];
+                val *= x[i];
+            }
+        }
+        return solveLinearSystem(A, B);
+    }
+
+    private static double[] solveLinearSystem(double[][] A, double[] B) {
+        int n = B.length;
+        for (int i = 0; i < n; i++) {
+            int max = i;
+            for (int j = i + 1; j < n; j++) {
+                if (Math.abs(A[j][i]) > Math.abs(A[max][i])) {
+                    max = j;
+                }
+            }
+            double[] temp = A[i]; A[i] = A[max]; A[max] = temp;
+            double t = B[i]; B[i] = B[max]; B[max] = t;
+
+            for (int j = i + 1; j < n; j++) {
+                double factor = A[j][i] / A[i][i];
+                B[j] -= factor * B[i];
+                for (int k = i; k < n; k++) {
+                    A[j][k] -= factor * A[i][k];
+                }
+            }
+        }
+
+        double[] solution = new double[n];
+        for (int i = n - 1; i >= 0; i--) {
+            double sum = 0.0;
+            for (int j = i + 1; j < n; j++) {
+                sum += A[i][j] * solution[j];
+            }
+            solution[i] = (B[i] - sum) / A[i][i];
+        }
+        return solution;
     }
 
     private void addDopplerCentroidCoefficients(final MetadataElement absRoot, final MetadataElement dopplerCentroid) {
@@ -743,11 +880,13 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
     @Override
     protected void addGeoCoding(final Product product) {
+        final TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
+        final TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
 
-        final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(
-                product.getTiePointGrid(OperatorUtils.TPG_LATITUDE), product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE));
-
-        product.setSceneGeoCoding(tpGeoCoding);
+        if (latGrid != null && lonGrid != null) {
+            final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
+            product.setSceneGeoCoding(tpGeoCoding);
+        }
     }
 
     @Override
@@ -860,12 +999,15 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         return productType;
     }
 
-    public static ProductData.UTC getTime(final MetadataElement elem, final String tag, final DateFormat sentinelDateFormat) {
+    public static ProductData.UTC getTime(final MetadataElement elem, final String tag, final DateFormat dateFormat) {
 
         String start = elem.getAttributeString(tag, NO_METADATA_STRING);
+        if (start.isEmpty() || NO_METADATA_STRING.equals(start)) {
+             return AbstractMetadata.NO_METADATA_UTC;
+        }
         start = start.replace("UTC=", "").replace("T", "_");
 
-        return AbstractMetadata.parseUTC(start, sentinelDateFormat);
+        return AbstractMetadata.parseUTC(start, dateFormat);
     }
 
     @Override
