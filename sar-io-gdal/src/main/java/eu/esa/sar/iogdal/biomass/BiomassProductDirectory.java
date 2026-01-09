@@ -513,8 +513,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             }
 
             final String pol = attrib.getData().getElemString();
-            final ProductData.UTC startTime = getTime(acquisitionInformation, "startTime", biomassDateFormat);
-            final ProductData.UTC stopTime = getTime(acquisitionInformation, "stopTime", biomassDateFormat);
+            final ProductData.UTC startTime = getTime(sarImage, "firstLineAzimuthTime", biomassDateFormat);
+            final ProductData.UTC stopTime = getTime(sarImage, "lastLineAzimuthTime", biomassDateFormat);
 
             final String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
             final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
@@ -592,6 +592,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         final String[] filenames = listFiles(navFolder);
         if (filenames != null) {
+            int orbitVectorCount = 1;
             for (String metadataFile : filenames) {
                 if (!metadataFile.endsWith("_orb.xml")) {
                     continue;
@@ -607,26 +608,29 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 MetadataElement dataBlock = fileElem.getElement("Data_Block");
                 MetadataElement orbitList = dataBlock.getElement("List_of_OSVs");
 
-                addOrbitStateVectors(absRoot, orbitList);
+                orbitVectorCount = addOrbitStateVectors(absRoot, orbitList, orbitVectorCount);
             }
         }
     }
 
-    private void addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList) {
+    private int addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList, int startCount) {
         final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
 
         final MetadataElement[] stateVectorElems = orbitList.getElements();
-        for (int i = 1; i <= stateVectorElems.length; ++i) {
-            addVector(AbstractMetadata.orbit_vector, orbitVectorListElem, stateVectorElems[i - 1], i);
+        for (int i = 0; i < stateVectorElems.length; ++i) {
+            addVector(AbstractMetadata.orbit_vector, orbitVectorListElem, stateVectorElems[i], startCount + i);
         }
 
-        // set state vector time
-        if (absRoot.getAttributeUTC(AbstractMetadata.STATE_VECTOR_TIME, AbstractMetadata.NO_METADATA_UTC).
+        // set state vector time from the first vector of the first file
+        if (startCount == 1 && stateVectorElems.length > 0) {
+             if (absRoot.getAttributeUTC(AbstractMetadata.STATE_VECTOR_TIME, AbstractMetadata.NO_METADATA_UTC).
                 equalElems(AbstractMetadata.NO_METADATA_UTC)) {
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
                                           getTime(stateVectorElems[0], "UTC", biomassDateFormat));
+            }
         }
+        return startCount + stateVectorElems.length;
     }
 
     private void addVector(final String name, final MetadataElement orbitVectorListElem,
@@ -892,73 +896,72 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     @Override
     protected void addTiePointGrids(final Product product) {
 
-        if(netCDFLUTFile == null) {
-            return;
-        }
+        if(netCDFLUTFile != null) {
+            try (final NetcdfFile netcdfFile = NetcdfFile.open(netCDFLUTFile.getAbsolutePath())) {
+                final List<Variable> rasters = readNetCDFLUT(netcdfFile);
+                for(Variable variable : rasters) {
+                    try {
+                        String name = variable.getShortName();
+                        int gridWidth = variable.getDimension(1).getLength();
+                        int gridHeight = variable.getDimension(0).getLength();
 
-        try (final NetcdfFile netcdfFile = NetcdfFile.open(netCDFLUTFile.getAbsolutePath())) {
-            final List<Variable> rasters = readNetCDFLUT(netcdfFile);
-            for(Variable variable : rasters) {
-                try {
-                    String name = variable.getShortName();
-                    int gridWidth = variable.getDimension(1).getLength();
-                    int gridHeight = variable.getDimension(0).getLength();
+                        final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
+                        final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
 
-                    final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
-                    final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
+                        Array dataArray = variable.read();
+                        // Convert array data to a 1D float array, regardless of original type.
+                        float[] floatData = (float[]) dataArray.get1DJavaArray(DataType.FLOAT);
 
-                    Array dataArray = variable.read();
-                    // Convert array data to a 1D float array, regardless of original type.
-                    float[] floatData = (float[]) dataArray.get1DJavaArray(DataType.FLOAT);
+                        if(name.equals(OperatorUtils.TPG_LATITUDE)) {
 
-                    if(name.equals(OperatorUtils.TPG_LATITUDE)) {
-
-                        TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
-                        if (latGrid == null) {
-                            latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
-                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                            latGrid.setUnit(Unit.DEGREES);
-                            product.addTiePointGrid(latGrid);
-                        }
-                    } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
-
-                        TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
-                        if (lonGrid == null) {
-                            lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
-                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
-                            lonGrid.setUnit(Unit.DEGREES);
-                            product.addTiePointGrid(lonGrid);
-                        }
-                    } else {
-                        if(name.equalsIgnoreCase("incidenceangle")) {
-                            name = OperatorUtils.TPG_INCIDENT_ANGLE;
-                        } else if(name.equalsIgnoreCase("elevationangle")) {
-                            name = OperatorUtils.TPG_ELEVATION_ANGLE;
-                        } else if(name.equalsIgnoreCase("terrainslope")) {
-                            name = "terrain_slope";
-                        } else if(name.equalsIgnoreCase("height")) {
-                            double sum = 0;
-                            for(float val : floatData) {
-                                sum += val;
+                            TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
+                            if (latGrid == null) {
+                                latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
+                                        gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
+                                latGrid.setUnit(Unit.DEGREES);
+                                product.addTiePointGrid(latGrid);
                             }
-                            double avgHeight = sum / floatData.length;
-                            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-                            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, avgHeight);
-                        }
-                        final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
-                                gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                        incidentAngleGrid.setUnit(Unit.DEGREES);
-                        product.addTiePointGrid(incidentAngleGrid);
-                    }
-                } catch (Exception e) {
-                    System.out.println("Error reading netCDFLUT file: " + e.getMessage());
-                }
-            }
+                        } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
 
-            addSlantRangeTimeTPG(product);
-        } catch (Exception e) {
-            System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+                            TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
+                            if (lonGrid == null) {
+                                lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
+                                        gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
+                                lonGrid.setUnit(Unit.DEGREES);
+                                product.addTiePointGrid(lonGrid);
+                            }
+                        } else {
+                            if(name.equalsIgnoreCase("incidenceangle")) {
+                                name = OperatorUtils.TPG_INCIDENT_ANGLE;
+                            } else if(name.equalsIgnoreCase("elevationangle")) {
+                                name = OperatorUtils.TPG_ELEVATION_ANGLE;
+                            } else if(name.equalsIgnoreCase("terrainslope")) {
+                                name = "terrain_slope";
+                            } else if(name.equalsIgnoreCase("height")) {
+                                double sum = 0;
+                                for(float val : floatData) {
+                                    sum += val;
+                                }
+                                double avgHeight = sum / floatData.length;
+                                MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+                                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, avgHeight);
+                            }
+                            final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
+                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
+                            incidentAngleGrid.setUnit(Unit.DEGREES);
+                            product.addTiePointGrid(incidentAngleGrid);
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+                    }
+                }
+
+            } catch (Exception e) {
+                System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+            }
         }
+        
+        addSlantRangeTimeTPG(product);
     }
 
     private void addSlantRangeTimeTPG(final Product product) {
