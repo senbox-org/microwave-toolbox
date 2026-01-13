@@ -307,6 +307,35 @@ public final class SARGeocoding {
         return Math.sqrt(xDiff * xDiff + yDiff * yDiff + zDiff * zDiff);
     }
 
+    public static double computeSlantRangeFast(OrbitStateVectors orbit,
+                                               double firstLineUTC, double lineTimeInterval,
+                                               double zeroDopplerTime, PosVector earthPoint, PosVector sensorPos) {
+        double azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
+        getSensorPositionFast(orbit, azimuthIndex, sensorPos);
+
+        double xDiff = sensorPos.x - earthPoint.x;
+        double yDiff = sensorPos.y - earthPoint.y;
+        double zDiff = sensorPos.z - earthPoint.z;
+
+        return Math.sqrt(xDiff * xDiff + yDiff * yDiff + zDiff * zDiff);
+    }
+
+    private static void getSensorPositionFast(OrbitStateVectors orbit, double azimuthIndex, PosVector sensorPos) {
+        int i = (int) azimuthIndex;
+        if (i < 0) i = 0;
+        if (i >= orbit.sensorPosition.length - 1) i = orbit.sensorPosition.length - 2;
+
+        double mu = azimuthIndex - i;
+
+        // Linear interpolation of precomputed sensor positions
+        PosVector p0 = orbit.sensorPosition[i];
+        PosVector p1 = orbit.sensorPosition[i+1];
+
+        sensorPos.x = p0.x + mu * (p1.x - p0.x);
+        sensorPos.y = p0.y + mu * (p1.y - p0.y);
+        sensorPos.z = p0.z + mu * (p1.z - p0.z);
+    }
+
     /**
      * Compute range index in source image for earth point with given zero Doppler time and slant range.
      *
