@@ -381,6 +381,39 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
+
+        cleanMetadata(origProdRoot);
+    }
+
+    private void cleanMetadata(final MetadataElement root) {
+        if (root.getName().matches(".*[^a-zA-Z0-9_].*")) {
+            root.setName(root.getName().replaceAll("[^a-zA-Z0-9_]", "_"));
+        }
+
+        MetadataElement[] elems = root.getElements();
+        for(MetadataElement elem : elems) {
+            cleanMetadata(elem);
+        }
+
+        MetadataAttribute[] attribs = root.getAttributes();
+        for(MetadataAttribute attrib : attribs) {
+            if (attrib.getName().matches(".*[^a-zA-Z0-9_].*")) {
+                attrib.setName(attrib.getName().replaceAll("[^a-zA-Z0-9_]", "_"));
+            }
+            if (attrib.getDataType() == ProductData.TYPE_ASCII) {
+                attrib.setDataElems(attrib.getData().getElemString().replaceAll("[^a-zA-Z0-9_]", "_"));
+            }
+        }
+
+        MetadataElement parent = root.getParentElement();
+        if (parent != null) {
+            for (MetadataAttribute attrib : root.getAttributes()) {
+                MetadataAttribute newAttrib = attrib.createDeepClone();
+                newAttrib.setName(root.getName() + "_" + attrib.getName());
+                parent.addAttribute(newAttrib);
+            }
+            parent.removeElement(root);
+        }
     }
 
     private boolean isL1C(final MetadataElement origProdRoot) {
