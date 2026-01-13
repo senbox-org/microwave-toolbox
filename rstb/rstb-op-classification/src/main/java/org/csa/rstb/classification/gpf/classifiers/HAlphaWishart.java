@@ -129,6 +129,7 @@ public class HAlphaWishart extends PolClassifierBase implements PolClassifier, Q
                     getMeanCoherencyMatrix(x, y, halfWindowSizeX, halfWindowSizeY, srcWidth, srcHeight,
                             sourceProductType, srcIndex, dataBuffers, Tr, Ti);
 
+                    srcIndex.calculateStride(y);
                     targetData.setElemIntAt(index, findZoneIndex(Tr, Ti, clusterCenters[targetBandIndex]));
                 }
             }
@@ -228,6 +229,7 @@ public class HAlphaWishart extends PolClassifierBase implements PolClassifier, Q
                                 getMeanCoherencyMatrix(x, y, halfWindowSizeX, halfWindowSizeY, srcWidth, srcHeight,
                                         sourceProductType, srcIndex, dataBuffers, Tr, Ti);
 
+                                srcIndex.calculateStride(y);
                                 final hAAlpha.HAAlpha data = hAAlpha.computeHAAlpha(Tr, Ti);
                                 if (!Double.isNaN(data.entropy) && !Double.isNaN(data.anisotropy) && !Double.isNaN(data.alpha)) {
                                     final int zoneIndex = HaAlphaDescriptor.getZoneIndex(data.entropy, data.alpha,
@@ -347,6 +349,7 @@ public class HAlphaWishart extends PolClassifierBase implements PolClassifier, Q
                                     getMeanCoherencyMatrix(x, y, halfWindowSizeX, halfWindowSizeY, srcWidth, srcHeight,
                                             sourceProductType, srcIndex, dataBuffers, Tr, Ti);
 
+                                    srcIndex.calculateStride(y);
                                     final int zoneIdx = findZoneIndex(Tr, Ti, clusterCenters[targetBandIndex]);
                                     localCounter[zoneIdx - 1]++;
                                     computeSummationOfT3(zoneIdx, Tr, Ti, localSumRe, localSumIm);
