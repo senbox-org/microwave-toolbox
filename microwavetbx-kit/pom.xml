@@ -5,7 +5,7 @@
     <parent>
         <artifactId>microwave-toolbox</artifactId>
         <groupId>eu.esa.microwavetbx</groupId>
-        <version>13.0.2-SNAPSHOT</version>
+        <version>13.0.2</version>
     </parent>
 
     <artifactId>microwavetbx-kit</artifactId>
