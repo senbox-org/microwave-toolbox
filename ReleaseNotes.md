@@ -1,6 +1,15 @@
-# Microwave Toolbox 13.0.0
+# Microwave Toolbox 13
 
-## New in Microwave Toolbox 13.0
+## Update 13.0.2
+* [SNAP-4061] Investigate issues found in Biomass product supporting
+* [SNAP-4072] BIOMASS - Terrain corrected DGM image is not correct
+* [SNAP-4109] TOPSAR-Split operator ignores selected burst (always reverts to IW1)
+* [SNAP-4112] Imrpovements to terrain flattening
+* [SNAP-4133] Biomass error when exporting to NetCDF
+* [SNAP-4134] TileIndex in HAlphaWishart
+
+
+## New in Microwave Toolbox 13.0.0
 * Improved geolocation accuracy for multilooked terrain corrected graphs
 * Support for BIOMASS products
 * Support for NISAR products

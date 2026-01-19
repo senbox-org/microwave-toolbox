@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -59,13 +59,21 @@ import java.util.Random;
  * David Small. For details, see the paper below and the references therein.
  * David Small, "Flattening Gamma: Radiometric Terrain Correction for SAR imagery",
  * IEEE Transaction on Geoscience and Remote Sensing, Vol. 48, No. 8, August 2011.
+ *
+ * This implementation is an optimized version of the original TerrainFlatteningOp.
+ * 1.Pre-computation of Orbit Vectors: Instead of interpolating orbit state vectors on-the-fly for every pixel using Lagrange interpolation
+ * (which is computationally expensive), the new operator uses pre-computed sensor positions and velocities for each image line.
+ * 2.Fast Slant Range Computation: Utilizes the pre-computed vectors and linear interpolation for faster slant range and sensor
+ * position calculations during the iterative geocoding process.
+ * 3.Optimized Zero Doppler Time Search: Uses a binary search on the pre-computed arrays to find zero Doppler time, which is faster
+ * than the iterative method on sparse vectors.
  */
 
 @OperatorMetadata(alias = "Terrain-Flattening",
         category = "Radar/Radiometric",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
-        copyright = "Copyright (C) 2014 by Array Systems Computing Inc.",
+        copyright = "Copyright (C) 2026 by SkyWatch Space Applications Inc.",
         description = "Terrain Flattening")
 public final class TerrainFlatteningOp extends Operator {
 
@@ -150,7 +158,7 @@ public final class TerrainFlatteningOp extends Operator {
     private double threshold = 0.05;
     private boolean invalidSource = false;
 
-    private static final String PRODUCT_SUFFIX = "_TF";
+    private static final String PRODUCT_SUFFIX = "_RTC";
 
     enum UnitType {AMPLITUDE, INTENSITY, COMPLEX, RATIO}
 
@@ -317,10 +325,6 @@ public final class TerrainFlatteningOp extends Operator {
                 (pass.contains("ASCENDING") && antennaPointing.contains("left"))) {
             orbitOnWest = false;
         }
-
-//        if (mission.contains("CSKS") || mission.contains("TSX") || mission.equals("RS2") || mission.contains("SENTINEL")) {
-//            skipBistaticCorrection = true;
-//        }
     }
 
     /**
@@ -734,14 +738,17 @@ public final class TerrainFlatteningOp extends Operator {
     private boolean getPosition(final int x0, final int y0, final int w, final int h,
                                 final PositionData data) {
 
-        final double zeroDopplerTime = SARGeocoding.getZeroDopplerTime(
-                lineTimeInterval, wavelength, data.earthPoint, orbit);
+        // Optimized: Use array-based interpolation instead of Lagrange interpolation on sparse vectors
+        final double zeroDopplerTime = SARGeocoding.getEarthPointZeroDopplerTime(
+                firstLineUTC, lineTimeInterval, wavelength, data.earthPoint, orbit.sensorPosition, orbit.sensorVelocity);
 
         if (zeroDopplerTime == SARGeocoding.NonValidZeroDopplerTime) {
             return false;
         }
 
-        data.slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, data.earthPoint, data.sensorPos);
+        // Optimized: Use array-based interpolation for sensor position
+        data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, zeroDopplerTime,
+                firstLineUTC, lineTimeInterval, data.earthPoint, data.sensorPos);
 
         data.azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
 
@@ -769,15 +776,18 @@ public final class TerrainFlatteningOp extends Operator {
         final PosVector earthPoint = new PosVector();
         GeoUtils.geo2xyzWGS84(lat, lon, alt, earthPoint);
 
-        final double zeroDopplerTime = SARGeocoding.getZeroDopplerTime(
-                lineTimeInterval, wavelength, earthPoint, orbit);
+        // Optimized: Use array-based interpolation
+        final double zeroDopplerTime = SARGeocoding.getEarthPointZeroDopplerTime(
+                firstLineUTC, lineTimeInterval, wavelength, earthPoint, orbit.sensorPosition, orbit.sensorVelocity);
 
         if (zeroDopplerTime == SARGeocoding.NonValidZeroDopplerTime) {
             return false;
         }
 
         final PosVector sensorPos = new PosVector();
-        final double slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, earthPoint, sensorPos);
+        // Optimized: Use array-based interpolation
+        final double slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                                                                    zeroDopplerTime, earthPoint, sensorPos);
 
         final double azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
 

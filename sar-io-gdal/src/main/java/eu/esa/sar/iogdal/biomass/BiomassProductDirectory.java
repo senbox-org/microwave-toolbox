@@ -266,6 +266,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         setSLC(!productType.contains("DGM"));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, isSLC() ? "COMPLEX" : "DETECTED");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.srgr_flag, isSLC() ? 0 : 1);
 
         MetadataElement acquisitionParameters = EarthObservationEquipment.getElement("acquisitionParameters");
         MetadataElement Acquisition = acquisitionParameters.getElement("Acquisition");
@@ -379,9 +380,40 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             }
         }
 
-        readOrbitStateVectors(absRoot);
-
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
+
+        cleanMetadata(origProdRoot);
+    }
+
+    private void cleanMetadata(final MetadataElement root) {
+        if (root.getName().matches(".*[^a-zA-Z0-9_].*")) {
+            root.setName(root.getName().replaceAll("[^a-zA-Z0-9_]", "_"));
+        }
+
+        MetadataElement[] elems = root.getElements();
+        for(MetadataElement elem : elems) {
+            cleanMetadata(elem);
+        }
+
+        MetadataAttribute[] attribs = root.getAttributes();
+        for(MetadataAttribute attrib : attribs) {
+            if (attrib.getName().matches(".*[^a-zA-Z0-9_].*")) {
+                attrib.setName(attrib.getName().replaceAll("[^a-zA-Z0-9_]", "_"));
+            }
+            if (attrib.getDataType() == ProductData.TYPE_ASCII) {
+                attrib.setDataElems(attrib.getData().getElemString().replaceAll("[^a-zA-Z0-9_]", "_"));
+            }
+        }
+
+        MetadataElement parent = root.getParentElement();
+        if (parent != null) {
+            for (MetadataAttribute attrib : root.getAttributes()) {
+                MetadataAttribute newAttrib = attrib.createDeepClone();
+                newAttrib.setName(root.getName() + "_" + attrib.getName());
+                parent.addAttribute(newAttrib);
+            }
+            parent.removeElement(root);
+        }
     }
 
     private boolean isL1C(final MetadataElement origProdRoot) {
@@ -396,7 +428,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     }
 
     private boolean addBandMetadata(MetadataElement absRoot, final MetadataElement nameElem,
-                                    final String metadataFile, final boolean commonMetadataRetrieved) {
+                                    final String metadataFile, final boolean commonMetadataRetrieved) throws IOException {
 
         final MetadataElement mainAnnotation = nameElem.getElement("mainAnnotation");
         final MetadataElement acquisitionInformation = mainAnnotation.getElement("acquisitionInformation");
@@ -494,6 +526,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
                     (1.0/rangeTimeInterval) / Constants.oneMillion);
 
+            readOrbitStateVectors(absRoot);
+
             final MetadataElement rangeCoordinateConversion = sarImage.getElement("rangeCoordinateConversion");
             addSRGRCoefficients(absRoot, rangeCoordinateConversion);
 
@@ -512,8 +546,8 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             }
 
             final String pol = attrib.getData().getElemString();
-            final ProductData.UTC startTime = getTime(acquisitionInformation, "startTime", biomassDateFormat);
-            final ProductData.UTC stopTime = getTime(acquisitionInformation, "stopTime", biomassDateFormat);
+            final ProductData.UTC startTime = getTime(sarImage, "firstLineAzimuthTime", biomassDateFormat);
+            final ProductData.UTC stopTime = getTime(sarImage, "lastLineAzimuthTime", biomassDateFormat);
 
             final String bandRootName = AbstractMetadata.BAND_PREFIX + swath + '_' + pol;
             final MetadataElement bandAbsRoot = AbstractMetadata.addBandAbstractedMetadata(absRoot, bandRootName);
@@ -591,6 +625,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         final String[] filenames = listFiles(navFolder);
         if (filenames != null) {
+            int orbitVectorCount = 1;
             for (String metadataFile : filenames) {
                 if (!metadataFile.endsWith("_orb.xml")) {
                     continue;
@@ -606,26 +641,29 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 MetadataElement dataBlock = fileElem.getElement("Data_Block");
                 MetadataElement orbitList = dataBlock.getElement("List_of_OSVs");
 
-                addOrbitStateVectors(absRoot, orbitList);
+                orbitVectorCount = addOrbitStateVectors(absRoot, orbitList, orbitVectorCount);
             }
         }
     }
 
-    private void addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList) {
+    private int addOrbitStateVectors(final MetadataElement absRoot, final MetadataElement orbitList, int startCount) {
         final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
 
         final MetadataElement[] stateVectorElems = orbitList.getElements();
-        for (int i = 1; i <= stateVectorElems.length; ++i) {
-            addVector(AbstractMetadata.orbit_vector, orbitVectorListElem, stateVectorElems[i - 1], i);
+        for (int i = 0; i < stateVectorElems.length; ++i) {
+            addVector(AbstractMetadata.orbit_vector, orbitVectorListElem, stateVectorElems[i], startCount + i);
         }
 
-        // set state vector time
-        if (absRoot.getAttributeUTC(AbstractMetadata.STATE_VECTOR_TIME, AbstractMetadata.NO_METADATA_UTC).
+        // set state vector time from the first vector of the first file
+        if (startCount == 1 && stateVectorElems.length > 0) {
+             if (absRoot.getAttributeUTC(AbstractMetadata.STATE_VECTOR_TIME, AbstractMetadata.NO_METADATA_UTC).
                 equalElems(AbstractMetadata.NO_METADATA_UTC)) {
 
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME,
                                           getTime(stateVectorElems[0], "UTC", biomassDateFormat));
+            }
         }
+        return startCount + stateVectorElems.length;
     }
 
     private void addVector(final String name, final MetadataElement orbitVectorListElem,
@@ -660,8 +698,14 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
     private void addSRGRCoefficients(final MetadataElement absRoot, final MetadataElement rangeCoordinateConversion) {
 
-        final int count = rangeCoordinateConversion.getAttributeInt("count");
-        if (count == 0) return;
+        int count = 0;
+        if (rangeCoordinateConversion != null) {
+            count = rangeCoordinateConversion.getAttributeInt("count", 0);
+        }
+        if (count < 2) {
+            calculateAndAddSRGRCoefficients(absRoot);
+            return;
+        }
 
         final MetadataElement[] coordinateConversionList = rangeCoordinateConversion.getElements();
         if (coordinateConversionList == null) return;
@@ -699,6 +743,136 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 }
             }
         }
+    }
+
+    private void calculateAndAddSRGRCoefficients(final MetadataElement absRoot) {
+        final MetadataElement srgrCoefficientsElem = absRoot.getElement(AbstractMetadata.srgr_coefficients);
+        final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
+
+        if (orbitVectorListElem == null || orbitVectorListElem.getNumElements() == 0) {
+            return;
+        }
+
+        final ProductData.UTC startTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time);
+        final ProductData.UTC endTime = absRoot.getAttributeUTC(AbstractMetadata.last_line_time);
+
+        if (startTime == null || endTime == null) {
+            return;
+        }
+
+        final double tStart = startTime.getMJD();
+        final double tEnd = endTime.getMJD();
+        final double buffer = 10.0 / (24.0 * 3600.0); // 10 seconds
+
+        int listCnt = 1;
+        for (MetadataElement orbitElem : orbitVectorListElem.getElements()) {
+            final ProductData.UTC time = orbitElem.getAttributeUTC(AbstractMetadata.orbit_vector_time);
+            if (time.getMJD() < tStart - buffer || time.getMJD() > tEnd + buffer) {
+                continue;
+            }
+
+            final double x = orbitElem.getAttributeDouble(AbstractMetadata.orbit_vector_x_pos);
+            final double y = orbitElem.getAttributeDouble(AbstractMetadata.orbit_vector_y_pos);
+            final double z = orbitElem.getAttributeDouble(AbstractMetadata.orbit_vector_z_pos);
+            final double satRadius = Math.sqrt(x * x + y * y + z * z);
+            final double earthRadius = 6378137.0; // WGS84 semi-major axis
+
+            final double srStart = firstSampleSlantRangeTime * Constants.halfLightSpeed;
+            final double srEnd = lastSampleSlantRangeTime * Constants.halfLightSpeed;
+
+            final int numPoints = 11;
+            final double[] groundRanges = new double[numPoints];
+            final double[] slantRanges = new double[numPoints];
+
+            // Calculate Ground Range Origin (at srStart)
+            double cosGamma0 = (satRadius * satRadius + earthRadius * earthRadius - srStart * srStart) / (2 * satRadius * earthRadius);
+            cosGamma0 = Math.max(-1.0, Math.min(1.0, cosGamma0));
+            final double gamma0 = Math.acos(cosGamma0);
+            final double grOrigin = earthRadius * gamma0;
+
+            for (int i = 0; i < numPoints; i++) {
+                final double sr = srStart + (srEnd - srStart) * i / (numPoints - 1);
+                double cosGamma = (satRadius * satRadius + earthRadius * earthRadius - sr * sr) / (2 * satRadius * earthRadius);
+                cosGamma = Math.max(-1.0, Math.min(1.0, cosGamma));
+                final double gamma = Math.acos(cosGamma);
+                final double gr = earthRadius * gamma;
+
+                groundRanges[i] = gr - grOrigin;
+                slantRanges[i] = sr;
+            }
+
+            final double[] coeffs = fitPolynomial(groundRanges, slantRanges, 3);
+
+            final MetadataElement srgrListElem = new MetadataElement(AbstractMetadata.srgr_coef_list + '.' + listCnt);
+            srgrCoefficientsElem.addElement(srgrListElem);
+            ++listCnt;
+
+            srgrListElem.setAttributeUTC(AbstractMetadata.srgr_coef_time, time);
+            AbstractMetadata.addAbstractedAttribute(srgrListElem, AbstractMetadata.ground_range_origin,
+                    ProductData.TYPE_FLOAT64, "m", "Ground Range Origin");
+            AbstractMetadata.setAttribute(srgrListElem, AbstractMetadata.ground_range_origin, grOrigin);
+
+            for (int k = 0; k < coeffs.length; k++) {
+                final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + '.' + (k + 1));
+                srgrListElem.addElement(coefElem);
+                AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.srgr_coef,
+                        ProductData.TYPE_FLOAT64, "", "SRGR Coefficient");
+                AbstractMetadata.setAttribute(coefElem, AbstractMetadata.srgr_coef, coeffs[k]);
+            }
+        }
+    }
+
+    private static double[] fitPolynomial(double[] x, double[] y, int degree) {
+        int n = x.length;
+        int m = degree + 1;
+        double[][] A = new double[m][m];
+        double[] B = new double[m];
+
+        for (int i = 0; i < n; i++) {
+            double val = 1.0;
+            for (int j = 0; j < m; j++) {
+                double val2 = 1.0;
+                for (int k = 0; k < m; k++) {
+                    A[j][k] += val * val2;
+                    val2 *= x[i];
+                }
+                B[j] += val * y[i];
+                val *= x[i];
+            }
+        }
+        return solveLinearSystem(A, B);
+    }
+
+    private static double[] solveLinearSystem(double[][] A, double[] B) {
+        int n = B.length;
+        for (int i = 0; i < n; i++) {
+            int max = i;
+            for (int j = i + 1; j < n; j++) {
+                if (Math.abs(A[j][i]) > Math.abs(A[max][i])) {
+                    max = j;
+                }
+            }
+            double[] temp = A[i]; A[i] = A[max]; A[max] = temp;
+            double t = B[i]; B[i] = B[max]; B[max] = t;
+
+            for (int j = i + 1; j < n; j++) {
+                double factor = A[j][i] / A[i][i];
+                B[j] -= factor * B[i];
+                for (int k = i; k < n; k++) {
+                    A[j][k] -= factor * A[i][k];
+                }
+            }
+        }
+
+        double[] solution = new double[n];
+        for (int i = n - 1; i >= 0; i--) {
+            double sum = 0.0;
+            for (int j = i + 1; j < n; j++) {
+                sum += A[i][j] * solution[j];
+            }
+            solution[i] = (B[i] - sum) / A[i][i];
+        }
+        return solution;
     }
 
     private void addDopplerCentroidCoefficients(final MetadataElement absRoot, final MetadataElement dopplerCentroid) {
@@ -743,83 +917,84 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
     @Override
     protected void addGeoCoding(final Product product) {
+        final TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
+        final TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
 
-        final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(
-                product.getTiePointGrid(OperatorUtils.TPG_LATITUDE), product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE));
-
-        product.setSceneGeoCoding(tpGeoCoding);
+        if (latGrid != null && lonGrid != null) {
+            final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
+            product.setSceneGeoCoding(tpGeoCoding);
+        }
     }
 
     @Override
     protected void addTiePointGrids(final Product product) {
 
-        if(netCDFLUTFile == null) {
-            return;
-        }
+        if(netCDFLUTFile != null) {
+            try (final NetcdfFile netcdfFile = NetcdfFile.open(netCDFLUTFile.getAbsolutePath())) {
+                final List<Variable> rasters = readNetCDFLUT(netcdfFile);
+                for(Variable variable : rasters) {
+                    try {
+                        String name = variable.getShortName();
+                        int gridWidth = variable.getDimension(1).getLength();
+                        int gridHeight = variable.getDimension(0).getLength();
 
-        try (final NetcdfFile netcdfFile = NetcdfFile.open(netCDFLUTFile.getAbsolutePath())) {
-            final List<Variable> rasters = readNetCDFLUT(netcdfFile);
-            for(Variable variable : rasters) {
-                try {
-                    String name = variable.getShortName();
-                    int gridWidth = variable.getDimension(1).getLength();
-                    int gridHeight = variable.getDimension(0).getLength();
+                        final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
+                        final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
 
-                    final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
-                    final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
+                        Array dataArray = variable.read();
+                        // Convert array data to a 1D float array, regardless of original type.
+                        float[] floatData = (float[]) dataArray.get1DJavaArray(DataType.FLOAT);
 
-                    Array dataArray = variable.read();
-                    // Convert array data to a 1D float array, regardless of original type.
-                    float[] floatData = (float[]) dataArray.get1DJavaArray(DataType.FLOAT);
+                        if(name.equals(OperatorUtils.TPG_LATITUDE)) {
 
-                    if(name.equals(OperatorUtils.TPG_LATITUDE)) {
-
-                        TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
-                        if (latGrid == null) {
-                            latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
-                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                            latGrid.setUnit(Unit.DEGREES);
-                            product.addTiePointGrid(latGrid);
-                        }
-                    } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
-
-                        TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
-                        if (lonGrid == null) {
-                            lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
-                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
-                            lonGrid.setUnit(Unit.DEGREES);
-                            product.addTiePointGrid(lonGrid);
-                        }
-                    } else {
-                        if(name.equalsIgnoreCase("incidenceangle")) {
-                            name = OperatorUtils.TPG_INCIDENT_ANGLE;
-                        } else if(name.equalsIgnoreCase("elevationangle")) {
-                            name = OperatorUtils.TPG_ELEVATION_ANGLE;
-                        } else if(name.equalsIgnoreCase("terrainslope")) {
-                            name = "terrain_slope";
-                        } else if(name.equalsIgnoreCase("height")) {
-                            double sum = 0;
-                            for(float val : floatData) {
-                                sum += val;
+                            TiePointGrid latGrid = product.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
+                            if (latGrid == null) {
+                                latGrid = new TiePointGrid(OperatorUtils.TPG_LATITUDE,
+                                        gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
+                                latGrid.setUnit(Unit.DEGREES);
+                                product.addTiePointGrid(latGrid);
                             }
-                            double avgHeight = sum / floatData.length;
-                            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-                            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, avgHeight);
-                        }
-                        final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
-                                gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                        incidentAngleGrid.setUnit(Unit.DEGREES);
-                        product.addTiePointGrid(incidentAngleGrid);
-                    }
-                } catch (Exception e) {
-                    System.out.println("Error reading netCDFLUT file: " + e.getMessage());
-                }
-            }
+                        } else if(name.equals(OperatorUtils.TPG_LONGITUDE)) {
 
-            addSlantRangeTimeTPG(product);
-        } catch (Exception e) {
-            System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+                            TiePointGrid lonGrid = product.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
+                            if (lonGrid == null) {
+                                lonGrid = new TiePointGrid(OperatorUtils.TPG_LONGITUDE,
+                                        gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData, TiePointGrid.DISCONT_AT_180);
+                                lonGrid.setUnit(Unit.DEGREES);
+                                product.addTiePointGrid(lonGrid);
+                            }
+                        } else {
+                            if(name.equalsIgnoreCase("incidenceangle")) {
+                                name = OperatorUtils.TPG_INCIDENT_ANGLE;
+                            } else if(name.equalsIgnoreCase("elevationangle")) {
+                                name = OperatorUtils.TPG_ELEVATION_ANGLE;
+                            } else if(name.equalsIgnoreCase("terrainslope")) {
+                                name = "terrain_slope";
+                            } else if(name.equalsIgnoreCase("height")) {
+                                double sum = 0;
+                                for(float val : floatData) {
+                                    sum += val;
+                                }
+                                double avgHeight = sum / floatData.length;
+                                MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+                                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, avgHeight);
+                            }
+                            final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
+                                    gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
+                            incidentAngleGrid.setUnit(Unit.DEGREES);
+                            product.addTiePointGrid(incidentAngleGrid);
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+                    }
+                }
+
+            } catch (Exception e) {
+                System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+            }
         }
+        
+        addSlantRangeTimeTPG(product);
     }
 
     private void addSlantRangeTimeTPG(final Product product) {
@@ -860,12 +1035,15 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         return productType;
     }
 
-    public static ProductData.UTC getTime(final MetadataElement elem, final String tag, final DateFormat sentinelDateFormat) {
+    public static ProductData.UTC getTime(final MetadataElement elem, final String tag, final DateFormat dateFormat) {
 
         String start = elem.getAttributeString(tag, NO_METADATA_STRING);
+        if (start.isEmpty() || NO_METADATA_STRING.equals(start)) {
+             return AbstractMetadata.NO_METADATA_UTC;
+        }
         start = start.replace("UTC=", "").replace("T", "_");
 
-        return AbstractMetadata.parseUTC(start, sentinelDateFormat);
+        return AbstractMetadata.parseUTC(start, dateFormat);
     }
 
     @Override
