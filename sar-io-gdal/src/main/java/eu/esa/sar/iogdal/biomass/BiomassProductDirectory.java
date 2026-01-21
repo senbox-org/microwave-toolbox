@@ -775,12 +775,28 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             final double y = orbitElem.getAttributeDouble(AbstractMetadata.orbit_vector_y_pos);
             final double z = orbitElem.getAttributeDouble(AbstractMetadata.orbit_vector_z_pos);
             final double satRadius = Math.sqrt(x * x + y * y + z * z);
-            final double earthRadius = 6378137.0; // WGS84 semi-major axis
+
+            final double a = 6378137.0; // WGS84 semi-major axis
+            final double b = 6356752.314245; // WGS84 semi-minor axis
+            final double f = (a - b) / a;
+            final double e2 = f * (2.0 - f);
+
+            // Iterative calculation of Geodetic Latitude for accurate Earth Radius (N)
+            final double p = Math.sqrt(x * x + y * y);
+            double phi = Math.atan2(z, p); // Initial guess (Geocentric)
+            double N = a;
+            for (int k = 0; k < 5; k++) {
+                final double sinPhi = Math.sin(phi);
+                N = a / Math.sqrt(1.0 - e2 * sinPhi * sinPhi);
+                final double h = p / Math.cos(phi) - N;
+                phi = Math.atan2(z, p * (1.0 - e2 * N / (N + h)));
+            }
+            final double earthRadius = N;
 
             final double srStart = firstSampleSlantRangeTime * Constants.halfLightSpeed;
             final double srEnd = lastSampleSlantRangeTime * Constants.halfLightSpeed;
 
-            final int numPoints = 11;
+            final int numPoints = 100;
             final double[] groundRanges = new double[numPoints];
             final double[] slantRanges = new double[numPoints];
 
@@ -801,7 +817,19 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 slantRanges[i] = sr;
             }
 
-            final double[] coeffs = fitPolynomial(groundRanges, slantRanges, 3);
+            // Normalize ground ranges for numerical stability during fitting
+            final double maxGR = groundRanges[numPoints - 1];
+            final double scale = (maxGR > 1e-6) ? 1.0 / maxGR : 1.0;
+            final double[] scaledGroundRanges = new double[numPoints];
+            for (int i = 0; i < numPoints; i++) {
+                scaledGroundRanges[i] = groundRanges[i] * scale;
+            }
+
+            final double[] scaledCoeffs = fitPolynomial(scaledGroundRanges, slantRanges, 3);
+            final double[] coeffs = new double[scaledCoeffs.length];
+            for (int k = 0; k < scaledCoeffs.length; k++) {
+                coeffs[k] = scaledCoeffs[k] * Math.pow(scale, k);
+            }
 
             final MetadataElement srgrListElem = new MetadataElement(AbstractMetadata.srgr_coef_list + '.' + listCnt);
             srgrCoefficientsElem.addElement(srgrListElem);
