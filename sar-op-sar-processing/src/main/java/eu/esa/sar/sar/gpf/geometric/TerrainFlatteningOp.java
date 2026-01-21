@@ -747,8 +747,8 @@ public final class TerrainFlatteningOp extends Operator {
         }
 
         // Optimized: Use array-based interpolation for sensor position
-        data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, zeroDopplerTime,
-                firstLineUTC, lineTimeInterval, data.earthPoint, data.sensorPos);
+        data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                zeroDopplerTime, data.earthPoint, data.sensorPos);
 
         data.azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
 

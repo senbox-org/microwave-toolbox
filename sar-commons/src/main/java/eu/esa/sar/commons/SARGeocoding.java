@@ -311,7 +311,12 @@ public final class SARGeocoding {
                                                double firstLineUTC, double lineTimeInterval,
                                                double zeroDopplerTime, PosVector earthPoint, PosVector sensorPos) {
         double azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
-        getSensorPositionFast(orbit, azimuthIndex, sensorPos);
+
+        if (azimuthIndex >= 0 && azimuthIndex <= orbit.sensorPosition.length - 1) {
+            getSensorPositionFast(orbit, azimuthIndex, sensorPos);
+        } else {
+            orbit.getPosition(zeroDopplerTime, sensorPos);
+        }
 
         double xDiff = sensorPos.x - earthPoint.x;
         double yDiff = sensorPos.y - earthPoint.y;
