@@ -206,7 +206,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             final int width = bandMetadata.getAttributeInt(AbstractMetadata.num_samples_per_line);
             final int height = bandMetadata.getAttributeInt(AbstractMetadata.num_output_lines);
 
-            String suffix = swath + '_' + pol;
+            String suffix = pol; //swath + '_' + pol;
             String bandName;
 
             if (isSLC()) {
@@ -373,6 +373,23 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
     }
 
+    @Override
+    public boolean exists(final String path) {
+        boolean found = getProductDir().exists(path);
+        if(!found) {
+            try {
+                String[] files = productDir.listAllFiles();
+                for (String file : files) {
+                    if (file.startsWith(path)) {
+                        found = true;
+                        break;
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return found;
+    }
+
     private void addBandAbstractedMetadata(final MetadataElement absRoot,
                                            final MetadataElement origProdRoot) throws IOException {
 
@@ -477,15 +494,15 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             }
         }
 
-        MetadataElement parent = root.getParentElement();
-        if (parent != null) {
-            for (MetadataAttribute attrib : root.getAttributes()) {
-                MetadataAttribute newAttrib = attrib.createDeepClone();
-                newAttrib.setName(root.getName() + "_" + attrib.getName());
-                parent.addAttribute(newAttrib);
-            }
-            parent.removeElement(root);
-        }
+//        MetadataElement parent = root.getParentElement();
+//        if (parent != null) {
+//            for (MetadataAttribute attrib : root.getAttributes()) {
+//                MetadataAttribute newAttrib = attrib.createDeepClone();
+//                newAttrib.setName(root.getName() + "_" + attrib.getName());
+//                parent.addAttribute(newAttrib);
+//            }
+//            parent.removeElement(root);
+//        }
     }
 
     private boolean isL1C(final MetadataElement origProdRoot) {
