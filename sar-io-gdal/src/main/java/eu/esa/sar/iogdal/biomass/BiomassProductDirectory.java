@@ -35,6 +35,7 @@ import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import org.esa.snap.engine_utilities.util.ZipUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import ucar.ma2.Array;
@@ -51,8 +52,11 @@ import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import static org.esa.snap.engine_utilities.datamodel.AbstractMetadata.NO_METADATA_STRING;
 
@@ -98,6 +102,42 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         super(inputFile);
     }
 
+    @Override
+    protected String getHeaderFileName() {
+        if (ZipUtils.isZip(productInputFile)) {
+            ZipEntry entry = findInZip(productInputFile, "bio_", ".xml", "", "annot");
+            if(entry != null) {
+                if(entry.getName().contains("/")) {
+                    return entry.getName().substring(entry.getName().indexOf("/") + 1);
+                } else {
+                    return entry.getName();
+                }
+            }
+        }
+        return productInputFile.getName();
+    }
+
+    private static ZipEntry findInZip(final File file, final String prefix, final String suffix, final String contains, final String exclude) {
+        try {
+            final ZipFile productZip = new ZipFile(file, ZipFile.OPEN_READ);
+
+            final Optional result = productZip.stream()
+                    .filter(ze -> !ze.isDirectory())
+                    .filter(ze -> ze.getName().toLowerCase().endsWith(suffix.toLowerCase()))
+                    .filter(ze -> ze.getName().toLowerCase().startsWith(prefix.toLowerCase()))
+                    .filter(ze -> ze.getName().toLowerCase().contains(contains.toLowerCase()))
+                    .filter(ze -> exclude == null || exclude.isEmpty() || !ze.getName().toLowerCase().contains(exclude.toLowerCase()))
+                    .findFirst();
+            if(result.isPresent()) {
+                return (ZipEntry)result.get();
+            }
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("unable to read zip file " + file + ": " + e.getMessage());
+        }
+        return null;
+    }
+
+    @Override
     protected String getRelativePathToImageFolder() {
         return getRootFolder() + "measurement" + '/';
     }
@@ -106,16 +146,48 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         final String name = getBandFileNameFromImage(imgPath);
         if ((name.endsWith("tiff"))) {
             try {
-                final InputStream inStream = getInputStream(imgPath);
-                if(inStream.available() > 0) {
-                    ReaderData data = new ReaderData();
-                    data.reader = readerPlugin.createReaderInstance();
-                    data.bandProduct = data.reader.readProductNodes(productDir.getFile(imgPath), null);
-                    bandProductMap.put(name.endsWith("phase.tiff") ? PHASE : ABS, data);
+                ReaderData data = new ReaderData();
+                data.reader = readerPlugin.createReaderInstance();
 
+                if (isCompressed()) {
+                    String zipPath = getBaseDir().getAbsolutePath().replace("\\", "/");
+                    String entryPath = imgPath;
+                    if (entryPath.startsWith(zipPath)) {
+                        entryPath = entryPath.substring(zipPath.length());
+                    }
+                    if (entryPath.startsWith("/")) {
+                        entryPath = entryPath.substring(1);
+                    }
+                    // Use GDAL's virtual file system for zip files
+                    String vsizipPath = "/vsizip/" + zipPath + "/" + entryPath;
+                    
+                    boolean success = false;
+                    try {
+                        // Try streaming with VSI
+                        data.bandProduct = data.reader.readProductNodes(vsizipPath, null);
+                        success = true;
+                    } catch (Exception e) {
+                        // Fallback if VSI fails (e.g. on Windows due to path validation in Java wrapper)
+                    }
+                    
+                    if (!success) {
+                        // Extract to temp file
+                        data.bandProduct = data.reader.readProductNodes(productDir.getFile(imgPath), null);
+                    }
                 } else {
-                    inStream.close();
+                    final InputStream inStream = getInputStream(imgPath);
+                    if (inStream.available() > 0) {
+                        data.bandProduct = data.reader.readProductNodes(productDir.getFile(imgPath), null);
+                    } else {
+                        inStream.close();
+                        return;
+                    }
                 }
+
+                if (data.bandProduct != null) {
+                    bandProductMap.put(name.endsWith("phase.tiff") ? PHASE : ABS, data);
+                }
+
             } catch (Exception e) {
                 SystemUtils.LOG.severe(imgPath +" failed to open" + e.getMessage());
             }
