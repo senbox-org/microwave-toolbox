@@ -1,0 +1,195 @@
+{
+  "variables": [
+    {
+      "name": "C_BAND_raw_bt_h_feed1",
+      "valueVarName": "raw_bt_h",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed1", "C_BAND_footprint_major_axis_feed1", "C_BAND_geometric_rot_angle_feed1"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "K",
+      "description": "Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)"
+    },
+    {
+      "name": "C_BAND_raw_bt_v_feed1",
+      "valueVarName": "raw_bt_v",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed1", "C_BAND_footprint_major_axis_feed1", "C_BAND_geometric_rot_angle_feed1"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "K",
+      "description": "Brightness temperature of the Earth, in V polarization, from raw counts (no RFI mitigation)"
+    },
+    {
+      "name": "C_BAND_raw_bt_h_feed2",
+      "valueVarName": "raw_bt_h",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed2", "C_BAND_longitude_feed2"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed2", "C_BAND_footprint_major_axis_feed2", "C_BAND_geometric_rot_angle_feed2"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "K",
+      "description": "Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)"
+    },
+    {
+      "name": "C_BAND_raw_bt_v_feed2",
+      "valueVarName": "raw_bt_v",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed2", "C_BAND_longitude_feed2"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed2", "C_BAND_footprint_major_axis_feed2", "C_BAND_geometric_rot_angle_feed2"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "K",
+      "description": "Brightness temperature of the Earth, in V polarization, from raw counts (no RFI mitigation)"
+    }
+  ],
+  "tiepointVariables": [
+    {
+      "name": "C_BAND_altitude_feed1",
+      "valueVarName": "altitude",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed1", "C_BAND_footprint_major_axis_feed1", "C_BAND_geometric_rot_angle_feed1"],
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "m",
+      "description": "Altitude for intersection of the LOS with the earth surface for the C band Earth views"
+    },
+    {
+      "name": "C_BAND_footprint_major_axis_feed1",
+      "valueVarName": "footprint_major_axis",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed1", "C_BAND_footprint_major_axis_feed1", "C_BAND_geometric_rot_angle_feed1"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "m",
+      "description": "Elliptical footprint major semi-axis value"
+    },
+    {
+      "name": "C_BAND_footprint_minor_axis_feed1",
+      "valueVarName": "footprint_minor_axis",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed1", "C_BAND_footprint_major_axis_feed1", "C_BAND_geometric_rot_angle_feed1"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "m",
+      "description": "Elliptical footprint minor semi-axis value"
+    },
+    {
+      "name": "C_BAND_geometric_rot_angle_feed1",
+      "valueVarName": "geometric_rot_angle",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed1", "C_BAND_longitude_feed1"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed1", "C_BAND_footprint_major_axis_feed1", "C_BAND_geometric_rot_angle_feed1"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "deg",
+      "description": "Geometric rotation angle value corresponding to the measured BT value"
+    },
+    {
+      "name": "C_BAND_footprint_major_axis_feed2",
+      "valueVarName": "footprint_major_axis",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed2", "C_BAND_longitude_feed2"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed2", "C_BAND_footprint_major_axis_feed2", "C_BAND_geometric_rot_angle_feed2"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "m",
+      "description": "Elliptical footprint major semi-axis value"
+    },
+    {
+      "name": "C_BAND_footprint_minor_axis_feed2",
+      "valueVarName": "footprint_minor_axis",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed2", "C_BAND_longitude_feed2"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed2", "C_BAND_footprint_major_axis_feed2", "C_BAND_geometric_rot_angle_feed2"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "m",
+      "description": "Elliptical footprint minor semi-axis value"
+    },
+    {
+      "name": "C_BAND_geometric_rot_angle_feed2",
+      "valueVarName": "geometric_rot_angle",
+      "band": "C_BAND",
+      "geometryNames": ["C_BAND_latitude_feed2", "C_BAND_longitude_feed2"],
+      "footprintVars" : ["C_BAND_footprint_minor_axis_feed2", "C_BAND_footprint_major_axis_feed2", "C_BAND_geometric_rot_angle_feed2"],
+      "groupPath": "/Data/Measurement_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "deg",
+      "description": "Geometric rotation angle value corresponding to the measured BT value"
+    }
+  ],
+  "geometries": [
+    {
+      "name": "C_BAND_latitude_feed1",
+      "valueVarName": "latitude",
+      "band": "C_BAND",
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "deg",
+      "description": "Latitude of Earth surface point in the boresight direction for the C band acquisitions"
+    },
+    {
+      "name": "C_BAND_longitude_feed1",
+      "valueVarName": "longitude",
+      "band": "C_BAND",
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 0,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "deg",
+      "description": "Longitude of Earth surface point in the boresight direction for the C band acquisitions"
+    },
+    {
+      "name": "C_BAND_latitude_feed2",
+      "valueVarName": "latitude",
+      "band": "C_BAND",
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "deg",
+      "description": "Latitude of Earth surface point in the boresight direction for the C band acquisitions"
+    },
+    {
+      "name": "C_BAND_longitude_feed2",
+      "valueVarName": "longitude",
+      "band": "C_BAND",
+      "groupPath": "/Data/Navigation_Data/C_BAND/",
+      "feedIndex": 1,
+      "dimensions": ["n_scans", "n_tie_points_C_BAND", "n_feeds_C_BAND"],
+      "dataType": "double",
+      "unit": "deg",
+      "description": "Longitude of Earth surface point in the boresight direction for the C band acquisitions"
+    }
+  ]
+}
