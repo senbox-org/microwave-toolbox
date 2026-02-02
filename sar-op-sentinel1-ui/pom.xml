@@ -21,7 +21,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>13.0.3-SNAPSHOT</version>
+        <version>13.0.3</version>
     </parent>
 
     <artifactId>sar-op-sentinel1-ui</artifactId>
