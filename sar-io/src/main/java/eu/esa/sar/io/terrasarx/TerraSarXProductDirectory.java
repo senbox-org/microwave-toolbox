@@ -504,12 +504,13 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
     @Override
     protected void findImages(final MetadataElement newRoot) throws IOException {
 
-        if (getHeaderFileName().startsWith("TSX") || getHeaderFileName().startsWith("TDX")) {
+        String headerFileName = getHeaderFileName();
+        if (headerFileName.startsWith("TSX") || headerFileName.startsWith("TDX") || headerFileName.startsWith("PAZ")) {
             super.findImages(newRoot);
-        } else if (getHeaderFileName().startsWith("TDM")) {
+        } else if (headerFileName.startsWith("TDM")) {
             findImagesForTanDemX(newRoot);
         } else {
-            throw new IOException("Invalid header file: " + getHeaderFileName());
+            throw new IOException("Invalid header file: " + headerFileName);
         }
     }
 
