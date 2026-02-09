@@ -80,13 +80,13 @@ public class TestDeburstOperator extends ProcessorTest {
         Assume.assumeTrue("Input file does not exist - Skipping test", inputFile.exists());
         final String exemption = "The selected source bands do not match the source bands in the metadata.";
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
-            sourceProduct.removeBand(sourceProduct.getBandAt(0));
+            sourceProduct.removeBand(sourceProduct.getBand("Intensity_IW1_VV"));
 
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSourceBandsMatch();
         } catch (Exception e) {
             if (e.getMessage() != null) {
-                assertEquals(e.getMessage(), exemption);
+                assertEquals(exemption, e.getMessage());
             }
         }
     }
