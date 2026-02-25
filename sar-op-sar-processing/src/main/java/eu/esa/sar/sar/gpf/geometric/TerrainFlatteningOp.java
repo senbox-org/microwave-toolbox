@@ -87,8 +87,8 @@ public final class TerrainFlatteningOp extends Operator {
     private String[] sourceBandNames;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 1Sec HGT", label = "Digital Elevation Model")
-    private String demName = "SRTM 1Sec HGT";
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(defaultValue = ResamplingFactory.BILINEAR_INTERPOLATION_NAME,
             label = "DEM Resampling Method")

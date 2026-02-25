@@ -79,10 +79,10 @@ public final class UpdateGeoRefOp extends Operator {
             rasterDataNodeType = Band.class, label = "Source Bands")
     private String[] sourceBandNames;
 
-    @Parameter(valueSet = {"ACE", "ASTER 1sec GDEM", "GETASSE30", "SRTM 1Sec HGT", "SRTM 3Sec"},
+    @Parameter(valueSet = {"ACE", "ASTER 1sec GDEM", "GETASSE30", "SRTM 1Sec HGT", "SRTM 3Sec","Copernicus 30m Global DEM"},
             description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec", label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(defaultValue = ResamplingFactory.BICUBIC_INTERPOLATION_NAME,
             label = "DEM Resampling Method")

@@ -120,9 +120,9 @@ public class InterferogramOp extends Operator {
         private int orbitDegree = 3;
     */
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec",
+            defaultValue = "Copernicus 30m Global DEM",
             label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(label = "External DEM")
     private File externalDEMFile = null;
