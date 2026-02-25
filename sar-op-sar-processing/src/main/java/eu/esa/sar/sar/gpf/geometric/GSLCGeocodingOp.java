@@ -34,6 +34,7 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dem.dataio.DEMFactory;
 import org.esa.snap.dem.dataio.FileElevationModel;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -170,6 +171,9 @@ public class GSLCGeocodingOp extends Operator {
     @Parameter(defaultValue = "false", label = "Save simulated phase")
     private boolean saveSimulatedPhase = false;
 
+    @Parameter(defaultValue = "1", label = "Flattening Phase Sign (+1 or -1)")
+    private int flatteningPhaseSign = 1;
+
     private MetadataElement absRoot = null;
     private ElevationModel dem = null;
     private Band elevationBand = null;
@@ -209,6 +213,7 @@ public class GSLCGeocodingOp extends Operator {
 
     public static final String externalDEMStr = "External DEM";
     private static final String PRODUCT_SUFFIX = "_GSLC";
+    private static final double lightSpeedInMetersPerSecond = 299792458.0;
 
     private final List<ComplexPair> complexPairs = new ArrayList<>();
 
@@ -268,11 +273,22 @@ public class GSLCGeocodingOp extends Operator {
 
         skipBistaticCorrection = absRoot.getAttributeInt(AbstractMetadata.bistatic_correction_applied, 0) == 1;
         srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
-        wavelength = SARUtils.getRadarWavelength(absRoot);
+        
+        // Robust wavelength calculation
+        double freq = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.radar_frequency);
+        if (freq < 1.0e8) { // Assume MHz if less than 100 MHz
+             freq *= 1.0e6;
+        }
+        wavelength = lightSpeedInMetersPerSecond / freq;
 
         rangeSpacing = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.range_spacing);
         if (rangeSpacing <= 0.0) {
             throw new OperatorException("Invalid input for range pixel spacing: " + rangeSpacing);
+        }
+        // Check if rangeSpacing is in seconds (e.g. < 0.001)
+        if (rangeSpacing < 0.001) {
+            rangeSpacing *= (lightSpeedInMetersPerSecond / 2.0);
+            SystemUtils.LOG.info("GSLC: Converted rangeSpacing from seconds to meters: " + rangeSpacing);
         }
 
         firstLineUTC = AbstractMetadata.parseUTC(absRoot.getAttributeString(AbstractMetadata.first_line_time)).getMJD(); // in days
@@ -294,10 +310,19 @@ public class GSLCGeocodingOp extends Operator {
             }
         } else {
             nearEdgeSlantRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+            // Check if nearEdgeSlantRange is in seconds (e.g. < 10000)
+            if (nearEdgeSlantRange < 10000.0) {
+                nearEdgeSlantRange *= (lightSpeedInMetersPerSecond / 2.0);
+                SystemUtils.LOG.info("GSLC: Converted nearEdgeSlantRange from seconds to meters: " + nearEdgeSlantRange);
+            }
         }
 
         incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
         nearRangeOnLeft = SARGeocoding.isNearRangeOnLeft(incidenceAngle, sourceImageWidth);
+        
+        SystemUtils.LOG.info("GSLC: Wavelength = " + wavelength + " m");
+        SystemUtils.LOG.info("GSLC: Range Spacing = " + rangeSpacing + " m");
+        SystemUtils.LOG.info("GSLC: Near Edge Range = " + nearEdgeSlantRange + " m");
     }
 
     private synchronized void getElevationModel() throws Exception {
@@ -561,7 +586,7 @@ public class GSLCGeocodingOp extends Operator {
                 Tile srcTileI = getSourceTile(pair.srcI, sourceRectangle);
                 Tile srcTileQ = getSourceTile(pair.srcQ, sourceRectangle);
                 
-                GSLCResamplingRaster raster = new GSLCResamplingRaster(srcTileI, srcTileQ, rangeSpacing, wavelength, nearEdgeSlantRange, sourceImageWidth, sourceImageHeight, nearRangeOnLeft);
+                GSLCResamplingRaster raster = new GSLCResamplingRaster(srcTileI, srcTileQ, rangeSpacing, wavelength, nearEdgeSlantRange, sourceImageWidth, sourceImageHeight, nearRangeOnLeft, flatteningPhaseSign);
                 Resampling.Index resamplingIndex = imgResampling.createIndex();
 
                 Tile tgtTileI = processI ? targetTiles.get(pair.tgtI) : null;
@@ -612,17 +637,17 @@ public class GSLCGeocodingOp extends Operator {
                         raster.setReturnReal(false);
                         double qFlat = imgResampling.resample(raster, resamplingIndex);
 
-                        // Restore Phase: (I' + jQ') * (cos - j*sin) = multiply by e^{-j*phi}
-                        // I = I'*cos + Q'*sin
-                        // Q = Q'*cos - I'*sin
-
+                        // Restore Phase: (I' + jQ') * (cos - j*sin)
+                        // I = I'*cos - Q'*sin
+                        // Q = Q'*cos + I'*sin
+                        
                         double iFinal, qFinal;
                         if (outputFlattened) {
                              iFinal = iFlat;
                              qFinal = qFlat;
                         } else {
-                             iFinal = iFlat * cosPhi + qFlat * sinPhi;
-                             qFinal = qFlat * cosPhi - iFlat * sinPhi;
+                             iFinal = iFlat * cosPhi - qFlat * sinPhi;
+                             qFinal = qFlat * cosPhi + iFlat * sinPhi;
                         }
 
                         if (bufI != null) bufI.setElemDoubleAt(idx, iFinal);
@@ -656,7 +681,9 @@ public class GSLCGeocodingOp extends Operator {
 
                         double slantRange = posData.slantRange;
                         double phase = 4.0 * Math.PI * slantRange / wavelength;
-                        bufPhase.setElemDoubleAt(idx, phase);
+                        // Wrap phase to [-PI, PI]
+                        double wrappedPhase = Math.atan2(Math.sin(phase), Math.cos(phase));
+                        bufPhase.setElemDoubleAt(idx, wrappedPhase);
                     }
                 }
             }
@@ -671,14 +698,10 @@ public class GSLCGeocodingOp extends Operator {
 
     private Rectangle getSourceRectangle(final int x0, final int y0, final int w, final int h,
                                          final TileGeoreferencing tileGeoRef, final double[][] localDEM) {
-        // Sample every ~16 pixels so that steep terrain doesn't outrun the source rectangle.
-        // A 5x5 grid (one point per ~64 px on a 256-px tile) leaves the kernel neighbourhood
-        // under-covered in mountainous scenes, causing out-of-tile kernel taps to be zeroed.
-        final int step = 16;
-        final int numPointsPerRow = Math.max(2, w / step) + 1;
-        final int numPointsPerCol = Math.max(2, h / step) + 1;
-        final int xOffset = Math.max(1, w / (numPointsPerRow - 1));
-        final int yOffset = Math.max(1, h / (numPointsPerCol - 1));
+        final int numPointsPerRow = 5;
+        final int numPointsPerCol = 5;
+        final int xOffset = w / (numPointsPerRow - 1);
+        final int yOffset = h / (numPointsPerCol - 1);
 
         int xMax = Integer.MIN_VALUE;
         int xMin = Integer.MAX_VALUE;
@@ -734,22 +757,20 @@ public class GSLCGeocodingOp extends Operator {
     }
 
     private int getMargin() {
-        // Each margin is kernel half-width + 1 guard pixel so that the source rectangle
-        // always fully encloses every kernel tap even after the adaptive sampling above.
         if (imgResampling == Resampling.BILINEAR_INTERPOLATION) {
-            return 2;
+            return 1;
         } else if (imgResampling == Resampling.NEAREST_NEIGHBOUR) {
-            return 2;
+            return 1;
         } else if (imgResampling == Resampling.CUBIC_CONVOLUTION) {
-            return 3;
+            return 2;
         } else if (imgResampling == Resampling.BISINC_5_POINT_INTERPOLATION) {
-            return 4;
-        } else if (imgResampling == Resampling.BISINC_11_POINT_INTERPOLATION) {
-            return 7;
-        } else if (imgResampling == Resampling.BISINC_21_POINT_INTERPOLATION) {
-            return 12;
-        } else if (imgResampling == Resampling.BICUBIC_INTERPOLATION) {
             return 3;
+        } else if (imgResampling == Resampling.BISINC_11_POINT_INTERPOLATION) {
+            return 6;
+        } else if (imgResampling == Resampling.BISINC_21_POINT_INTERPOLATION) {
+            return 11;
+        } else if (imgResampling == Resampling.BICUBIC_INTERPOLATION) {
+            return 2;
         } else {
             throw new OperatorException("Unhandled interpolation method");
         }
@@ -808,10 +829,11 @@ public class GSLCGeocodingOp extends Operator {
         private final int sourceWidth;
         private final int sourceHeight;
         private final boolean nearRangeOnLeft;
+        private final int sign;
 
         public GSLCResamplingRaster(Tile sourceTileI, Tile sourceTileQ, 
                                     double rangeSpacing, double wavelength, 
-                                    double nearEdgeSlantRange, int sourceWidth, int sourceHeight, boolean nearRangeOnLeft) {
+                                    double nearEdgeSlantRange, int sourceWidth, int sourceHeight, boolean nearRangeOnLeft, int sign) {
             this.sourceTileI = sourceTileI;
             this.sourceTileQ = sourceTileQ;
             this.rangeSpacing = rangeSpacing;
@@ -821,6 +843,7 @@ public class GSLCGeocodingOp extends Operator {
             this.sourceWidth = sourceWidth;
             this.sourceHeight = sourceHeight;
             this.nearRangeOnLeft = nearRangeOnLeft;
+            this.sign = sign;
         }
 
         public void setReturnReal(boolean returnReal) {
@@ -879,10 +902,11 @@ public class GSLCGeocodingOp extends Operator {
 
                     // (I + jQ) * (cos + j*sin) = (I*cos - Q*sin) + j(Q*cos + I*sin)
                     // Multiply by e^+jphi to remove e^-jphi carrier
+                    // sign = 1 for e^+jphi, -1 for e^-jphi
                     if (returnReal) {
-                        samples[i][j] = iVal * cosPhi - qVal * sinPhi;
+                        samples[i][j] = iVal * cosPhi - sign * qVal * sinPhi;
                     } else {
-                        samples[i][j] = qVal * cosPhi + iVal * sinPhi;
+                        samples[i][j] = qVal * cosPhi + sign * iVal * sinPhi;
                     }
                 }
             }
