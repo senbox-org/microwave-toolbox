@@ -116,6 +116,9 @@ public class CoherenceOp extends Operator {
     @Parameter(defaultValue = "false", label = "Correct Coherence Bias")
     private boolean correctCoherenceBias = false;
 
+    @Parameter(defaultValue = "false", label = "Remove Local Phase Ramp")
+    private boolean removeLocalPhaseRamp = false;
+
     /*
         @Parameter(interval = "(1, 10]",
                 description = "Degree of orbit interpolation polynomial",
@@ -799,7 +802,12 @@ public class CoherenceOp extends Operator {
                     dataSlave.put(i, new ComplexDouble(norm(dataSlave.get(i)), tmp));
                 }
 
-                DoubleMatrix cohMatrix = SarUtils.coherence3(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                DoubleMatrix cohMatrix;
+                if (removeLocalPhaseRamp) {
+                    cohMatrix = SarUtils.coherence_LPR(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                } else {
+                    cohMatrix = SarUtils.coherence3(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                }
 
                 saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
             }
@@ -1045,7 +1053,12 @@ public class CoherenceOp extends Operator {
                     dataSlave.put(i, new ComplexDouble(norm(dataSlave.get(i)), tmp));
                 }
 
-                DoubleMatrix cohMatrix = SarUtils.coherence3(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                DoubleMatrix cohMatrix;
+                if (removeLocalPhaseRamp) {
+                    cohMatrix = SarUtils.coherence_LPR(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                } else {
+                    cohMatrix = SarUtils.coherence3(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                }
 
                 saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
             }
