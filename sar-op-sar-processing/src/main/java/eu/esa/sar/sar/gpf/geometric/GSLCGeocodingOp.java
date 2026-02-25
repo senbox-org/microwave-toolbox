@@ -612,17 +612,17 @@ public class GSLCGeocodingOp extends Operator {
                         raster.setReturnReal(false);
                         double qFlat = imgResampling.resample(raster, resamplingIndex);
 
-                        // Restore Phase: (I' + jQ') * (cos - j*sin)
-                        // I = I'*cos - Q'*sin
-                        // Q = Q'*cos + I'*sin
-                        
+                        // Restore Phase: (I' + jQ') * (cos - j*sin) = multiply by e^{-j*phi}
+                        // I = I'*cos + Q'*sin
+                        // Q = Q'*cos - I'*sin
+
                         double iFinal, qFinal;
                         if (outputFlattened) {
                              iFinal = iFlat;
                              qFinal = qFlat;
                         } else {
-                             iFinal = iFlat * cosPhi - qFlat * sinPhi;
-                             qFinal = qFlat * cosPhi + iFlat * sinPhi;
+                             iFinal = iFlat * cosPhi + qFlat * sinPhi;
+                             qFinal = qFlat * cosPhi - iFlat * sinPhi;
                         }
 
                         if (bufI != null) bufI.setElemDoubleAt(idx, iFinal);
@@ -671,10 +671,14 @@ public class GSLCGeocodingOp extends Operator {
 
     private Rectangle getSourceRectangle(final int x0, final int y0, final int w, final int h,
                                          final TileGeoreferencing tileGeoRef, final double[][] localDEM) {
-        final int numPointsPerRow = 5;
-        final int numPointsPerCol = 5;
-        final int xOffset = w / (numPointsPerRow - 1);
-        final int yOffset = h / (numPointsPerCol - 1);
+        // Sample every ~16 pixels so that steep terrain doesn't outrun the source rectangle.
+        // A 5x5 grid (one point per ~64 px on a 256-px tile) leaves the kernel neighbourhood
+        // under-covered in mountainous scenes, causing out-of-tile kernel taps to be zeroed.
+        final int step = 16;
+        final int numPointsPerRow = Math.max(2, w / step) + 1;
+        final int numPointsPerCol = Math.max(2, h / step) + 1;
+        final int xOffset = Math.max(1, w / (numPointsPerRow - 1));
+        final int yOffset = Math.max(1, h / (numPointsPerCol - 1));
 
         int xMax = Integer.MIN_VALUE;
         int xMin = Integer.MAX_VALUE;
@@ -730,20 +734,22 @@ public class GSLCGeocodingOp extends Operator {
     }
 
     private int getMargin() {
+        // Each margin is kernel half-width + 1 guard pixel so that the source rectangle
+        // always fully encloses every kernel tap even after the adaptive sampling above.
         if (imgResampling == Resampling.BILINEAR_INTERPOLATION) {
-            return 1;
+            return 2;
         } else if (imgResampling == Resampling.NEAREST_NEIGHBOUR) {
-            return 1;
+            return 2;
         } else if (imgResampling == Resampling.CUBIC_CONVOLUTION) {
-            return 2;
-        } else if (imgResampling == Resampling.BISINC_5_POINT_INTERPOLATION) {
             return 3;
+        } else if (imgResampling == Resampling.BISINC_5_POINT_INTERPOLATION) {
+            return 4;
         } else if (imgResampling == Resampling.BISINC_11_POINT_INTERPOLATION) {
-            return 6;
+            return 7;
         } else if (imgResampling == Resampling.BISINC_21_POINT_INTERPOLATION) {
-            return 11;
+            return 12;
         } else if (imgResampling == Resampling.BICUBIC_INTERPOLATION) {
-            return 2;
+            return 3;
         } else {
             throw new OperatorException("Unhandled interpolation method");
         }
