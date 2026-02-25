@@ -1,0 +1,214 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - GSLC Terrain Correction</title>
+
+
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">GSLC Orthorectification</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+<h1>GSLC Terrain Correction</h1>
+
+<h2>Description</h2>
+<p>
+    The <b>GSLC Terrain Correction</b> operator performs Geocoded Single Look Complex (GSLC) generation by transforming
+    SAR data from slant-range geometry to a map projection while preserving phase information. This process is essential
+    for applications that require analysis of the complex SAR signal in a geographic coordinate system, such as
+    interferometry (InSAR) and polarimetry (PolSAR).
+</p>
+
+<h2>Technical Background</h2>
+<p>
+    Traditional SAR geocoding methods focus on correcting geometric distortions in the magnitude of the SAR image,
+    often discarding the phase. However, the phase component of the complex SAR signal contains valuable information
+    about the sensor-to-target distance. Preserving this phase during geocoding is crucial for advanced applications.
+</p>
+<p>
+    The GSLC generation process involves the following key steps:
+</p>
+<ol>
+    <li>
+        <b>Precise Geometry Calculation:</b> Using precise orbit state vectors and a Digital Elevation Model (DEM), the
+        operator accurately determines the geographic coordinates (latitude, longitude, height) for each pixel in the
+        output grid.
+    </li>
+    <li>
+        <b>Zero Doppler Search:</b> For each point on the ground, the operator finds the corresponding azimuth time (zero
+        Doppler time) in the source SAR image.
+    </li>
+    <li>
+        <b>Slant Range Calculation:</b> The precise distance (slant range) from the sensor to the ground point is calculated.
+    </li>
+    <li>
+        <b>Phase Flattening (Carrier Phase Compensation):</b> Before resampling the complex data, the operator simulates
+        the phase contribution from the sensor-to-target path geometry (the "carrier" phase). This simulated phase is
+        then removed from the original complex signal. This "flattens" the phase, making the subsequent resampling
+        process more accurate as it deals with a signal with lower fringe frequencies.
+        The flattened complex value <i>C'</i> is computed as:
+        <br>
+        <i>C' = C * exp(-j * &phi;<sub>sim</sub>)</i>
+        <br>
+        where <i>C</i> is the original complex value and <i>&phi;<sub>sim</sub></i> is the simulated phase:
+        <br>
+        <i>&phi;<sub>sim</sub> = 4&pi; * R / &lambda;</i>
+        <br>
+        (<i>R</i> is the slant range, <i>&lambda;</i> is the wavelength).
+    </li>
+    <li>
+        <b>High-Fidelity Complex Resampling:</b> The flattened complex (I and Q) bands are resampled from the source
+        slant-range grid to the target map grid using a high-fidelity interpolator (e.g., a truncated Sinc function)
+        to preserve signal integrity.
+    </li>
+    <li>
+        <b>Phase Restoration (Optional):</b> If the user chooses not to output the flattened data, the simulated phase
+        is re-introduced to the resampled complex signal. This restores the absolute phase relative to the new map geometry.
+        The final complex value <i>C<sub>geo</sub></i> is:
+        <br>
+        <i>C<sub>geo</sub> = C'<sub>resampled</sub> * exp(+j * &phi;<sub>sim</sub>)</i>
+    </li>
+</ol>
+<p>
+    This process results in a Single Look Complex (SLC) image that is precisely geocoded to a map projection, with its
+    phase correctly representing the sensor-to-target path length for each pixel in the new grid.
+</p>
+
+<h2>References</h2>
+<ul>
+    <li>Agram, P.S., Warren, M.S., Calef, M.T., & Arko, S.A. — "An Efficient Global Scale Sentinel-1 Radar Backscatter and Interferometric Processing System" (2022). Posted on Preprints.org: doi:10.20944/preprints202206.0252.v1</li>
+</ul>
+
+<h2>Parameters</h2>
+<table border="1" cellpadding="5">
+    <tr>
+        <th>Parameter</th>
+        <th>Description</th>
+        <th>Default Value</th>
+    </tr>
+    <tr>
+        <td><b>Source Bands</b></td>
+        <td>The list of source bands to process. The operator expects pairs of I and Q bands.</td>
+        <td>All complex bands</td>
+    </tr>
+    <tr>
+        <td><b>Digital Elevation Model</b></td>
+        <td>The digital elevation model to use for terrain correction.</td>
+        <td>Copernicus 30m Global DEM</td>
+    </tr>
+    <tr>
+        <td><b>External DEM</b></td>
+        <td>An external DEM file to be used instead of the auto-downloaded ones.</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td><b>External DEM No Data Value</b></td>
+        <td>The no-data value for the external DEM.</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td><b>External DEM Apply EGM</b></td>
+        <td>Apply Earth Gravitational Model to the external DEM.</td>
+        <td>true</td>
+    </tr>
+    <tr>
+        <td><b>DEM Resampling Method</b></td>
+        <td>The resampling method used when accessing the DEM.</td>
+        <td>BILINEAR_INTERPOLATION</td>
+    </tr>
+    <tr>
+        <td><b>Image Resampling Method</b></td>
+        <td>The resampling method used for the complex image data. High-fidelity methods like Bisinc are recommended.</td>
+        <td>BISINC_5_POINT_INTERPOLATION</td>
+    </tr>
+    <tr>
+        <td><b>Pixel Spacing (m)</b></td>
+        <td>The pixel spacing in meters for the target product. If set to 0, it is computed from the source product.</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td><b>Pixel Spacing (deg)</b></td>
+        <td>The pixel spacing in degrees for the target product. If set to 0, it is computed from the source product.</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td><b>Oversampling (%)</b></td>
+        <td>The percentage of oversampling to apply to the output pixel spacing (0-100%). A value of 20% means the pixel spacing will be 20% smaller.</td>
+        <td>0.0</td>
+    </tr>
+    <tr>
+        <td><b>Map Projection</b></td>
+        <td>The target coordinate reference system in WKT format.</td>
+        <td>WGS84(DD)</td>
+    </tr>
+    <tr>
+        <td><b>Align to Standard Grid</b></td>
+        <td>Force the image grid to be aligned with a specific point.</td>
+        <td>false</td>
+    </tr>
+    <tr>
+        <td><b>Standard Grid Origin X</b></td>
+        <td>The x-coordinate of the standard grid's origin point.</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td><b>Standard Grid Origin Y</b></td>
+        <td>The y-coordinate of the standard grid's origin point.</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td><b>Mask out areas with no elevation</b></td>
+        <td>Mask areas without elevation data (e.g., sea). This can speed up processing.</td>
+        <td>true</td>
+    </tr>
+    <tr>
+        <td><b>Save DEM as band</b></td>
+        <td>Save the DEM used for the correction as a band in the target product.</td>
+        <td>false</td>
+    </tr>
+    <tr>
+        <td><b>Save latitude and longitude as band</b></td>
+        <td>Save the latitude and longitude of each pixel as bands.</td>
+        <td>false</td>
+    </tr>
+    <tr>
+        <td><b>Save incidence angle from ellipsoid as band</b></td>
+        <td>Save the incidence angle calculated from the ellipsoid as a band.</td>
+        <td>false</td>
+    </tr>
+    <tr>
+        <td><b>Save local incidence angle as band</b></td>
+        <td>Save the local incidence angle, which accounts for the DEM slope, as a band.</td>
+        <td>false</td>
+    </tr>
+    <tr>
+        <td><b>Save projected local incidence angle as band</b></td>
+        <td>Save the projected local incidence angle as a band.</td>
+        <td>false</td>
+    </tr>
+    <tr>
+        <td><b>Save layover shadow mask</b></td>
+        <td>Save a mask indicating areas of layover and shadow.</td>
+        <td>false</td>
+    </tr>
+    <tr>
+        <td><b>Output flattened complex data</b></td>
+        <td>If true, the output complex data will be "phase-flattened". If false, the simulated topographic phase will be restored.</td>
+        <td>true</td>
+    </tr>
+    <tr>
+        <td><b>Save simulated phase</b></td>
+        <td>Save the simulated topographic phase (wrapped) as a band.</td>
+        <td>false</td>
+    </tr>
+    <tr>
+        <td><b>Save simulated unwrapped phase</b></td>
+        <td>Save the simulated topographic phase (unwrapped) as a band.</td>
+        <td>false</td>
+    </tr>
+</table>
+
+</body></html>

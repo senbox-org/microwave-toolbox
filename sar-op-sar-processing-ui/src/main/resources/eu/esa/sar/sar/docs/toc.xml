@@ -28,6 +28,7 @@
             </tocitem>
             <tocitem text="Geometric">
                 <tocitem text="Range Doppler Terrain Correction" target="RangeDopplerGeocodingOp"/>
+                <tocitem text="GSLC Terrain Correction" target="GSLCGeocodingOp"/>
                 <tocitem text="SAR Simulation Terrain Correction" target="SARSimGeocodingOp"/>
                 <tocitem text="SAR Simulation" target="SARSimOp"/>
                 <tocitem text="Geolocation Grid Ellipsoid Correction" target="GeolocationGridGeocodingOp"/>

@@ -7,6 +7,7 @@
 
     <!--Geometric Operators-->
     <mapID target="RangeDopplerGeocodingOp" url="operators/RangeDopplerGeocodingOp.html"/>
+    <mapID target="GSLCGeocodingOp" url="operators/GSLCGeocodingOp.html"/>
     <mapID target="SARSimGeocodingOp" url="operators/SARSimTerrainCorrectionOp.html"/>
     <mapID target="SARSimOp" url="operators/SARSimulationOp.html"/>
     <mapID target="GeolocationGridGeocodingOp" url="operators/GeolocationGridGeocodingOp.html"/>
