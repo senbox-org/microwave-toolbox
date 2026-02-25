@@ -636,6 +636,7 @@ public class GSLCGeocodingOp extends Operator {
 
                         // Resample Real (Flattened)
                         raster.setReturnReal(true);
+                        raster.setSlantRangeAtCenter(slantRange, rangeIndex);
                         imgResampling.computeCornerBasedIndex(rangeIndex, azimuthIndex, sourceImageWidth, sourceImageHeight, resamplingIndex);
                         double iFlat = imgResampling.resample(raster, resamplingIndex);
 
@@ -928,6 +929,8 @@ public class GSLCGeocodingOp extends Operator {
         private final int sourceWidth;
         private final int sourceHeight;
         private final boolean nearRangeOnLeft;
+        private double centerSlantRange;
+        private double centerRangeIndex;
 
         public GSLCResamplingRaster(Tile sourceTileI, Tile sourceTileQ, 
                                     double rangeSpacing, double wavelength, 
@@ -949,6 +952,11 @@ public class GSLCGeocodingOp extends Operator {
 
         public void setReturnReal(boolean returnReal) {
             this.returnReal = returnReal;
+        }
+
+        public void setSlantRangeAtCenter(double slantRange, double rangeIndex) {
+            this.centerSlantRange = slantRange;
+            this.centerRangeIndex = rangeIndex;
         }
 
         @Override
@@ -989,15 +997,11 @@ public class GSLCGeocodingOp extends Operator {
                     }
 
                     // Phase Flattening
-                    // x[j] is absolute range index
-                    int absX = x[j];
-                    double rangeDist;
-                    if (nearRangeOnLeft) {
-                        rangeDist = absX * rangeSpacing;
-                    } else {
-                        rangeDist = (sourceWidth - 1 - absX) * rangeSpacing;
+                    double deltaX = x[j] - centerRangeIndex;
+                    if (!nearRangeOnLeft) {
+                        deltaX = -deltaX;
                     }
-                    double slantRange = nearEdgeSlantRange + rangeDist;
+                    double slantRange = centerSlantRange + deltaX * rangeSpacing;
 
                     double phase = 4.0 * Math.PI * slantRange / wavelength;
                     double cosPhi = FastMath.cos(phase);
