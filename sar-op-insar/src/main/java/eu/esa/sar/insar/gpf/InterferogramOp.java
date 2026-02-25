@@ -252,7 +252,7 @@ public class InterferogramOp extends Operator {
         try {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
-            //validator.checkIfCoregisteredStack();
+            validator.checkIfCoregisteredStack();
             validator.checkIfSLC();
             isTOPSARBurstProduct = validator.isTOPSARProduct() && !validator.isDebursted();
 
