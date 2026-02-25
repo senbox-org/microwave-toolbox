@@ -62,7 +62,6 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     final JLabel sourcePixelSpacingsLabelPart2 = new JLabel("0.0(m) x 0.0(m)");
 
     final JCheckBox nodataValueAtSeaCheckBox = new JCheckBox("Mask out areas without elevation");
-    final JCheckBox outputComplexCheckBox = new JCheckBox("Output complex data");
     final JCheckBox outputFlattenedCheckBox = new JCheckBox("Output flattened complex data");
     final JCheckBox saveDEMCheckBox = new JCheckBox("DEM");
     final JCheckBox saveLatLonCheckBox = new JCheckBox("Latitude & Longitude");
@@ -73,7 +72,6 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     final JCheckBox saveSimulatedPhaseCheckBox = new JCheckBox("Simulated Phase");
 
     private Boolean nodataValueAtSea = true;
-    private Boolean outputComplex = true;
     private Boolean outputFlattened = true;
     private Boolean saveDEM = false;
     private Boolean saveLatLon = false;
@@ -135,11 +133,6 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         nodataValueAtSeaCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 nodataValueAtSea = (e.getStateChange() == ItemEvent.SELECTED);
-            }
-        });
-        outputComplexCheckBox.addItemListener(new ItemListener() {
-            public void itemStateChanged(ItemEvent e) {
-                outputComplex = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
         outputFlattenedCheckBox.addItemListener(new ItemListener() {
@@ -291,12 +284,6 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
             nodataValueAtSeaCheckBox.setSelected(nodataValueAtSea);
         }
 
-        paramVal = (Boolean) paramMap.get("outputComplex");
-        if (paramVal != null) {
-            outputComplex = paramVal;
-            outputComplexCheckBox.setSelected(outputComplex);
-        }
-
         paramVal = (Boolean) paramMap.get("outputFlattened");
         if (paramVal != null) {
             outputFlattened = paramVal;
@@ -389,7 +376,6 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         }
 
         paramMap.put("nodataValueAtSea", nodataValueAtSea);
-        paramMap.put("outputComplex", outputComplex);
         paramMap.put("outputFlattened", outputFlattened);
         paramMap.put("saveDEM", saveDEM);
         paramMap.put("saveLatLon", saveLatLon);
@@ -444,8 +430,6 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         gbc.gridy++;
         contentPane.add(nodataValueAtSeaCheckBox, gbc);
         gbc.gridx = 1;
-        contentPane.add(outputComplexCheckBox, gbc);
-        gbc.gridy++;
         contentPane.add(outputFlattenedCheckBox, gbc);
 
         gbc.gridx = 0;

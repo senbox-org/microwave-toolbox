@@ -162,17 +162,11 @@ public class GSLCGeocodingOp extends Operator {
     @Parameter(defaultValue = "false", label = "Save layover shadow mask")
     private boolean saveLayoverShadowMask = false;
 
-    @Parameter(defaultValue = "true", label = "Output complex data")
-    private boolean outputComplex = true;
-
     @Parameter(defaultValue = "true", label = "Output flattened complex data")
     private boolean outputFlattened = true;
 
     @Parameter(defaultValue = "false", label = "Save simulated phase")
     private boolean saveSimulatedPhase = false;
-
-    @Parameter(defaultValue = "1", label = "Flattening Phase Sign (+1 or -1)")
-    private int flatteningPhaseSign = 1;
 
     private MetadataElement absRoot = null;
     private ElevationModel dem = null;
@@ -413,7 +407,7 @@ public class GSLCGeocodingOp extends Operator {
 
         for (int i = 0; i < sourceBands.length; i++) {
             Band b = sourceBands[i];
-            if (outputComplex && b.getUnit() != null && b.getUnit().equals(Unit.REAL)) {
+            if (b.getUnit() != null && b.getUnit().equals(Unit.REAL)) {
                 // Look for corresponding Imaginary
                 Band q = null;
                 if (i + 1 < sourceBands.length && sourceBands[i + 1].getUnit().equals(Unit.IMAGINARY)) {
@@ -586,7 +580,7 @@ public class GSLCGeocodingOp extends Operator {
                 Tile srcTileI = getSourceTile(pair.srcI, sourceRectangle);
                 Tile srcTileQ = getSourceTile(pair.srcQ, sourceRectangle);
                 
-                GSLCResamplingRaster raster = new GSLCResamplingRaster(srcTileI, srcTileQ, rangeSpacing, wavelength, nearEdgeSlantRange, sourceImageWidth, sourceImageHeight, nearRangeOnLeft, flatteningPhaseSign);
+                GSLCResamplingRaster raster = new GSLCResamplingRaster(srcTileI, srcTileQ, rangeSpacing, wavelength, nearEdgeSlantRange, sourceImageWidth, sourceImageHeight, nearRangeOnLeft);
                 Resampling.Index resamplingIndex = imgResampling.createIndex();
 
                 Tile tgtTileI = processI ? targetTiles.get(pair.tgtI) : null;
@@ -829,11 +823,10 @@ public class GSLCGeocodingOp extends Operator {
         private final int sourceWidth;
         private final int sourceHeight;
         private final boolean nearRangeOnLeft;
-        private final int sign;
 
         public GSLCResamplingRaster(Tile sourceTileI, Tile sourceTileQ, 
                                     double rangeSpacing, double wavelength, 
-                                    double nearEdgeSlantRange, int sourceWidth, int sourceHeight, boolean nearRangeOnLeft, int sign) {
+                                    double nearEdgeSlantRange, int sourceWidth, int sourceHeight, boolean nearRangeOnLeft) {
             this.sourceTileI = sourceTileI;
             this.sourceTileQ = sourceTileQ;
             this.rangeSpacing = rangeSpacing;
@@ -843,7 +836,6 @@ public class GSLCGeocodingOp extends Operator {
             this.sourceWidth = sourceWidth;
             this.sourceHeight = sourceHeight;
             this.nearRangeOnLeft = nearRangeOnLeft;
-            this.sign = sign;
         }
 
         public void setReturnReal(boolean returnReal) {
@@ -902,11 +894,10 @@ public class GSLCGeocodingOp extends Operator {
 
                     // (I + jQ) * (cos + j*sin) = (I*cos - Q*sin) + j(Q*cos + I*sin)
                     // Multiply by e^+jphi to remove e^-jphi carrier
-                    // sign = 1 for e^+jphi, -1 for e^-jphi
                     if (returnReal) {
-                        samples[i][j] = iVal * cosPhi - sign * qVal * sinPhi;
+                        samples[i][j] = iVal * cosPhi - qVal * sinPhi;
                     } else {
-                        samples[i][j] = qVal * cosPhi + sign * iVal * sinPhi;
+                        samples[i][j] = qVal * cosPhi + iVal * sinPhi;
                     }
                 }
             }
