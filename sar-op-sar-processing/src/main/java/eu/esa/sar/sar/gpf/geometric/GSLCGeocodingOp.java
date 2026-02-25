@@ -750,7 +750,7 @@ public class GSLCGeocodingOp extends Operator {
                     }
                     
                     if (layoverShadowMaskBuffer != null) {
-                        layoverShadowMaskBuffer.setElemIntAt(idx, 0);
+                        layoverShadowMaskBuffer.setElemIntAt(idx, 0); 
                     }
                 }
             }
@@ -902,6 +902,15 @@ public class GSLCGeocodingOp extends Operator {
         private final boolean nearRangeOnLeft;
         private double centerSlantRange;
         private double centerRangeIndex;
+        
+        private final double phaseStep;
+        private final double sign;
+        
+        // Cache fields
+        private double lastRangeIndex = -1.0;
+        private double[][] cachedI;
+        private double[][] cachedQ;
+        private boolean lastAllValid;
 
         public GSLCResamplingRaster(Tile sourceTileI, Tile sourceTileQ, 
                                     double rangeSpacing, double wavelength, 
@@ -915,6 +924,9 @@ public class GSLCGeocodingOp extends Operator {
             this.sourceWidth = sourceWidth;
             this.sourceHeight = sourceHeight;
             this.nearRangeOnLeft = nearRangeOnLeft;
+            
+            this.phaseStep = 4.0 * Math.PI * rangeSpacing / wavelength;
+            this.sign = nearRangeOnLeft ? 1.0 : -1.0;
         }
 
         public double getNoDataValue() {
@@ -942,51 +954,72 @@ public class GSLCGeocodingOp extends Operator {
 
         @Override
         public boolean getSamples(int[] x, int[] y, double[][] samples) {
+            // Check if we can serve from cache
+            if (Double.compare(centerRangeIndex, lastRangeIndex) == 0 && cachedI != null) {
+                // Verify dimensions just in case (fast)
+                if (cachedI.length == y.length && cachedI[0].length == x.length) {
+                    double[][] source = returnReal ? cachedI : cachedQ;
+                    for (int i = 0; i < y.length; i++) {
+                        System.arraycopy(source[i], 0, samples[i], 0, x.length);
+                    }
+                    return lastAllValid;
+                }
+            }
+
             boolean allValid = true;
             Rectangle rect = sourceTileI.getRectangle();
             
+            // Ensure cache is allocated
+            if (cachedI == null || cachedI.length != y.length || cachedI[0].length != x.length) {
+                cachedI = new double[y.length][x.length];
+                cachedQ = new double[y.length][x.length];
+            }
+
+            double k = 4.0 * Math.PI / wavelength;
+            double currentPhaseBase = centerSlantRange * k;
+
             for (int i = 0; i < y.length; i++) {
                 for (int j = 0; j < x.length; j++) {
                     if (!rect.contains(x[j], y[i])) {
-                         samples[i][j] = noDataValue;
+                         cachedI[i][j] = noDataValue;
+                         cachedQ[i][j] = noDataValue;
                          allValid = false;
                          continue;
                     }
 
                     final double iVal = sourceTileI.getSampleDouble(x[j], y[i]);
-                    if (iVal == noDataValue) {
-                        samples[i][j] = noDataValue;
-                        allValid = false;
-                        continue;
-                    }
-
                     final double qVal = sourceTileQ.getSampleDouble(x[j], y[i]);
-                    if (qVal == noDataValue) {
-                        samples[i][j] = noDataValue;
+                    
+                    if (iVal == noDataValue || qVal == noDataValue) {
+                        cachedI[i][j] = noDataValue;
+                        cachedQ[i][j] = noDataValue;
                         allValid = false;
                         continue;
                     }
 
                     // Phase Flattening
-                    double deltaX = x[j] - centerRangeIndex;
-                    if (!nearRangeOnLeft) {
-                        deltaX = -deltaX;
-                    }
-                    double slantRange = centerSlantRange + deltaX * rangeSpacing;
+                    double deltaX = (x[j] - centerRangeIndex) * sign;
+                    double phase = currentPhaseBase + deltaX * phaseStep;
 
-                    double phase = 4.0 * Math.PI * slantRange / wavelength;
                     double cosPhi = FastMath.cos(phase);
                     double sinPhi = FastMath.sin(phase);
 
                     // (I + jQ) * (cos + j*sin) = (I*cos - Q*sin) + j(Q*cos + I*sin)
                     // Multiply by e^+jphi to remove e^-jphi carrier
-                    if (returnReal) {
-                        samples[i][j] = iVal * cosPhi - qVal * sinPhi;
-                    } else {
-                        samples[i][j] = qVal * cosPhi + iVal * sinPhi;
-                    }
+                    cachedI[i][j] = iVal * cosPhi - qVal * sinPhi;
+                    cachedQ[i][j] = qVal * cosPhi + iVal * sinPhi;
                 }
             }
+            
+            lastRangeIndex = centerRangeIndex;
+            lastAllValid = allValid;
+            
+            // Copy to output
+            double[][] source = returnReal ? cachedI : cachedQ;
+            for (int i = 0; i < y.length; i++) {
+                System.arraycopy(source[i], 0, samples[i], 0, x.length);
+            }
+
             return allValid;
         }
     }
