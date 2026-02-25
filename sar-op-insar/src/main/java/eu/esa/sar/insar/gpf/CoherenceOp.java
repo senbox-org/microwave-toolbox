@@ -112,6 +112,13 @@ public class CoherenceOp extends Operator {
 
     @Parameter(defaultValue="false", label="Subtract topographic phase")
     private boolean subtractTopographicPhase = false;
+
+    @Parameter(defaultValue = "false", label = "Correct Coherence Bias")
+    private boolean correctCoherenceBias = false;
+
+    @Parameter(defaultValue = "false", label = "Remove Local Phase Ramp")
+    private boolean removeLocalPhaseRamp = false;
+
     /*
         @Parameter(interval = "(1, 10]",
                 description = "Degree of orbit interpolation polynomial",
@@ -120,9 +127,9 @@ public class CoherenceOp extends Operator {
         private int orbitDegree = 3;
     */
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec",
+            defaultValue = "Copernicus 30m Global DEM",
             label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(label = "External DEM")
     private File externalDEMFile = null;
@@ -208,6 +215,14 @@ public class CoherenceOp extends Operator {
             }
 
             checkUserInput();
+
+            if (squarePixel) {
+                DerivedParams dp = new DerivedParams();
+                dp.cohWinRg = cohWinRg;
+                getDerivedParameters(sourceProduct, dp);
+                cohWinAz = dp.cohWinAz;
+                cohWinRg = dp.cohWinRg;
+            }
 
             constructSourceMetadata();
 
@@ -787,7 +802,12 @@ public class CoherenceOp extends Operator {
                     dataSlave.put(i, new ComplexDouble(norm(dataSlave.get(i)), tmp));
                 }
 
-                DoubleMatrix cohMatrix = SarUtils.coherence2(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                DoubleMatrix cohMatrix;
+                if (removeLocalPhaseRamp) {
+                    cohMatrix = SarUtils.coherence_LPR(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                } else {
+                    cohMatrix = SarUtils.coherence3(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                }
 
                 saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
             }
@@ -812,6 +832,9 @@ public class CoherenceOp extends Operator {
         azimuthAxisNormalized = InterferogramOp.normalizeDoubleMatrix(azimuthAxisNormalized, minLine, maxLine);
 
         final DoubleMatrix polyCoeffs = flatEarthPolyMap.get(polynomialName);
+        if (polyCoeffs == null) {
+            throw new OperatorException("Flat earth polynomial not found for: " + polynomialName);
+        }
 
         return PolyUtils.polyval(azimuthAxisNormalized, rangeAxisNormalized,
                 polyCoeffs, PolyUtils.degreeFromCoefficients(polyCoeffs.length));
@@ -884,7 +907,10 @@ public class CoherenceOp extends Operator {
                 if (srcSlvData.getElemDoubleAt(srcSlvIndex.getIndex(x)) == srcNoDataValue) {
                     coherenceData.setElemFloatAt(tgtIdx, (float) srcNoDataValue);
                 } else {
-                    final double coh = cohMatrix.get(yy, xx);
+                    double coh = cohMatrix.get(yy, xx);
+                    if (correctCoherenceBias) {
+                        coh = correctCoherenceBias((float) coh, cohWinAz * cohWinRg);
+                    }
                     coherenceData.setElemFloatAt(tgtIdx, (float) coh);
                 }
             }
@@ -1027,7 +1053,12 @@ public class CoherenceOp extends Operator {
                     dataSlave.put(i, new ComplexDouble(norm(dataSlave.get(i)), tmp));
                 }
 
-                DoubleMatrix cohMatrix = SarUtils.coherence2(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                DoubleMatrix cohMatrix;
+                if (removeLocalPhaseRamp) {
+                    cohMatrix = SarUtils.coherence_LPR(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                } else {
+                    cohMatrix = SarUtils.coherence3(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                }
 
                 saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
             }
@@ -1096,80 +1127,11 @@ public class CoherenceOp extends Operator {
         return real * real + imag * imag;
     }
 
-    public static DoubleMatrix coherence(final double[] iMst, final double[] qMst, final double[] iSlv,
-                                         final double[] qSlv, final int winL, final int winP, int w, int h) {
-
-        final ComplexDoubleMatrix input = new ComplexDoubleMatrix(h, w);
-        final ComplexDoubleMatrix norms = new ComplexDoubleMatrix(h, w);
-        for (int y = 0; y < h; y++) {
-            final int stride = y * w;
-            for (int x = 0; x < w; x++) {
-                input.put(y, x, new ComplexDouble(iMst[stride + x],
-                                                  qMst[stride + x]));
-                norms.put(y, x, new ComplexDouble(iSlv[stride + x], qSlv[stride + x]));
-            }
-        }
-
-        if (input.rows != norms.rows) {
-            throw new IllegalArgumentException("coherence: not the same dimensions.");
-        }
-
-        // allocate output :: account for window overlap
-        final int extent_RG = input.columns;
-        final int extent_AZ = input.rows - winL + 1;
-        final DoubleMatrix result = new DoubleMatrix(input.rows - winL + 1, input.columns - winP + 1);
-
-        // temp variables
-        int i, j, k, l;
-        ComplexDouble sum;
-        ComplexDouble power;
-        final int leadingZeros = (winP - 1) / 2;  // number of pixels=0 floor...
-        final int trailingZeros = (winP) / 2;     // floor...
-
-        for (j = leadingZeros; j < extent_RG - trailingZeros; j++) {
-
-            sum = new ComplexDouble(0);
-            power = new ComplexDouble(0);
-
-            //// Compute sum over first data block ////
-            int minL = j - leadingZeros;
-            int maxL = minL + winP;
-            for (k = 0; k < winL; k++) {
-                for (l = minL; l < maxL; l++) {
-                    //sum.addi(input.get(k, l));
-                    //power.addi(norms.get(k, l));
-                    int inI = 2 * input.index(k, l);
-                    sum.set(sum.real() + input.data[inI], sum.imag() + input.data[inI + 1]);
-                    power.set(power.real() + norms.data[inI], power.imag() + norms.data[inI + 1]);
-                }
-            }
-            result.put(0, minL, coherenceProduct(sum, power));
-
-            //// Compute (relatively) sum over rest of data blocks ////
-            final int maxI = extent_AZ - 1;
-            for (i = 0; i < maxI; i++) {
-                final int iwinL = i + winL;
-                for (l = minL; l < maxL; l++) {
-                    //sum.addi(input.get(iwinL, l).sub(input.get(i, l)));
-                    //power.addi(norms.get(iwinL, l).sub(norms.get(i, l)));
-
-                    int inI = 2 * input.index(i, l);
-                    int inWinL = 2 * input.index(iwinL, l);
-                    sum.set(sum.real() + (input.data[inWinL] - input.data[inI]), sum.imag() +
-                            (input.data[inWinL + 1] - input.data[inI + 1]));
-                    power.set(power.real() + (norms.data[inWinL] - norms.data[inI]),
-                            power.imag() + (norms.data[inWinL + 1] - norms.data[inI + 1]));
-                }
-                result.put(i + 1, j - leadingZeros, coherenceProduct(sum, power));
-            }
-        }
-        return result;
-    }
-
-    static double coherenceProduct(final ComplexDouble sum, final ComplexDouble power) {
-        final double product = power.real() * power.imag();
-//        return (product > 0.0) ? Math.sqrt(Math.pow(sum.abs(),2) / product) : 0.0;
-        return (product > 0.0) ? sum.abs() / Math.sqrt(product) : 0.0;
+    private static float correctCoherenceBias(float gamma, int nLooks) {
+        // Approximation valid for N >= 4, avoids hypergeometric function
+        if (nLooks < 2 || gamma <= 0f) return gamma;
+        double bias = (1.0 - gamma * gamma) / (2.0 * nLooks);
+        return (float) Math.max(0.0, gamma - bias);
     }
 
     public static void getDerivedParameters(Product srcProduct, DerivedParams param) throws Exception {

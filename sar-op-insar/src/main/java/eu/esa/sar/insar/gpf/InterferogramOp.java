@@ -120,9 +120,9 @@ public class InterferogramOp extends Operator {
         private int orbitDegree = 3;
     */
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec",
+            defaultValue = "Copernicus 30m Global DEM",
             label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(label = "External DEM")
     private File externalDEMFile = null;
@@ -1181,7 +1181,7 @@ public class InterferogramOp extends Operator {
                         dataSlave2.put(i, new ComplexDouble(norm(dataSlave2.get(i)), tmp));
                     }
 
-                    DoubleMatrix cohMatrix = SarUtils.coherence2(dataMaster2, dataSlave2, cohWinAz, cohWinRg);
+                    DoubleMatrix cohMatrix = SarUtils.coherence3(dataMaster2, dataSlave2, cohWinAz, cohWinRg);
 
                     saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
                 }
@@ -1650,7 +1650,7 @@ public class InterferogramOp extends Operator {
                         dataSlave2.put(i, new ComplexDouble(norm(dataSlave2.get(i)), tmp));
                     }
 
-                    DoubleMatrix cohMatrix = SarUtils.coherence2(dataMaster2, dataSlave2, cohWinAz, cohWinRg);
+                    DoubleMatrix cohMatrix = SarUtils.coherence3(dataMaster2, dataSlave2, cohWinAz, cohWinRg);
 
                     saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
                 }

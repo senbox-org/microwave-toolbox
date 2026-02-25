@@ -18,10 +18,12 @@ package eu.esa.sar.insar.gpf.ui.coregistration;
 import eu.esa.sar.insar.gpf.InSARStackOverview;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorException;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.graphbuilder.gpf.ui.BaseOperatorUI;
@@ -85,12 +87,21 @@ public class CreateStackOpUI extends BaseOperatorUI {
         //enableOptimalReferenceButton();
         //updateReferenceSecondarySelections();
 
-        if (referenceProduct != null) {
-            referenceProductLabel.setText(referenceProduct.getName());
-        }
         resamplingType.setSelectedItem(paramMap.get("resamplingType"));
 
         initialOffsetMethod.setSelectedItem(paramMap.get("initialOffsetMethod"));
+
+        if (referenceProduct != null) {
+            referenceProductLabel.setText(referenceProduct.getName());
+        }
+        if(referenceProduct != null && InputProductValidator.isMapProjected(referenceProduct)) {
+            initialOffsetMethod.setSelectedItem(CreateStackOp.INITIAL_OFFSET_GEOLOCATION);
+            if(paramMap.get("resamplingType").equals("NONE")) {
+                resamplingType.setSelectedItem(ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME);
+            }
+        } else {
+            initialOffsetMethod.setSelectedItem(paramMap.get("initialOffsetMethod"));
+        }
 
         extent.setSelectedItem(paramMap.get("extent"));
     }
@@ -213,7 +224,7 @@ public class CreateStackOpUI extends BaseOperatorUI {
     }
 
     private void updateReferenceSecondarySelections() {
-        final String bandNames[] = getBandNames();
+        final String[] bandNames = getBandNames();
         OperatorUIUtils.initParamList(refBandList, bandNames);
         OperatorUIUtils.initParamList(secBandList, bandNames);
 

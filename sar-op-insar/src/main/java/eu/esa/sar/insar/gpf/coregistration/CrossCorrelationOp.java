@@ -407,7 +407,7 @@ public class CrossCorrelationOp extends Operator {
         if (dem != null) return;
 
         final ElevationModelRegistry elevationModelRegistry = ElevationModelRegistry.getInstance();
-        final ElevationModelDescriptor demDescriptor = elevationModelRegistry.getDescriptor("SRTM 3Sec");
+        final ElevationModelDescriptor demDescriptor = elevationModelRegistry.getDescriptor("Copernicus 30m Global DEM");
         dem = demDescriptor.createDem(ResamplingFactory.createResampling(ResamplingFactory.NEAREST_NEIGHBOUR_NAME));
     }
 

@@ -202,8 +202,12 @@ public final class TOPSARSplitOp extends Operator {
             targetProduct = subsetBuilder.readProductNodes(sourceProduct, subsetDef);
 
             if (foundSwathTPG) {
-                targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("latitude"));
-                targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("longitude"));
+                TiePointGrid latTPG = targetProduct.getTiePointGrid("latitude");
+                if(latTPG != null)
+                    targetProduct.removeTiePointGrid(latTPG);
+                TiePointGrid lonTPG = targetProduct.getTiePointGrid("longitude");
+                if(lonTPG != null)
+                    targetProduct.removeTiePointGrid(lonTPG);
 
                 for (TiePointGrid tpg : targetProduct.getTiePointGrids()) {
                     tpg.setName(tpg.getName().replace(subswath + "_", ""));
