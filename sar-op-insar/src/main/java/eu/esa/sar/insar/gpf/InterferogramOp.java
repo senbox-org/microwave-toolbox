@@ -1181,7 +1181,7 @@ public class InterferogramOp extends Operator {
                         dataSlave2.put(i, new ComplexDouble(norm(dataSlave2.get(i)), tmp));
                     }
 
-                    DoubleMatrix cohMatrix = SarUtils.coherence2(dataMaster2, dataSlave2, cohWinAz, cohWinRg);
+                    DoubleMatrix cohMatrix = SarUtils.coherence3(dataMaster2, dataSlave2, cohWinAz, cohWinRg);
 
                     saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
                 }
@@ -1650,7 +1650,7 @@ public class InterferogramOp extends Operator {
                         dataSlave2.put(i, new ComplexDouble(norm(dataSlave2.get(i)), tmp));
                     }
 
-                    DoubleMatrix cohMatrix = SarUtils.coherence2(dataMaster2, dataSlave2, cohWinAz, cohWinRg);
+                    DoubleMatrix cohMatrix = SarUtils.coherence3(dataMaster2, dataSlave2, cohWinAz, cohWinRg);
 
                     saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
                 }

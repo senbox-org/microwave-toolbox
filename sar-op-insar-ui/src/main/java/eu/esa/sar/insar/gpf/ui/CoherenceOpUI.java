@@ -49,6 +49,7 @@ public class CoherenceOpUI extends BaseOperatorUI {
     private final JCheckBox independentWindowSizeCheckBox = new JCheckBox("Independent Window Sizes");
     private final JCheckBox subtractFlatEarthPhaseCheckBox = new JCheckBox("Subtract flat-earth phase");
     private final JCheckBox subtractTopographicPhaseCheckBox = new JCheckBox("Subtract topographic phase");
+    private final JCheckBox correctCoherenceBiasCheckBox = new JCheckBox("Correct Coherence Bias");
 
     private final JTextField cohWinAz = new JTextField("");
     private final JTextField cohWinRg = new JTextField("");
@@ -66,6 +67,7 @@ public class CoherenceOpUI extends BaseOperatorUI {
     private Boolean squarePixel = true;
     private Boolean subtractFlatEarthPhase = false;
     private Boolean singleReference = true;
+    private Boolean correctCoherenceBias = false;
     private final CoherenceOp.DerivedParams param = new CoherenceOp.DerivedParams();
 
     private Boolean subtractTopographicPhase = false;
@@ -134,6 +136,12 @@ public class CoherenceOpUI extends BaseOperatorUI {
         singleReferenceCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 singleReference = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        correctCoherenceBiasCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                correctCoherenceBias = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -208,6 +216,12 @@ public class CoherenceOpUI extends BaseOperatorUI {
         if (paramVal != null) {
             singleReference = paramVal;
             singleReferenceCheckBox.setSelected(singleReference);
+        }
+
+        paramVal = (Boolean) paramMap.get("correctCoherenceBias");
+        if (paramVal != null) {
+            correctCoherenceBias = paramVal;
+            correctCoherenceBiasCheckBox.setSelected(correctCoherenceBias);
         }
 
 //        orbitDegree.setText(String.valueOf(paramMap.get("orbitDegree")));
@@ -299,6 +313,7 @@ public class CoherenceOpUI extends BaseOperatorUI {
             paramMap.put("cohWinAz", Integer.parseInt(cohWinAz.getText()));
 
         paramMap.put("squarePixel", squarePixel);
+        paramMap.put("correctCoherenceBias", correctCoherenceBias);
     }
 
     JComponent createPanel() {
@@ -357,6 +372,10 @@ public class CoherenceOpUI extends BaseOperatorUI {
         DialogUtils.addComponent(contentPane, gbc, cohWinAzLabel, cohWinAz);
         cohWinAz.setEditable(false);
         cohWinRg.setDocument(new CohWinRgDocument());
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        contentPane.add(correctCoherenceBiasCheckBox, gbc);
 
         demName.setEnabled(false);
         tileExtensionPercent.setEnabled(false);
