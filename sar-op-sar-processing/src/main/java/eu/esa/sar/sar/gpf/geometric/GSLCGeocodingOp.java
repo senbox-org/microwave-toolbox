@@ -43,6 +43,7 @@ import org.esa.snap.engine_utilities.datamodel.PosVector;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.eo.GeoUtils;
+import org.esa.snap.engine_utilities.eo.LocalGeometry;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -86,8 +87,8 @@ public class GSLCGeocodingOp extends Operator {
     private String[] sourceBandNames = null;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec", label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(label = "External DEM")
     private File externalDEMFile = null;
@@ -168,10 +169,14 @@ public class GSLCGeocodingOp extends Operator {
     @Parameter(defaultValue = "false", label = "Save simulated phase")
     private boolean saveSimulatedPhase = false;
 
+    @Parameter(defaultValue = "false", label = "Save simulated unwrapped phase")
+    private boolean saveSimulatedUnwrappedPhase = false;
+
     private MetadataElement absRoot = null;
     private ElevationModel dem = null;
     private Band elevationBand = null;
     private Band simulatedPhaseBand = null;
+    private Band simulatedUnwrappedPhaseBand = null;
     private double demNoDataValue = 0.0f; // no data value for DEM
     private GeoCoding targetGeoCoding = null;
 
@@ -422,6 +427,9 @@ public class GSLCGeocodingOp extends Operator {
                     pair.tgtI = addTargetBand(b.getName(), Unit.REAL, b);
                     pair.tgtQ = addTargetBand(q.getName(), Unit.IMAGINARY, q);
                     complexPairs.add(pair);
+
+                    String suffix = b.getName().substring(b.getName().lastIndexOf("_"));
+                    ReaderUtils.createVirtualIntensityBand(targetProduct, b, q, suffix);
                 }
             } else {
                 // Handle other bands if needed, but GSLC focuses on complex
@@ -457,6 +465,10 @@ public class GSLCGeocodingOp extends Operator {
 
         if (saveSimulatedPhase) {
             simulatedPhaseBand = addTargetBand("simulatedPhase", Unit.PHASE, null);
+        }
+
+        if (saveSimulatedUnwrappedPhase) {
+            simulatedUnwrappedPhaseBand = addTargetBand("simulatedUnwrappedPhase", Unit.PHASE, null);
         }
     }
 
@@ -606,7 +618,7 @@ public class GSLCGeocodingOp extends Operator {
                         }
 
                         tileGeoRef.getGeoPos(x, y, geoPos);
-                        if (!getPosition(geoPos.lat, geoPos.lon, alt, posData)) {
+                        if (!getPosition(geoPos.lat, geoPos.lon, alt, posData) || !isValidCell(posData.rangeIndex, posData.azimuthIndex)) {
                             if (bufI != null) bufI.setElemDoubleAt(idx, pair.tgtI.getNoDataValue());
                             if (bufQ != null) bufQ.setElemDoubleAt(idx, pair.tgtQ.getNoDataValue());
                             continue;
@@ -631,9 +643,11 @@ public class GSLCGeocodingOp extends Operator {
                         raster.setReturnReal(false);
                         double qFlat = imgResampling.resample(raster, resamplingIndex);
 
-                        // Restore Phase: (I' + jQ') * (cos - j*sin)
-                        // I = I'*cos - Q'*sin
-                        // Q = Q'*cos + I'*sin
+                        if (iFlat == raster.getNoDataValue() || qFlat == raster.getNoDataValue()) {
+                            if (bufI != null) bufI.setElemDoubleAt(idx, pair.tgtI.getNoDataValue());
+                            if (bufQ != null) bufQ.setElemDoubleAt(idx, pair.tgtQ.getNoDataValue());
+                            continue;
+                        }
                         
                         double iFinal, qFinal;
                         if (outputFlattened) {
@@ -650,8 +664,12 @@ public class GSLCGeocodingOp extends Operator {
                 }
             }
 
-            if (saveSimulatedPhase && targetTiles.containsKey(simulatedPhaseBand)) {
-                ProductData bufPhase = targetTiles.get(simulatedPhaseBand).getRawSamples();
+            if ((saveSimulatedPhase && targetTiles.containsKey(simulatedPhaseBand)) || 
+                (saveSimulatedUnwrappedPhase && targetTiles.containsKey(simulatedUnwrappedPhaseBand))) {
+                
+                ProductData bufPhase = saveSimulatedPhase ? targetTiles.get(simulatedPhaseBand).getRawSamples() : null;
+                ProductData bufUnwrappedPhase = saveSimulatedUnwrappedPhase ? targetTiles.get(simulatedUnwrappedPhaseBand).getRawSamples() : null;
+                
                 PositionData posData = new PositionData();
                 GeoPos geoPos = new GeoPos();
 
@@ -663,27 +681,110 @@ public class GSLCGeocodingOp extends Operator {
 
                         Double alt = localDEM[yy][xx];
                         if (alt.equals(demNoDataValue)) {
-                            bufPhase.setElemDoubleAt(idx, simulatedPhaseBand.getNoDataValue());
+                            if (bufPhase != null) bufPhase.setElemDoubleAt(idx, simulatedPhaseBand.getNoDataValue());
+                            if (bufUnwrappedPhase != null) bufUnwrappedPhase.setElemDoubleAt(idx, simulatedUnwrappedPhaseBand.getNoDataValue());
                             continue;
                         }
 
                         tileGeoRef.getGeoPos(x, y, geoPos);
                         if (!getPosition(geoPos.lat, geoPos.lon, alt, posData)) {
-                            bufPhase.setElemDoubleAt(idx, simulatedPhaseBand.getNoDataValue());
+                            if (bufPhase != null) bufPhase.setElemDoubleAt(idx, simulatedPhaseBand.getNoDataValue());
+                            if (bufUnwrappedPhase != null) bufUnwrappedPhase.setElemDoubleAt(idx, simulatedUnwrappedPhaseBand.getNoDataValue());
                             continue;
                         }
 
                         double slantRange = posData.slantRange;
                         double phase = 4.0 * Math.PI * slantRange / wavelength;
-                        // Wrap phase to [-PI, PI]
-                        double wrappedPhase = Math.atan2(Math.sin(phase), Math.cos(phase));
-                        bufPhase.setElemDoubleAt(idx, wrappedPhase);
+                        
+                        if (bufPhase != null) {
+                            // Wrap phase to [-PI, PI]
+                            double wrappedPhase = Math.atan2(Math.sin(phase), Math.cos(phase));
+                            bufPhase.setElemDoubleAt(idx, wrappedPhase);
+                        }
+                        
+                        if (bufUnwrappedPhase != null) {
+                            bufUnwrappedPhase.setElemDoubleAt(idx, phase);
+                        }
                     }
                 }
             }
 
-            // Handle other bands (DEM, Lat/Lon, etc) - simplified for brevity, assuming standard handling or separate loop
-            // ...
+            // Handle other bands (DEM, Lat/Lon, etc)
+            if (saveDEM || saveLatLon || saveLocalIncidenceAngle || saveProjectedLocalIncidenceAngle ||
+                    saveIncidenceAngleFromEllipsoid || saveLayoverShadowMask) {
+
+                ProductData demBuffer = saveDEM ? targetTiles.get(elevationBand).getRawSamples() : null;
+                ProductData latBuffer = saveLatLon ? targetTiles.get(targetProduct.getBand("latitude")).getRawSamples() : null;
+                ProductData lonBuffer = saveLatLon ? targetTiles.get(targetProduct.getBand("longitude")).getRawSamples() : null;
+                ProductData localIncidenceAngleBuffer = saveLocalIncidenceAngle ? targetTiles.get(targetProduct.getBand("localIncidenceAngle")).getRawSamples() : null;
+                ProductData projectedLocalIncidenceAngleBuffer = saveProjectedLocalIncidenceAngle ? targetTiles.get(targetProduct.getBand("projectedLocalIncidenceAngle")).getRawSamples() : null;
+                ProductData incidenceAngleFromEllipsoidBuffer = saveIncidenceAngleFromEllipsoid ? targetTiles.get(targetProduct.getBand("incidenceAngleFromEllipsoid")).getRawSamples() : null;
+                ProductData layoverShadowMaskBuffer = saveLayoverShadowMask ? targetTiles.get(targetProduct.getBand("layoverShadowMask")).getRawSamples() : null;
+
+                PositionData posData = new PositionData();
+                GeoPos geoPos = new GeoPos();
+
+                for (int y = y0; y < y0 + h; y++) {
+                    final int yy = y - y0 + 1;
+                    for (int x = x0; x < x0 + w; x++) {
+                        final int xx = x - x0 + 1;
+                        final int idx = (y - y0) * w + (x - x0);
+
+                        Double alt = localDEM[yy][xx];
+                        if (alt.equals(demNoDataValue)) {
+                             if (demBuffer != null) demBuffer.setElemDoubleAt(idx, elevationBand.getNoDataValue());
+                             if (latBuffer != null) latBuffer.setElemDoubleAt(idx, targetProduct.getBand("latitude").getNoDataValue());
+                             if (lonBuffer != null) lonBuffer.setElemDoubleAt(idx, targetProduct.getBand("longitude").getNoDataValue());
+                             if (localIncidenceAngleBuffer != null) localIncidenceAngleBuffer.setElemDoubleAt(idx, targetProduct.getBand("localIncidenceAngle").getNoDataValue());
+                             if (projectedLocalIncidenceAngleBuffer != null) projectedLocalIncidenceAngleBuffer.setElemDoubleAt(idx, targetProduct.getBand("projectedLocalIncidenceAngle").getNoDataValue());
+                             if (incidenceAngleFromEllipsoidBuffer != null) incidenceAngleFromEllipsoidBuffer.setElemDoubleAt(idx, targetProduct.getBand("incidenceAngleFromEllipsoid").getNoDataValue());
+                             if (layoverShadowMaskBuffer != null) layoverShadowMaskBuffer.setElemIntAt(idx, 0);
+                             continue;
+                        }
+
+                        tileGeoRef.getGeoPos(x, y, geoPos);
+                        if (!getPosition(geoPos.lat, geoPos.lon, alt, posData) || !isValidCell(posData.rangeIndex, posData.azimuthIndex)) {
+                             if (demBuffer != null) demBuffer.setElemDoubleAt(idx, elevationBand.getNoDataValue());
+                             if (latBuffer != null) latBuffer.setElemDoubleAt(idx, targetProduct.getBand("latitude").getNoDataValue());
+                             if (lonBuffer != null) lonBuffer.setElemDoubleAt(idx, targetProduct.getBand("longitude").getNoDataValue());
+                             if (localIncidenceAngleBuffer != null) localIncidenceAngleBuffer.setElemDoubleAt(idx, targetProduct.getBand("localIncidenceAngle").getNoDataValue());
+                             if (projectedLocalIncidenceAngleBuffer != null) projectedLocalIncidenceAngleBuffer.setElemDoubleAt(idx, targetProduct.getBand("projectedLocalIncidenceAngle").getNoDataValue());
+                             if (incidenceAngleFromEllipsoidBuffer != null) incidenceAngleFromEllipsoidBuffer.setElemDoubleAt(idx, targetProduct.getBand("incidenceAngleFromEllipsoid").getNoDataValue());
+                             if (layoverShadowMaskBuffer != null) layoverShadowMaskBuffer.setElemIntAt(idx, 0);
+                             continue;
+                        }
+
+                        if (demBuffer != null) demBuffer.setElemDoubleAt(idx, alt);
+                        if (latBuffer != null) latBuffer.setElemDoubleAt(idx, geoPos.lat);
+                        if (lonBuffer != null) lonBuffer.setElemDoubleAt(idx, geoPos.lon);
+
+                        if (localIncidenceAngleBuffer != null || projectedLocalIncidenceAngleBuffer != null) {
+                            final double[] localIncidenceAngles = {SARGeocoding.NonValidIncidenceAngle, SARGeocoding.NonValidIncidenceAngle};
+                             final LocalGeometry localGeometry = new LocalGeometry(
+                                    x, y, tileGeoRef, posData.earthPoint, posData.sensorPos);
+                            
+                            SARGeocoding.computeLocalIncidenceAngle(
+                                    localGeometry, demNoDataValue, saveLocalIncidenceAngle, saveProjectedLocalIncidenceAngle,
+                                    false, x0, y0, x, y, localDEM, localIncidenceAngles);
+
+                            if (localIncidenceAngleBuffer != null) {
+                                localIncidenceAngleBuffer.setElemDoubleAt(idx, localIncidenceAngles[0]);
+                            }
+                            if (projectedLocalIncidenceAngleBuffer != null) {
+                                projectedLocalIncidenceAngleBuffer.setElemDoubleAt(idx, localIncidenceAngles[1]);
+                            }
+                        }
+
+                        if (incidenceAngleFromEllipsoidBuffer != null && incidenceAngle != null) {
+                            incidenceAngleFromEllipsoidBuffer.setElemDoubleAt(idx, incidenceAngle.getPixelDouble(posData.rangeIndex, posData.azimuthIndex));
+                        }
+                        
+                        if (layoverShadowMaskBuffer != null) {
+                            layoverShadowMaskBuffer.setElemIntAt(idx, 0); 
+                        }
+                    }
+                }
+            }
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
@@ -770,6 +871,10 @@ public class GSLCGeocodingOp extends Operator {
         }
     }
 
+    private boolean isValidCell(double x, double y) {
+        return x >= margin && x < sourceImageWidth - margin && y >= margin && y < sourceImageHeight - margin;
+    }
+
     private boolean getPosition(final double lat, final double lon, final double alt, final PositionData data) {
         GeoUtils.geo2xyzWGS84(lat, lon, alt, data.earthPoint);
 
@@ -838,6 +943,10 @@ public class GSLCGeocodingOp extends Operator {
             this.nearRangeOnLeft = nearRangeOnLeft;
         }
 
+        public double getNoDataValue() {
+            return noDataValue;
+        }
+
         public void setReturnReal(boolean returnReal) {
             this.returnReal = returnReal;
         }
@@ -865,16 +974,18 @@ public class GSLCGeocodingOp extends Operator {
                          continue;
                     }
 
-                    int idxI = sourceTileI.getDataBufferIndex(x[j], y[i]);
-                    int idxQ = sourceTileQ.getDataBufferIndex(x[j], y[i]);
-                    
-                    double iVal = sourceTileI.getDataBuffer().getElemDoubleAt(idxI);
-                    double qVal = sourceTileQ.getDataBuffer().getElemDoubleAt(idxQ);
+                    final double iVal = sourceTileI.getSampleDouble(x[j], y[i]);
+                    if (iVal == noDataValue) {
+                        samples[i][j] = noDataValue;
+                        allValid = false;
+                        continue;
+                    }
 
-                    if (iVal == noDataValue || qVal == noDataValue) {
-                         samples[i][j] = noDataValue;
-                         allValid = false;
-                         continue;
+                    final double qVal = sourceTileQ.getSampleDouble(x[j], y[i]);
+                    if (qVal == noDataValue) {
+                        samples[i][j] = noDataValue;
+                        allValid = false;
+                        continue;
                     }
 
                     // Phase Flattening

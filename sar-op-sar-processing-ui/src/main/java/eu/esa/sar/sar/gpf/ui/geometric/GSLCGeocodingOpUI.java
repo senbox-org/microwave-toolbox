@@ -70,6 +70,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     final JCheckBox saveProjectedLocalIncidenceAngleCheckBox = new JCheckBox("Projected local incidence angle");
     final JCheckBox saveLayoverShadowMaskCheckBox = new JCheckBox("Layover Shadow Mask");
     final JCheckBox saveSimulatedPhaseCheckBox = new JCheckBox("Simulated Phase");
+    final JCheckBox saveSimulatedUnwrappedPhaseCheckBox = new JCheckBox("Simulated Unwrapped Phase");
 
     private Boolean nodataValueAtSea = true;
     private Boolean outputFlattened = true;
@@ -80,6 +81,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     private Boolean saveProjectedLocalIncidenceAngle = false;
     private Boolean saveLayoverShadowMask = false;
     private Boolean saveSimulatedPhase = false;
+    private Boolean saveSimulatedUnwrappedPhase = false;
     private Boolean externalDEMApplyEGM = true;
     private Double extNoDataValue = 0.0;
     private Double azimuthPixelSpacing = 0.0;
@@ -173,6 +175,11 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         saveSimulatedPhaseCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 saveSimulatedPhase = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+        saveSimulatedUnwrappedPhaseCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                saveSimulatedUnwrappedPhase = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -331,6 +338,12 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
             saveSimulatedPhase = paramVal;
             saveSimulatedPhaseCheckBox.setSelected(saveSimulatedPhase);
         }
+
+        paramVal = (Boolean) paramMap.get("saveSimulatedUnwrappedPhase");
+        if (paramVal != null) {
+            saveSimulatedUnwrappedPhase = paramVal;
+            saveSimulatedUnwrappedPhaseCheckBox.setSelected(saveSimulatedUnwrappedPhase);
+        }
     }
 
     @Override
@@ -384,6 +397,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         paramMap.put("saveProjectedLocalIncidenceAngle", saveProjectedLocalIncidenceAngle);
         paramMap.put("saveLayoverShadowMask", saveLayoverShadowMask);
         paramMap.put("saveSimulatedPhase", saveSimulatedPhase);
+        paramMap.put("saveSimulatedUnwrappedPhase", saveSimulatedUnwrappedPhase);
     }
 
     JComponent createPanel() {
@@ -441,18 +455,20 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         gbc2.gridx = 0;
         saveBandsPanel.add(saveSimulatedPhaseCheckBox, gbc2);
         gbc2.gridx = 1;
+        saveBandsPanel.add(saveSimulatedUnwrappedPhaseCheckBox, gbc2);
+        gbc2.gridx = 2;
         saveBandsPanel.add(saveDEMCheckBox, gbc2);
-        gbc2.gridx = 2;
+        gbc2.gridy++;
+        gbc2.gridx = 0;
         saveBandsPanel.add(saveLatLonCheckBox, gbc2);
-        gbc2.gridy++;
-        gbc2.gridx = 0;
-        saveBandsPanel.add(saveIncidenceAngleFromEllipsoidCheckBox, gbc2);
         gbc2.gridx = 1;
-        saveBandsPanel.add(saveLocalIncidenceAngleCheckBox, gbc2);
+        saveBandsPanel.add(saveIncidenceAngleFromEllipsoidCheckBox, gbc2);
         gbc2.gridx = 2;
-        saveBandsPanel.add(saveProjectedLocalIncidenceAngleCheckBox, gbc2);
+        saveBandsPanel.add(saveLocalIncidenceAngleCheckBox, gbc2);
         gbc2.gridy++;
         gbc2.gridx = 0;
+        saveBandsPanel.add(saveProjectedLocalIncidenceAngleCheckBox, gbc2);
+        gbc2.gridx = 1;
         saveBandsPanel.add(saveLayoverShadowMaskCheckBox, gbc2);
 
         gbc.gridwidth = 2;
