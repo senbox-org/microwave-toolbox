@@ -72,9 +72,9 @@ public class ALOSDeskewingOp extends Operator {
     private String[] sourceBandNames = null;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec",
+            defaultValue = "Copernicus 30m Global DEM",
             label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+    private String demName = "Copernicus 30m Global DEM";
 
     //@Parameter(defaultValue="false", label="Use Mapready Shift Only")
     boolean useMapreadyShiftOnly = false;
