@@ -1,6 +1,8 @@
 eu.esa.sar.sar.gpf.filtering.SpeckleFilterOp$Spi
 eu.esa.sar.sar.gpf.filtering.MultiTemporalSpeckleFilterOp$Spi
 eu.esa.sar.sar.gpf.geometric.RangeDopplerGeocodingOp$Spi
+eu.esa.sar.sar.gpf.geometric.GSLCGeocodingOp$Spi
+eu.esa.sar.sar.gpf.geometric.GSLCInterferogramOp$Spi
 eu.esa.sar.sar.gpf.geometric.GeolocationGridGeocodingOp$Spi
 eu.esa.sar.sar.gpf.geometric.EllipsoidCorrectionRDOp$Spi
 eu.esa.sar.sar.gpf.geometric.SARSimulationOp$Spi
