@@ -130,6 +130,9 @@ public class GSLCGeocodingOp extends Operator {
     @Parameter(description = "The pixel spacing in degrees", defaultValue = "0", label = "Pixel Spacing (deg)")
     private double pixelSpacingInDegree = 0;
 
+    @Parameter(description = "The pixel spacing oversampling percentage (0-100%)", defaultValue = "0.0", label = "Oversampling (%)")
+    private double oversamplingPercent = 0.0;
+
     @Parameter(description = "The coordinate reference system in well known text format", defaultValue = "WGS84(DD)")
     private String mapProjection = "WGS84(DD)";
 
@@ -355,6 +358,15 @@ public class GSLCGeocodingOp extends Operator {
                 pixelSpacingInMeter = Math.max(SARGeocoding.getAzimuthPixelSpacing(sourceProduct),
                         SARGeocoding.getRangePixelSpacing(sourceProduct));
                 pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
+                
+                // Apply oversampling percent
+                double multiplier = 1.0;
+                if (oversamplingPercent > 0.0 && oversamplingPercent < 100.0) {
+                    multiplier = 1.0 - (oversamplingPercent / 100.0);
+                }
+                
+                pixelSpacingInMeter *= multiplier;
+                pixelSpacingInDegree *= multiplier;
             }
             if (pixelSpacingInMeter <= 0.0) {
                 pixelSpacingInMeter = SARGeocoding.getPixelSpacingInMeter(pixelSpacingInDegree);

@@ -52,6 +52,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
 
     final JTextField pixelSpacingInMeter = new JTextField("");
     final JTextField pixelSpacingInDegree = new JTextField("");
+    final JTextField oversamplingPercent = new JTextField("");
     private final JTextField externalDEMFile = new JTextField("");
     private final JTextField externalDEMNoDataValue = new JTextField("");
     private final JButton externalDEMBrowseButton = new JButton("...");
@@ -223,6 +224,13 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
             pixelSpacingInDegree.setText(String.valueOf(pixDSaved));
         }
 
+        Double oversample = (Double) paramMap.get("oversamplingPercent");
+        if (oversample != null) {
+            oversamplingPercent.setText(String.valueOf(oversample));
+        } else {
+            oversamplingPercent.setText("0.0");
+        }
+
         if (sourceProducts != null) {
             try {
                 azimuthPixelSpacing = SARGeocoding.getAzimuthPixelSpacing(sourceProducts[0]);
@@ -372,6 +380,12 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
             paramMap.put("pixelSpacingInDegree", Double.parseDouble(pixelSpacingInDegree.getText()));
         }
 
+        if (oversamplingPercent.getText().isEmpty()) {
+            paramMap.put("oversamplingPercent", 0.0);
+        } else {
+            paramMap.put("oversamplingPercent", Double.parseDouble(oversamplingPercent.getText()));
+        }
+
         if(properDEMName.equals(externalDEMStr)) {
             String extFileStr = externalDEMFile.getText();
             paramMap.put("externalDEMFile", new File(extFileStr));
@@ -433,6 +447,8 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         DialogUtils.addComponent(contentPane, gbc, "Pixel Spacing (m):", pixelSpacingInMeter);
         gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, "Pixel Spacing (deg):", pixelSpacingInDegree);
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Oversampling (%):", oversamplingPercent);
 
         pixelSpacingInMeter.addFocusListener(new PixelSpacingMeterListener());
         pixelSpacingInDegree.addFocusListener(new PixelSpacingDegreeListener());
