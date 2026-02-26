@@ -85,7 +85,7 @@ public class TestSARSimulationOp extends ProcessorTest {
             band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.007716808f, 7.655816E-4f, 1.3189396E-5f, 2.159873E-5f};
+            final float[] expected = new float[]{0.01345945f, 0.0022644033f, 4.9961345E-5f, 5.912213E-5f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }

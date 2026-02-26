@@ -213,6 +213,14 @@ public final class SARSimulationOp extends Operator {
 
             computeSensorPositionsAndVelocities();
 
+            if (false) { //srgrFlag) {
+                try {
+                    validateSRGR();
+                } catch (Exception e) {
+                    System.err.println("SAR-Simulation: SRGR validation could not be performed due to an error: " + e.getMessage());
+                }
+            }
+
             createTargetProduct();
 
             if (demName.contains(externalDEMStr) && externalDEMFile == null) {
@@ -233,6 +241,56 @@ public final class SARSimulationOp extends Operator {
             }
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    private void validateSRGR() throws Exception {
+
+        final GeoCoding geoCoding = sourceProduct.getSceneGeoCoding();
+        if (geoCoding == null) {
+            System.out.println("SAR-Simulation: No GeoCoding found in the product. Cannot perform SRGR validation.");
+            return;
+        }
+
+        getElevationModel();
+        if (dem == null) {
+            System.out.println("SAR-Simulation: DEM is not available. Cannot perform SRGR validation without elevation.");
+            return;
+        }
+
+        final int w = sourceImageWidth;
+        final int h = sourceImageHeight;
+        final float[] xCoords = {0.5f, w / 2.0f, w - 0.5f};
+        final float[] yCoords = {0.5f, h / 2.0f, h - 0.5f};
+
+        for (float y : yCoords) {
+            for (float x : xCoords) {
+                final PixelPos pixelPos = new PixelPos(x, y);
+                final GeoPos geoPos = geoCoding.getGeoPos(pixelPos, null);
+                if (geoPos == null || !geoPos.isValid()) {
+                    continue;
+                }
+                final double height = dem.getElevation(geoPos);
+
+                System.out.printf("SAR-Simulation: Validating SRGR coefficients using generated point at (%.1f, %.1f)%n", x, y);
+
+                final double error = SARGeocoding.validateSRGR(
+                        pixelPos, geoPos, height,
+                        orbit,
+                        srgrConvParams,
+                        rangeSpacing,
+                        firstLineUTC, lastLineUTC,
+                        lineTimeInterval, wavelength,
+                        sourceImageWidth);
+
+                if (Math.abs(error) >= 9000) {
+                    System.err.printf("SAR-Simulation Warning: SRGR validation failed for point (%.1f, %.1f). Please check log for details. Geocoding results may be inaccurate.%n", x, y);
+                } else if (Math.abs(error) > 1.0) {
+                    System.err.printf("SAR-Simulation Warning: SRGR validation for point (%.1f, %.1f) resulted in an error of %.2f pixels. Geocoding results may be inaccurate.%n", x, y, error);
+                } else {
+                    System.out.printf("SAR-Simulation: SRGR validation for point (%.1f, %.1f) successful with an error of %.2f pixels.%n", x, y, error);
+                }
+            }
         }
     }
 
