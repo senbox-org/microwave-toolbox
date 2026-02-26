@@ -23,17 +23,15 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.util.ImageUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 
-import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,7 +56,8 @@ public class GammaReader extends SARReader {
         final Path inputParPath = getPathFromInput(getInput());
         final File inputParFile = inputParPath.toFile();
 
-        try (BufferedReader headerReader = new BufferedReader(new FileReader(inputParFile))) {
+        try (final InputStream is = getProductInputStream(inputParPath);
+             BufferedReader headerReader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
             header = new Header(headerReader);
             isComplex = isComplex(inputParFile);
             isCoregistered = isCoregistered(inputParFile);
@@ -75,7 +74,7 @@ public class GammaReader extends SARReader {
             final File[] imageFiles = findImageFiles(inputParFile);
 
             for (File imgFile : imageFiles) {
-                final ImageInputStream inStream = new FileImageInputStream(imgFile);
+                final ImageInputStream inStream = ImageUtils.getImageInputStream(imgFile);
                 inStream.setByteOrder(header.getJavaByteOrder());
 
                 if (isComplex) {

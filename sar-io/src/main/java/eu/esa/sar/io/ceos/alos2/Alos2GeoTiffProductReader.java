@@ -19,6 +19,7 @@ import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.dataio.geotiff.GeoTiffProductReader;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -106,7 +107,7 @@ public class Alos2GeoTiffProductReader extends GeoTiffProductReader {
 
 
         } else {
-            this.metadataSummary = metaDataFileToHashMap(inputPath.getParent().resolve("summary.txt").toFile().getAbsolutePath());
+            this.metadataSummary = metaDataFileToHashMap(inputPath.getParent().resolve("summary.txt"));
             product = geoTiffReader.readProductNodes(inputFile, null);
             Band curBand = product.getBands()[0];
             String polarization = inputFile.getName().substring(4, 6);
@@ -178,21 +179,9 @@ public class Alos2GeoTiffProductReader extends GeoTiffProductReader {
     }
 
     // Metadata reading with path to metadata file
-    private Map<String, String> metaDataFileToHashMap(String fileName) throws IOException {
-        // Return data structure
-        Map<String, String> metaDataObject = new HashMap<>();
-
-        // File connection
-        File fileConnection = new File(fileName);
-        BufferedReader fileBR = new BufferedReader(new FileReader(fileConnection));
-
-        String curLine = null;
-        while ((curLine = fileBR.readLine()) != null) {
-            metaDataObject.put(curLine.split("\\=")[0].replace("\"", ""),
-                    curLine.split("\\=")[1].replace("\"", ""));
-        }
-        fileBR.close();
-        return metaDataObject;
+    private Map<String, String> metaDataFileToHashMap(Path filePath) throws IOException {
+        InputStream fileInputStream = getProductInputStream(filePath);
+        return metaDataFileToHashMap(fileInputStream);
     }
 
     // Metadata reading with input stream

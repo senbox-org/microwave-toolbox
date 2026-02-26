@@ -26,6 +26,7 @@ import org.esa.snap.core.dataop.downloadable.XMLSupport;
 import org.esa.snap.core.image.ImageManager;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -83,33 +84,20 @@ public class SaocomProductDirectory extends XMLProductDirectory {
 
     @Override
     protected void createProductDir(final File inputFile) {
+        super.createProductDir(inputFile);
         headerFile = inputFile;
         productName = headerFile.getName().replace(".xemt", "");
 
-        if (ZipUtils.isZip(inputFile)) {
-            baseDir = inputFile;
-            productDir = VirtualDir.create(baseDir);
-            baseName = baseDir.getName();
-            if(baseName.endsWith(".zip")) {
-                baseName = baseName.substring(0, baseName.lastIndexOf(".zip"));
-            }
-        } else {
-            if(inputFile.isDirectory()) {
-                baseDir = inputFile;
-            } else {
-                baseDir = inputFile.getParentFile();
-            }
+        if (!productDir.isCompressed()) {
             final String imgFolderStr = getRelativePathToImageFolder();
-            final File imgFolder = new File(baseDir, imgFolderStr);
-            if(!imgFolder.exists()) {
-                final File zipFile = new File(baseDir, productName+".zip");
-                if(zipFile.exists()) {
-                    dataDir = VirtualDir.create(zipFile);
+            final File imgFolder = baseDir.toPath().resolve(imgFolderStr).toFile();
+            if (!imgFolder.exists()) {
+                final File zipFile = baseDir.toPath().resolve(productName + ".zip").toFile();
+                if (zipFile.exists()) {
+                    final String cachedFilepath = FileUtils.getCachedFilePath(zipFile);
+                    dataDir = VirtualDir.create(new File(cachedFilepath));
                 }
             }
-
-            productDir = VirtualDir.create(baseDir);
-            baseName = baseDir.getName();
         }
     }
 
@@ -177,7 +165,10 @@ public class SaocomProductDirectory extends XMLProductDirectory {
                     }
 
                     final File metaFile = getFile(internalPath + file);
-                    final Document xmlDoc = XMLSupport.LoadXML(metaFile.getAbsolutePath());
+                    final Document xmlDoc;
+                    try (final InputStream is = ProductUtils.getProductInputStream(metaFile)) {
+                        xmlDoc = XMLSupport.LoadXML(is);
+                    }
                     final Element metaFileElement = xmlDoc.getRootElement();
 
                     AbstractMetadataIO.AddXMLMetadata(metaFileElement.getChild("Channel"), destElem);

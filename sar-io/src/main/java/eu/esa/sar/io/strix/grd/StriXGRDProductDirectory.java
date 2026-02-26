@@ -197,7 +197,7 @@ public class StriXGRDProductDirectory extends XMLProductDirectory {
         if ((name.endsWith("tif")) && name.startsWith(imageName) && !name.contains("preview")) {
             try {
                 if(!productDir.isCompressed()) {
-                    final File file = new File(getBaseDir(), imgPath);
+                    final File file = getBaseDir().toPath().resolve(imgPath).toFile();
                     if (file.exists() && file.length() > 0) {
                         final ProductReader geoTiffReader = geoTiffPlugIn.createReaderInstance();
                         bandProduct = geoTiffReader.readProductNodes(file, null);

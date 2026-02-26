@@ -19,6 +19,7 @@ import com.bc.ceres.core.VirtualDir;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.util.Guardian;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -59,7 +60,8 @@ public abstract class AbstractProductDirectory {
 
     protected void createProductDir(final File inputFile) {
         if (ZipUtils.isZip(inputFile)) {
-            baseDir = inputFile;
+            final String cachedFilepath = FileUtils.getCachedFilePath(inputFile);
+            baseDir = new File(cachedFilepath);
             productDir = VirtualDir.create(baseDir);
             baseName = baseDir.getName();
             if(baseName.endsWith(".zip")) {

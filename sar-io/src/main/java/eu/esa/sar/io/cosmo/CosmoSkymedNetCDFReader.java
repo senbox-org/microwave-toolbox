@@ -33,6 +33,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.Guardian;
+import org.esa.snap.dataio.netcdf.util.NetcdfFileOpener;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -83,7 +84,7 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
     public Product createProduct(final Path inputPath) throws IOException {
         initReader();
 
-        final NetcdfFile netcdfFile = NetcdfFile.open(inputPath.toFile().getAbsolutePath());
+        final NetcdfFile netcdfFile = NetcdfFileOpener.open(inputPath.toFile());
         if (netcdfFile == null) {
             close();
             throw new IllegalFileFormatException(inputPath.getFileName().toString() +

@@ -20,6 +20,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.datamodel.quicklooks.Quicklook;
+import org.esa.snap.core.util.ImageUtils;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
@@ -248,9 +249,8 @@ public class IceyeGRDProductReader extends SARReader {
 
     private TIFFImageMetadata getTiffMetadata(File inputFile) {
         TIFFImageMetadata iioMetadata = null;
-        File file = new File(inputFile.getPath());
 
-        try (ImageInputStream iis = ImageIO.createImageInputStream(file)) {
+        try (ImageInputStream iis = ImageUtils.getImageInputStream(inputFile)) {
             Iterator<ImageReader> imageReaders = ImageIO.getImageReaders(iis);
             TIFFImageReader imageReader = null;
 
@@ -604,7 +604,7 @@ public class IceyeGRDProductReader extends SARReader {
             final int rasterHeight = Integer.parseInt(get(IceyeConstants.NUM_OUTPUT_LINES));
             final Dimension bandDimensions = new Dimension(rasterWidth, rasterHeight);
 
-            final InputStream inStream = new BufferedInputStream(new FileInputStream(inputFile));
+            final InputStream inStream = new BufferedInputStream(ProductUtils.getProductInputStream(inputFile));
             if(inStream.available() > 0) {
                 final ImageInputStream imgStream = ImageIOFile.createImageInputStream(inStream, bandDimensions);
 

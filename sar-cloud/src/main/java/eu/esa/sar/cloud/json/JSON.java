@@ -17,19 +17,19 @@ package eu.esa.sar.cloud.json;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.esa.snap.core.util.ProductUtils;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 
 public interface JSON {
 
     static Object loadJSON(final File file) throws Exception {
         final JSONParser parser = new JSONParser();
-        try (FileReader fileReader = new FileReader(file)) {
+        try (final InputStream is = ProductUtils.getProductInputStream(file);
+             final Reader fileReader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
             return parser.parse(fileReader);
         }
     }

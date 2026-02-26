@@ -51,13 +51,11 @@ public class CosmoSkymedGeoTiffReader implements CosmoSkymedReader.CosmoReader {
     public Product createProduct(final Path inputPath) throws Exception {
 
         File file = inputPath.toFile();
-        File imageFile = null, metadataFile = null;
+        File metadataFile = null;
         if(file.getName().endsWith(".tif")) {
-            imageFile = file;
-            metadataFile = new File(file.getParentFile(), file.getName().replace(".IMG.tif", ".attribs.xml"));
+            metadataFile = inputPath.getParent().resolve(file.getName().replace(".IMG.tif", ".attribs.xml")).toFile();
         } else if(file.getName().endsWith(".xml")) {
             metadataFile = file;
-            imageFile = new File(file.getParentFile(), file.getName().replace(".attribs.xml", ".IMG.tif"));
         }
 
         CosmoSkymedProductDirectory dataDir = new CosmoSkymedProductDirectory(this, metadataFile);
