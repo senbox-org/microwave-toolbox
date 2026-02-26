@@ -550,13 +550,13 @@ public final class SARGeocoding {
 
         // binary search is used in finding the ground range for given slant range
         double lowerGroundRange = ground_range_origin;
-        final double lowerSlantRange = Maths.computePolynomialValue(lowerGroundRange - ground_range_origin, srgrCoeff);
+        final double lowerSlantRange = Maths.computePolynomialValue(lowerGroundRange, srgrCoeff);
         if (slantRange < lowerSlantRange) {
             return -1.0;
         }
 
         double upperGroundRange = ground_range_origin + sourceImageWidth * groundRangeSpacing;
-        final double upperSlantRange = Maths.computePolynomialValue(upperGroundRange - ground_range_origin, srgrCoeff);
+        final double upperSlantRange = Maths.computePolynomialValue(upperGroundRange, srgrCoeff);
         if (slantRange > upperSlantRange) {
             return -1.0;
         }
@@ -565,7 +565,7 @@ public final class SARGeocoding {
         while (upperGroundRange - lowerGroundRange > 0.1) {
 
             final double midGroundRange = (lowerGroundRange + upperGroundRange) / 2.0;
-            final double midSlantRange = Maths.computePolynomialValue(midGroundRange - ground_range_origin, srgrCoeff);
+            final double midSlantRange = Maths.computePolynomialValue(midGroundRange, srgrCoeff);
             if (Math.abs(midSlantRange - slantRange) < 0.1) {
                 return midGroundRange;
             } else if (midSlantRange < slantRange) {
@@ -983,5 +983,85 @@ public final class SARGeocoding {
         lookDirectionElem.setAttributeDouble("tail_lat", geoPosTail.lat);
         lookDirectionElem.setAttributeDouble("tail_lon", geoPosTail.lon);
         lookDirectionListElem.addElement(lookDirectionElem);
+    }
+
+    /**
+     * Validates the consistency of SRGR parameters against the orbit data using a known ground control point (GCP).
+     * <p>
+     * This method performs a "forward-then-reverse" check:
+     * <ol>
+     *     <li>Calculates the "true" slant range to a given ground point (lat, lon, height) using the orbit data.</li>
+     *     <li>Uses the SRGR coefficients to convert this slant range back into a ground range and then a range pixel index.</li>
+     *     <li>Compares this calculated range index with the expected range index from the GCP.</li>
+     * </ol>
+     * A large difference indicates an inconsistency between the orbit data and the SRGR coefficients in the product metadata.
+     *
+     * @param pixelPos         The expected pixel position of the GCP.
+     * @param geoPos           The geographic position of the GCP.
+     * @param height           The height of the GCP above the ellipsoid.
+     * @param orbit            The orbit state vectors.
+     * @param srgrConvParams   The SRGR conversion parameters from the product.
+     * @param rangeSpacing     The range spacing in meters (for ground range products).
+     * @param firstLineUTC     The UTC time of the first image line.
+     * @param lastLineUTC      The UTC time of the last image line.
+     * @param lineTimeInterval The time interval between lines.
+     * @param wavelength       The radar wavelength.
+     * @param sourceImageWidth The width of the source image in pixels.
+     * @return The error in pixels (calculated - expected). Returns a large negative value on failure.
+     * @throws Exception if SRGR coefficients cannot be retrieved.
+     */
+    public static double validateSRGR(
+            final PixelPos pixelPos, final GeoPos geoPos, final double height,
+            final OrbitStateVectors orbit,
+            final AbstractMetadata.SRGRCoefficientList[] srgrConvParams,
+            final double rangeSpacing,
+            final double firstLineUTC, final double lastLineUTC,
+            final double lineTimeInterval, final double wavelength,
+            final int sourceImageWidth) throws Exception {
+
+        // 1. Convert GeoPos to ECEF cartesian coordinates
+        final PosVector earthPoint = new PosVector();
+        GeoUtils.geo2xyzWGS84(geoPos.getLat(), geoPos.getLon(), height, earthPoint);
+
+        // 2. Compute the zero Doppler time for this earth point
+        final double zeroDopplerTime = getZeroDopplerTime(lineTimeInterval, wavelength, earthPoint, orbit);
+        if (zeroDopplerTime == NonValidZeroDopplerTime) {
+            System.err.println("SRGR Validation Failed: Could not compute a valid zero Doppler time for the GCP.");
+            return -9999.0;
+        }
+
+        // 3. Compute the "true" slant range based on orbit data
+        final PosVector sensorPos = new PosVector();
+        final double slantRangeFromOrbit = computeSlantRange(zeroDopplerTime, orbit, earthPoint, sensorPos);
+
+        // 4. Use the SRGR parameters to convert this slant range back to a range index
+        final double calculatedRangeIndex = computeExtendedRangeIndex(
+                true, sourceImageWidth, firstLineUTC, lastLineUTC,
+                rangeSpacing, zeroDopplerTime, slantRangeFromOrbit,
+                0.0, // nearEdgeSlantRange is not used for SRGR
+                srgrConvParams);
+
+        if (calculatedRangeIndex < 0) {
+            System.err.println("SRGR Validation Failed: The slant range calculated from orbit data (" + slantRangeFromOrbit + " m) " +
+                               "appears to be outside the valid range defined by the SRGR conversion polynomial.");
+
+            // For debugging, let's find the SRGR bounds at this time
+            int idx = 0;
+            for (int i = 0; i < srgrConvParams.length && zeroDopplerTime >= srgrConvParams[i].timeMJD; i++) {
+                idx = i;
+            }
+            final double ground_range_origin = srgrConvParams[idx].ground_range_origin;
+            final double[] srgrCoeffs = getSRGRCoefficients(zeroDopplerTime, srgrConvParams);
+            final double lowerSlantRange = Maths.computePolynomialValue(0, srgrCoeffs);
+            final double upperSlantRange = Maths.computePolynomialValue(sourceImageWidth * rangeSpacing, srgrCoeffs);
+            System.err.println("SRGR polynomial slant range bounds for this azimuth time: [" + lowerSlantRange + ", " + upperSlantRange + "]");
+            return -9998.0;
+        }
+
+        // 5. Compare with the known range index from the GCP
+        final double errorInPixels = calculatedRangeIndex - pixelPos.getX();
+        System.out.printf("SRGR Validation: Expected pixel X=%.2f, Calculated pixel X=%.2f, Error=%.2f pixels%n",
+                          pixelPos.getX(), calculatedRangeIndex, errorInPixels);
+        return errorInPixels;
     }
 }
