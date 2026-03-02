@@ -81,7 +81,7 @@ public class MultitemporalCompositingOp extends Operator {
         try {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
-            validator.checkIfCollocatedStack();
+            validator.checkIfCoregisteredStack();
             validator.checkIfCalibrated(true);
             validator.checkIfMapProjected(true);
 
