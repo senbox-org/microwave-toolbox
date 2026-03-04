@@ -167,18 +167,18 @@ public final class TOPSARDeburstOp extends Operator {
      */
     private void computeTargetStartEndTime() {
 
-            targetFirstLineTime = subSwath[0].firstLineTime;
-            targetLastLineTime = subSwath[0].lastLineTime;
-            for (int i = 1; i < numOfSubSwath; i++) {
-                if (targetFirstLineTime > subSwath[i].firstLineTime) {
-                    targetFirstLineTime = subSwath[i].firstLineTime;
-                }
-
-                if (targetLastLineTime < subSwath[i].lastLineTime) {
-                    targetLastLineTime = subSwath[i].lastLineTime;
-                }
+        targetFirstLineTime = subSwath[0].firstLineTime;
+        targetLastLineTime = subSwath[0].lastLineTime;
+        for (int i = 1; i < numOfSubSwath; i++) {
+            if (targetFirstLineTime > subSwath[i].firstLineTime) {
+                targetFirstLineTime = subSwath[i].firstLineTime;
             }
-            targetLineTimeInterval = subSwath[0].azimuthTimeInterval;
+
+            if (targetLastLineTime < subSwath[i].lastLineTime) {
+                targetLastLineTime = subSwath[i].lastLineTime;
+            }
+        }
+        targetLineTimeInterval = subSwath[0].azimuthTimeInterval;
     }
 
     /**
@@ -278,8 +278,9 @@ public final class TOPSARDeburstOp extends Operator {
                                 targetProduct, iBand, trgBand, '_' + getPrefix(trgBand.getName()));
 
                         if (hasVirtualPhaseBands) {
-                            ReaderUtils.createVirtualPhaseBand(targetProduct,
+                            Band virtBand = ReaderUtils.createVirtualPhaseBand(targetProduct,
                                 iBand, trgBand, '_' + getPrefix(trgBand.getName()));
+                            virtBand.setNoDataValueUsed(true);
                         }
                     }
                 }

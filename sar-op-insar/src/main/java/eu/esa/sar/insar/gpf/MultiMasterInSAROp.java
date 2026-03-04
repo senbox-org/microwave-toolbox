@@ -633,6 +633,8 @@ public class MultiMasterInSAROp extends Operator {
                     final Tile sourceTileQ0 = getSourceTile(sourceBandQ0, sourceRectangle, border);
                     final Tile sourceTileI1 = getSourceTile(sourceBandI1, sourceRectangle, border);
                     final Tile sourceTileQ1 = getSourceTile(sourceBandQ1, sourceRectangle, border);
+                    final double nodata = sourceBandQ1.getNoDataValue();
+
                     final Tile ifgTileI = targetTileMap.get(targetBandIfgI);
                     final Tile ifgTileQ = targetTileMap.get(targetBandIfgQ);
                     final Tile coherenceTile = targetTileMap.get(targetBandCoherence);
@@ -640,7 +642,7 @@ public class MultiMasterInSAROp extends Operator {
                             ifgTileI, ifgTileQ, coherenceTile,
                             referencePhaseMap.get(sourceBandI0), referencePhaseMap.get(sourceBandI1),
                             cohWindowAz, cohWindowRg,
-                            sourceRectangle, targetRectangle);
+                            sourceRectangle, targetRectangle, nodata);
                 }
             }
         } catch (Throwable e) {
@@ -736,6 +738,8 @@ public class MultiMasterInSAROp extends Operator {
         final TileIndex elevationIndex = new TileIndex(elevationTile);
         final TileIndex targetIndex = new TileIndex(wavenumberTile);
 
+        final double wavenumberFactor = -4 * Constants.PI / slcImageSlave.getRadarWavelength();
+
         for (int y = y0; y < yMax; y++) {
             elevationIndex.calculateStride(y);
             targetIndex.calculateStride(y);
@@ -750,9 +754,8 @@ public class MultiMasterInSAROp extends Operator {
                 final double slaveOneWayRangeTime = orbitSlave.xyz2t(xyzPosition, slcImageSlave).x;
                 final double slaveOneWayRangeTimeUp = orbitSlave.xyz2t(xyzPositionUp, slcImageSlave).x;
                 final double forwardDifference = Constants.lightSpeed * (slaveOneWayRangeTimeUp - slaveOneWayRangeTime);
-                final double wavenumber = -4 * Constants.PI / slcImageSlave.getRadarWavelength() * forwardDifference;
 
-                targetBufferWavenumber.setElemDoubleAt(targetIdx, wavenumber);
+                targetBufferWavenumber.setElemDoubleAt(targetIdx, wavenumberFactor * forwardDifference);
             }
         }
     }
@@ -773,6 +776,8 @@ public class MultiMasterInSAROp extends Operator {
         final ProductData sourceBufferElevation = elevationTile.getDataBuffer();
         final TileIndex elevationIndex = new TileIndex(elevationTile);
 
+        final double phaseFactor = -4 * Constants.PI / slcImageSlave.getRadarWavelength();
+
         for (int y = y0; y < yMax; y++) {
             elevationIndex.calculateStride(y);
             for (int x = x0; x < xMax; x++) {
@@ -785,7 +790,7 @@ public class MultiMasterInSAROp extends Operator {
                 final double slaveOneWayRangeTime = orbitSlave.xyz2t(xyzPosition, slcImageSlave).x;
                 final double referenceDistance = Constants.lightSpeed * (slaveOneWayRangeTime - masterOneWayRangeTime);
 
-                phase[y - y0][x - x0] = -4 * Constants.PI / slcImageSlave.getRadarWavelength() * referenceDistance;
+                phase[y - y0][x - x0] = phaseFactor * referenceDistance;
             }
         }
 
@@ -797,7 +802,8 @@ public class MultiMasterInSAROp extends Operator {
                                       final Tile ifgTileI, final Tile ifgTileQ, final Tile coherenceTile,
                                       final double[][] referencePhase0, final double[][] referencePhase1,
                                       final int cohWinAz, final int cohWinRg,
-                                      final Rectangle sourceRectangle, final Rectangle targetRectangle) {
+                                      final Rectangle sourceRectangle, final Rectangle targetRectangle,
+                                      final double nodata) {
 
         int x0 = sourceRectangle.x;
         int y0 = sourceRectangle.y;
@@ -827,16 +833,24 @@ public class MultiMasterInSAROp extends Operator {
 
                 // Get value of real and imaginary bands
                 final double valueI0 = sourceBufferI0.getElemDoubleAt(sourceIdx);
-                final double valueQ0 = sourceBufferQ0.getElemDoubleAt(sourceIdx);
                 final double valueI1 = sourceBufferI1.getElemDoubleAt(sourceIdx);
-                final double valueQ1 = sourceBufferQ1.getElemDoubleAt(sourceIdx);
 
-                final double[] values = computeIfgPhasorAndIntensities(valueI0, valueQ0, valueI1, valueQ1,
-                                                                       referencePhase0[yy][xx], referencePhase1[yy][xx]);
-                ifgPhasorI[yy][xx] = values[0];
-                ifgPhasorQ[yy][xx] = values[1];
-                intensity0[yy][xx] = values[2];
-                intensity1[yy][xx] = values[3];
+                if(valueI0 == nodata || valueI1 == nodata) {
+                    ifgPhasorI[yy][xx] = nodata;
+                    ifgPhasorQ[yy][xx] = nodata;
+                    intensity0[yy][xx] = nodata;
+                    intensity1[yy][xx] = nodata;
+                } else {
+                    final double valueQ0 = sourceBufferQ0.getElemDoubleAt(sourceIdx);
+                    final double valueQ1 = sourceBufferQ1.getElemDoubleAt(sourceIdx);
+
+                    final double[] values = computeIfgPhasorAndIntensities(valueI0, valueQ0, valueI1, valueQ1,
+                            referencePhase0[yy][xx], referencePhase1[yy][xx]);
+                    ifgPhasorI[yy][xx] = values[0];
+                    ifgPhasorQ[yy][xx] = values[1];
+                    intensity0[yy][xx] = values[2];
+                    intensity1[yy][xx] = values[3];
+                }
             }
         }
 
@@ -879,8 +893,10 @@ public class MultiMasterInSAROp extends Operator {
         final double ifgPhasorI = valueI0 * valueI1 + valueQ0 * valueQ1;
         final double ifgPhasorQ = -valueI0 * valueQ1 + valueQ0 * valueI1;
         final double angle = referencePhase0 - referencePhase1;
-        final double flattenedIfgPhasorI = ifgPhasorI * FastMath.cos(angle) + ifgPhasorQ * FastMath.sin(angle);
-        final double flattenedIfgPhasorQ = -ifgPhasorI * FastMath.sin(angle) + ifgPhasorQ * FastMath.cos(angle);
+        final double cosAngle = FastMath.cos(angle);
+        final double sinAngle = FastMath.sin(angle);
+        final double flattenedIfgPhasorI = ifgPhasorI * cosAngle + ifgPhasorQ * sinAngle;
+        final double flattenedIfgPhasorQ = -ifgPhasorI * sinAngle + ifgPhasorQ * cosAngle;
 
         return new double[]{flattenedIfgPhasorI, flattenedIfgPhasorQ, valueI0 * valueI0 + valueQ0 * valueQ0,
                 valueI1 * valueI1 + valueQ1 * valueQ1};
@@ -911,11 +927,12 @@ public class MultiMasterInSAROp extends Operator {
                 double intensitySum0 = 0;
                 double intensitySum1 = 0;
                 for (int r = -halfCohWinAz; r < halfCohWinAz + correctionWinAz; r++) {
+                    int y_r = y + r;
                     for (int c = -halfCohWinRg; c < halfCohWinRg + correctionWinRg; c++) {
-                        ifgPhasorSumI += ifgPhasorI[y + r][x + c];
-                        ifgPhasorSumQ += ifgPhasorQ[y + r][x + c];
-                        intensitySum0 += intensity0[y + r][x + c];
-                        intensitySum1 += intensity1[y + r][x + c];
+                        ifgPhasorSumI += ifgPhasorI[y_r][x + c];
+                        ifgPhasorSumQ += ifgPhasorQ[y_r][x + c];
+                        intensitySum0 += intensity0[y_r][x + c];
+                        intensitySum1 += intensity1[y_r][x + c];
                     }
                 }
                 coherence[y][x] = Math.sqrt((ifgPhasorSumI * ifgPhasorSumI + ifgPhasorSumQ * ifgPhasorSumQ)

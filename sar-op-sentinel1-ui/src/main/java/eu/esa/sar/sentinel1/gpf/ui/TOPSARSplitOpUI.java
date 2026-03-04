@@ -105,28 +105,10 @@ public class TOPSARSplitOpUI extends BaseOperatorUI {
             for (String sw : subSwathList) {
                 subswathCombo.addItem(sw);
             }
-            subswathCombo.setSelectedItem(subSwathList[0]);
+            String subswath = (String) paramMap.get("subswath");
+            subswathCombo.setSelectedItem(subswath);
 
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProducts[0]);
-//            final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
-//            subswathCombo.removeAllItems();
-//            if (acquisitionMode.equals("IW")) {
-//                subswathCombo.addItem("IW1");
-//                subswathCombo.addItem("IW2");
-//                subswathCombo.addItem("IW3");
-//            } else if (acquisitionMode.equals("EW")) {
-//                subswathCombo.addItem("EW1");
-//                subswathCombo.addItem("EW2");
-//                subswathCombo.addItem("EW3");
-//                subswathCombo.addItem("EW4");
-//                subswathCombo.addItem("EW5");
-//            }
-//            String subswath = (String) paramMap.get("subswath");
-//            if (subswath == null) {
-//                subswath = acquisitionMode + '1';
-//            }
-//            subswathCombo.setSelectedItem(subswath);
-
             OperatorUIUtils.initParamList(polList, Sentinel1Utils.getProductPolarizations(absRoot),
                     (String[]) paramMap.get("selectedPolarisations"));
 

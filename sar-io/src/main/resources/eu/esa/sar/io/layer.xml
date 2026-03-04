@@ -224,10 +224,10 @@
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
                 <attr name="displayName" stringvalue="ICEYE"/>
-                <attr name="formatName" stringvalue="IceyeProduct"/>
+                <attr name="formatName" stringvalue="ICEYE"/>
                 <attr name="useAllFileFilter" boolvalue="true"/>
                 <attr name="helpId" stringvalue="importIceyeProduct"/>
-                <attr name="ShortDescription" stringvalue="Open ICEYE slc product."/>
+                <attr name="ShortDescription" stringvalue="Open ICEYE product."/>
             </file>
         </folder>
         <folder name="Writers">

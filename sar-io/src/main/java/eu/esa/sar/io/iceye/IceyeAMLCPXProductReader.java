@@ -219,7 +219,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
 
         addMetaString(absRoot, AbstractMetadata.PASS, IceyeConstants.PASS);
         addMetaUTC(absRoot, AbstractMetadata.PROC_TIME, IceyeConstants.PROC_TIME);
-        addMetaString(absRoot, AbstractMetadata.ProcessingSystemIdentifier, IceyeConstants.ProcessngSystemIdentifier);
+        addMetaString(absRoot, AbstractMetadata.ProcessingSystemIdentifier, IceyeConstants.ProcessingSystemIdentifier);
         addMetaDouble(absRoot, AbstractMetadata.incidence_near, IceyeConstants.incidence_near);
         addMetaDouble(absRoot, AbstractMetadata.incidence_far, IceyeConstants.incidence_far);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.geo_ref_system, IceyeConstants.geo_ref_system_default);
@@ -501,7 +501,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
     static double applyPolynomial(double[] coeffs, double t) {
         double sum = coeffs[coeffs.length - 1];
         for (int i = coeffs.length-1; i > 0 ; i--) {
-            sum += sum * t + coeffs[i-1];
+            sum = sum * t + coeffs[i-1];
         }
         return sum;
     }

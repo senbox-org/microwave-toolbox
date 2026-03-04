@@ -259,32 +259,32 @@ public final class CompactPolDataSimulationOp extends Operator implements QuadPo
         for (Band band : bands) {
             final String targetBandName = band.getName();
 
-            if (targetBandName.contains("i_45H") || targetBandName.contains("i_RH") ||
-                    targetBandName.contains("i_RCH") ||
-                    targetBandName.contains("i_LH") || targetBandName.contains("i_RR") ||
-                    targetBandName.contains("i_LCH") ||
-                    targetBandName.contains("i_HH") || targetBandName.contains("i_VH")) {
+            if (contains(targetBandName, "i_","_45H") || contains(targetBandName, "i_", "_RH") ||
+                    contains(targetBandName, "i_", "_RCH") ||
+                    contains(targetBandName, "i_", "_LH") || contains(targetBandName, "i_", "_RR") ||
+                    contains(targetBandName, "i_", "_LCH") ||
+                    contains(targetBandName, "i_", "_HH") || contains(targetBandName, "i_", "_VH")) {
                 matrixBandMap.put(band, new MatrixElem(0, 0, false));
 
-            } else if (targetBandName.contains("q_45H") || targetBandName.contains("q_RH") ||
-                    targetBandName.contains("q_RCH") ||
-                    targetBandName.contains("q_LH") || targetBandName.contains("q_RR") ||
-                    targetBandName.contains("q_LCH") ||
-                    targetBandName.contains("q_HH") || targetBandName.contains("q_VH")) {
+            } else if (contains(targetBandName, "q_", "_45H") || contains(targetBandName, "q_", "_RH") ||
+                    contains(targetBandName, "q_", "_RCH") ||
+                    contains(targetBandName, "q_", "_LH") || contains(targetBandName, "q_", "_RR") ||
+                    contains(targetBandName, "q_", "_LCH") ||
+                    contains(targetBandName, "q_", "_HH") || contains(targetBandName, "q_", "_VH")) {
                 matrixBandMap.put(band, new MatrixElem(0, 0, true));
 
-            } else if (targetBandName.contains("i_45V") || targetBandName.contains("i_RV") ||
-                    targetBandName.contains("i_RCV") ||
-                    targetBandName.contains("i_LV") || targetBandName.contains("i_RL") ||
-                    targetBandName.contains("i_LCV") ||
-                    targetBandName.contains("i_HV") || targetBandName.contains("i_VV")) {
+            } else if (contains(targetBandName, "i_", "_45V") || contains(targetBandName, "i_", "_RV") ||
+                    contains(targetBandName, "i_", "_RCV") ||
+                    contains(targetBandName, "i_", "_LV") || contains(targetBandName, "i_", "_RL") ||
+                    contains(targetBandName, "i_", "_LCV") ||
+                    contains(targetBandName, "i_", "_HV") || contains(targetBandName, "i_", "_VV")) {
                 matrixBandMap.put(band, new MatrixElem(1, 0, false));
 
-            } else if (targetBandName.contains("q_45V") || targetBandName.contains("q_RV") ||
-                    targetBandName.contains("q_RCV") ||
-                    targetBandName.contains("q_LV") || targetBandName.contains("q_RL") ||
-                    targetBandName.contains("q_LCV") ||
-                    targetBandName.contains("q_HV") || targetBandName.contains("q_VV")) {
+            } else if (contains(targetBandName, "q_", "_45V") || contains(targetBandName, "q_", "_RV") ||
+                    contains(targetBandName, "q_", "_RCV") ||
+                    contains(targetBandName, "q_", "_LV") || contains(targetBandName, "q_", "_RL") ||
+                    contains(targetBandName, "q_", "_LCV") ||
+                    contains(targetBandName, "q_", "_HV") || contains(targetBandName, "q_", "_VV")) {
                 matrixBandMap.put(band, new MatrixElem(1, 0, true));
             }
         }

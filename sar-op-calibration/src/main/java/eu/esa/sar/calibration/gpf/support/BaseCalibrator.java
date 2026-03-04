@@ -164,7 +164,7 @@ public class BaseCalibrator {
 
     protected Band[] getSourceBands(
             final Product sourceProduct, String[] sourceBandNames, final boolean includeVirtualBands) {
-        return OperatorUtils.getSourceBands(sourceProduct, sourceBandNames, false);
+        return OperatorUtils.getSourceBands(sourceProduct, sourceBandNames, includeVirtualBands);
     }
 
     protected void outputInComplex(final Product sourceProduct, final String[] sourceBandNames) {

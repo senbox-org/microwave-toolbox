@@ -107,8 +107,8 @@ public class RangeDopplerGeocodingOp extends Operator {
     private String[] sourceBandNames = null;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec", label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(label = "External DEM")
     private File externalDEMFile = null;
@@ -1495,11 +1495,13 @@ public class RangeDopplerGeocodingOp extends Operator {
             return false;
         }
 
-        data.slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, data.earthPoint, data.sensorPos);
+        data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                zeroDopplerTime, data.earthPoint, data.sensorPos);
 
         if (!skipBistaticCorrection) { // skip bistatic correction for COSMO, TerraSAR-X and RadarSAT-2
             zeroDopplerTime += data.slantRange / Constants.lightSpeedInMetersPerDay;
-            data.slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, data.earthPoint, data.sensorPos);
+            data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    zeroDopplerTime, data.earthPoint, data.sensorPos);
         }
 
         data.rangeIndex = SARGeocoding.computeRangeIndex(srgrFlag, sourceImageWidth, firstLineUTC, lastLineUTC,

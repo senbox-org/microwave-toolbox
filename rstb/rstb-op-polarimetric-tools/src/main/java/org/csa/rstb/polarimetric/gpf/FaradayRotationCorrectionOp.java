@@ -236,21 +236,21 @@ public final class FaradayRotationCorrectionOp extends Operator implements QuadP
                         performFRCorrection(omega, Sr, Si, cSr, cSi);
 
                         for (final TileData tileData : tileDataList) {
-                            if (tileData.bandName.contains("i_HH")) {
+                            if (tileData.bandName.contains("i_") && tileData.bandName.contains("_HH") ) {
                                 tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) cSr[0][0]);
-                            } else if (tileData.bandName.contains("q_HH")) {
+                            } else if (tileData.bandName.contains("q_") && tileData.bandName.contains("_HH")) {
                                 tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) cSi[0][0]);
-                            } else if (tileData.bandName.contains("i_HV")) {
+                            } else if (tileData.bandName.contains("i_") && tileData.bandName.contains("_HV")) {
                                 tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) cSr[0][1]);
-                            } else if (tileData.bandName.contains("q_HV")) {
+                            } else if (tileData.bandName.contains("q_") && tileData.bandName.contains("_HV")) {
                                 tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) cSi[0][1]);
-                            } else if (tileData.bandName.contains("i_VH")) {
+                            } else if (tileData.bandName.contains("i_") && tileData.bandName.contains("_VH")) {
                                 tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) cSr[1][0]);
-                            } else if (tileData.bandName.contains("q_VH")) {
+                            } else if (tileData.bandName.contains("q_") && tileData.bandName.contains("_VH")) {
                                 tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) cSi[1][0]);
-                            } else if (tileData.bandName.contains("1_VV")) {
+                            } else if (tileData.bandName.contains("i_") && tileData.bandName.contains("_VV")) {
                                 tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) cSr[1][1]);
-                            } else if (tileData.bandName.contains("q_VV")) {
+                            } else if (tileData.bandName.contains("q_") && tileData.bandName.contains("_VV")) {
                                 tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) cSi[1][1]);
                             }
                         }

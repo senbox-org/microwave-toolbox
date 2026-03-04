@@ -149,7 +149,7 @@ public class IceyeConstants {
     public static final String processing                  = data          + SEP + "processing";
 
     public static final String azimuth_bandwidth           = processing    + SEP + "bandwidth"+ SEP + "az";
-    public static final String ProcessngSystemIdentifier   = processing    + SEP + "version";
+    public static final String ProcessingSystemIdentifier   = processing    + SEP + "version";
     public static final String PROC_TIME                   = processing    + SEP + "end";
     public static final String first_line_time             = processing    + SEP + "zero_doppler_start_utc";
     public static final String last_line_time              = processing    + SEP + "zero_doppler_end_utc";
