@@ -15,9 +15,9 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
-import eu.esa.sar.io.nisar.util.NisarXConstants;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.StxFactory;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -29,6 +29,8 @@ import java.util.List;
 
 public class NisarRSLCProductReader extends NisarSubReader {
 
+    private static final String[] pols = {"HH", "HV", "VH", "VV"};
+
     public NisarRSLCProductReader() {
         productType = "RSLC";
     }
@@ -36,8 +38,6 @@ public class NisarRSLCProductReader extends NisarSubReader {
     @Override
     protected Variable[] getRasterVariables(final Group groupFrequency) {
         List<Variable> rasterVariables = new ArrayList<>();
-        String[] pols = {"HH", "HV", "VH", "VV"};
-        
         for (String pol : pols) {
             Variable v = groupFrequency.findVariable(pol);
             if (v != null) {
@@ -64,8 +64,6 @@ public class NisarRSLCProductReader extends NisarSubReader {
     }
     
     private void addBandsForFrequency(Group groupFrequency, String suffix) {
-        String[] pols = {"HH", "HV", "VH", "VV"};
-        
         for (String pol : pols) {
             Variable variable = groupFrequency.findVariable(pol);
             if (variable != null) {
@@ -77,13 +75,16 @@ public class NisarRSLCProductReader extends NisarSubReader {
     private void addBand(Variable variable, String polStr, String suffix) {
         int height = variable.getDimension(0).getLength();
         int width = variable.getDimension(1).getLength();
-        
+
         try {
             final Band bandI = new Band("i_" + polStr + suffix, ProductData.TYPE_FLOAT32, width, height);
             bandI.setDescription("I band of the focused SLC image (" + polStr + ")");
             bandI.setUnit(Unit.REAL);
             bandI.setNoDataValue(0);
             bandI.setNoDataValueUsed(true);
+            // Pre-set statistics to prevent SNAP from scanning all tiles on first display.
+            bandI.setStx(new StxFactory().withMinimum(-1000.0).withMaximum(1000.0)
+                    .withIntHistogram(false).withHistogramBins(new int[512]).create());
             product.addBand(bandI);
             bandMap.put(bandI, variable);
 
@@ -92,6 +93,8 @@ public class NisarRSLCProductReader extends NisarSubReader {
             bandQ.setUnit(Unit.IMAGINARY);
             bandQ.setNoDataValue(0);
             bandQ.setNoDataValueUsed(true);
+            bandQ.setStx(new StxFactory().withMinimum(-1000.0).withMaximum(1000.0)
+                    .withIntHistogram(false).withHistogramBins(new int[512]).create());
             product.addBand(bandQ);
             bandMap.put(bandQ, variable);
 

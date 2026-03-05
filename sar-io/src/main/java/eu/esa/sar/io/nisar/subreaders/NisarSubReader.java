@@ -29,6 +29,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
+import org.esa.snap.core.util.StopWatch;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.geotiff.EPSGCodes;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -38,7 +39,8 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.ma2.Array;
 import ucar.ma2.ArrayStructure;
 import ucar.ma2.DataType;
-import ucar.ma2.StructureData;
+import ucar.ma2.InvalidRangeException;
+import ucar.ma2.Range;
 import ucar.ma2.StructureMembers;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
@@ -59,6 +61,11 @@ import static ucar.ma2.DataType.STRUCTURE;
 public abstract class NisarSubReader {
 
     protected final Map<Band, Variable> bandMap = new HashMap<>();
+    private final Map<Band, String> memberNameCache = new HashMap<>();
+    // Cache: full ArrayStructure per variable (I and Q bands share the same variable read)
+    private final Map<Variable, java.lang.ref.SoftReference<Array>> structVarCache = new HashMap<>();
+    // Cache: extracted 2D member Array per band (one for I, one for Q)
+    private final Map<Band, java.lang.ref.SoftReference<Array>> bandArrayCache = new HashMap<>();
     protected final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
     protected NetcdfFile netcdfFile = null;
     protected Product product = null;
@@ -330,19 +337,19 @@ public abstract class NisarSubReader {
 
     protected void addTiePointGridsToProduct() throws IOException {
 
-        Group metadataGroup = netcdfFile.findGroup("/science/LSAR/" + productType + "/metadata");
-        if (metadataGroup == null) {
-            metadataGroup = netcdfFile.findGroup("/science/SSAR/" + productType + "/metadata");
-        }
-        Group gridGroup = findGridGroup(metadataGroup);
-        Variable incidenceAngleVar = gridGroup.findVariable("incidenceAngle");
-        if (incidenceAngleVar != null) {
-            TiePointGrid incidenceAngleGrid = createTiePointGrid(incidenceAngleVar);
-            incidenceAngleGrid.setName(OperatorUtils.TPG_INCIDENT_ANGLE);
-            product.addTiePointGrid(incidenceAngleGrid);
-        }
-
         try {
+            Group metadataGroup = netcdfFile.findGroup("/science/LSAR/" + productType + "/metadata");
+            if (metadataGroup == null) {
+                metadataGroup = netcdfFile.findGroup("/science/SSAR/" + productType + "/metadata");
+            }
+            Group gridGroup = findGridGroup(metadataGroup);
+            Variable incidenceAngleVar = gridGroup.findVariable("incidenceAngle");
+            if (incidenceAngleVar != null) {
+                TiePointGrid incidenceAngleGrid = createTiePointGrid(incidenceAngleVar);
+                incidenceAngleGrid.setName(OperatorUtils.TPG_INCIDENT_ANGLE);
+                product.addTiePointGrid(incidenceAngleGrid);
+            }
+
             Variable coordYVar = findVariable(gridGroup, "coordinateY", "yCoordinates");
             Variable coordXVar = findVariable(gridGroup, "coordinateX", "xCoordinates");
             if (coordYVar != null && coordXVar != null) {
@@ -572,109 +579,153 @@ public abstract class NisarSubReader {
         final Variable variable = bandMap.get(destBand);
 
         // Clamp dimensions
-        int readHeight = Math.min(destHeight, sceneHeight - sourceOffsetY);
+        int readHeight = Math.min(sourceHeight, sceneHeight - sourceOffsetY);
         int readWidth = Math.min(sourceWidth, sceneWidth - sourceOffsetX);
-        
+
         if (readHeight <= 0 || readWidth <= 0) {
             return;
         }
 
-        final int[] origin = {sourceOffsetY, sourceOffsetX};
-        final int[] shape = {readHeight, readWidth};
-        
-        pm.beginTask("Reading util from band " + destBand.getName(), 1);
-
+        pm.beginTask("Reading band " + destBand.getName(), 1);
         try {
-            final Array array;
-            synchronized (netcdfFile) {
-                array = variable.read(origin, shape);
-            }
-
-            boolean isComplexData = variable.getDataType() == DataType.STRUCTURE;
-
-            if (isComplexData) {
-                ArrayStructure arrayStruct = (ArrayStructure) array;
-                StructureMembers members = arrayStruct.getStructureMembers();
-                String realMemberName = null;
-                String imagMemberName = null;
-                
-                for (StructureMembers.Member m : members.getMembers()) {
-                    String name = m.getName().toLowerCase();
-                    if (name.equals("r") || name.equals("real") || name.endsWith("_r")) {
-                        realMemberName = m.getName();
-                    } else if (name.equals("i") || name.equals("imag") || name.equals("imaginary") || name.endsWith("_i")) {
-                        imagMemberName = m.getName();
-                    }
-                }
-                
-                String memberToRead = null;
-                if (destBand.getUnit() != null && destBand.getUnit().equals(Unit.IMAGINARY)) {
-                    memberToRead = imagMemberName;
-                } else if (destBand.getName().startsWith("q_")) {
-                    memberToRead = imagMemberName;
-                } else {
-                    memberToRead = realMemberName;
-                }
-                
-                if (memberToRead == null) {
-                     if (!members.getMembers().isEmpty()) {
-                         memberToRead = members.getMembers().get(0).getName();
-                     }
-                }
-
-                StructureData[] row = (StructureData[]) array.get1DJavaArray(STRUCTURE);
-                final float[] tempArray = new float[row.length];
-                for (int i = 0; i < row.length; ++i) {
-                    tempArray[i] = row[i].convertScalarFloat(memberToRead);
-                }
-                
-                if (readWidth == destWidth) {
-                     System.arraycopy(tempArray, 0, destBuffer.getElems(), 0, tempArray.length);
-                } else {
-                    for (int y = 0; y < readHeight; y++) {
-                        System.arraycopy(tempArray, y * readWidth, destBuffer.getElems(), y * destWidth, readWidth);
-                    }
-                }
-
+            if (variable.getDataType() == STRUCTURE) {
+                // HDF5 compound type (complex64 = {float r; float i}):
+                // NetCDF4-Java may report rank=0 for compound Structure variables even when the
+                // underlying dataset is 2D, so ranged reads fail. Instead: read the full variable
+                // once (cached), extract the I or Q member float array (cached per band), then
+                // copy the requested tile from the in-memory array.
+                readComplexBandTile(variable, destBand, sceneWidth, sceneHeight,
+                        sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY,
+                        destWidth, destHeight, destBuffer);
             } else {
-                float[] tempArray = (float[]) array.get1DJavaArray(Float.TYPE);
-                
-                if (readWidth == destWidth) {
+                final List<Range> tileRanges = new ArrayList<>();
+                tileRanges.add(new Range(sourceOffsetY, sourceOffsetY + readHeight - 1, sourceStepY));
+                tileRanges.add(new Range(sourceOffsetX, sourceOffsetX + readWidth - 1, sourceStepX));
+
+                final Array array;
+                try {
+                    synchronized (netcdfFile) {
+                        array = variable.read(tileRanges);
+                    }
+                } catch (InvalidRangeException e) {
+                    throw new IOException(e);
+                }
+
+                final float[] tempArray = (float[]) array.get1DJavaArray(DataType.FLOAT);
+                final int actualHeight = array.getShape()[0];
+                final int actualWidth = array.getShape()[1];
+
+                if (actualWidth == destWidth) {
                     System.arraycopy(tempArray, 0, destBuffer.getElems(), 0, tempArray.length);
                 } else {
-                    for (int y = 0; y < readHeight; y++) {
-                        System.arraycopy(tempArray, y * readWidth, destBuffer.getElems(), y * destWidth, readWidth);
+                    for (int y = 0; y < actualHeight; y++) {
+                        if (y >= destHeight) break;
+                        System.arraycopy(tempArray, y * actualWidth, destBuffer.getElems(), y * destWidth,
+                                Math.min(actualWidth, destWidth));
                     }
                 }
             }
-
             pm.worked(1);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            SystemUtils.LOG.severe(e.getMessage());
             throw new IOException(e);
         } finally {
             pm.done();
         }
     }
 
-    private void read(StructureData row, String name) {
-        try {
-            Array memberArray = row.getArray(name);
-            System.out.println("success " + name);
-        } catch (Exception e) {
-            System.out.println("failed " + name + " " + e.getMessage());
-        }
-    }
+    private void readComplexBandTile(Variable variable, Band destBand, int sceneWidth, int sceneHeight,
+                                     int sourceOffsetX, int sourceOffsetY, int sourceStepX, int sourceStepY,
+                                     int destWidth, int destHeight, ProductData destBuffer) throws IOException {
 
-    private void find(ArrayStructure row, String name) {
+        // Resolve the member name (r or i) for this band — computed once and cached
+        String memberToRead = memberNameCache.get(destBand);
+        if (memberToRead == null) {
+            if (variable instanceof ucar.nc2.Structure) {
+                final ucar.nc2.Structure struct = (ucar.nc2.Structure) variable;
+                String realName = null, imagName = null;
+                for (Variable mv : struct.getVariables()) {
+                    final String n = mv.getShortName().toLowerCase();
+                    if (n.equals("r") || n.equals("real") || n.endsWith("_r")) {
+                        realName = mv.getShortName();
+                    } else if (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i")) {
+                        imagName = mv.getShortName();
+                    }
+                }
+                final boolean wantImag = Unit.IMAGINARY.equals(destBand.getUnit()) || destBand.getName().startsWith("q_");
+                memberToRead = wantImag ? imagName : realName;
+                if (memberToRead == null && !struct.getVariables().isEmpty()) {
+                    memberToRead = struct.getVariables().get(0).getShortName();
+                }
+            }
+            if (memberToRead != null) {
+                memberNameCache.put(destBand, memberToRead);
+            }
+        }
+        if (memberToRead == null) return;
+
+        // Get or load the 2D member Array for this band
+        java.lang.ref.SoftReference<Array> bandRef = bandArrayCache.get(destBand);
+        Array memberArray = (bandRef != null) ? bandRef.get() : null;
+
+        if (memberArray == null) {
+            // Get or load the full ArrayStructure for this variable.
+            // Both I and Q bands of the same polarization share one cached ArrayStructure read.
+            java.lang.ref.SoftReference<Array> structRef = structVarCache.get(variable);
+            Array fullArray = (structRef != null) ? structRef.get() : null;
+            if (fullArray == null) {
+                synchronized (netcdfFile) {
+                    fullArray = variable.read();
+                }
+                structVarCache.put(variable, new java.lang.ref.SoftReference<>(fullArray));
+            }
+
+            // Extract the single member (r or i) from the full compound array
+            final ArrayStructure fullStruct = (ArrayStructure) fullArray;
+            final StructureMembers.Member member = fullStruct.getStructureMembers().findMember(memberToRead);
+            if (member == null) return;
+            memberArray = fullStruct.extractMemberArray(member);
+
+            // Ensure the array is 2D — use the ArrayStructure's actual shape, not getDimension()
+            if (memberArray.getRank() != 2) {
+                final int[] structShape = fullStruct.getShape();
+                if (structShape.length == 2) {
+                    memberArray = memberArray.reshape(structShape);
+                } else {
+                    memberArray = memberArray.reshape(new int[]{sceneHeight, sceneWidth});
+                }
+            }
+            bandArrayCache.put(destBand, new java.lang.ref.SoftReference<>(memberArray));
+        }
+
+        // Section the 2D member Array for this tile and copy to destBuffer
+        final int actualH = memberArray.getShape()[0];
+        final int actualW = memberArray.getShape()[1];
+        final int endY = (int) Math.min((long) sourceOffsetY + (long) (destHeight - 1) * sourceStepY, actualH - 1);
+        final int endX = (int) Math.min((long) sourceOffsetX + (long) (destWidth - 1) * sourceStepX, actualW - 1);
+
+        if (endY < sourceOffsetY || endX < sourceOffsetX) return;
+
         try {
-            StructureMembers.Member memberArray = row.findMember(name);
-            if (memberArray != null)
-                System.out.println("success " + name);
-            else
-                System.out.println("not found " + name);
-        } catch (Exception e) {
-            System.out.println("failed " + name + " " + e.getMessage());
+            final List<Range> tileRanges = new ArrayList<>();
+            tileRanges.add(new Range(sourceOffsetY, endY, sourceStepY));
+            tileRanges.add(new Range(sourceOffsetX, endX, sourceStepX));
+            final Array tileArray = memberArray.section(tileRanges);
+            final float[] tileFloats = (float[]) tileArray.get1DJavaArray(DataType.FLOAT);
+
+            final int tileH = tileArray.getShape()[0];
+            final int tileW = tileArray.getShape()[1];
+            final float[] dest = (float[]) destBuffer.getElems();
+
+            if (tileW == destWidth) {
+                System.arraycopy(tileFloats, 0, dest, 0, Math.min(tileFloats.length, dest.length));
+            } else {
+                for (int y = 0; y < tileH && y < destHeight; y++) {
+                    System.arraycopy(tileFloats, y * tileW, dest, y * destWidth, Math.min(tileW, destWidth));
+                }
+            }
+        } catch (InvalidRangeException e) {
+            throw new IOException(e);
         }
     }
 }
