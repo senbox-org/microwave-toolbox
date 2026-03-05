@@ -72,7 +72,7 @@ public abstract class NisarSubReader {
         }
     }
 
-    private void open(final File inputFile) throws IOException {
+    protected void open(final File inputFile) throws IOException {
         this.netcdfFile = NetcdfFile.open(inputFile.getPath());
         if (netcdfFile == null) {
             close();
@@ -96,11 +96,19 @@ public abstract class NisarSubReader {
         open(inputFile);
 
         try {
-            final Group groupLSAR = getLSARGroup();
-            final Group groupID = getIndenificationGroup(groupLSAR);
-            final Group groupFrequencyA = getFrequencyAGroup(groupLSAR);
+            final Group groupSAR = getSARGroup();
+            final Group groupID = getIdentificationGroup(groupSAR);
+            
+            Group groupFrequency = getFrequencyAGroup(groupSAR);
+            if (groupFrequency == null) {
+                groupFrequency = getFrequencyBGroup(groupSAR);
+            }
+            
+            if (groupFrequency == null) {
+                 throw new IOException("No frequency group found (A or B)");
+            }
 
-            Variable[] rasterVariables = getRasterVariables(groupFrequencyA);
+            Variable[] rasterVariables = getRasterVariables(groupFrequency);
 
             final int rasterHeight = rasterVariables[0].getDimension(0).getLength();
             final int rasterWidth = rasterVariables[0].getDimension(1).getLength();
@@ -124,12 +132,16 @@ public abstract class NisarSubReader {
         }
     }
 
-    protected Group getLSARGroup() {
+    protected Group getSARGroup() {
         final Group groupScience = this.netcdfFile.getRootGroup().findGroup("science");
-        return groupScience.findGroup("LSAR");
+        Group sarGroup = groupScience.findGroup("LSAR");
+        if (sarGroup == null) {
+            sarGroup = groupScience.findGroup("SSAR");
+        }
+        return sarGroup;
     }
 
-    protected Group getIndenificationGroup(final Group groupLSAR) {
+    protected Group getIdentificationGroup(final Group groupLSAR) {
         return groupLSAR.findGroup("identification");
     }
 
@@ -137,6 +149,12 @@ public abstract class NisarSubReader {
         final Group groupProductType = groupLSAR.findGroup(productType);
         final Group groupSwaths = groupProductType.findGroup("swaths");
         return groupSwaths.findGroup("frequencyA");
+    }
+
+    protected Group getFrequencyBGroup(final Group groupLSAR) {
+        final Group groupProductType = groupLSAR.findGroup(productType);
+        final Group groupSwaths = groupProductType.findGroup("swaths");
+        return groupSwaths.findGroup("frequencyB");
     }
 
     protected Group[] getPolarizationGroups(final Group group) {
@@ -172,7 +190,11 @@ public abstract class NisarSubReader {
                 netcdfFile.getGlobalAttributes());
 
         for (Variable variable : netcdfFile.getVariables()) {
-            NetCDFUtils.addVariableMetadata(origMetadataRoot, variable, 5000);
+            try {
+                NetCDFUtils.addVariableMetadata(origMetadataRoot, variable, 5000);
+            } catch (Exception e) {
+                SystemUtils.LOG.warning("Error reading metadata " + e.getMessage());
+            }
         }
 
         addAbstractedMetadataHeader(product.getMetadataRoot());
@@ -185,8 +207,8 @@ public abstract class NisarSubReader {
 
         MetadataElement globals = origMeta.getElement("Global_Attributes");
         MetadataElement science = origMeta.getElement("science");
-        MetadataElement lsar = science.getElement("LSAR");
-        MetadataElement identification = lsar.getElement("identification");
+        MetadataElement sar = science.containsElement("LSAR") ? science.getElement("LSAR") : science.getElement("SSAR");
+        MetadataElement identification = sar.getElement("identification");
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, product.getName());
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, Missions.NISAR);
@@ -207,16 +229,22 @@ public abstract class NisarSubReader {
         }
 
         MetadataElement absoluteOrbitNumber = identification.getElement("absoluteOrbitNumber");
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT,
-                absoluteOrbitNumber.getAttributeInt("absoluteOrbitNumber"));
+        if(absoluteOrbitNumber != null) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT,
+                    absoluteOrbitNumber.getAttributeInt("absoluteOrbitNumber"));
+        }
 
         MetadataElement orbitPassDirection = identification.getElement("orbitPassDirection");
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PASS,
-                getOrbitPass(orbitPassDirection.getAttributeString("orbitPassDirection")));
+        if(orbitPassDirection != null) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PASS,
+                    getOrbitPass(orbitPassDirection.getAttributeString("orbitPassDirection")));
+        }
 
         MetadataElement plannedDataTakeId = identification.getElement("plannedDataTakeId");
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
-                plannedDataTakeId.getAttributeInt("plannedDataTakeId"));
+        if(plannedDataTakeId != null) {
+            //AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
+            //        plannedDataTakeId.getAttributeInt("plannedDataTakeId"));
+        }
 
         MetadataElement processingDataTime = identification.getElement("processingDataTime");
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME,
@@ -270,6 +298,9 @@ public abstract class NisarSubReader {
         final float[] lonTiePoints = new float[length];
 
         String epsgName = EPSGCodes.getInstance().getName(epsg);
+        if(epsgName == null) {
+            throw new IOException("EPSG "+epsg+" not found");
+        }
         String zone = epsgName.substring(epsgName.lastIndexOf("_") + 1);
         String row = "N";
         if (zone.endsWith("S")) {
@@ -300,6 +331,9 @@ public abstract class NisarSubReader {
     protected void addTiePointGridsToProduct() throws IOException {
 
         Group metadataGroup = netcdfFile.findGroup("/science/LSAR/" + productType + "/metadata");
+        if (metadataGroup == null) {
+            metadataGroup = netcdfFile.findGroup("/science/SSAR/" + productType + "/metadata");
+        }
         Group gridGroup = findGridGroup(metadataGroup);
         Variable incidenceAngleVar = gridGroup.findVariable("incidenceAngle");
         if (incidenceAngleVar != null) {
@@ -308,30 +342,43 @@ public abstract class NisarSubReader {
             product.addTiePointGrid(incidenceAngleGrid);
         }
 
-        Variable coordYVar = findVariable(gridGroup, "coordinateY", "yCoordinates");
-        Variable coordXVar = findVariable(gridGroup, "coordinateX", "xCoordinates");
-        if (coordYVar != null && coordXVar != null) {
-            String unit = coordYVar.findAttribute("units").toString();
+        try {
+            Variable coordYVar = findVariable(gridGroup, "coordinateY", "yCoordinates");
+            Variable coordXVar = findVariable(gridGroup, "coordinateX", "xCoordinates");
+            if (coordYVar != null && coordXVar != null) {
+                String unit = coordYVar.findAttribute("units").toString();
 
-            TiePointGrid latGrid, lonGrid;
-            if (unit.contains("meter") || unit.contains("\"m\"")) {
-                Variable epsgVar = gridGroup.findVariable("epsg");
-                Grids grids = createTiePointGridFromUTM(epsgVar.readScalarInt(), coordXVar, coordYVar);
-                latGrid = grids.latGrid;
-                lonGrid = grids.lonGrid;
-            } else {
-                latGrid = createTiePointGrid(coordYVar);
-                latGrid.setName(OperatorUtils.TPG_LATITUDE);
+                TiePointGrid latGrid, lonGrid;
+                if (unit.contains("meter") || unit.contains("\"m\"")) {
+                    Variable epsgVar = gridGroup.findVariable("epsg");
+                    int epsg = 0;
+                    if (epsgVar != null) {
+                        epsg = epsgVar.readScalarInt();
+                    } else {
+                        Variable projection = gridGroup.findVariable("projection");
+                        epsg = projection.findAttribute("epsg_code").getNumericValue().intValue();
+                        return;
+                    }
 
-                lonGrid = createTiePointGrid(coordXVar);
-                lonGrid.setName(OperatorUtils.TPG_LONGITUDE);
+                    Grids grids = createTiePointGridFromUTM(epsg, coordXVar, coordYVar);
+                    latGrid = grids.latGrid;
+                    lonGrid = grids.lonGrid;
+                } else {
+                    latGrid = createTiePointGrid(coordYVar);
+                    latGrid.setName(OperatorUtils.TPG_LATITUDE);
+
+                    lonGrid = createTiePointGrid(coordXVar);
+                    lonGrid.setName(OperatorUtils.TPG_LONGITUDE);
+                }
+
+                product.addTiePointGrid(latGrid);
+                product.addTiePointGrid(lonGrid);
+
+                final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
+                product.setSceneGeoCoding(tpGeoCoding);
             }
-
-            product.addTiePointGrid(latGrid);
-            product.addTiePointGrid(lonGrid);
-
-            final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
-            product.setSceneGeoCoding(tpGeoCoding);
+        } catch (Exception e) {
+            SystemUtils.LOG.warning(e.getMessage());
         }
     }
 
@@ -514,113 +561,97 @@ public abstract class NisarSubReader {
     /**
      * {@inheritDoc}
      */
-    //Todo remove synchronized
-    public synchronized void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
-                                                    int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
-                                                    int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
-                                                    ProgressMonitor pm) throws IOException {
+    public void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
+                                       int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
+                                       int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
+                                       ProgressMonitor pm) throws IOException {
 
-        final int sceneHeight = product.getSceneRasterHeight();
-        final int sceneWidth = product.getSceneRasterWidth();
+        final int sceneHeight = destBand.getRasterHeight();
+        final int sceneWidth = destBand.getRasterWidth();
 
         final Variable variable = bandMap.get(destBand);
 
-        destHeight = Math.min(destHeight, sceneHeight - sourceOffsetY);
-        sourceWidth = Math.min(sourceWidth, sceneWidth - sourceOffsetX);
-        destWidth = Math.min(destWidth, sceneWidth - destOffsetX);
+        // Clamp dimensions
+        int readHeight = Math.min(destHeight, sceneHeight - sourceOffsetY);
+        int readWidth = Math.min(sourceWidth, sceneWidth - sourceOffsetX);
+        
+        if (readHeight <= 0 || readWidth <= 0) {
+            return;
+        }
+
         final int[] origin = {sourceOffsetY, sourceOffsetX};
-        final int[] shape = {1, sourceWidth};
-        pm.beginTask("Reading util from band " + destBand.getName(), destHeight);
+        final int[] shape = {readHeight, readWidth};
+        
+        pm.beginTask("Reading util from band " + destBand.getName(), 1);
 
         try {
-            boolean isComplexData = variable.getDataType() == DataType.STRUCTURE;
-            String complexMemberName = "HH";//destBand.getName().contains("i_") ? "r" : "i";
-
-            for (int y = 0; y < destHeight; y++) {
-                origin[0] = sourceOffsetY + y;
-                final Array array;
-                synchronized (netcdfFile) {
-                    array = variable.read(origin, shape);
-                }
-
-                if (isComplexData) {
-                    ArrayStructure arrayStruct = (ArrayStructure) array;
-
-                    StructureData[] row = (StructureData[]) array.get1DJavaArray(STRUCTURE);
-                    final float[] tempArray = new float[row.length];
-                    for (int i = 0; i < row.length; ++i) {
-                        StructureMembers members = row[i].getStructureMembers();
-                        List<StructureMembers.Member> members1 = row[i].getMembers();
-
-                        tempArray[i] = row[i].convertScalarFloat(complexMemberName);
-                    }
-                    System.arraycopy(tempArray, 0, destBuffer.getElems(), y * destWidth, destWidth);
-
-//                    StructureData[] row = (StructureData[]) array.get1DJavaArray(STRUCTURE);
-//                    final float[] realPartBuffer = new float[row.length];
-//                    final float[] imaginaryPartBuffer = new float[row.length];
-//
-//                    find(arrayStruct, "real");
-//                    find(arrayStruct, "r");
-//                    find(arrayStruct, "i");
-//                    find(arrayStruct, "HH_r");
-//                    find(arrayStruct, "HH_i");
-//                    find(arrayStruct, "HH");
-//
-//                    ByteBuffer bb =  arrayStruct.getDataAsByteBuffer();
-//                    for (int i = 0; i < row.length; ++i) {
-//                        realPartBuffer[i] = bb.getFloat(i * 8);     // assuming 4 bytes real + 4 bytes imag
-//                        imaginaryPartBuffer[i] = bb.getFloat(i * 8 + 4);
-//                    }
-
-//                    for (int i = 0; i < row.length; ++i) {
-//                        StructureMembers structmembers = row[i].getStructureMembers();
-//
-//                        List<StructureMembers.Member> members = row[i].getMembers();
-//                        for (StructureMembers.Member member : members) {
-//                            System.out.println("Member name: " + member.getName());
-//                        }
-//
-//                        read(row[i], "real");
-//                        read(row[i], "r");
-//                        read(row[i], "i");
-//                        read(row[i], "HH_r");
-//                        read(row[i], "HH_i");
-//                        read(row[i], "HH");
-//
-//
-//                        // Get the data for the real and imaginary parts
-//                        double realValue = row[i].convertScalarDouble("r");
-//                        double imaginaryValue = row[i].convertScalarDouble("i");
-//
-//                        realPartBuffer[i] = (float) realValue;
-//                        imaginaryPartBuffer[i] = (float) imaginaryValue;
-//
-//                        // If your ProductData can handle complex numbers directly,
-//                        // you might want to store them as such instead of separate real/imaginary arrays.
-//                        // For example, if destBuffer is of type ComplexDouble[], you would do:
-//                        // ((ComplexDouble[]) destBuffer.getElems())[y * destWidth + i] = new ComplexDouble(realValue, imaginaryValue);
-//                    }
-
-                    // Assuming your destBuffer is designed to hold interleaved real and imaginary values
-                    // (e.g., [real1, imag1, real2, imag2, ...])
-//                    for (int i = 0; i < row.length; i++) {
-//                        destBuffer.setElemFloatAt(y * destWidth * 2 + i * 2, realPartBuffer[i]);
-//                        destBuffer.setElemFloatAt(y * destWidth * 2 + i * 2 + 1, imaginaryPartBuffer[i]);
-//                    }
-
-                } else {
-                    float[] tempArray = (float[]) array.get1DJavaArray(Float.TYPE);
-                    System.arraycopy(tempArray, 0, destBuffer.getElems(), y * destWidth, destWidth);
-                }
-
-                pm.worked(1);
+            final Array array;
+            synchronized (netcdfFile) {
+                array = variable.read(origin, shape);
             }
+
+            boolean isComplexData = variable.getDataType() == DataType.STRUCTURE;
+
+            if (isComplexData) {
+                ArrayStructure arrayStruct = (ArrayStructure) array;
+                StructureMembers members = arrayStruct.getStructureMembers();
+                String realMemberName = null;
+                String imagMemberName = null;
+                
+                for (StructureMembers.Member m : members.getMembers()) {
+                    String name = m.getName().toLowerCase();
+                    if (name.equals("r") || name.equals("real") || name.endsWith("_r")) {
+                        realMemberName = m.getName();
+                    } else if (name.equals("i") || name.equals("imag") || name.equals("imaginary") || name.endsWith("_i")) {
+                        imagMemberName = m.getName();
+                    }
+                }
+                
+                String memberToRead = null;
+                if (destBand.getUnit() != null && destBand.getUnit().equals(Unit.IMAGINARY)) {
+                    memberToRead = imagMemberName;
+                } else if (destBand.getName().startsWith("q_")) {
+                    memberToRead = imagMemberName;
+                } else {
+                    memberToRead = realMemberName;
+                }
+                
+                if (memberToRead == null) {
+                     if (!members.getMembers().isEmpty()) {
+                         memberToRead = members.getMembers().get(0).getName();
+                     }
+                }
+
+                StructureData[] row = (StructureData[]) array.get1DJavaArray(STRUCTURE);
+                final float[] tempArray = new float[row.length];
+                for (int i = 0; i < row.length; ++i) {
+                    tempArray[i] = row[i].convertScalarFloat(memberToRead);
+                }
+                
+                if (readWidth == destWidth) {
+                     System.arraycopy(tempArray, 0, destBuffer.getElems(), 0, tempArray.length);
+                } else {
+                    for (int y = 0; y < readHeight; y++) {
+                        System.arraycopy(tempArray, y * readWidth, destBuffer.getElems(), y * destWidth, readWidth);
+                    }
+                }
+
+            } else {
+                float[] tempArray = (float[]) array.get1DJavaArray(Float.TYPE);
+                
+                if (readWidth == destWidth) {
+                    System.arraycopy(tempArray, 0, destBuffer.getElems(), 0, tempArray.length);
+                } else {
+                    for (int y = 0; y < readHeight; y++) {
+                        System.arraycopy(tempArray, y * readWidth, destBuffer.getElems(), y * destWidth, readWidth);
+                    }
+                }
+            }
+
+            pm.worked(1);
         } catch (Exception e) {
-            //final IOException ioException = new IOException(e);
-            //ioException.initCause(e);
-            //throw ioException;
             System.out.println(e.getMessage());
+            throw new IOException(e);
         } finally {
             pm.done();
         }

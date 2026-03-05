@@ -36,7 +36,7 @@ public class NisarSMEProductReader extends NisarSubReader {
     }
 
     @Override
-    protected Group getLSARGroup() {
+    protected Group getSARGroup() {
         return this.netcdfFile.getRootGroup();
     }
 
@@ -61,8 +61,8 @@ public class NisarSMEProductReader extends NisarSubReader {
     @Override
     protected void addBandsToProduct() {
 
-        final Group groupLSAR = getLSARGroup();
-        final Group groupFrequencyA = getFrequencyAGroup(groupLSAR);
+        final Group groupSAR = getSARGroup();
+        final Group groupFrequencyA = getFrequencyAGroup(groupSAR);
 
         final Variable Waterbody_fraction = groupFrequencyA.findVariable("Waterbody_fraction");
         final Variable landcover = groupFrequencyA.findVariable("Landcover");

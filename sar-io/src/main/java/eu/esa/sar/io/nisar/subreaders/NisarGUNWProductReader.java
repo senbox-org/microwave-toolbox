@@ -36,17 +36,25 @@ public class NisarGUNWProductReader extends NisarSubReader {
     }
 
     @Override
-    protected Variable[] getRasterVariables(final Group groupFrequencyA) {
+    protected Group getFrequencyBGroup(final Group groupLSAR) {
+        final Group groupProductType = groupLSAR.findGroup(productType);
+        final Group groupGrids = groupProductType.findGroup("grids");
+        return groupGrids.findGroup("frequencyB");
+    }
+
+    @Override
+    protected Variable[] getRasterVariables(final Group groupFrequency) {
         List<Variable> rasterVariables = new ArrayList<>();
-        final Group groupUnwInterferogram = groupFrequencyA.findGroup("unwrappedInterferogram");
-        final Group[] polGroups = getPolarizationGroups(groupUnwInterferogram);
+        final Group groupUnwInterferogram = groupFrequency.findGroup("unwrappedInterferogram");
+        
+        if (groupUnwInterferogram != null) {
+            for (Group polGroup : groupUnwInterferogram.getGroups()) {
+                final Variable coh = polGroup.findVariable("coherenceMagnitude");
+                final Variable phase = polGroup.findVariable("unwrappedPhase");
 
-        for (Group polGroup : polGroups) {
-            final Variable coh = polGroup.findVariable("coherenceMagnitude");
-            final Variable phase = polGroup.findVariable("unwrappedPhase");
-
-            rasterVariables.add(coh);
-            rasterVariables.add(phase);
+                if (coh != null) rasterVariables.add(coh);
+                if (phase != null) rasterVariables.add(phase);
+            }
         }
 
         return rasterVariables.toArray(new Variable[0]);
@@ -54,23 +62,46 @@ public class NisarGUNWProductReader extends NisarSubReader {
 
     @Override
     protected void addBandsToProduct() {
-
-        final Group groupLSAR = getLSARGroup();
-        final Group groupFrequencyA = getFrequencyAGroup(groupLSAR);
-
-        final Group groupInterferogram = groupFrequencyA.findGroup("unwrappedInterferogram");
-        Group[] polGroups = getPolarizationGroups(groupInterferogram);
-        for (Group polGroup : polGroups) {
+        final Group groupSAR = getSARGroup();
+        
+        Group groupFreqA = getFrequencyAGroup(groupSAR);
+        if (groupFreqA != null) {
+            addBandsForFrequency(groupFreqA, "");
+        }
+        
+        Group groupFreqB = getFrequencyBGroup(groupSAR);
+        if (groupFreqB != null) {
+            addBandsForFrequency(groupFreqB, "_S");
+        }
+    }
+    
+    private void addBandsForFrequency(Group groupFrequency, String suffix) {
+        final Group groupInterferogram = groupFrequency.findGroup("unwrappedInterferogram");
+        if (groupInterferogram == null) return;
+        
+        for (Group polGroup : groupInterferogram.getGroups()) {
             String polStr = polGroup.getShortName();
 
             final Variable coherenceMagnitude = polGroup.findVariable("coherenceMagnitude");
-            final int rasterHeight = coherenceMagnitude.getDimension(0).getLength();
-            final int rasterWidth = coherenceMagnitude.getDimension(1).getLength();
-
-            createBand("coherenceMagnitude" + "_" + polStr, rasterWidth, rasterHeight, Unit.COHERENCE, coherenceMagnitude);
+            if (coherenceMagnitude != null) {
+                final int rasterHeight = coherenceMagnitude.getDimension(0).getLength();
+                final int rasterWidth = coherenceMagnitude.getDimension(1).getLength();
+                createBand("coherenceMagnitude" + "_" + polStr + suffix, rasterWidth, rasterHeight, Unit.COHERENCE, coherenceMagnitude);
+            }
 
             final Variable unwrappedPhase = polGroup.findVariable("unwrappedPhase");
-            createBand("unwrappedPhase" + "_" + polStr, rasterWidth, rasterHeight, Unit.PHASE, unwrappedPhase);
+            if (unwrappedPhase != null) {
+                final int rasterHeight = unwrappedPhase.getDimension(0).getLength();
+                final int rasterWidth = unwrappedPhase.getDimension(1).getLength();
+                createBand("unwrappedPhase" + "_" + polStr + suffix, rasterWidth, rasterHeight, Unit.PHASE, unwrappedPhase);
+            }
+            
+            final Variable connectedComponents = polGroup.findVariable("connectedComponents");
+            if (connectedComponents != null) {
+                final int rasterHeight = connectedComponents.getDimension(0).getLength();
+                final int rasterWidth = connectedComponents.getDimension(1).getLength();
+                createBand("connectedComponents" + "_" + polStr + suffix, rasterWidth, rasterHeight, Unit.AMPLITUDE, connectedComponents);
+            }
         }
     }
 }

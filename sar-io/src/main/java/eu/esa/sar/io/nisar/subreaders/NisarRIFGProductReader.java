@@ -15,15 +15,12 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
-import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class NisarRIFGProductReader extends NisarSubReader {
 
@@ -32,70 +29,80 @@ public class NisarRIFGProductReader extends NisarSubReader {
     }
 
     @Override
-    protected Variable[] getRasterVariables(final Group groupFrequencyA) {
+    protected Variable[] getRasterVariables(final Group groupFrequency) {
         List<Variable> rasterVariables = new ArrayList<>();
-        final Group groupInterferogram = groupFrequencyA.findGroup("interferogram");
-        final Group[] polGroups = getPolarizationGroups(groupInterferogram);
-
-        for (Group polGroup : polGroups) {
-            final Variable coh = polGroup.findVariable("coherenceMagnitude");
-
-            rasterVariables.add(coh);
+        final Group groupInterferogram = groupFrequency.findGroup("interferogram");
+        
+        if (groupInterferogram != null) {
+            for (Group polGroup : groupInterferogram.getGroups()) {
+                final Variable coh = polGroup.findVariable("coherenceMagnitude");
+                if (coh != null) {
+                    rasterVariables.add(coh);
+                }
+            }
         }
-
 
         return rasterVariables.toArray(new Variable[0]);
     }
 
     @Override
     protected void addBandsToProduct() {
-
-        int cnt = 1;
-        Map<String, Variable> variables = new HashMap<>();
-        final Group groupScience = this.netcdfFile.getRootGroup().findGroup("science");
-        final Group groupLSAR = groupScience.findGroup("LSAR");
-        final Group groupRIFG = groupLSAR.findGroup("RIFG");
-        final Group groupSwaths = groupRIFG.findGroup("swaths");
-        final Group groupFrequencyA = groupSwaths.findGroup("frequencyA");
-        final Group groupInterferogram = groupFrequencyA.findGroup("interferogram");
-        final Group groupPixelOffsets = groupFrequencyA.findGroup("pixelOffsets");
-        final Group groupInterferogramHH = groupInterferogram.findGroup("HH");
-        final Group groupPixelOffsetsHH = groupPixelOffsets.findGroup("HH");
-
-        final Variable coherenceMagnitude = groupInterferogramHH.findVariable("coherenceMagnitude");
-        final Variable wrappedInterferogram = groupInterferogramHH.findVariable("wrappedInterferogram");
-        variables.put("coherenceMagnitude", coherenceMagnitude);
-        variables.put("wrappedInterferogram", wrappedInterferogram);
-        final int rasterHeight1 = coherenceMagnitude.getDimension(0).getLength();
-        final int rasterWidth1 = coherenceMagnitude.getDimension(1).getLength();
-
-        final Variable alongTrackOffset = groupPixelOffsetsHH.findVariable("alongTrackOffset");
-        final Variable correlationSurfacePeak = groupPixelOffsetsHH.findVariable("correlationSurfacePeak");
-        final Variable slantRangeOffset = groupPixelOffsetsHH.findVariable("slantRangeOffset");
-        variables.put("alongTrackOffset", alongTrackOffset);
-        variables.put("correlationSurfacePeak", correlationSurfacePeak);
-        variables.put("slantRangeOffset", slantRangeOffset);
-        final int rasterHeight2 = alongTrackOffset.getDimension(0).getLength();
-        final int rasterWidth2 = alongTrackOffset.getDimension(1).getLength();
-
-        String polStr = "HH";
-
-        try {
-            for (String key : variables.keySet()) {
-                final Variable var = variables.get(key);
-                String unit = var.getUnitsString();
-                if (key.equals("wrappedInterferogram")) {
-                    createBand("i_ifg_" + polStr, rasterWidth1, rasterHeight1, Unit.REAL, var);
-                    createBand("q_ifg_" + polStr, rasterWidth1, rasterHeight1, Unit.IMAGINARY, var);
-                } else if (key.equals("coherenceMagnitude")) {
-                    createBand(key + "_" + polStr, rasterWidth1, rasterHeight1, Unit.COHERENCE, var);
-                } else {
-                    createBand(key + "_" + polStr, rasterWidth2, rasterHeight2, unit, var);
+        final Group groupSAR = getSARGroup();
+        
+        Group groupFreqA = getFrequencyAGroup(groupSAR);
+        if (groupFreqA != null) {
+            addBandsForFrequency(groupFreqA, "");
+        }
+        
+        Group groupFreqB = getFrequencyBGroup(groupSAR);
+        if (groupFreqB != null) {
+            addBandsForFrequency(groupFreqB, "_S");
+        }
+    }
+    
+    private void addBandsForFrequency(Group groupFrequency, String suffix) {
+        final Group groupInterferogram = groupFrequency.findGroup("interferogram");
+        final Group groupPixelOffsets = groupFrequency.findGroup("pixelOffsets");
+        
+        if (groupInterferogram != null) {
+            for (Group polGroup : groupInterferogram.getGroups()) {
+                String polStr = polGroup.getShortName();
+                
+                Variable coherenceMagnitude = polGroup.findVariable("coherenceMagnitude");
+                if (coherenceMagnitude != null) {
+                    int h = coherenceMagnitude.getDimension(0).getLength();
+                    int w = coherenceMagnitude.getDimension(1).getLength();
+                    createBand("coherenceMagnitude_" + polStr + suffix, w, h, Unit.COHERENCE, coherenceMagnitude);
+                }
+                
+                Variable wrappedInterferogram = polGroup.findVariable("wrappedInterferogram");
+                if (wrappedInterferogram != null) {
+                    int h = wrappedInterferogram.getDimension(0).getLength();
+                    int w = wrappedInterferogram.getDimension(1).getLength();
+                    createBand("i_ifg_" + polStr + suffix, w, h, Unit.REAL, wrappedInterferogram);
+                    createBand("q_ifg_" + polStr + suffix, w, h, Unit.IMAGINARY, wrappedInterferogram);
                 }
             }
-
-        } catch (Exception e) {
-            SystemUtils.LOG.severe(e.getMessage());
+        }
+        
+        if (groupPixelOffsets != null) {
+            for (Group polGroup : groupPixelOffsets.getGroups()) {
+                String polStr = polGroup.getShortName();
+                
+                addOffsetBand(polGroup, "alongTrackOffset", polStr, suffix);
+                addOffsetBand(polGroup, "slantRangeOffset", polStr, suffix);
+                addOffsetBand(polGroup, "correlationSurfacePeak", polStr, suffix);
+            }
+        }
+    }
+    
+    private void addOffsetBand(Group group, String varName, String polStr, String suffix) {
+        Variable var = group.findVariable(varName);
+        if (var != null) {
+            int h = var.getDimension(0).getLength();
+            int w = var.getDimension(1).getLength();
+            String unit = var.getUnitsString();
+            createBand(varName + "_" + polStr + suffix, w, h, unit, var);
         }
     }
 }

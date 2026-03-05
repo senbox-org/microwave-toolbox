@@ -15,8 +15,6 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
-import eu.esa.sar.io.netcdf.NcRasterDim;
-import eu.esa.sar.io.netcdf.NetCDFUtils;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.ProductData;
@@ -27,9 +25,7 @@ import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class NisarRSLCProductReader extends NisarSubReader {
 
@@ -38,22 +34,15 @@ public class NisarRSLCProductReader extends NisarSubReader {
     }
 
     @Override
-    protected Variable[] getRasterVariables(final Group groupFrequencyA) {
+    protected Variable[] getRasterVariables(final Group groupFrequency) {
         List<Variable> rasterVariables = new ArrayList<>();
-
-        final Variable hh = groupFrequencyA.findVariable("HH");
-        final Variable hv = groupFrequencyA.findVariable("HV");
-        final Variable vh = groupFrequencyA.findVariable("VH");
-        final Variable vv = groupFrequencyA.findVariable("VV");
-
-        if (hh != null) {
-            rasterVariables.add(hh);
-        } else if (hv != null) {
-            rasterVariables.add(hv);
-        } else if (vh != null) {
-            rasterVariables.add(vh);
-        } else if (vv != null) {
-            rasterVariables.add(vv);
+        String[] pols = {"HH", "HV", "VH", "VV"};
+        
+        for (String pol : pols) {
+            Variable v = groupFrequency.findVariable(pol);
+            if (v != null) {
+                rasterVariables.add(v);
+            }
         }
 
         return rasterVariables.toArray(new Variable[0]);
@@ -61,87 +50,55 @@ public class NisarRSLCProductReader extends NisarSubReader {
 
     @Override
     protected void addBandsToProduct() {
-
-        int cnt = 1;
-        Map<String, Variable> variables = new HashMap<>();
-        final Group groupScience = this.netcdfFile.getRootGroup().findGroup("science");
-        final Group groupLSAR = groupScience.findGroup("LSAR");
-        final Group groupRSLC = groupLSAR.findGroup("RSLC");
-        final Group groupSwaths = groupRSLC.findGroup("swaths");
-        final Group groupFrequencyA = groupSwaths.findGroup("frequencyA");
-
-        int width = 0, height = 0;
-        final Map<NcRasterDim, List<Variable>> groupFrequencyAVariableListMap = NetCDFUtils.getVariableListMap(groupFrequencyA);
-        final NcRasterDim rasterDim2 = NetCDFUtils.getBestRasterDim(groupFrequencyAVariableListMap);
-        final Variable[] rasterVariables2 = NetCDFUtils.getRasterVariables(groupFrequencyAVariableListMap, rasterDim2);
-
-        final Map<NcRasterDim, List<Variable>> variableListMap = NetCDFUtils.getVariableListMap(netcdfFile.getRootGroup());
-        final NcRasterDim rasterDim = NetCDFUtils.getBestRasterDim(variableListMap);
-        final Variable[] rasterVariables = NetCDFUtils.getRasterVariables(variableListMap, rasterDim);
-
-
-//        Variable variable = rasterVariables2[0];
-//        width = variable.getDimension(0).getLength();
-//        height = variable.getDimension(1).getLength();
-//        Band band = NetCDFUtils.createBand(variable, width, height, ProductData.TYPE_FLOAT32);
-//
-//        band.setUnit(Unit.REAL);
-//        band.setNoDataValue(0);
-//        band.setNoDataValueUsed(true);
-//        product.addBand(band);
-//        bandMap.put(band, variable);
-
-        final Variable hh = groupFrequencyA.findVariable("HH");
-        final Variable hv = groupFrequencyA.findVariable("HV");
-        final Variable vh = groupFrequencyA.findVariable("VH");
-        final Variable vv = groupFrequencyA.findVariable("VV");
-
-        String polStr = "";
-        Variable rasterVariable = null;
-        if (hh != null) {
-            rasterVariable = hh;
-            polStr = "HH";
-        } else if (hv != null) {
-            rasterVariable = hv;
-            polStr = "HV";
-        } else if (vh != null) {
-            rasterVariable = vh;
-            polStr = "VH";
-        } else if (vv != null) {
-            rasterVariable = vv;
-            polStr = "VV";
+        final Group groupSAR = getSARGroup();
+        
+        Group groupFreqA = getFrequencyAGroup(groupSAR);
+        if (groupFreqA != null) {
+            addBandsForFrequency(groupFreqA, "");
         }
-
-        variables.put(NisarXConstants.I_Q, rasterVariable);
-        height = rasterVariable.getDimension(0).getLength();
-        width = rasterVariable.getDimension(1).getLength();
-
-//        final NcAttributeMap attMap = NcAttributeMap.create(variables.get(NisarXConstants.I_Q));
-
-        final Variable coordinateX = groupFrequencyA.findVariable("coordinateX");
-
+        
+        Group groupFreqB = getFrequencyBGroup(groupSAR);
+        if (groupFreqB != null) {
+            addBandsForFrequency(groupFreqB, "_S");
+        }
+    }
+    
+    private void addBandsForFrequency(Group groupFrequency, String suffix) {
+        String[] pols = {"HH", "HV", "VH", "VV"};
+        
+        for (String pol : pols) {
+            Variable variable = groupFrequency.findVariable(pol);
+            if (variable != null) {
+                addBand(variable, pol, suffix);
+            }
+        }
+    }
+    
+    private void addBand(Variable variable, String polStr, String suffix) {
+        int height = variable.getDimension(0).getLength();
+        int width = variable.getDimension(1).getLength();
+        
         try {
-            final Band bandI = new Band("i_" + polStr, ProductData.TYPE_FLOAT32, width, height);
-            bandI.setDescription("I band of the focused SLC image (HH)");
+            final Band bandI = new Band("i_" + polStr + suffix, ProductData.TYPE_FLOAT32, width, height);
+            bandI.setDescription("I band of the focused SLC image (" + polStr + ")");
             bandI.setUnit(Unit.REAL);
             bandI.setNoDataValue(0);
             bandI.setNoDataValueUsed(true);
             product.addBand(bandI);
-            bandMap.put(bandI, variables.get(NisarXConstants.I_Q));
+            bandMap.put(bandI, variable);
 
-            final Band bandQ = new Band("q_" + polStr, ProductData.TYPE_FLOAT32, width, height);
-            bandI.setDescription("Q band of the focused SLC image (HH)");
+            final Band bandQ = new Band("q_" + polStr + suffix, ProductData.TYPE_FLOAT32, width, height);
+            bandQ.setDescription("Q band of the focused SLC image (" + polStr + ")");
             bandQ.setUnit(Unit.IMAGINARY);
             bandQ.setNoDataValue(0);
             bandQ.setNoDataValueUsed(true);
             product.addBand(bandQ);
-            bandMap.put(bandQ, variables.get(NisarXConstants.I_Q));
+            bandMap.put(bandQ, variable);
 
-            ReaderUtils.createVirtualIntensityBand(product, bandI, bandQ, polStr);
+            ReaderUtils.createVirtualIntensityBand(product, bandI, bandQ, polStr + suffix);
 
         } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
-
         }
     }
 }
