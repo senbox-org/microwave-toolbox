@@ -282,6 +282,16 @@ public abstract class NisarSubReader {
         product.setEndTime(endTime);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, endTime);
 
+        MetadataElement productTypeElem = sar.getElement(productType);
+        if(productTypeElem != null) {
+            MetadataElement metadataElem = productTypeElem.getElement("metadata");
+            MetadataElement processingInformation = metadataElem.getElement("processingInformation");
+            MetadataElement inputs = processingInformation.getElement("inputs");
+
+            // remove troublesome element
+            inputs.removeElement(inputs.getElement("demFiles"));
+        }
+
     }
 
     private TiePointGrid createTiePointGrid(final Variable var) throws IOException {
