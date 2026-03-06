@@ -136,7 +136,7 @@ public abstract class NisarSubReader {
             return product;
         } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
-            return null;
+            throw new IOException(e);
         }
     }
 

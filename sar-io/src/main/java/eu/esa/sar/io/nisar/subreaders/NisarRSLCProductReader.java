@@ -53,10 +53,10 @@ public class NisarRSLCProductReader extends NisarSubReader {
             Variable variable = groupFrequency.findVariable(pol);
             if (variable != null) {
 
-                Band i = newBand(variable, "i_" + pol, "real", Unit.REAL, 0);
-                Band q = newBand(variable, "q_" + pol, "imag", Unit.IMAGINARY, 0);
-                ReaderUtils.createVirtualIntensityBand(product, i, q, pol);
-                ReaderUtils.createVirtualPhaseBand(product, i, q, pol);
+                Band i = newBand(variable, "i_" + pol+suffix, "real", Unit.REAL, 0);
+                Band q = newBand(variable, "q_" + pol+suffix, "imag", Unit.IMAGINARY, 0);
+                ReaderUtils.createVirtualIntensityBand(product, i, q, pol+suffix);
+                ReaderUtils.createVirtualPhaseBand(product, i, q, pol+suffix);
             }
         }
     }

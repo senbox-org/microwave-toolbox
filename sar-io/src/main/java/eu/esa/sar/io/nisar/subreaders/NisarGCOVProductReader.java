@@ -31,6 +31,20 @@ public class NisarGCOVProductReader extends NisarSubReader {
     }
 
     @Override
+    protected Group getFrequencyAGroup(final Group groupLSAR) {
+        final Group groupProductType = groupLSAR.findGroup(productType);
+        final Group groupGrids = groupProductType.findGroup("grids");
+        return groupGrids.findGroup("frequencyA");
+    }
+
+    @Override
+    protected Group getFrequencyBGroup(final Group groupLSAR) {
+        final Group groupProductType = groupLSAR.findGroup(productType);
+        final Group groupGrids = groupProductType.findGroup("grids");
+        return groupGrids.findGroup("frequencyB");
+    }
+
+    @Override
     protected Variable[] getRasterVariables(final Group groupFrequency) {
         List<Variable> rasterVariables = new ArrayList<>();
         String[] pols = {"HH", "HV", "VH", "VV", "HHHH", "HVHV", "VHVH", "VVVV", "HHHV", "HHVH", "HHVV", "HVVH", "HVVV", "VHVV"};
@@ -64,12 +78,6 @@ public class NisarGCOVProductReader extends NisarSubReader {
         try {
             final Band band = new Band(bandName, ProductData.TYPE_FLOAT32, width, height);
             band.setDescription("Band " + bandName);
-            // band.setUnit("CFloat16"); // Assuming complex float? Or just float?
-            // GCOV variables are usually complex for cross-terms and real for auto-terms?
-            // Or maybe they are all complex?
-            // The previous code had "CFloat16" and "i_q" prefix.
-            // Let's assume they are handled by readBandRasterDataImpl which handles complex structures.
-            
             band.setNoDataValue(0);
             band.setNoDataValueUsed(true);
             product.addBand(band);
