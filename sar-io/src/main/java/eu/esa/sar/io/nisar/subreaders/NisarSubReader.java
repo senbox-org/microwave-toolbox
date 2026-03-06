@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -27,9 +27,9 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.StxFactory;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
-import org.esa.snap.core.util.StopWatch;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.geotiff.EPSGCodes;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -42,6 +42,7 @@ import ucar.ma2.DataType;
 import ucar.ma2.InvalidRangeException;
 import ucar.ma2.Range;
 import ucar.ma2.StructureMembers;
+import ucar.nc2.Attribute;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
@@ -188,7 +189,21 @@ public abstract class NisarSubReader {
         return description;
     }
 
-    protected abstract void addBandsToProduct();
+    protected void addBandsToProduct() {
+        final Group groupSAR = getSARGroup();
+
+        Group groupFreqA = getFrequencyAGroup(groupSAR);
+        if (groupFreqA != null) {
+            addBandsForFrequency(groupFreqA, "");
+        }
+
+        Group groupFreqB = getFrequencyBGroup(groupSAR);
+        if (groupFreqB != null) {
+            addBandsForFrequency(groupFreqB, "_S");
+        }
+    }
+
+    protected abstract void addBandsForFrequency(Group groupFrequency, String suffix);
 
     protected void addMetadataToProduct() throws Exception {
 
@@ -393,7 +408,7 @@ public abstract class NisarSubReader {
         return pass.toUpperCase().contains("ASC") ? "ASCENDING" : "DESCENDING";
     }
 
-    protected void createBand(final String bandName, final int width, final int height, final String unit, final Variable var) {
+    protected Band createBand(final String bandName, final int width, final int height, final String unit, final Variable var) {
         final Band band = new Band(bandName, ProductData.TYPE_FLOAT32, width, height);
         band.setDescription(var.getDescription());
         band.setUnit(unit);
@@ -401,6 +416,34 @@ public abstract class NisarSubReader {
         band.setNoDataValueUsed(true);
         product.addBand(band);
         bandMap.put(band, var);
+
+        return band;
+    }
+
+    protected Band createBand(Group polGroup, String variableName, String bandName, String bandUnit, float nodatavalue) {
+        final Variable var = polGroup.findVariable(variableName);
+        if (var != null) {
+            int rasterHeight = var.getDimension(0).getLength();
+            int rasterWidth = var.getDimension(1).getLength();
+            Band band = createBand(bandName, rasterWidth, rasterHeight, bandUnit, var);
+            band.setNoDataValue(nodatavalue);
+            band.setNoDataValueUsed(true);
+
+            Attribute minAt = var.attributes().findAttribute("min_value");
+            Attribute maxAt = var.attributes().findAttribute("max_value");
+            if (minAt != null && maxAt != null) {
+                try {
+                    double min = minAt.getNumericValue().doubleValue();
+                    double max = maxAt.getNumericValue().doubleValue();
+                    band.setStx(new StxFactory().withMinimum(min).withMaximum(max)
+                            .withIntHistogram(false).withHistogramBins(new int[512]).create());
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+            return band;
+        }
+        return null;
     }
 
     private Variable findVariable(Group group, String... names) {

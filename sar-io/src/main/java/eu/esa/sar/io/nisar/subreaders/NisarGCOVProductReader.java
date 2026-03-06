@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
-import eu.esa.sar.io.nisar.util.NisarXConstants;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.SystemUtils;
@@ -47,21 +46,7 @@ public class NisarGCOVProductReader extends NisarSubReader {
     }
 
     @Override
-    protected void addBandsToProduct() {
-        final Group groupSAR = getSARGroup();
-        
-        Group groupFreqA = getFrequencyAGroup(groupSAR);
-        if (groupFreqA != null) {
-            addBandsForFrequency(groupFreqA, "");
-        }
-        
-        Group groupFreqB = getFrequencyBGroup(groupSAR);
-        if (groupFreqB != null) {
-            addBandsForFrequency(groupFreqB, "_S");
-        }
-    }
-    
-    private void addBandsForFrequency(Group groupFrequency, String suffix) {
+    protected void addBandsForFrequency(Group groupFrequency, String suffix) {
         String[] pols = {"HH", "HV", "VH", "VV", "HHHH", "HVHV", "VHVH", "VVVV", "HHHV", "HHVH", "HHVV", "HVVH", "HVVV", "VHVV"};
         
         for (String pol : pols) {

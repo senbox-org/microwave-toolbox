@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -49,21 +49,7 @@ public class NisarRSLCProductReader extends NisarSubReader {
     }
 
     @Override
-    protected void addBandsToProduct() {
-        final Group groupSAR = getSARGroup();
-        
-        Group groupFreqA = getFrequencyAGroup(groupSAR);
-        if (groupFreqA != null) {
-            addBandsForFrequency(groupFreqA, "");
-        }
-        
-        Group groupFreqB = getFrequencyBGroup(groupSAR);
-        if (groupFreqB != null) {
-            addBandsForFrequency(groupFreqB, "_S");
-        }
-    }
-    
-    private void addBandsForFrequency(Group groupFrequency, String suffix) {
+    protected void addBandsForFrequency(Group groupFrequency, String suffix) {
         for (String pol : pols) {
             Variable variable = groupFrequency.findVariable(pol);
             if (variable != null) {

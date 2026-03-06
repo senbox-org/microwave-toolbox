@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -15,9 +15,7 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
-import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.ProductData;
-import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.engine_utilities.datamodel.Unit;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
@@ -54,68 +52,41 @@ public class NisarROFFProductReader extends NisarSubReader {
     }
 
     @Override
-    protected void addBandsToProduct() {
-        final Group groupSAR = getSARGroup();
-        
-        Group groupFreqA = getFrequencyAGroup(groupSAR);
-        if (groupFreqA != null) {
-            addBandsForFrequency(groupFreqA, "");
-        }
-        
-        Group groupFreqB = getFrequencyBGroup(groupSAR);
-        if (groupFreqB != null) {
-            addBandsForFrequency(groupFreqB, "_S");
-        }
-    }
-    
-    private void addBandsForFrequency(Group groupFrequency, String suffix) {
+    protected void addBandsForFrequency(Group groupFrequency, String suffix) {
         final Group groupPixelOffsets = groupFrequency.findGroup("pixelOffsets");
-        if (groupPixelOffsets == null) return;
-        
-        for (Group polGroup : groupPixelOffsets.getGroups()) {
-            String polStr = polGroup.getShortName();
-            
-            // Check for layers
-            for (Group layerGroup : polGroup.getGroups()) {
-                String layerName = layerGroup.getShortName();
-                if (layerName.startsWith("layer")) {
-                    String prefix = layerName.replace("layer", "L");
-                    addLayerBands(layerGroup, prefix, polStr, suffix);
+        if (groupPixelOffsets != null) {
+
+            for (Group polGroup : groupPixelOffsets.getGroups()) {
+                String pol = "_" + polGroup.getShortName() + suffix;
+
+                // Check for layers
+                for (Group layerGroup : polGroup.getGroups()) {
+                    String layerName = layerGroup.getShortName();
+                    if (layerName.startsWith("layer")) {
+                        String prefix = layerName.replace("layer", "L");
+                        addLayerBands(layerGroup, prefix, pol);
+                    }
                 }
+
+                // Check for variables directly in polGroup (if any)
+                addLayerBands(polGroup, "", pol);
             }
-            
-            // Check for variables directly in polGroup (if any)
-            addLayerBands(polGroup, "", polStr, suffix);
         }
     }
     
-    private void addLayerBands(Group group, String prefix, String polStr, String suffix) {
-        String[] varNames = {
-            "alongTrackOffset", "alongTrackOffsetVariance", 
-            "correlationSurfacePeak", "crossOffsetVariance", 
-            "slantRangeOffset", "slantRangeOffsetVariance", "snr"
-        };
-        
-        for (String varName : varNames) {
-            Variable var = group.findVariable(varName);
-            if (var != null) {
-                int h = var.getDimension(0).getLength();
-                int w = var.getDimension(1).getLength();
-                
-                String bandName = (prefix.isEmpty() ? "" : prefix + "_") + varName + "_" + polStr + suffix;
-                
-                try {
-                    final Band band = new Band(bandName, ProductData.TYPE_FLOAT32, w, h);
-                    band.setDescription(var.getDescription());
-                    band.setUnit(var.getUnitsString());
-                    band.setNoDataValue(0);
-                    band.setNoDataValueUsed(true);
-                    product.addBand(band);
-                    bandMap.put(band, var);
-                } catch (Exception e) {
-                    SystemUtils.LOG.severe(e.getMessage());
-                }
-            }
-        }
+    private void addLayerBands(Group group, String prefix, String pol) {
+
+        newBand(group, "alongTrackOffset", prefix, pol, Unit.METERS, Float.NaN);
+        newBand(group, "alongTrackOffsetVariance", prefix, pol, Unit.METERS, Float.NaN);
+        newBand(group, "slantRangeOffset", prefix, pol, Unit.METERS, Float.NaN);
+        newBand(group, "slantRangeOffsetVariance", prefix, pol, Unit.METERS, Float.NaN);
+        newBand(group, "correlationSurfacePeak", prefix, pol, Unit.COHERENCE, Float.NaN);
+        newBand(group, "crossOffsetVariance", prefix, pol, Unit.AMPLITUDE, Float.NaN);
+        newBand(group, "snr", prefix, pol, Unit.AMPLITUDE, Float.NaN);
+    }
+
+    private void newBand(Group polGroup, String variableName, String prefix, String pol, String unit, float nodatavalue) {
+        String bandName = (prefix.isEmpty() ? "" : prefix + "_") + variableName + pol;
+        createBand(polGroup, variableName, bandName, unit, nodatavalue);
     }
 }

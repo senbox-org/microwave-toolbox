@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -15,7 +15,9 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
+import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
@@ -46,63 +48,31 @@ public class NisarRIFGProductReader extends NisarSubReader {
     }
 
     @Override
-    protected void addBandsToProduct() {
-        final Group groupSAR = getSARGroup();
-        
-        Group groupFreqA = getFrequencyAGroup(groupSAR);
-        if (groupFreqA != null) {
-            addBandsForFrequency(groupFreqA, "");
-        }
-        
-        Group groupFreqB = getFrequencyBGroup(groupSAR);
-        if (groupFreqB != null) {
-            addBandsForFrequency(groupFreqB, "_S");
-        }
-    }
-    
-    private void addBandsForFrequency(Group groupFrequency, String suffix) {
+    protected void addBandsForFrequency(Group groupFrequency, String suffix) {
         final Group groupInterferogram = groupFrequency.findGroup("interferogram");
         final Group groupPixelOffsets = groupFrequency.findGroup("pixelOffsets");
         
         if (groupInterferogram != null) {
             for (Group polGroup : groupInterferogram.getGroups()) {
-                String polStr = polGroup.getShortName();
-                
-                Variable coherenceMagnitude = polGroup.findVariable("coherenceMagnitude");
-                if (coherenceMagnitude != null) {
-                    int h = coherenceMagnitude.getDimension(0).getLength();
-                    int w = coherenceMagnitude.getDimension(1).getLength();
-                    createBand("coherenceMagnitude_" + polStr + suffix, w, h, Unit.COHERENCE, coherenceMagnitude);
-                }
-                
-                Variable wrappedInterferogram = polGroup.findVariable("wrappedInterferogram");
-                if (wrappedInterferogram != null) {
-                    int h = wrappedInterferogram.getDimension(0).getLength();
-                    int w = wrappedInterferogram.getDimension(1).getLength();
-                    createBand("i_ifg_" + polStr + suffix, w, h, Unit.REAL, wrappedInterferogram);
-                    createBand("q_ifg_" + polStr + suffix, w, h, Unit.IMAGINARY, wrappedInterferogram);
-                }
+                String pol = "_" + polGroup.getShortName() + suffix;
+
+                Band i = createBand(polGroup, "wrappedInterferogram", "i_ifg_" + pol, Unit.REAL, 0);
+                Band q = createBand(polGroup, "wrappedInterferogram", "q_ifg_" + pol, Unit.IMAGINARY, 0);
+                ReaderUtils.createVirtualIntensityBand(product, i, q, pol);
+                ReaderUtils.createVirtualPhaseBand(product, i, q, pol);
+
+                createBand(polGroup, "coherenceMagnitude", "coherenceMagnitude" + pol, Unit.COHERENCE, 0);
             }
         }
         
         if (groupPixelOffsets != null) {
             for (Group polGroup : groupPixelOffsets.getGroups()) {
-                String polStr = polGroup.getShortName();
-                
-                addOffsetBand(polGroup, "alongTrackOffset", polStr, suffix);
-                addOffsetBand(polGroup, "slantRangeOffset", polStr, suffix);
-                addOffsetBand(polGroup, "correlationSurfacePeak", polStr, suffix);
+                String pol = "_" + polGroup.getShortName() + suffix;
+                createBand(polGroup, "digitalElevationModel", "digitalElevationModel" + pol, Unit.METERS, Float.NaN);
+                createBand(polGroup, "alongTrackOffset", "alongTrackOffset" + pol, Unit.METERS, Float.NaN);
+                createBand(polGroup, "slantRangeOffset", "slantRangeOffset" + pol, Unit.METERS, Float.NaN);
+                createBand(polGroup, "correlationSurfacePeak", "correlationSurfacePeak" + pol, Unit.COHERENCE, Float.NaN);
             }
-        }
-    }
-    
-    private void addOffsetBand(Group group, String varName, String polStr, String suffix) {
-        Variable var = group.findVariable(varName);
-        if (var != null) {
-            int h = var.getDimension(0).getLength();
-            int w = var.getDimension(1).getLength();
-            String unit = var.getUnitsString();
-            createBand(varName + "_" + polStr + suffix, w, h, unit, var);
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -47,46 +47,31 @@ public class NisarRUNWProductReader extends NisarSubReader {
     }
 
     @Override
-    protected void addBandsToProduct() {
-        final Group groupSAR = getSARGroup();
-        
-        Group groupFreqA = getFrequencyAGroup(groupSAR);
-        if (groupFreqA != null) {
-            addBandsForFrequency(groupFreqA, "");
-        }
-        
-        Group groupFreqB = getFrequencyBGroup(groupSAR);
-        if (groupFreqB != null) {
-            addBandsForFrequency(groupFreqB, "_S");
-        }
-    }
-    
-    private void addBandsForFrequency(Group groupFrequency, String suffix) {
+    protected void addBandsForFrequency(Group groupFrequency, String suffix) {
         final Group groupInterferogram = groupFrequency.findGroup("interferogram");
-        if (groupInterferogram == null) return;
-        
-        for (Group polGroup : groupInterferogram.getGroups()) {
-            String polStr = polGroup.getShortName();
+        if (groupInterferogram != null) {
 
-            final Variable coherenceMagnitude = polGroup.findVariable("coherenceMagnitude");
-            if (coherenceMagnitude != null) {
-                final int rasterHeight = coherenceMagnitude.getDimension(0).getLength();
-                final int rasterWidth = coherenceMagnitude.getDimension(1).getLength();
-                createBand("coherenceMagnitude" + "_" + polStr + suffix, rasterWidth, rasterHeight, Unit.COHERENCE, coherenceMagnitude);
-            }
+            for (Group polGroup : groupInterferogram.getGroups()) {
+                String pol = "_" + polGroup.getShortName() + suffix;
 
-            final Variable unwrappedPhase = polGroup.findVariable("unwrappedPhase");
-            if (unwrappedPhase != null) {
-                final int rasterHeight = unwrappedPhase.getDimension(0).getLength();
-                final int rasterWidth = unwrappedPhase.getDimension(1).getLength();
-                createBand("unwrappedPhase" + "_" + polStr + suffix, rasterWidth, rasterHeight, Unit.PHASE, unwrappedPhase);
+                createBand(polGroup, "coherenceMagnitude", "coherenceMagnitude" + pol, Unit.COHERENCE, 0);
+                createBand(polGroup, "connectedComponents", "connectedComponents" + pol, Unit.AMPLITUDE, 255);
+                createBand(polGroup, "ionospherePhaseScreen", "ionospherePhaseScreen" + pol, Unit.PHASE, Float.NaN);
+                createBand(polGroup, "ionospherePhaseScreenUncertainty", "ionospherePhaseScreenUncertainty" + pol, Unit.PHASE, Float.NaN);
+                createBand(polGroup, "losDeformation", "losDeformation" + pol, Unit.METERS, Float.NaN);
+                createBand(polGroup, "unwrappedPhase", "unwrappedPhase" + pol, Unit.PHASE, Float.NaN);
             }
-            
-            final Variable connectedComponents = polGroup.findVariable("connectedComponents");
-            if (connectedComponents != null) {
-                final int rasterHeight = connectedComponents.getDimension(0).getLength();
-                final int rasterWidth = connectedComponents.getDimension(1).getLength();
-                createBand("connectedComponents" + "_" + polStr + suffix, rasterWidth, rasterHeight, Unit.AMPLITUDE, connectedComponents);
+        }
+
+        Group groupPixelOffsets = groupFrequency.findGroup("pixelOffsets");
+        if (groupPixelOffsets != null) {
+
+            for (Group polGroup : groupPixelOffsets.getGroups()) {
+                String pol = "_" + polGroup.getShortName() + suffix;
+                createBand(polGroup, "digitalElevationModel", "digitalElevationModel" + pol, Unit.METERS, Float.NaN);
+                createBand(polGroup, "alongTrackOffset", "alongTrackOffset" + pol, Unit.METERS, Float.NaN);
+                createBand(polGroup, "slantRangeOffset", "slantRangeOffset" + pol, Unit.METERS, Float.NaN);
+                createBand(polGroup, "correlationSurfacePeak", "correlationSurfacePeak" + pol, Unit.COHERENCE, Float.NaN);
             }
         }
     }

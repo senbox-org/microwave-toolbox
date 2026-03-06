@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -73,6 +73,11 @@ public class NisarSMEProductReader extends NisarSubReader {
         createBand("Waterbody_fraction", rasterWidth, rasterHeight, Unit.SOIL_MOISTURE, Waterbody_fraction);
 
         createBand("landcover", rasterWidth, rasterHeight, Unit.CLASS, landcover);
+    }
+
+    @Override
+    protected void addBandsForFrequency(Group groupFrequency, String suffix) {
+
     }
 
     @Override
