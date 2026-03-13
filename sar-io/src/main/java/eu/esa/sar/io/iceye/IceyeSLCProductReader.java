@@ -15,6 +15,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.dataio.netcdf.util.NetcdfFileOpener;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -185,7 +186,7 @@ public class IceyeSLCProductReader extends SARReader {
             final File inputFile = inputPath.toFile();
             initReader();
 
-            final NetcdfFile tempNetcdfFile = NetcdfFile.open(inputFile.getPath());
+            final NetcdfFile tempNetcdfFile = NetcdfFileOpener.open(inputFile);
             if (tempNetcdfFile == null) {
                 close();
                 throw new IllegalFileFormatException(inputFile.getName() +

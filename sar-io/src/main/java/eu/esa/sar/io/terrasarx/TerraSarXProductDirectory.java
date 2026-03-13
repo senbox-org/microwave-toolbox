@@ -17,7 +17,6 @@ package eu.esa.sar.io.terrasarx;
 
 import Jama.Matrix;
 import com.bc.ceres.core.ProgressMonitor;
-import eu.esa.sar.commons.io.FileImageInputStreamExtImpl;
 import eu.esa.sar.commons.io.ImageIOFile;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.io.XMLProductDirectory;
@@ -33,6 +32,7 @@ import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
 import org.esa.snap.core.image.ImageManager;
+import org.esa.snap.core.util.ImageUtils;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.math.MathUtils;
@@ -638,7 +638,7 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
     private static final GeoTiffProductReaderPlugIn geoTiffPlugIn = new GeoTiffProductReaderPlugIn();
     protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
         if (imgPath.toUpperCase().endsWith("COS")) {
-            final File file = new File(getBaseDir(), imgPath);
+            final File file = getBaseDir().toPath().resolve(imgPath).toFile();
 
             cosarFileList.add(file);
             setSLC(true);
@@ -1134,8 +1134,8 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
                 ReaderUtils.createVirtualIntensityBand(product, realBand, imaginaryBand, "");
 
                 try {
-                    cosarBandMap.put(realBand.getName(), FileImageInputStreamExtImpl.createInputStream(file));
-                    cosarBandMap.put(imaginaryBand.getName(), FileImageInputStreamExtImpl.createInputStream(file));
+                    cosarBandMap.put(realBand.getName(), ImageUtils.getImageInputStream(file));
+                    cosarBandMap.put(imaginaryBand.getName(), ImageUtils.getImageInputStream(file));
                 } catch (Exception e) {
                     //
                 }
