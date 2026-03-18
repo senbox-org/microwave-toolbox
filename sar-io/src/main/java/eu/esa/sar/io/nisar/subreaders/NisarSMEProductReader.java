@@ -59,13 +59,9 @@ public class NisarSMEProductReader extends NisarSubReader {
     }
 
     @Override
-    protected void addBandsToProduct() {
-
-        final Group groupSAR = getSARGroup();
-        final Group groupFrequencyA = getFrequencyAGroup(groupSAR);
-
-        final Variable Waterbody_fraction = groupFrequencyA.findVariable("Waterbody_fraction");
-        final Variable landcover = groupFrequencyA.findVariable("Landcover");
+    protected void addBandsForFrequency(Group groupFrequency, String suffix) {
+        final Variable Waterbody_fraction = groupFrequency.findVariable("Waterbody_fraction");
+        final Variable landcover = groupFrequency.findVariable("Landcover");
 
         final int rasterHeight = Waterbody_fraction.getDimension(0).getLength();
         final int rasterWidth = Waterbody_fraction.getDimension(1).getLength();
@@ -73,11 +69,6 @@ public class NisarSMEProductReader extends NisarSubReader {
         createBand("Waterbody_fraction", rasterWidth, rasterHeight, Unit.SOIL_MOISTURE, Waterbody_fraction);
 
         createBand("landcover", rasterWidth, rasterHeight, Unit.CLASS, landcover);
-    }
-
-    @Override
-    protected void addBandsForFrequency(Group groupFrequency, String suffix) {
-
     }
 
     @Override

@@ -78,7 +78,7 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L1_RIFG_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
+        validator.validateProduct();
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"correlationSurfacePeak_HH", "i_ifg_HH", "q_ifg_HH", "slantRangeOffset_HH", "coherenceMagnitude_HH", "alongTrackOffset_HH"});
     }
@@ -88,7 +88,7 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L1_ROFF_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
+        validator.validateProduct();
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"L1_alongTrackOffsetVariance_HH", "L2_alongTrackOffset_HH", "L1_slantRangeOffset_HH", "L1_slantRangeOffsetVariance_HH", "L2_snr_HH", "L3_slantRangeOffsetVariance_HH", "L2_crossOffsetVariance_HH", "L2_slantRangeOffset_HH", "L2_slantRangeOffsetVariance_HH", "L1_crossOffsetVariance_HH", "L2_alongTrackOffsetVariance_HH", "L1_correlationSurfacePeak_HH", "L1_alongTrackOffset_HH", "L1_snr_HH", "L3_alongTrackOffset_HH", "L3_alongTrackOffsetVariance_HH", "L3_snr_HH", "L2_correlationSurfacePeak_HH", "L3_correlationSurfacePeak_HH", "L3_crossOffsetVariance_HH", "L3_slantRangeOffset_HH"});
     }
@@ -99,7 +99,7 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L1_RUNW_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
+        validator.validateProduct();
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"i","q","Intensity"});
     }
@@ -110,8 +110,8 @@ public class TestNISARReader extends ReaderTest {
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
     }
 
     @Test
@@ -119,7 +119,7 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L2_GOFF_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
+        validator.validateProduct();
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"i","q","Intensity"});
     }
@@ -129,7 +129,7 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L2_GUNW_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
+        //validator.validateProduct();
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"i","q","Intensity"});
     }
@@ -139,7 +139,7 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L3_SME2_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
+        validator.validateProduct();
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"i","q","Intensity"});
     }
@@ -165,16 +165,4 @@ public class TestNISARReader extends ReaderTest {
         //validator.validateMetadata();
         //validator.validateBands(new String[] {"i","q","Intensity"});
     }
-
-
-    /**
-     * Open all files in a folder recursively
-     *
-     * @throws Exception anything
-     */
-//    @Test
-//    public void testOpenAll() throws Exception {
-//        TestProcessor testProcessor = SARTests.createTestProcessor();
-//        testProcessor.recurseReadFolder(this, rootPathNISAR, readerPlugIn, reader, null, exceptionExemptions);
-//    }
 }
