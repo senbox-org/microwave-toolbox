@@ -35,6 +35,20 @@ public class NisarGSLCProductReader extends NisarSubReader {
     }
 
     @Override
+    protected Group getFrequencyAGroup(final Group groupLSAR) {
+        final Group groupProductType = groupLSAR.findGroup(productType);
+        final Group groupGrids = groupProductType.findGroup("grids");
+        return groupGrids.findGroup("frequencyA");
+    }
+
+    @Override
+    protected Group getFrequencyBGroup(final Group groupLSAR) {
+        final Group groupProductType = groupLSAR.findGroup(productType);
+        final Group groupGrids = groupProductType.findGroup("grids");
+        return groupGrids.findGroup("frequencyB");
+    }
+
+    @Override
     protected Variable[] getRasterVariables(final Group groupFrequency) {
         List<Variable> rasterVariables = new ArrayList<>();
         for (String pol : pols) {
@@ -68,8 +82,10 @@ public class NisarGSLCProductReader extends NisarSubReader {
         band.setNoDataValue(nodatavalue);
         band.setNoDataValueUsed(true);
 
-        Attribute minAt = var.attributes().findAttribute("min_value_" + cpxType);
-        Attribute maxAt = var.attributes().findAttribute("max_value_" + cpxType);
+        Attribute minAt = var.attributes().findAttribute("min_" + cpxType + "_value");
+        Attribute maxAt = var.attributes().findAttribute("max_" + cpxType + "_value");
+        if (minAt == null) minAt = var.attributes().findAttribute("min_value_" + cpxType);
+        if (maxAt == null) maxAt = var.attributes().findAttribute("max_value_" + cpxType);
         if (minAt != null && maxAt != null) {
             try {
                 double min = minAt.getNumericValue().doubleValue();

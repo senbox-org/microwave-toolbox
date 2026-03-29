@@ -17,7 +17,9 @@ package eu.esa.sar.io.nisar.subreaders;
 
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.StxFactory;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.engine_utilities.datamodel.Unit;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
 
@@ -78,11 +80,17 @@ public class NisarGCOVProductReader extends NisarSubReader {
         try {
             final Band band = new Band(bandName, ProductData.TYPE_FLOAT32, width, height);
             band.setDescription("Band " + bandName);
+            band.setUnit(Unit.INTENSITY);
             band.setNoDataValue(0);
             band.setNoDataValueUsed(true);
             product.addBand(band);
             bandMap.put(band, variable);
-            
+            setStxFromAttributes(band, variable);
+            if (!band.isStxSet()) {
+                band.setStx(new StxFactory().withMinimum(0).withMaximum(1)
+                        .withIntHistogram(false).withHistogramBins(new int[512]).create());
+            }
+
         } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
         }

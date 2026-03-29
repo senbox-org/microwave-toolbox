@@ -79,8 +79,9 @@ public class TestNISARReader extends ReaderTest {
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"correlationSurfacePeak_HH", "i_ifg_HH", "q_ifg_HH", "slantRangeOffset_HH", "coherenceMagnitude_HH", "alongTrackOffset_HH"});
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"i_ifg_HH", "q_ifg_HH", "Intensity_ifg_HH", "Phase_HH", "coherenceMagnitude_HH", "alongTrackOffset_HH", "slantRangeOffset_HH", "correlationSurfacePeak_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -89,8 +90,9 @@ public class TestNISARReader extends ReaderTest {
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"L1_alongTrackOffsetVariance_HH", "L2_alongTrackOffset_HH", "L1_slantRangeOffset_HH", "L1_slantRangeOffsetVariance_HH", "L2_snr_HH", "L3_slantRangeOffsetVariance_HH", "L2_crossOffsetVariance_HH", "L2_slantRangeOffset_HH", "L2_slantRangeOffsetVariance_HH", "L1_crossOffsetVariance_HH", "L2_alongTrackOffsetVariance_HH", "L1_correlationSurfacePeak_HH", "L1_alongTrackOffset_HH", "L1_snr_HH", "L3_alongTrackOffset_HH", "L3_alongTrackOffsetVariance_HH", "L3_snr_HH", "L2_correlationSurfacePeak_HH", "L3_correlationSurfacePeak_HH", "L3_crossOffsetVariance_HH", "L3_slantRangeOffset_HH"});
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"L1_alongTrackOffsetVariance_HH", "L2_alongTrackOffset_HH", "L1_slantRangeOffset_HH", "L1_slantRangeOffsetVariance_HH", "L2_snr_HH", "L3_slantRangeOffsetVariance_HH", "L2_crossOffsetVariance_HH", "L2_slantRangeOffset_HH", "L2_slantRangeOffsetVariance_HH", "L1_crossOffsetVariance_HH", "L2_alongTrackOffsetVariance_HH", "L1_correlationSurfacePeak_HH", "L1_alongTrackOffset_HH", "L1_snr_HH", "L3_alongTrackOffset_HH", "L3_alongTrackOffsetVariance_HH", "L3_snr_HH", "L2_correlationSurfacePeak_HH", "L3_correlationSurfacePeak_HH", "L3_crossOffsetVariance_HH", "L3_slantRangeOffset_HH"});
+        validator.validateBandData();
     }
 
 
@@ -100,8 +102,10 @@ public class TestNISARReader extends ReaderTest {
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"coherenceMagnitude_HH", "connectedComponents_HH", "ionospherePhaseScreen_HH",
+                "ionospherePhaseScreenUncertainty_HH", "unwrappedPhase_HH", "alongTrackOffset_HH", "slantRangeOffset_HH", "correlationSurfacePeak_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -111,7 +115,8 @@ public class TestNISARReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH", "Phase_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -120,8 +125,11 @@ public class TestNISARReader extends ReaderTest {
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"L1_alongTrackOffset_HH", "L1_alongTrackOffsetVariance_HH", "L1_slantRangeOffset_HH", "L1_slantRangeOffsetVariance_HH", "L1_correlationSurfacePeak_HH", "L1_crossOffsetVariance_HH", "L1_snr_HH",
+                "L2_alongTrackOffset_HH", "L2_alongTrackOffsetVariance_HH", "L2_slantRangeOffset_HH", "L2_slantRangeOffsetVariance_HH", "L2_correlationSurfacePeak_HH", "L2_crossOffsetVariance_HH", "L2_snr_HH",
+                "L3_alongTrackOffset_HH", "L3_alongTrackOffsetVariance_HH", "L3_slantRangeOffset_HH", "L3_slantRangeOffsetVariance_HH", "L3_correlationSurfacePeak_HH", "L3_crossOffsetVariance_HH", "L3_snr_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -129,9 +137,10 @@ public class TestNISARReader extends ReaderTest {
         Product prod = testReader(input_L2_GUNW_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateProduct();
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"coherenceMagnitude_HH", "connectedComponents_HH", "ionospherePhaseScreen_HH", "ionospherePhaseScreenUncertainty_HH", "unwrappedPhase_HH", "wrappedInterferogram_HH", "alongTrackOffset_HH", "slantRangeOffset_HH", "correlationSurfacePeak_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -140,29 +149,51 @@ public class TestNISARReader extends ReaderTest {
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"Waterbody_fraction","landcover"});
+        validator.validateBandData();
+    }
+
+    File RSLC = new File("E:\\out\\NISAR_L1_PR_RSLC_009_162_A_024_4005_DHDH_A_20260108T101627_20260108T101702_X05009_N_F_J_001.h5");
+    File GCOV = new File("E:\\out\\NISAR_L2_PR_GCOV_009_162_A_024_4005_DHDH_A_20260108T101627_20260108T101702_X05009_N_F_J_001.h5");
+    File GSLC = new File("E:\\out\\NISAR_L2_PR_GSLC_009_162_A_023_4005_DHDH_A_20260108T101553_20260108T101628_X05009_N_F_J_001.h5");
+
+    @Test
+    public void testOpening_L1_RSLC_H52() throws Exception {
+        assumeTrue(RSLC + " not found", RSLC.exists());
+        Product prod = testReader(RSLC.toPath());
+
+        final ProductValidator validator = new ProductValidator(prod);
+        validator.validateProduct();
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH", "Phase_HH",
+                "i_HV", "q_HV", "Intensity_HV", "Phase_HV",
+                "i_HH_S","q_HH_S","Intensity_HH_S", "Phase_HH_S",
+                "i_HV_S", "q_HV_S", "Intensity_HV_S", "Phase_HV_S"});
+        validator.validateBandData();
     }
 
     @Test
-    @Ignore("unknown super block version=3")
-    public void testOpening_L2_GCOV_H5() throws Exception {
-        Product prod = testReader(input_L2_GCOV_H5.toPath());
+    public void testOpening_L2_GCOV_H52() throws Exception {
+        assumeTrue(GCOV + " not found", GCOV.exists());
+        Product prod = testReader(GCOV.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"Amplitude","Intensity"});
+        validator.validateProduct();
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"HHHH","HVHV","HHHH_S","HVHV_S"});
+        validator.validateBandData();
     }
 
     @Test
-    @Ignore("unknown super block version=3")
-    public void testOpening_L2_GSLC_H5() throws Exception {
-        Product prod = testReader(input_L2_GSLC_H5.toPath());
+    @Ignore("GSLC file is truncated")
+    public void testOpening_L2_GSLC_H52() throws Exception {
+        Product prod = testReader(GSLC.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
-        //validator.validateProduct();
-        //validator.validateMetadata();
-        //validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateProduct();
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 }

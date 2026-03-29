@@ -49,14 +49,15 @@ public class NisarRSLCProductReader extends NisarSubReader {
 
     @Override
     protected void addBandsForFrequency(Group groupFrequency, String suffix) {
-        for (String pol : pols) {
-            Variable variable = groupFrequency.findVariable(pol);
+        for (String polarization : pols) {
+            Variable variable = groupFrequency.findVariable(polarization);
             if (variable != null) {
+                String pol = '_'+polarization+suffix;
 
-                Band i = newBand(variable, "i_" + pol+suffix, "real", Unit.REAL, 0);
-                Band q = newBand(variable, "q_" + pol+suffix, "imag", Unit.IMAGINARY, 0);
-                ReaderUtils.createVirtualIntensityBand(product, i, q, pol+suffix);
-                ReaderUtils.createVirtualPhaseBand(product, i, q, pol+suffix);
+                Band i = newBand(variable, "i" + pol, "real", Unit.REAL, 0);
+                Band q = newBand(variable, "q" + pol, "imag", Unit.IMAGINARY, 0);
+                ReaderUtils.createVirtualIntensityBand(product, i, q, pol);
+                ReaderUtils.createVirtualPhaseBand(product, i, q, pol);
             }
         }
     }
@@ -68,8 +69,10 @@ public class NisarRSLCProductReader extends NisarSubReader {
         band.setNoDataValue(nodatavalue);
         band.setNoDataValueUsed(true);
 
-        Attribute minAt = var.attributes().findAttribute("min_value_" + cpxType);
-        Attribute maxAt = var.attributes().findAttribute("max_value_" + cpxType);
+        Attribute minAt = var.attributes().findAttribute("min_" + cpxType + "_value");
+        Attribute maxAt = var.attributes().findAttribute("max_" + cpxType + "_value");
+        if (minAt == null) minAt = var.attributes().findAttribute("min_value_" + cpxType);
+        if (maxAt == null) maxAt = var.attributes().findAttribute("max_value_" + cpxType);
         if (minAt != null && maxAt != null) {
             try {
                 double min = minAt.getNumericValue().doubleValue();

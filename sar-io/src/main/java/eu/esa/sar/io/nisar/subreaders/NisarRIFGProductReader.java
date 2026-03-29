@@ -56,8 +56,8 @@ public class NisarRIFGProductReader extends NisarSubReader {
             for (Group polGroup : groupInterferogram.getGroups()) {
                 String pol = "_" + polGroup.getShortName() + suffix;
 
-                Band i = createBand(polGroup, "wrappedInterferogram", "i_ifg_" + pol, Unit.REAL, 0);
-                Band q = createBand(polGroup, "wrappedInterferogram", "q_ifg_" + pol, Unit.IMAGINARY, 0);
+                Band i = createBand(polGroup, "wrappedInterferogram", "i_ifg" + pol, Unit.REAL, 0);
+                Band q = createBand(polGroup, "wrappedInterferogram", "q_ifg" + pol, Unit.IMAGINARY, 0);
                 ReaderUtils.createVirtualIntensityBand(product, i, q, pol);
                 ReaderUtils.createVirtualPhaseBand(product, i, q, pol);
 

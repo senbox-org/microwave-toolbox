@@ -60,6 +60,7 @@ public class TestPazProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -70,5 +71,6 @@ public class TestPazProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 }

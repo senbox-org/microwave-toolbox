@@ -35,7 +35,6 @@ import org.esa.snap.core.util.geotiff.EPSGCodes;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
-import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import ucar.ma2.Array;
 import ucar.ma2.ArrayStructure;
 import ucar.ma2.DataType;
@@ -50,9 +49,7 @@ import ucar.nc2.Variable;
 import java.io.File;
 import java.io.IOException;
 import java.text.DateFormat;
-import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -132,6 +129,21 @@ public abstract class NisarSubReader {
             addBandsToProduct();
             addTiePointGridsToProduct();
             addDopplerMetadata();
+
+            // Set Stx for all bands that don't have it set yet
+            // This must happen after all product setup is complete as some operations can clear Stx
+            for (Band band : product.getBands()) {
+                if (!band.isStxSet()) {
+                    Variable var = bandMap.get(band);
+                    if (var != null) {
+                        setStxFromAttributes(band, var);
+                    }
+                    if (!band.isStxSet()) {
+                        band.setStx(new StxFactory().withMinimum(0).withMaximum(1)
+                                .withIntHistogram(false).withHistogramBins(new int[512]).create());
+                    }
+                }
+            }
 
             return product;
         } catch (Exception e) {
@@ -229,7 +241,8 @@ public abstract class NisarSubReader {
 
         MetadataElement globals = origMeta.getElement("Global_Attributes");
         MetadataElement science = origMeta.getElement("science");
-        MetadataElement sar = science.containsElement("LSAR") ? science.getElement("LSAR") : science.getElement("SSAR");
+        final boolean isLSAR = science.containsElement("LSAR");
+        MetadataElement sar = isLSAR ? science.getElement("LSAR") : science.getElement("SSAR");
         MetadataElement identification = sar.getElement("identification");
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, product.getName());
@@ -250,10 +263,17 @@ public abstract class NisarSubReader {
                     trackNumber.getAttributeInt("trackNumber"));
         }
 
+        // absoluteOrbitNumber - for interferometric products, falls back to referenceAbsoluteOrbitNumber
         MetadataElement absoluteOrbitNumber = identification.getElement("absoluteOrbitNumber");
         if(absoluteOrbitNumber != null) {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT,
                     absoluteOrbitNumber.getAttributeInt("absoluteOrbitNumber"));
+        } else {
+            MetadataElement refOrbit = identification.getElement("referenceAbsoluteOrbitNumber");
+            if(refOrbit != null) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ABS_ORBIT,
+                        refOrbit.getAttributeInt("referenceAbsoluteOrbitNumber"));
+            }
         }
 
         MetadataElement orbitPassDirection = identification.getElement("orbitPassDirection");
@@ -262,36 +282,295 @@ public abstract class NisarSubReader {
                     getOrbitPass(orbitPassDirection.getAttributeString("orbitPassDirection")));
         }
 
-        MetadataElement plannedDataTakeId = identification.getElement("plannedDataTakeId");
-        if(plannedDataTakeId != null) {
-            //AbstractMetadata.setAttribute(absRoot, AbstractMetadata.data_take_id,
-            //        plannedDataTakeId.getAttributeInt("plannedDataTakeId"));
+        // Processing time
+        MetadataElement processingDateTime = identification.getElement("processingDateTime");
+        if(processingDateTime != null) {
+            ProductData.UTC procTime = parseNisarTime(processingDateTime, "processingDateTime");
+            if(procTime != null) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME, procTime);
+            }
         }
 
-        MetadataElement processingDataTime = identification.getElement("processingDataTime");
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME,
-                ReaderUtils.getTime(processingDataTime, "processingDataTime", standardDateFormat));
+        // Zero Doppler times - for interferometric products, fall back to reference times
+        ProductData.UTC startTime = getTimeFromElement(identification,
+                "zeroDopplerStartTime", "referenceZeroDopplerStartTime");
+        if(startTime != null) {
+            product.setStartTime(startTime);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, startTime);
+        }
 
-        MetadataElement zeroDopplerStartTime = identification.getElement("zeroDopplerStartTime");
-        ProductData.UTC startTime = ReaderUtils.getTime(zeroDopplerStartTime, "zeroDopplerStartTime", standardDateFormat);
-        product.setStartTime(startTime);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, startTime);
+        ProductData.UTC endTime = getTimeFromElement(identification,
+                "zeroDopplerEndTime", "referenceZeroDopplerEndTime");
+        if(endTime != null) {
+            product.setEndTime(endTime);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, endTime);
+        }
 
-        MetadataElement zeroDopplerEndTime = identification.getElement("zeroDopplerEndTime");
-        ProductData.UTC endTime = ReaderUtils.getTime(zeroDopplerEndTime, "zeroDopplerEndTime", standardDateFormat);
-        product.setEndTime(endTime);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, endTime);
+        // Set ACQUISITION_MODE
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, "Stripmap");
 
+        // Set sample type based on product type
+        if(productType.equals("RSLC") || productType.equals("GSLC")) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, "COMPLEX");
+        } else {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, "DETECTED");
+        }
+
+        // Set raster dimensions
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines, product.getSceneRasterHeight());
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line, product.getSceneRasterWidth());
+
+        // Extract SAR parameters from frequency group
+        addSARParameters(absRoot, sar);
+
+        // Remove troublesome demFiles element if present
         MetadataElement productTypeElem = sar.getElement(productType);
         if(productTypeElem != null) {
             MetadataElement metadataElem = productTypeElem.getElement("metadata");
-            MetadataElement processingInformation = metadataElem.getElement("processingInformation");
-            MetadataElement inputs = processingInformation.getElement("inputs");
-
-            // remove troublesome element
-            inputs.removeElement(inputs.getElement("demFiles"));
+            if(metadataElem != null) {
+                MetadataElement processingInformation = metadataElem.getElement("processingInformation");
+                if(processingInformation != null) {
+                    MetadataElement inputs = processingInformation.getElement("inputs");
+                    if(inputs != null) {
+                        MetadataElement demFiles = inputs.getElement("demFiles");
+                        if(demFiles != null) {
+                            inputs.removeElement(demFiles);
+                        }
+                    }
+                }
+            }
         }
 
+        // Add orbit state vectors
+        addOrbitStateVectors(absRoot);
+
+    }
+
+    private void addSARParameters(final MetadataElement absRoot, final MetadataElement sar) {
+        try {
+            final Group groupSAR = getSARGroup();
+            final Group groupProductType = groupSAR.findGroup(productType);
+            if(groupProductType == null) return;
+
+            // Find swaths or grids group
+            Group swathsOrGrids = groupProductType.findGroup("swaths");
+            if(swathsOrGrids == null) {
+                swathsOrGrids = groupProductType.findGroup("grids");
+            }
+            if(swathsOrGrids == null) return;
+
+            // Get frequency group
+            Group freqGroup = swathsOrGrids.findGroup("frequencyA");
+            if(freqGroup == null) {
+                freqGroup = swathsOrGrids.findGroup("frequencyB");
+            }
+            if(freqGroup == null) return;
+
+            // Radar frequency
+            Variable centerFreq = freqGroup.findVariable("acquiredCenterFrequency");
+            if(centerFreq == null) {
+                centerFreq = freqGroup.findVariable("processedCenterFrequency");
+            }
+            if(centerFreq == null) {
+                centerFreq = freqGroup.findVariable("centerFrequency");
+            }
+            if(centerFreq != null) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency,
+                        centerFreq.readScalarDouble() / 1.0e6); // Hz to MHz
+            }
+
+            // PRF - search in frequency group and sub-groups
+            Variable prf = findVariableInGroupTree(freqGroup, "nominalAcquisitionPRF");
+            if(prf != null) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency,
+                        prf.readScalarDouble());
+            }
+
+            // Range spacing - search in frequency group tree, then processing parameters
+            Variable rangeSpacing = findVariableInGroupTree(freqGroup, "slantRangeSpacing");
+            if(rangeSpacing == null) {
+                rangeSpacing = findVariableInGroupTree(freqGroup, "sceneCenterGroundRangeSpacing");
+            }
+            if(rangeSpacing == null) {
+                rangeSpacing = findVariableInGroupTree(freqGroup, "xCoordinateSpacing");
+            }
+            if(rangeSpacing == null) {
+                rangeSpacing = findInProcessingParams(groupProductType, "slantRangeSpacing");
+            }
+            if(rangeSpacing != null) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing,
+                        Math.abs(rangeSpacing.readScalarDouble()));
+            }
+
+            // Azimuth spacing - search in frequency group tree, then processing parameters
+            Variable azSpacing = findVariableInGroupTree(freqGroup, "sceneCenterAlongTrackSpacing");
+            if(azSpacing == null) {
+                azSpacing = findVariableInGroupTree(freqGroup, "yCoordinateSpacing");
+            }
+            if(azSpacing != null) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing,
+                        Math.abs(azSpacing.readScalarDouble()));
+            }
+
+            // Line time interval (zeroDopplerTimeSpacing) - search multiple locations
+            Variable timeSpacing = findZeroDopplerTimeSpacing(swathsOrGrids, freqGroup, groupProductType);
+            if(timeSpacing != null) {
+                double spacing = timeSpacing.readScalarDouble();
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval, spacing);
+
+                // If PRF not found, compute from zeroDopplerTimeSpacing
+                if(prf == null && spacing > 0) {
+                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency,
+                            1.0 / spacing);
+                }
+            }
+
+            // For interferometric products, try to get looks from processing parameters
+            Group metadataGroup = groupProductType.findGroup("metadata");
+            if(metadataGroup != null) {
+                Group procInfo = metadataGroup.findGroup("processingInformation");
+                if(procInfo != null) {
+                    Group params = procInfo.findGroup("parameters");
+                    if(params != null) {
+                        // Try interferogram parameters first
+                        Group ifgParams = params.findGroup("interferogram");
+                        if(ifgParams != null) {
+                            Group ifgFreq = ifgParams.findGroup("frequencyA");
+                            if(ifgFreq == null) ifgFreq = ifgParams.findGroup("frequencyB");
+                            if(ifgFreq != null) {
+                                Variable azLooks = ifgFreq.findVariable("numberOfAzimuthLooks");
+                                Variable rgLooks = ifgFreq.findVariable("numberOfRangeLooks");
+                                if(azLooks != null) {
+                                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks,
+                                            azLooks.readScalarInt());
+                                }
+                                if(rgLooks != null) {
+                                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
+                                            rgLooks.readScalarInt());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Default looks for SLC products
+            if(productType.equals("RSLC") || productType.equals("GSLC")) {
+                if(absRoot.getAttributeDouble(AbstractMetadata.range_looks) == AbstractMetadata.NO_METADATA) {
+                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks, 1);
+                }
+                if(absRoot.getAttributeDouble(AbstractMetadata.azimuth_looks) == AbstractMetadata.NO_METADATA) {
+                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks, 1);
+                }
+            }
+
+            // For non-SLC, try to get looks from the frequency group or interferogram subgroup
+            if(absRoot.getAttributeDouble(AbstractMetadata.range_looks) == AbstractMetadata.NO_METADATA) {
+                // For geocoded products, check the interferogram or pixelOffsets subgroups
+                for(Group sub : freqGroup.getGroups()) {
+                    Variable azLooks = sub.findVariable("numberOfAzimuthLooks");
+                    Variable rgLooks = sub.findVariable("numberOfRangeLooks");
+                    if(azLooks != null) {
+                        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks,
+                                azLooks.readScalarInt());
+                    }
+                    if(rgLooks != null) {
+                        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
+                                rgLooks.readScalarInt());
+                    }
+                    if(azLooks != null || rgLooks != null) break;
+                }
+            }
+
+            // Final fallback for looks
+            if(absRoot.getAttributeDouble(AbstractMetadata.range_looks) == AbstractMetadata.NO_METADATA) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks, 1);
+            }
+            if(absRoot.getAttributeDouble(AbstractMetadata.azimuth_looks) == AbstractMetadata.NO_METADATA) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks, 1);
+            }
+
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("Error reading SAR parameters: " + e.getMessage());
+        }
+    }
+
+    private static Variable findInProcessingParams(Group groupProductType, String varName) {
+        Group metadata = groupProductType.findGroup("metadata");
+        if(metadata == null) return null;
+        Group procInfo = metadata.findGroup("processingInformation");
+        if(procInfo == null) return null;
+        Group params = procInfo.findGroup("parameters");
+        if(params == null) return null;
+        Group refGroup = params.findGroup("reference");
+        if(refGroup == null) return null;
+        Group refFreq = refGroup.findGroup("frequencyA");
+        if(refFreq == null) refFreq = refGroup.findGroup("frequencyB");
+        if(refFreq == null) return null;
+        return refFreq.findVariable(varName);
+    }
+
+    private static Variable findVariableInGroupTree(Group group, String varName) {
+        return findVariableInGroupTree(group, varName, 4);
+    }
+
+    private static Variable findVariableInGroupTree(Group group, String varName, int maxDepth) {
+        Variable v = group.findVariable(varName);
+        if(v != null) return v;
+        if(maxDepth <= 0) return null;
+        for(Group sub : group.getGroups()) {
+            v = findVariableInGroupTree(sub, varName, maxDepth - 1);
+            if(v != null) return v;
+        }
+        return null;
+    }
+
+    private Variable findZeroDopplerTimeSpacing(Group swathsOrGrids, Group freqGroup, Group groupProductType) {
+        // 1. Direct child of swaths/grids (RSLC)
+        Variable v = swathsOrGrids.findVariable("zeroDopplerTimeSpacing");
+        if(v != null) return v;
+
+        // 2. In frequency group (GSLC)
+        v = freqGroup.findVariable("zeroDopplerTimeSpacing");
+        if(v != null) return v;
+
+        // 3. In sub-groups of frequency group (interferogram, pixelOffsets, etc.)
+        for(Group sub : freqGroup.getGroups()) {
+            v = sub.findVariable("zeroDopplerTimeSpacing");
+            if(v != null) return v;
+        }
+
+        // 4. In metadata/processingInformation/parameters/reference/frequencyA (GOFF, GUNW)
+        Group metadataGroup = groupProductType.findGroup("metadata");
+        if(metadataGroup != null) {
+            Group procInfo = metadataGroup.findGroup("processingInformation");
+            if(procInfo != null) {
+                Group params = procInfo.findGroup("parameters");
+                if(params != null) {
+                    // Try reference/frequencyA
+                    Group refGroup = params.findGroup("reference");
+                    if(refGroup != null) {
+                        Group refFreq = refGroup.findGroup("frequencyA");
+                        if(refFreq == null) refFreq = refGroup.findGroup("frequencyB");
+                        if(refFreq != null) {
+                            v = refFreq.findVariable("zeroDopplerTimeSpacing");
+                            if(v != null) return v;
+                        }
+                    }
+                }
+            }
+            // 5. In metadata/sourceData/swaths (GCOV)
+            Group sourceData = metadataGroup.findGroup("sourceData");
+            if(sourceData != null) {
+                Group srcSwaths = sourceData.findGroup("swaths");
+                if(srcSwaths != null) {
+                    v = srcSwaths.findVariable("zeroDopplerTimeSpacing");
+                    if(v != null) return v;
+                }
+            }
+        }
+
+        return null;
     }
 
     private TiePointGrid createTiePointGrid(final Variable var) throws IOException {
@@ -330,8 +609,9 @@ public abstract class NisarSubReader {
         final float[] lonTiePoints = new float[length];
 
         String epsgName = EPSGCodes.getInstance().getName(epsg);
-        if(epsgName == null) {
-            throw new IOException("EPSG "+epsg+" not found");
+        if(epsgName == null || !epsgName.contains("UTM")) {
+            SystemUtils.LOG.warning("EPSG " + epsg + " is not a recognized UTM projection, skipping geocoding");
+            return null;
         }
         String zone = epsgName.substring(epsgName.lastIndexOf("_") + 1);
         String row = "N";
@@ -367,7 +647,11 @@ public abstract class NisarSubReader {
             if (metadataGroup == null) {
                 metadataGroup = netcdfFile.findGroup("/science/SSAR/" + productType + "/metadata");
             }
+            if(metadataGroup == null) return;
+
             Group gridGroup = findGridGroup(metadataGroup);
+            if(gridGroup == null) return;
+
             Variable incidenceAngleVar = gridGroup.findVariable("incidenceAngle");
             if (incidenceAngleVar != null) {
                 TiePointGrid incidenceAngleGrid = createTiePointGrid(incidenceAngleVar);
@@ -378,29 +662,58 @@ public abstract class NisarSubReader {
             Variable coordYVar = findVariable(gridGroup, "coordinateY", "yCoordinates");
             Variable coordXVar = findVariable(gridGroup, "coordinateX", "xCoordinates");
             if (coordYVar != null && coordXVar != null) {
-                String unit = coordYVar.findAttribute("units").toString();
+                Attribute unitsAttr = coordYVar.findAttribute("units");
+                String unit = unitsAttr != null ? unitsAttr.getStringValue() : "";
 
                 TiePointGrid latGrid, lonGrid;
-                if (unit.contains("meter") || unit.contains("\"m\"")) {
-                    Variable epsgVar = gridGroup.findVariable("epsg");
+                if (unit.contains("meter") || unit.equals("m")) {
+                    // Projected coordinates - find EPSG code
                     int epsg = 0;
+                    Variable epsgVar = gridGroup.findVariable("epsg");
                     if (epsgVar != null) {
                         epsg = epsgVar.readScalarInt();
                     } else {
                         Variable projection = gridGroup.findVariable("projection");
-                        epsg = projection.findAttribute("epsg_code").getNumericValue().intValue();
+                        if(projection != null) {
+                            // projection may be a scalar integer (EPSG code) or have an epsg_code attribute
+                            try {
+                                epsg = projection.readScalarInt();
+                            } catch (Exception e) {
+                                Attribute epsgAttr = projection.findAttribute("epsg_code");
+                                if(epsgAttr != null) {
+                                    epsg = epsgAttr.getNumericValue().intValue();
+                                }
+                            }
+                        }
+                    }
+
+                    if(epsg == 0) {
+                        SystemUtils.LOG.warning("No EPSG code found for projected coordinates");
                         return;
                     }
 
-                    Grids grids = createTiePointGridFromUTM(epsg, coordXVar, coordYVar);
+                    Grids grids;
+                    if(coordXVar.getRank() == 1 && coordYVar.getRank() == 1) {
+                        grids = createTiePointGridFrom1DProjected(epsg, coordXVar, coordYVar);
+                    } else {
+                        grids = createTiePointGridFromUTM(epsg, coordXVar, coordYVar);
+                    }
+                    if(grids == null) return;
                     latGrid = grids.latGrid;
                     lonGrid = grids.lonGrid;
                 } else {
-                    latGrid = createTiePointGrid(coordYVar);
-                    latGrid.setName(OperatorUtils.TPG_LATITUDE);
+                    if(coordXVar.getRank() == 1 && coordYVar.getRank() == 1) {
+                        // 1D lat/lon arrays - create 2D mesh
+                        Grids grids = createTiePointGridFrom1DGeographic(coordXVar, coordYVar);
+                        latGrid = grids.latGrid;
+                        lonGrid = grids.lonGrid;
+                    } else {
+                        latGrid = createTiePointGrid(coordYVar);
+                        latGrid.setName(OperatorUtils.TPG_LATITUDE);
 
-                    lonGrid = createTiePointGrid(coordXVar);
-                    lonGrid.setName(OperatorUtils.TPG_LONGITUDE);
+                        lonGrid = createTiePointGrid(coordXVar);
+                        lonGrid.setName(OperatorUtils.TPG_LONGITUDE);
+                    }
                 }
 
                 product.addTiePointGrid(latGrid);
@@ -410,7 +723,127 @@ public abstract class NisarSubReader {
                 product.setSceneGeoCoding(tpGeoCoding);
             }
         } catch (Exception e) {
-            SystemUtils.LOG.warning(e.getMessage());
+            SystemUtils.LOG.warning("Error creating tie-point grids: " + e.getMessage());
+        }
+    }
+
+    private Grids createTiePointGridFrom1DProjected(final int epsg, final Variable varX, final Variable varY) throws IOException {
+        float[] xValues = (float[]) varX.read().get1DJavaArray(DataType.FLOAT);
+        float[] yValues = (float[]) varY.read().get1DJavaArray(DataType.FLOAT);
+        final int gridWidth = xValues.length;
+        final int gridHeight = yValues.length;
+        final int sceneWidth = product.getSceneRasterWidth();
+        final int sceneHeight = product.getSceneRasterHeight();
+        final double subSamplingX = (double) sceneWidth / (double) (gridWidth - 1);
+        final double subSamplingY = (double) sceneHeight / (double) (gridHeight - 1);
+
+        final int length = gridWidth * gridHeight;
+        final float[] latTiePoints = new float[length];
+        final float[] lonTiePoints = new float[length];
+
+        String epsgName = EPSGCodes.getInstance().getName(epsg);
+        if(epsgName != null && epsgName.contains("UTM")) {
+            // UTM projection - use UTM2LatLon converter
+            String zone = epsgName.substring(epsgName.lastIndexOf("_") + 1);
+            String row = "N";
+            if (zone.endsWith("S")) {
+                row = "A";
+            }
+            zone = zone.substring(0, zone.length() - 1);
+
+            UTM2LatLon conv = new UTM2LatLon();
+            for (int j = 0; j < gridHeight; ++j) {
+                for (int i = 0; i < gridWidth; ++i) {
+                    final String utmStr = zone + " " + row + " " + xValues[i] + " " + yValues[j];
+                    final double[] latlon = conv.convertUTMToLatLong(utmStr);
+                    latTiePoints[j * gridWidth + i] = (float) latlon[0];
+                    lonTiePoints[j * gridWidth + i] = (float) latlon[1];
+                }
+            }
+        } else {
+            // For non-UTM projections, log warning and skip geocoding
+            SystemUtils.LOG.warning("EPSG " + epsg + " is not a UTM projection, geocoding may be inaccurate");
+            return null;
+        }
+
+        Grids grids = new Grids();
+        grids.latGrid = new TiePointGrid("latitude", gridWidth, gridHeight, 0.5f, 0.5f,
+                subSamplingX, subSamplingY, latTiePoints);
+        grids.latGrid.setUnit(Unit.DEGREES);
+
+        grids.lonGrid = new TiePointGrid("longitude", gridWidth, gridHeight, 0.5f, 0.5f,
+                subSamplingX, subSamplingY, lonTiePoints, TiePointGrid.DISCONT_AT_180);
+        grids.lonGrid.setUnit(Unit.DEGREES);
+
+        return grids;
+    }
+
+    private Grids createTiePointGridFrom1DGeographic(final Variable varX, final Variable varY) throws IOException {
+        float[] lonValues = (float[]) varX.read().get1DJavaArray(DataType.FLOAT);
+        float[] latValues = (float[]) varY.read().get1DJavaArray(DataType.FLOAT);
+        final int gridWidth = lonValues.length;
+        final int gridHeight = latValues.length;
+        final int sceneWidth = product.getSceneRasterWidth();
+        final int sceneHeight = product.getSceneRasterHeight();
+        final double subSamplingX = (double) sceneWidth / (double) (gridWidth - 1);
+        final double subSamplingY = (double) sceneHeight / (double) (gridHeight - 1);
+
+        final int length = gridWidth * gridHeight;
+        final float[] latTiePoints = new float[length];
+        final float[] lonTiePoints = new float[length];
+
+        for (int j = 0; j < gridHeight; ++j) {
+            for (int i = 0; i < gridWidth; ++i) {
+                latTiePoints[j * gridWidth + i] = latValues[j];
+                lonTiePoints[j * gridWidth + i] = lonValues[i];
+            }
+        }
+
+        Grids grids = new Grids();
+        grids.latGrid = new TiePointGrid("latitude", gridWidth, gridHeight, 0.5f, 0.5f,
+                subSamplingX, subSamplingY, latTiePoints);
+        grids.latGrid.setUnit(Unit.DEGREES);
+
+        grids.lonGrid = new TiePointGrid("longitude", gridWidth, gridHeight, 0.5f, 0.5f,
+                subSamplingX, subSamplingY, lonTiePoints, TiePointGrid.DISCONT_AT_180);
+        grids.lonGrid.setUnit(Unit.DEGREES);
+
+        return grids;
+    }
+
+    private ProductData.UTC getTimeFromElement(MetadataElement identification,
+                                               String primaryName, String fallbackName) {
+        MetadataElement elem = identification.getElement(primaryName);
+        if(elem == null && fallbackName != null) {
+            elem = identification.getElement(fallbackName);
+            primaryName = fallbackName;
+        }
+        if(elem == null) return null;
+        return parseNisarTime(elem, primaryName);
+    }
+
+    private ProductData.UTC parseNisarTime(MetadataElement elem, String attrName) {
+        if(elem == null) return null;
+        try {
+            String timeStr = elem.getAttributeString(attrName, "");
+            if(timeStr.isEmpty()) {
+                // Try first available attribute
+                String[] names = elem.getAttributeNames();
+                if(names.length > 0) {
+                    timeStr = elem.getAttributeString(names[0], "");
+                }
+            }
+            if(timeStr.isEmpty()) return null;
+
+            // Normalize NISAR time format: "2008-10-12T06:09:11.48761868" → "2008-10-12 06:09:11"
+            timeStr = timeStr.replace("T", " ").trim();
+            if(timeStr.contains(".")) {
+                timeStr = timeStr.substring(0, timeStr.indexOf('.'));
+            }
+            return ProductData.UTC.parse(timeStr, standardDateFormat);
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("Failed to parse time from " + attrName + ": " + e.getMessage());
+            return null;
         }
     }
 
@@ -424,6 +857,12 @@ public abstract class NisarSubReader {
         band.setUnit(unit);
         band.setNoDataValue(0);
         band.setNoDataValueUsed(true);
+
+        setStxFromAttributes(band, var);
+        if (!band.isStxSet()) {
+            band.setStx(new StxFactory().withMinimum(0).withMaximum(1)
+                    .withIntHistogram(false).withHistogramBins(new int[512]).create());
+        }
         product.addBand(band);
         bandMap.put(band, var);
 
@@ -438,22 +877,39 @@ public abstract class NisarSubReader {
             Band band = createBand(bandName, rasterWidth, rasterHeight, bandUnit, var);
             band.setNoDataValue(nodatavalue);
             band.setNoDataValueUsed(true);
-
-            Attribute minAt = var.attributes().findAttribute("min_value");
-            Attribute maxAt = var.attributes().findAttribute("max_value");
-            if (minAt != null && maxAt != null) {
-                try {
-                    double min = minAt.getNumericValue().doubleValue();
-                    double max = maxAt.getNumericValue().doubleValue();
-                    band.setStx(new StxFactory().withMinimum(min).withMaximum(max)
-                            .withIntHistogram(false).withHistogramBins(new int[512]).create());
-                } catch (Exception e) {
-                    // ignore
-                }
-            }
             return band;
         }
         return null;
+    }
+
+    protected static void setStxFromAttributes(final Band band, final Variable var) {
+        try {
+            Attribute minAt = var.findAttribute("min_value");
+            Attribute maxAt = var.findAttribute("max_value");
+            if (minAt == null) minAt = var.findAttribute("min_real_value");
+            if (maxAt == null) maxAt = var.findAttribute("max_real_value");
+            if (minAt != null && maxAt != null) {
+                double min = minAt.getNumericValue().doubleValue();
+                double max = maxAt.getNumericValue().doubleValue();
+                band.setStx(new StxFactory().withMinimum(min).withMaximum(max)
+                        .withIntHistogram(false).withHistogramBins(new int[512]).create());
+                return;
+            }
+
+            // Fallback: try mean +/- 3*stddev
+            Attribute meanAt = var.findAttribute("mean_value");
+            if (meanAt == null) meanAt = var.findAttribute("mean_real_value");
+            Attribute stdAt = var.findAttribute("sample_stddev");
+            if (stdAt == null) stdAt = var.findAttribute("sample_stddev_real");
+            if (meanAt != null && stdAt != null) {
+                double mean = meanAt.getNumericValue().doubleValue();
+                double std = stdAt.getNumericValue().doubleValue();
+                band.setStx(new StxFactory().withMinimum(mean - 3 * std).withMaximum(mean + 3 * std)
+                        .withIntHistogram(false).withHistogramBins(new int[512]).create());
+            }
+        } catch (Exception e) {
+            // ignore
+        }
     }
 
     private Variable findVariable(Group group, String... names) {
@@ -513,109 +969,124 @@ public abstract class NisarSubReader {
     protected void addOrbitStateVectors(final MetadataElement absRoot) {
 
         try {
+            // Find orbit group: science/[LSAR|SSAR]/[productType]/metadata/orbit
+            String sarBand = netcdfFile.findGroup("/science/LSAR") != null ? "LSAR" : "SSAR";
+            String orbitPath = "/science/" + sarBand + "/" + productType + "/metadata/orbit";
+            Group orbitGroup = netcdfFile.findGroup(orbitPath);
+            if(orbitGroup == null) return;
+
+            // For interferometric products, orbit data may be under reference/ subgroup
+            Group dataGroup = orbitGroup.findGroup("reference");
+            if(dataGroup == null) {
+                dataGroup = orbitGroup;
+            }
+
+            Variable posVar = dataGroup.findVariable("position");
+            Variable velVar = dataGroup.findVariable("velocity");
+            Variable timeVar = dataGroup.findVariable("time");
+            if(posVar == null || velVar == null || timeVar == null) return;
+
+            // Parse epoch from time variable units attribute (e.g. "seconds since 2008-10-12T00:00:00.00000000")
+            Attribute unitsAttr = timeVar.findAttribute("units");
+            if(unitsAttr == null) return;
+            String unitsStr = unitsAttr.getStringValue();
+            String epochStr = unitsStr.replace("seconds since ", "").trim();
+            // Normalize epoch format: "2008-10-12T00:00:00.00000000" -> "2008-10-12 00:00:00"
+            epochStr = epochStr.replace("T", " ");
+            if(epochStr.contains(".")) {
+                epochStr = epochStr.substring(0, epochStr.indexOf('.'));
+            }
+            final ProductData.UTC epoch = ProductData.UTC.parse(epochStr, standardDateFormat);
+            final double epochMJD = epoch.getMJD();
+
+            double[] times = (double[]) timeVar.read().getStorage();
+            double[][] positions = (double[][]) posVar.read().copyToNDJavaArray();
+            double[][] velocities = (double[][]) velVar.read().copyToNDJavaArray();
+
+            final int numPoints = times.length;
             final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
 
-            final int numPoints = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.NUMBER_OF_STATE_VECTORS).readScalarInt();
-
-            char[] stateVectorTime = (char[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.STATE_VECTOR_TIME).read().getStorage();
-
-            int utcDimension = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.STATE_VECTOR_TIME).getDimension(2).getLength();
-
-            final double[] satellitePositionX = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.ORBIT_VECTOR_N_X_POS).read().getStorage();
-
-            final double[] satellitePositionY = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.ORBIT_VECTOR_N_Y_POS).read().getStorage();
-
-            final double[] satellitePositionZ = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.ORBIT_VECTOR_N_Z_POS).read().getStorage();
-
-            final double[] satelliteVelocityX = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.ORBIT_VECTOR_N_X_VEL).read().getStorage();
-
-            final double[] satelliteVelocityY = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.ORBIT_VECTOR_N_Y_VEL).read().getStorage();
-
-            final double[] satelliteVelocityZ = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.ORBIT_VECTOR_N_Z_VEL).read().getStorage();
-
-            int start = 0;
-            String utc = new String(Arrays.copyOfRange(stateVectorTime, 0, utcDimension - 1));
-            ProductData.UTC stateVectorUTC = ProductData.UTC.parse(utc, standardDateFormat);
-
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME, stateVectorUTC);
+            // Set state vector time from first orbit point
+            ProductData.UTC firstUTC = new ProductData.UTC(epochMJD + times[0] / 86400.0);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME, firstUTC);
 
             for (int i = 0; i < numPoints; i++) {
-                utc = new String(Arrays.copyOfRange(stateVectorTime, start, start + utcDimension - 1));
-                ProductData.UTC vectorUTC = ProductData.UTC.parse(utc, standardDateFormat);
+                ProductData.UTC vectorUTC = new ProductData.UTC(epochMJD + times[i] / 86400.0);
 
                 final MetadataElement orbitVectorElem = new MetadataElement(AbstractMetadata.orbit_vector + (i + 1));
                 orbitVectorElem.setAttributeUTC(AbstractMetadata.orbit_vector_time, vectorUTC);
 
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_pos, satellitePositionX[i]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_pos, satellitePositionY[i]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_pos, satellitePositionZ[i]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_vel, satelliteVelocityX[i]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_vel, satelliteVelocityY[i]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_vel, satelliteVelocityZ[i]);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_pos, positions[i][0]);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_pos, positions[i][1]);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_pos, positions[i][2]);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_vel, velocities[i][0]);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_vel, velocities[i][1]);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_vel, velocities[i][2]);
 
                 orbitVectorListElem.addElement(orbitVectorElem);
-                start += utcDimension;
             }
-        } catch (IOException | ParseException e) {
-            SystemUtils.LOG.severe(e.getMessage());
-
-        }
-    }
-
-    protected void addDopplerCentroidCoefficients() {
-
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-
-        final MetadataElement dopplerCentroidCoefficientsElem = absRoot.getElement(AbstractMetadata.dop_coefficients);
-        final MetadataElement dopplerListElem = new MetadataElement(AbstractMetadata.dop_coef_list + ".1");
-        dopplerCentroidCoefficientsElem.addElement(dopplerListElem);
-
-        final ProductData.UTC utcTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time,
-                AbstractMetadata.NO_METADATA_UTC);
-
-        dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, utcTime);
-
-        AbstractMetadata.addAbstractedAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
-                ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
-
-        AbstractMetadata.setAttribute(dopplerListElem, AbstractMetadata.slant_range_time, 0.0);
-
-        try {
-
-            int dimensionColumn = netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.DC_ESTIMATE_COEFFS).getDimension(1).getLength();
-
-            double[] coefValueS = (double[]) netcdfFile.getRootGroup().findVariable(
-                    NisarXConstants.DC_ESTIMATE_COEFFS).read().getStorage();
-
-            for (int i = 0; i < dimensionColumn; i++) {
-                final double coefValue = coefValueS[i];
-
-                final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + '.' + (i + 1));
-                dopplerListElem.addElement(coefElem);
-
-                AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.dop_coef,
-                        ProductData.TYPE_FLOAT64, "", "Doppler Centroid Coefficient");
-
-                AbstractMetadata.setAttribute(coefElem, AbstractMetadata.dop_coef, coefValue);
-            }
-        } catch (IOException e) {
-            SystemUtils.LOG.severe(e.getMessage());
-
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("Error reading orbit state vectors: " + e.getMessage());
         }
     }
 
     protected void addDopplerMetadata() {
-//        addDopplerCentroidCoefficients();
+        try {
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+
+            final MetadataElement dopplerCentroidCoefficientsElem = absRoot.getElement(AbstractMetadata.dop_coefficients);
+            final MetadataElement dopplerListElem = new MetadataElement(AbstractMetadata.dop_coef_list + ".1");
+            dopplerCentroidCoefficientsElem.addElement(dopplerListElem);
+
+            final ProductData.UTC utcTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time,
+                    AbstractMetadata.NO_METADATA_UTC);
+
+            dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, utcTime);
+
+            AbstractMetadata.addAbstractedAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
+                    ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
+            AbstractMetadata.setAttribute(dopplerListElem, AbstractMetadata.slant_range_time, 0.0);
+
+            // Try to read Doppler centroid values from the HDF5 processing parameters
+            String sarBand = netcdfFile.findGroup("/science/LSAR") != null ? "LSAR" : "SSAR";
+            String paramPath = "/science/" + sarBand + "/" + productType + "/metadata/processingInformation/parameters";
+            Group paramsGroup = netcdfFile.findGroup(paramPath);
+
+            boolean coeffsAdded = false;
+            if (paramsGroup != null) {
+                // Try frequencyA or frequencyB under parameters
+                Group freqParams = paramsGroup.findGroup("frequencyA");
+                if (freqParams == null) freqParams = paramsGroup.findGroup("frequencyB");
+
+                if (freqParams != null) {
+                    Variable dopCentroid = freqParams.findVariable("dopplerCentroid");
+                    if (dopCentroid != null) {
+                        // dopplerCentroid is (time, range) - use first row as coefficients
+                        double[] allValues = (double[]) dopCentroid.read().getStorage();
+                        int numRange = dopCentroid.getDimension(1).getLength();
+                        for (int i = 0; i < numRange; i++) {
+                            final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + '.' + (i + 1));
+                            dopplerListElem.addElement(coefElem);
+                            AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.dop_coef,
+                                    ProductData.TYPE_FLOAT64, "", "Doppler Centroid Coefficient");
+                            AbstractMetadata.setAttribute(coefElem, AbstractMetadata.dop_coef, allValues[i]);
+                        }
+                        coeffsAdded = true;
+                    }
+                }
+            }
+
+            // If no coefficients found, add a default zero coefficient
+            if (!coeffsAdded) {
+                final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + ".1");
+                dopplerListElem.addElement(coefElem);
+                AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.dop_coef,
+                        ProductData.TYPE_FLOAT64, "", "Doppler Centroid Coefficient");
+                AbstractMetadata.setAttribute(coefElem, AbstractMetadata.dop_coef, 0.0);
+            }
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("Error reading Doppler metadata: " + e.getMessage());
+        }
     }
 
     /**
@@ -717,64 +1188,44 @@ public abstract class NisarSubReader {
         }
         if (memberToRead == null) return;
 
-        // Get or load the 2D member Array for this band
-        java.lang.ref.SoftReference<Array> bandRef = bandArrayCache.get(destBand);
-        Array memberArray = (bandRef != null) ? bandRef.get() : null;
-
-        if (memberArray == null) {
-            // Get or load the full ArrayStructure for this variable.
-            // Both I and Q bands of the same polarization share one cached ArrayStructure read.
-            java.lang.ref.SoftReference<Array> structRef = structVarCache.get(variable);
-            Array fullArray = (structRef != null) ? structRef.get() : null;
-            if (fullArray == null) {
-                synchronized (netcdfFile) {
-                    fullArray = variable.read();
-                }
-                structVarCache.put(variable, new java.lang.ref.SoftReference<>(fullArray));
-            }
-
-            // Extract the single member (r or i) from the full compound array
-            final ArrayStructure fullStruct = (ArrayStructure) fullArray;
-            final StructureMembers.Member member = fullStruct.getStructureMembers().findMember(memberToRead);
-            if (member == null) return;
-            memberArray = fullStruct.extractMemberArray(member);
-
-            // Ensure the array is 2D — use the ArrayStructure's actual shape, not getDimension()
-            if (memberArray.getRank() != 2) {
-                final int[] structShape = fullStruct.getShape();
-                if (structShape.length == 2) {
-                    memberArray = memberArray.reshape(structShape);
-                } else {
-                    memberArray = memberArray.reshape(new int[]{sceneHeight, sceneWidth});
-                }
-            }
-            bandArrayCache.put(destBand, new java.lang.ref.SoftReference<>(memberArray));
-        }
-
-        // Section the 2D member Array for this tile and copy to destBuffer
-        final int actualH = memberArray.getShape()[0];
-        final int actualW = memberArray.getShape()[1];
-        final int endY = (int) Math.min((long) sourceOffsetY + (long) (destHeight - 1) * sourceStepY, actualH - 1);
-        final int endX = (int) Math.min((long) sourceOffsetX + (long) (destWidth - 1) * sourceStepX, actualW - 1);
-
+        final int endY = (int) Math.min((long) sourceOffsetY + (long) (destHeight - 1) * sourceStepY, sceneHeight - 1);
+        final int endX = (int) Math.min((long) sourceOffsetX + (long) (destWidth - 1) * sourceStepX, sceneWidth - 1);
         if (endY < sourceOffsetY || endX < sourceOffsetX) return;
 
         try {
+            // Read just the requested tile section from the compound variable
             final List<Range> tileRanges = new ArrayList<>();
             tileRanges.add(new Range(sourceOffsetY, endY, sourceStepY));
             tileRanges.add(new Range(sourceOffsetX, endX, sourceStepX));
-            final Array tileArray = memberArray.section(tileRanges);
-            final float[] tileFloats = (float[]) tileArray.get1DJavaArray(DataType.FLOAT);
 
-            final int tileH = tileArray.getShape()[0];
-            final int tileW = tileArray.getShape()[1];
+            final Array tileStruct;
+            synchronized (netcdfFile) {
+                tileStruct = variable.read(tileRanges);
+            }
+
+            // Extract the member (r or i) from the tile
+            final ArrayStructure structArray = (ArrayStructure) tileStruct;
+            final StructureMembers.Member member = structArray.getStructureMembers().findMember(memberToRead);
+            if (member == null) return;
+            Array memberArray = structArray.extractMemberArray(member);
+
+            // Ensure correct shape
+            final int tileH = structArray.getShape().length >= 1 ? structArray.getShape()[0] : destHeight;
+            final int tileW = structArray.getShape().length >= 2 ? structArray.getShape()[1] : destWidth;
+            if (memberArray.getRank() != 2) {
+                memberArray = memberArray.reshape(new int[]{tileH, tileW});
+            }
+
+            final float[] tileFloats = (float[]) memberArray.get1DJavaArray(DataType.FLOAT);
             final float[] dest = (float[]) destBuffer.getElems();
 
-            if (tileW == destWidth) {
+            final int actualTileW = memberArray.getShape()[1];
+            if (actualTileW == destWidth) {
                 System.arraycopy(tileFloats, 0, dest, 0, Math.min(tileFloats.length, dest.length));
             } else {
-                for (int y = 0; y < tileH && y < destHeight; y++) {
-                    System.arraycopy(tileFloats, y * tileW, dest, y * destWidth, Math.min(tileW, destWidth));
+                final int actualTileH = memberArray.getShape()[0];
+                for (int y = 0; y < actualTileH && y < destHeight; y++) {
+                    System.arraycopy(tileFloats, y * actualTileW, dest, y * destWidth, Math.min(actualTileW, destWidth));
                 }
             }
         } catch (InvalidRangeException e) {
