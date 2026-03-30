@@ -97,7 +97,7 @@ public class Radarsat2ProductDirectory extends XMLProductDirectory {
 
                     if (bandProduct == null && !isCompressed()) {
                         final ProductReader geoTiffReader = geoTiffPlugIn.createReaderInstance();
-                        bandProduct = geoTiffReader.readProductNodes(new File(getBaseDir(), imgPath), null);
+                        bandProduct = geoTiffReader.readProductNodes(getBaseDir().toPath().resolve(imgPath).toFile(), null);
                     }
 
                     final ImageIOFile img;

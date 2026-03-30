@@ -295,8 +295,10 @@ public class RCMProductDirectory extends XMLProductDirectory {
         for (String file : metaFiles) {
             if (file.endsWith(".xml")) {
                 try {
-                    final File metaFile = getFile(internalPath + "/" + file);
-                    final Document xmlDoc = XMLSupport.LoadXML(metaFile.getAbsolutePath());
+                    final Document xmlDoc;
+                    try (final InputStream is = getInputStream(internalPath + '/' + file)) {
+                        xmlDoc = XMLSupport.LoadXML(is);
+                    }
                     final Element metaFileElement = xmlDoc.getRootElement();
 
                     if (metaFileElement.getName().equals("lut")) {

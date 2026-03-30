@@ -36,6 +36,7 @@ import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.util.Guardian;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.dataio.netcdf.util.NetcdfFileOpener;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -79,7 +80,7 @@ public class K5HDF implements K5Format {
     }
 
     public Product open(final File inputFile) throws IOException {
-        final NetcdfFile netcdfFile = NetcdfFile.open(inputFile.getPath());
+        final NetcdfFile netcdfFile = NetcdfFileOpener.open(inputFile);
         if (netcdfFile == null) {
             close();
             throw new IllegalFileFormatException(inputFile.getName() +
