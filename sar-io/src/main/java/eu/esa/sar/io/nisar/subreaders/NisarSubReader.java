@@ -30,6 +30,7 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.StxFactory;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
+import org.esa.snap.core.util.StopWatch;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.geotiff.EPSGCodes;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -37,6 +38,7 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import ucar.ma2.Array;
 import ucar.ma2.ArrayStructure;
+import ucar.ma2.ArrayStructureBB;
 import ucar.ma2.DataType;
 import ucar.ma2.InvalidRangeException;
 import ucar.ma2.Range;
@@ -48,9 +50,12 @@ import ucar.nc2.Variable;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -59,11 +64,34 @@ import static ucar.ma2.DataType.STRUCTURE;
 public abstract class NisarSubReader {
 
     protected final Map<Band, Variable> bandMap = new HashMap<>();
-    private final Map<Band, String> memberNameCache = new HashMap<>();
-    // Cache: full ArrayStructure per variable (I and Q bands share the same variable read)
-    private final Map<Variable, java.lang.ref.SoftReference<Array>> structVarCache = new HashMap<>();
-    // Cache: extracted 2D member Array per band (one for I, one for Q)
-    private final Map<Band, java.lang.ref.SoftReference<Array>> bandArrayCache = new HashMap<>();
+
+    // Row-strip LRU cache for compound/Structure reads.
+    // SNAP requests tiles from many Y positions concurrently (multi-threaded),
+    // so we cache multiple strips to avoid thrashing.
+    private static final int STRIP_HEIGHT = 512;
+    private static final int MAX_CACHED_STRIPS = 8;
+
+    private static class StripData {
+        final float[] real;
+        final float[] imag;
+        final int startRow, endRow, width;
+        StripData(float[] real, float[] imag, int startRow, int endRow, int width) {
+            this.real = real;
+            this.imag = imag;
+            this.startRow = startRow;
+            this.endRow = endRow;
+            this.width = width;
+        }
+    }
+
+    // Key: variableIdentity | stripIndex — preserves LRU access order
+    @SuppressWarnings("serial")
+    private final Map<Long, StripData> stripCache = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Long, StripData> eldest) {
+            return size() > MAX_CACHED_STRIPS;
+        }
+    };
     protected final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
     protected NetcdfFile netcdfFile = null;
     protected Product product = null;
@@ -323,7 +351,8 @@ public abstract class NisarSubReader {
         // Extract SAR parameters from frequency group
         addSARParameters(absRoot, sar);
 
-        // Remove troublesome demFiles element if present
+        // Remove troublesome inputs elements that contain null-separated file paths
+        // (demFiles, calFiles, antPatternFiles, etc.) which are illegal in XML
         MetadataElement productTypeElem = sar.getElement(productType);
         if(productTypeElem != null) {
             MetadataElement metadataElem = productTypeElem.getElement("metadata");
@@ -332,9 +361,9 @@ public abstract class NisarSubReader {
                 if(processingInformation != null) {
                     MetadataElement inputs = processingInformation.getElement("inputs");
                     if(inputs != null) {
-                        MetadataElement demFiles = inputs.getElement("demFiles");
-                        if(demFiles != null) {
-                            inputs.removeElement(demFiles);
+                        String[] inputElementNames = inputs.getElementNames();
+                        for(String name : inputElementNames) {
+                            inputs.removeElement(inputs.getElement(name));
                         }
                     }
                 }
@@ -386,6 +415,15 @@ public abstract class NisarSubReader {
                         prf.readScalarDouble());
             }
 
+            // Slant range to first pixel - from slantRange array (first element)
+            Variable slantRange = findSlantRangeVariable(swathsOrGrids, freqGroup, groupProductType);
+            if(slantRange != null) {
+                Array slantRangeArray = slantRange.read();
+                double slantRangeToFirstPixel = slantRangeArray.getDouble(0);
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel,
+                        slantRangeToFirstPixel);
+            }
+
             // Range spacing - search in frequency group tree, then processing parameters
             Variable rangeSpacing = findVariableInGroupTree(freqGroup, "slantRangeSpacing");
             if(rangeSpacing == null) {
@@ -424,6 +462,15 @@ public abstract class NisarSubReader {
                             1.0 / spacing);
                 }
             }
+
+            // Log critical SAR parameters for diagnostics
+            SystemUtils.LOG.info("NISAR SAR params:" +
+                    " slant_range_to_first_pixel=" + absRoot.getAttributeDouble(AbstractMetadata.slant_range_to_first_pixel) +
+                    " range_spacing=" + absRoot.getAttributeDouble(AbstractMetadata.range_spacing) +
+                    " azimuth_spacing=" + absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing) +
+                    " line_time_interval=" + absRoot.getAttributeDouble(AbstractMetadata.line_time_interval) +
+                    " radar_frequency=" + absRoot.getAttributeDouble(AbstractMetadata.radar_frequency) +
+                    " prf=" + absRoot.getAttributeDouble(AbstractMetadata.pulse_repetition_frequency));
 
             // For interferometric products, try to get looks from processing parameters
             Group metadataGroup = groupProductType.findGroup("metadata");
@@ -566,6 +613,53 @@ public abstract class NisarSubReader {
                 if(srcSwaths != null) {
                     v = srcSwaths.findVariable("zeroDopplerTimeSpacing");
                     if(v != null) return v;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private Variable findSlantRangeVariable(Group swathsOrGrids, Group freqGroup, Group groupProductType) {
+        // 1. Direct child of swaths/grids (RSLC, RIFG, ROFF, RUNW)
+        Variable v = swathsOrGrids.findVariable("slantRange");
+        if(v != null) return v;
+
+        // 2. In frequency group
+        v = freqGroup.findVariable("slantRange");
+        if(v != null) return v;
+
+        // 3. In sub-groups of frequency group (interferogram, pixelOffsets, etc.)
+        for(Group sub : freqGroup.getGroups()) {
+            v = sub.findVariable("slantRange");
+            if(v != null) return v;
+        }
+
+        // 4. In metadata/sourceData/swaths (GCOV and other geocoded products)
+        Group metadataGroup = groupProductType.findGroup("metadata");
+        if(metadataGroup != null) {
+            Group sourceData = metadataGroup.findGroup("sourceData");
+            if(sourceData != null) {
+                Group srcSwaths = sourceData.findGroup("swaths");
+                if(srcSwaths != null) {
+                    v = srcSwaths.findVariable("slantRange");
+                    if(v != null) return v;
+                }
+            }
+            // 5. In metadata/processingInformation/parameters/reference/frequencyA
+            Group procInfo = metadataGroup.findGroup("processingInformation");
+            if(procInfo != null) {
+                Group params = procInfo.findGroup("parameters");
+                if(params != null) {
+                    Group refGroup = params.findGroup("reference");
+                    if(refGroup != null) {
+                        Group refFreq = refGroup.findGroup("frequencyA");
+                        if(refFreq == null) refFreq = refGroup.findGroup("frequencyB");
+                        if(refFreq != null) {
+                            v = refFreq.findVariable("slantRange");
+                            if(v != null) return v;
+                        }
+                    }
                 }
             }
         }
@@ -835,16 +929,36 @@ public abstract class NisarSubReader {
             }
             if(timeStr.isEmpty()) return null;
 
-            // Normalize NISAR time format: "2008-10-12T06:09:11.48761868" → "2008-10-12 06:09:11"
-            timeStr = timeStr.replace("T", " ").trim();
-            if(timeStr.contains(".")) {
-                timeStr = timeStr.substring(0, timeStr.indexOf('.'));
-            }
-            return ProductData.UTC.parse(timeStr, standardDateFormat);
+            return parseNisarTimeString(timeStr);
         } catch (Exception e) {
             SystemUtils.LOG.warning("Failed to parse time from " + attrName + ": " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Parses a NISAR time string preserving fractional seconds.
+     * Input format: "2008-10-12T06:09:11.487618" or "2008-10-12 06:09:11.487618"
+     * Fractional seconds are critical for orbit interpolation accuracy.
+     */
+    private ProductData.UTC parseNisarTimeString(String timeStr) throws java.text.ParseException {
+        timeStr = timeStr.replace("T", " ").trim();
+
+        // Split at decimal point to preserve fractional seconds
+        double fracSeconds = 0.0;
+        String mainPart = timeStr;
+        final int dotPos = timeStr.indexOf('.');
+        if(dotPos > 0) {
+            mainPart = timeStr.substring(0, dotPos);
+            fracSeconds = Double.parseDouble("0" + timeStr.substring(dotPos));
+        }
+
+        ProductData.UTC utc = ProductData.UTC.parse(mainPart, standardDateFormat);
+        if(fracSeconds > 0.0) {
+            // Add fractional seconds as fraction of a day to the MJD
+            utc = new ProductData.UTC(utc.getMJD() + fracSeconds / 86400.0);
+        }
+        return utc;
     }
 
     private static String getOrbitPass(String pass) {
@@ -973,7 +1087,10 @@ public abstract class NisarSubReader {
             String sarBand = netcdfFile.findGroup("/science/LSAR") != null ? "LSAR" : "SSAR";
             String orbitPath = "/science/" + sarBand + "/" + productType + "/metadata/orbit";
             Group orbitGroup = netcdfFile.findGroup(orbitPath);
-            if(orbitGroup == null) return;
+            if(orbitGroup == null) {
+                SystemUtils.LOG.warning("NISAR orbit group not found at " + orbitPath);
+                return;
+            }
 
             // For interferometric products, orbit data may be under reference/ subgroup
             Group dataGroup = orbitGroup.findGroup("reference");
@@ -984,49 +1101,105 @@ public abstract class NisarSubReader {
             Variable posVar = dataGroup.findVariable("position");
             Variable velVar = dataGroup.findVariable("velocity");
             Variable timeVar = dataGroup.findVariable("time");
-            if(posVar == null || velVar == null || timeVar == null) return;
+            if(posVar == null || velVar == null || timeVar == null) {
+                SystemUtils.LOG.warning("NISAR orbit: missing position/velocity/time variables in " + dataGroup.getFullName());
+                return;
+            }
 
             // Parse epoch from time variable units attribute (e.g. "seconds since 2008-10-12T00:00:00.00000000")
             Attribute unitsAttr = timeVar.findAttribute("units");
-            if(unitsAttr == null) return;
+            if(unitsAttr == null) {
+                SystemUtils.LOG.warning("NISAR orbit: time variable has no 'units' attribute");
+                return;
+            }
             String unitsStr = unitsAttr.getStringValue();
             String epochStr = unitsStr.replace("seconds since ", "").trim();
-            // Normalize epoch format: "2008-10-12T00:00:00.00000000" -> "2008-10-12 00:00:00"
-            epochStr = epochStr.replace("T", " ");
-            if(epochStr.contains(".")) {
-                epochStr = epochStr.substring(0, epochStr.indexOf('.'));
-            }
-            final ProductData.UTC epoch = ProductData.UTC.parse(epochStr, standardDateFormat);
+            final ProductData.UTC epoch = parseNisarTimeString(epochStr);
             final double epochMJD = epoch.getMJD();
 
-            double[] times = (double[]) timeVar.read().getStorage();
-            double[][] positions = (double[][]) posVar.read().copyToNDJavaArray();
-            double[][] velocities = (double[][]) velVar.read().copyToNDJavaArray();
+            // Read orbit arrays — handle both float and double storage
+            final Array timeArray = timeVar.read();
+            final Array posArray = posVar.read();
+            final Array velArray = velVar.read();
 
-            final int numPoints = times.length;
+            final int[] posShape = posArray.getShape();
+            final int[] velShape = velArray.getShape();
+            final int numPoints = (int) timeArray.getSize();
+
+            SystemUtils.LOG.info("NISAR orbit: " + numPoints + " points, position shape=" +
+                    java.util.Arrays.toString(posShape) + ", velocity shape=" + java.util.Arrays.toString(velShape));
+
+            // Determine array layout: [N,3] or [3,N]
+            final boolean transposed = posShape.length == 2 && posShape[0] == 3 && posShape[1] != 3;
+
             final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
 
-            // Set state vector time from first orbit point
-            ProductData.UTC firstUTC = new ProductData.UTC(epochMJD + times[0] / 86400.0);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME, firstUTC);
-
             for (int i = 0; i < numPoints; i++) {
-                ProductData.UTC vectorUTC = new ProductData.UTC(epochMJD + times[i] / 86400.0);
+                double timeSec = timeArray.getDouble(i);
+                ProductData.UTC vectorUTC = new ProductData.UTC(epochMJD + timeSec / 86400.0);
+
+                double xPos, yPos, zPos, xVel, yVel, zVel;
+                if (transposed) {
+                    // Shape [3, N]: row 0=x, row 1=y, row 2=z
+                    int idx0 = 0 * posShape[1] + i;
+                    int idx1 = 1 * posShape[1] + i;
+                    int idx2 = 2 * posShape[1] + i;
+                    xPos = posArray.getDouble(idx0);
+                    yPos = posArray.getDouble(idx1);
+                    zPos = posArray.getDouble(idx2);
+                    xVel = velArray.getDouble(idx0);
+                    yVel = velArray.getDouble(idx1);
+                    zVel = velArray.getDouble(idx2);
+                } else {
+                    // Shape [N, 3]: row i = [x, y, z]
+                    int idx0 = i * 3;
+                    xPos = posArray.getDouble(idx0);
+                    yPos = posArray.getDouble(idx0 + 1);
+                    zPos = posArray.getDouble(idx0 + 2);
+                    xVel = velArray.getDouble(idx0);
+                    yVel = velArray.getDouble(idx0 + 1);
+                    zVel = velArray.getDouble(idx0 + 2);
+                }
+
+                if (i == 0) {
+                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME, vectorUTC);
+                    SystemUtils.LOG.info("NISAR orbit[0]: time=" + vectorUTC.format() +
+                            " pos=[" + xPos + "," + yPos + "," + zPos + "]" +
+                            " vel=[" + xVel + "," + yVel + "," + zVel + "]");
+                }
 
                 final MetadataElement orbitVectorElem = new MetadataElement(AbstractMetadata.orbit_vector + (i + 1));
                 orbitVectorElem.setAttributeUTC(AbstractMetadata.orbit_vector_time, vectorUTC);
 
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_pos, positions[i][0]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_pos, positions[i][1]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_pos, positions[i][2]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_vel, velocities[i][0]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_vel, velocities[i][1]);
-                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_vel, velocities[i][2]);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_pos, xPos);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_pos, yPos);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_pos, zPos);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_vel, xVel);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_vel, yVel);
+                orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_vel, zVel);
 
                 orbitVectorListElem.addElement(orbitVectorElem);
             }
+
+            ProductData.UTC lastVectorUTC = new ProductData.UTC(epochMJD + timeArray.getDouble(numPoints - 1) / 86400.0);
+            double spacingSec = numPoints > 1 ? (timeArray.getDouble(1) - timeArray.getDouble(0)) : 0;
+            ProductData.UTC firstLineTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time);
+            ProductData.UTC lastLineTime = absRoot.getAttributeUTC(AbstractMetadata.last_line_time);
+
+            SystemUtils.LOG.info("NISAR orbit: " + numPoints + " vectors, spacing=" + spacingSec + "s" +
+                    ", orbit_range=[" + new ProductData.UTC(epochMJD + timeArray.getDouble(0) / 86400.0).format() +
+                    " → " + lastVectorUTC.format() + "]" +
+                    ", acquisition=[" + firstLineTime.format() + " → " + lastLineTime.format() + "]");
+
+            // Warn if orbit doesn't cover acquisition
+            if (firstLineTime.getMJD() < (epochMJD + timeArray.getDouble(0) / 86400.0) ||
+                    lastLineTime.getMJD() > (epochMJD + timeArray.getDouble(numPoints - 1) / 86400.0)) {
+                SystemUtils.LOG.warning("NISAR orbit state vectors do NOT span the acquisition time range!");
+            }
+
         } catch (Exception e) {
-            SystemUtils.LOG.warning("Error reading orbit state vectors: " + e.getMessage());
+            SystemUtils.LOG.severe("Error reading NISAR orbit state vectors: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -1096,6 +1269,15 @@ public abstract class NisarSubReader {
                                        int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
                                        int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
                                        ProgressMonitor pm) throws IOException {
+//        StopWatch stopWatch = new StopWatch();
+//        stopWatch.start();
+//        System.out.println("Requesting " +
+//            " sourceOffsetX=" + sourceOffsetX + " sourceOffsetY=" + sourceOffsetY +
+//            " sourceWidth=" + sourceWidth + " sourceHeight=" + sourceHeight +
+//            " sourceStepX=" + sourceStepX + " sourceStepY=" + sourceStepY +
+//            " destBand=" + destBand.getName() +
+//            " destOffsetX=" + destOffsetX + " destOffsetY=" + destOffsetY +
+//            " destWidth=" + destWidth + " destHeight=" + destHeight);
 
         final int sceneHeight = destBand.getRasterHeight();
         final int sceneWidth = destBand.getRasterWidth();
@@ -1156,80 +1338,151 @@ public abstract class NisarSubReader {
         } finally {
             pm.done();
         }
+
+//        stopWatch.stop();
+//        System.out.println("readBandRasterDataImpl sourceOffsetY="+sourceOffsetY+" in " + stopWatch.getTimeDiffString());
+    }
+
+    /**
+     * Returns the cache key for a given variable and strip index.
+     */
+    private static long stripCacheKey(Variable variable, int stripIndex) {
+        return ((long) System.identityHashCode(variable) << 32) | (stripIndex & 0xFFFFFFFFL);
+    }
+
+    /**
+     * Returns the cached StripData for the given row, reading from disk if needed.
+     * Uses a multi-entry LRU cache so concurrent tile requests from different
+     * Y positions don't thrash a single-entry cache.
+     */
+    private StripData getStrip(Variable variable, int sceneWidth, int sceneHeight,
+                               int sourceOffsetY) throws IOException {
+
+        final int stripIndex = sourceOffsetY / STRIP_HEIGHT;
+        final long key = stripCacheKey(variable, stripIndex);
+
+        // Fast check: is this strip already cached?
+        synchronized (stripCache) {
+            StripData cached = stripCache.get(key);
+            if (cached != null) return cached;
+        }
+
+        // Cache miss — read the strip from disk
+        final int stripStart = stripIndex * STRIP_HEIGHT;
+        final int stripEnd = Math.min(stripStart + STRIP_HEIGHT, sceneHeight);
+        if (stripEnd <= stripStart) return null;
+
+        final int stripRows = stripEnd - stripStart;
+        final int numPixels = stripRows * sceneWidth;
+
+        try {
+            final ArrayStructure structArray;
+
+            if (variable.getRank() >= 2) {
+                final List<Range> stripRanges = new ArrayList<>();
+                stripRanges.add(new Range(stripStart, stripEnd - 1));
+                stripRanges.add(new Range(0, sceneWidth - 1));
+
+                synchronized (netcdfFile) {
+                    structArray = (ArrayStructure) variable.read(stripRanges);
+                }
+            } else if (variable instanceof ucar.nc2.Structure) {
+                final ucar.nc2.Structure struct = (ucar.nc2.Structure) variable;
+                final int linearStart = stripStart * sceneWidth;
+
+                synchronized (netcdfFile) {
+                    structArray = struct.readStructure(linearStart, numPixels);
+                }
+            } else {
+                return null;
+            }
+
+            final float[] realArr = new float[numPixels];
+            final float[] imagArr = new float[numPixels];
+
+            if (structArray instanceof ArrayStructureBB) {
+                final ArrayStructureBB bbArray = (ArrayStructureBB) structArray;
+                final ByteBuffer bb = bbArray.getByteBuffer();
+                bb.order(ByteOrder.nativeOrder());
+
+                final StructureMembers members = bbArray.getStructureMembers();
+                final int elementSize = members.getStructureSize();
+
+                int realOffset = 0, imagOffset = 4;
+                for (StructureMembers.Member m : members.getMembers()) {
+                    final String n = m.getName().toLowerCase();
+                    if (n.equals("r") || n.equals("real") || n.endsWith("_r")) {
+                        realOffset = m.getDataParam();
+                    } else if (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i")) {
+                        imagOffset = m.getDataParam();
+                    }
+                }
+
+                for (int idx = 0; idx < numPixels; idx++) {
+                    final int baseOffset = idx * elementSize;
+                    realArr[idx] = bb.getFloat(baseOffset + realOffset);
+                    imagArr[idx] = bb.getFloat(baseOffset + imagOffset);
+                }
+            } else {
+                final StructureMembers members = structArray.getStructureMembers();
+                StructureMembers.Member realMember = null, imagMember = null;
+                for (StructureMembers.Member m : members.getMembers()) {
+                    final String n = m.getName().toLowerCase();
+                    if (n.equals("r") || n.equals("real") || n.endsWith("_r")) {
+                        realMember = m;
+                    } else if (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i")) {
+                        imagMember = m;
+                    }
+                }
+                for (int idx = 0; idx < numPixels; idx++) {
+                    if (realMember != null) realArr[idx] = structArray.getScalarFloat(idx, realMember);
+                    if (imagMember != null) imagArr[idx] = structArray.getScalarFloat(idx, imagMember);
+                }
+            }
+
+            final StripData strip = new StripData(realArr, imagArr, stripStart, stripEnd, sceneWidth);
+
+            synchronized (stripCache) {
+                stripCache.put(key, strip);
+            }
+
+            return strip;
+
+        } catch (InvalidRangeException e) {
+            throw new IOException(e);
+        }
     }
 
     private void readComplexBandTile(Variable variable, Band destBand, int sceneWidth, int sceneHeight,
                                      int sourceOffsetX, int sourceOffsetY, int sourceStepX, int sourceStepY,
                                      int destWidth, int destHeight, ProductData destBuffer) throws IOException {
 
-        // Resolve the member name (r or i) for this band — computed once and cached
-        String memberToRead = memberNameCache.get(destBand);
-        if (memberToRead == null) {
-            if (variable instanceof ucar.nc2.Structure) {
-                final ucar.nc2.Structure struct = (ucar.nc2.Structure) variable;
-                String realName = null, imagName = null;
-                for (Variable mv : struct.getVariables()) {
-                    final String n = mv.getShortName().toLowerCase();
-                    if (n.equals("r") || n.equals("real") || n.endsWith("_r")) {
-                        realName = mv.getShortName();
-                    } else if (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i")) {
-                        imagName = mv.getShortName();
-                    }
-                }
-                final boolean wantImag = Unit.IMAGINARY.equals(destBand.getUnit()) || destBand.getName().startsWith("q_");
-                memberToRead = wantImag ? imagName : realName;
-                if (memberToRead == null && !struct.getVariables().isEmpty()) {
-                    memberToRead = struct.getVariables().get(0).getShortName();
-                }
+        final boolean wantImag = Unit.IMAGINARY.equals(destBand.getUnit()) || destBand.getName().startsWith("q_");
+
+        final StripData strip = getStrip(variable, sceneWidth, sceneHeight, sourceOffsetY);
+        if (strip == null) return;
+
+        final float[] stripData = wantImag ? strip.imag : strip.real;
+        final float[] dest = (float[]) destBuffer.getElems();
+        final int stripW = strip.width;
+
+        if (sourceStepX == 1) {
+            for (int tileY = 0; tileY < destHeight; tileY++) {
+                final int srcRow = sourceOffsetY + tileY * sourceStepY;
+                if (srcRow < strip.startRow || srcRow >= strip.endRow) break;
+                final int stripOffset = (srcRow - strip.startRow) * stripW + sourceOffsetX;
+                System.arraycopy(stripData, stripOffset, dest, tileY * destWidth, destWidth);
             }
-            if (memberToRead != null) {
-                memberNameCache.put(destBand, memberToRead);
-            }
-        }
-        if (memberToRead == null) return;
-
-        final int endY = (int) Math.min((long) sourceOffsetY + (long) (destHeight - 1) * sourceStepY, sceneHeight - 1);
-        final int endX = (int) Math.min((long) sourceOffsetX + (long) (destWidth - 1) * sourceStepX, sceneWidth - 1);
-        if (endY < sourceOffsetY || endX < sourceOffsetX) return;
-
-        try {
-            // Read just the requested tile section from the compound variable
-            final List<Range> tileRanges = new ArrayList<>();
-            tileRanges.add(new Range(sourceOffsetY, endY, sourceStepY));
-            tileRanges.add(new Range(sourceOffsetX, endX, sourceStepX));
-
-            final Array tileStruct;
-            synchronized (netcdfFile) {
-                tileStruct = variable.read(tileRanges);
-            }
-
-            // Extract the member (r or i) from the tile
-            final ArrayStructure structArray = (ArrayStructure) tileStruct;
-            final StructureMembers.Member member = structArray.getStructureMembers().findMember(memberToRead);
-            if (member == null) return;
-            Array memberArray = structArray.extractMemberArray(member);
-
-            // Ensure correct shape
-            final int tileH = structArray.getShape().length >= 1 ? structArray.getShape()[0] : destHeight;
-            final int tileW = structArray.getShape().length >= 2 ? structArray.getShape()[1] : destWidth;
-            if (memberArray.getRank() != 2) {
-                memberArray = memberArray.reshape(new int[]{tileH, tileW});
-            }
-
-            final float[] tileFloats = (float[]) memberArray.get1DJavaArray(DataType.FLOAT);
-            final float[] dest = (float[]) destBuffer.getElems();
-
-            final int actualTileW = memberArray.getShape()[1];
-            if (actualTileW == destWidth) {
-                System.arraycopy(tileFloats, 0, dest, 0, Math.min(tileFloats.length, dest.length));
-            } else {
-                final int actualTileH = memberArray.getShape()[0];
-                for (int y = 0; y < actualTileH && y < destHeight; y++) {
-                    System.arraycopy(tileFloats, y * actualTileW, dest, y * destWidth, Math.min(actualTileW, destWidth));
+        } else {
+            int destIdx = 0;
+            for (int tileY = 0; tileY < destHeight; tileY++) {
+                final int srcRow = sourceOffsetY + tileY * sourceStepY;
+                if (srcRow < strip.startRow || srcRow >= strip.endRow) break;
+                final int stripRowOffset = (srcRow - strip.startRow) * stripW;
+                for (int tileX = 0; tileX < destWidth; tileX++) {
+                    dest[destIdx++] = stripData[stripRowOffset + sourceOffsetX + tileX * sourceStepX];
                 }
             }
-        } catch (InvalidRangeException e) {
-            throw new IOException(e);
         }
     }
 }

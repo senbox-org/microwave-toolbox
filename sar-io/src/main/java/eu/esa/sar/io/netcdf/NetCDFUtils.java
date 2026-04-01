@@ -547,7 +547,14 @@ public class NetCDFUtils {
             if(variableSize == 1 || productDataType == ProductData.TYPE_ASCII) {
                 name = variable.getShortName();
             }
-            final ProductData pd = ReaderUtils.createProductData(productDataType, values);
+            ProductData pd = ReaderUtils.createProductData(productDataType, values);
+            if (productDataType == ProductData.TYPE_ASCII && pd != null) {
+                // Sanitize string data: replace null characters (illegal in XML) with separator
+                String strValue = pd.getElemString();
+                if (strValue != null && strValue.indexOf('\0') >= 0) {
+                    pd = ProductData.createInstance(strValue.replace('\0', '\n').trim());
+                }
+            }
             final MetadataAttribute attribute = new MetadataAttribute(name, pd, true);
             valuesElem.addAttribute(attribute);
         } catch (IOException | InvalidRangeException e) {
