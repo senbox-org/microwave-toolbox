@@ -33,6 +33,7 @@ import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -143,6 +144,62 @@ public class TestRemoveThermalNoiseOp {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
         return targetProduct;
+    }
+
+    /**
+     * Test that with clipNegativeValues=true (default), negative values are clipped.
+     */
+    @Test
+    @STTM("SNAP-4160")
+    public void testClippingReplacesNegativeValues() throws Exception {
+        int w = 10;
+        int h = 148;
+        try (final Product sourceProduct = createTOPSSLCProduct(w, h)) {
+            final Sentinel1RemoveThermalNoiseOp op = (Sentinel1RemoveThermalNoiseOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
+            op.setParameter("clipNegativeValues", true);
+
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
+
+            final Band band = targetProduct.getBand("Intensity_IW1_VH");
+            assertNotNull(band);
+
+            final float[] floatValues = new float[8];
+            band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+
+            // With clipping enabled, all values should be >= 0
+            for (int i = 0; i < floatValues.length; i++) {
+                assertTrue("Expected non-negative value at index " + i + ", got " + floatValues[i],
+                        floatValues[i] >= 0.0f);
+            }
+        }
+    }
+
+    /**
+     * Test that default behavior (clipNegativeValues=true) matches the original test expectations.
+     */
+    @Test
+    @STTM("SNAP-4160")
+    public void testDefaultClippingMatchesOriginal() throws Exception {
+        int w = 10;
+        int h = 148;
+        try (final Product sourceProduct = createTOPSSLCProduct(w, h)) {
+            try (final Product targetProduct = process(sourceProduct)) {
+                final Band band = targetProduct.getBand("Intensity_IW1_VH");
+                assertNotNull(band);
+
+                final float[] floatValues = new float[8];
+                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+
+                // These are the same expected values as testProcessingS1_TOPS_SL2,
+                // confirming the default clipNegativeValues=true produces backward-compatible results.
+                assertEquals(0.0f, floatValues[0], 0.0001);
+                assertEquals(1.4611448f, floatValues[1], 0.0001);
+                assertEquals(7.4621906f, floatValues[2], 0.0001);
+            }
+        }
     }
 
     @Test

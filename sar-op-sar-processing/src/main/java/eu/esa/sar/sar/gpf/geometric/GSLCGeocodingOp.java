@@ -212,6 +212,8 @@ public class GSLCGeocodingOp extends Operator {
 
     private boolean nearRangeOnLeft = true;
     private boolean skipBistaticCorrection = false;
+    private double bistaticCorrectionRefRange = 0.0;
+    private String mission = null;
 
     public static final String externalDEMStr = "External DEM";
     private static final String PRODUCT_SUFFIX = "_GSLC";
@@ -273,7 +275,11 @@ public class GSLCGeocodingOp extends Operator {
     private void getMetadata() throws Exception {
         absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
+        mission = RangeDopplerGeocodingOp.getMissionType(absRoot);
         skipBistaticCorrection = absRoot.getAttributeInt(AbstractMetadata.bistatic_correction_applied, 0) == 1;
+        if (skipBistaticCorrection && mission != null && mission.startsWith("SENTINEL-1")) {
+            bistaticCorrectionRefRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        }
         srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
         
         // Robust wavelength calculation
@@ -861,7 +867,14 @@ public class GSLCGeocodingOp extends Operator {
                 zeroDopplerTime, data.earthPoint, data.sensorPos);
 
         if (!skipBistaticCorrection) {
+            // Full bistatic correction: product has no bulk correction applied
             zeroDopplerTime += data.slantRange / Constants.lightSpeedInMetersPerDay;
+            data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    zeroDopplerTime, data.earthPoint, data.sensorPos);
+        } else if (bistaticCorrectionRefRange > 0.0) {
+            // Bistatic residual correction (Section 4.7.3 of UZH-S1-GC-AD v1.12):
+            // IPF applied bulk correction using a reference range; apply the range-dependent residual.
+            zeroDopplerTime += (data.slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
             data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
                     zeroDopplerTime, data.earthPoint, data.sensorPos);
         }

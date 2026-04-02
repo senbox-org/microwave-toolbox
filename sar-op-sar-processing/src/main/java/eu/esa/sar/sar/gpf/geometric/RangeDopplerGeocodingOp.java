@@ -215,6 +215,10 @@ public class RangeDopplerGeocodingOp extends Operator {
             description = "The auxiliary file", defaultValue = CalibrationOp.LATEST_AUX, label = "Auxiliary File")
     private String auxFile = CalibrationOp.LATEST_AUX;
 
+    @Parameter(defaultValue = "false", label = "Apply Atmospheric Path Delay Correction",
+            description = "Correct for tropospheric path delay (~3 m range improvement) using a standard atmosphere model")
+    private boolean applyAPDCorrection = false;
+
     @Parameter(description = "The antenne elevation pattern gain auxiliary data file.", label = "External Aux File")
     private File externalAuxFile = null;
 
@@ -266,6 +270,7 @@ public class RangeDopplerGeocodingOp extends Operator {
     private boolean nearRangeOnLeft = true; // temp fix for descending Radarsat2
     private String mission = null;
     private boolean skipBistaticCorrection = false;
+    private double bistaticCorrectionRefRange = 0.0; // reference slant range used by IPF for bistatic correction
 
     private boolean isLayoverShadowMaskAvailable = false;
     private byte[][] layoverShadowMask = null;
@@ -445,6 +450,15 @@ public class RangeDopplerGeocodingOp extends Operator {
             }
         } else {
             nearEdgeSlantRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        }
+
+        // Bistatic residual correction applies only to Sentinel-1 (Section 4.7.3 of UZH-S1-GC-AD v1.12).
+        // The S-1 IPF applies a bulk bistatic correction using a near-range reference; the residual
+        // accounts for the range-dependent variation not covered by the bulk correction.
+        // Other missions (TerraSAR-X, COSMO, RCM, etc.) apply a full per-sample correction,
+        // so no residual is needed.
+        if (skipBistaticCorrection && mission != null && mission.startsWith("SENTINEL-1")) {
+            bistaticCorrectionRefRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
         }
 
         // used for retro-calibration or when useAvgSceneHeight is true
@@ -1498,10 +1512,23 @@ public class RangeDopplerGeocodingOp extends Operator {
         data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
                 zeroDopplerTime, data.earthPoint, data.sensorPos);
 
-        if (!skipBistaticCorrection) { // skip bistatic correction for COSMO, TerraSAR-X and RadarSAT-2
+        if (!skipBistaticCorrection) {
+            // Full bistatic correction: product has no bulk correction applied
             zeroDopplerTime += data.slantRange / Constants.lightSpeedInMetersPerDay;
             data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
                     zeroDopplerTime, data.earthPoint, data.sensorPos);
+        } else if (bistaticCorrectionRefRange > 0.0) {
+            // Bistatic residual correction (Section 4.7.3 of UZH-S1-GC-AD v1.12):
+            // IPF applied bulk correction using a reference range; apply the range-dependent residual.
+            zeroDopplerTime += (data.slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
+            data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    zeroDopplerTime, data.earthPoint, data.sensorPos);
+        }
+
+        if (applyAPDCorrection) {
+            // Add atmospheric path delay to geometric slant range to match the product range axis
+            // which includes the tropospheric delay (Section 4.6.1 of UZH-S1-GC-AD v1.12).
+            data.slantRange += SARGeocoding.computeAtmosphericPathDelay(data.earthPoint, data.sensorPos, lat, alt);
         }
 
         data.rangeIndex = SARGeocoding.computeRangeIndex(srgrFlag, sourceImageWidth, firstLineUTC, lastLineUTC,
