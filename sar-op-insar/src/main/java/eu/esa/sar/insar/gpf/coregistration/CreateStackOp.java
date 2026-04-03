@@ -143,7 +143,10 @@ public class CreateStackOp extends Operator {
 
             for (final Product prod : sourceProduct) {
                 final InputProductValidator validator = new InputProductValidator(prod);
-                if(validator.isTOPSARProduct() && !validator.isDebursted()) {
+                final MetadataElement prodAbsRoot = AbstractMetadata.getAbstractedMetadata(prod);
+                final boolean isTerrainCorrected = prodAbsRoot != null &&
+                        prodAbsRoot.getAttributeInt(AbstractMetadata.is_terrain_corrected, 0) == 1;
+                if(validator.isTOPSARProduct() && !validator.isDebursted() && !isTerrainCorrected) {
                     throw new OperatorException("For S1 TOPS SLC products, TOPS Coregistration should be used");
                 }
 
