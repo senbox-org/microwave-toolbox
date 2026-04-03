@@ -190,6 +190,11 @@ public class InterferogramOp extends Operator {
     private Band secETADHeightBand = null;
     private Band secETADGradientBand = null;
 
+    // GSLC interferogram mode: input is geocoded complex (phase-flattened) stack
+    private boolean isGSLCProduct = false;
+    private Band[] gslcMasterI, gslcMasterQ, gslcSlaveI, gslcSlaveQ;
+    private Band[] gslcTargetI, gslcTargetQ, gslcTargetCoh;
+
     private static final boolean CREATE_VIRTUAL_BAND = true;
     private static final boolean OUTPUT_ETAD_IFG = true;
     private static final String PRODUCT_SUFFIX = "_Ifg";
@@ -223,10 +228,18 @@ public class InterferogramOp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
-            if(AbstractMetadata.getAbstractedMetadata(sourceProduct).containsAttribute("multimaster_split")){
+            // Check if this is a GSLC (geocoded complex) stack
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            if (absRoot != null && absRoot.getAttributeInt(AbstractMetadata.is_terrain_corrected, 0) == 1) {
+                isGSLCProduct = true;
+                initializeGSLC();
+                return;
+            }
+
+            if(absRoot.containsAttribute("multimaster_split")){
                 refRoot = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(0);
             } else{
-                refRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+                refRoot = absRoot;
             }
 
             checkUserInput();
@@ -244,6 +257,203 @@ public class InterferogramOp extends Operator {
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    /**
+     * Initialize for GSLC (geocoded complex) interferogram.
+     * GSLC products are already phase-flattened and geocoded — the interferogram is simply
+     * the complex conjugate multiplication of primary and secondary, with no flat-earth or
+     * topographic phase subtraction needed.
+     */
+    private void initializeGSLC() throws Exception {
+        sourceImageWidth = sourceProduct.getSceneRasterWidth();
+        sourceImageHeight = sourceProduct.getSceneRasterHeight();
+
+        // Find complex band pairs: master (mst) and slave (slv)
+        final List<Band> mstIBands = new ArrayList<>();
+        final List<Band> mstQBands = new ArrayList<>();
+        final List<Band> slvIBands = new ArrayList<>();
+        final List<Band> slvQBands = new ArrayList<>();
+
+        for (Band band : sourceProduct.getBands()) {
+            final String name = band.getName().toLowerCase();
+            final String unit = band.getUnit();
+            if (unit == null) continue;
+
+            if (unit.equals(Unit.REAL)) {
+                if (name.contains(MASTER_TAG)) {
+                    mstIBands.add(band);
+                } else if (name.contains(SLAVE_TAG)) {
+                    slvIBands.add(band);
+                }
+            } else if (unit.equals(Unit.IMAGINARY)) {
+                if (name.contains(MASTER_TAG)) {
+                    mstQBands.add(band);
+                } else if (name.contains(SLAVE_TAG)) {
+                    slvQBands.add(band);
+                }
+            }
+        }
+
+        if (mstIBands.isEmpty() || mstQBands.isEmpty() || slvIBands.isEmpty() || slvQBands.isEmpty()) {
+            throw new OperatorException("GSLC interferogram requires master and slave complex (I/Q) bands. " +
+                    "Band names must contain 'mst' and 'slv' tags.");
+        }
+
+        final int numPairs = Math.min(mstIBands.size(), slvIBands.size());
+        gslcMasterI = mstIBands.subList(0, numPairs).toArray(new Band[0]);
+        gslcMasterQ = mstQBands.subList(0, numPairs).toArray(new Band[0]);
+        gslcSlaveI = slvIBands.subList(0, numPairs).toArray(new Band[0]);
+        gslcSlaveQ = slvQBands.subList(0, numPairs).toArray(new Band[0]);
+
+        // Create target product
+        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
+                sourceProduct.getProductType(), sourceImageWidth, sourceImageHeight);
+        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
+
+        gslcTargetI = new Band[numPairs];
+        gslcTargetQ = new Band[numPairs];
+        gslcTargetCoh = includeCoherence ? new Band[numPairs] : null;
+
+        for (int p = 0; p < numPairs; p++) {
+            // Derive tag from master band name
+            final String mstName = gslcMasterI[p].getName();
+            final String suffix = mstName.substring(mstName.indexOf('_'));
+            final String tag = suffix.replace("_mst", "");
+
+            final String iBandName = "i_" + productTag + tag;
+            gslcTargetI[p] = targetProduct.addBand(iBandName, ProductData.TYPE_FLOAT32);
+            gslcTargetI[p].setUnit(Unit.REAL);
+
+            final String qBandName = "q_" + productTag + tag;
+            gslcTargetQ[p] = targetProduct.addBand(qBandName, ProductData.TYPE_FLOAT32);
+            gslcTargetQ[p].setUnit(Unit.IMAGINARY);
+
+            if (CREATE_VIRTUAL_BAND) {
+                ReaderUtils.createVirtualIntensityBand(targetProduct, gslcTargetI[p], gslcTargetQ[p], '_' + productTag + tag);
+                Band phaseBand = ReaderUtils.createVirtualPhaseBand(targetProduct, gslcTargetI[p], gslcTargetQ[p], '_' + productTag + tag);
+                targetProduct.setQuicklookBandName(phaseBand.getName());
+            }
+
+            if (includeCoherence) {
+                final String cohBandName = "coh" + tag;
+                gslcTargetCoh[p] = targetProduct.addBand(cohBandName, ProductData.TYPE_FLOAT32);
+                gslcTargetCoh[p].setUnit(Unit.COHERENCE);
+                gslcTargetCoh[p].setNoDataValueUsed(true);
+                gslcTargetCoh[p].setNoDataValue(0);
+            }
+        }
+    }
+
+    /**
+     * Compute interferogram for GSLC (geocoded complex) products.
+     * No flat-earth or topographic phase subtraction — just complex conjugate multiplication.
+     */
+    private void computeTileStackForGSLC(final Map<Band, Tile> targetTileMap, final Rectangle targetRectangle) {
+        try {
+            final int x0 = targetRectangle.x;
+            final int y0 = targetRectangle.y;
+            final int w = targetRectangle.width;
+            final int h = targetRectangle.height;
+
+            // Extended rectangle for coherence window
+            final int cohx0 = x0 - (cohWinRg - 1) / 2;
+            final int cohy0 = y0 - (cohWinAz - 1) / 2;
+            final int cohw = w + cohWinRg - 1;
+            final int cohh = h + cohWinAz - 1;
+            final Rectangle cohRect = new Rectangle(cohx0, cohy0, cohw, cohh);
+
+            for (int p = 0; p < gslcMasterI.length; p++) {
+                final Tile mstTileI = getSourceTile(gslcMasterI[p], targetRectangle);
+                final Tile mstTileQ = getSourceTile(gslcMasterQ[p], targetRectangle);
+                final Tile slvTileI = getSourceTile(gslcSlaveI[p], targetRectangle);
+                final Tile slvTileQ = getSourceTile(gslcSlaveQ[p], targetRectangle);
+
+                final Tile tgtTileI = targetTileMap.get(gslcTargetI[p]);
+                final Tile tgtTileQ = targetTileMap.get(gslcTargetQ[p]);
+
+                if (tgtTileI == null && tgtTileQ == null) continue;
+
+                final ProductData tgtDataI = tgtTileI != null ? tgtTileI.getDataBuffer() : null;
+                final ProductData tgtDataQ = tgtTileQ != null ? tgtTileQ.getDataBuffer() : null;
+
+                // Interferogram: primary * conj(secondary)
+                // (mI + j*mQ) * (sI - j*sQ) = (mI*sI + mQ*sQ) + j*(mQ*sI - mI*sQ)
+                for (int y = y0; y < y0 + h; y++) {
+                    for (int x = x0; x < x0 + w; x++) {
+                        final double mI = mstTileI.getSampleDouble(x, y);
+                        final double mQ = mstTileQ.getSampleDouble(x, y);
+                        final double sI = slvTileI.getSampleDouble(x, y);
+                        final double sQ = slvTileQ.getSampleDouble(x, y);
+
+                        final int idx = tgtTileI.getDataBufferIndex(x, y);
+                        if (tgtDataI != null) tgtDataI.setElemDoubleAt(idx, mI * sI + mQ * sQ);
+                        if (tgtDataQ != null) tgtDataQ.setElemDoubleAt(idx, mQ * sI - mI * sQ);
+                    }
+                }
+
+                // Coherence estimation
+                if (includeCoherence && gslcTargetCoh != null) {
+                    final Tile cohTgtTile = targetTileMap.get(gslcTargetCoh[p]);
+                    if (cohTgtTile != null) {
+                        computeGSLCCoherence(cohRect, targetRectangle,
+                                gslcMasterI[p], gslcMasterQ[p], gslcSlaveI[p], gslcSlaveQ[p],
+                                cohTgtTile);
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    private void computeGSLCCoherence(final Rectangle cohRect, final Rectangle targetRect,
+                                       final Band mstBandI, final Band mstBandQ,
+                                       final Band slvBandI, final Band slvBandQ,
+                                       final Tile cohTile) {
+
+        final Tile mstI = getSourceTile(mstBandI, cohRect);
+        final Tile mstQ = getSourceTile(mstBandQ, cohRect);
+        final Tile slvI = getSourceTile(slvBandI, cohRect);
+        final Tile slvQ = getSourceTile(slvBandQ, cohRect);
+
+        final ProductData cohData = cohTile.getDataBuffer();
+        final int halfAz = (cohWinAz - 1) / 2;
+        final int halfRg = (cohWinRg - 1) / 2;
+
+        final int x0 = targetRect.x;
+        final int y0 = targetRect.y;
+        final int w = targetRect.width;
+        final int h = targetRect.height;
+
+        for (int y = y0; y < y0 + h; y++) {
+            for (int x = x0; x < x0 + w; x++) {
+                double sumReal = 0, sumImag = 0, sumMst = 0, sumSlv = 0;
+
+                for (int wy = y - halfAz; wy <= y + halfAz; wy++) {
+                    for (int wx = x - halfRg; wx <= x + halfRg; wx++) {
+                        final double mi = mstI.getSampleDouble(wx, wy);
+                        final double mq = mstQ.getSampleDouble(wx, wy);
+                        final double si = slvI.getSampleDouble(wx, wy);
+                        final double sq = slvQ.getSampleDouble(wx, wy);
+
+                        // cross-correlation: mst * conj(slv)
+                        sumReal += mi * si + mq * sq;
+                        sumImag += mq * si - mi * sq;
+
+                        // auto-correlations
+                        sumMst += mi * mi + mq * mq;
+                        sumSlv += si * si + sq * sq;
+                    }
+                }
+
+                final double crossMag = Math.sqrt(sumReal * sumReal + sumImag * sumImag);
+                final double denom = Math.sqrt(sumMst * sumSlv);
+                final double coh = (denom > 0) ? crossMag / denom : 0.0;
+
+                cohData.setElemDoubleAt(cohTile.getDataBufferIndex(x, y), coh);
+            }
         }
     }
 
@@ -1018,6 +1228,12 @@ public class InterferogramOp extends Operator {
     @Override
     public void computeTileStack(Map<Band, Tile> targetTileMap, Rectangle targetRectangle, ProgressMonitor pm)
             throws OperatorException {
+
+            if (isGSLCProduct) {
+                computeTileStackForGSLC(targetTileMap, targetRectangle);
+                return;
+            }
+
             if (subtractFlatEarthPhase && !flatEarthEstimated) {
                 estimateFlatEarth();
             }
