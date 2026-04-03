@@ -17,7 +17,6 @@ package eu.esa.sar.calibration.gpf.calibrators;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.apache.commons.math3.util.FastMath;
-import eu.esa.sar.calibration.gpf.Sentinel1RemoveThermalNoiseOp;
 import eu.esa.sar.calibration.gpf.support.BaseCalibrator;
 import eu.esa.sar.calibration.gpf.support.Calibrator;
 import eu.esa.sar.commons.Sentinel1Utils;
@@ -379,8 +378,6 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
             int srcIdx;
             int pixelIdx = -1;
 
-            float trgFloorValue = Sentinel1RemoveThermalNoiseOp.trgFloorValue;
-
             for (int y = y0; y < maxY; ++y) {
                 srcIndex.calculateStride(y);
                 trgIndex.calculateStride(y);
@@ -406,6 +403,11 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
 
                     dn = srcData1.getElemDoubleAt(srcIdx);
 
+                    if (dn == noDataValue) {
+                        tgtData.setElemDoubleAt(trgIndex.getIndex(x), noDataValue);
+                        continue;
+                    }
+
                     pixelIdx = getPixelIndex(calVec, pixelIdx, subsetOffsetX + x);
                     muX = (subsetOffsetX + x - vec0Pixels[pixelIdx]) /
                             (double)(vec0Pixels[pixelIdx + 1] - vec0Pixels[pixelIdx]);
@@ -422,7 +424,7 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
                             retroLutVal = (1 - muY) * ((1 - muX) * retroVec0LUT[pixelIdx] + muX * retroVec0LUT[pixelIdx + 1]) +
                                     muY * ((1 - muX) * retroVec1LUT[pixelIdx] + muX * retroVec1LUT[pixelIdx + 1]);
                         }
-                        calibrationFactor *= retroLutVal;
+                        calibrationFactor *= retroLutVal * retroLutVal;
                     } else if (isUnitReal) {
                         i = dn;
                         q = srcData2.getElemDoubleAt(srcIdx);
@@ -443,13 +445,6 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
                     }
 
                     calValue = dn * calibrationFactor;
-
-                    if(dn == trgFloorValue) {
-                        while((float)calValue < 0.00001) {
-                            dn *= 2;
-                            calValue = dn * calibrationFactor;
-                        }
-                    }
 
                     if (isComplex && outputImageInComplex) {
                         calValue = Math.sqrt(calValue)*phaseTerm;
@@ -594,7 +589,7 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
                     return i - 1;
                 }
             }
-            return -1;
+            return count - 2;
         }
 
         public Sentinel1Utils.CalibrationVector getCalibrationVector(final int calVecIdx) {

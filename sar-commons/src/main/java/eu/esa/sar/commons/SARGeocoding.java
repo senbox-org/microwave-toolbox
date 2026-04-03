@@ -1064,4 +1064,52 @@ public final class SARGeocoding {
                           pixelPos.getX(), calculatedRangeIndex, errorInPixels);
         return errorInPixels;
     }
+
+    /**
+     * Compute one-way atmospheric path delay for a given target using a standard atmosphere model.
+     * <p>
+     * Uses the Saastamoinen dry tropospheric delay model mapped to the slant range direction.
+     * The dry component captures ~90% of the total delay (~2.3 m zenith) and does not require
+     * real-time meteorological data. The wet component (~0.1-0.3 m) is omitted.
+     * <p>
+     * Reference: Section 4.6.1 of UZH-S1-GC-AD v1.12 "Guide to Sentinel-1 Geocoding".
+     *
+     * @param earthPoint The target position in ECEF coordinates (m).
+     * @param sensorPos  The sensor position in ECEF coordinates (m).
+     * @param latitude   The target geodetic latitude in degrees.
+     * @param altitude   The target altitude above the ellipsoid in meters.
+     * @return One-way atmospheric path delay in meters (always positive).
+     */
+    public static double computeAtmosphericPathDelay(
+            final PosVector earthPoint, final PosVector sensorPos,
+            final double latitude, final double altitude) {
+
+        // Zenith dry tropospheric delay using Saastamoinen model:
+        // ZPD_dry = 0.0022768 * P_surface / f(lat, h)
+        // P_surface from standard atmosphere: P = 1013.25 * (1 - 2.2557e-5 * h)^5.2568
+        // f(lat, h) = 1 - 0.00266 * cos(2*lat) - 0.00028 * h_km
+
+        final double h = Math.max(altitude, 0.0);
+        final double pressure = 1013.25 * Math.pow(1.0 - 2.2557e-5 * h, 5.2568);
+        final double latRad = latitude * Constants.DTOR;
+        final double gravityFactor = 1.0 - 0.00266 * Math.cos(2.0 * latRad) - 0.00028 * (h / 1000.0);
+        final double zenithDelay = 0.0022768 * pressure / gravityFactor;
+
+        // Compute incidence angle from geometry: cos(theta) = P_hat . (S - P) / |S - P|
+        final double dx = sensorPos.x - earthPoint.x;
+        final double dy = sensorPos.y - earthPoint.y;
+        final double dz = sensorPos.z - earthPoint.z;
+        final double slantRange = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        final double earthRadius = Math.sqrt(earthPoint.x * earthPoint.x + earthPoint.y * earthPoint.y + earthPoint.z * earthPoint.z);
+
+        // dot product of earth normal (P/|P|) and look direction ((S-P)/|S-P|)
+        final double cosIncAngle = (earthPoint.x * dx + earthPoint.y * dy + earthPoint.z * dz) / (earthRadius * slantRange);
+
+        if (cosIncAngle <= 0.0 || cosIncAngle > 1.0) {
+            return 0.0;
+        }
+
+        // One-way slant path delay = zenith delay / cos(incidence angle)
+        return zenithDelay / cosIncAngle;
+    }
 }
