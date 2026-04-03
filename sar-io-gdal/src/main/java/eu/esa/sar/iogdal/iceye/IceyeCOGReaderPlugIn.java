@@ -16,7 +16,7 @@ import java.util.Locale;
  */
 public class IceyeCOGReaderPlugIn implements SARProductReaderPlugIn {
 
-    private final String[] FILE_EXTS = { ".TIF", ".XML", ".JSON" };
+    private final String[] FILE_EXTS = { ".tif", ".xml", ".json" };
 
     private static final String[] PRODUCT_PREFIX = new String[] {"ICEYE_"};
     private static final String PRODUCT_FORMAT = "ICEYE COG";
