@@ -40,7 +40,7 @@ public class TestAlosPalsarProductReader extends ReaderTest {
 
     private static File inputFile = TestData.inputALOS_Zip;
 
-    public final static String inputALOS = SARTests.inputPathProperty + SARTests.sep + "SAR" + SARTests.sep  + "ALOS" + SARTests.sep ;
+    public final static String inputALOS = TestData.inputSAR + "ALOS/";
     public final static File[] rootPathsALOS = SARTests.loadFilePath(inputALOS);
 
 

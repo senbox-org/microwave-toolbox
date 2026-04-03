@@ -87,11 +87,13 @@ public class RangeFilterOp extends Operator {
     private boolean doWeightCorrel = false;
 
     // source
-    private HashMap<Integer, CplxContainer> masterMap = new HashMap<>();
-    private HashMap<Integer, CplxContainer> slaveMap = new HashMap<>();
+    private HashMap<String, CplxContainer> masterMap = new HashMap<>();
+    private HashMap<String, CplxContainer> slaveMap = new HashMap<>();
 
     // target
     private HashMap<String, ProductContainer> targetMap = new HashMap<>();
+
+    private String[] polarisations;
 
     private static final int ORBIT_DEGREE = 3; // hardcoded
     private static final boolean CREATE_VIRTUAL_BAND = true;
@@ -143,42 +145,35 @@ public class RangeFilterOp extends Operator {
     private void constructTargetMetadata() {
 
         // loop through masters
-        for (Integer keyMaster : masterMap.keySet()) {
+        for (String keyMaster : masterMap.keySet()) {
 
             CplxContainer master = masterMap.get(keyMaster);
             String masterSourceName_I = master.realBand.getName();
             String masterSourceName_Q = master.imagBand.getName();
 
-            String masterTargetName_I = masterSourceName_I + "_" + PRODUCT_TAG;
-            String masterTargetName_Q = masterSourceName_Q + "_" + PRODUCT_TAG;
-
             // generate name for product bands
             final String productName = keyMaster.toString();
 
-            for (Integer keySlave : slaveMap.keySet()) {
+            for (String keySlave : slaveMap.keySet()) {
 
                 final CplxContainer slave = slaveMap.get(keySlave);
-                String slaveSourceName_I = slave.realBand.getName();
-                String slaveSourceName_Q = slave.imagBand.getName();
+                if (master.polarisation == null || master.polarisation.equals(slave.polarisation)) {
+                    String slaveSourceName_I = slave.realBand.getName();
+                    String slaveSourceName_Q = slave.imagBand.getName();
 
-                String slaveTargetName_I = slaveSourceName_I + "_" + PRODUCT_TAG;
-                String slaveTargetName_Q = slaveSourceName_Q + "_" + PRODUCT_TAG;
+                    final ProductContainer product = new ProductContainer(productName, master, slaveMap.get(keySlave), true);
 
-                final ProductContainer product = new ProductContainer(productName, master, slaveMap.get(keySlave), true);
+                    product.masterSubProduct.targetBandName_I = masterSourceName_I;
+                    product.masterSubProduct.targetBandName_Q = masterSourceName_Q;
 
-                product.masterSubProduct.targetBandName_I = masterTargetName_I;
-                product.masterSubProduct.targetBandName_Q = masterTargetName_Q;
+                    product.slaveSubProduct.targetBandName_I = slaveSourceName_I;
+                    product.slaveSubProduct.targetBandName_Q = slaveSourceName_Q;
 
-                product.slaveSubProduct.targetBandName_I = slaveTargetName_I;
-                product.slaveSubProduct.targetBandName_Q = slaveTargetName_Q;
-
-                // put ifg-product bands into map
-                targetMap.put(productName, product);
-
+                    // put ifg-product bands into map
+                    targetMap.put(productName, product);
+                }
             }
-
         }
-
     }
 
     private void constructSourceMetadata() throws Exception {
@@ -207,41 +202,49 @@ public class RangeFilterOp extends Operator {
     private void metaMapPut(final String tag,
                             final MetadataElement root,
                             final Product product,
-                            final HashMap<Integer, CplxContainer> map) throws Exception {
+                            final HashMap<String, CplxContainer> map) throws Exception {
 
         // TODO: include polarization flags/checks!
         // pull out band names for this product
         final String[] bandNames = product.getBandNames();
         final int numOfBands = bandNames.length;
 
-        // map key: ORBIT NUMBER
-        int mapKey = root.getAttributeInt(AbstractMetadata.ABS_ORBIT);
-
         // metadata: construct classes and define bands
         final String date = OperatorUtils.getAcquisitionDate(root);
         final SLCImage meta = new SLCImage(root, product);
         final Orbit orbit = new Orbit(root, ORBIT_DEGREE);
-        Band bandReal = null;
-        Band bandImag = null;
 
         // TODO: boy this is one ugly construction!?
         // loop through all band names(!) : and pull out only one that matches criteria
-        for (int i = 0; i < numOfBands; i++) {
-            String bandName = bandNames[i];
-            if (bandName.contains(tag) && bandName.contains(date)) {
-                final Band band = product.getBandAt(i);
-                if (BandUtilsDoris.isBandReal(band)) {
-                    bandReal = band;
-                } else if (BandUtilsDoris.isBandImag(band)) {
-                    bandImag = band;
+        for (String polarisation : polarisations) {
+            final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
+            final String mapKey = root.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
+
+            Band bandReal = null;
+            Band bandImag = null;
+            for (int i = 0; i < numOfBands; i++) {
+                String bandName = bandNames[i];
+                if (bandName.contains(tag) && bandName.contains(date)) {
+                    if (pol.isEmpty() || bandName.contains(pol)) {
+                        final Band band = product.getBandAt(i);
+                        if (BandUtilsDoris.isBandReal(band)) {
+                            bandReal = band;
+                        } else if (BandUtilsDoris.isBandImag(band)) {
+                            bandImag = band;
+                        }
+
+                        if (bandReal != null && bandImag != null) {
+                            break;
+                        }
+                    }
                 }
             }
-        }
 
-        try {
-            map.put(mapKey, new CplxContainer(date, meta, orbit, bandReal, bandImag));
-        } catch (Exception e) {
-            e.printStackTrace();
+            try {
+                map.put(mapKey, new CplxContainer(date, meta, orbit, bandReal, bandImag));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -277,8 +280,9 @@ public class RangeFilterOp extends Operator {
             // generate virtual bands
             if (CREATE_VIRTUAL_BAND) {
                 final String tag = ifg.sourceMaster.date;
-                ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, ("_" + tag));
-                ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandI, targetBandQ, ("_" + tag));
+                ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, "");
+                final String suffix = ReaderUtils.createName(targetBandI.getName(), "");
+                ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandI, targetBandQ, suffix);
             }
 
             // generate REAL band of master-sub-product
@@ -292,8 +296,9 @@ public class RangeFilterOp extends Operator {
             // generate virtual bands
             if (CREATE_VIRTUAL_BAND) {
                 final String tag = ifg.sourceSlave.date;
-                ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, ("_" + tag));
-                ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandI, targetBandQ, ("_" + tag));
+                ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, "");
+                final String suffix = ReaderUtils.createName(targetBandI.getName(), "");
+                ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandI, targetBandQ, suffix);
             }
         }
     }
@@ -312,6 +317,11 @@ public class RangeFilterOp extends Operator {
         }
         if(!mstSlvBandsFound) {
             throw new OperatorException("Range spectral filtering should be applied before other insar processing");
+        }
+
+        polarisations = OperatorUtils.getPolarisations(sourceProduct);
+        if (polarisations.length == 0) {
+            polarisations = new String[]{""};
         }
     }
 

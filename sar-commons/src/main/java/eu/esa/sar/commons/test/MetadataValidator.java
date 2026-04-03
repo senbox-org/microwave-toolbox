@@ -103,7 +103,7 @@ public class MetadataValidator {
         verifyDouble(AbstractMetadata.pulse_repetition_frequency);
         verifyDouble(AbstractMetadata.range_spacing);
         verifyDouble(AbstractMetadata.azimuth_spacing);
-        
+
         verifyDouble(AbstractMetadata.range_looks);
         verifyDouble(AbstractMetadata.azimuth_looks);
         //verifyDouble(AbstractMetadata.slant_range_to_first_pixel);

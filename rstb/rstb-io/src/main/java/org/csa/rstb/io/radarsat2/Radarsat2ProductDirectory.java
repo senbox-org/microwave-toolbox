@@ -873,7 +873,7 @@ public class Radarsat2ProductDirectory extends XMLProductDirectory {
         final float[] rangeDist = new float[gridWidth * gridHeight];
         final float[] rangeTime = new float[gridWidth * gridHeight];
 
-        final coefList[] segments = segmentsArray.toArray(new coefList[segmentsArray.size()]);
+        final coefList[] segments = segmentsArray.toArray(new coefList[0]);
 
         int k = 0;
         int c = 0;

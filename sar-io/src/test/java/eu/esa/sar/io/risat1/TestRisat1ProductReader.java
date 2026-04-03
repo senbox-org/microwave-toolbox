@@ -17,7 +17,6 @@ package eu.esa.sar.io.risat1;
 
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
-import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
@@ -34,10 +33,8 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestRisat1ProductReader extends ReaderTest {
 
-    private final static String sep = SARTests.sep;
-
-    private final static File inputCEOSFolder = new File(TestData.inputSAR  + sep +  "RISAT1/FRS-1/9441sd1_s33_GroundRange");
-    private final static File inputCEOSMetaXML = new File(TestData.inputSAR + sep + "RISAT1/FRS-1/9441sd1_s33_GroundRange/BAND_META.txt");
+    private final static File inputCEOSFolder = new File(TestData.inputSAR  + "RISAT1/FRS-1/9441sd1_s33_GroundRange");
+    private final static File inputCEOSMetaXML = new File(TestData.inputSAR + "RISAT1/FRS-1/9441sd1_s33_GroundRange/BAND_META.txt");
 
     public TestRisat1ProductReader() {
         super(new Risat1ProductReaderPlugIn());

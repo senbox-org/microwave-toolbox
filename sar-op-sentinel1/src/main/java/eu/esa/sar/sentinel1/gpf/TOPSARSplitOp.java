@@ -66,6 +66,9 @@ public final class TOPSARSplitOp extends Operator {
     @Parameter(description = "The list of source bands.", label = "Subswath")
     private String subswath = null;
 
+     @Parameter(description = "Enable processing of single-swath products", defaultValue = "false", label = "Enable Single Swath Mode")
+    private boolean enableSingleSwathMode = false;
+
     @Parameter(description = "The list of polarisations", label = "Polarisations")
     private String[] selectedPolarisations;
 
@@ -101,7 +104,10 @@ public final class TOPSARSplitOp extends Operator {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
             validator.checkIfSentinel1Product();
-            validator.checkIfMultiSwathTOPSARProduct();
+            if (!enableSingleSwathMode) {
+                validator.checkIfMultiSwathTOPSARProduct();
+            }
+            validator.isTOPSARProduct();
             validator.checkProductType(new String[]{"SLC"});
             validator.checkAcquisitionMode(new String[]{"IW", "EW"});
 
@@ -168,6 +174,14 @@ public final class TOPSARSplitOp extends Operator {
                     selectedTPGList.add(srcTPG.getName());
                 }
             }
+
+            final boolean foundSwathTPG = !selectedTPGList.isEmpty();
+            if (!foundSwathTPG) {
+                for (TiePointGrid srcTPG : sourceProduct.getTiePointGrids()) {
+                    selectedTPGList.add(srcTPG.getName());
+                }
+            }
+
             subsetDef.addNodeNames(selectedTPGList.toArray(new String[0]));
 
             final int x = 0;
@@ -187,11 +201,17 @@ public final class TOPSARSplitOp extends Operator {
 
             targetProduct = subsetBuilder.readProductNodes(sourceProduct, subsetDef);
 
-            targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("latitude"));
-            targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("longitude"));
+            if (foundSwathTPG) {
+                TiePointGrid latTPG = targetProduct.getTiePointGrid("latitude");
+                if(latTPG != null)
+                    targetProduct.removeTiePointGrid(latTPG);
+                TiePointGrid lonTPG = targetProduct.getTiePointGrid("longitude");
+                if(lonTPG != null)
+                    targetProduct.removeTiePointGrid(lonTPG);
 
-            for (TiePointGrid tpg : targetProduct.getTiePointGrids()) {
-                tpg.setName(tpg.getName().replace(subswath + "_", ""));
+                for (TiePointGrid tpg : targetProduct.getTiePointGrids()) {
+                    tpg.setName(tpg.getName().replace(subswath + "_", ""));
+                }
             }
 
             GeoCoding geoCoding = new TiePointGeoCoding(targetProduct.getTiePointGrid("latitude"),

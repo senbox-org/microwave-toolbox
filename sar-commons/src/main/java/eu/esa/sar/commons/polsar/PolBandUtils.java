@@ -18,7 +18,6 @@ package eu.esa.sar.commons.polsar;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
@@ -146,7 +145,7 @@ public class PolBandUtils {
             final Band[] mstBands = getBands(srcProduct, sourceProductType, bandNames);
             quadSrcBandList.add(new PolSourceBand(srcProduct.getName(), mstBands, ""));
         }
-        return quadSrcBandList.toArray(new PolSourceBand[quadSrcBandList.size()]);
+        return quadSrcBandList.toArray(new PolSourceBand[0]);
     }
 
     /**
@@ -211,13 +210,13 @@ public class PolBandUtils {
 
         if (sourceProductType == MATRIX.DUAL_HH_HV) {
             hhBandList.addAll(hvBandList);
-            return hhBandList.toArray(new Band[hhBandList.size()]);
+            return hhBandList.toArray(new Band[0]);
         } else if (sourceProductType == MATRIX.DUAL_VH_VV) {
             vvBandList.addAll(vhBandList);
-            return vvBandList.toArray(new Band[vvBandList.size()]);
+            return vvBandList.toArray(new Band[0]);
         } else if (sourceProductType == MATRIX.DUAL_HH_VV) {
             hhBandList.addAll(vvBandList);
-            return hhBandList.toArray(new Band[hhBandList.size()]);
+            return hhBandList.toArray(new Band[0]);
         }
 
         return null;
@@ -245,7 +244,7 @@ public class PolBandUtils {
             if(bandList.size() < 4) {
                 throw new Exception("A full polarization product is expected as input.");
             }
-            return bandList.toArray(new Band[bandList.size()]);
+            return bandList.toArray(new Band[0]);
         }
 
         int validBandCnt = 0;

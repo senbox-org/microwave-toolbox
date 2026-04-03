@@ -33,8 +33,7 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestPCIReader extends ReaderTest {
 
-    private final static String sep = SARTests.sep;
-    private final static File file = new File(SARTests.inputPathProperty + sep +  "SAR/pcidsk/kompsat2_pcidsk_msc.pix");
+    private final static File file = new File(SARTests.inputPathProperty + "SAR/pcidsk/kompsat2_pcidsk_msc.pix");
 
     final static ProductValidator.Options productOptions = new ProductValidator.Options();
 

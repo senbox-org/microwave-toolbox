@@ -69,7 +69,7 @@ public final class DerampedAzimuthSpectrumOp extends Operator {
     private Sentinel1Utils su = null;
     private Sentinel1Utils.SubSwathInfo[] subSwath = null;
 
-	private int subSwathIndex = 0;
+    private int subSwathIndex = 0;
     private String swathIndexStr = null;
     private String polarization = null;
 
@@ -109,21 +109,21 @@ public final class DerampedAzimuthSpectrumOp extends Operator {
             su.computeDopplerRate();
             su.computeReferenceTime();
             subSwath = su.getSubSwath();
-			
-			final String[] subSwathNames = su.getSubSwathNames();
-			if (subSwathNames.length != 1) {
+
+            final String[] subSwathNames = su.getSubSwathNames();
+            if (subSwathNames.length != 1) {
                 throw new OperatorException("Split product is expected.");
             }
 
-			subSwathIndex = 1; // subSwathIndex is always 1 because of split product
+            subSwathIndex = 1; // subSwathIndex is always 1 because of split product
             swathIndexStr = subSwathNames[0].substring(2);
 
-			final String[] polarizations = su.getPolarizations();
-			if (polarizations.length != 1) {
+            final String[] polarizations = su.getPolarizations();
+            if (polarizations.length != 1) {
                 throw new OperatorException("Split product with one polarization is expected.");
             }
 
-			polarization = polarizations[0];
+            polarization = polarizations[0];
 
             createTargetProduct();
 

@@ -19,6 +19,7 @@ import au.com.bytecode.opencsv.CSVReader;
 import com.bc.ceres.core.ProgressMonitor;
 import net.sf.javaml.core.kdtree.KDTree;
 import org.apache.commons.lang3.StringUtils;
+import org.csa.rstb.soilmoisture.gpf.IEMHybridInverOp;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
@@ -436,8 +437,27 @@ public class IEMInverBase extends Operator {
     protected void initBaseParams(final Product srcProduct, final File lutInputFile, final boolean outputRMS) {
 
         sourceProduct = srcProduct;
-        lutFile = lutInputFile;
+        lutFile = lutInputFile == null ? populateLUTs() : lutInputFile;
         this.outputRMS = outputRMS;
+    }
+
+    private File populateLUTs() {
+        File lutFolder = initializeLUTFolder();
+        final File[] files = lutFolder.listFiles(file -> file.isFile() && (file.getName().endsWith(MAT_FILE_EXTENSION) ||
+                file.getName().endsWith(CSV_FILE_EXTENSION)));
+        if (files != null) {
+            for (File file : files) {
+                String name = file.getName().toUpperCase();
+                if (this instanceof IEMHybridInverOp) {
+                    if (name.startsWith("IEM_"))
+                        return file;
+                } else {
+                    if (name.startsWith("IEMC_"))
+                        return file;
+                }
+            }
+        }
+        return null;
     }
 
     /**

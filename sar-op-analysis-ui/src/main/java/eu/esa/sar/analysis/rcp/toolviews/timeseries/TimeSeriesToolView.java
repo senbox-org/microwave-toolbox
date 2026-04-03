@@ -30,6 +30,7 @@ import org.esa.snap.ui.GridBagUtils;
 import org.esa.snap.ui.PixelPositionListener;
 import org.esa.snap.ui.UIUtils;
 import org.esa.snap.ui.diagram.DefaultDiagramGraphStyle;
+import org.esa.snap.ui.help.HelpDisplayer;
 import org.esa.snap.ui.product.ProductSceneView;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
@@ -361,6 +362,7 @@ public class TimeSeriesToolView extends ToolTopComponent {
 
         final AbstractButton helpButton = DialogUtils.createIconButton("helpButton", "Help",
                                                                        UIUtils.loadImageIcon("icons/Help24.gif"), false);
+        helpButton.addActionListener(e -> HelpDisplayer.show("TimeSeries"));
 
         final JPanel buttonPane = GridBagUtils.createPanel();
         final GridBagConstraints gbc = new GridBagConstraints();

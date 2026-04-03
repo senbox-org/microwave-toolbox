@@ -30,7 +30,7 @@ import java.awt.image.BufferedImage;
  */
 public class LogoComponent implements MapToolsComponent {
 
-    private static final ImageIcon logoIcon = UIUtils.loadImageIcon("/eu/esa/microwave/dat/icons/SNAP_icon_128.jpg", LogoComponent.class);
+    private static final ImageIcon logoIcon = UIUtils.loadImageIcon("/eu/esa/microwave/dat/icons/SNAP_icon_128.png", LogoComponent.class);
     private final BufferedImage image;
     private final static double marginPct = 0.05;
     private final double scale;

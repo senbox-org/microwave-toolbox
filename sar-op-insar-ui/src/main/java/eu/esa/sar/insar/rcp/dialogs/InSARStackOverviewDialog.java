@@ -33,8 +33,15 @@ import org.esa.snap.ui.ModelessDialog;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.SLCImage;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
+import javax.swing.JCheckBox;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -61,7 +68,7 @@ public class InSARStackOverviewDialog extends ModelessDialog {
 
     private final Map<SLCImage, File> slcFileMap = new HashMap<>(10);
 
-    private JButton openBtn;
+    private AbstractButton openBtn;
     private final JCheckBox searchDBCheckBox = new JCheckBox("Search Product Library");
 
     public InSARStackOverviewDialog() {
@@ -81,14 +88,14 @@ public class InSARStackOverviewDialog extends ModelessDialog {
                 fileList.add(file);
             }
         }
-        inputProductListPanel.setProductFileList(fileList.toArray(new File[fileList.size()]));
+        inputProductListPanel.setProductFileList(fileList.toArray(new File[0]));
     }
 
     private void initContent() {
         final JPanel contentPane = new JPanel(new BorderLayout());
 
         final JPanel buttonPanel1 = new JPanel(new GridLayout(10, 1));
-        final JButton addAllBtn = DialogUtils.createButton("addAllBtn", "Add Opened", null, buttonPanel1, DialogUtils.ButtonStyle.Text);
+        final AbstractButton addAllBtn = DialogUtils.createButton("addAllBtn", "Add Opened", null, buttonPanel1, DialogUtils.ButtonStyle.Text);
         addAllBtn.addActionListener(new ActionListener() {
 
             public void actionPerformed(final ActionEvent e) {
@@ -98,7 +105,7 @@ public class InSARStackOverviewDialog extends ModelessDialog {
         });
         buttonPanel1.add(addAllBtn);
 
-        final JButton clearBtn = DialogUtils.createButton("clearBtn", "Clear", null, buttonPanel1, DialogUtils.ButtonStyle.Text);
+        final AbstractButton clearBtn = DialogUtils.createButton("clearBtn", "Clear", null, buttonPanel1, DialogUtils.ButtonStyle.Text);
         clearBtn.addActionListener(new ActionListener() {
 
             public void actionPerformed(final ActionEvent e) {
@@ -260,14 +267,17 @@ public class InSARStackOverviewDialog extends ModelessDialog {
 
         try {
             final InSARStackOverview dataStack = new InSARStackOverview();
-            dataStack.setInput(imgList.toArray(new SLCImage[imgList.size()]), orbList.toArray(new Orbit[orbList.size()]));
+            dataStack.setInput(imgList.toArray(new SLCImage[0]), orbList.toArray(new Orbit[0]));
 
-            final Worker worker = new Worker(SnapApp.getDefault().getMainFrame(), "Computing Optimal InSAR Reference",
-                                             dataStack);
-            worker.executeWithBlocking();
+            if(imgList.size() > 30) {
+                final Worker worker = new Worker(SnapApp.getDefault().getMainFrame(),
+                        "Computing Optimal InSAR Reference", dataStack);
+                worker.executeWithBlocking();
 
-            return (InSARStackOverview.IfgStack[]) worker.get();
-
+                return (InSARStackOverview.IfgStack[]) worker.get();
+            } else {
+                return dataStack.getCoherenceScores(ProgressMonitor.NULL);
+            }
         } catch (Throwable t) {
             Dialogs.showError("Error:" + t.getMessage());
             return null;
@@ -284,7 +294,7 @@ public class InSARStackOverviewDialog extends ModelessDialog {
         }
 
         @Override
-        protected Object doInBackground(ProgressMonitor pm) throws Exception {
+        protected Object doInBackground(ProgressMonitor pm) {
             return dataStack.getCoherenceScores(pm);
         }
     }

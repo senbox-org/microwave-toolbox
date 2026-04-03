@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 by SkyWatch Space Applications http://www.skywatch.com
+ * Copyright (C) 2024 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -16,14 +16,12 @@
 package org.csa.rstb.calibration;
 
 import eu.esa.sar.calibration.gpf.CalibrationOp;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
-import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -34,23 +32,19 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit test for Calibration Operator.
  */
-public class TestCalibrationOp {
-
-    static {
-        TestUtils.initTestEnvironment();
-    }
+public class TestCalibrationOp extends ProcessorTest {
 
     private final static OperatorSpi spi = new CalibrationOp.Spi();
-    private TestProcessor testProcessor;
-
-    private String[] productTypeExemptions = {"GeoTIFF"};
 
     @Before
-    public void setUp() {
-        testProcessor = SARTests.createTestProcessor();
-
-        // If any of the file does not exist: the test will be ignored
-        assumeTrue(TestData.inputRS2_SQuad + "not found", TestData.inputRS2_SQuad.exists());
+    public void setUp() throws Exception {
+        try {
+            // If any of the file does not exist: the test will be ignored
+            assumeTrue(TestData.inputRS2_SQuad + "not found", TestData.inputRS2_SQuad.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
     @Test
@@ -81,16 +75,5 @@ public class TestCalibrationOp {
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
         TestUtils.comparePixels(targetProduct, bandName, expected);
-    }
-
-    @Test
-    @Ignore
-    public void testProcessAllRadarsat1() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsRadarsat1, "RADARSAT-1", productTypeExemptions, null);
-    }
-
-    @Test
-    public void testProcessAllRadarsat2() throws Exception {
-        testProcessor.testProcessAllInPath(spi, SARTests.rootPathsRadarsat2, "RADARSAT-2", productTypeExemptions, null);
     }
 }

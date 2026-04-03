@@ -1,0 +1,34 @@
+<graph id="Graph">
+  <version>1.0</version>
+  <node id="Read">
+    <operator>Read</operator>
+    <sources/>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <useAdvancedOptions>false</useAdvancedOptions>
+      <copyMetadata>true</copyMetadata>
+      <file>${sourceProduct}</file>
+      <bandNames/>
+      <pixelRegion>0,0,2147483647,2147483647</pixelRegion>
+      <maskNames/>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Read"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>${outputProduct}</file>
+      <formatName>PyRate export</formatName>
+    </parameters>
+  </node>
+  <applicationData id="Presentation">
+    <Description/>
+    <node id="Read">
+            <displayPosition x="37.0" y="134.0"/>
+    </node>
+    <node id="Write">
+            <displayPosition x="215.0" y="138.0"/>
+    </node>
+  </applicationData>
+</graph>

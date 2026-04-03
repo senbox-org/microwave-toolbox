@@ -211,29 +211,14 @@ public class vanZyl extends DecompositionBase implements Decomposition, QuadPolP
         final double lambda2 = 0.5 * C * (zeta + 1.0 - Math.sqrt(delta));
         final double lambda3 = C * eta;
 
-        // Coefficients of eigenvectors in Eq.(12) and (13) (here the coefficient square is computed to save some calculation)
-        final double tmp1 = (zeta - 1.0 + Math.sqrt(delta)) * (zeta - 1.0 + Math.sqrt(delta));
-        final double tmp2 = (zeta - 1.0 - Math.sqrt(delta)) * (zeta - 1.0 - Math.sqrt(delta));
-        final double kc1 = tmp1 / (tmp1 + 4.0 * rho2);
-        final double kc2 = tmp2 / (tmp2 + 4.0 * rho2);
-
-        // Compute the norm of the eigenvectors in Eq.(12) and (13) (not including the coefficients)
-        // Again the norm square is computed to save some calculation
-        final double norm1 = 4.0 * rho2 / tmp1  + 1.0;
-        final double norm2 = 4.0 * rho2 / tmp2  + 1.0;
-
-        // Combine the coefficients and norms computed above with the eigenvalues
-        final double Lambda1 = lambda1 * kc1 * norm1;
-        final double Lambda2 = lambda2 * kc2 * norm2;
-
-        // Assign Lambda1 and Lambda2 to surface and double bounce scatterings
+        // Assign lambda1 and lambda2 to surface and double bounce scatterings
         double Ps, Pd, Pv;
-        if (Lambda1 > Lambda2) {
-            Ps = Lambda1;
-            Pd = Lambda2;
+        if (lambda1 > lambda2) {
+            Ps = lambda1;
+            Pd = lambda2;
         } else {
-            Ps = Lambda2;
-            Pd = Lambda1;
+            Ps = lambda2;
+            Pd = lambda1;
         }
 
         Pv = lambda3;

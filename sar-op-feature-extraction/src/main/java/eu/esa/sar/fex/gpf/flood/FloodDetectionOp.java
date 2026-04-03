@@ -91,7 +91,7 @@ public class FloodDetectionOp extends Operator {
                 if (band.getUnit() != null && (band.getUnit().startsWith(Unit.INTENSITY) || band.getUnit().startsWith(Unit.CLASS)))
                     bandNameList.add(band.getName());
             }
-            sourceBandNames = bandNameList.toArray(new String[bandNameList.size()]);
+            sourceBandNames = bandNameList.toArray(new String[0]);
         //}
 
         final Band[] sourceBands = new Band[sourceBandNames.length];

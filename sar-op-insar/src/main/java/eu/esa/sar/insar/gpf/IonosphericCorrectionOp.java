@@ -181,16 +181,16 @@ public class IonosphericCorrectionOp extends Operator {
                         String.format("Band with interferometric phase is missing in input product %d.", i));
             }
             if (frequencies[i] == sortedFrequencies[0]) {
-                centerFreqLow = frequencies[0];
+                centerFreqLow = frequencies[i];
                 unwrappedPhaseLow = bandPhase;
-            } else if (frequencies[i] == sortedFrequencies[1]) {
-                centerFreqHigh = frequencies[2];
+            } else if (frequencies[i] == sortedFrequencies[2]) {
+                centerFreqHigh = frequencies[i];
                 unwrappedPhaseHigh = bandPhase;
             } else {
                 if (bandCoherence == null) {
                     throw new OperatorException("Full-bandwidth coherence band is missing.");
                 }
-                centerFreqFull = frequencies[1];
+                centerFreqFull = frequencies[i];
                 unwrappedPhaseFull = bandPhase;
                 coherenceFull = bandCoherence;
                 productFull = sourceProduct[i];
@@ -486,6 +486,12 @@ public class IonosphericCorrectionOp extends Operator {
 
         return Math.atan2(Math.sin(phase), Math.cos(phase));
     }
+
+    // For test only
+    public double[] getCenterFrequencies() {
+        return new double[]{centerFreqLow, centerFreqHigh, centerFreqFull};
+    }
+
 
     /**
      * The SPI is used to register this operator in the graph processing framework

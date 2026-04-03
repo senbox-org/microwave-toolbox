@@ -16,6 +16,7 @@
 package eu.esa.sar.commons.test;
 
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
+import org.esa.snap.engine_utilities.util.TestUtils;
 import org.esa.snap.runtime.Config;
 
 import java.io.File;
@@ -26,36 +27,28 @@ import java.util.prefs.Preferences;
 
 /**
  * Utilities for Operator unit tests
- * In order to test the datasets at Array, set the following to true in the nest.config
- * nest.test.ReadersOnAllProducts=true nest.test.ProcessingOnAllProducts=true
  */
 public class SARTests {
 
-    public static final String PROPERTY_NAME_S1_DATA_DIR = "s1tbx.tests.data.dir";
-    public final static String inputPathProperty = System.getProperty(PROPERTY_NAME_S1_DATA_DIR,"/data/ssd/testData/s1tbx/");
+    public final static String inputPathProperty = TestUtils.TESTDATA_ROOT;
 
-    public final static String sep = File.separator;
-    public final static String TEST_ROOT = inputPathProperty + sep +"SAR" + sep;
+    private static final String SAR_TESTS = "s1tbx.tests";
 
-    private static final String S1TBX_TESTS = "s1tbx.tests";
+    private static final Preferences testPreferences = Config.instance(SAR_TESTS).load().preferences();
 
-    private static final Preferences testPreferences = Config.instance(S1TBX_TESTS).load().preferences();
-
-    public final static String inputSAR = TEST_ROOT;
-
-    public final static File[] rootPathsTerraSarX = loadFilePath("test.rootPathTerraSarX", inputSAR + "TerraSAR-X");
-    public final static File[] rootPathsASAR = loadFilePath("test.rootPathASAR", inputSAR + "ASAR");
-    public final static File[] rootPathsRadarsat2 = loadFilePath("test.rootPathASAR", inputSAR + "RS2");
-    public final static File[] rootPathsRadarsat1 = loadFilePath("test.rootPathRadarsat1", inputSAR + "RS1");
-    public final static File[] rootPathsSentinel1 = loadFilePath("test.rootPathSentinel1", inputSAR + "S1");
-    public final static File[] rootPathsERS = loadFilePath("test.rootPathERS", inputSAR + "ERS");
-    public final static File[] rootPathsJERS = loadFilePath("test.rootPathJERS", inputSAR + "JERS");
-    public final static File[] rootPathsALOS = loadFilePath("test.rootPathALOS", inputSAR + "ALOS");
-    public final static File[] rootPathsALOS2 = loadFilePath("test.rootPathALOS2", inputSAR + "ALOS2");
-    public final static File[] rootPathsCosmoSkymed = loadFilePath("test.rootPathCosmoSkymed", inputSAR + "Cosmo");
-    public final static File[] rootPathsIceye = loadFilePath("test.rootPathIceye", inputSAR + "Iceye");
-    public final static File[] rootPathsStriX = loadFilePath("test.rootPathStriX", inputSAR + "Synpective");
-    public final static File[] rootPathsK5 = loadFilePath("test.rootPathK5", inputSAR + "K5");
+    public final static File[] rootPathsTerraSarX = loadFilePath("test.rootPathTerraSarX", TestData.inputSAR + "TerraSAR-X");
+    public final static File[] rootPathsASAR = loadFilePath("test.rootPathASAR", TestData.inputSAR + "ASAR");
+    public final static File[] rootPathsRadarsat2 = loadFilePath("test.rootPathASAR", TestData.inputSAR + "RS2");
+    public final static File[] rootPathsRadarsat1 = loadFilePath("test.rootPathRadarsat1", TestData.inputSAR + "RS1");
+    public final static File[] rootPathsSentinel1 = loadFilePath("test.rootPathSentinel1", TestData.inputSAR + "S1");
+    public final static File[] rootPathsERS = loadFilePath("test.rootPathERS", TestData.inputSAR + "ERS");
+    public final static File[] rootPathsJERS = loadFilePath("test.rootPathJERS", TestData.inputSAR + "JERS");
+    public final static File[] rootPathsALOS = loadFilePath("test.rootPathALOS", TestData.inputSAR + "ALOS");
+    public final static File[] rootPathsALOS2 = loadFilePath("test.rootPathALOS2", TestData.inputSAR + "ALOS2");
+    public final static File[] rootPathsCosmoSkymed = loadFilePath("test.rootPathCosmoSkymed", TestData.inputSAR + "Cosmo");
+    public final static File[] rootPathsIceye = loadFilePath("test.rootPathIceye", TestData.inputSAR + "Iceye");
+    public final static File[] rootPathsStriX = loadFilePath("test.rootPathStriX", TestData.inputSAR + "Synpective");
+    public final static File[] rootPathsK5 = loadFilePath("test.rootPathK5", TestData.inputSAR + "K5");
 
     public static int subsetX = 0;
     public static int subsetY = 0;

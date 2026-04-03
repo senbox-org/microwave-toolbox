@@ -34,7 +34,7 @@ public interface SpectraData {
 
     PolarData getPolarData(final int currentRec, final SpectraUnit spectraUnit) throws Exception;
 
-    String[] updateReadouts(final double rTh[], final int currentRecord);
+    String[] updateReadouts(final double[] rTh, final int currentRecord);
 
     double getWindSpeed();
 

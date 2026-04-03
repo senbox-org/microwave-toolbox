@@ -17,11 +17,18 @@
             <tocitem text="Coregistration">
             </tocitem>
             <tocitem text="Interferometric">
+                <tocitem text = "Unwrapping">
+                    <tocitem text="Batch Snaphu Unwrap" target="BatchSnaphuUnwrapOp" />
+                </tocitem>
+                <tocitem text = "PSI/SBAS">
+                    <tocitem text="PyRate Export Workflow" target="PyRateExportOp" />
+                </tocitem>
             </tocitem>
             <tocitem text="Polarimetric">
             </tocitem>
             <tocitem text="Geometric">
                 <tocitem text="Range Doppler Terrain Correction" target="RangeDopplerGeocodingOp"/>
+                <tocitem text="GSLC Terrain Correction" target="GSLCGeocodingOp"/>
                 <tocitem text="SAR Simulation Terrain Correction" target="SARSimGeocodingOp"/>
                 <tocitem text="SAR Simulation" target="SARSimOp"/>
                 <tocitem text="Geolocation Grid Ellipsoid Correction" target="GeolocationGridGeocodingOp"/>
@@ -37,15 +44,15 @@
                 <tocitem text="WSS Deburst" target="WSSDeburstOp"/>
                 <tocitem text="WSS Mosaic" target="WSSMosaic"/>
             </tocitem>
-             <tocitem text="SAR Applications">
-            </tocitem>
-            <tocitem text="SAR Utilities">
-            </tocitem>
             <tocitem text="Radar Tool Windows">
             </tocitem>
-            <tocitem text="Complex to Detected GR" target="SLCtoPRI"/>
-            <tocitem text="Multilook" target="MultilookOp"/>
-            <tocitem text="BandPass Filter" target="BandPassFilterOp"/>
+            <tocitem text="SAR Applications">
+            </tocitem>
+            <tocitem text="SAR Utilities">
+                <tocitem text="Complex to Detected GR" target="SLCtoPRI"/>
+                <tocitem text="Multilook" target="MultilookOp"/>
+                <tocitem text="Band-pass Filter" target="BandPassFilterOp"/>
+            </tocitem>
         </tocitem>
     </tocitem>
 </toc>

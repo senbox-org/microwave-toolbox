@@ -6,7 +6,7 @@
     <parent>
         <artifactId>jlinda</artifactId>
         <groupId>org.jlinda</groupId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>14.0.0-SNAPSHOT</version>
     </parent>
 
     <name>jLinda SNAP Support</name>
@@ -29,6 +29,10 @@
         <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>ceres-jai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>ceres-glayer</artifactId>
         </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>

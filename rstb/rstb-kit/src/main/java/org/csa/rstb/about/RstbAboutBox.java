@@ -15,7 +15,6 @@
  */
 package org.csa.rstb.about;
 
-import org.esa.snap.rcp.about.AboutBox;
 import org.esa.snap.rcp.util.BrowserUtils;
 import org.openide.modules.ModuleInfo;
 import org.openide.modules.Modules;
@@ -26,10 +25,7 @@ import java.awt.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-/**
- * @author Norman
- */
-@AboutBox(displayName = "RSTB", position = 100)
+//@AboutBox(displayName = "RSTB", position = 100)
 public class RstbAboutBox extends JPanel {
 
     private final static String releaseNotesHTTP = "https://github.com/senbox-org/microwave-toolbox/blob/master/ReleaseNotes.md";

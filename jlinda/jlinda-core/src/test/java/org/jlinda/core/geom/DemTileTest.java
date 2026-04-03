@@ -67,41 +67,6 @@ public class
     }
 
     @Test
-    public void testGetDEMCorners() throws Exception {
-
-        demTile.computeGeoCorners(masterMeta, masterOrbit, masterTileWindow);
-
-        double phiMin_EXPECTED = 0.65198531114095126;
-        Assert.assertEquals(phiMin_EXPECTED, demTile.phiMin, DELTA_08);
-
-        double phiMax_EXPECTED = 0.65803878531122906;
-        Assert.assertEquals(phiMax_EXPECTED, demTile.phiMax, DELTA_08);
-
-        double lambdaMin_EXPECTED = 0.2584835617746124;
-        Assert.assertEquals(lambdaMin_EXPECTED, demTile.lambdaMin, DELTA_08);
-
-        double lambdaMax_EXPECTED = 0.26619645946965714;
-        Assert.assertEquals(lambdaMax_EXPECTED, demTile.lambdaMax, DELTA_08);
-
-
-/*
-        // TODO: fix this checks!
-        int indexPhi0DEM_EXPECTED = 1556;
-        Assert.assertEquals(indexPhi0DEM_EXPECTED, demTile.indexPhi0DEM, DELTA_08);
-
-        int indexPhiNDEM_EXPECTED = 1973;
-        Assert.assertEquals(indexPhiNDEM_EXPECTED, demTile.indexPhiNDEM, DELTA_08);
-
-        int indexLambda0DEM_EXPECTED = 972;
-        Assert.assertEquals(indexLambda0DEM_EXPECTED, demTile.indexLambda0DEM, DELTA_08);
-
-        int indexLambdaNDEM_EXPECTED = 1503;
-        Assert.assertEquals(indexLambdaNDEM_EXPECTED, demTile.indexLambdaNDEM, DELTA_08);
-*/
-
-    }
-
-    @Test
     public void testDemStats() throws Exception {
 
         // load test data

@@ -33,8 +33,8 @@ import java.awt.event.ActionEvent;
 
 @ActionID(category = "Projects", id = "CloseProjectAction")
 @ActionRegistration(
-        displayName = "#CTL_CloseProjectAction_MenuText",
-        popupText = "#CTL_CloseProjectAction_MenuText"
+        displayName = "Close Project",
+        lazy = false
 )
 @ActionReference(path = "Menu/File/Projects", position = 60)
 @NbBundle.Messages({
@@ -44,6 +44,8 @@ import java.awt.event.ActionEvent;
 public class CloseProjectAction extends AbstractSnapAction implements Project.Listener {
 
     public CloseProjectAction() {
+        putValue(NAME, Bundle.CTL_CloseProjectAction_MenuText());
+        putValue(SHORT_DESCRIPTION, Bundle.CTL_CloseProjectAction_ShortDescription());
         Project.instance().addListener(this);
         setEnableState();
     }

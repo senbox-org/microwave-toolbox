@@ -1,3 +1,95 @@
+# Microwave Toolbox 13
+
+## Update 13.0.3
+* [SNAP-4151] Open Biomass products directly from zip file
+* [SNAP-4148] Terrain Flattening applies only to partial scene 
+
+## Update 13.0.2
+* [SNAP-4061] Investigate issues found in Biomass product supporting
+* [SNAP-4072] BIOMASS - Terrain corrected DGM image is not correct
+* [SNAP-4109] TOPSAR-Split operator ignores selected burst (always reverts to IW1)
+* [SNAP-4112] Improvements to terrain flattening
+* [SNAP-4133] Biomass error when exporting to NetCDF
+* [SNAP-4134] TileIndex in HAlphaWishart
+
+
+## New in Microwave Toolbox 13.0.0
+* Improved geolocation accuracy for multilooked terrain corrected graphs
+* Support for BIOMASS products
+* Support for NISAR products
+* Support for ICEYE CSI products
+* [SNAP-3948] Projects menu items enabled by default
+* [SNAP-3949] Creation of project structure when opening non-existent project
+* [SNAP-3950] Project creation and XML file extension
+* [SNAP-3877] NullPointerException in code that uses AbstractMetadata.getBandAbsMetadata(...)
+* [SNAP-3862] Thermal noise removal cannot handle S1 TOPS split product with a subset of bursts
+* [SNAP-3979] REACTIV operator fails for subset S1 product with only VH polarization
+* [SNAP-3999] Band Select operator help location differs from the location of the operator
+* [SNAP-4000] Center frequencies are not set correctly in Ionospheric Correction operator
+* [SNAP-3984] Investigate overlap in functionality between band extraction and band select
+* [SNAP-4036] Validation of point target geolocation accuracy
+
+## New in Microwave Toolbox 12.0
+* Support for Sentinel-1C
+* S-1 ETAD Corrected SLC
+* S-1 ETAD Improved coregistration
+* S-1 ETAD Phase Screens
+* S-1 ETAD Improved Interferograms
+* S-1 ETAD improved InSAR image selection tool
+* S-1 ETAD auto download
+* Updated S-1 WV and OCN products
+* Band Select for S-1 WV exports as Stripmap-like products
+* REACTIV Change Detection
+* RPCA Change Detection
+* Updated Log Ratio Change Detection
+
+## New in Microwave Toolbox 11.0
+
+* S-1 Band grouping
+* S-1 Improved reader performance
+* Dual-pol model-based decomposition
+* Output flat-Earth and topographic phase
+* InSAR baselines overview from the command line
+
+## New in Microwave Toolbox 10.0
+
+* Refactoring from s1tbx to microwave toolbox
+* Support for updated Sentinel-1 format
+* Support for Cosmo Skymed Second Generation
+* Updated support for ALOS-2
+* Updated support for SAOCOM
+* ETAD product reading and viewing
+* Application of ETAD corrections for GRD and SM SLC
+
+## List of solved issues
+
+### New Feature
+
+  [SNAP-3499] Support for Sentinel-1 COG GRD products
+
+### Improvement
+  [SNAP-3588] Investigate gdal reading in S1 reader
+
+### Wishlist
+
+SNAP-2602 Support Cosmo-Skymed Second Generation GeoTiff products
+SNAP-2605 Support Cosmo-Skymed Second Generation HDF products
+SNAP-2624 Check of all items in Help-files - identifying omissions and obsolete content, and fixing them
+SNAP-2627 COG opening issues
+
+###Bug
+
+SNAP-3502 Update geocoding for undersampleOp
+SNAP-3547 RCM Acquisition Mode is wrong
+SNAP-3548 RCM slant range time tie point grids disabled
+SNAP-3562 Handle Soil Moisture uninitialized LUT
+SNAP-3575 Multi-Ref InSAR not working with multi polarizations
+SNAP-3578 Deburst seems to not work since the ecosystem
+SNAP-3593 Button with wrong label
+SNAP-3624 Help - EAP Phase correction
+SNAP-3665 CDSE S1 COG quicklook missing
+SNAP-3672 Calibration for Capella SLC is not correct
+
 
 #Update 9.0.3
 https://senbox.atlassian.net/projects/SNAP/versions/12822/tab/release-report-all-issues

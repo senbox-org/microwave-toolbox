@@ -101,7 +101,6 @@ public class Collocator {
                     }
                 }
             }
-            sourceTile.getDataBuffer().dispose();
         } else {
             final TileIndex trgIndex = new TileIndex(targetTile);
             for (int y = targetRectangle.y, index = 0; y < maxY; ++y) {

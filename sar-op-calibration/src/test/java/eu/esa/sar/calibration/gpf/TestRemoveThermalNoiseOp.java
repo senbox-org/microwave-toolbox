@@ -15,21 +15,25 @@
  */
 package eu.esa.sar.calibration.gpf;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
-import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -60,43 +64,77 @@ public class TestRemoveThermalNoiseOp {
 
     @Test
     public void testProcessingS1_GRD() throws Exception {
-        final Product targetProduct = processFile(inputFile1);
+        try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
+            try (final Product targetProduct = process(sourceProduct)) {
 
-        final Band band = targetProduct.getBand("Intensity_VV");
-        assertNotNull(band);
+                final Band band = targetProduct.getBand("Intensity_VV");
+                assertNotNull(band);
 
-        final float[] floatValues = new float[8];
-        band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+                final float[] floatValues = new float[8];
+                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
 
-        assertEquals(1024.0, floatValues[0], 0.0001);
-        assertEquals(1024.0, floatValues[1], 0.0001);
-        assertEquals(1444.0, floatValues[2], 0.0001);
+                assertEquals(1024.0, floatValues[0], 0.0001);
+                assertEquals(1024.0, floatValues[1], 0.0001);
+                assertEquals(1444.0, floatValues[2], 0.0001);
+            }
+        }
     }
 
     @Test
     public void testProcessingS1_StripmapSLC() throws Exception {
+        try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile2)) {
+            try (final Product targetProduct = process(sourceProduct)) {
 
-        final Product targetProduct = processFile(inputFile2);
+                final Band band = targetProduct.getBand("Intensity_VV");
+                assertNotNull(band);
 
-        final Band band = targetProduct.getBand("Intensity_VV");
-        assertNotNull(band);
+                final float[] floatValues = new float[8];
+                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
 
-        final float[] floatValues = new float[8];
-        band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+                assertEquals(629.0, floatValues[0], 0.0001);
+                assertEquals(2362.0, floatValues[1], 0.0001);
+                assertEquals(6065.0, floatValues[2], 0.0001);
+            }
+        }
+    }
 
-        assertEquals(629.0, floatValues[0], 0.0001);
-        assertEquals(2362.0, floatValues[1], 0.0001);
-        assertEquals(6065.0, floatValues[2], 0.0001);
+    @Test
+    @STTM("SNAP-3862")
+    public void testProcessingS1_TOPS_SL2() throws Exception {
+        int w = 10;
+        int h = 148;
+        try (final Product sourceProduct = createTOPSSLCProduct(w, h)) {
+            try (final Product targetProduct = process(sourceProduct)) {
+                final Band band = targetProduct.getBand("Intensity_IW1_VH");
+                assertNotNull(band);
+
+                final float[] floatValues = new float[8];
+                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+
+                assertEquals(0.0f, floatValues[0], 0.0001);
+                assertEquals(1.4611448f, floatValues[1], 0.0001);
+                assertEquals(7.4621906f, floatValues[2], 0.0001);
+            }
+        }
+    }
+
+    private Product createTOPSSLCProduct(final int w, final int h) throws IOException {
+        Product srcProduct = TestUtils.createProduct("SLC", w, h);
+        TestUtils.createBand(srcProduct, "i_IW1_VH", ProductData.TYPE_INT16, Unit.REAL, w, h, true);
+        TestUtils.createBand(srcProduct, "q_IW1_VH", ProductData.TYPE_INT16, Unit.IMAGINARY, w, h, true);
+
+        AbstractMetadataIO.Load(srcProduct, srcProduct.getMetadataRoot(), new File("src/test/resources/metadata.xml"));
+
+        return srcProduct;
     }
 
     /**
      * Processes a product and compares it to processed product known to be correct
      *
-     * @param inputFile the path to the input product
+     * @param sourceProduct the path to the input product
      * @throws Exception general exception
      */
-    private static Product processFile(final File inputFile) throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+    private static Product process(final Product sourceProduct) throws Exception {
 
         final Sentinel1RemoveThermalNoiseOp op = (Sentinel1RemoveThermalNoiseOp) spi.createOperator();
         assertNotNull(op);
@@ -106,6 +144,62 @@ public class TestRemoveThermalNoiseOp {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
         return targetProduct;
+    }
+
+    /**
+     * Test that with clipNegativeValues=true (default), negative values are clipped.
+     */
+    @Test
+    @STTM("SNAP-4160")
+    public void testClippingReplacesNegativeValues() throws Exception {
+        int w = 10;
+        int h = 148;
+        try (final Product sourceProduct = createTOPSSLCProduct(w, h)) {
+            final Sentinel1RemoveThermalNoiseOp op = (Sentinel1RemoveThermalNoiseOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
+            op.setParameter("clipNegativeValues", true);
+
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
+
+            final Band band = targetProduct.getBand("Intensity_IW1_VH");
+            assertNotNull(band);
+
+            final float[] floatValues = new float[8];
+            band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+
+            // With clipping enabled, all values should be >= 0
+            for (int i = 0; i < floatValues.length; i++) {
+                assertTrue("Expected non-negative value at index " + i + ", got " + floatValues[i],
+                        floatValues[i] >= 0.0f);
+            }
+        }
+    }
+
+    /**
+     * Test that default behavior (clipNegativeValues=true) matches the original test expectations.
+     */
+    @Test
+    @STTM("SNAP-4160")
+    public void testDefaultClippingMatchesOriginal() throws Exception {
+        int w = 10;
+        int h = 148;
+        try (final Product sourceProduct = createTOPSSLCProduct(w, h)) {
+            try (final Product targetProduct = process(sourceProduct)) {
+                final Band band = targetProduct.getBand("Intensity_IW1_VH");
+                assertNotNull(band);
+
+                final float[] floatValues = new float[8];
+                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
+
+                // These are the same expected values as testProcessingS1_TOPS_SL2,
+                // confirming the default clipNegativeValues=true produces backward-compatible results.
+                assertEquals(0.0f, floatValues[0], 0.0001);
+                assertEquals(1.4611448f, floatValues[1], 0.0001);
+                assertEquals(7.4621906f, floatValues[2], 0.0001);
+            }
+        }
     }
 
     @Test

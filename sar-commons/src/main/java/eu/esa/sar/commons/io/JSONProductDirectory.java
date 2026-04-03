@@ -53,17 +53,22 @@ public abstract class JSONProductDirectory extends AbstractProductDirectory {
         return root;
     }
 
+    private static String clean(final String name) {
+        return name.replaceAll(":", "");
+    }
+
     public static Element jsonToXML(final String name, final JSONObject json) {
         final Element root = new Element(name);
 
         for(Object key : json.keySet()) {
             Object obj = json.get(key);
+            String keyName = clean((String)key);
             if(obj instanceof JSONObject) {
-                root.addContent(jsonToXML((String) key, (JSONObject) obj));
+                root.addContent(jsonToXML(keyName, (JSONObject) obj));
             } else if(obj instanceof JSONArray) {
-                root.addContent(jsonArrayToXML((String) key, (JSONArray)obj));
+                root.addContent(jsonArrayToXML(keyName, (JSONArray)obj));
             } else {
-                root.setAttribute((String)key, String.valueOf(obj));
+                root.setAttribute(keyName, String.valueOf(obj));
             }
         }
         return root;

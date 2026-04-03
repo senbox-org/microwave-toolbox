@@ -113,13 +113,13 @@ public class CrossResamplingOp extends Operator {
     TiePointGrid slantRangeTimeTPG;
     int targetTPGWidth;
     int targetTPGHeight;
-    
+
     // Source & Target dimensions
     int sourceImageWidth;
     int sourceImageHeight;
     int targetImageWidth;
     int targetImageHeight;
-    
+
     private final Map<Band, Band> sourceRasterMap = new HashMap<>(10);
 
     private CrossGeometry crossGeometry;
@@ -300,7 +300,7 @@ public class CrossResamplingOp extends Operator {
 
         targetProduct = new Product(sourceProduct.getName(),
                 sourceProduct.getProductType(),
-                targetImageWidth, 
+                targetImageWidth,
                 targetImageHeight);
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
@@ -337,7 +337,7 @@ public class CrossResamplingOp extends Operator {
 
         double azSpacingSrc = absTgt.getAttributeDouble(AbstractMetadata.azimuth_spacing);
         double rngSpacingSrc = absTgt.getAttributeDouble(AbstractMetadata.range_spacing);
-        
+
         double azSpacingTgt = azSpacingSrc * (1 / crossGeometry.getRatioPRF()); // ratios inverted because of resampling semantics
         double rngSpacingTgt = rngSpacingSrc * (1 / crossGeometry.getRatioRSR());
 
@@ -432,7 +432,7 @@ public class CrossResamplingOp extends Operator {
         targetProduct.setSceneGeoCoding(tpGeoCoding);
 
     }
-    
+
     private int getSampleIndex(final int colIdx, final int subSamplingX) {
 
         if (colIdx == targetTPGWidth - 1) { // last column
@@ -441,7 +441,7 @@ public class CrossResamplingOp extends Operator {
             return colIdx * subSamplingX;
         }
     }
-    
+
     private GeoPoint computeLatLon(final int x, final int y) throws Exception {
 
         final double[] ell = new double[3];
@@ -457,7 +457,7 @@ public class CrossResamplingOp extends Operator {
 
         return new GeoPoint(posGeoTgt[0] * Constants.RTOD, posGeoTgt[1] * Constants.RTOD);
     }
-    
+
     /**
      * Called by the framework in order to compute a tile for the given target band.
      * <p>The default implementation throws a runtime exception with the message "not implemented".</p>
@@ -482,8 +482,8 @@ public class CrossResamplingOp extends Operator {
         System.out.println("Source Rectangle: x0 = " + sourceRectangle.x + ", y0 = " + sourceRectangle.y + ", w = " + sourceRectangle.width + ", h = " + sourceRectangle.height);
 
         System.out.println("------");
-        
-        
+
+
         final BorderExtender borderExtender = BorderExtender.createInstance(BorderExtender.BORDER_ZERO);
 
         try {

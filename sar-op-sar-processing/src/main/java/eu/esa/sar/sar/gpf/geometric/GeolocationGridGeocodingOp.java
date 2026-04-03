@@ -98,8 +98,6 @@ public final class GeolocationGridGeocodingOp extends Operator {
     private int sourceImageHeight = 0;
 
     private TiePointGrid slantRangeTime = null;
-    private TiePointGrid latitude = null;
-    private TiePointGrid longitude = null;
     private GeoCoding targetGeoCoding = null;
 
     private double rangeSpacing = 0.0;
@@ -298,16 +296,6 @@ public final class GeolocationGridGeocodingOp extends Operator {
         slantRangeTime = OperatorUtils.getSlantRangeTime(sourceProduct);
         if (slantRangeTime == null) {
             throw new OperatorException("Product without slant range time tie point grid");
-        }
-
-        latitude = OperatorUtils.getLatitude(sourceProduct);
-        if (latitude == null) {
-            throw new OperatorException("Product without latitude tie point grid");
-        }
-
-        longitude = OperatorUtils.getLongitude(sourceProduct);
-        if (longitude == null) {
-            throw new OperatorException("Product without longitude tie point grid");
         }
     }
 

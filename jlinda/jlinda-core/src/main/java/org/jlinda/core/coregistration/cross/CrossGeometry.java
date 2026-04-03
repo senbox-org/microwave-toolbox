@@ -272,8 +272,8 @@ public class CrossGeometry {
     }
 
     private void computeFrequencyRatios() {
-        
-        // for mapping semantics of JAI (slave) -> (master) :: (source) -> (target)  
+
+        // for mapping semantics of JAI (slave) -> (master) :: (source) -> (target)
         ratioPRF = prfTarget / prfOriginal;
         ratioRSR = rsrTarget / rsrOriginal;
 

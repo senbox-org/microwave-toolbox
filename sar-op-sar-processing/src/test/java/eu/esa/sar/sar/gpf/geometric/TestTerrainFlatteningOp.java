@@ -17,6 +17,7 @@ package eu.esa.sar.sar.gpf.geometric;
 
 
 import eu.esa.sar.calibration.gpf.CalibrationOp;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -32,7 +33,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit test for Range Doppler.
  */
-public class TestTerrainFlatteningOp {
+public class TestTerrainFlatteningOp extends ProcessorTest {
 
     private final static File inputFile1 = TestData.inputASAR_WSM;
     private final static File inputFile2 = TestData.inputASAR_IMS;
@@ -40,17 +41,19 @@ public class TestTerrainFlatteningOp {
     private final static File inputFile4 = TestData.inputASAR_APM;
 
     @Before
-    public void setUp() {
-        // If any of the file does not exist: the test will be ignored
-        assumeTrue(inputFile1 + " not found", inputFile1.exists());
-        assumeTrue(inputFile2 + " not found", inputFile2.exists());
-        assumeTrue(inputFile3 + " not found", inputFile3.exists());
-        assumeTrue(inputFile4 + " not found", inputFile4.exists());
+    public void setUp() throws Exception {
+        try {
+            // If any of the file does not exist: the test will be ignored
+            assumeTrue(inputFile1 + " not found", inputFile1.exists());
+            assumeTrue(inputFile2 + " not found", inputFile2.exists());
+            assumeTrue(inputFile3 + " not found", inputFile3.exists());
+            assumeTrue(inputFile4 + " not found", inputFile4.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new TerrainFlatteningOp.Spi();
 
     /**
@@ -60,23 +63,70 @@ public class TestTerrainFlatteningOp {
      */
     @Test
     public void testProcessWSM() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile1);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
 
-        final CalibrationOp calOp = new CalibrationOp();
-        calOp.setSourceProduct(sourceProduct);
-        calOp.setParameter("outputBetaBand", true);
-        calOp.setParameter("createBetaBand", true);
+            final CalibrationOp calOp = new CalibrationOp();
+            calOp.setSourceProduct(sourceProduct);
+            calOp.setParameter("outputBetaBand", true);
+            calOp.setParameter("createBetaBand", true);
 
-        final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(calOp.getTargetProduct());
+            final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(calOp.getTargetProduct());
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[] { 0.63482225f, 0.79944354f, 0.16941425f, 0.069053054f };
-        TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 200, 200, expected);
+            final float[] expected = new float[]{0.25501156f, 0.4083111f, 0.077441886f, 0.033438772f};
+            TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 200, 200, expected);
+        }
+    }
+
+    @Test
+    public void testProcessWSM_SimulatedImage() throws Exception {
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
+
+            final CalibrationOp calOp = new CalibrationOp();
+            calOp.setSourceProduct(sourceProduct);
+            calOp.setParameter("outputBetaBand", true);
+            calOp.setParameter("createBetaBand", true);
+
+            final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(calOp.getTargetProduct());
+            op.setParameter("outputSimulatedImage", true);
+
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
+
+            final float[] expected = new float[]{3.4626217f, 3.0603075f, 5.648326f, 14.364504f};
+            TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
+        }
+    }
+
+    @Test
+    public void testProcessWSM_SigmaNaught() throws Exception {
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
+
+            final CalibrationOp calOp = new CalibrationOp();
+            calOp.setSourceProduct(sourceProduct);
+            calOp.setParameter("outputBetaBand", true);
+            calOp.setParameter("createBetaBand", true);
+
+            final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(calOp.getTargetProduct());
+            op.setParameter("outputSigma0", true);
+
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
+
+            final float[] expected = new float[]{0.20973432f, 0.3375942f, 0.070349924f, 0.031625833f};
+            TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
+        }
     }
 
     /**
@@ -86,19 +136,20 @@ public class TestTerrainFlatteningOp {
      */
     @Test
     public void testProcessIMS() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile2);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile2)) {
 
-        final CalibrationOp calOp = new CalibrationOp();
-        calOp.setSourceProduct(sourceProduct);
-        calOp.setParameter("outputBetaBand", true);
+            final CalibrationOp calOp = new CalibrationOp();
+            calOp.setSourceProduct(sourceProduct);
+            calOp.setParameter("outputBetaBand", true);
 
-        final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(calOp.getTargetProduct());
+            final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(calOp.getTargetProduct());
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, false, false);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false);
+        }
     }
 
     /**
@@ -108,19 +159,20 @@ public class TestTerrainFlatteningOp {
      */
     @Test
     public void testProcessAPM() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile3);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile3)) {
 
-        final CalibrationOp calOp = new CalibrationOp();
-        calOp.setSourceProduct(sourceProduct);
-        calOp.setParameter("outputBetaBand", true);
+            final CalibrationOp calOp = new CalibrationOp();
+            calOp.setSourceProduct(sourceProduct);
+            calOp.setParameter("outputBetaBand", true);
 
-        final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(calOp.getTargetProduct());
+            final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(calOp.getTargetProduct());
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, false, false);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false);
+        }
     }
 
     /**
@@ -130,18 +182,19 @@ public class TestTerrainFlatteningOp {
      */
     @Test
     public void testProcessCalibratedAPM() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile4);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile4)) {
 
-        final CalibrationOp calOp = new CalibrationOp();
-        calOp.setSourceProduct(sourceProduct);
-        calOp.setParameter("outputBetaBand", true);
+            final CalibrationOp calOp = new CalibrationOp();
+            calOp.setSourceProduct(sourceProduct);
+            calOp.setParameter("outputBetaBand", true);
 
-        final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(calOp.getTargetProduct());
+            final TerrainFlatteningOp op = (TerrainFlatteningOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(calOp.getTargetProduct());
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, false, false);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false);
+        }
     }
 }

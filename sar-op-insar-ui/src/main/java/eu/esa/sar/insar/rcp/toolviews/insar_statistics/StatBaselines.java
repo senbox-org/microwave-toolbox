@@ -72,7 +72,7 @@ public class StatBaselines implements InSARStatistic {
                     baselines.add(new CachedBaseline(secondary));
                 }
                 cachedProduct = product;
-                cachedBaselines = baselines.toArray(new CachedBaseline[baselines.size()]);
+                cachedBaselines = baselines.toArray(new CachedBaseline[0]);
             } catch (Exception e) {
                 SystemUtils.LOG.severe("Error getting baselines: "+ e.getMessage());
             }

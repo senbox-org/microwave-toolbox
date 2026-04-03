@@ -23,7 +23,6 @@ import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
-import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -38,7 +37,7 @@ import java.util.Map;
 import java.util.StringTokenizer;
 
 /**
- * Calibration for Radarsat2 data products.
+ * Calibration for RCM data products.
  */
 
 public class RCMCalibrator extends BaseCalibrator implements Calibrator {
@@ -164,7 +163,7 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
                 final String gainsStr = attribute.getData().getElemString();
                 final double[] gainLUT = new double[numberOfValues];
                 addToArray(gainLUT, 0, gainsStr, " ");
-                final CalibrationLUT lut = new CalibrationLUT(pixelFirstLutValue, stepSize, numberOfValues, offset, gainLUT);
+                final CalibrationLUT lut = new CalibrationLUT(pixelFirstLutValue, stepSize, offset, gainLUT);
                 final String pol = getPolarization(elemName);
                 gainsMap.put(pol, lut);
             }
@@ -208,25 +207,8 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
         abs.getAttribute(AbstractMetadata.abs_calibration_flag).getData().setElemBoolean(true);
     }
 
-    /**
-     * Create target product.
-     */
     @Override
-    public Product createTargetProduct(final Product sourceProduct, final String[] sourceBandNames) {
-
-        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
-                sourceProduct.getProductType(),
-                sourceProduct.getSceneRasterWidth(),
-                sourceProduct.getSceneRasterHeight());
-
-        addSelectedBands(sourceProduct, sourceBandNames);
-
-        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
-
-        return targetProduct;
-    }
-
-    private void addSelectedBands(final Product sourceProduct, final String[] sourceBandNames) {
+    protected void addSelectedBands(final Product sourceProduct, final String[] sourceBandNames) {
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
         productType = absRoot.getAttributeString(AbstractMetadata.PRODUCT_TYPE);
@@ -290,7 +272,8 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
         }
     }
 
-    private void outputInComplex(final Product sourceProduct, final String[] sourceBandNames) {
+    @Override
+    protected void outputInComplex(final Product sourceProduct, final String[] sourceBandNames) {
 
         final Band[] sourceBands = getSourceBands(sourceProduct, sourceBandNames, false);
 
@@ -334,7 +317,8 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
         }
     }
 
-    private void outputInIntensity(final Product sourceProduct, final String[] sourceBandNames) {
+    @Override
+    protected void outputInIntensity(final Product sourceProduct, final String[] sourceBandNames) {
 
         final Band[] sourceBands = getSourceBands(sourceProduct, sourceBandNames, false);
 
@@ -491,7 +475,6 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
 
         final String pol = getBandPolarizationMLC(srcBandNames[0]);
         final CalibrationLUT sigmaLUT = gainsMap.get(pol);
-        final int offset = sigmaLUT.offset;
         final double[] gains = sigmaLUT.getGains(x0 + subsetOffsetX, w);
 
         final Unit.UnitType tgtBandUnit = Unit.getUnitType(targetBand);
@@ -706,15 +689,13 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
     public final static class CalibrationLUT {
         private final int pixelFirstLutValue;
         private final int stepSize;
-        private final int numberOfValues;
         private final int offset;
         private final double[] gainLUT;
 
-        public CalibrationLUT(final int pixelFirstLutValue, final int stepSize, final int numberOfValues,
+        public CalibrationLUT(final int pixelFirstLutValue, final int stepSize,
                               final int offset, final double[] gainLUT) {
             this.pixelFirstLutValue = pixelFirstLutValue;
             this.stepSize = stepSize;
-            this.numberOfValues = numberOfValues;
             this.offset = offset;
             this.gainLUT = gainLUT;
         }

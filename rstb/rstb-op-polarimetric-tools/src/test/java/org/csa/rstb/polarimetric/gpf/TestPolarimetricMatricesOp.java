@@ -41,8 +41,8 @@ public class TestPolarimetricMatricesOp {
     private final static String quadInputPath = TestData.inputSAR + "/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900.dim";
     private final static String inputQuadFullStack = TestData.inputSAR + "/QuadPolStack/RS2-Quad_Pol_Stack.dim";
 
-    private final static String expectedPathC3 = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_C3.dim";
-    private final static String expectedPathT3 = TestData.input + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_T3.dim";
+    private final static String expectedPathC3 = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_C3.dim";
+    private final static String expectedPathT3 = TestUtils.TESTDATA_ROOT + "/expected/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900_T3.dim";
 
     @Before
     public void setUp() {

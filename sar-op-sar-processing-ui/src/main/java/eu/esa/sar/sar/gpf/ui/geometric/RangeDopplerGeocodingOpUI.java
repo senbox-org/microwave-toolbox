@@ -749,6 +749,7 @@ public class RangeDopplerGeocodingOpUI extends BaseOperatorUI {
         }
         externalDEMBrowseButton.setVisible(flag);
         externalDEMApplyEGMCheckBox.setVisible(flag);
+        externalDEMApplyEGMCheckBox.setSelected(externalDEMApplyEGM);
     }
 
     private void enableExternalAuxFile(boolean flag) {

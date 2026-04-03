@@ -29,12 +29,5 @@
     <mapID target="MultiReferenceInSAROp" url="operators/MultiReferenceInSAROp.html"/>
     <mapID target="HorizontalVerticalMotionOp" url="operators/HorizontalVerticalMotionOp.html"/>
     <mapID target="IonosphericCorrectionOp" url="operators/IonosphericCorrectionOp.html"/>
-
-    <mapID target="StatBaselines" url="desktop/StatBaselines.html"/>
-    <mapID target="StatBaselinesChart" url="desktop/StatBaselinesChart.html"/>
-    <mapID target="StatESDHistogram" url="desktop/StatESDHistogram.html"/>
-    <mapID target="StatESDMeasure" url="desktop/StatESDMeasure.html"/>
-    <mapID target="StatInSARInfo" url="desktop/StatInSARInfo.html"/>
-    <mapID target="StatResiduals" url="desktop/StatResiduals.html"/>
     
 </map>

@@ -17,11 +17,9 @@ package eu.esa.microwave.benchmark;
 
 import com.bc.ceres.binding.dom.DefaultDomElement;
 import com.bc.ceres.binding.dom.DomElement;
-import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.sar.gpf.filtering.SpeckleFilterOp;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.graph.Graph;
-import org.esa.snap.core.gpf.graph.GraphProcessor;
 import org.esa.snap.core.gpf.graph.Node;
 import org.esa.snap.core.gpf.graph.NodeSource;
 import org.junit.Test;
@@ -31,105 +29,104 @@ import java.io.IOException;
 
 public class TestBenchmark_SpeckleFilters extends BaseBenchmarks {
 
+    public TestBenchmark_SpeckleFilters() {
+        super("SpeckleFilters");
+    }
+
     @Test
-    public void testGRD_specklefilter_Boxcar() throws Exception {
-        specklefilter("Boxcar");
+    public void testGRD_specklefilter_Boxcar_ProductIO() throws Exception {
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Boxcar", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_specklefilter_BoxcarWriteOp() throws Exception {
-        specklefilterWriteOp("Boxcar");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Boxcar", WriteMode.GPF);
     }
 
     @Test
     public void testGRD_specklefilter_BoxcarGraph() throws Exception {
-        specklefilterGraph("Boxcar");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Boxcar", WriteMode.GRAPH);
     }
 
     @Test
     public void testGRD_specklefilter_Median() throws Exception {
-        specklefilter("Median");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Median", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_specklefilter_Frost() throws Exception {
-        specklefilter("Frost");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Frost", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_specklefilter_GammaMap() throws Exception {
-        specklefilter("Gamma Map");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Gamma Map", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_specklefilter_Lee() throws Exception {
-        specklefilter("Lee");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Lee", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_specklefilter_RefinedLee() throws Exception {
-        specklefilter("Refined Lee");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Refined Lee", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_specklefilter_LeeSigma() throws Exception {
-        specklefilter("Lee Sigma");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "Lee Sigma", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testGRD_specklefilter_IDAN() throws Exception {
-        specklefilter("IDAN");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(grdFile, "IDAN", WriteMode.PRODUCT_IO);
     }
 
-    private void specklefilter(final String name) throws Exception {
-        Benchmark b = new Benchmark(name) {
+    private void specklefilter(final File srcFile, final String filterName, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
             @Override
             protected void execute() throws Exception {
-                process(name, outputFolder, false);
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        process(srcFile, filterName, outputFolder, mode);
+                        break;
+                    case GRAPH:
+                        processGraph(srcFile, outputFolder, filterName);
+                        break;
+                }
             }
         };
         b.run();
     }
 
-    private void specklefilterWriteOp(final String name) throws Exception {
-        Benchmark b = new Benchmark(name) {
-            @Override
-            protected void execute() throws Exception {
-                process(name, outputFolder, true);
-            }
-        };
-        b.run();
-    }
-
-    private void specklefilterGraph(final String name) throws Exception {
-        Benchmark b = new Benchmark(name) {
-            @Override
-            protected void execute() throws Exception {
-                processGraph(grdFile, outputFolder, name);
-            }
-        };
-        b.run();
-    }
-
-    private void process(final String name, final File outputFolder, final boolean useWriteOp) throws IOException {
-        final Product srcProduct = read(grdFile);
+    private void process(final File srcFile, final String filterName, final File outputFolder,
+                         final WriteMode mode) throws IOException {
+        final Product srcProduct = read(srcFile);
 
         SpeckleFilterOp op = new SpeckleFilterOp();
         op.setSourceProduct(srcProduct);
-        op.SetFilter(name);
+        op.SetFilter(filterName);
         Product trgProduct = op.getTargetProduct();
 
-        if(useWriteOp) {
-            writeGPF(trgProduct, outputFolder, DIMAP);
-        } else {
-            write(trgProduct, outputFolder, DIMAP);
-        }
+        write(trgProduct, outputFolder, mode);
 
         trgProduct.dispose();
         srcProduct.dispose();
     }
 
-    private void processGraph(final File file, final File outputFolder, final String name) throws Exception {
+    private void processGraph(final File file, final File outputFolder, final String filterName) throws Exception {
 
         final Graph graph = new Graph("graph");
 
@@ -141,7 +138,7 @@ public class TestBenchmark_SpeckleFilters extends BaseBenchmarks {
 
         final Node decompNode = new Node("Speckle-Filter", "Speckle-Filter");
         final DomElement decompParameters = new DefaultDomElement("parameters");
-        decompParameters.createChild("filter").setValue(name);
+        decompParameters.createChild("filter").setValue(filterName);
 
         decompNode.setConfiguration(decompParameters);
         decompNode.addSource(new NodeSource("source", "read"));
@@ -155,7 +152,6 @@ public class TestBenchmark_SpeckleFilters extends BaseBenchmarks {
         writeNode.addSource(new NodeSource("source", "Speckle-Filter"));
         graph.addNode(writeNode);
 
-        final GraphProcessor processor = new GraphProcessor();
-        processor.executeGraph(graph, ProgressMonitor.NULL);
+        processGraph(graph);
     }
 }

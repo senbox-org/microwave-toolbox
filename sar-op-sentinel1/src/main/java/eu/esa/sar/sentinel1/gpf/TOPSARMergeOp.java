@@ -341,12 +341,12 @@ public final class TOPSARMergeOp extends Operator {
             MetadataElement targetSlaveMetadataRoot = AbstractMetadata.getSlaveMetadata(targetProduct.getMetadataRoot());
             if(!masterProductBands.isEmpty()) {
                 targetSlaveMetadataRoot.setAttributeString(AbstractMetadata.MASTER_BANDS,
-                        String.join(" ", masterProductBands.toArray(new String[masterProductBands.size()])));
+                        String.join(" ", masterProductBands.toArray(new String[0])));
             }
 
             if(!slaveProductBands.isEmpty()) {
                 targetSlaveMetadataRoot.getElementAt(0).setAttributeString(AbstractMetadata.SLAVE_BANDS,
-                        String.join(" ", slaveProductBands.toArray(new String[slaveProductBands.size()])));
+                        String.join(" ", slaveProductBands.toArray(new String[0])));
             }
         }
     }

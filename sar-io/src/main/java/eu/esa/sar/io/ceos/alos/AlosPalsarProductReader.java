@@ -19,7 +19,6 @@ import com.bc.ceres.core.ProgressMonitor;
 import com.bc.ceres.core.VirtualDir;
 import eu.esa.sar.io.ceos.CEOSProductDirectory;
 import eu.esa.sar.io.ceos.CEOSProductReader;
-import eu.esa.sar.commons.io.ImageIOFile;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.*;

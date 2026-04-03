@@ -244,7 +244,7 @@ public class IDAN implements PolarimetricSpeckleFilter {
         if (anPixelList.isEmpty()) {
             return new Pix[]{new Pix(xc, yc)};
         }
-        return anPixelList.toArray(new Pix[anPixelList.size()]);
+        return anPixelList.toArray(new Pix[0]);
     }
 
     /**
@@ -346,7 +346,7 @@ public class IDAN implements PolarimetricSpeckleFilter {
             front.clear();
             front.addAll(newfront);
         }
-        return bgPixelList.toArray(new Pix[bgPixelList.size()]);
+        return bgPixelList.toArray(new Pix[0]);
     }
 
     /**
@@ -600,7 +600,7 @@ public class IDAN implements PolarimetricSpeckleFilter {
         if (anPixelList.isEmpty()) {
             return new Pix[]{new Pix(xc, yc)};
         }
-        return anPixelList.toArray(new Pix[anPixelList.size()]);
+        return anPixelList.toArray(new Pix[0]);
     }
 
     /**
@@ -678,7 +678,7 @@ public class IDAN implements PolarimetricSpeckleFilter {
             front.clear();
             front.addAll(newfront);
         }
-        return bgPixelList.toArray(new Pix[bgPixelList.size()]);
+        return bgPixelList.toArray(new Pix[0]);
     }
 
     private final static class Pix {

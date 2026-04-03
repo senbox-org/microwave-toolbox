@@ -21,7 +21,6 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Test ComputeDerampDemodPhaseOp
  */
-
 @Ignore
 public class TestComputeDerampDemodPhaseOp {
 
@@ -45,17 +44,18 @@ public class TestComputeDerampDemodPhaseOp {
         assumeTrue(inputFile + " not found", inputFile.exists());
         assumeTrue(inputParameterFile + " not found", inputParameterFile.exists());
 
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
-        op = (DerampDemodPhaseOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
+            op = (DerampDemodPhaseOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, false, false, false);
+            // get targetProduct: execute initialize()
+            targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false, false);
 
-        reader = new TAXIParameterFileReader(inputParameterFile);
-        reader.readParameterFile();
+            reader = new TAXIParameterFileReader(inputParameterFile);
+            reader.readParameterFile();
+        }
     }
 
     @Test
@@ -150,7 +150,7 @@ public class TestComputeDerampDemodPhaseOp {
 
         // compare with expected outputs:
         //final float[] expectedValues = {11.0f, 15.0f, 19.0f, 23.0f, 43.0f, 47.0f, 51.0f, 55.0f};
-        //assertTrue(Arrays.equals(expectedValues, floatValues));
+        //assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
     }
 
     private void outputToFile(final float[] dataArray, final String fileName) throws Exception {

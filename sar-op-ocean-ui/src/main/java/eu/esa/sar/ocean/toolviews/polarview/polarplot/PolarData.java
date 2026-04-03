@@ -21,7 +21,7 @@ public class PolarData {
 
     private final float firstDir;
     private final float dirStep;
-    private final float radii[];
+    private final float[] radii;
     private final float minValue;
     private final float maxValue;
 
@@ -30,7 +30,7 @@ public class PolarData {
     private final AxisInfo rData = new AxisInfo();
     private final AxisInfo cData = new AxisInfo();
 
-    private int rScreenPoints[] = null;
+    private int[] rScreenPoints = null;
     private Object[] cValues = null;
     private float dirOffset = 0;
 
@@ -39,7 +39,7 @@ public class PolarData {
     private ColourScale cScale = null;
     private int plotCount = 0;
 
-    public PolarData(float cValues[][], float firstDir, float dirStep, float radii[], final float minValue, final float maxValue) {
+    public PolarData(float[][] cValues, float firstDir, float dirStep, float[] radii, final float minValue, final float maxValue) {
         this.cValues = cValues;
         colors = null;
 
@@ -144,8 +144,8 @@ public class PolarData {
         rData.checkTouchedAxis();
         if (rData.touched) {
             rData.untouch();
-            final int rP[][] = {rScreenPoints};
-            final float r[][] = {radii};
+            final int[][] rP = {rScreenPoints};
+            final float[][] r = {radii};
             computeScreenPoints(r, rP, rData.axis);
         }
     }
@@ -185,7 +185,7 @@ public class PolarData {
         return (double) radii[Nr];
     }
 
-    private static void computeScreenPoints(final float values[][], final int points[][], final Axis axis) {
+    private static void computeScreenPoints(final float[][] values, final int[][] points, final Axis axis) {
         if (axis == null)
             return;
         final int np = values.length;
@@ -216,7 +216,7 @@ public class PolarData {
         cData.touch();
     }
 
-    private void prepareColors(final Object cValues[]) {
+    private void prepareColors(final Object[] cValues) {
         if (cScale == null)
             return;
         if (colors == null || colors.length != plotCount) {
@@ -237,7 +237,7 @@ public class PolarData {
         }
     }
 
-    private static void computeColors(final float values[][], final Color colors[][], final ColourScale cScale) {
+    private static void computeColors(final float[][] values, final Color[][] colors, final ColourScale cScale) {
         if (cScale == null)
             return;
         final int np = values.length;

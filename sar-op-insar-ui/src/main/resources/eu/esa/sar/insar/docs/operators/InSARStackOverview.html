@@ -1,26 +1,23 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head><title>Help - Stack Overview</title>
+<html><head><title>Help - Stack Overview</title>
 
-    <link rel="stylesheet" href="../style.css">
-</head>
+    <link rel="stylesheet" href="../style.css"></head>
 
 <body>
 <table class="header">
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; InSAR Stack Overview</td>
-        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg"
-                                                                                 border="0"></a></td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
 <h3>InSAR Stack Overview and Reference Selection</h3>
 
 <p>
-    This function gives a general information about the interferometric stack. The information about the
+    This function gives general information about the interferometric stack. The information about the
     acquisition date, sensor, mode, as well as information about perpendicular and temporal baselines are being listed.
-    Also an estimate for the modeled (expected) coherence is being computed, and used in selection of the optimal reference
+    Also, an estimate for the modeled (expected) coherence is being computed, and used in selection of the optimal reference
     image for the InSAR stack.
 </p>
 
@@ -35,17 +32,25 @@
 <p>
     The stack coherence for a stack with reference image <i>m</i> is defined as:
     <br><img style="" alt="" src="images/coherence_model_eq11.jpg"><br>
-    <!--&nbsp;&nbsp;&nbsp;-->
 </p>
 
 <p>
     where <i>B</i> symbol represents the perpendicular baseline between images <i>m</i> and <i>k</i> at the center of
     the image, the symbol <i>T</i> the temporal baseline, and <i>fDC</i> the Doppler baseline (the mean Doppler centroid
     frequency difference). The divisor <i>c</i>, in the second equation, can be regarded as a critical baseline for
-    which the total de-correlation is expected for targets with the a distributed scattering mechanism.
+    which the total de-correlation is expected for targets with the distributed scattering mechanism.
 </p>
 
 <p> The values given in the first equation, are typical for ERS and Envisat.
+</p>
+
+<h4>JSON Overview via command-line GPT</h4>
+
+<p> It is possible to run the InSAR Overview operator via the command-line using GPT and produce a JSON file.
+    Create a graph with a product-set reader and the InSAR Overview operator and specify the target location for the JSON file.
+    The JSON file will contain the following information:
+    <br><img style="width: 1191px; height: 703px;" alt="" src="images/insar_overview_json.png"><br>
+
 </p>
 
 <h4>Notes and known issues</h4>
@@ -69,5 +74,4 @@
 
 <br>
 <hr>
-</body>
-</html>
+</body></html>

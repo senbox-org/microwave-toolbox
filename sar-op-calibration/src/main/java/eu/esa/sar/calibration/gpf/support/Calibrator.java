@@ -30,6 +30,13 @@ import java.io.File;
  */
 public interface Calibrator {
 
+    void setUserSelections(final Product sourceProduct,
+                                  final String[] selectedPolarisations,
+                                  final boolean outputSigmaBand,
+                                  final boolean outputGammaBand,
+                                  final boolean outputBetaBand,
+                                  final boolean outputDNBand);
+
     /**
      * @param op                          The calibration operator
      * @param sourceProduct               The source product.

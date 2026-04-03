@@ -28,7 +28,6 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
-import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
@@ -55,11 +54,7 @@ public final class SpacetyCalibrator extends BaseCalibrator implements Calibrato
     private CalibrationInfo[] calibration = null;
     private boolean isMultiSwath = false;
     protected final HashMap<String, CalibrationInfo> targetBandToCalInfo = new HashMap<>(2);
-    private List<String> selectedPolList = null;
-    private boolean outputSigmaBand = false;
-    private boolean outputGammaBand = false;
-    private boolean outputBetaBand = false;
-    private boolean outputDNBand = false;
+
     private CALTYPE dataType = null;
     private int subsetOffsetX = 0;
     private int subsetOffsetY = 0;
@@ -92,34 +87,6 @@ public final class SpacetyCalibrator extends BaseCalibrator implements Calibrato
      */
     @Override
     public void setAuxFileFlag(String file) {
-    }
-
-    public void setUserSelections(final Product sourceProduct,
-                                  final String[] selectedPolarisations,
-                                  final boolean outputSigmaBand,
-                                  final boolean outputGammaBand,
-                                  final boolean outputBetaBand,
-                                  final boolean outputDNBand) {
-
-        this.outputSigmaBand = outputSigmaBand;
-        this.outputGammaBand = outputGammaBand;
-        this.outputBetaBand = outputBetaBand;
-        this.outputDNBand = outputDNBand;
-
-        String[] selectedPols = selectedPolarisations;
-        if (selectedPols == null || selectedPols.length == 0) {
-            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-            selectedPols = Sentinel1Utils.getProductPolarizations(absRoot);
-        }
-
-        selectedPolList = new ArrayList<>(4);
-        for (String pol : selectedPols) {
-            selectedPolList.add(pol.toUpperCase());
-        }
-
-        if (!outputSigmaBand && !outputGammaBand && !outputBetaBand && !outputDNBand) {
-            this.outputSigmaBand = true;
-        }
     }
 
     private void validate(final Product sourceProduct) throws OperatorException {
@@ -326,28 +293,11 @@ public final class SpacetyCalibrator extends BaseCalibrator implements Calibrato
 
         validate(sourceProduct);
 
-        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
-                sourceProduct.getProductType(),
-                sourceProduct.getSceneRasterWidth(),
-                sourceProduct.getSceneRasterHeight());
-
-        addSelectedBands(sourceProduct, sourceBandNames);
-
-        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
-
-        return targetProduct;
+        return super.createTargetProduct(sourceProduct, sourceBandNames);
     }
 
-    private void addSelectedBands(final Product sourceProduct, final String[] sourceBandNames) {
-
-        if (outputImageInComplex) {
-            outputInComplex(sourceProduct, sourceBandNames);
-        } else {
-            outputInIntensity(sourceProduct, sourceBandNames);
-        }
-    }
-
-    private void outputInComplex(final Product sourceProduct, final String[] sourceBandNames) {
+    @Override
+    protected void outputInComplex(final Product sourceProduct, final String[] sourceBandNames) {
 
         final Band[] sourceBands = OperatorUtils.getSourceBands(sourceProduct, sourceBandNames, false);
 
@@ -406,7 +356,8 @@ public final class SpacetyCalibrator extends BaseCalibrator implements Calibrato
         }
     }
 
-    private void outputInIntensity(final Product sourceProduct, final String[] sourceBandNames) {
+    @Override
+    protected void outputInIntensity(final Product sourceProduct, final String[] sourceBandNames) {
 
         final Band[] sourceBands = OperatorUtils.getSourceBands(sourceProduct, sourceBandNames, false);
 
@@ -469,38 +420,6 @@ public final class SpacetyCalibrator extends BaseCalibrator implements Calibrato
                 }
             }
         }
-    }
-
-    /**
-     * Create target band names for given source band name.
-     *
-     * @param srcBandName The given source band name.
-     * @return The target band name array.
-     */
-    private String[] createTargetBandNames(final String srcBandName) {
-
-        final int cnt = (outputSigmaBand ? 1 : 0) + (outputGammaBand ? 1 : 0) + (outputBetaBand ? 1 : 0) + (outputDNBand ? 1 : 0);
-        String[] targetBandNames = new String[cnt];
-
-        final String pol = srcBandName.substring(srcBandName.indexOf("_"));
-        int k = 0;
-        if (outputSigmaBand) {
-            targetBandNames[k++] = "Sigma0" + pol;
-        }
-
-        if (outputGammaBand) {
-            targetBandNames[k++] = "Gamma0" + pol;
-        }
-
-        if (outputBetaBand) {
-            targetBandNames[k++] = "Beta0" + pol;
-        }
-
-        if (outputDNBand) {
-            targetBandNames[k] = "DN" + pol;
-        }
-
-        return targetBandNames;
     }
 
     /**

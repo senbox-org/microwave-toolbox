@@ -15,7 +15,13 @@
  */
 package eu.esa.sar.insar.rcp.toolviews;
 
-import eu.esa.sar.insar.rcp.toolviews.insar_statistics.*;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.InSARStatistic;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatBaselines;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatBaselinesChart;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatESDHistogram;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatESDMeasure;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatInSARInfo;
+import eu.esa.sar.insar.rcp.toolviews.insar_statistics.StatResiduals;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductManager;
 import org.esa.snap.core.datamodel.ProductNode;
@@ -23,16 +29,22 @@ import org.esa.snap.graphbuilder.rcp.utils.DialogUtils;
 import org.esa.snap.rcp.SnapApp;
 import org.esa.snap.rcp.util.SelectionSupport;
 import org.esa.snap.tango.TangoIcons;
+import org.esa.snap.ui.help.HelpDisplayer;
 import org.netbeans.api.annotations.common.NullAllowed;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
 import org.openide.awt.ActionReferences;
-import org.openide.util.HelpCtx;
 import org.openide.util.NbBundle;
 import org.openide.windows.TopComponent;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.AbstractButton;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
+import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -126,7 +138,7 @@ public class InSARStatisticsTopComponent extends TopComponent {
         final JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
 
-        final JButton copyBtn = DialogUtils.createButton("copyBtn", "Copy", copyIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
+        final AbstractButton copyBtn = DialogUtils.createButton("copyBtn", "Copy", copyIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
         copyBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -134,7 +146,7 @@ public class InSARStatisticsTopComponent extends TopComponent {
                 stat.copyToClipboard();
             }
         });
-        final JButton saveBtn = DialogUtils.createButton("saveBtn", "Save", saveIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
+        final AbstractButton saveBtn = DialogUtils.createButton("saveBtn", "Save", saveIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
         saveBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -142,13 +154,12 @@ public class InSARStatisticsTopComponent extends TopComponent {
                 stat.saveToFile();
             }
         });
-        final JButton helpBtn = DialogUtils.createButton("helpBtn", "Help", helpIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
+        final AbstractButton helpBtn = DialogUtils.createButton("helpBtn", "Help", helpIcon, buttonPanel, DialogUtils.ButtonStyle.Icon);
         helpBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 final InSARStatistic stat = statisticList.get(tabbedPane.getSelectedIndex());
-
-                new HelpCtx(stat.getHelpId()).display();
+                HelpDisplayer.show(stat.getHelpId());
             }
         });
 

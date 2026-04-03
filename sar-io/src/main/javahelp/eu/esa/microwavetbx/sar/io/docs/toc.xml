@@ -29,6 +29,7 @@
                         <tocitem text="ENVISAT ASAR" target="importEnvisatProduct"/>
                         <tocitem text="ERS-1" target="importErsProduct"/>
 						<tocitem text="ERS-2" target="importErs2Product"/>
+                        <tocitem text="ICEYE" target="importIceyeProduct"/>
                         <tocitem text="JERS-1" target="ImportJERSCeos"/>
                         <tocitem text="Kompsat-5" target="ImportKompsat5"/>
                         <tocitem text="Paz" target="ImportPaz"/>

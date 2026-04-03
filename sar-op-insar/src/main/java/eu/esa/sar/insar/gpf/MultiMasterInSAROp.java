@@ -34,10 +34,7 @@ import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
-import org.esa.snap.engine_utilities.gpf.OperatorUtils;
-import org.esa.snap.engine_utilities.gpf.StackUtils;
-import org.esa.snap.engine_utilities.gpf.TileIndex;
-import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import org.esa.snap.engine_utilities.gpf.*;
 import org.jlinda.core.SLCImage;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.Point;
@@ -78,7 +75,7 @@ public class MultiMasterInSAROp extends Operator {
 
     @Parameter(description = "List of interferometric pairs", label = "InSAR pairs")
     private String[] pairs; // {"ddMMMyyyy-ddMMMyyyy", "ddMMMyyyy-ddMMMyyyy", ...,"ddMMMyyyy-ddMMMyyyy"}
-    private String[][] parsedPairs; // {{"ddMMMyyyy", "ddMMMyyyy"}, {"ddMMMyyyy", "ddMMMyyyy"}, ...,{"ddMMMyyyy", "ddMMMyyyy"}}
+    String[][] parsedPairs; // {{"ddMMMyyyy", "ddMMMyyyy"}, {"ddMMMyyyy", "ddMMMyyyy"}, ...,{"ddMMMyyyy", "ddMMMyyyy"}}
 
     @Parameter(defaultValue = "true", label = "Include wavenumber")
     private boolean includeWavenumber = true;
@@ -104,7 +101,7 @@ public class MultiMasterInSAROp extends Operator {
     private Orbit orbitMaster;
     private final Map<Band, SLCImage> slcImageSlaveMap = new HashMap<>(10);
     private final Map<Band, Orbit> orbitSlaveMap = new HashMap<>(10);
-    private final Map<String, Band> dateMap = new HashMap<>(10);
+    private final Map<String, List<Band>> dateMap = new HashMap<>(10);
 
     // These apply per SLC
     private final Map<Band, Band> complexSrcMap = new HashMap<>(10);
@@ -117,21 +114,24 @@ public class MultiMasterInSAROp extends Operator {
     private Band targetBandLongitude;
 
     // These apply per interferometric pair
-    private Map<Band, List<Band>> interferogramPairMap = new HashMap<>(10);
-    private Map<Band, List<Band>> interferogramMap = new HashMap<>(10);
-    private Map<Band, Band> complexInterferogramMap = new HashMap<>(10);
-    private Map<Band, List<Band>> coherenceMap = new HashMap<>(10);
+    private final Map<Band, List<Band>> interferogramPairMap = new HashMap<>(10);
+    private final Map<Band, List<Band>> interferogramMap = new HashMap<>(10);
+    private final Map<Band, Band> complexInterferogramMap = new HashMap<>(10);
+    private final Map<Band, List<Band>> coherenceMap = new HashMap<>(10);
+
+    private String[] polarisations;
+    private String subswath = null;
 
     // Constants
     private static final String WAVENUMBER_BAND_NAME_PREFIX = "wavenumber";
 
-    private static final String DEM_BAND_NAME_PREFIX = "elevation";
-    private static final String INCIDENCE_ANGLE_BAND_NAME = "incidenceAngle";
-    private static final String LAT_BAND_NAME = "lat";
-    private static final String LON_BAND_NAME = "lon";
+    static final String DEM_BAND_NAME_PREFIX = "elevation";
+    static final String INCIDENCE_ANGLE_BAND_NAME = "incidenceAngle";
+    static final String LAT_BAND_NAME = "lat";
+    static final String LON_BAND_NAME = "lon";
 
-    private static final String IFG_BAND_NAME_TAG = "ifg";
-    private static final String COHERENCE_BAND_NAME_PREFIX = "coh";
+    static final String IFG_BAND_NAME_TAG = "ifg";
+    static final String COHERENCE_BAND_NAME_PREFIX = "coh";
 
     private static final String PRODUCT_SUFFIX = "_mmifg";
 
@@ -159,6 +159,13 @@ public class MultiMasterInSAROp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
+            checkSourceProductValidity();
+
+            polarisations = OperatorUtils.getPolarisations(sourceProduct);
+            if (polarisations.length == 0) {
+                polarisations = new String[]{""};
+            }
+
             // Load metadata
             getProductMetadata();
 
@@ -168,9 +175,29 @@ public class MultiMasterInSAROp extends Operator {
             // Create target product
             createTargetProduct(datesInPairsList);
 
+            updateTargetProductMetadata();
+
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
+    }
+
+    private void checkSourceProductValidity() {
+
+        final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        validator.checkIfSARProduct();
+        validator.checkIfCoregisteredStack();
+    }
+
+    /**
+     * Update target product metadata
+     */
+    private void updateTargetProductMetadata() {
+
+        final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
+        AbstractMetadata.addAbstractedAttribute(absTgt, AbstractMetadata.multi_reference_ifg, ProductData.TYPE_UINT8,
+                "flag", "Multi-Reference Product");
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.multi_reference_ifg, 1);
     }
 
     /**
@@ -185,61 +212,100 @@ public class MultiMasterInSAROp extends Operator {
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
-        // Define source bands
-        Band sourceBandI = null;
-        Band sourceBandQ = null;
-
         // Get source I/Q bands (master); skip if not in any pair
         final String[] masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
-        for (String bandName : masterBandNames) {
-            if (bandName.contains("i_")) {
-                sourceBandI = sourceProduct.getBand(bandName);
-            } else {
-                sourceBandQ = sourceProduct.getBand(bandName);
+        String dateToRemove = null;
+        for (String polarisation : polarisations) {
+            final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
+            Band refSourceBandI = null;
+            Band refSourceBandQ = null;
+            for (String bandName : masterBandNames) {
+                if (bandName.contains("i_") && (pol.isEmpty() || bandName.contains(pol))) {
+                    refSourceBandI = sourceProduct.getBand(bandName);
+                } else if (bandName.contains("q_") && (pol.isEmpty() || bandName.contains(pol))) {
+                    refSourceBandQ = sourceProduct.getBand(bandName);
+                }
+                if(refSourceBandI != null && refSourceBandQ != null) {
+                    break;
+                }
+            }
+
+            boolean foundInPairsList = false;
+            for (String date : datesInPairsList) {
+                final List<Band> sourceBandIList = dateMap.get(date);
+                for (final Band sourceBandToCheck : sourceBandIList) {
+                    if (refSourceBandI == sourceBandToCheck) {
+                        complexSrcMap.put(refSourceBandI, refSourceBandQ); // (source I: source Q) band pairs
+                        foundInPairsList = true;
+                        dateToRemove = date;
+                        break;
+                    }
+                }
+                if (foundInPairsList) {
+                    break;
+                }
             }
         }
-        for (String date : datesInPairsList) {
-            final Band sourceBandToCheck = dateMap.get(date);
-            if (sourceBandI == sourceBandToCheck) {
-                complexSrcMap.put(sourceBandI, sourceBandQ); // (source I: source Q) band pairs
-                datesInPairsList.remove(date);
-                break;
-            }
+        if (dateToRemove != null) {
+            datesInPairsList.remove(dateToRemove);
         }
 
         // Get source I/Q bands (slaves) and create wavenumber band; skip if not in any pair
         final String[] slaveProductNames = StackUtils.getSlaveProductNames(sourceProduct);
         for (String slaveProductName : slaveProductNames) {
             final String[] slvBandNames = StackUtils.getSlaveBandNames(sourceProduct, slaveProductName);
-            for (String bandName : slvBandNames) {
-                if (bandName.contains("i_")) {
-                    sourceBandI = sourceProduct.getBand(bandName);
-                } else {
-                    sourceBandQ = sourceProduct.getBand(bandName);
+            String secDateToRemove = null;
+            for (String polarisation : polarisations) {
+                final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
+                Band secSourceBandI = null;
+                Band secSourceBandQ = null;
+
+                for (String bandName : slvBandNames) {
+                    if (bandName.contains("i_") && (pol.isEmpty() || bandName.contains(pol))) {
+                        secSourceBandI = sourceProduct.getBand(bandName);
+                    } else if (bandName.contains("q_") && (pol.isEmpty() || bandName.contains(pol))) {
+                        secSourceBandQ = sourceProduct.getBand(bandName);
+                    }
+                    if(secSourceBandI != null && secSourceBandQ != null) {
+                        break;
+                    }
+                }
+
+                boolean foundInPairsList = false;
+                for (String date : datesInPairsList) {
+                    final List<Band> sourceBandIList = dateMap.get(date);
+                    for (final Band sourceBandToCheck : sourceBandIList) {
+                        if (secSourceBandI == sourceBandToCheck) {
+                            complexSrcMap.put(secSourceBandI, secSourceBandQ); // (source I: source Q) band pairs
+                            if (includeWavenumber) {
+                                // Add wavenumber band to targetProduct
+                                final String wavenumberBandName = WAVENUMBER_BAND_NAME_PREFIX + StackUtils.getBandSuffix(secSourceBandI.getName());
+                                Band targetBandWavenumber = null;
+                                if (targetProduct.getBand(wavenumberBandName) == null) {
+                                    targetBandWavenumber = targetProduct.addBand(wavenumberBandName, ProductData.TYPE_FLOAT32);
+                                    targetBandWavenumber.setUnit("radians/meter");
+                                    targetBandWavenumber.setDescription("Vertical wavenumber");
+                                }
+                                // Store in a HashMap
+                                wavenumberMap.put(secSourceBandI, targetBandWavenumber); // (source I: wavenumber) band pairs
+                            }
+                            foundInPairsList = true;
+                            secDateToRemove = date;
+                            break;
+                        }
+                    }
+                    if (foundInPairsList) {
+                        break;
+                    }
                 }
             }
-            for (String date : datesInPairsList) {
-                final Band sourceBandToCheck = dateMap.get(date);
-                if (sourceBandI == sourceBandToCheck) {
-                    complexSrcMap.put(sourceBandI, sourceBandQ); // (source I: source Q) band pairs
-                    if (includeWavenumber) {
-                        // Add wavenumber band to targetProduct
-                        final String wavenumberBandName = WAVENUMBER_BAND_NAME_PREFIX + StackUtils.getBandSuffix(sourceBandI.getName());
-                        final Band targetBandWavenumber = targetProduct.addBand(wavenumberBandName, ProductData.TYPE_FLOAT32);
-                        targetBandWavenumber.setUnit("radians/meter");
-                        targetBandWavenumber.setDescription("Vertical wavenumber");
-
-                        // Store in a HashMap
-                        wavenumberMap.put(sourceBandI, targetBandWavenumber); // (source I: wavenumber) band pairs
-                    }
-                    datesInPairsList.remove(date);
-                    break;
-                }
+            if (secDateToRemove != null) {
+                datesInPairsList.remove(secDateToRemove);
             }
         }
 
         // Check if there are invalid pairs (i.e., pairs whose dates are not found in the source product)
-        if (datesInPairsList.size() > 0) {
+        if (!datesInPairsList.isEmpty()) {
             throw new OperatorException("Check pairs. Invalid dates found: " + datesInPairsList.toString());
         }
 
@@ -253,7 +319,8 @@ public class MultiMasterInSAROp extends Operator {
             }
         }
         if (elevationBandName == null) {
-            throw new OperatorException("Elevation band is missing in input product.");
+            throw new OperatorException("Elevation band is missing in input product. Please add elevation band " +
+                    "using the Add Elevation Band function.");
         }
 
         // Create band for incidence angle
@@ -293,85 +360,116 @@ public class MultiMasterInSAROp extends Operator {
 
     private void createIfgTargetBands() {
 
+        final String swath = subswath.isEmpty() ? "" : subswath.toUpperCase();
+
         // Define I/Q bands
-        Band sourceBandI0;
-        Band sourceBandQ0;
-        Band sourceBandI1;
-        Band sourceBandQ1;
-
-        for (int i = 0; i < parsedPairs.length; i++) {
+        for (String[] parsedPair : parsedPairs) {
             // Get source bands (I and Q) for each image in the pair
-            sourceBandI0 = dateMap.get(parsedPairs[i][0]);
-            sourceBandQ0 = complexSrcMap.get(sourceBandI0);
-            sourceBandI1 = dateMap.get(parsedPairs[i][1]);
+            final List<Band> sourceBandI0List = dateMap.get(parsedPair[0]);
+            final List<Band> sourceBandI1List = dateMap.get(parsedPair[1]);
+            for (Band sourceBandI0 : sourceBandI0List) {
+                final Band sourceBandQ0 = complexSrcMap.get(sourceBandI0);
+                final String pol = getPolarisationFromBandName(sourceBandI0.getName());
+                final Band sourceBandI1 = findBandByPolarisation(sourceBandI1List, pol);
+                if (sourceBandI1 == null) {
+                    continue;
+                }
 
-            // Add interferometric I/Q bands to targetProduct
-            final String pairDates = String.join("_", parsedPairs[i]);
+                // Add interferometric I/Q bands to targetProduct
+                final String pairDates = String.join("_", parsedPair);
 
-            final String ifgBandNameI = String.join("_", "i", IFG_BAND_NAME_TAG, pairDates);
-            final Band targetBandIfgI = targetProduct.addBand(ifgBandNameI, ProductData.TYPE_FLOAT32);
-            ProductUtils.copyRasterDataNodeProperties(sourceBandI0, targetBandIfgI);
-            targetBandIfgI.setDescription("Interferogram I");
+                final String ifgBandNameI = String.join("_", "i", IFG_BAND_NAME_TAG, swath, pol.toUpperCase(), pairDates);
+                final Band targetBandIfgI = targetProduct.addBand(ifgBandNameI, ProductData.TYPE_FLOAT32);
+                ProductUtils.copyRasterDataNodeProperties(sourceBandI0, targetBandIfgI);
+                targetBandIfgI.setDescription("Interferogram I");
 
-            final String ifgBandNameQ = String.join("_", "q", IFG_BAND_NAME_TAG, pairDates);
-            final Band targetBandIfgQ = targetProduct.addBand(ifgBandNameQ, ProductData.TYPE_FLOAT32);
-            ProductUtils.copyRasterDataNodeProperties(sourceBandQ0, targetBandIfgQ);
-            targetBandIfgQ.setDescription("Interferogram Q");
+                final String ifgBandNameQ = String.join("_", "q", IFG_BAND_NAME_TAG, swath, pol.toUpperCase(), pairDates);
+                final Band targetBandIfgQ = targetProduct.addBand(ifgBandNameQ, ProductData.TYPE_FLOAT32);
+                ProductUtils.copyRasterDataNodeProperties(sourceBandQ0, targetBandIfgQ);
+                targetBandIfgQ.setDescription("Interferogram Q");
 
-            // Add virtual bands to targetProduct
-            final String virtualBandSuffix = "_" + String.join("_", IFG_BAND_NAME_TAG, pairDates);
-            ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandIfgI, targetBandIfgQ, virtualBandSuffix);
-            final Band phaseBand = ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandIfgI, targetBandIfgQ, virtualBandSuffix);
-            phaseBand.setNoDataValueUsed(true);
+                // Add virtual bands to targetProduct
+                final String virtualBandSuffix = "_" + String.join("_", IFG_BAND_NAME_TAG, swath, pol.toUpperCase(), pairDates);
+                ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandIfgI, targetBandIfgQ, virtualBandSuffix);
+                final Band phaseBand = ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandIfgI, targetBandIfgQ, virtualBandSuffix);
+                phaseBand.setNoDataValueUsed(true);
 
-            // Store in HashMap
-            interferogramPairMap.computeIfAbsent(sourceBandI0, k -> new ArrayList<>()).add(sourceBandI1); // (source I0: list of source I1) pairs
-            interferogramMap.computeIfAbsent(sourceBandI0, k -> new ArrayList<>()).add(targetBandIfgI); // (source I0: list of target ifg I) pairs
-            complexInterferogramMap.put(targetBandIfgI, targetBandIfgQ); // (target ifg I: target ifg Q) pairs
+                // Store in HashMap
+                interferogramPairMap.computeIfAbsent(sourceBandI0, k -> new ArrayList<>()).add(sourceBandI1); // (source I0: list of source I1) pairs
+                interferogramMap.computeIfAbsent(sourceBandI0, k -> new ArrayList<>()).add(targetBandIfgI); // (source I0: list of target ifg I) pairs
+                complexInterferogramMap.put(targetBandIfgI, targetBandIfgQ); // (target ifg I: target ifg Q) pairs
 
-            // Add coherence band to target product
-            final String coherenceBandName = String.join("_", COHERENCE_BAND_NAME_PREFIX, pairDates);
-            final Band targetBandCoherence = targetProduct.addBand(coherenceBandName, ProductData.TYPE_FLOAT32);
-            targetBandCoherence.setNoDataValue(Double.NaN);
-            targetBandCoherence.setNoDataValueUsed(true);
-            targetBandCoherence.setUnit(Unit.COHERENCE);
-            targetBandCoherence.setDescription("Coherence");
+                // Add coherence band to target product
+                final String coherenceBandName = String.join("_", COHERENCE_BAND_NAME_PREFIX, swath, pol.toUpperCase(), pairDates);
+                final Band targetBandCoherence = targetProduct.addBand(coherenceBandName, ProductData.TYPE_FLOAT32);
+                targetBandCoherence.setNoDataValue(Double.NaN);
+                targetBandCoherence.setNoDataValueUsed(true);
+                targetBandCoherence.setUnit(Unit.COHERENCE);
+                targetBandCoherence.setDescription("Coherence");
 
-            // Store in HashMap
-            coherenceMap.computeIfAbsent(sourceBandI0, k -> new ArrayList<>()).add(targetBandCoherence); // (source I: list of target coherence) pairs
+                // Store in HashMap
+                coherenceMap.computeIfAbsent(sourceBandI0, k -> new ArrayList<>()).add(targetBandCoherence); // (source I: list of target coherence) pairs
+            }
         }
+    }
+
+    private String getPolarisationFromBandName(final String bandName) {
+        for (final String pol : polarisations) {
+            if (bandName.contains(pol.toUpperCase())) {
+                return pol;
+            }
+        }
+        return null;
+    }
+
+    private Band findBandByPolarisation(final List<Band> bandList, final String pol) {
+        for (final Band band : bandList) {
+            if (band.getName().contains(pol.toUpperCase())) {
+                return band;
+            }
+        }
+        return null;
     }
 
     private void getProductMetadata() throws Exception {
 
         // Master
         String[] masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
-        for (String bandName : masterBandNames) {
-            if (bandName.contains("i_")) {
-                final Band sourceBandI = sourceProduct.getBand(bandName);
-                final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-                getMasterBandMetadata(sourceBandI, abs);
-                break;
+        final List<Band> mstBandIList = new ArrayList<>(2);
+        for (String polarisation : polarisations) {
+            final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
+            for (String bandName : masterBandNames) {
+                if (bandName.contains("i_") && (pol.isEmpty() || bandName.contains(pol))) {
+                    final Band sourceBandI = sourceProduct.getBand(bandName);
+                    mstBandIList.add(sourceBandI);
+                }
             }
         }
+        final MetadataElement mstAbs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        getMasterBandMetadata(mstBandIList, mstAbs);
+        subswath = mstAbs.getAttributeString(AbstractMetadata.SWATH);
 
         // Slaves
         final String[] slaveProductNames = StackUtils.getSlaveProductNames(sourceProduct);
         for (String slaveProductName : slaveProductNames) { // for each slave
             final String[] slvBandNames = StackUtils.getSlaveBandNames(sourceProduct, slaveProductName);
-            for (String bandName : slvBandNames) {
-                if (bandName.contains("i_")) {
-                    final Band sourceBandI = sourceProduct.getBand(bandName);
-                    final MetadataElement abs = AbstractMetadata.getSlaveMetadata(sourceProduct.getMetadataRoot())
-                            .getElement(slaveProductName);
-                    getSlaveBandMetadata(sourceBandI, abs);
-                    break;
+            final List<Band> slvBandIList = new ArrayList<>(2);
+            for (String polarisation : polarisations) {
+                final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
+                for (String bandName : slvBandNames) {
+                    if (bandName.contains("i_") && (pol.isEmpty() || bandName.contains(pol))) {
+                        final Band sourceBandI = sourceProduct.getBand(bandName);
+                        slvBandIList.add(sourceBandI);
+                    }
                 }
             }
+            final MetadataElement slvAbs = AbstractMetadata.getSlaveMetadata(sourceProduct.getMetadataRoot())
+                    .getElement(slaveProductName);
+            getSlaveBandMetadata(slvBandIList, slvAbs);
         }
     }
 
-    private void getMasterBandMetadata(final Band sourceBandI, final MetadataElement abs) throws Exception {
+    private void getMasterBandMetadata(final List<Band> sourceBandIList, final MetadataElement abs) throws Exception {
 
         // Get SLCImage and Orbit
         slcImageMaster = new SLCImage(abs, sourceProduct);
@@ -379,26 +477,28 @@ public class MultiMasterInSAROp extends Operator {
 
         // Get date
         final String date = OperatorUtils.getAcquisitionDate(abs);
-        dateMap.put(date, sourceBandI); // (date: source I) pairs
+        dateMap.put(date, sourceBandIList); // (date: source I) pairs
     }
 
-    private void getSlaveBandMetadata(final Band sourceBandI, final MetadataElement abs) throws Exception {
+    private void getSlaveBandMetadata(final List<Band> sourceBandIList, final MetadataElement abs) throws Exception {
 
         // Get SLCImage and Orbit
         final SLCImage slcImage = new SLCImage(abs, sourceProduct);
         final Orbit orbit = new Orbit(abs, orbitDegree);
-        slcImageSlaveMap.put(sourceBandI, slcImage); // (source I: SLCImage) pairs
-        orbitSlaveMap.put(sourceBandI, orbit); // (source I: Orbit) pairs
+        for (Band sourceBandI : sourceBandIList) {
+            slcImageSlaveMap.put(sourceBandI, slcImage); // (source I: SLCImage) pairs
+            orbitSlaveMap.put(sourceBandI, orbit); // (source I: Orbit) pairs
+        }
 
         // Get date
         final String date = OperatorUtils.getAcquisitionDate(abs);
-        dateMap.put(date, sourceBandI); // (date: source I) pairs
+        dateMap.put(date, sourceBandIList); // (date: source I) pairs
     }
 
     /**
      * Get InSAR pairs
      */
-    private List<String> getPairs() throws Exception {
+    List<String> getPairs() throws Exception {
         // If no pairs have been provided, define sequential pairs
         if (pairs != null && pairs.length > 0) {
             parsedPairs = new String[pairs.length][2];
@@ -428,9 +528,9 @@ public class MultiMasterInSAROp extends Operator {
 
         // Get list of (unique) dates present in pairs
         final List<String> datesInPairsList = new ArrayList<>();
-        for (int i = 0; i < parsedPairs.length; i++) {
-            datesInPairsList.add(parsedPairs[i][0]);
-            datesInPairsList.add(parsedPairs[i][1]);
+        for (String[] parsedPair : parsedPairs) {
+            datesInPairsList.add(parsedPair[0]);
+            datesInPairsList.add(parsedPair[1]);
         }
         return datesInPairsList.stream().distinct().collect(Collectors.toList());
     }
@@ -533,14 +633,16 @@ public class MultiMasterInSAROp extends Operator {
                     final Tile sourceTileQ0 = getSourceTile(sourceBandQ0, sourceRectangle, border);
                     final Tile sourceTileI1 = getSourceTile(sourceBandI1, sourceRectangle, border);
                     final Tile sourceTileQ1 = getSourceTile(sourceBandQ1, sourceRectangle, border);
+                    final double nodata = sourceBandQ1.getNoDataValue();
+
                     final Tile ifgTileI = targetTileMap.get(targetBandIfgI);
                     final Tile ifgTileQ = targetTileMap.get(targetBandIfgQ);
                     final Tile coherenceTile = targetTileMap.get(targetBandCoherence);
                     computeInterferogram(sourceTileI0, sourceTileQ0, sourceTileI1, sourceTileQ1,
-                                         ifgTileI, ifgTileQ, coherenceTile,
-                                         referencePhaseMap.get(sourceBandI0), referencePhaseMap.get(sourceBandI1),
-                                         cohWindowAz, cohWindowRg,
-                                         sourceRectangle, targetRectangle);
+                            ifgTileI, ifgTileQ, coherenceTile,
+                            referencePhaseMap.get(sourceBandI0), referencePhaseMap.get(sourceBandI1),
+                            cohWindowAz, cohWindowRg,
+                            sourceRectangle, targetRectangle, nodata);
                 }
             }
         } catch (Throwable e) {
@@ -636,6 +738,8 @@ public class MultiMasterInSAROp extends Operator {
         final TileIndex elevationIndex = new TileIndex(elevationTile);
         final TileIndex targetIndex = new TileIndex(wavenumberTile);
 
+        final double wavenumberFactor = -4 * Constants.PI / slcImageSlave.getRadarWavelength();
+
         for (int y = y0; y < yMax; y++) {
             elevationIndex.calculateStride(y);
             targetIndex.calculateStride(y);
@@ -650,9 +754,8 @@ public class MultiMasterInSAROp extends Operator {
                 final double slaveOneWayRangeTime = orbitSlave.xyz2t(xyzPosition, slcImageSlave).x;
                 final double slaveOneWayRangeTimeUp = orbitSlave.xyz2t(xyzPositionUp, slcImageSlave).x;
                 final double forwardDifference = Constants.lightSpeed * (slaveOneWayRangeTimeUp - slaveOneWayRangeTime);
-                final double wavenumber = -4 * Constants.PI / slcImageSlave.getRadarWavelength() * forwardDifference;
 
-                targetBufferWavenumber.setElemDoubleAt(targetIdx, wavenumber);
+                targetBufferWavenumber.setElemDoubleAt(targetIdx, wavenumberFactor * forwardDifference);
             }
         }
     }
@@ -673,6 +776,8 @@ public class MultiMasterInSAROp extends Operator {
         final ProductData sourceBufferElevation = elevationTile.getDataBuffer();
         final TileIndex elevationIndex = new TileIndex(elevationTile);
 
+        final double phaseFactor = -4 * Constants.PI / slcImageSlave.getRadarWavelength();
+
         for (int y = y0; y < yMax; y++) {
             elevationIndex.calculateStride(y);
             for (int x = x0; x < xMax; x++) {
@@ -685,7 +790,7 @@ public class MultiMasterInSAROp extends Operator {
                 final double slaveOneWayRangeTime = orbitSlave.xyz2t(xyzPosition, slcImageSlave).x;
                 final double referenceDistance = Constants.lightSpeed * (slaveOneWayRangeTime - masterOneWayRangeTime);
 
-                phase[y - y0][x - x0] = -4 * Constants.PI / slcImageSlave.getRadarWavelength() * referenceDistance;
+                phase[y - y0][x - x0] = phaseFactor * referenceDistance;
             }
         }
 
@@ -697,7 +802,8 @@ public class MultiMasterInSAROp extends Operator {
                                       final Tile ifgTileI, final Tile ifgTileQ, final Tile coherenceTile,
                                       final double[][] referencePhase0, final double[][] referencePhase1,
                                       final int cohWinAz, final int cohWinRg,
-                                      final Rectangle sourceRectangle, final Rectangle targetRectangle) {
+                                      final Rectangle sourceRectangle, final Rectangle targetRectangle,
+                                      final double nodata) {
 
         int x0 = sourceRectangle.x;
         int y0 = sourceRectangle.y;
@@ -727,16 +833,24 @@ public class MultiMasterInSAROp extends Operator {
 
                 // Get value of real and imaginary bands
                 final double valueI0 = sourceBufferI0.getElemDoubleAt(sourceIdx);
-                final double valueQ0 = sourceBufferQ0.getElemDoubleAt(sourceIdx);
                 final double valueI1 = sourceBufferI1.getElemDoubleAt(sourceIdx);
-                final double valueQ1 = sourceBufferQ1.getElemDoubleAt(sourceIdx);
 
-                final double[] values = computeIfgPhasorAndIntensities(valueI0, valueQ0, valueI1, valueQ1,
-                                                                       referencePhase0[yy][xx], referencePhase1[yy][xx]);
-                ifgPhasorI[yy][xx] = values[0];
-                ifgPhasorQ[yy][xx] = values[1];
-                intensity0[yy][xx] = values[2];
-                intensity1[yy][xx] = values[3];
+                if(valueI0 == nodata || valueI1 == nodata) {
+                    ifgPhasorI[yy][xx] = nodata;
+                    ifgPhasorQ[yy][xx] = nodata;
+                    intensity0[yy][xx] = nodata;
+                    intensity1[yy][xx] = nodata;
+                } else {
+                    final double valueQ0 = sourceBufferQ0.getElemDoubleAt(sourceIdx);
+                    final double valueQ1 = sourceBufferQ1.getElemDoubleAt(sourceIdx);
+
+                    final double[] values = computeIfgPhasorAndIntensities(valueI0, valueQ0, valueI1, valueQ1,
+                            referencePhase0[yy][xx], referencePhase1[yy][xx]);
+                    ifgPhasorI[yy][xx] = values[0];
+                    ifgPhasorQ[yy][xx] = values[1];
+                    intensity0[yy][xx] = values[2];
+                    intensity1[yy][xx] = values[3];
+                }
             }
         }
 
@@ -779,8 +893,10 @@ public class MultiMasterInSAROp extends Operator {
         final double ifgPhasorI = valueI0 * valueI1 + valueQ0 * valueQ1;
         final double ifgPhasorQ = -valueI0 * valueQ1 + valueQ0 * valueI1;
         final double angle = referencePhase0 - referencePhase1;
-        final double flattenedIfgPhasorI = ifgPhasorI * FastMath.cos(angle) + ifgPhasorQ * FastMath.sin(angle);
-        final double flattenedIfgPhasorQ = -ifgPhasorI * FastMath.sin(angle) + ifgPhasorQ * FastMath.cos(angle);
+        final double cosAngle = FastMath.cos(angle);
+        final double sinAngle = FastMath.sin(angle);
+        final double flattenedIfgPhasorI = ifgPhasorI * cosAngle + ifgPhasorQ * sinAngle;
+        final double flattenedIfgPhasorQ = -ifgPhasorI * sinAngle + ifgPhasorQ * cosAngle;
 
         return new double[]{flattenedIfgPhasorI, flattenedIfgPhasorQ, valueI0 * valueI0 + valueQ0 * valueQ0,
                 valueI1 * valueI1 + valueQ1 * valueQ1};
@@ -811,11 +927,12 @@ public class MultiMasterInSAROp extends Operator {
                 double intensitySum0 = 0;
                 double intensitySum1 = 0;
                 for (int r = -halfCohWinAz; r < halfCohWinAz + correctionWinAz; r++) {
+                    int y_r = y + r;
                     for (int c = -halfCohWinRg; c < halfCohWinRg + correctionWinRg; c++) {
-                        ifgPhasorSumI += ifgPhasorI[y + r][x + c];
-                        ifgPhasorSumQ += ifgPhasorQ[y + r][x + c];
-                        intensitySum0 += intensity0[y + r][x + c];
-                        intensitySum1 += intensity1[y + r][x + c];
+                        ifgPhasorSumI += ifgPhasorI[y_r][x + c];
+                        ifgPhasorSumQ += ifgPhasorQ[y_r][x + c];
+                        intensitySum0 += intensity0[y_r][x + c];
+                        intensitySum1 += intensity1[y_r][x + c];
                     }
                 }
                 coherence[y][x] = Math.sqrt((ifgPhasorSumI * ifgPhasorSumI + ifgPhasorSumQ * ifgPhasorSumQ)

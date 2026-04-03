@@ -59,7 +59,7 @@ public class ImageIOWriterPlugIn implements ProductWriterPlugIn {
             extList.remove(ext.toUpperCase());
         }
 
-        return extList.toArray(new String[extList.size()]);
+        return extList.toArray(new String[0]);
     }
 
     /**

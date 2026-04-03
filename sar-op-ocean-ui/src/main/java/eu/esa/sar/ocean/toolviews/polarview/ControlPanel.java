@@ -16,10 +16,6 @@
 package eu.esa.sar.ocean.toolviews.polarview;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.TimerTask;
 
 /**
@@ -51,33 +47,19 @@ class ControlPanel extends JPanel {
         add(recordLabel);
 
         add(prevBtn);
-        prevBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                polarView.showPreviousPlot();
-            }
-        });
+        prevBtn.addActionListener(e -> polarView.showPreviousPlot());
 
         add(nextBtn);
-        nextBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                polarView.showNextPlot();
-            }
-        });
+        nextBtn.addActionListener(e -> polarView.showNextPlot());
 
         recordSlider = new JSlider(0, polarView.getNumRecords(), 0);
-        recordSlider.addChangeListener(new ChangeListener() {
-            public void stateChanged(ChangeEvent e) {
-                polarView.showPlot(recordSlider.getValue());
-            }
-        });
+        recordSlider.addChangeListener(e -> polarView.showPlot(recordSlider.getValue()));
         add(recordSlider);
 
         add(animateBtn);
-        animateBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                animate = !animate;
-                updateControls();
-            }
+        animateBtn.addActionListener(e -> {
+            animate = !animate;
+            updateControls();
         });
 
         /*add(zoomInBtn);
@@ -115,6 +97,11 @@ class ControlPanel extends JPanel {
             @Override
             public void run() {
                 if (animate) {
+                    if(!polarView.isEnabled()) {
+                        animate = false;
+                        animateBtn.setSelected(false);
+                        return;
+                    }
                     if (polarView.getCurrentRecord() >= polarView.getNumRecords())
                         polarView.showPlot(0);
                     else

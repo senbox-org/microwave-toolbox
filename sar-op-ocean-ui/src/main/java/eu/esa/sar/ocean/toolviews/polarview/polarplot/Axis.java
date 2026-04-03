@@ -20,7 +20,7 @@ import org.apache.commons.math3.util.FastMath;
 import java.awt.*;
 
 public class Axis {
-    private static final double stepValues[] = {0.1D, 1.0D, 2D, 3D, 5D, 10D};
+    private static final double[] stepValues = {0.1D, 1.0D, 2D, 3D, 5D, 10D};
 
     private static final int TOP_X = 1;
     private static final int BOTTOM_X = 2;
@@ -49,9 +49,9 @@ public class Axis {
     private int tickCount = 3;
     private int bestTickCount = 3;
     private int spacing = Math.abs(tickLength);
-    private String tickNames[] = {"0", "0.5", "1"};
-    private double tickValues[] = {0.0D, 0.5D, 1.0D};
-    private int tickPos[] = null;
+    private String[] tickNames = {"0", "0.5", "1"};
+    private double[] tickValues = {0.0D, 0.5D, 1.0D};
+    private int[] tickPos = null;
     private final Font font;
     private final Font titleFont;
     private final Color axisColor;
@@ -105,7 +105,7 @@ public class Axis {
         this.autoRange = autoRange;
     }
 
-    public void setDataRange(double range[]) {
+    public void setDataRange(double[] range) {
         setDataRange(range[0], range[1]);
     }
 

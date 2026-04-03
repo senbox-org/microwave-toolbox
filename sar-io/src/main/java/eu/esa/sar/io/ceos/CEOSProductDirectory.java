@@ -512,7 +512,7 @@ public abstract class CEOSProductDirectory {
                 }
             }
         }
-        return list.toArray(new CeosFile[list.size()]);
+        return list.toArray(new CeosFile[0]);
     }
 
     public static class CeosFile {

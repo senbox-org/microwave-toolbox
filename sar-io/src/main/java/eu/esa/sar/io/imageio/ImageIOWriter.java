@@ -136,7 +136,7 @@ public class ImageIOWriter extends AbstractProductWriter {
                 } */
 
             if (sourceHeight == sourceBand.getRasterHeight() || sourceOffsetY == sourceBand.getRasterHeight() - 1) {
-                    
+
                 /*    RenderedImage img = createRenderedImage(dataArray,
                                                             sourceBand.getRasterWidth(), sourceBand.getRasterHeight());
                     //writer.write(img);

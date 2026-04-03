@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+OpenIDE-Module-Specification-Version: ${microwavetbx.nbmSpecVersion}
+OpenIDE-Module-Implementation-Version: ${microwavetbx.nbmImplVersion}
+AutoUpdate-Show-In-Client: false
+AutoUpdate-Essential-Module: false
+OpenIDE-Module-Layer: eu/esa/sar/iogdal/layer.xml
+OpenIDE-Module-Java-Dependencies: Java > 11
+OpenIDE-Module-Display-Category: SNAP Toolboxes
+OpenIDE-Module-Long-Description: <p>SAR Product GDAL Readers</p><p><b>Vendor:</b> SkyWatch Space Applications Inc</p><p>
+ <b>Contact</b> https://www.skywatch.com</p><p><b>Copyright:</b> (C) 2021 by SkyWatch Space Applications Inc</p><p><b>
+ Vendor:</b> SkyWatch Space Applications Inc</p><p><b>License:</b> http://www.gnu.org/licenses/gpl.html</p>

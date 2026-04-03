@@ -17,7 +17,7 @@ package eu.esa.sar.io;
 
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Product;
@@ -36,12 +36,12 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestERSEnvisatProductReader extends ReaderTest {
 
-    final static File ers2_envisat_imm_zip = new File(SARTests.inputPathProperty +
-            "/SAR/ERS/SAR_IMM_1PXESA20110310_110538_00000007A166_00037_83057_1816.E2.zip");
-    final static File ers1_envisat_imp = new File(SARTests.inputPathProperty +
-            "/SAR/ERS/SAR_IMP_1PXDLR19920517_025823_00000017C084_00218_04371_9963.E1");
-    final static File ers2_envisat_imp = new File(SARTests.inputPathProperty +
-            "/SAR/ERS/SAR_IMP_1PXDLR19951227_025842_00000016A007_00218_03579_9945.E2");
+    final static File ers2_envisat_imm_zip = new File(TestData.inputSAR +
+            "ERS/SAR_IMM_1PXESA20110310_110538_00000007A166_00037_83057_1816.E2.zip");
+    final static File ers1_envisat_imp = new File(TestData.inputSAR +
+            "ERS/SAR_IMP_1PXDLR19920517_025823_00000017C084_00218_04371_9963.E1");
+    final static File ers2_envisat_imp = new File(TestData.inputSAR +
+            "ERS/SAR_IMP_1PXDLR19951227_025842_00000016A007_00218_03579_9945.E2");
 
     @Before
     public void setUp() {
@@ -57,32 +57,35 @@ public class TestERSEnvisatProductReader extends ReaderTest {
 
     @Test
     public void testERS2_ENVISAT_IMM_ZIP() throws Exception {
-        Product prod = read(ers2_envisat_imm_zip);
+        try(Product prod = read(ers2_envisat_imm_zip)) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        //validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            //validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude", "Intensity"});
+        }
     }
 
     @Test
     public void testERS1_E1_IMP() throws Exception {
-        Product prod = read(ers1_envisat_imp);
+        try(Product prod = read(ers1_envisat_imp)) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        //validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            //validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude", "Intensity"});
+        }
     }
 
     @Test
     public void testERS2_E2_IMP() throws Exception {
-        Product prod = read(ers2_envisat_imp);
+        try(Product prod = read(ers2_envisat_imp)) {
 
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        //validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+            final ProductValidator validator = new ProductValidator(prod);
+            validator.validateProduct();
+            //validator.validateMetadata();
+            validator.validateBands(new String[]{"Amplitude", "Intensity"});
+        }
     }
 
     private Product read(final File file) throws Exception {

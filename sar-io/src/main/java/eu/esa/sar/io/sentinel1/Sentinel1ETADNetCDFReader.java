@@ -91,8 +91,17 @@ public class Sentinel1ETADNetCDFReader {
 
     //------------------------------------------------------------------------------------------------------------------
 
-    public Sentinel1ETADNetCDFReader(final Sentinel1ETADDirectory dataDir) {
+    public Sentinel1ETADNetCDFReader() {
+    }
 
+    public void close() {
+        for (NCFileData data : bandNCFileMap.values()) {
+            try {
+                data.netcdfFile.close();
+            } catch (IOException e) {
+                SystemUtils.LOG.severe("Sentinel1ETADNetCDFReader.close: IOException when closing " + data.name);
+            }
+        }
     }
 
     public void addImageFile(final File file, final String name) throws IOException {

@@ -112,7 +112,7 @@ public abstract class PolClassifierBase {
         }
     }
 
-	protected static void computeSummationOfT3(final int zoneIdx, final double[][] Tr, final double[][] Ti,
+    protected static void computeSummationOfT3(final int zoneIdx, final double[][] Tr, final double[][] Ti,
                                                double[][][] sumRe, double[][][] sumIm) {
         for (int i = 0; i < 3; ++i) {
             for (int j = 0; j < 3; ++j) {
@@ -139,7 +139,7 @@ public abstract class PolClassifierBase {
         return detR;
     }
 
-	/**
+    /**
      * Compute determinant of a 3x3 Hermitian matrix
      *
      * @param Tr Real part of the 3x3 Hermitian matrix
@@ -202,7 +202,7 @@ public abstract class PolClassifierBase {
         }
     }
 
-	/**
+    /**
      * Compute inverse of a 3x3 Hermitian matrix
      *
      * @param Tr  Real part of the 3x3 Hermitian matrix

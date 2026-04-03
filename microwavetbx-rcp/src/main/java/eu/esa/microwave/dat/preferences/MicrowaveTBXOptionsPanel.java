@@ -18,7 +18,6 @@ package eu.esa.microwave.dat.preferences;
 import org.esa.snap.rcp.SnapApp;
 import org.esa.snap.runtime.Config;
 import org.openide.awt.Mnemonics;
-import org.openide.util.NbBundle;
 
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -38,9 +37,7 @@ final class MicrowaveTBXOptionsPanel extends javax.swing.JPanel {
 
     private void initComponents() {
         useFileCacheCheckBox = new javax.swing.JCheckBox();
-        Mnemonics.setLocalizedText(useFileCacheCheckBox,
-                                   NbBundle.getMessage(MicrowaveTBXOptionsPanel.class,
-                                                       "MicrowaveTBXOptionsPanel.useFileCacheCheckBox.text")); // NOI18N
+        Mnemonics.setLocalizedText(useFileCacheCheckBox, "Use FileCache in readers to conserve memory"); // NOI18N
 
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);

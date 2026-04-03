@@ -33,13 +33,11 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestPazProductReader extends ReaderTest {
 
-    private final static String sep = SARTests.sep;
+    private final static File inputMGDMetaXML = new File(SARTests.inputPathProperty + "SAR/PAZ/NewDelhi/PAZ1_SAR__MGD_RE___SC_S_SRA_20180616T004650_20180616T004712/PAZ1_SAR__MGD_RE___SC_S_SRA_20180616T004650_20180616T004712.xml");
+    private final static File inputMGDFolder = new File(SARTests.inputPathProperty + "SAR/PAZ/NewDelhi/PAZ1_SAR__MGD_RE___SC_S_SRA_20180616T004650_20180616T004712");
 
-    private final static File inputMGDMetaXML = new File(SARTests.inputPathProperty + sep + "SAR/PAZ/NewDelhi/PAZ1_SAR__MGD_RE___SC_S_SRA_20180616T004650_20180616T004712/PAZ1_SAR__MGD_RE___SC_S_SRA_20180616T004650_20180616T004712.xml");
-    private final static File inputMGDFolder = new File(SARTests.inputPathProperty + sep + "SAR/PAZ/NewDelhi/PAZ1_SAR__MGD_RE___SC_S_SRA_20180616T004650_20180616T004712");
-
-    private final static File inputSSCMetaXML = new File(SARTests.inputPathProperty + sep + "SAR/PAZ/Mojave Interferometric pair/PAZ1_SAR__SSC______SM_S_SRA_20180520T014220_20180520T014228/PAZ1_SAR__SSC______SM_S_SRA_20180520T014220_20180520T014228.xml");
-    private final static File inputSSCFolder = new File(SARTests.inputPathProperty + sep + "SAR/PAZ/Mojave Interferometric pair/PAZ1_SAR__SSC______SM_S_SRA_20180520T014220_20180520T014228");
+    private final static File inputSSCMetaXML = new File(SARTests.inputPathProperty + "SAR/PAZ/Mojave Interferometric pair/PAZ1_SAR__SSC______SM_S_SRA_20180520T014220_20180520T014228/PAZ1_SAR__SSC______SM_S_SRA_20180520T014220_20180520T014228.xml");
+    private final static File inputSSCFolder = new File(SARTests.inputPathProperty + "SAR/PAZ/Mojave Interferometric pair/PAZ1_SAR__SSC______SM_S_SRA_20180520T014220_20180520T014228");
 
     public TestPazProductReader() {
         super(new PazProductReaderPlugIn());

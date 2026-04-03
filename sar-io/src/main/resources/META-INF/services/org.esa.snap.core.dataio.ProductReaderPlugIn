@@ -9,6 +9,7 @@ eu.esa.sar.io.cosmo.CosmoSkymedReaderPlugIn
 eu.esa.sar.io.gamma.GammaProductReaderPlugIn
 eu.esa.sar.io.gaofen3.Gaofen3ProductReaderPlugIn
 eu.esa.sar.io.gtopo30.GTOPO30ReaderPlugIn
+eu.esa.sar.io.iceye.IceyeProductReaderPlugIn
 eu.esa.sar.io.kompsat5.Kompsat5ReaderPlugIn
 eu.esa.sar.io.paz.PazProductReaderPlugIn
 eu.esa.sar.io.polsarpro.PolsarProProductReaderPlugIn

@@ -1,0 +1,14 @@
+{
+  "testProducts": [
+    {
+      "id": "S1A_S1_GRDM",
+      "relativePath": "SAR/S1/S1A_S1_GRDM_1SDV_20140607T172812_20140607T172836_000947_000EBD_7543.zip",
+      "description": "Sentinel-1 GRD product"
+    },
+    {
+      "id": "S1A_AWS_GRD",
+      "relativePath": "SAR/S1/AWS/S1A_IW_GRDH_1SDV_20180719T002854_20180719T002919_022856_027A78_042A/manifest.safe",
+      "description": "Sentinel-1 AWS GRD product"
+    }
+  ]
+}

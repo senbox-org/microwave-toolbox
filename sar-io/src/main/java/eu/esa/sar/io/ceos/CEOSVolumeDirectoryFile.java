@@ -82,7 +82,7 @@ public class CEOSVolumeDirectoryFile implements CEOSFile {
     }
 
     public String getProductOrigin() {
-	return getProductOrigin(volumeDescriptorRecord);
+    return getProductOrigin(volumeDescriptorRecord);
     }
 
     public void assignMetadataTo(final MetadataElement rootElem) {
@@ -128,6 +128,6 @@ public class CEOSVolumeDirectoryFile implements CEOSFile {
     }
 
     public static String getProductOrigin(final BinaryRecord vdr) {
-	return vdr.getAttributeString("Specification number");
+    return vdr.getAttributeString("Specification number");
     }
 }

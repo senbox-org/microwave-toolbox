@@ -96,7 +96,7 @@ public class hAAlpha extends DecompositionBase implements Decomposition, QuadPol
             targetBandNameList.add("Lambda3");
         }
 
-        return targetBandNameList.toArray(new String[targetBandNameList.size()]);
+        return targetBandNameList.toArray(new String[0]);
     }
 
     /**

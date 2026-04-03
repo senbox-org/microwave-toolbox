@@ -6,7 +6,7 @@
 
     <groupId>eu.esa.microwavetbx</groupId>
     <artifactId>microwave-toolbox</artifactId>
-    <version>10.0.0-SNAPSHOT</version>
+    <version>14.0.0-SNAPSHOT</version>
     <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
     <description>Tools for SAR Earth Observation</description>
@@ -15,36 +15,72 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <netbeans.version>RELEASE113</netbeans.version>
+        <netbeans.version>RELEASE210</netbeans.version>
         <javahelp.version>2.0.05</javahelp.version>
         <brandingToken>microwavetbx</brandingToken>
         <user.language>en</user.language>
+        <maven-prerequisite.version>3.6.3</maven-prerequisite.version>
+        <jvm.version>21</jvm.version>
 
         <skipTests>false</skipTests>
-        <test.jvm.maxheapsize>5024m</test.jvm.maxheapsize>
-        <test.jvm.arguments>-Xmx${test.jvm.maxheapsize}</test.jvm.arguments>
-        <surefire.jvm.args>${test.jvm.arguments} -enableassertions</surefire.jvm.args>
+        <surefire.jvm.args>-enableassertions</surefire.jvm.args>
+        <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
+        <buildDate>${maven.build.timestamp}</buildDate>
+        <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
+        <sonar.java.binaries>**/classes</sonar.java.binaries>
+        <sonar.exclusions>*/src</sonar.exclusions>
 
-        <snap.version>10.0.0-SNAPSHOT</snap.version>
-        <snap-help-system.version>1.0.0</snap-help-system.version>
+        <snap.version>14.0.0-SNAPSHOT</snap.version>
+        <snap-help-system.version>1.0.2</snap-help-system.version>
         <!--
             microwavetbx.version is the Maven module version.
             microwavetbx.nbmSpecVersion is the NetBeans module specification version.
             It is used to filter manifest.mf and set the manifest's "OpenIDE-Module-Specification-Version" header.
             This is necessary to make NetBeans modules updatable and independent of the Maven version (= microwavetbx.version).
         -->
-        <microwavetbx.version>10.0.0-SNAPSHOT</microwavetbx.version>
+        <microwavetbx.version>14.0.0-SNAPSHOT</microwavetbx.version>
 
-        <hdf.version>2.7.1</hdf.version>
-        <netcdf.version>5.3.3</netcdf.version>
-        <jblas.version>1.2.5</jblas.version>
         <junit.version>4.13.2</junit.version>
+        <mockito.version>5.17.0</mockito.version>
 
-        <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
-        <buildDate>${maven.build.timestamp}</buildDate>
-        <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
-        <sonar.java.binaries>**/classes</sonar.java.binaries>
-        <sonar.exclusions>*/src</sonar.exclusions>
+        <jblas.version>1.2.6-SNAP</jblas.version>
+        <json-simple.version>1.1.1</json-simple.version>
+        <jackson.version>2.19.0</jackson.version>
+
+        <apache-httpclient.version>4.5.14</apache-httpclient.version>
+        <apache-httpcore.version>4.4.16</apache-httpcore.version>
+        <commons-codec.version>1.18.0</commons-codec.version>
+        <commons-io.version>2.19.0</commons-io.version>
+        <commons-math3.version>3.6.1</commons-math3.version>
+        <jasypt.version>1.9.3</jasypt.version>
+        <javaml.version>0.1.7</javaml.version>
+        <jcoord.version>1.0</jcoord.version>
+        <jmatio.version>1.5</jmatio.version>
+        <json-schema-validator.version>1.5.6</json-schema-validator.version>
+        <jsoup.version>1.20.1</jsoup.version>
+        <jtransforms.version>2.4</jtransforms.version>
+        <jfreechart.version>1.5.5</jfreechart.version>
+        <opencsv.version>2.3</opencsv.version>
+
+        <plugin.maven-antrun.version>3.1.0</plugin.maven-antrun.version>
+        <plugin.maven-clean.version>3.4.1</plugin.maven-clean.version>
+        <plugin.maven-compiler.version>3.14.0</plugin.maven-compiler.version>
+        <plugin.maven-deploy.version>3.1.4</plugin.maven-deploy.version>
+        <plugin.maven-enforcer.version>3.5.0</plugin.maven-enforcer.version>
+        <plugin.maven-install.version>3.1.4</plugin.maven-install.version>
+        <plugin.maven-jar.version>3.4.2</plugin.maven-jar.version>
+        <plugin.maven-javadoc.version>3.11.2</plugin.maven-javadoc.version>
+        <plugin.maven-site.version>4.0.0-M16</plugin.maven-site.version>
+        <plugin.maven-surefire.version>3.5.3</plugin.maven-surefire.version>
+        <plugin.maven-resources.version>3.3.1</plugin.maven-resources.version>
+        <plugin.maven-assembly.version>3.4.0</plugin.maven-assembly.version>
+        <plugin.maven-source.version>3.3.1</plugin.maven-source.version>
+        <plugin.maven-versions.version>2.18.0</plugin.maven-versions.version>
+        <plugin.build-helper.version>3.6.0</plugin.build-helper.version>
+        <plugin.jacoco.version>0.8.13</plugin.jacoco.version>
+        <plugin.license.version>2.5.0</plugin.license.version>
+        <plugin.ndm-maven.version>14.3</plugin.ndm-maven.version>
+        <plugin.spotless.version>2.44.4</plugin.spotless.version>
     </properties>
 
     <modules>
@@ -55,6 +91,7 @@
         <module>sar-io</module>
         <module>sar-io-ephemeris</module>
         <module>sar-io-ephemeris-ui</module>
+        <module>sar-io-gdal</module>
         <module>sar-op-analysis-ui</module>
         <module>sar-op-calibration</module>
         <module>sar-op-calibration-ui</module>
@@ -70,7 +107,6 @@
         <module>sar-op-utilities</module>
         <module>sar-op-utilities-ui</module>
         <module>sar-test-stacks</module>
-        <module>sar-io-iceye-reader</module>
 
         <module>microwavetbx-benchmark</module>
         <module>microwavetbx-rcp</module>
@@ -84,7 +120,7 @@
     <inceptionYear>2007</inceptionYear>
 
     <prerequisites>
-        <maven>3.0.5</maven>
+        <maven>${maven-prerequisite.version}</maven>
     </prerequisites>
 
     <licenses>
@@ -216,6 +252,11 @@
             </dependency>
             <dependency>
                 <groupId>org.esa.snap</groupId>
+                <artifactId>snap-runtime</artifactId>
+                <version>${snap.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.esa.snap</groupId>
                 <artifactId>snap-ui</artifactId>
                 <version>${snap.version}</version>
             </dependency>
@@ -265,18 +306,6 @@
                 <groupId>org.esa.snap</groupId>
                 <artifactId>snap-rcp</artifactId>
                 <version>${snap.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>ncsa.hdf</groupId>
-                <artifactId>lib-hdf</artifactId>
-                <version>${hdf.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>edu.ucar</groupId>
-                <artifactId>netcdfAll</artifactId>
-                <version>${netcdf.version}</version>
             </dependency>
 
             <dependency>
@@ -357,6 +386,11 @@
             </dependency>
             <dependency>
                 <groupId>eu.esa.microwavetbx</groupId>
+                <artifactId>sar-io-gdal</artifactId>
+                <version>${microwavetbx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.esa.microwavetbx</groupId>
                 <artifactId>sar-op-insar</artifactId>
                 <version>${microwavetbx.version}</version>
             </dependency>
@@ -370,43 +404,14 @@
             <!-- Apache ############################################# -->
 
             <dependency>
-                <groupId>commons-collections</groupId>
-                <artifactId>commons-collections</artifactId>
-                <version>3.2.2</version>
-            </dependency>
-            <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.15</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-net</groupId>
-                <artifactId>commons-net</artifactId>
-                <version>3.9.0</version>
-            </dependency>
-
-            <dependency>
-                <groupId>commons-logging</groupId>
-                <artifactId>commons-logging</artifactId>
-                <version>1.2</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-cli</groupId>
-                <artifactId>commons-cli</artifactId>
-                <version>1.5.0</version>
+                <version>${commons-codec.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-math3</artifactId>
-                <version>3.6.1</version>
-            </dependency>
-
-            <!-- Jama Matrix Algebra Library ############################################# -->
-
-            <dependency>
-                <groupId>Jama</groupId>
-                <artifactId>Jama</artifactId>
-                <version>1.0.3</version>
+                <version>${commons-math3.version}</version>
             </dependency>
 
             <!-- JUnit Libraries ############################################# -->
@@ -419,11 +424,18 @@
             </dependency>
 
             <dependency>
-                <groupId>org.esa.snap</groupId>
-                <artifactId>snap-test-utils</artifactId>
-                <version>${snap.version}</version>
-                <type>test-jar</type>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
                 <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.esa.snap</groupId>
+                <artifactId>ceres-core</artifactId>
+                <version>${snap.version}</version>
+                <scope>test</scope>
+                <type>test-jar</type>
             </dependency>
 
             <!-- JSoup -->
@@ -431,13 +443,13 @@
             <dependency>
                 <groupId>org.jsoup</groupId>
                 <artifactId>jsoup</artifactId>
-                <version>1.16.1</version>
+                <version>${jsoup.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>edu.emory.mathcs</groupId>
                 <artifactId>JTransforms</artifactId>
-                <version>2.4</version>
+                <version>${jtransforms.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jblas</groupId>
@@ -445,9 +457,24 @@
                 <version>${jblas.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>org.jfree</groupId>
+                <artifactId>jfreechart</artifactId>
+                <version>${jfreechart.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>xml-apis</groupId>
+                        <artifactId>xml-apis</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.lowagie</groupId>
+                        <artifactId>itext</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
-
 
     <dependencies>
         <dependency>
@@ -461,13 +488,12 @@
             <plugins>
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.11.0</version>
+                    <version>${plugin.maven-compiler.version}</version>
                     <configuration>
-                        <source>11</source>
-                        <target>11</target>
+                        <source>${jvm.version}</source>
+                        <target>${jvm.version}</target>
                         <debug>true</debug>
                         <encoding>UTF-8</encoding>
-                        <optimize>true</optimize>
                         <excludes>
                             <exclude>.gitignore</exclude>
                         </excludes>
@@ -475,8 +501,41 @@
                 </plugin>
 
                 <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>${plugin.spotless.version}</version>
+                    <configuration>
+                        <java>
+                            <includes>
+                                <include>src/main/java/**/*.java</include>
+                                <include>src/test/java/**/*.java</include>
+                            </includes>
+                            <!--googleJavaFormat>
+                                <version>1.15.0</version>
+                                <style>GOOGLE</style>
+                            </googleJavaFormat-->
+                            <removeUnusedImports/>
+                            <trimTrailingWhitespace/>
+                            <indent>
+                                <spaces>true</spaces>
+                                <spacesPerTab>4</spacesPerTab>
+                            </indent>
+                        </java>
+                        <pom>
+                            <includes>
+                                <include>pom.xml</include>
+                            </includes>
+                            <indent>
+                                <spaces>true</spaces>
+                                <spacesPerTab>4</spacesPerTab>
+                            </indent>
+                        </pom>
+                    </configuration>
+                </plugin>
+
+                <plugin>
                     <artifactId>maven-resources-plugin</artifactId>
-                    <version>3.3.1</version>
+                    <version>${plugin.maven-resources.version}</version>
                     <configuration>
                         <encoding>UTF-8</encoding>
                     </configuration>
@@ -505,34 +564,35 @@
 
                 <plugin>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>2.8.2</version>
+                    <version>${plugin.maven-deploy.version}</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-install-plugin</artifactId>
-                    <version>2.5.2</version>
+                    <version>${plugin.maven-install.version}</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>3.12.1</version>
+                    <version>${plugin.maven-site.version}</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.0.0</version>
+                    <version>${plugin.maven-clean.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>versions-maven-plugin</artifactId>
-                    <version>2.3</version>
+                    <version>${plugin.maven-versions.version}</version>
                 </plugin>
 
                 <plugin>
                     <artifactId>maven-source-plugin</artifactId>
-                    <version>3.2.1</version>
+                    <version>${plugin.maven-source.version}</version>
                     <executions>
                         <execution>
                             <phase>verify</phase>
                             <goals>
-                                <goal>jar</goal>
+                                <goal>jar-no-fork</goal>
                             </goals>
                         </execution>
                     </executions>
@@ -545,7 +605,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>${plugin.maven-javadoc.version}</version>
                     <configuration>
                         <maxmemory>600m</maxmemory>
                         <links>
@@ -560,24 +620,23 @@
 
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.0.0</version>
+                    <version>${plugin.maven-surefire.version}</version>
                     <configuration>
                         <enableAssertions>true</enableAssertions>
                         <!--  to test from the command line mvn test -DskipTests=false -->
                         <skipTests>${skipTests}</skipTests>
                         <printSummary>true</printSummary>
-                        <disableXmlReport>false</disableXmlReport>
                         <redirectTestOutputToFile>true</redirectTestOutputToFile>
                         <excludes>
                             <exclude>**/TestRaster.java</exclude>
                             <exclude>**/TestHelper$1.java</exclude>
                         </excludes>
-                        <systemProperties>
+                        <systemPropertyVariables>
                             <property>
                                 <name>org.esa.snap.testdata.out</name>
                                 <value>target/test-data</value>
                             </property>
-                        </systemProperties>
+                        </systemPropertyVariables>
                         <argLine>${surefire.jvm.args} @{argLine}</argLine>
                     </configuration>
 
@@ -586,7 +645,7 @@
                 <plugin>
                     <groupId>org.apache.netbeans.utilities</groupId>
                     <artifactId>nbm-maven-plugin</artifactId>
-                    <version>4.4</version>
+                    <version>${plugin.ndm-maven.version}</version>
                     <extensions>true</extensions>
                     <dependencies>
                         <dependency>
@@ -613,7 +672,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>build-helper-maven-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>${plugin.build-helper.version}</version>
                     <executions>
                         <execution>
                             <id>create-nbmSpecVersion</id>
@@ -646,7 +705,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>${plugin.maven-jar.version}</version>
                     <executions>
                         <execution>
                             <goals>
@@ -657,7 +716,6 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-
 
         <plugins>
             <plugin>
@@ -677,13 +735,13 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>1.19</version>
+                <version>${plugin.license.version}</version>
             </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>${plugin.maven-enforcer.version}</version>
                 <executions>
                     <execution>
                         <id>enforce-versions</id>
@@ -693,10 +751,10 @@
                         <configuration>
                             <rules>
                                 <requireMavenVersion>
-                                    <version>[3.2.5,)</version>
+                                    <version>[${maven-prerequisite.version},)</version>
                                 </requireMavenVersion>
                                 <requireJavaVersion>
-                                    <version>11</version>
+                                    <version>${jvm.version}</version>
                                 </requireJavaVersion>
                             </rules>
                         </configuration>
@@ -717,7 +775,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.3</version>
+                <version>${plugin.jacoco.version}</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
@@ -743,7 +801,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>${plugin.maven-javadoc.version}</version>
                 <reportSets>
                     <reportSet>
                         <id>aggregate</id>

@@ -1,0 +1,64 @@
+<graph id="Graph">
+  <version>1.0</version>
+  <node id="Read">
+    <operator>Read</operator>
+    <sources/>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <useAdvancedOptions>false</useAdvancedOptions>
+      <copyMetadata>true</copyMetadata>
+      <file>${sourceProduct}</file>
+      <bandNames/>
+      <pixelRegion>0,0,2147483647,2147483647</pixelRegion>
+      <maskNames/>
+    </parameters>
+  </node>
+  <node id="Apply-Orbit-File">
+    <operator>Apply-Orbit-File</operator>
+    <sources>
+      <sourceProduct refid="Read"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <orbitType>Sentinel Precise (Auto Download)</orbitType>
+      <polyDegree>3</polyDegree>
+      <continueOnFail>false</continueOnFail>
+    </parameters>
+  </node>
+  <node id="TOPSAR-Split">
+    <operator>TOPSAR-Split</operator>
+    <sources>
+      <sourceProduct refid="Apply-Orbit-File"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <subswath>${swath}</subswath>
+      <selectedPolarisations/>
+      <firstBurstIndex>${burstMin}</firstBurstIndex>
+      <lastBurstIndex>${burstMax}</lastBurstIndex>
+      <wktAoi/>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="TOPSAR-Split"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>${outputFile}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+  <applicationData id="Presentation">
+    <Description/>
+    <node id="Read">
+            <displayPosition x="29.0" y="60.0"/>
+    </node>
+    <node id="Apply-Orbit-File">
+      <displayPosition x="111.0" y="60.0"/>
+    </node>
+    <node id="TOPSAR-Split">
+      <displayPosition x="230.0" y="60.0"/>
+    </node>
+    <node id="Write">
+            <displayPosition x="339.0" y="61.0"/>
+    </node>
+  </applicationData>
+</graph>

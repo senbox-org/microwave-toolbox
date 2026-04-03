@@ -1,4 +1,18 @@
-
+/*
+ * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+ */
 package eu.esa.sar.io.sentinel1;
 
 import eu.esa.sar.commons.test.TestData;
@@ -51,8 +65,9 @@ public class TestSentinel1ProductReaderPlugIn extends AbstractProductReaderPlugI
 
         isValidDecodeQualification(TestData.inputS1_SLC);
 
-        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_IW_metaOCN);
-        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_WV_metaOCN);
+        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_IW_OCN);
+        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_WV_OCN);
+        isValidDecodeQualification(TestS1OCNInputProductValidator.inputS1_WV_SLC);
 
         isInValidDecodeQualification(TestSentinel1ETADProductReader.inputS1ETAD_IW);
         isInValidDecodeQualification(TestSentinel1ETADProductReader.inputS1ETAD_SM);

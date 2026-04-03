@@ -266,64 +266,6 @@ public class PhaseFilter {
     }
 
 
-    /**
-     * B = smooth(A,blocksize)
-     * (circular) spatial moving average with a (2N+1,2N+1) block.
-     * See also matlab script smooth.m for some tests.
-     */
-    @Deprecated
-    public static DoubleMatrix smoothSpace(final DoubleMatrix data, final int blockSize) {
-
-        if (blockSize == 0)
-            return data;
-
-        final int nRows = data.rows;
-        final int nCols = data.columns;
-        final DoubleMatrix smoothData = new DoubleMatrix(nRows, nCols);
-
-        double sum = 0.;
-        double nSmooth = (2 * blockSize + 1) * (2 * blockSize + 1);
-        int indexii;
-        for (int i = 0; i < nRows; ++i) {
-            for (int j = 0; j < nCols; ++j) {
-                // Smooth this pixel
-                for (int ii = -blockSize; ii <= blockSize; ++ii) {
-                    indexii = (i + ii + nRows) % nRows;
-                    for (int jj = -blockSize; jj <= blockSize; ++jj) {
-                        sum += data.get(indexii, (j + jj + nCols) % nCols);
-                    }
-                }
-                smoothData.put(i, j, sum / nSmooth);
-                sum = 0.;
-            }
-        }
-        return smoothData;
-    }
-
-    // Do the same as smoothSpace but faster   -----> for Goldstein filter ??????
-    // some overhead due to conversion r4<->cr4
-    private DoubleMatrix smoothSpectral(final DoubleMatrix data, final int blockSize) {
-
-        final int nRows = data.rows;
-        final int nCols = data.columns;
-        final ComplexDoubleMatrix smoothData = new ComplexDoubleMatrix(nRows, nCols); // init to zero...
-
-        SpectralUtils.fft2D_inplace(smoothData); // or define fft(R4)
-        ComplexDoubleMatrix kernel = new ComplexDoubleMatrix(1, nRows); // init to zeros
-
-        // design 1d kernel function of block
-        for (int ii = -blockSize; ii <= blockSize; ++ii) {
-            kernel.put(0, (ii + nRows) % nRows, new ComplexDouble(1.0 / (2 * blockSize + 1), 0.0));
-        }
-
-        ComplexDoubleMatrix kernel2d = LinearAlgebraUtils.matTxmat(kernel, kernel);
-        SpectralUtils.fft2D_inplace(kernel2d); // should be real sinc
-        LinearAlgebraUtils.dotmult(smoothData, kernel2d);
-        SpectralUtils.invfft2D_inplace(smoothData);  // convolution, but still complex...
-        return smoothData.real();
-    }
-
-
     // use FFT's for convolution with smoothkernel
     // this could also be done static, or in the calling routine
     // KERNEL2D is FFT2 of even kernel (no imag part after fft!)

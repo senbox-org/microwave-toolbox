@@ -47,20 +47,20 @@ public final class PolarView extends JPanel implements ActionListener, PopupMenu
 
     private static final String[] unitTypes = new String[]{"Real", "Imaginary", "Amplitude", "Intensity"};
 
-    private ControlPanel controlPanel;
-    private PolarPanel polarPanel;
-    private Component emptyPanel;
+    private final ControlPanel controlPanel;
+    private final PolarPanel polarPanel;
+    private final Component emptyPanel;
 
     private SpectraData.SpectraUnit spectraUnit;
     private SpectraData.WaveProductType waveProductType;
     private SpectraData spectraData;
 
-    public static final Color colourTable[] = (new Color[]{
+    public static final Color[] colourTable = (new Color[]{
             new Color(255, 255, 255), new Color(0, 0, 255), new Color(0, 255, 255),
             new Color(0, 255, 0), new Color(255, 255, 0), new Color(255, 0, 0)
     });
-    private static final double rings[] = {50.0, 100.0, 200.0};
-    private static final String ringTextStrings[] = {"200 m", "100 m", "50 m"};
+    private static final double[] rings = {50.0, 100.0, 200.0};
+    private static final String[] ringTextStrings = {"200 m", "100 m", "50 m"};
 
     private final static String LAST_WAVE_EXPORT_DIR_KEY = "snap.lastWaveExportDir";
 
@@ -158,6 +158,9 @@ public final class PolarView extends JPanel implements ActionListener, PopupMenu
 
     private void createPlot(final int rec) {
         try {
+            if(!isEnabled()) {
+                return;
+            }
             final String[] readouts = spectraData.getSpectraMetadata(rec);
             polarPanel.setMetadata(readouts);
 
@@ -172,8 +175,8 @@ public final class PolarView extends JPanel implements ActionListener, PopupMenu
 
             final PolarData data = spectraData.getPolarData(currentRecord, spectraUnit);
 
-            final double colourRange[] = {(double) data.getMinValue(), (double) data.getMaxValue()};
-            final double radialRange[] = {spectraData.getMinRadius(), spectraData.getMaxRadius()};
+            final double[] colourRange = {(double) data.getMinValue(), (double) data.getMaxValue()};
+            final double[] radialRange = {spectraData.getMinRadius(), spectraData.getMaxRadius()};
 
             final Axis colourAxis = polarCanvas.getColourAxis();
             final Axis radialAxis = polarCanvas.getRadialAxis();
@@ -353,7 +356,7 @@ public final class PolarView extends JPanel implements ActionListener, PopupMenu
                 polarPanel.exportReadout(file);
             }
         } catch (Exception e) {
-            SnapApp.getDefault().handleError("Unable to export file " + file.toString() + ": " + e.getMessage(), e);
+            SnapApp.getDefault().handleError("Unable to export file " + file + ": " + e.getMessage(), e);
         }
     }
 
@@ -423,7 +426,7 @@ public final class PolarView extends JPanel implements ActionListener, PopupMenu
 
     private void updateReadout(final MouseEvent evt) {
 
-        final double rTh[] = polarPanel.getPolarCanvas().getRTheta(evt.getPoint());
+        final double[] rTh = polarPanel.getPolarCanvas().getRTheta(evt.getPoint());
         if (rTh != null) {
             final String[] readouts = spectraData.updateReadouts(rTh, currentRecord);
             polarPanel.setReadout(readouts);
@@ -434,4 +437,7 @@ public final class PolarView extends JPanel implements ActionListener, PopupMenu
         repaint();
     }
 
+    public boolean isEnabled() {
+        return product != null && spectraData != null;
+    }
 }

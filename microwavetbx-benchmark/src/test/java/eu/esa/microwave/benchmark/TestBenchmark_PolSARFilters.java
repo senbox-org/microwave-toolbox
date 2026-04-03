@@ -24,45 +24,62 @@ import java.io.IOException;
 
 public class TestBenchmark_PolSARFilters extends BaseBenchmarks {
 
+    public TestBenchmark_PolSARFilters() {
+        super("PolSARFilters");
+    }
+
     @Test
     public void testQP_specklefilter_Boxcar() throws Exception {
-        specklefilter("Box Car Filter");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(qpFile, "Box Car Filter", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_specklefilter_RefinedLee() throws Exception {
-        specklefilter("Refined Lee Filter");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(qpFile, "Refined Lee Filter", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_specklefilter_IDAN() throws Exception {
-        specklefilter("IDAN Filter");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(qpFile, "IDAN Filter", WriteMode.PRODUCT_IO);
     }
 
     @Test
     public void testQP_specklefilter_LeeSigma() throws Exception {
-        specklefilter("Improved Lee Sigma Filter");
+        setName(new Throwable().getStackTrace()[0].getMethodName());
+        specklefilter(qpFile, "Improved Lee Sigma Filter", WriteMode.PRODUCT_IO);
     }
 
-    private void specklefilter(final String name) throws Exception {
-        Benchmark b = new Benchmark(name) {
+    private void specklefilter(final File srcFile, final String filterName, final WriteMode mode) throws Exception {
+        Benchmark b = new Benchmark(groupName, testName) {
             @Override
             protected void execute() throws Exception {
-                process(name, outputFolder);
+                switch (mode) {
+                    case PRODUCT_IO:
+                    case GPF:
+                        process(srcFile, filterName, outputFolder, mode);
+                        break;
+                    case GRAPH:
+                        //processGraph(srcFile, outputFolder, filterName);
+                        break;
+                }
             }
         };
         b.run();
     }
 
-    private void process(final String name, final File outputFolder) throws IOException {
-        final Product srcProduct = read(qpFile);
+    private void process(final File srcFile, final String filterName, final File outputFolder,
+                         final WriteMode mode) throws IOException {
+        final Product srcProduct = read(srcFile);
 
         PolarimetricSpeckleFilterOp op = new PolarimetricSpeckleFilterOp();
         op.setSourceProduct(srcProduct);
-        op.SetFilter(name);
+        op.SetFilter(filterName);
         Product trgProduct = op.getTargetProduct();
 
-        writeGPF(trgProduct, outputFolder, DIMAP);
+        write(trgProduct, outputFolder, mode);
 
         trgProduct.dispose();
         srcProduct.dispose();

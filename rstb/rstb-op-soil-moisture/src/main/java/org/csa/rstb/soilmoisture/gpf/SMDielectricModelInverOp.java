@@ -49,7 +49,7 @@ import java.util.Map;
  */
 
 @OperatorMetadata(alias = "SM-Dielectric-Modeling",
-        category = "Radar/Soil Moisture",
+        category = "Radar/SAR Applications/Soil Moisture",
         description = "Performs SM inversion using dielectric model")
 public class SMDielectricModelInverOp extends Operator {
 

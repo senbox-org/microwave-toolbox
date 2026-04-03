@@ -204,8 +204,6 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
 
         final double[][][] sumRe = new double[9][2][2];
         final double[][][] sumIm = new double[9][2][2];
-        final double[][][] centerRe = new double[9][2][2];
-        final double[][][] centerIm = new double[9][2][2];
         final int[] counter = new int[9];
         final double noDataValue = srcBandList.srcBands[0].getNoDataValue();
 
@@ -219,9 +217,6 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
 
                     final Tile[] sourceTiles = new Tile[srcBandList.srcBands.length];
                     final ProductData[] dataBuffers = new ProductData[srcBandList.srcBands.length];
-
-                    final double[][] Cr = new double[2][2]; // real part of covariance matrix
-                    final double[][] Ci = new double[2][2]; // imaginary part of covariance matrix
 
                     @Override
                     public void process() {
@@ -237,6 +232,12 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
                         }
                         final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
 
+                        final double[][] Cr = new double[2][2]; // real part of covariance matrix
+                        final double[][] Ci = new double[2][2]; // imaginary part of covariance matrix
+                        final double[][][] localSumRe = new double[9][2][2];
+                        final double[][][] localSumIm = new double[9][2][2];
+                        final int[] localCounter = new int[9];
+
                         for (int y = y0; y < yMax; ++y) {
                             srcIndex.calculateStride(y);
                             for (int x = x0; x < xMax; ++x) {
@@ -249,11 +250,21 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
                                 HAlphaC2.HAAlpha data = HAlphaC2.computeHAAlphaByC2(Cr, Ci);
 
                                 if (!Double.isNaN(data.entropy) && !Double.isNaN(data.anisotropy) && !Double.isNaN(data.alpha)) {
-                                    synchronized (counter) {
-                                        final int zoneIndex = HaAlphaDescriptor.getZoneIndex(data.entropy, data.alpha,
-                                                useLeeHAlphaPlaneDefinition);
-                                        counter[zoneIndex - 1] += 1;
-                                        computeSummationOfC2(zoneIndex, Cr, Ci, sumRe, sumIm);
+                                    final int zoneIndex = HaAlphaDescriptor.getZoneIndex(data.entropy, data.alpha,
+                                            useLeeHAlphaPlaneDefinition);
+                                    localCounter[zoneIndex - 1]++;
+                                    computeSummationOfC2(zoneIndex, Cr, Ci, localSumRe, localSumIm);
+                                }
+                            }
+                        }
+
+                        synchronized (counter) {
+                            for (int z = 0; z < 9; ++z) {
+                                counter[z] += localCounter[z];
+                                for (int i = 0; i < 2; ++i) {
+                                    for (int j = 0; j < 2; ++j) {
+                                        sumRe[z][i][j] += localSumRe[z][i][j];
+                                        sumIm[z][i][j] += localSumIm[z][i][j];
                                     }
                                 }
                             }
@@ -266,14 +277,14 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
             }
             executor.complete();
 
+            final double[][][] centerRe = new double[9][2][2];
+            final double[][][] centerIm = new double[9][2][2];
             for (int z = 0; z < 9; ++z) {
-                final int count = counter[z];
-                //System.out.println("z = " + z + ", counter[z] = " + count);
-                if (count > 0) {
+                if (counter[z] > 0) {
                     for (int i = 0; i < 2; ++i) {
                         for (int j = 0; j < 2; ++j) {
-                            centerRe[z][i][j] = sumRe[z][i][j] / count;
-                            centerIm[z][i][j] = sumIm[z][i][j] / count;
+                            centerRe[z][i][j] = sumRe[z][i][j] / counter[z];
+                            centerIm[z][i][j] = sumIm[z][i][j] / counter[z];
                         }
                     }
                     clusterCenters[targetBandIndex][z] = new ClusterInfo();
@@ -302,15 +313,11 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
                                             final Rectangle[] tileRectangles,
                                             final PolarimetricClassificationOp op) {
 
-        final double[][][] centerRe = new double[9][2][2];
-        final double[][][] centerIm = new double[9][2][2];
         boolean endIteration = false;
         final double noDataValue = srcBandList.srcBands[0].getNoDataValue();
 
         final StatusProgressMonitor status = new StatusProgressMonitor(StatusProgressMonitor.TYPE.SUBTASK);
         status.beginTask("Computing Final Cluster Centres... ", tileRectangles.length * maxIterations);
-
-        final ThreadExecutor executor = new ThreadExecutor();
 
         try {
             for (int it = 0; (it < maxIterations && !endIteration); ++it) {
@@ -320,15 +327,14 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
                 final double[][][] sumIm = new double[9][2][2];
                 final int[] counter = new int[9];
 
+                final ThreadExecutor executor = new ThreadExecutor();
+
                 for (final Rectangle rectangle : tileRectangles) {
 
                     final ThreadRunnable worker = new ThreadRunnable() {
 
                         final Tile[] sourceTiles = new Tile[srcBandList.srcBands.length];
                         final ProductData[] dataBuffers = new ProductData[srcBandList.srcBands.length];
-
-                        final double[][] Cr = new double[2][2];
-                        final double[][] Ci = new double[2][2];
 
                         @Override
                         public void process() {
@@ -348,6 +354,12 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
                             }
                             final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
 
+                            final double[][] Cr = new double[2][2];
+                            final double[][] Ci = new double[2][2];
+                            final double[][][] localSumRe = new double[9][2][2];
+                            final double[][][] localSumIm = new double[9][2][2];
+                            final int[] localCounter = new int[9];
+
                             for (int y = y0; y < yMax; ++y) {
                                 srcIndex.calculateStride(y);
                                 for (int x = x0; x < xMax; ++x) {
@@ -357,10 +369,20 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
                                     getMeanCovarianceMatrixC2(x, y, halfWindowSizeX, halfWindowSizeY, srcWidth,
                                             srcHeight, sourceProductType, sourceTiles, dataBuffers, Cr, Ci);
 
-                                    synchronized (counter) {
-                                        final int zoneIdx = findZoneIndex(Cr, Ci, clusterCenters[targetBandIndex]);
-                                        counter[zoneIdx - 1]++;
-                                        computeSummationOfC2(zoneIdx, Cr, Ci, sumRe, sumIm);
+                                    final int zoneIdx = findZoneIndex(Cr, Ci, clusterCenters[targetBandIndex]);
+                                    localCounter[zoneIdx - 1]++;
+                                    computeSummationOfC2(zoneIdx, Cr, Ci, localSumRe, localSumIm);
+                                }
+                            }
+
+                            synchronized (counter) {
+                                for (int z = 0; z < 9; ++z) {
+                                    counter[z] += localCounter[z];
+                                    for (int i = 0; i < 2; ++i) {
+                                        for (int j = 0; j < 2; ++j) {
+                                            sumRe[z][i][j] += localSumRe[z][i][j];
+                                            sumIm[z][i][j] += localSumIm[z][i][j];
+                                        }
                                     }
                                 }
                             }
@@ -370,16 +392,17 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
 
                     status.worked(1);
                 }
+                executor.complete();
 
+                final double[][][] centerRe = new double[9][2][2];
+                final double[][][] centerIm = new double[9][2][2];
                 double diff = 0.0;
                 for (int z = 0; z < 9; ++z) {
-                    final int count = counter[z];
-                    //System.out.println("counter[" + z + "] = " + count);
                     if (counter[z] > 0) {
                         for (int i = 0; i < 2; ++i) {
                             for (int j = 0; j < 2; ++j) {
-                                centerRe[z][i][j] = sumRe[z][i][j] / count;
-                                centerIm[z][i][j] = sumIm[z][i][j] / count;
+                                centerRe[z][i][j] = sumRe[z][i][j] / counter[z];
+                                centerIm[z][i][j] = sumIm[z][i][j] / counter[z];
                                 diff += (clusterCenters[targetBandIndex][z].centerRe[i][j] - centerRe[z][i][j]) *
                                         (clusterCenters[targetBandIndex][z].centerRe[i][j] - centerRe[z][i][j]) +
                                         (clusterCenters[targetBandIndex][z].centerIm[i][j] - centerIm[z][i][j]) *
@@ -394,7 +417,6 @@ public class HAlphaWishartC2 extends PolClassifierBase implements PolClassifier,
                     endIteration = true;
                 }
             }
-            executor.complete();
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(op.getId() + " computeFinalClusterCenters ", e);

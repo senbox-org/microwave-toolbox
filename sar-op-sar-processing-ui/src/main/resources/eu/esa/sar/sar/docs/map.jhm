@@ -7,6 +7,7 @@
 
     <!--Geometric Operators-->
     <mapID target="RangeDopplerGeocodingOp" url="operators/RangeDopplerGeocodingOp.html"/>
+    <mapID target="GSLCGeocodingOp" url="operators/GSLCGeocodingOp.html"/>
     <mapID target="SARSimGeocodingOp" url="operators/SARSimTerrainCorrectionOp.html"/>
     <mapID target="SARSimOp" url="operators/SARSimulationOp.html"/>
     <mapID target="GeolocationGridGeocodingOp" url="operators/GeolocationGridGeocodingOp.html"/>
@@ -26,5 +27,7 @@
     <mapID target="WSSDeburstOp" url="operators/WSSDeburstOp.html"/>
     <mapID target="WSSMosaic" url="operators/WSSMosaicOp.html"/>
     <mapID target="SLCtoPRI" url="operators/SLCtoPRI.html"/>
+    <mapID target="BatchSnaphuUnwrapOp" url="operators/BatchSnaphuUnwrapOp.html" />
+    <mapID target="PyRateExportOp" url = "operators/PyRateExportOp.html" />
 
 </map>

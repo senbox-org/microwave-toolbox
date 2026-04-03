@@ -26,7 +26,9 @@ import org.esa.snap.ui.AppContext;
 import org.esa.snap.ui.UIUtils;
 import org.esa.snap.ui.color.ColorComboBox;
 
-import javax.swing.*;
+import javax.swing.AbstractButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import java.awt.Color;
 import java.awt.Dimension;
 
@@ -65,21 +67,8 @@ public class GraphProductSetPanel extends ProductSetPanel {
         buttonPanel.add(addDeleteButton ? createDeleteButton(this) : new JLabel("       "));
     }
 
-    @Override
-    protected void updateComponents() {
-        super.updateComponents();
-
-        if(settingsDlg != null) {
-            final int rowCount = getFileCount();
-
-            final boolean enableButtons = (rowCount > 0);
-            if (filterButton != null)
-                filterButton.setEnabled(enableButtons);
-        }
-    }
-
-    private static JButton createRenameButton(final GraphProductSetPanel panel) {
-        final JButton renameBtn = DialogUtils.createButton("renameBtn", "Rename", null, panel, DialogUtils.ButtonStyle.Text);
+    private static AbstractButton createRenameButton(final GraphProductSetPanel panel) {
+        final AbstractButton renameBtn = DialogUtils.createButton("renameBtn", "Rename", null, panel, DialogUtils.ButtonStyle.Text);
         renameBtn.addActionListener(e -> {
             final PromptDialog dlg = new PromptDialog("Rename", "Name", panel.getTitle(), PromptDialog.TYPE.TEXTFIELD);
             dlg.show();
@@ -94,8 +83,21 @@ public class GraphProductSetPanel extends ProductSetPanel {
         return renameBtn;
     }
 
-    private JButton createDeleteButton(final GraphProductSetPanel panel) {
-        final JButton deleteBtn = DialogUtils.createButton("deleteBtn", "Delete", null, panel, DialogUtils.ButtonStyle.Text);
+    @Override
+    protected void updateComponents() {
+        super.updateComponents();
+
+        if (settingsDlg != null) {
+            final int rowCount = getFileCount();
+
+            final boolean enableButtons = (rowCount > 0);
+            if (filterButton != null)
+                filterButton.setEnabled(enableButtons);
+        }
+    }
+
+    private AbstractButton createDeleteButton(final GraphProductSetPanel panel) {
+        final AbstractButton deleteBtn = DialogUtils.createButton("deleteBtn", "Delete", null, panel, DialogUtils.ButtonStyle.Text);
         deleteBtn.addActionListener(e -> settingsDlg.removeGraphPanel(panel));
         return deleteBtn;
     }

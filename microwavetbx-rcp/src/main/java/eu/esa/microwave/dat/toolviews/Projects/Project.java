@@ -72,7 +72,8 @@ public class Project extends Observable {
     private ProductManager.Listener productManagerListener = null;
     private ProjectSubFolder projectSubFolders = null;
     private final static boolean SAVE_PROJECT = true;
-    private final Timer timer = new Timer();
+    private final Timer timer = new Timer("ProjectUpdateTimer", true);
+    private TimerTask updateTask = null;
 
     private final static SnapFileFilter projectFileFilter = new SnapFileFilter("Project", new String[]{".xml"}, "SNAP project files");
     private final static String LAST_PROJECT_DIR_KEY = "snap.lastProjectDir";
@@ -84,11 +85,6 @@ public class Project extends Observable {
         return _instance;
     }
 
-    @Override
-    public void finalize() throws Throwable {
-        timer.cancel();
-        super.finalize();
-    }
 
     void notifyEvent(boolean saveProject) {
         setChanged();
@@ -120,12 +116,21 @@ public class Project extends Observable {
         if (file != null) {
             showProjectsView();
 
-            final String prjName = file.getName();
+            String prjName = file.getName();
+            final String extension = ".xml";
+            if (!prjName.toLowerCase().endsWith(extension)) {
+                prjName += extension;
+            }
             final String folderName = FileUtils.getFilenameWithoutExtension(prjName);
             final File prjFolder = new File(file.getParentFile(), folderName);
             if (!prjFolder.exists())
                 prjFolder.mkdir();
             final File newProjectFile = new File(prjFolder, prjName);
+
+            if (newProjectFile.exists()) {
+                Dialogs.showError("Project already exists!", "A project with the given name " + prjName + " already exists in this directory.");
+                return;
+            }
 
             initProject(newProjectFile);
             addExistingOpenedProducts();
@@ -277,19 +282,30 @@ public class Project extends Observable {
         for (int i = 0; i < length; i++) {
             folderNames.add(st.nextToken().trim());
         }
-        return folderNames.toArray(new String[folderNames.size()]);
+        return folderNames.toArray(new String[0]);
     }
 
     private void startUpdateTimer() {
+        stopUpdateTimer();
 
-        timer.scheduleAtFixedRate(new TimerTask() {
+        updateTask = new TimerTask() {
+            @Override
             public void run() {
                 if (IsProjectOpen()) {
                     if (refreshProjectTree())
                         notifyEvent(SAVE_PROJECT);
                 }
             }
-        }, 2000, 1000 * 5);
+        };
+        timer.scheduleAtFixedRate(updateTask, 2000, 1000 * 5);
+    }
+
+    private void stopUpdateTimer() {
+        if (updateTask != null) {
+            updateTask.cancel();
+            timer.purge();
+            updateTask = null;
+        }
     }
 
     private void addProductLink(final Product product) {
@@ -337,7 +353,7 @@ public class Project extends Observable {
 
     private static void pruneNonExistantFiles(final ProjectSubFolder projSubFolder) {
         // check for files to remove
-        final ProjectFile[] fileList = projSubFolder.getFileList().toArray(new ProjectFile[projSubFolder.getFileList().size()]);
+        final ProjectFile[] fileList = projSubFolder.getFileList().toArray(new ProjectFile[0]);
         for (ProjectFile projFile : fileList) {
             final File f = projFile.getFile();
             if (!f.exists() || f.getName().endsWith(DimapProductConstants.DIMAP_DATA_DIRECTORY_EXTENSION)) {
@@ -588,6 +604,7 @@ public class Project extends Observable {
     }
 
     public void CloseProject() {
+        stopUpdateTimer();
         projectSubFolders = null;
         notifyEvent(false);
     }
@@ -642,8 +659,6 @@ public class Project extends Observable {
 
         showProjectsView();
 
-        initProject(file);
-
         Document doc;
         try {
             doc = XMLSupport.LoadXML(file.getAbsolutePath());
@@ -651,6 +666,8 @@ public class Project extends Observable {
             Dialogs.showError("Unable to load " + file.toString() + ": " + e.getMessage());
             return;
         }
+
+        initProject(file);
 
         final List<ProjectSubFolder> folderList = new ArrayList<>();
         final List<ProjectFile> prodList = new ArrayList<>();

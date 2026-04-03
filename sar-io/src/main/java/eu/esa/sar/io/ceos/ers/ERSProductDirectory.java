@@ -71,7 +71,7 @@ class ERSProductDirectory extends CEOSProductDirectory {
                 // continue
             }
         }
-        imageFiles = imgArray.toArray(new ERSImageFile[imgArray.size()]);
+        imageFiles = imgArray.toArray(new ERSImageFile[0]);
 
         sceneWidth = imageFiles[0].getRasterWidth();
         sceneHeight = imageFiles[0].getRasterHeight();

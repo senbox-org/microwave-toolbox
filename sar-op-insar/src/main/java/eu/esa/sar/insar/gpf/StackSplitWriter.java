@@ -122,7 +122,7 @@ public class StackSplitWriter extends Operator {
                 }
             }
         }
-        return bandNames.toArray(new String[bandNames.size()]);
+        return bandNames.toArray(new String[0]);
     }
 
     private void createSubset(final String productName, final String[] bandNames) throws IOException {

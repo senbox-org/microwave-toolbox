@@ -2,7 +2,6 @@ eu.esa.sar.utilities.gpf.DataAnalysisOp$Spi
 eu.esa.sar.utilities.gpf.BandMergeOp$Spi
 eu.esa.sar.utilities.gpf.BandSelectOp$Spi
 eu.esa.sar.utilities.gpf.TileWriterOp$Spi
-eu.esa.sar.utilities.gpf.TestPatternOp$Spi
 eu.esa.sar.utilities.gpf.OversamplingOp$Spi
 eu.esa.sar.utilities.gpf.UndersamplingOp$Spi
 eu.esa.sar.utilities.gpf.SetNoDataValueOp$Spi

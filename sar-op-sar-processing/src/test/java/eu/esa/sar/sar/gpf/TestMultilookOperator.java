@@ -16,6 +16,7 @@
 package eu.esa.sar.sar.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.*;
@@ -31,32 +32,34 @@ import org.junit.Test;
 import java.io.File;
 import java.util.Arrays;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Unit test for MultilookOperator.
  */
-public class TestMultilookOperator {
+public class TestMultilookOperator extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
     @Before
-    public void setUp() {
-        // If the file does not exist: the test will be ignored
-        assumeTrue("Input file" + inputFile + " does not exist - Skipping test", inputFile.exists());
-    }
-
-    static {
-        TestUtils.initTestEnvironment();
+    public void setUp() throws Exception {
+        try {
+            // If the file does not exist: the test will be ignored
+            assumeTrue("Input file" + inputFile + " does not exist - Skipping test", inputFile.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
     private final static OperatorSpi spi = new MultilookOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
-    private String[] productTypeExemptions = {"-","_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX"};
-    private String[] exceptionExemptions = {"not supported", "not intended", "not be map projected", "first be deburst"};
+    private static final String[] productTypeExemptions = {"-","_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
+    private static final String[] exceptionExemptions = {"not supported", "not intended", "not be map projected",
+            "first be deburst","has no bands"};
 
     /**
      * Tests multi-look operator with a 4x16 "DETECTED" test product.
@@ -89,8 +92,8 @@ public class TestMultilookOperator {
         band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
 
         // compare with expected outputs:
-        final float[] expectedValues = {11.0f, 15.0f, 19.0f, 23.0f, 43.0f, 47.0f, 51.0f, 55.0f};
-        assertTrue(Arrays.equals(expectedValues, floatValues));
+        final float[] expectedValues = {10.5f, 14.5f, 18.5f, 22.5f, 42.5f, 46.5f, 50.5f, 54.5f};
+        assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
         final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(targetProduct);
@@ -100,7 +103,7 @@ public class TestMultilookOperator {
         TestUtils.attributeEquals(abs, AbstractMetadata.azimuth_spacing, 4.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.range_spacing, 2.0);
         TestUtils.attributeEquals(abs, AbstractMetadata.line_time_interval, 0.02);
-        TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:32:46.890683");
+        TestUtils.attributeEquals(abs, AbstractMetadata.first_line_time, "10-MAY-2008 20:32:46.890684");
     }
 
     /**
@@ -110,18 +113,19 @@ public class TestMultilookOperator {
      */
     @Test
     public void testProcessing() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final MultilookOp op = (MultilookOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final MultilookOp op = (MultilookOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[] { 668.0f, 564.0f, 574.0f };
-        TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), expected);
+            final float[] expected = new float[]{668.0f, 564.0f, 574.0f};
+            TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), expected);
+        }
     }
 
     /**

@@ -15,8 +15,6 @@
  */
 package eu.esa.sar.io.binary;
 
-import eu.esa.sar.io.binary.BinaryFileReader;
-import eu.esa.sar.io.binary.IllegalBinaryFormatException;
 import org.junit.Test;
 
 import javax.imageio.stream.MemoryCacheImageOutputStream;

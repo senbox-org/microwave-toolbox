@@ -21,13 +21,13 @@ import org.esa.snap.engine_utilities.eo.Constants;
 
 import java.awt.*;
 
-public class PolarCanvas extends Container {
+public class PolarCanvas extends Container implements AutoCloseable {
 
     private final Axis radialAxis;
     private final Axis colourAxis;
     private PolarData data = null;
-    private double rings[] = null;
-    private String ringText[] = null;
+    private double[] rings = null;
+    private String[] ringText = null;
     private final float dirOffset;
     private int plotRadius;
     private double windDirection = 0;
@@ -36,19 +36,16 @@ public class PolarCanvas extends Container {
     private final Dimension graphSize = new Dimension(200, 100);
     private Point origin = new Point(0, 0);
 
-    private Image colorBar = null;
+    private ColorBar colorBar = null;
+    private Image colorBarImage = null;
     private String axisLabel1 = "", axisLabel2 = "";
 
     public PolarCanvas() {
-        this(new Axis(Axis.RADIAL), new Axis(Axis.RIGHT_Y));
-    }
-
-    private PolarCanvas(Axis radialAxis, Axis colourAxis) {
         opaque = false;
         dirOffset = 0.0F;
         plotRadius = 0;
-        this.radialAxis = radialAxis;
-        this.colourAxis = colourAxis;
+        this.radialAxis = new Axis(Axis.RADIAL);
+        this.colourAxis = new Axis(Axis.RIGHT_Y);
         colourAxis.setLocation(4);
         radialAxis.setSpacing(0);
         colourAxis.setSpacing(0);
@@ -129,8 +126,10 @@ public class PolarCanvas extends Container {
     }
 
     private void loadColorBar(ColourScale scale) {
-        if (colorBar == null)
-            colorBar = createImage(new ColorBar(scale));
+        if (colorBarImage == null) {
+            colorBar = new ColorBar(scale);
+            colorBarImage = createImage(colorBar);
+        }
     }
 
     private void drawColorBar(Graphics g, Axis cAxis) {
@@ -139,7 +138,7 @@ public class PolarCanvas extends Container {
         final Point at = new Point(20, -30);
 
         g.translate(at.x, at.y);
-        g.drawImage(colorBar, 0, 0, cbSize.width, cbSize.height, this);
+        g.drawImage(colorBarImage, 0, 0, cbSize.width, cbSize.height, this);
         g.drawRect(0, 0, cbSize.width, cbSize.height);
         g.translate(cbSize.width, cbSize.height);
         cAxis.draw(g, cbSize);
@@ -148,12 +147,12 @@ public class PolarCanvas extends Container {
     }
 
     @Override
-    protected void finalize()
-            throws Throwable {
-        if (colorBar != null)
-            colorBar.flush();
-        colorBar = null;
-        super.finalize();
+    public void close() {
+        if (colorBarImage != null) {
+            colorBarImage.flush();
+            colorBar.close();
+            colorBarImage = null;
+        }
     }
 
     private static void paintComponents(Container c, Graphics g) {
@@ -164,7 +163,7 @@ public class PolarCanvas extends Container {
 
         int i = ncomponents - 1;
         while (i >= 0) {
-            final Component component[] = c.getComponents();
+            final Component[] component = c.getComponents();
             final Component comp = component[i];
             if (comp == null || !comp.isVisible())
                 continue;
@@ -208,7 +207,7 @@ public class PolarCanvas extends Container {
         }
     }
 
-    public void setRings(double rings[], String ringText[]) {
+    public void setRings(double[] rings, String[] ringText) {
         this.rings = rings;
         this.ringText = ringText;
     }

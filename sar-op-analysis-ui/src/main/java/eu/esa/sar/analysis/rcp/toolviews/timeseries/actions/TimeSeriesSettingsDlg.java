@@ -22,8 +22,14 @@ import org.esa.snap.graphbuilder.rcp.utils.DialogUtils;
 import org.esa.snap.rcp.SnapApp;
 import org.esa.snap.ui.ModelessDialog;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.AbstractButton;
+import javax.swing.JCheckBox;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import java.awt.BorderLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Window;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,7 +76,7 @@ public class TimeSeriesSettingsDlg extends ModelessDialog {
         final JPanel content = new JPanel(new BorderLayout());
         final JPanel optionsPanel = new JPanel();
 
-        final JButton addGraphBtn = DialogUtils.createButton("addGraphBtn", "Add Graph", null, content, DialogUtils.ButtonStyle.Text);
+        final AbstractButton addGraphBtn = DialogUtils.createButton("addGraphBtn", "Add Graph", null, content, DialogUtils.ButtonStyle.Text);
         final TimeSeriesSettingsDlg settingsDlg = this;
         addGraphBtn.addActionListener(e -> {
             final int cnt = graphList.size() + 1;

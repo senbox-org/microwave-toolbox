@@ -37,7 +37,6 @@ import static org.junit.Assert.assertTrue;
 /**
  * Unit test for IEMMultiAngleInverOperator.
  */
-@Ignore
 public class TestIEMMultiAngleInverOp {
 
     private final static OperatorSpi spi = new IEMMultiAngleInverOp.Spi();
@@ -45,6 +44,18 @@ public class TestIEMMultiAngleInverOp {
 
     final private int rows = 3;
     final private int cols = 2;
+
+    @Test
+    public void testCreate() {
+        Product srcProduct = createOneTestProduct(POL.HH1VV2, 10, 10, false, false);
+
+        IEMMultiAngleInverOp op = (IEMMultiAngleInverOp) spi.createOperator();
+        op.setSourceProduct(srcProduct);
+        Product trgProduct = op.getTargetProduct();
+
+        assertNotNull(trgProduct);
+        assertTrue(trgProduct.containsBand("RDC"));
+    }
 
     public static boolean almostEqual(final double a, final double b, final double epsilon) {
 
@@ -379,6 +390,7 @@ public class TestIEMMultiAngleInverOp {
      * @throws Exception general exception
      */
     @Test
+    @Ignore
     public void testIEMMultiAngleInversionOfRealImage() throws Exception {
 
         final double epsilon = 1.0e-4d;

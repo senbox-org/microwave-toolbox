@@ -1,0 +1,47 @@
+<graph id="Graph">
+  <version>1.0</version>
+  <node id="Read">
+    <operator>Read</operator>
+    <sources/>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <useAdvancedOptions>false</useAdvancedOptions>
+      <copyMetadata>true</copyMetadata>
+      <file>${sourceProduct}</file>
+      <bandNames/>
+      <pixelRegion>0,0,2147483647,2147483647</pixelRegion>
+      <maskNames/>
+    </parameters>
+  </node>
+  <node id="BatchSnaphuUnwrapOp">
+    <operator>BatchSnaphuUnwrapOp</operator>
+    <sources>
+      <sourceProduct refid="Read"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <snaphuProcessingLocation>${snaphuProcessingFolder}</snaphuProcessingLocation>
+      <snaphuInstallLocation>${snaphu_install_location}</snaphuInstallLocation>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="BatchSnaphuUnwrapOp"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>${outputProduct}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+  <applicationData id="Presentation">
+    <Description/>
+    <node id="Read">
+            <displayPosition x="37.0" y="134.0"/>
+    </node>
+    <node id="BatchSnaphuUnwrapOp">
+      <displayPosition x="158.0" y="137.0"/>
+    </node>
+    <node id="Write">
+            <displayPosition x="397.0" y="136.0"/>
+    </node>
+  </applicationData>
+</graph>

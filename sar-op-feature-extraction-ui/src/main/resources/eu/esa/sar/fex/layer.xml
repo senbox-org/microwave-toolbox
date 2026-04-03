@@ -3,17 +3,6 @@
 
     <folder name="Actions">
         <folder name="Operators">
-            <file name="eu-esa-sar-fex-gpf-ChangeDetection-Action.instance">
-                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
-                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
-                <attr name="displayName" stringvalue="Change Detection"/>
-                <attr name="operatorName" stringvalue="Change-Detection"/>
-                <attr name="dialogTitle" stringvalue="Change Detection"/>
-                <attr name="targetProductNameSuffix" stringvalue="_change"/>
-                <attr name="ShortDescription" stringvalue="Extract Change Detection Features"/>
-                <attr name="helpId" stringvalue="ChangeDetection"/>
-                <attr name="icon" stringvalue="esaIcon"/>
-            </file>
             <file name="eu-esa-sar-fex-gpf-SpeckleDivergence-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
@@ -79,6 +68,39 @@
                 <attr name="ShortDescription" stringvalue="Decision Tree Classifier"/>
                 <attr name="helpId" stringvalue="DecisionTreeOp"/>
             </file>
+            <file name="eu-esa-sar-fex-gpf-ChangeDetection-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Log Ratio Change Detection"/>
+                <attr name="operatorName" stringvalue="Change-Detection"/>
+                <attr name="dialogTitle" stringvalue="Log Ratio Change Detection"/>
+                <attr name="targetProductNameSuffix" stringvalue="_change"/>
+                <attr name="ShortDescription" stringvalue="Extract Change Detection Features"/>
+                <attr name="helpId" stringvalue="ChangeDetection"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-fex-gpf-ReactivOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="REACTIV Change Detection"/>
+                <attr name="operatorName" stringvalue="REACTIV-Change-Detection"/>
+                <attr name="dialogTitle" stringvalue="REACTIV Change Detection"/>
+                <attr name="targetProductNameSuffix" stringvalue="_change"/>
+                <attr name="ShortDescription" stringvalue="Display Change Detection Features in HSV"/>
+                <attr name="helpId" stringvalue="ReactivOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-fex-gpf-RPCAOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="RPCA Change Detection"/>
+                <attr name="operatorName" stringvalue="RPCA-Change-Detection"/>
+                <attr name="dialogTitle" stringvalue="RPCA Change Detection"/>
+                <attr name="targetProductNameSuffix" stringvalue="_change"/>
+                <attr name="ShortDescription" stringvalue="RPCA based Change Detection"/>
+                <attr name="helpId" stringvalue="RPCAOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
         </folder>
     </folder>
 
@@ -90,7 +112,7 @@
             <attr name="position" intvalue="510"/>
             <folder name="SAR Applications">
                 <attr name="position" intvalue="900"/>
-                <folder name="Ocean Applications">
+                <folder name="Ocean">
                     <attr name="position" intvalue="100"/>
                     <file name="eu-esa-sar-fex-gpf-ObjectDetection-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-ObjectDetection-Action.instance"/>
@@ -105,26 +127,37 @@
                         <attr name="position" intvalue="300"/>
                     </file>
                 </folder>
-                <folder name="Urban Areas">
+                <folder name="Urban">
                     <attr name="position" intvalue="200"/>
                     <file name="eu-esa-sar-fex-gpf-SpeckleDivergence-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-SpeckleDivergence-Action.instance"/>
                         <attr name="position" intvalue="100"/>
                     </file>
                 </folder>
-                <file name="eu-esa-sar-fex-gpf-ChangeDetection-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-ChangeDetection-Action.instance"/>
-                    <attr name="position" intvalue="500"/>
-                </file>
             </folder>
         </folder>
         <folder name="Raster">
             <folder name="Classification">
-                <!--attr name="position" intvalue="450"/>
+                <attr name="position" intvalue="450"/>
                 <file name="eu-esa-sar-fex-gpf-DecisionTree-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-DecisionTree-Action.instance"/>
+                    <attr name="position" intvalue="800"/>
+                </file>
+            </folder>
+            <folder name="Change Detection">
+                <attr name="position" intvalue="490" />
+                <file name="eu-esa-sar-fex-gpf-ChangeDetection-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-ChangeDetection-Action.instance"/>
                     <attr name="position" intvalue="500"/>
-                </file-->
+                </file>
+                <file name="eu-esa-sar-fex-gpf-ReactivOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-ReactivOp-Action.instance"/>
+                    <attr name="position" intvalue="510"/>
+                </file>
+                <file name="eu-esa-sar-fex-gpf-RPCAOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-RPCAOp-Action.instance"/>
+                    <attr name="position" intvalue="520"/>
+                </file>
             </folder>
         </folder>
     </folder>
@@ -133,6 +166,10 @@
         <file name="eu.esa.sar.fex.decisiontree.DecisionTreeOpUI">
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.fex.gpf.ui.decisiontree.DecisionTreeOpUI"/>
             <attr name="operatorName" stringvalue="DecisionTree"/>
+        </file>
+        <file name="eu.esa.sar.fex.changedetection.RPCAOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.fex.gpf.ui.changedetection.RPCAOpUI"/>
+            <attr name="operatorName" stringvalue="RPCA-Change-Detection"/>
         </file>
     </folder>
 

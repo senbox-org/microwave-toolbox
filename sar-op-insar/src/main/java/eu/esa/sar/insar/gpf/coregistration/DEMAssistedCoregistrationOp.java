@@ -71,8 +71,8 @@ public final class DEMAssistedCoregistrationOp extends Operator {
     private Product targetProduct;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec", label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(defaultValue = ResamplingFactory.BICUBIC_INTERPOLATION_NAME,
             label = "DEM Resampling Method")
@@ -318,7 +318,7 @@ public final class DEMAssistedCoregistrationOp extends Operator {
         }
 
         StackUtils.saveMasterProductBandNames(
-                targetProduct, masterProductBands.toArray(new String[masterProductBands.size()]));
+                targetProduct, masterProductBands.toArray(new String[0]));
 
         StackUtils.saveSlaveProductNames(sourceProduct, targetProduct,
                 masterProduct, targetBandToSlaveBandMap);

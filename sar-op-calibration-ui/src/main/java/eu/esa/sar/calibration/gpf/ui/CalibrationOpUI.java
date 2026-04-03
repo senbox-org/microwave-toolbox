@@ -235,7 +235,7 @@ public class CalibrationOpUI extends BaseOperatorUI {
                     saveInComplexCheckBox.setEnabled(false);
                 }
 
-                if (mission.startsWith("SENTINEL-1")) {
+                if (mission.startsWith("SENTINEL-1") || mission.contains("BIOMASS")) {
 
                     OperatorUIUtils.initParamList(polList, Sentinel1Utils.getProductPolarizations(absRoot),
                             (String[]) paramMap.get("selectedPolarisations"));

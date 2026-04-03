@@ -249,6 +249,7 @@ public class SARSimTerrainCorrectionOp extends Operator {
     private Calibrator calibrator = null;
     private Band maskBand = null;
     private boolean skipBistaticCorrection = false;
+    private double bistaticCorrectionRefRange = 0.0;
 
     private boolean orthoDataProduced = false;  // check if any ortho data is actually produced
     private boolean processingStarted = false;
@@ -352,7 +353,7 @@ public class SARSimTerrainCorrectionOp extends Operator {
             }
         }
 
-        return selectedPolList.toArray(new String[selectedPolList.size()]);
+        return selectedPolList.toArray(new String[0]);
     }
 
     @Override
@@ -412,6 +413,9 @@ public class SARSimTerrainCorrectionOp extends Operator {
         mission = RangeDopplerGeocodingOp.getMissionType(absRoot);
 
         skipBistaticCorrection = absRoot.getAttributeInt(AbstractMetadata.bistatic_correction_applied, 0) == 1;
+        if (skipBistaticCorrection && mission != null && mission.startsWith("SENTINEL-1")) {
+            bistaticCorrectionRefRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        }
 
         srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
 
@@ -951,7 +955,7 @@ public class SARSimTerrainCorrectionOp extends Operator {
             td.applyRetroCalibration = targetBandApplyRetroCalibrationFlag.get(targetBand.getName());
             trgTileList.add(td);
         }
-        final RangeDopplerGeocodingOp.TileData[] trgTiles = trgTileList.toArray(new RangeDopplerGeocodingOp.TileData[trgTileList.size()]);
+        final RangeDopplerGeocodingOp.TileData[] trgTiles = trgTileList.toArray(new RangeDopplerGeocodingOp.TileData[0]);
         final TileGeoreferencing tileGeoRef = new TileGeoreferencing(targetProduct, x0 - 1, y0 - 1, w + 2, h + 2);
 
         int diffLat = Math.abs(latitude.getPixelInt(0, 0) - latitude.getPixelInt(0, targetImageHeight));
@@ -1005,14 +1009,20 @@ public class SARSimTerrainCorrectionOp extends Operator {
                         continue;
                     }
 
-                    double slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, earthPoint, sensorPos);
+                    double slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                            zeroDopplerTime, earthPoint, sensorPos);
 
                     double zeroDoppler = zeroDopplerTime;
                     if (!skipBistaticCorrection) {
-                        // skip bistatic correction for COSMO, TerraSAR-X and RadarSAT-2
+                        // Full bistatic correction: product has no bulk correction applied
                         zeroDoppler = zeroDopplerTime + slantRange / Constants.lightSpeedInMetersPerDay;
-
-                        slantRange = SARGeocoding.computeSlantRange(zeroDoppler, orbit, earthPoint, sensorPos);
+                        slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                                zeroDoppler, earthPoint, sensorPos);
+                    } else if (bistaticCorrectionRefRange > 0.0) {
+                        // Bistatic residual correction (Section 4.7.3 of UZH-S1-GC-AD v1.12)
+                        zeroDoppler = zeroDopplerTime + (slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
+                        slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                                zeroDoppler, earthPoint, sensorPos);
                     }
 
                     final double azimuthIndex = (zeroDoppler - firstLineUTC) / lineTimeInterval;

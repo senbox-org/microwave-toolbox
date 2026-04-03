@@ -50,7 +50,7 @@ public final class ProductSet {
     }
 
     public File[] getFileList() {
-        return fileList.toArray(new File[fileList.size()]);
+        return fileList.toArray(new File[0]);
     }
 
     public void setFileList(final File[] inFileList) {

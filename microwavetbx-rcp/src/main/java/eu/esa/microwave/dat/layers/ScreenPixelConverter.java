@@ -16,7 +16,7 @@
 package eu.esa.microwave.dat.layers;
 
 import com.bc.ceres.glayer.support.ImageLayer;
-import com.bc.ceres.glevel.MultiLevelImage;
+import com.bc.ceres.multilevel.MultiLevelImage;
 import com.bc.ceres.grender.Viewport;
 import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.RasterDataNode;

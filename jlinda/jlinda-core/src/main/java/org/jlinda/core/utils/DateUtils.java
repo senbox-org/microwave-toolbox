@@ -9,7 +9,7 @@ public class DateUtils {
         final String timeMin = timeHrsMinSec.split(":")[1];
         final String timeSec = timeHrsMinSec.split(":")[2];
 
-        return (new Double(timeHrs) * 3600 + new Double(timeMin) * 60 + new Double(timeSec));
+        return (Double.parseDouble(timeHrs) * 3600 + Double.parseDouble(timeMin) * 60 + Double.parseDouble(timeSec));
     }
 
 }

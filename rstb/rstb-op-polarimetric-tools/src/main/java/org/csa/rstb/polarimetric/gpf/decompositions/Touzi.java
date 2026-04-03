@@ -97,7 +97,7 @@ public class Touzi extends DecompositionBase implements Decomposition, QuadPolPr
             targetBandNameList.add("Phi3");
         }
 
-        return targetBandNameList.toArray(new String[targetBandNameList.size()]);
+        return targetBandNameList.toArray(new String[0]);
     }
 
     /**

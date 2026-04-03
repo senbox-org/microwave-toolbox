@@ -6,20 +6,22 @@
 
     <tocitem text="Sentinel Toolbox Application">
         <tocitem text="Radar">
-            <tocitem text="Soil Moisture Tools">
-                <tocitem text="Pre-Processing">
-                    <tocitem text="Multi-Angle/Hybrid Pre-Processing" target="MultiAnglePreProcessing"/>
-                    <tocitem text="Multi-Pol Pre-Processing" target="MultiPolPreProcessing"/>
+            <tocitem text="SAR Applications">
+                <tocitem text="Soil Moisture Tools">
+                    <tocitem text="Pre-Processing">
+                        <tocitem text="Multi-Angle/Hybrid Pre-Processing" target="MultiAnglePreProcessing"/>
+                        <tocitem text="Multi-Pol Pre-Processing" target="MultiPolPreProcessing"/>
+                    </tocitem>
+                    <tocitem text="Modeling">
+                        <tocitem text="IEM Multi-Angle Inversion" target="IEMMultiAngle"/>
+                        <tocitem text="IEM Multi-Pol Inversion" target="IEMMultiPol"/>
+                        <tocitem text="IEM Hyrbid Inversion" target="IEMHybrid"/>
+                        <tocitem text="SM Dielectric Modeling" target="SMDielectricModel"/>
+                    </tocitem>
+                    <tocitem text="Hyrbid IEM SM Retrieval" target="HybridSoilMoisture"/>
+                    <tocitem text="Multi-Polarisation IEM SM Retrieval" target="MultiPolSoilMoisture"/>
+                    <tocitem text="Multi-Angle IEM SM Retrieval" target="MultiAngleSoilMoisture"/>
                 </tocitem>
-                <tocitem text="Modeling">
-                    <tocitem text="IEM Multi-Angle Inversion" target="IEMMultiAngle"/>
-                    <tocitem text="IEM Multi-Pol Inversion" target="IEMMultiPol"/>
-                    <tocitem text="IEM Hyrbid Inversion" target="IEMHybrid"/>
-                    <tocitem text="SM Dielectric Modeling" target="SMDielectricModel"/>
-                </tocitem>
-                <tocitem text="Hyrbid IEM SM Retrieval" target="HybridSoilMoisture"/>
-                <tocitem text="Multi-Polarisation IEM SM Retrieval" target="MultiPolSoilMoisture"/>
-                <tocitem text="Multi-Angle IEM SM Retrieval" target="MultiAngleSoilMoisture"/>
             </tocitem>
         </tocitem>
     </tocitem>

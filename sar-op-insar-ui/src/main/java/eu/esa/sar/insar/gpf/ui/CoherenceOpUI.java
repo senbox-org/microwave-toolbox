@@ -49,6 +49,8 @@ public class CoherenceOpUI extends BaseOperatorUI {
     private final JCheckBox independentWindowSizeCheckBox = new JCheckBox("Independent Window Sizes");
     private final JCheckBox subtractFlatEarthPhaseCheckBox = new JCheckBox("Subtract flat-earth phase");
     private final JCheckBox subtractTopographicPhaseCheckBox = new JCheckBox("Subtract topographic phase");
+    private final JCheckBox correctCoherenceBiasCheckBox = new JCheckBox("Correct Coherence Bias");
+    private final JCheckBox removeLocalPhaseRampCheckBox = new JCheckBox("Remove Local Phase Ramp");
 
     private final JTextField cohWinAz = new JTextField("");
     private final JTextField cohWinRg = new JTextField("");
@@ -66,6 +68,8 @@ public class CoherenceOpUI extends BaseOperatorUI {
     private Boolean squarePixel = true;
     private Boolean subtractFlatEarthPhase = false;
     private Boolean singleReference = true;
+    private Boolean correctCoherenceBias = false;
+    private Boolean removeLocalPhaseRamp = false;
     private final CoherenceOp.DerivedParams param = new CoherenceOp.DerivedParams();
 
     private Boolean subtractTopographicPhase = false;
@@ -134,6 +138,18 @@ public class CoherenceOpUI extends BaseOperatorUI {
         singleReferenceCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 singleReference = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        correctCoherenceBiasCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                correctCoherenceBias = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        removeLocalPhaseRampCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                removeLocalPhaseRamp = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -210,6 +226,18 @@ public class CoherenceOpUI extends BaseOperatorUI {
             singleReferenceCheckBox.setSelected(singleReference);
         }
 
+        paramVal = (Boolean) paramMap.get("correctCoherenceBias");
+        if (paramVal != null) {
+            correctCoherenceBias = paramVal;
+            correctCoherenceBiasCheckBox.setSelected(correctCoherenceBias);
+        }
+
+        paramVal = (Boolean) paramMap.get("removeLocalPhaseRamp");
+        if (paramVal != null) {
+            removeLocalPhaseRamp = paramVal;
+            removeLocalPhaseRampCheckBox.setSelected(removeLocalPhaseRamp);
+        }
+
 //        orbitDegree.setText(String.valueOf(paramMap.get("orbitDegree")));
         final String demNameParam = (String) paramMap.get("demName");
         if (demNameParam != null) {
@@ -269,10 +297,10 @@ public class CoherenceOpUI extends BaseOperatorUI {
         paramMap.put("subtractFlatEarthPhase", subtractFlatEarthPhase);
 
         if (subtractFlatEarthPhase) {
-			paramMap.put("srpPolynomialDegree", srpPolynomialDegreeStr.getSelectedItem());
+            paramMap.put("srpPolynomialDegree", srpPolynomialDegreeStr.getSelectedItem());
             paramMap.put("srpNumberPoints", srpNumberPointsStr.getSelectedItem());
-			paramMap.put("orbitDegree", orbitDegreeStr.getSelectedItem());
-		}
+            paramMap.put("orbitDegree", orbitDegreeStr.getSelectedItem());
+        }
 
         paramMap.put("singleMaster", singleReference);
 
@@ -299,6 +327,8 @@ public class CoherenceOpUI extends BaseOperatorUI {
             paramMap.put("cohWinAz", Integer.parseInt(cohWinAz.getText()));
 
         paramMap.put("squarePixel", squarePixel);
+        paramMap.put("correctCoherenceBias", correctCoherenceBias);
+        paramMap.put("removeLocalPhaseRamp", removeLocalPhaseRamp);
     }
 
     JComponent createPanel() {
@@ -358,6 +388,14 @@ public class CoherenceOpUI extends BaseOperatorUI {
         cohWinAz.setEditable(false);
         cohWinRg.setDocument(new CohWinRgDocument());
 
+        gbc.gridy++;
+        gbc.gridx = 0;
+        contentPane.add(correctCoherenceBiasCheckBox, gbc);
+
+        gbc.gridy++;
+        gbc.gridx = 0;
+        contentPane.add(removeLocalPhaseRampCheckBox, gbc);
+
         demName.setEnabled(false);
         tileExtensionPercent.setEnabled(false);
 
@@ -411,6 +449,9 @@ public class CoherenceOpUI extends BaseOperatorUI {
         }
         externalDEMBrowseButton.setVisible(flag);
         externalDEMApplyEGMCheckBox.setVisible(flag);
+        if (flag) {
+            externalDEMApplyEGMCheckBox.setSelected(externalDEMApplyEGM);
+        }
     }
 
     private void enableSubtractFlatEarthPhaseParameters(boolean flag) {

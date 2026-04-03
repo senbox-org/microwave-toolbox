@@ -397,7 +397,7 @@ public final class PrareOrbitReader {
      */
     public float getSensingStart() throws IOException {
         // The start time is given as Julian days since 1.1.2000 12h in TDT.
-        // Add 0.5 days to make it as Julian days since 1.1.2000 0h in TDT. 
+        // Add 0.5 days to make it as Julian days since 1.1.2000 0h in TDT.
         // convert TDT time to UTC time
         return (float) TDT2UTC(dataHeaderRecord.start * 0.1f + 0.5f); // 0.1 days to days
     }

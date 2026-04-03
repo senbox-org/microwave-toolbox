@@ -3,7 +3,7 @@
  *
  * Authored by: Subhadip Dey
  * Email: sdey2307@gmail.com
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3 of the License, or (at your option)
@@ -20,8 +20,8 @@
 /*
     Reference:
     Dey, S., Bhattacharya, A., Frery, A.C., López-Martínez, C. and Rao, Y.S.,
-    2021. A Model-free Four Component Scattering Power Decomposition for 
-    Polarimetric SAR Data. IEEE Journal of Selected Topics in Applied Earth 
+    2021. A Model-free Four Component Scattering Power Decomposition for
+    Polarimetric SAR Data. IEEE Journal of Selected Topics in Applied Earth
     Observations and Remote Sensing, 14, pp.3887-3902.
 */
 
@@ -213,7 +213,7 @@ public class MF4CF extends DecompositionBase implements Decomposition, QuadPolPr
 
     public static VDD getMF4CFDecomposition(final double[][] Tr, final double[][] Ti) {
 
-        double T11, T22, T33, det_T3, trace_T3, Ps, Pd, Pv, Pc, theta_deg, tau_deg; 
+        double T11, T22, T33, det_T3, trace_T3, Ps, Pd, Pv, Pc, theta_deg, tau_deg;
 
         T11 = Tr[0][0];
         T22 = Tr[1][1];

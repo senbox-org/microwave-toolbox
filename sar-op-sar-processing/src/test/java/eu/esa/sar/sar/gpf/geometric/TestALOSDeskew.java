@@ -1,5 +1,6 @@
 package eu.esa.sar.sar.gpf.geometric;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
@@ -17,19 +18,21 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Created by lveci on 24/10/2014.
  */
-public class TestALOSDeskew {
+public class TestALOSDeskew extends ProcessorTest {
 
     private final static File inputFile = TestData.inputALOS1_1;
 
     @Before
-    public void setUp() {
-        // If the file does not exist: the test will be ignored
-        assumeTrue(inputFile + " not found", inputFile.exists());
+    public void setUp() throws Exception {
+        try {
+            // If the file does not exist: the test will be ignored
+            assumeTrue(inputFile + " not found", inputFile.exists());
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new ALOSDeskewingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
 
@@ -42,18 +45,19 @@ public class TestALOSDeskew {
      */
     @Test
     public void testProcessing() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final ALOSDeskewingOp op = (ALOSDeskewingOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final ALOSDeskewingOp op = (ALOSDeskewingOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[] { 178303.08f, 33205.94f, -130.6396f };
-        TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 300, 400, expected);
+            final float[] expected = new float[]{178303.08f, 33205.94f, -130.6396f};
+            TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 300, 400, expected);
+        }
     }
 
     @Test

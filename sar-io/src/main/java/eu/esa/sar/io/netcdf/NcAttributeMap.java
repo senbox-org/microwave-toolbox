@@ -45,7 +45,7 @@ public class NcAttributeMap {
     }
 
     private NcAttributeMap(List<Attribute> attributes) {
-        this(attributes.toArray(new Attribute[attributes.size()]));
+        this(attributes.toArray(new Attribute[0]));
     }
 
     public static NcAttributeMap create(NetcdfFile file) {

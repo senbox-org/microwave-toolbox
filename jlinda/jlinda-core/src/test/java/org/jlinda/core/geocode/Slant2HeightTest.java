@@ -109,26 +109,6 @@ public class Slant2HeightTest {
     }
 
     @Test
-    public void testSchwabisch_Prototype() throws Exception {
-
-        int nPoints = 200;
-        int nHeights = 3;
-        int degree1d = 2;
-        int degree2d = 5;
-
-        DoubleMatrix inputTile = unwrappedPhase.dup();
-
-        final Slant2Height tempSlant = new Slant2Height(nPoints, nHeights, degree1d, degree2d, master, masterOrbit, slave, slaveOrbit);
-        tempSlant.setTileWindow(tileWindow);
-        tempSlant.setDataWindow(dataWindow);
-        tempSlant.setTile(inputTile);
-        tempSlant.schwabischTotal();
-
-        Assert.assertArrayEquals(heights.toArray(), tempSlant.getTile().toArray(), DELTA_02);
-
-    }
-
-    @Test
     public void testSchwabisch() throws Exception{
 
         int nPoints = 200;

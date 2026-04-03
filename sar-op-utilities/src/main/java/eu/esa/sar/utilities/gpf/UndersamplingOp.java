@@ -203,7 +203,7 @@ public class UndersamplingOp extends Operator {
                 for (Band band : bands) {
                     bandNameList.add(band.getName());
                 }
-                sourceBandNames = bandNameList.toArray(new String[bandNameList.size()]);
+                sourceBandNames = bandNameList.toArray(new String[0]);
             }
 
             for (int i = 0; i < sourceBandNames.length; i++) {

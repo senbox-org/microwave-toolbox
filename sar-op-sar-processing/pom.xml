@@ -20,7 +20,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>14.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-sar-processing</artifactId>
@@ -70,6 +70,22 @@
         <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-dem</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-envi-reader</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>edu.emory.mathcs</groupId>
+            <artifactId>JTransforms</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

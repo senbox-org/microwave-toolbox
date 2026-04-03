@@ -35,7 +35,7 @@ public interface Sentinel1Directory {
 
     void readProductDirectory() throws IOException;
 
-    Product createProduct() throws IOException;
+    Product createProduct() throws Exception;
 
     ImageIOFile.BandInfo getBandInfo(final Band destBand);
 

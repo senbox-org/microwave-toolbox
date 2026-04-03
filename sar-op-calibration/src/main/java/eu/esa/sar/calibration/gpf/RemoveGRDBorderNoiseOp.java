@@ -136,17 +136,19 @@ public final class RemoveGRDBorderNoiseOp extends Operator {
 
             getIPFVersion();
 
-            getProductCoPolarization();
+            if (version < 2.90) {
+                getProductCoPolarization();
 
-            getThermalNoiseCorrectionFlag();
+                getThermalNoiseCorrectionFlag();
 
-            if (!thermalNoiseCorrectionPerformed) {
-                getThermalNoiseVector();
+                if (!thermalNoiseCorrectionPerformed) {
+                    getThermalNoiseVector();
+                }
+
+                computeNoiseScalingFactor();
+
+                computeNoiseLUT();
             }
-
-            computeNoiseScalingFactor();
-
-            computeNoiseLUT();
 
             createTargetProduct();
 
@@ -286,7 +288,7 @@ public final class RemoveGRDBorderNoiseOp extends Operator {
      */
     private void computeNoiseScalingFactor() throws IOException {
 
-        if (version < 2.50) {
+        if (version <= 2.50) {
             final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
             double knoise;
             if (acquisitionMode.contains("IW")) {
@@ -411,6 +413,67 @@ public final class RemoveGRDBorderNoiseOp extends Operator {
      */
     @Override
     public void computeTileStack(Map<Band, Tile> targetTileMap, Rectangle targetRectangle, ProgressMonitor pm)
+            throws OperatorException {
+
+        if (version >= 2.90) {
+            CopyTileData(targetTileMap, targetRectangle, pm);
+        } else {
+            RemoveBorderNoise(targetTileMap, targetRectangle, pm);
+        }
+    }
+
+    private void CopyTileData(Map<Band, Tile> targetTileMap, Rectangle targetRectangle, ProgressMonitor pm)
+            throws OperatorException {
+
+        try {
+            final int x0 = targetRectangle.x;
+            final int y0 = targetRectangle.y;
+            final int w = targetRectangle.width;
+            final int h = targetRectangle.height;
+            final int yMax = y0 + h;
+            final int xMax = x0 + w;
+            //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
+
+            final Set<Band> keySet = targetTileMap.keySet();
+            final int numBands = keySet.size();
+            final ProductData[] targetData = new ProductData[numBands];
+            final ProductData[] sourceData = new ProductData[numBands];
+            final Tile[] sourceTile = new Tile[numBands];
+            final Tile[] targetTile = new Tile[numBands];
+
+            int k = 0;
+            for (Band targetBand : keySet) {
+                targetTile[k] = targetTileMap.get(targetBand);
+                targetData[k] = targetTile[k].getDataBuffer();
+
+                final Band srcBand = sourceProduct.getBand(targetBand.getName());
+                sourceTile[k] = getSourceTile(srcBand, targetRectangle);
+                sourceData[k] = sourceTile[k].getDataBuffer();
+                k++;
+            }
+
+            final TileIndex srcIndex = new TileIndex(sourceTile[0]);
+            final TileIndex tgtIndex = new TileIndex(targetTile[0]);
+
+            for (int y = y0; y < yMax; y++) {
+                srcIndex.calculateStride(y);
+                tgtIndex.calculateStride(y);
+
+                for (int x = x0; x < xMax; x++) {
+                    final int srcIdx = srcIndex.getIndex(x);
+                    final int tgtIdx = tgtIndex.getIndex(x);
+                    for (int i = 0; i < numBands; i++) {
+                        targetData[i].setElemDoubleAt(tgtIdx, sourceData[i].getElemDoubleAt(srcIdx));
+                    }
+                }
+            }
+
+        } catch (Throwable e) {
+            throw new OperatorException(e.getMessage());
+        }
+    }
+
+    private void RemoveBorderNoise(Map<Band, Tile> targetTileMap, Rectangle targetRectangle, ProgressMonitor pm)
             throws OperatorException {
 
         try {

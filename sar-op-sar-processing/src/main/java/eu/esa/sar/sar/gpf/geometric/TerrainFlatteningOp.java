@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -59,13 +59,21 @@ import java.util.Random;
  * David Small. For details, see the paper below and the references therein.
  * David Small, "Flattening Gamma: Radiometric Terrain Correction for SAR imagery",
  * IEEE Transaction on Geoscience and Remote Sensing, Vol. 48, No. 8, August 2011.
+ *
+ * This implementation is an optimized version of the original TerrainFlatteningOp.
+ * 1.Pre-computation of Orbit Vectors: Instead of interpolating orbit state vectors on-the-fly for every pixel using Lagrange interpolation
+ * (which is computationally expensive), the new operator uses pre-computed sensor positions and velocities for each image line.
+ * 2.Fast Slant Range Computation: Utilizes the pre-computed vectors and linear interpolation for faster slant range and sensor
+ * position calculations during the iterative geocoding process.
+ * 3.Optimized Zero Doppler Time Search: Uses a binary search on the pre-computed arrays to find zero Doppler time, which is faster
+ * than the iterative method on sparse vectors.
  */
 
 @OperatorMetadata(alias = "Terrain-Flattening",
         category = "Radar/Radiometric",
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
-        copyright = "Copyright (C) 2014 by Array Systems Computing Inc.",
+        copyright = "Copyright (C) 2026 by SkyWatch Space Applications Inc.",
         description = "Terrain Flattening")
 public final class TerrainFlatteningOp extends Operator {
 
@@ -79,8 +87,8 @@ public final class TerrainFlatteningOp extends Operator {
     private String[] sourceBandNames;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 1Sec HGT", label = "Digital Elevation Model")
-    private String demName = "SRTM 1Sec HGT";
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(defaultValue = ResamplingFactory.BILINEAR_INTERPOLATION_NAME,
             label = "DEM Resampling Method")
@@ -111,6 +119,10 @@ public final class TerrainFlatteningOp extends Operator {
     @Parameter(description = "The oversampling factor", interval = "[1, 4]", label = "Oversampling Multiple",
             defaultValue = "1.0")
     private Double oversamplingMultiple = 1.0;
+
+    @Parameter(defaultValue = "false", label = "Apply Atmospheric Path Delay Correction",
+            description = "Correct for tropospheric path delay (~3 m range improvement) using a standard atmosphere model")
+    private boolean applyAPDCorrection = false;
 
     private Product newSourceProduct = null;
     private ElevationModel dem = null;
@@ -145,12 +157,14 @@ public final class TerrainFlatteningOp extends Operator {
     private final HashMap<Band, Band> targetBandToSourceBandMap = new HashMap<>(2);
     private boolean nearRangeOnLeft = true;
     private boolean orbitOnWest = true;
+    private boolean skipBistaticCorrection = false;
+    private double bistaticCorrectionRefRange = 0.0;
 
     private boolean detectShadow = true;
     private double threshold = 0.05;
     private boolean invalidSource = false;
 
-    private static final String PRODUCT_SUFFIX = "_TF";
+    private static final String PRODUCT_SUFFIX = "_RTC";
 
     enum UnitType {AMPLITUDE, INTENSITY, COMPLEX, RATIO}
 
@@ -184,6 +198,7 @@ public final class TerrainFlatteningOp extends Operator {
             if (sourceProductType.equals(PolBandUtils.MATRIX.T3) || sourceProductType.equals(PolBandUtils.MATRIX.C3)
                     || sourceProductType.equals(PolBandUtils.MATRIX.C2)) {
                 isPolSar = true;
+                newSourceProduct = sourceProduct;
             } else if (!validator.isCalibrated()) {
                 final  OperatorSpi spi = new CalibrationOp.Spi();
                 final CalibrationOp op = (CalibrationOp) spi.createOperator();
@@ -300,10 +315,17 @@ public final class TerrainFlatteningOp extends Operator {
         }
 
         nearEdgeSlantRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        skipBistaticCorrection = absRoot.getAttributeInt(AbstractMetadata.bistatic_correction_applied, 0) == 1;
 
         final String mission = RangeDopplerGeocodingOp.getMissionType(absRoot);
+
+        // Bistatic residual correction applies only to Sentinel-1 (Section 4.7.3 of UZH-S1-GC-AD v1.12).
+        // Other missions apply a full per-sample correction, so no residual is needed.
+        if (skipBistaticCorrection && mission != null && mission.startsWith("SENTINEL-1")) {
+            bistaticCorrectionRefRange = nearEdgeSlantRange;
+        }
         final String pass = absRoot.getAttributeString(AbstractMetadata.PASS);
-        if (mission.equals("RS2") && pass.contains("DESCENDING")) {
+        if ((mission.equals("RS2") || mission.equals("RCM")) && pass.contains("DESCENDING")) {
             nearRangeOnLeft = false;
         }
 
@@ -316,10 +338,6 @@ public final class TerrainFlatteningOp extends Operator {
                 (pass.contains("ASCENDING") && antennaPointing.contains("left"))) {
             orbitOnWest = false;
         }
-
-//        if (mission.contains("CSKS") || mission.contains("TSX") || mission.equals("RS2") || mission.contains("SENTINEL")) {
-//            skipBistaticCorrection = true;
-//        }
     }
 
     /**
@@ -620,7 +638,7 @@ public final class TerrainFlatteningOp extends Operator {
                         continue;
 
                     posData.earthPoint = geo2xyzWGS84.getXYZ(lon, alt00);
-                    if (!getPosition(x0, y0, w, h, posData))
+                    if (!getPosition(x0, y0, w, h, lat, alt00, posData))
                         continue;
 
                     selectedResampling.computeCornerBasedIndex(jRatio, iRatio - ratio, cols, rows, resamplingIndex);
@@ -731,29 +749,48 @@ public final class TerrainFlatteningOp extends Operator {
 
     //======================================
     private boolean getPosition(final int x0, final int y0, final int w, final int h,
+                                final double lat, final double alt,
                                 final PositionData data) {
 
-        final double zeroDopplerTime = SARGeocoding.getZeroDopplerTime(
-                lineTimeInterval, wavelength, data.earthPoint, orbit);
+        // Optimized: Use array-based interpolation instead of Lagrange interpolation on sparse vectors
+        final double zeroDopplerTime = SARGeocoding.getEarthPointZeroDopplerTime(
+                firstLineUTC, lineTimeInterval, wavelength, data.earthPoint, orbit.sensorPosition, orbit.sensorVelocity);
 
         if (zeroDopplerTime == SARGeocoding.NonValidZeroDopplerTime) {
             return false;
         }
 
-        data.slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, data.earthPoint, data.sensorPos);
+        // Optimized: Use array-based interpolation for sensor position
+        data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                zeroDopplerTime, data.earthPoint, data.sensorPos);
 
-        data.azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
+        double correctedTime = zeroDopplerTime;
+        if (!skipBistaticCorrection) {
+            correctedTime += data.slantRange / Constants.lightSpeedInMetersPerDay;
+            data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    correctedTime, data.earthPoint, data.sensorPos);
+        } else if (bistaticCorrectionRefRange > 0.0) {
+            correctedTime += (data.slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
+            data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    correctedTime, data.earthPoint, data.sensorPos);
+        }
+
+        data.azimuthIndex = (correctedTime - firstLineUTC) / lineTimeInterval;
 
         if (!(data.azimuthIndex >= y0 - 1 && data.azimuthIndex <= y0 + h)) {
             return false;
         }
 
+        if (applyAPDCorrection) {
+            data.slantRange += SARGeocoding.computeAtmosphericPathDelay(data.earthPoint, data.sensorPos, lat, alt);
+        }
+
         if (!srgrFlag) {
             data.rangeIndex = (data.slantRange - nearEdgeSlantRange) / rangeSpacing;
         } else {
-            data.rangeIndex = SARGeocoding.computeRangeIndex(
+            data.rangeIndex = SARGeocoding.computeExtendedRangeIndex(
                     srgrFlag, sourceImageWidth, firstLineUTC, lastLineUTC, rangeSpacing,
-                    zeroDopplerTime, data.slantRange, nearEdgeSlantRange, srgrConvParams);
+                    correctedTime, data.slantRange, nearEdgeSlantRange, srgrConvParams);
         }
 
         if (!nearRangeOnLeft) {
@@ -768,15 +805,28 @@ public final class TerrainFlatteningOp extends Operator {
         final PosVector earthPoint = new PosVector();
         GeoUtils.geo2xyzWGS84(lat, lon, alt, earthPoint);
 
-        final double zeroDopplerTime = SARGeocoding.getZeroDopplerTime(
-                lineTimeInterval, wavelength, earthPoint, orbit);
+        // Optimized: Use array-based interpolation
+        double zeroDopplerTime = SARGeocoding.getEarthPointZeroDopplerTime(
+                firstLineUTC, lineTimeInterval, wavelength, earthPoint, orbit.sensorPosition, orbit.sensorVelocity);
 
         if (zeroDopplerTime == SARGeocoding.NonValidZeroDopplerTime) {
             return false;
         }
 
         final PosVector sensorPos = new PosVector();
-        final double slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, earthPoint, sensorPos);
+        // Optimized: Use array-based interpolation
+        double slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                                                                    zeroDopplerTime, earthPoint, sensorPos);
+
+        if (!skipBistaticCorrection) {
+            zeroDopplerTime += slantRange / Constants.lightSpeedInMetersPerDay;
+            slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    zeroDopplerTime, earthPoint, sensorPos);
+        } else if (bistaticCorrectionRefRange > 0.0) {
+            zeroDopplerTime += (slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
+            slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    zeroDopplerTime, earthPoint, sensorPos);
+        }
 
         final double azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
 

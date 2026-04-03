@@ -5,14 +5,19 @@
 <toc version="2.0" categoryclosedimage="folder" categoryopenimage="folder" topicimage="doc">
 
     <tocitem text="Sentinel Toolbox Application">
+        <tocitem text="Raster">
+            <tocitem text="Data Conversion">
+                <tocitem text="Band Select" target="BandSelectOp"/>
+            </tocitem>
+        </tocitem>
         <tocitem text="Radar">
             <tocitem text="SAR Utilities">
                 <tocitem text="Resampling">
                     <tocitem text="Over Sample" target="OverSampleOp"/>
                     <tocitem text="Under Sample" target="UnderSampleOp"/>
-                    <tocitem text="Demodulate" target="DemodulateOp"/>
-                    <tocitem text="Remodulate" target="RemodulateOp"/>
                 </tocitem>
+                <tocitem text="Demodulate" target="DemodulateOp"/>
+                <tocitem text="Remodulate" target="RemodulateOp"/>
             </tocitem>
         </tocitem>
     </tocitem>

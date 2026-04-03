@@ -31,14 +31,14 @@ public class ColourScale {
     private final int[] colorIndexThresholds;
     private final Vector<ColorBar> coloredClients = new Vector<>();
 
-    private double colorIndexValues[] = null;
+    private double[] colorIndexValues = null;
     private double darkestValue = 0;
     private double darkestIndex = 0;
     private double lightestValue = 0;
     private double lightestIndex = 0;
     private double scale = 0;
 
-    private ColourScale(Color colorTable[]) {
+    private ColourScale(Color[] colorTable) {
         thresholdCount = colorTable.length;
         colorIndexThresholds = new int[thresholdCount];
         colorIndexThresholds[0] = 0;
@@ -46,29 +46,29 @@ public class ColourScale {
         colors = colorTable;
     }
 
-    public static ColourScale newMonochromeScale(double range[], Color chromum) {
-        final Color monochromeColorTable[] = {
+    public static ColourScale newMonochromeScale(double[] range, Color chromum) {
+        final Color[] monochromeColorTable = {
                 Color.black, Color.black, chromum, chromum
         };
         return new ColourScale(monochromeColorTable, range);
     }
 
-    public static ColourScale newCustomScale(double range[]) {
+    public static ColourScale newCustomScale(double[] range) {
         return new ColourScale(PolarView.colourTable, range);
     }
 
-    private ColourScale(Color colorTable[], double range[]) {
+    private ColourScale(Color[] colorTable, double[] range) {
         this(colorTable);
         colorIndexValues = new double[thresholdCount];
         setRange(range[0], range[1]);
         createColorMap();
     }
 
-    public void setRange(double range[]) {
+    public void setRange(double[] range) {
         setRange(range[0], range[1]);
     }
 
-    public void setRange(int range[]) {
+    public void setRange(int[] range) {
         setRange(range[0], range[1]);
     }
 
@@ -189,14 +189,14 @@ public class ColourScale {
 
     private void createColorMap() {
         final int lastThreshold = thresholdCount - 1;
-        final byte cmap[] = new byte[768];
+        final byte[] cmap = new byte[768];
         Color lastColor = colors[0];
         int lastIndex = colorIndexThresholds[0];
         int c = 0;
         for (int i = 1; i < thresholdCount; i++) {
             final int cRange = colorIndexThresholds[i] - lastIndex;
-            final int lastRGB[] = {lastColor.getRed(), lastColor.getGreen(), lastColor.getBlue()};
-            final int nextRGB[] = {colors[i].getRed(), colors[i].getGreen(), colors[i].getBlue()};
+            final int[] lastRGB = {lastColor.getRed(), lastColor.getGreen(), lastColor.getBlue()};
+            final int[] nextRGB = {colors[i].getRed(), colors[i].getGreen(), colors[i].getBlue()};
 
             for (int j = 0; j < cRange; j++) {
                 final float nextScale = (float) j / (float) cRange;

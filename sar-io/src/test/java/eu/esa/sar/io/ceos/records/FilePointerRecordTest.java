@@ -15,70 +15,31 @@
  */
 package eu.esa.sar.io.ceos.records;
 
-import junit.framework.TestCase;
 import eu.esa.sar.io.binary.BinaryDBReader;
 import eu.esa.sar.io.binary.BinaryFileReader;
 import eu.esa.sar.io.binary.IllegalBinaryFormatException;
 import eu.esa.sar.io.ceos.FilePointerRecord;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.jdom2.Document;
+import org.junit.Before;
+import org.junit.Test;
 
 import javax.imageio.stream.ImageOutputStream;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-public class FilePointerRecordTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
-    private ImageOutputStream _ios;
-    private String _prefix;
-    private BinaryFileReader _reader;
+public class FilePointerRecordTest {
 
     private final static String mission = "ers";
     private final static String filePointerDefinitionFile = "file_pointer_record.xml";
     private final static Document filePointerXML = BinaryDBReader.loadDefinitionFile(mission, filePointerDefinitionFile);
-
-    protected void setUp() throws Exception {
-        final ByteArrayOutputStream os = new ByteArrayOutputStream(24);
-        _ios = new MemoryCacheImageOutputStream(os);
-        _prefix = "fdkjglsdkfhierr.m b9b0970w34";
-        _ios.writeBytes(_prefix);
-        writeRecordData(_ios);
-        _ios.writeBytes("nq3tf9ß8nvnvpdi er 0 324p3f"); // as suffix
-        _reader = new BinaryFileReader(_ios);
-    }
-
-    public void testInit_SimpleConstructor() throws IOException, IllegalBinaryFormatException {
-        _ios.seek(_prefix.length());
-        final FilePointerRecord record = new FilePointerRecord(_reader, filePointerXML, filePointerDefinitionFile);
-
-        assertRecord(record);
-        assertEquals(_prefix.length(), record.getStartPos());
-        assertEquals(_prefix.length() + 360, _ios.getStreamPosition());
-    }
-
-    public void testInit() throws IOException, IllegalBinaryFormatException {
-        final FilePointerRecord record = new FilePointerRecord(_reader, filePointerXML, _prefix.length(), filePointerDefinitionFile);
-
-        assertRecord(record);
-        assertEquals(_prefix.length(), record.getStartPos());
-        assertEquals(_prefix.length() + 360, _ios.getStreamPosition());
-    }
-
-    public void testAssignMetadataTo() throws IOException, IllegalBinaryFormatException {
-        final FilePointerRecord record = new FilePointerRecord(_reader, filePointerXML, _prefix.length(), filePointerDefinitionFile);
-        final MetadataElement elem = new MetadataElement("elem");
-
-        record.assignMetadataTo(elem, "suffix");
-
-        assertEquals(0, elem.getNumAttributes());
-        assertEquals(1, elem.getNumElements());
-        final MetadataElement recordRoot = elem.getElement("FilePointerRecord suffix");
-        assertNotNull(recordRoot);
-        assertMetadata(recordRoot);
-        assertEquals(0, recordRoot.getNumElements());
-        assertEquals(17, recordRoot.getNumAttributes());
-    }
+    private ImageOutputStream _ios;
+    private String _prefix;
+    private BinaryFileReader _reader;
 
     public static void assertMetadata(final MetadataElement elem) {
         BaseRecordTest.assertMetadata(elem);
@@ -149,5 +110,51 @@ public class FilePointerRecordTest extends TestCase {
                 "                                                  " +
                 "                                                  " +
                 "                                                  "); // A208
+    }
+
+    @Before
+    public void setUp() throws Exception {
+        final ByteArrayOutputStream os = new ByteArrayOutputStream(24);
+        _ios = new MemoryCacheImageOutputStream(os);
+        _prefix = "fdkjglsdkfhierr.m b9b0970w34";
+        _ios.writeBytes(_prefix);
+        writeRecordData(_ios);
+        _ios.writeBytes("nq3tf9ß8nvnvpdi er 0 324p3f"); // as suffix
+        _reader = new BinaryFileReader(_ios);
+    }
+
+    @Test
+    public void testInit_SimpleConstructor() throws IOException, IllegalBinaryFormatException {
+        _ios.seek(_prefix.length());
+        final FilePointerRecord record = new FilePointerRecord(_reader, filePointerXML, filePointerDefinitionFile);
+
+        assertRecord(record);
+        assertEquals(_prefix.length(), record.getStartPos());
+        assertEquals(_prefix.length() + 360, _ios.getStreamPosition());
+    }
+
+    @Test
+    public void testInit() throws IOException {
+        final FilePointerRecord record = new FilePointerRecord(_reader, filePointerXML, _prefix.length(), filePointerDefinitionFile);
+
+        assertRecord(record);
+        assertEquals(_prefix.length(), record.getStartPos());
+        assertEquals(_prefix.length() + 360, _ios.getStreamPosition());
+    }
+
+    @Test
+    public void testAssignMetadataTo() throws IOException {
+        final FilePointerRecord record = new FilePointerRecord(_reader, filePointerXML, _prefix.length(), filePointerDefinitionFile);
+        final MetadataElement elem = new MetadataElement("elem");
+
+        record.assignMetadataTo(elem, "suffix");
+
+        assertEquals(0, elem.getNumAttributes());
+        assertEquals(1, elem.getNumElements());
+        final MetadataElement recordRoot = elem.getElement("FilePointerRecord suffix");
+        assertNotNull(recordRoot);
+        assertMetadata(recordRoot);
+        assertEquals(0, recordRoot.getNumElements());
+        assertEquals(17, recordRoot.getNumAttributes());
     }
 }

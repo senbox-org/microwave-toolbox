@@ -15,8 +15,6 @@
  */
 package eu.esa.sar.io.spacety;
 
-import eu.esa.sar.io.spacety.SpacetyProductReader;
-import eu.esa.sar.io.spacety.SpacetyProductReaderPlugIn;
 import eu.esa.sar.io.AbstractProductReaderPlugInTest;
 import org.esa.snap.core.dataio.ProductReader;
 import org.junit.Test;

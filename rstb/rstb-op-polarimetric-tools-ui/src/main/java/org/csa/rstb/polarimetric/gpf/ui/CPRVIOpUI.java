@@ -26,8 +26,8 @@ import java.util.Map;
 
 public class CPRVIOpUI extends BaseOperatorUI {
 
-    
-	private final JComboBox<String> windowSize =
+
+    private final JComboBox<String> windowSizeStr =
             new JComboBox(new String[]{"3", "5", "7", "9", "11", "13", "15", "17", "19"});
 
 
@@ -37,7 +37,7 @@ public class CPRVIOpUI extends BaseOperatorUI {
         initializeOperatorUI(operatorName, parameterMap);
         final JComponent panel = createPanel();
 
-        
+
         initParameters();
 
         return panel;
@@ -46,9 +46,9 @@ public class CPRVIOpUI extends BaseOperatorUI {
     @Override
     public void initParameters() {
 
-        windowSize.setSelectedItem(paramMap.get("windowSize"));
+        windowSizeStr.setSelectedItem(paramMap.get("windowSizeStr"));
         /* targetWindowSize.setSelectedItem(paramMap.get("targetWindowSizeStr")); */
-        
+
     }
 
     @Override
@@ -60,9 +60,9 @@ public class CPRVIOpUI extends BaseOperatorUI {
     @Override
     public void updateParameters() {
 
-        paramMap.put("windowSize", windowSize.getSelectedItem());
+        paramMap.put("windowSizeStr", windowSizeStr.getSelectedItem());
 /*         paramMap.put("targetWindowSizeStr", targetWindowSize.getSelectedItem()); */
-        
+
     }
 
     private JComponent createPanel() {
@@ -70,10 +70,10 @@ public class CPRVIOpUI extends BaseOperatorUI {
         final JPanel contentPane = new JPanel(new GridBagLayout());
         final GridBagConstraints gbc = DialogUtils.createGridBagConstraints();
 
-        DialogUtils.addComponent(contentPane, gbc, "windowSize", windowSize);
+        DialogUtils.addComponent(contentPane, gbc, "Window Size", windowSizeStr);
 
 
-        
+
 
         DialogUtils.fillPanel(contentPane, gbc);
 

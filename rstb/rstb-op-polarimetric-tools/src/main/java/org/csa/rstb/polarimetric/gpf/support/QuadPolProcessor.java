@@ -28,28 +28,28 @@ public interface QuadPolProcessor extends PolarimetricProcessor, MatrixMath {
 
             if (sourceProductType == PolBandUtils.MATRIX.FULL) {
 
-                if (bandName.contains("i_HH")) {
+                if (contains(bandName, "i_", "_HH")) {
                     sourceTiles[0] = op.getSourceTile(band, sourceRectangle);
                     dataBuffers[0] = sourceTiles[0].getDataBuffer();
-                } else if (bandName.contains("q_HH")) {
+                } else if (contains(bandName,"q_", "_HH")) {
                     sourceTiles[1] = op.getSourceTile(band, sourceRectangle);
                     dataBuffers[1] = sourceTiles[1].getDataBuffer();
-                } else if (bandName.contains("i_HV")) {
+                } else if (contains(bandName,"i_", "_HV")) {
                     sourceTiles[2] = op.getSourceTile(band, sourceRectangle);
                     dataBuffers[2] = sourceTiles[2].getDataBuffer();
-                } else if (bandName.contains("q_HV")) {
+                } else if (contains(bandName,"q_", "_HV")) {
                     sourceTiles[3] = op.getSourceTile(band, sourceRectangle);
                     dataBuffers[3] = sourceTiles[3].getDataBuffer();
-                } else if (bandName.contains("i_VH")) {
+                } else if (contains(bandName,"i_", "_VH")) {
                     sourceTiles[4] = op.getSourceTile(band, sourceRectangle);
                     dataBuffers[4] = sourceTiles[4].getDataBuffer();
-                } else if (bandName.contains("q_VH")) {
+                } else if (contains(bandName,"q_", "_VH")) {
                     sourceTiles[5] = op.getSourceTile(band, sourceRectangle);
                     dataBuffers[5] = sourceTiles[5].getDataBuffer();
-                } else if (bandName.contains("i_VV")) {
+                } else if (contains(bandName,"i_", "_VV")) {
                     sourceTiles[6] = op.getSourceTile(band, sourceRectangle);
                     dataBuffers[6] = sourceTiles[6].getDataBuffer();
-                } else if (bandName.contains("q_VV")) {
+                } else if (contains(bandName,"q_", "_VV")) {
                     sourceTiles[7] = op.getSourceTile(band, sourceRectangle);
                     dataBuffers[7] = sourceTiles[7].getDataBuffer();
                 }

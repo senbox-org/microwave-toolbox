@@ -56,7 +56,7 @@ public final class DerampDemodPhaseOp extends Operator {
     private Sentinel1Utils su = null;
     private Sentinel1Utils.SubSwathInfo[] subSwath = null;
 
-	private int subSwathIndex = 0;
+    private int subSwathIndex = 0;
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
 
@@ -144,15 +144,15 @@ public final class DerampDemodPhaseOp extends Operator {
             su.computeReferenceTime();
             subSwath = su.getSubSwath();
 
-			final String[] subSwathNames = su.getSubSwathNames();
-			if (subSwathNames.length != 1) {
+            final String[] subSwathNames = su.getSubSwathNames();
+            if (subSwathNames.length != 1) {
                 throw new OperatorException("Split product is expected.");
             }
 
-			subSwathIndex = 1; // subSwathIndex is always 1 because of split product
+            subSwathIndex = 1; // subSwathIndex is always 1 because of split product
 
             final String[] polarizations = su.getPolarizations();
-			if (polarizations.length != 1) {
+            if (polarizations.length != 1) {
                 throw new OperatorException("Split product with one polarization is expected.");
             }
 
@@ -226,8 +226,8 @@ public final class DerampDemodPhaseOp extends Operator {
                     continue;
                 }
 
-				final int ntx0 = tx0;
-				final int ntw = tw;
+                final int ntx0 = tx0;
+                final int ntw = tw;
                 final int nty0 = Math.max(ty0, firstLineIdx);
                 final int ntyMax = Math.min(tyMax, lastLineIdx + 1);
                 final int nth = ntyMax - nty0;

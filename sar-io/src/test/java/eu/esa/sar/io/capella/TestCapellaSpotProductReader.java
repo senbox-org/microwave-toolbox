@@ -15,11 +15,15 @@
  */
 package eu.esa.sar.io.capella;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.MetadataValidator;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
-import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -34,9 +38,9 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestCapellaSpotProductReader extends ReaderTest {
 
-    final static File inputSpotSLCMeta = new File(SARTests.inputPathProperty + "/SAR/Capella/Spot/SLC/CAPELLA_C02_SP_SLC_HH_20201209213329_20201209213332.json");
-    final static File inputSpotSLCTif = new File(SARTests.inputPathProperty + "/SAR/Capella/Spot/SLC/CAPELLA_C02_SP_SLC_HH_20201209213329_20201209213332.tif");
-    final static File inputSpotSLCFolder = new File(SARTests.inputPathProperty + "/SAR/Capella/Spot/SLC");
+    final static File inputSpotSLCMeta = new File(TestData.inputSAR + "Capella/Spot/SLC/CAPELLA_C02_SP_SLC_HH_20201209213329_20201209213332.json");
+    final static File inputSpotSLCTif = new File(TestData.inputSAR + "Capella/Spot/SLC/CAPELLA_C02_SP_SLC_HH_20201209213329_20201209213332.tif");
+    final static File inputSpotSLCFolder = new File(TestData.inputSAR + "Capella/Spot/SLC");
 
     final static MetadataValidator.Options options = new MetadataValidator.Options();
 
@@ -82,5 +86,23 @@ public class TestCapellaSpotProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+    }
+
+    @Test
+    @STTM("SNAP-4017")
+    public void testTimesInAbsMetadata() throws Exception {
+        Product prod = testReader((new File("src/test/resources/eu/esa/sar/io/capella/Capella_Spot_SLC_extended.json").toPath()));
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(prod);
+        final String firstLintTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time).toString();
+        final String lastLineTime = absRoot.getAttributeUTC(AbstractMetadata.last_line_time).toString();
+        final double lineTimeInterval = absRoot.getAttributeDouble(AbstractMetadata.line_time_interval);
+
+        final String expFirstLineTime = "09-DEC-2020 21:33:30.540582";
+        final String expLastLineTime = "09-DEC-2020 21:33:31.294998";
+        final double expLineTimeInterval = 6.225066666666666E-5;
+
+        Assert.assertEquals(expFirstLineTime, firstLintTime);
+        Assert.assertEquals(expLastLineTime, lastLineTime);
+        Assert.assertEquals(expLineTimeInterval, lineTimeInterval, 1e-4);
     }
 }

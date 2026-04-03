@@ -86,7 +86,7 @@ class RisatCeosProductDirectory extends CEOSProductDirectory {
                 // continue
             }
         }
-        imageFiles = imgArray.toArray(new RisatCeosImageFile[imgArray.size()]);
+        imageFiles = imgArray.toArray(new RisatCeosImageFile[0]);
 
         sceneWidth = imageFiles[0].getRasterWidth();
         sceneHeight = imageFiles[0].getRasterHeight();

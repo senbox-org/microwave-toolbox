@@ -151,79 +151,82 @@
     <folder name="Menu">
         <folder name="Radar">
             <attr name="position" intvalue="510"/>
-            <folder name="Soil Moisture">
-                <attr name="position" intvalue="950"/>
-                <folder name="Pre-Processing">
-                    <attr name="position" intvalue="100"/>
-                    <file name="org-csa-rstb-soilmoisture-gpf-MultiAnglePreProcessing-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiAnglePreProcessing-Action.instance"/>
+            <folder name="SAR Applications">
+                <attr name="position" intvalue="900"/>
+                <folder name="Soil Moisture">
+                    <attr name="position" intvalue="250"/>
+                    <folder name="Pre-Processing">
                         <attr name="position" intvalue="100"/>
-                    </file>
-                    <file name="org-csa-rstb-soilmoisture-gpf-MultiPolPreProcessing-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiPolPreProcessing-Action.instance"/>
+                        <file name="org-csa-rstb-soilmoisture-gpf-MultiAnglePreProcessing-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiAnglePreProcessing-Action.instance"/>
+                            <attr name="position" intvalue="100"/>
+                        </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-MultiPolPreProcessing-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiPolPreProcessing-Action.instance"/>
+                            <attr name="position" intvalue="200"/>
+                        </file>
+                    </folder>
+                    <folder name="Modeling Operators">
                         <attr name="position" intvalue="200"/>
-                    </file>
-                </folder>
-                <folder name="Modeling Operators">
-                    <attr name="position" intvalue="200"/>
-                    <file name="org-csa-rstb-soilmoisture-gpf-IEMMultiAngle-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-IEMMultiAngle-Action.instance"/>
-                        <attr name="position" intvalue="100"/>
-                    </file>
-                    <file name="org-csa-rstb-soilmoisture-gpf-IEMMultiPol-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-IEMMultiPol-Action.instance"/>
-                        <attr name="position" intvalue="200"/>
-                    </file>
-                    <file name="org-csa-rstb-soilmoisture-gpf-IEMHybrid-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-IEMHybrid-Action.instance"/>
+                        <file name="org-csa-rstb-soilmoisture-gpf-IEMMultiAngle-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-IEMMultiAngle-Action.instance"/>
+                            <attr name="position" intvalue="100"/>
+                        </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-IEMMultiPol-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-IEMMultiPol-Action.instance"/>
+                            <attr name="position" intvalue="200"/>
+                        </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-IEMHybrid-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-IEMHybrid-Action.instance"/>
+                            <attr name="position" intvalue="300"/>
+                        </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-SMDielectricModel-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-SMDielectricModel-Action.instance"/>
+                            <attr name="position" intvalue="400"/>
+                        </file>
+                    </folder>
+                    <folder name="Soil Moisture Retrieval">
                         <attr name="position" intvalue="300"/>
-                    </file>
-                    <file name="org-csa-rstb-soilmoisture-gpf-SMDielectricModel-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-SMDielectricModel-Action.instance"/>
+                        <file name="org-csa-rstb-soilmoisture-gpf-MultiAngleSoilMoisture-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiAngleSoilMoisture-Action.instance"/>
+                            <attr name="position" intvalue="100"/>
+                        </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-MultiPolSoilMoisture-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiPolSoilMoisture-Action.instance"/>
+                            <attr name="position" intvalue="200"/>
+                        </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-HybridSoilMoisture-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-HybridSoilMoisture-Action.instance"/>
+                            <attr name="position" intvalue="300"/>
+                        </file>
+                    </folder>
+                    <folder name="End-to-End Graphs">
                         <attr name="position" intvalue="400"/>
-                    </file>
-                </folder>
-                <folder name="Soil Moisture Retrieval">
-                    <attr name="position" intvalue="300"/>
-                    <file name="org-csa-rstb-soilmoisture-gpf-MultiAngleSoilMoisture-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiAngleSoilMoisture-Action.instance"/>
-                        <attr name="position" intvalue="100"/>
-                    </file>
-                    <file name="org-csa-rstb-soilmoisture-gpf-MultiPolSoilMoisture-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiPolSoilMoisture-Action.instance"/>
-                        <attr name="position" intvalue="200"/>
-                    </file>
-                    <file name="org-csa-rstb-soilmoisture-gpf-HybridSoilMoisture-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-HybridSoilMoisture-Action.instance"/>
-                        <attr name="position" intvalue="300"/>
-                    </file>
-                </folder>
-                <folder name="End-to-End Graphs">
-                    <attr name="position" intvalue="400"/>
-                    <file name="org-csa-rstb-soilmoisture-gpf-MultiAngleFull-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiAngleFull-Action.instance"/>
-                        <attr name="position" intvalue="100"/>
-                    </file>
-                    <file name="org-csa-rstb-soilmoisture-gpf-MultiPolFull-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiPolFull-Action.instance"/>
-                        <attr name="position" intvalue="200"/>
-                    </file>
-                    <file name="org-csa-rstb-soilmoisture-gpf-HybridFull-Action.shadow">
-                        <attr name="originalFile"
-                              stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-HybridFull-Action.instance"/>
-                        <attr name="position" intvalue="300"/>
-                    </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-MultiAngleFull-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiAngleFull-Action.instance"/>
+                            <attr name="position" intvalue="100"/>
+                        </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-MultiPolFull-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-MultiPolFull-Action.instance"/>
+                            <attr name="position" intvalue="200"/>
+                        </file>
+                        <file name="org-csa-rstb-soilmoisture-gpf-HybridFull-Action.shadow">
+                            <attr name="originalFile"
+                                  stringvalue="Actions/Operators/org-csa-rstb-soilmoisture-gpf-HybridFull-Action.instance"/>
+                            <attr name="position" intvalue="300"/>
+                        </file>
+                    </folder>
                 </folder>
             </folder>
         </folder>

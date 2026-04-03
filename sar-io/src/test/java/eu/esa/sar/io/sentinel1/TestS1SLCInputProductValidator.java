@@ -43,14 +43,15 @@ public class TestS1SLCInputProductValidator extends ReaderTest {
 
     @Test
     public void TestSentinel1SLCProduct() throws Exception {
-        final Product sourceProduct = ProductIO.readProduct(TestData.inputS1_SLC);
-        if(sourceProduct != null) {
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        try(final Product sourceProduct = ProductIO.readProduct(TestData.inputS1_SLC)) {
+            if (sourceProduct != null) {
+                final InputProductValidator validator = new InputProductValidator(sourceProduct);
 
-            validator.checkIfSentinel1Product();
-            validator.checkProductType(new String[]{"SLC"});
-            validator.checkIfTOPSARBurstProduct(true);
-            validator.checkAcquisitionMode(new String[]{"IW"});
+                validator.checkIfSentinel1Product();
+                validator.checkProductType(new String[]{"SLC"});
+                validator.checkIfTOPSARBurstProduct(true);
+                validator.checkAcquisitionMode(new String[]{"IW"});
+            }
         }
     }
 }

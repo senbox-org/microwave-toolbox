@@ -5,6 +5,7 @@ import org.esa.snap.core.util.SystemUtils;
 import org.jblas.ComplexDouble;
 import org.jblas.ComplexDoubleMatrix;
 import org.jblas.DoubleMatrix;
+import org.jblas.Solve;
 import org.jlinda.core.Window;
 
 import java.util.logging.Logger;
@@ -164,55 +165,6 @@ public class SarUtils {
         return phaseData;
     }
 
-    @Deprecated
-    public static DoubleMatrix coherence(final ComplexDoubleMatrix inputMatrix, final ComplexDoubleMatrix normsMatrix, final int winL, final int winP) {
-
-//        logger.info("coherence ver #2");
-//        if (!(winL >= winP)) {
-//            logger.warning("coherence: estimator window size L<P not very efficiently programmed.");
-//        }
-//
-//        if (inputMatrix.rows != normsMatrix.rows || inputMatrix.rows != inputMatrix.rows) {
-//            logger.severe("coherence: not same dimensions.");
-//            throw new IllegalArgumentException("coherence: not the same dimensions.");
-//        }
-
-        // allocate output :: account for window overlap
-        DoubleMatrix outputMatrix = new DoubleMatrix(inputMatrix.rows - winL + 1, inputMatrix.columns);
-
-        // temp variables
-        int i, j, k, l;
-        ComplexDouble sum;
-        ComplexDouble power;
-        int leadingZeros = (winP - 1) / 2;  // number of pixels=0 floor...
-        int trailingZeros = (winP) / 2;     // floor...
-
-        for (j = leadingZeros; j < outputMatrix.columns - trailingZeros; j++) {
-
-            sum = new ComplexDouble(0);
-            power = new ComplexDouble(0);
-
-            //// Compute sum over first data block ////
-            for (k = 0; k < winL; k++) {
-                for (l = j - leadingZeros; l < j - leadingZeros + winP; l++) {
-                    sum.addi(inputMatrix.get(k, l));
-                    power.addi(normsMatrix.get(k, l));
-                }
-            }
-            outputMatrix.put(0, j, coherenceProduct(sum, power));
-
-            //// Compute (relatively) sum over rest of data blocks ////
-            for (i = 0; i < outputMatrix.rows - 1; i++) {
-                for (l = j - leadingZeros; l < j - leadingZeros + winP; l++) {
-                    sum.addi(inputMatrix.get(i + winL, l).sub(inputMatrix.get(i, l)));
-                    power.addi(normsMatrix.get(i + winL, l).sub(normsMatrix.get(i, l)));
-                }
-                outputMatrix.put(i + 1, j, coherenceProduct(sum, power));
-            }
-        }
-        return outputMatrix;
-    }
-
     public static DoubleMatrix coherence2(final ComplexDoubleMatrix input, final ComplexDoubleMatrix norms, final int winL, final int winP) {
 
 //        logger.info("coherence ver #2");
@@ -275,72 +227,10 @@ public class SarUtils {
         return result;
     }
 
-    public static ComplexDoubleMatrix cplxCoherence(
-            final ComplexDoubleMatrix input, final ComplexDoubleMatrix norms, final int winL, final int winP) {
-
-//        logger.info("cplx coherence");
-//        if (!(winL >= winP)) {
-//            logger.warning("coherence: estimator window size L<P not very efficiently programmed.");
-//        }
-//
-//        if (input.rows != norms.rows) {
-//            logger.severe("coherence: not same dimensions.");
-//            throw new IllegalArgumentException("coherence: not the same dimensions.");
-//        }
-
-        final int extent_RG = input.columns;
-        final int extent_AZ = input.rows - winL + 1;
-        final ComplexDoubleMatrix result = new ComplexDoubleMatrix(input.rows - winL + 1, input.columns - winP + 1);
-
-        int i, j, k, l;
-        ComplexDouble sum;
-        ComplexDouble power;
-        final int leadingZeros = (winP - 1) / 2;
-        final int trailingZeros = (winP) / 2;
-
-        for (j = leadingZeros; j < extent_RG - trailingZeros; j++) {
-
-            sum = new ComplexDouble(0);
-            power = new ComplexDouble(0);
-
-            int minL = j - leadingZeros;
-            int maxL = minL + winP;
-            for (k = 0; k < winL; k++) {
-                for (l = minL; l < maxL; l++) {
-                    int inI = 2 * input.index(k, l);
-                    sum.set(sum.real() + input.data[inI], sum.imag() + input.data[inI+1]);
-                    power.set(power.real() + norms.data[inI], power.imag() + norms.data[inI+1]);
-                }
-            }
-            result.put(0, minL, cplxCoherenceProduct(sum, power));
-
-            final int maxI = extent_AZ - 1;
-            for (i = 0; i < maxI; i++) {
-                final int iwinL = i + winL;
-                for (l = minL; l < maxL; l++) {
-
-                    int inI = 2 * input.index(i, l);
-                    int inWinL = 2 * input.index(iwinL, l);
-                    sum.set(sum.real() + (input.data[inWinL] - input.data[inI]),
-                            sum.imag() + (input.data[inWinL+1] - input.data[inI+1]));
-                    power.set(power.real() + (norms.data[inWinL] - norms.data[inI]),
-                            power.imag() + (norms.data[inWinL+1] - norms.data[inI+1]));
-                }
-                result.put(i + 1, j - leadingZeros, cplxCoherenceProduct(sum, power));
-            }
-        }
-        return result;
-    }
-
     static double coherenceProduct(final ComplexDouble sum, final ComplexDouble power) {
         final double product = power.real() * power.imag();
 //        return (product > 0.0) ? Math.sqrt(Math.pow(sum.abs(),2) / product) : 0.0;
         return (product > 0.0) ? sum.abs() / Math.sqrt(product) : 0.0;
-    }
-
-    static ComplexDouble cplxCoherenceProduct(final ComplexDouble sum, final ComplexDouble power) {
-        final double product = power.real() * power.imag();
-        return (product > 0.0) ? sum.div(Math.sqrt(product)) : new ComplexDouble(0.0, 0.0);
     }
 
     public static ComplexDoubleMatrix multilook(final ComplexDoubleMatrix inputMatrix, final int factorRow, final int factorColumn) {
@@ -378,10 +268,6 @@ public class SarUtils {
         return LinearAlgebraUtils.dotmult(masterData, slaveData.conj());
     }
 
-    public static void computeIfg_inplace(final ComplexDoubleMatrix masterData, final ComplexDoubleMatrix slaveData) throws Exception {
-        LinearAlgebraUtils.dotmult_inplace(masterData, slaveData);
-    }
-
     public static ComplexDoubleMatrix computeIfg(final ComplexDoubleMatrix masterData, final ComplexDoubleMatrix slaveData,
                                                  final int ovsFactorAz, final int ovsFactorRg) throws Exception {
         if (ovsFactorAz == 1 && ovsFactorRg == 1) {
@@ -390,5 +276,182 @@ public class SarUtils {
             return computeIfg(oversample(masterData, ovsFactorAz, ovsFactorRg), oversample(slaveData, ovsFactorAz, ovsFactorRg));
         }
 
+    }
+
+    public static DoubleMatrix coherence3(final ComplexDoubleMatrix input, final ComplexDoubleMatrix norms, final int winL, final int winP) {
+        int rows = input.rows;
+        int cols = input.columns;
+
+        double[] satInputReal = new double[rows * cols];
+        double[] satInputImag = new double[rows * cols];
+        double[] satNormsReal = new double[rows * cols];
+        double[] satNormsImag = new double[rows * cols];
+
+        double[] inputData = input.data;
+        double[] normsData = norms.data;
+
+        for (int c = 0; c < cols; c++) {
+            for (int r = 0; r < rows; r++) {
+                int idx = c * rows + r;
+                int srcIdx = 2 * idx;
+
+                double ir = inputData[srcIdx];
+                double ii = inputData[srcIdx + 1];
+                double nr = normsData[srcIdx];
+                double ni = normsData[srcIdx + 1];
+
+                if (r > 0) {
+                    int upIdx = idx - 1;
+                    ir += satInputReal[upIdx];
+                    ii += satInputImag[upIdx];
+                    nr += satNormsReal[upIdx];
+                    ni += satNormsImag[upIdx];
+                }
+                if (c > 0) {
+                    int leftIdx = (c - 1) * rows + r;
+                    ir += satInputReal[leftIdx];
+                    ii += satInputImag[leftIdx];
+                    nr += satNormsReal[leftIdx];
+                    ni += satNormsImag[leftIdx];
+                }
+                if (r > 0 && c > 0) {
+                    int diagIdx = (c - 1) * rows + (r - 1);
+                    ir -= satInputReal[diagIdx];
+                    ii -= satInputImag[diagIdx];
+                    nr -= satNormsReal[diagIdx];
+                    ni -= satNormsImag[diagIdx];
+                }
+
+                satInputReal[idx] = ir;
+                satInputImag[idx] = ii;
+                satNormsReal[idx] = nr;
+                satNormsImag[idx] = ni;
+            }
+        }
+
+        int resRows = rows - winL + 1;
+        int resCols = cols - winP + 1;
+        DoubleMatrix result = new DoubleMatrix(resRows, resCols);
+        double[] resData = result.data;
+
+        for (int c = 0; c < resCols; c++) {
+            for (int r = 0; r < resRows; r++) {
+                int r1 = r;
+                int c1 = c;
+                int r2 = r + winL - 1;
+                int c2 = c + winP - 1;
+
+                int A = c2 * rows + r2;
+                int B = c2 * rows + (r1 - 1);
+                int C = (c1 - 1) * rows + r2;
+                int D = (c1 - 1) * rows + (r1 - 1);
+
+                double sumIr = satInputReal[A];
+                double sumIi = satInputImag[A];
+                double sumNr = satNormsReal[A];
+                double sumNi = satNormsImag[A];
+
+                if (r1 > 0) {
+                    sumIr -= satInputReal[B];
+                    sumIi -= satInputImag[B];
+                    sumNr -= satNormsReal[B];
+                    sumNi -= satNormsImag[B];
+                }
+                if (c1 > 0) {
+                    sumIr -= satInputReal[C];
+                    sumIi -= satInputImag[C];
+                    sumNr -= satNormsReal[C];
+                    sumNi -= satNormsImag[C];
+                }
+                if (r1 > 0 && c1 > 0) {
+                    sumIr += satInputReal[D];
+                    sumIi += satInputImag[D];
+                    sumNr += satNormsReal[D];
+                    sumNi += satNormsImag[D];
+                }
+
+                double product = sumNr * sumNi;
+                double val = 0.0;
+                if (product > 0.0) {
+                    double sumAbs = Math.sqrt(sumIr * sumIr + sumIi * sumIi);
+                    val = sumAbs / Math.sqrt(product);
+                }
+
+                resData[c * resRows + r] = val;
+            }
+        }
+
+        return result;
+    }
+
+    public static DoubleMatrix coherence_LPR(final ComplexDoubleMatrix input, final ComplexDoubleMatrix norms, final int winL, final int winP) {
+        final int rows = input.rows;
+        final int cols = input.columns;
+        final int resRows = rows - winL + 1;
+        final int resCols = cols - winP + 1;
+        final DoubleMatrix result = new DoubleMatrix(resRows, resCols);
+
+        for (int r = 0; r < resRows; r++) {
+            for (int c = 0; c < resCols; c++) {
+                final int r0 = r + (winL - 1) / 2;
+                final int c0 = c + (winP - 1) / 2;
+
+                final ComplexDoubleMatrix ifgWin = new ComplexDoubleMatrix(winL, winP);
+                final ComplexDoubleMatrix normsWin = new ComplexDoubleMatrix(winL, winP);
+
+                for (int i = 0; i < winL; i++) {
+                    for (int j = 0; j < winP; j++) {
+                        ifgWin.put(i, j, input.get(r + i, c + j));
+                        normsWin.put(i, j, norms.get(r + i, c + j));
+                    }
+                }
+
+                final DoubleMatrix phase = angle(ifgWin);
+                final int nPoints = (winL - 1) * winP + winL * (winP - 1);
+                final DoubleMatrix A = new DoubleMatrix(nPoints, 2);
+                final DoubleMatrix b = new DoubleMatrix(nPoints, 1);
+                int k = 0;
+
+                for (int i = 0; i < winL; i++) {
+                    for (int j = 0; j < winP; j++) {
+                        if (i < winL - 1) {
+                            A.put(k, 0, 1);
+                            A.put(k, 1, 0);
+                            double phaseDiff = phase.get(i + 1, j) - phase.get(i, j);
+                            b.put(k, Math.atan2(Math.sin(phaseDiff), Math.cos(phaseDiff)));
+                            k++;
+                        }
+                        if (j < winP - 1) {
+                            A.put(k, 0, 0);
+                            A.put(k, 1, 1);
+                            double phaseDiff = phase.get(i, j + 1) - phase.get(i, j);
+                            b.put(k, Math.atan2(Math.sin(phaseDiff), Math.cos(phaseDiff)));
+                            k++;
+                        }
+                    }
+                }
+
+                final DoubleMatrix At = A.transpose();
+                final DoubleMatrix AtA = At.mmul(A);
+                final DoubleMatrix Atb = At.mmul(b);
+                final DoubleMatrix x = Solve.solve(AtA, Atb);
+                final double rampAz = x.get(0);
+                final double rampRg = x.get(1);
+
+                ComplexDouble sumIfg = new ComplexDouble(0.0);
+                ComplexDouble sumNorms = new ComplexDouble(0.0);
+
+                for (int i = 0; i < winL; i++) {
+                    for (int j = 0; j < winP; j++) {
+                        final double ramp = rampAz * (i - winL / 2.0) + rampRg * (j - winP / 2.0);
+                        final ComplexDouble rampC = new ComplexDouble(Math.cos(ramp), -Math.sin(ramp));
+                        sumIfg.addi(ifgWin.get(i, j).mul(rampC));
+                        sumNorms.addi(normsWin.get(i, j));
+                    }
+                }
+                result.put(r, c, coherenceProduct(sumIfg, sumNorms));
+            }
+        }
+        return result;
     }
 }

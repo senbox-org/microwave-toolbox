@@ -213,7 +213,7 @@ public class Kompsat5Calibrator extends BaseCalibrator implements Calibrator {
                 if ((!(band instanceof VirtualBand) || includeVirtualBands) && !band.getName().equals(GIM_BAND_NAME))
                     bandNameList.add(band.getName());
             }
-            sourceBandNames = bandNameList.toArray(new String[bandNameList.size()]);
+            sourceBandNames = bandNameList.toArray(new String[0]);
         }
 
         final List<Band> sourceBandList = new ArrayList<>(sourceBandNames.length);
@@ -223,7 +223,7 @@ public class Kompsat5Calibrator extends BaseCalibrator implements Calibrator {
                 sourceBandList.add(sourceBand);
             }
         }
-        return sourceBandList.toArray(new Band[sourceBandList.size()]);
+        return sourceBandList.toArray(new Band[0]);
     }
 
     // get parameters from aux due to use both hdf & geotiff

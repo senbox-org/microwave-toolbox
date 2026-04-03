@@ -250,9 +250,6 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
                     final Tile[] sourceTiles = new Tile[srcBandList.srcBands.length];
                     final ProductData[] dataBuffers = new ProductData[srcBandList.srcBands.length];
 
-                    final double[][] Cr = new double[3][3];
-                    final double[][] Ci = new double[3][3];
-
                     @Override
                     public void process() {
                         final int x0 = rectangle.x;
@@ -268,6 +265,9 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
                             sourceTiles[i] = op.getSourceTile(srcBandList.srcBands[i], sourceRectangle);
                             dataBuffers[i] = sourceTiles[i].getDataBuffer();
                         }
+
+                        final double[][] Cr = new double[3][3];
+                        final double[][] Ci = new double[3][3];
 
                         for (int y = y0; y < yMax; ++y) {
                             for (int x = x0; x < xMax; ++x) {
@@ -371,8 +371,6 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
         final StatusProgressMonitor status = new StatusProgressMonitor(StatusProgressMonitor.TYPE.SUBTASK);
         status.beginTask("Computing Initial Cluster Centres... ", tileRectangles.length);
 
-        final ThreadExecutor executor = new ThreadExecutor();
-
         final double[][][] pvSumRe = new double[numInitialClusters][3][3];
         final double[][][] pvSumIm = new double[numInitialClusters][3][3];
         final double[][][] pdSumRe = new double[numInitialClusters][3][3];
@@ -383,6 +381,8 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
         // counter for the number of pixels in each cluster in the 3 categories: vol, dbl, suf
         final int[][] clusterCounter = new int[3][numInitialClusters];
 
+        final ThreadExecutor executor = new ThreadExecutor();
+
         try {
             for (final Rectangle rectangle : tileRectangles) {
                 op.checkIfCancelled();
@@ -391,9 +391,6 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
 
                     final Tile[] sourceTiles = new Tile[srcBandList.srcBands.length];
                     final ProductData[] dataBuffers = new ProductData[srcBandList.srcBands.length];
-
-                    final double[][] Tr = new double[3][3];
-                    final double[][] Ti = new double[3][3];
 
                     @Override
                     public void process() {
@@ -409,6 +406,9 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
                             sourceTiles[i] = op.getSourceTile(srcBandList.srcBands[i], rectangle);
                             dataBuffers[i] = sourceTiles[i].getDataBuffer();
                         }
+
+                        final double[][] Tr = new double[3][3];
+                        final double[][] Ti = new double[3][3];
 
                         final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
                         for (int y = y0; y < yMax; ++y) {
@@ -754,8 +754,6 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
         final int maxNumClusters = Math.max(pvNumClusters, Math.max(pdNumClusters, psNumClusters));
         final int[][] clusterCounter = new int[3][maxNumClusters];
 
-        final ThreadExecutor executor = new ThreadExecutor();
-
         try {
             for (int it = 0; (it < maxIterations && !endIteration); ++it) {
                 //System.out.println("Iteration: " + it);
@@ -773,15 +771,14 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
                 java.util.Arrays.fill(clusterCounter[1], 0);
                 java.util.Arrays.fill(clusterCounter[2], 0);
 
+                final ThreadExecutor executor = new ThreadExecutor();
+
                 for (final Rectangle rectangle : tileRectangles) {
 
                     final ThreadRunnable worker = new ThreadRunnable() {
 
                         final Tile[] sourceTiles = new Tile[srcBandList.srcBands.length];
                         final ProductData[] dataBuffers = new ProductData[srcBandList.srcBands.length];
-
-                        final double[][] Tr = new double[3][3];
-                        final double[][] Ti = new double[3][3];
 
                         @Override
                         public void process() {
@@ -800,6 +797,9 @@ public class FreemanDurdenWishart extends PolClassifierBase implements PolClassi
                                 dataBuffers[i] = sourceTiles[i].getDataBuffer();
                             }
                             final TileIndex srcIndex = new TileIndex(sourceTiles[0]);
+
+                            final double[][] Tr = new double[3][3];
+                            final double[][] Ti = new double[3][3];
 
                             for (int y = y0; y < yMax; ++y) {
                                 for (int x = x0; x < xMax; ++x) {

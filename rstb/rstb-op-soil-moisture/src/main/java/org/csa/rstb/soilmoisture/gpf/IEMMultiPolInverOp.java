@@ -50,7 +50,7 @@ import java.util.Map;
  */
 
 @OperatorMetadata(alias = "IEM-Multi-Pol-Inversion",
-        category = "Radar/Soil Moisture",
+        category = "Radar/SAR Applications/Soil Moisture",
         description = "Performs IEM inversion using Multi-polarization approach")
 public class IEMMultiPolInverOp extends IEMInverBase {
 
@@ -63,18 +63,21 @@ public class IEMMultiPolInverOp extends IEMInverBase {
     // pol[0], pol[1] are the polarizations of the sigmas (both from one image, either AM or PM).
     // 0 means HH, 1 means VV
     private final int[] pol = new int[]{0, 1};    // HH VV
+
     // There must be exactly one image: an AM image or a PM image.
     // The bands that are applicable are: sigmaHH, sigmaVV, theta. sigma is the backscatter (in dB). theta is
     // Local Incidence Angle (LIA) (in degrees).
     // Some bands in a source product may not be used.
-    @SourceProduct
+    @SourceProduct(alias = "source")
     Product sourceProduct;
+
     // There is just one target product containing multiple bands one of which is the Real Dielectric Constant (RDC)
     // (unit for dielectric constant is Farad/m).
     // Other band is rms.
     // rms is RMS roughness height (in cm).
     @TargetProduct
     Product targetProduct;
+
     // The LUT has 4 columns: rms, RDC, sigmaHH, sigmaVV.
     @Parameter
     private File lutFile;

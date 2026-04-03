@@ -17,7 +17,6 @@ package eu.esa.sar.calibration.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.calibration.gpf.calibrators.Sentinel1Calibrator;
-import eu.esa.sar.calibration.gpf.calibrators.SpacetyCalibrator;
 import eu.esa.sar.calibration.gpf.support.CalibrationFactory;
 import eu.esa.sar.calibration.gpf.support.Calibrator;
 import org.esa.snap.core.datamodel.*;
@@ -77,7 +76,6 @@ public class CalibrationOp extends Operator {
     @Parameter(description = "Create beta0 virtual band", defaultValue = "false", label = "Create beta0 virtual band")
     private Boolean createBetaBand = false;
 
-    // for Sentinel-1 mission only
     @Parameter(description = "The list of polarisations", label = "Polarisations")
     private String[] selectedPolarisations;
 
@@ -138,15 +136,9 @@ public class CalibrationOp extends Operator {
             calibrator.setOutputImageInComplex(outputImageInComplex);
             calibrator.setOutputImageIndB(outputImageScaleInDb);
 
-            if (calibrator instanceof Sentinel1Calibrator) {
-                Sentinel1Calibrator cal = (Sentinel1Calibrator) calibrator;
-                cal.setUserSelections(sourceProduct,
+            calibrator.setUserSelections(sourceProduct,
                         selectedPolarisations, outputSigmaBand, outputGammaBand, outputBetaBand, outputDNBand);
-            } else if (calibrator instanceof SpacetyCalibrator) {
-                SpacetyCalibrator cal = (SpacetyCalibrator) calibrator;
-                cal.setUserSelections(sourceProduct,
-                        selectedPolarisations, outputSigmaBand, outputGammaBand, outputBetaBand, outputDNBand);
-            }
+
             targetProduct = calibrator.createTargetProduct(sourceProduct, sourceBandNames);
             calibrator.initialize(this, sourceProduct, targetProduct, false, true);
 
@@ -206,7 +198,6 @@ public class CalibrationOp extends Operator {
      */
     public static void createGammaVirtualBand(final Product trgProduct, final boolean outputImageScaleInDb) {
 
-        int count = 1;
         final Band[] bands = trgProduct.getBands();
         for (Band trgBand : bands) {
 
@@ -240,8 +231,8 @@ public class CalibrationOp extends Operator {
                 gammeBandName += "_dB";
             }
 
-            while (trgProduct.getBand(gammeBandName) != null) {
-                gammeBandName += "_" + ++count;
+            if (trgProduct.getBand(gammeBandName) != null) {
+                continue;
             }
 
             final VirtualBand band = new VirtualBand(gammeBandName,
@@ -263,7 +254,6 @@ public class CalibrationOp extends Operator {
      */
     public static void createBetaVirtualBand(final Product trgProduct, final boolean outputImageScaleInDb) {
 
-        int count = 1;
         final Band[] bands = trgProduct.getBands();
         for (Band trgBand : bands) {
 
@@ -297,8 +287,8 @@ public class CalibrationOp extends Operator {
                 betaBandName += "_dB";
             }
 
-            while (trgProduct.getBand(betaBandName) != null) {
-                betaBandName += "_" + ++count;
+            if (trgProduct.getBand(betaBandName) != null) {
+                continue;
             }
 
             final VirtualBand band = new VirtualBand(betaBandName,

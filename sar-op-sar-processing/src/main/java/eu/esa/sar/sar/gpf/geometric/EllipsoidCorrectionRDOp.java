@@ -38,6 +38,8 @@ public final class EllipsoidCorrectionRDOp extends RangeDopplerGeocodingOp {
     public void initialize() throws OperatorException {
         useAvgSceneHeight = true;
         super.initialize();
+
+        nodataValueAtSea = false;
     }
 
     @Override

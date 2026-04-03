@@ -293,5 +293,8 @@ public class SARSimulationOpUI extends BaseOperatorUI {
         DialogUtils.enableComponents(externalDEMNoDataValueLabel, externalDEMNoDataValue, flag);
         externalDEMBrowseButton.setVisible(flag);
         externalDEMApplyEGMCheckBox.setVisible(flag);
+        if (flag) {
+            externalDEMApplyEGMCheckBox.setSelected(externalDEMApplyEGM);
+        }
     }
 }

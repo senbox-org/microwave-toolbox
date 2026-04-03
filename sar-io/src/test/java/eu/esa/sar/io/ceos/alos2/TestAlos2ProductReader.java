@@ -17,6 +17,7 @@ package eu.esa.sar.io.ceos.alos2;
 
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,7 +35,7 @@ public class TestAlos2ProductReader extends ReaderTest {
 
     private String[] exceptionExemptions = {"geocoding is null", "not supported"};
 
-    private final static String inputALOS2 = SARTests.inputPathProperty + SARTests.sep + "SAR" + SARTests.sep  + "ALOS2" + SARTests.sep ;
+    private final static String inputALOS2 = TestData.inputSAR + "ALOS2/";
     private final static File[] rootPathsALOS2 = SARTests.loadFilePath(inputALOS2);
 
     @Before

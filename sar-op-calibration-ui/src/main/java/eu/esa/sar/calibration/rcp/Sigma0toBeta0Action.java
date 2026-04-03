@@ -16,7 +16,6 @@
 package eu.esa.sar.calibration.rcp;
 
 import eu.esa.sar.calibration.gpf.CalibrationOp;
-import eu.esa.sar.calibration.rcp.Bundle;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.ProductNode;
 import org.esa.snap.engine_utilities.datamodel.Unit;

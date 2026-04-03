@@ -23,7 +23,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>10.0.0-SNAPSHOT</version>
+        <version>14.0.0-SNAPSHOT</version>
     </parent>
 
     <name>Microwave Toolbox Benchmark Tests</name>
@@ -61,6 +61,17 @@
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io-gdal</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io-ephemeris</artifactId>
+            <version>${microwavetbx.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-calibration</artifactId>
             <scope>test</scope>
         </dependency>
@@ -79,12 +90,6 @@
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-sentinel1</artifactId>
-            <version>${microwavetbx.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.iceye.esa.snap</groupId>
-            <artifactId>sar-io-iceye-reader</artifactId>
             <version>${microwavetbx.version}</version>
             <scope>test</scope>
         </dependency>

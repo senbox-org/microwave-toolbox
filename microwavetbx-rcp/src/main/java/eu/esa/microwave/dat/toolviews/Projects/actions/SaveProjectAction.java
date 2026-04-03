@@ -33,8 +33,8 @@ import java.awt.event.ActionEvent;
 
 @ActionID(category = "Projects", id = "SaveProjectAction")
 @ActionRegistration(
-        displayName = "#CTL_SaveProjectAction_MenuText",
-        popupText = "#CTL_SaveProjectAction_MenuText"
+        displayName = "Save Project",
+        lazy = false
 )
 @ActionReference(path = "Menu/File/Projects", position = 40)
 @NbBundle.Messages({
@@ -44,6 +44,8 @@ import java.awt.event.ActionEvent;
 public class SaveProjectAction extends AbstractSnapAction implements Project.Listener {
 
     public SaveProjectAction() {
+        putValue(NAME, Bundle.CTL_SaveProjectAction_MenuText());
+        putValue(SHORT_DESCRIPTION, Bundle.CTL_SaveProjectAction_ShortDescription());
         Project.instance().addListener(this);
         setEnableState();
     }

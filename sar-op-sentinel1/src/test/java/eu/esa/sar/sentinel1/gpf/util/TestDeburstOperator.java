@@ -15,31 +15,34 @@
  */
 package eu.esa.sar.sentinel1.gpf.util;
 
+import com.bc.ceres.annotation.STTM;
+import com.bc.ceres.test.LongTestRunner;
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.ProductValidator;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.sentinel1.gpf.TOPSARDeburstOp;
-import eu.esa.sar.commons.test.SARTests;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
  * Unit test for TOPSARDeburst Operator.
  */
-public class TestDeburstOperator {
+@RunWith(LongTestRunner.class)
+public class TestDeburstOperator extends ProcessorTest {
 
-    private final File inputFile = new File(SARTests.inputSAR, "S1/SLC/Etna-DLR/S1A_IW_SLC__1SDV_20140809T165546_20140809T165613_001866_001C20_088B.zip");
-
-    @Before
-    public void setUp() {
-        TestUtils.initTestEnvironment();
-    }
+    private final File inputFile = new File(TestData.inputSAR, "S1/SLC/Etna-DLR/S1A_IW_SLC__1SDV_20140809T165546_20140809T165613_001866_001C20_088B.zip");
 
     /**
      * Processes a product and compares it to processed product known to be correct
@@ -49,25 +52,64 @@ public class TestDeburstOperator {
     @Test
     public void testProcessing() throws Exception {
         Assume.assumeTrue("Input file does not exist - Skipping test", inputFile.exists());
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
-        final TOPSARDeburstOp op = new TOPSARDeburstOp();
-        assertNotNull(op);
-        op.setSourceProduct(sourceProduct);
+            final TOPSARDeburstOp op = new TOPSARDeburstOp();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, false, false);
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false);
 
-        final Band targetBand = targetProduct.getBandAt(0);
-        assertNotNull(targetBand);
+            final Band targetBand = targetProduct.getBandAt(0);
+            assertNotNull(targetBand);
 
-        final int bandWidth = 5000;//targetBand.getRasterWidth();
-        final int bandHeight = 5000;//targetBand.getRasterHeight();
+            final int bandWidth = 5000;//targetBand.getRasterWidth();
+            final int bandHeight = 5000;//targetBand.getRasterHeight();
 
-        // readPixels: execute computeTiles()
-        final float[] floatValues = new float[bandWidth*bandHeight];
-        targetBand.readPixels(0, 0,  bandWidth, bandHeight, floatValues, ProgressMonitor.NULL);
+            // readPixels: execute computeTiles()
+            final float[] floatValues = new float[bandWidth * bandHeight];
+            targetBand.readPixels(0, 0, bandWidth, bandHeight, floatValues, ProgressMonitor.NULL);
+        }
     }
 
+    @Test
+    @STTM("SNAP-3876")
+    public void testProcessing2() throws Exception {
+        Assume.assumeTrue("Input file does not exist - Skipping test", inputFile.exists());
+        final String exemption = "The selected source bands do not match the source bands in the metadata.";
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
+            sourceProduct.removeBand(sourceProduct.getBand("Intensity_IW1_VV"));
+
+            final InputProductValidator validator = new InputProductValidator(sourceProduct);
+            validator.checkIfSourceBandsMatch();
+        } catch (Exception e) {
+            if (e.getMessage() != null) {
+                assertEquals(exemption, e.getMessage());
+            }
+        }
+    }
+
+    @Test
+    @STTM("SNAP-4029")
+    public void testTargetProductDim() throws Exception {
+        Assume.assumeTrue("Input file does not exist - Skipping test", inputFile.exists());
+        try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
+
+            final TOPSARDeburstOp op = new TOPSARDeburstOp();
+            assertNotNull(op);
+            op.setSourceProduct(sourceProduct);
+
+            // get targetProduct: execute initialize()
+            final Product targetProduct = op.getTargetProduct();
+            TestUtils.verifyProduct(targetProduct, false, false);
+
+            final int expWidth = 68069; // expected target product width
+            final int expHeight = 13332; // expected target product height
+
+            assertEquals(expWidth, targetProduct.getSceneRasterWidth());
+            assertEquals(expHeight, targetProduct.getSceneRasterHeight());
+        }
+    }
 }

@@ -17,3 +17,4 @@ eu.esa.sar.insar.gpf.StampsExportOp$Spi
 eu.esa.sar.insar.gpf.MultiMasterInSAROp$Spi
 eu.esa.sar.insar.gpf.HorizontalVerticalMotionOp$Spi
 eu.esa.sar.insar.gpf.IonosphericCorrectionOp$Spi
+eu.esa.sar.insar.gpf.InSAROverviewOp$Spi

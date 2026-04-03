@@ -15,6 +15,8 @@
  */
 package eu.esa.sar.commons.test;
 
+import org.esa.snap.engine_utilities.util.TestUtils;
+
 import java.io.File;
 
 /**
@@ -22,44 +24,49 @@ import java.io.File;
  */
 public class TestData {
 
-    public static final String PROPERTY_NAME_S1_DATA_DIR = "s1tbx.tests.data.dir";
-
-    public final static String sep = File.separator;
-
-    public final static String input = System.getProperty(PROPERTY_NAME_S1_DATA_DIR,"/data/ssd/testData/s1tbx/");
-    public final static String inputSAR = input + sep + "SAR" + sep;
+    public static String inputSAR = TestUtils.TESTDATA_ROOT;
+    static {
+        if(!inputSAR.endsWith("SAR/")) {
+            inputSAR += "/SAR/";
+        }
+    }
 
     //ASAR
-    public final static File inputASAR_IMM = new File(inputSAR + "ASAR" + sep + "ASA_IMM.zip");
-    public final static File inputASAR_APM = new File(inputSAR + "ASAR" + sep + "ASA_APM.zip");
-    public final static File inputASAR_WSM = new File(inputSAR + "ASAR" + sep + "subset_1_of_ENVISAT-ASA_WSM_1PNPDE20080119_093446_000000852065_00165_30780_2977.dim");
-    public final static File inputASAR_IMS = new File(inputSAR + "ASAR" + sep + "subset_3_ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099.dim");
-    public final static File inputASAR_IMMSub = new File(inputSAR + "ASAR" + sep + "subset_0_of_ENVISAT-ASA_IMM_1P_0739.dim");
+    public final static File inputASAR_IMM = new File(inputSAR + "ASAR/ASA_IMM.zip");
+    public final static File inputASAR_APM = new File(inputSAR + "ASAR/ASA_APM.zip");
+    public final static File inputASAR_WSM = new File(inputSAR + "ASAR/subset_1_of_ENVISAT-ASA_WSM_1PNPDE20080119_093446_000000852065_00165_30780_2977.dim");
+    public final static File inputASAR_IMS = new File(inputSAR + "ASAR/subset_3_ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099.dim");
+    public final static File inputASAR_IMMSub = new File(inputSAR + "ASAR/subset_0_of_ENVISAT-ASA_IMM_1P_0739.dim");
 
-    public final static File inputStackIMS = new File(inputSAR + "Stack" + sep + "coregistered_stack.dim");
+    public final static File inputStackIMS = new File(inputSAR + "Stack/coregistered_stack.dim");
 
     //ERS
-    public final static File inputERS_IMP = new File(inputSAR + "ERS" + sep + "subset_0_of_ERS-1_SAR_PRI-ORBIT_32506_DATE__02-OCT-1997_14_53_43.dim");
-    public final static File inputERS_IMS = new File(inputSAR + "ERS" + sep + "subset_0_of_ERS-2_SAR_SLC-ORBIT_10249_DATE__06-APR-1997_03_09_34.dim");
+    public final static File inputERS_IMP = new File(inputSAR + "ERS/subset_0_of_ERS-1_SAR_PRI-ORBIT_32506_DATE__02-OCT-1997_14_53_43.dim");
+    public final static File inputERS_IMS = new File(inputSAR + "ERS/subset_0_of_ERS-2_SAR_SLC-ORBIT_10249_DATE__06-APR-1997_03_09_34.dim");
 
     //RS2
-    public final static File inputRS2_SQuad = new File(inputSAR + "RS2" + sep + "RS2-standard-quad.zip");
+    public final static File inputRS2_SQuad = new File(inputSAR + "RS2/RS2-standard-quad.zip");
 
     //RCM
 
     //QuadPol
-    public final static File inputQuad = new File(inputSAR + "QuadPol" + sep + "QuadPol_subset_0_of_RS2-SLC-PDS_00058900.dim");
-    public final static File inputQuadFullStack = new File(inputSAR + "QuadPolStack" + sep + "RS2-Quad_Pol_Stack.dim");
-    public final static File inputC3Stack = new File(inputSAR + "QuadPolStack" + sep + "RS2-C3-Stack.dim");
-    public final static File inputT3Stack = new File(inputSAR + "QuadPolStack" + sep + "RS2-T3-Stack.dim");
+    public final static File inputQuad = new File(inputSAR + "QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900.dim");
+    public final static File inputQuadFullStack = new File(inputSAR + "QuadPolStack/RS2-Quad_Pol_Stack.dim");
+    public final static File inputC3Stack = new File(inputSAR + "QuadPolStack/RS2-C3-Stack.dim");
+    public final static File inputT3Stack = new File(inputSAR + "QuadPolStack/RS2-T3-Stack.dim");
 
     //ALOS
-    public final static File inputALOS1_1 = new File(inputSAR + "ALOS"+sep+"subset_0_of_ALOS-H1_1__A-ORBIT__ALPSRP076360690.dim");
-    public final static File inputALOS_Zip = new File(inputSAR + "ALOS" +sep + "ALPSRS267172700-L1.5.zip");
+    public final static File inputALOS1_1 = new File(inputSAR + "ALOS/subset_0_of_ALOS-H1_1__A-ORBIT__ALPSRP076360690.dim");
+    public final static File inputALOS_Zip = new File(inputSAR + "ALOS/ALPSRS267172700-L1.5.zip");
 
     //S1
     public final static File inputS1_GRD = new File(inputSAR + "S1/S1A_S1_GRDM_1SDV_20140607T172812_20140607T172836_000947_000EBD_7543.zip");
+    public final static File inputS1C_GRD = new File(inputSAR + "S1/GRD/S1C_IW_GRDH_1SDV_20250117T181329_20250117T181357_000624_000495_FC84.SAFE.zip");
     public final static File inputS1_GRDSubset = new File(inputSAR + "S1/subset_0_of_subset_1_of_S1A_S1_GRDH_1SDH_20150828T165902_20150828T165921_007466_00A4B2_84A5.dim");
     public final static File inputS1_SLC = new File(inputSAR + "S1/S1A_IW_SLC__1SDV_20180620T222319_20180620T222347_022446_026E52_B227.zip");
     public final static File inputS1_StripmapSLC = new File(inputSAR + "S1/subset_2_S1A_S1_SLC__1SSV_20140807T142342_20140807T142411_001835_001BC1_05AA.dim");
+    public final static File inputStackS1 = new File(inputSAR + "S1/subset_0_of_S1A_IW_SLC__1SDV_20180225T055001_20180225T055028_020759_02393B_4117_IW1_Cal_Stack.dim");
+
+    //Capella
+    public final static File inputCapella_StripmapSLC = new File(inputSAR + "Capella/test/subset_0_of_CAPELLA_C02_SM_SLC_HH_20201118185123_20201118185127.dim");
 }

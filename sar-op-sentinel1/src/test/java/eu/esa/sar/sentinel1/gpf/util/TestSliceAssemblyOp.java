@@ -15,8 +15,8 @@
  */
 package eu.esa.sar.sentinel1.gpf.util;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.sentinel1.gpf.SliceAssemblyOp;
-import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -33,17 +33,12 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Unit test for MultilookOperator.
  */
-public class TestSliceAssemblyOp {
+public class TestSliceAssemblyOp extends ProcessorTest {
 
-    private final static String sep = SARTests.sep;
-
-    static {
-        TestUtils.initTestEnvironment();
-    }
     private final static OperatorSpi spi = new SliceAssemblyOp.Spi();
 
-    private final File slice1File = new File(SARTests.inputSAR + sep + "S1" + sep + "GRD" + sep + "Hawaii_slices" + sep + "S1A_IW_GRDH_1SDV_20180514T043029_20180514T043054_021896_025D31_BBDA.zip");
-    private final File slice2File = new File(SARTests.inputSAR + sep + "S1" + sep + "GRD" + sep + "Hawaii_slices" + sep + "S1A_IW_GRDH_1SDV_20180514T043054_20180514T043119_021896_025D31_27FE.zip");
+    private final File slice1File = new File(TestData.inputSAR + "S1/GRD/Hawaii_slices/S1A_IW_GRDH_1SDV_20180514T043029_20180514T043054_021896_025D31_BBDA.zip");
+    private final File slice2File = new File(TestData.inputSAR + "S1/GRD/Hawaii_slices/S1A_IW_GRDH_1SDV_20180514T043054_20180514T043119_021896_025D31_27FE.zip");
 
     private final File nonSliceFile = TestData.inputS1_GRD;
 
@@ -58,70 +53,77 @@ public class TestSliceAssemblyOp {
     @Test
     public void testSingleProduct() throws Exception {
 
-        final Product slice1Product = TestUtils.readSourceProduct(slice1File);
+        try(final Product slice1Product = TestUtils.readSourceProduct(slice1File)) {
 
-        final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(slice1Product);
+            final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
+            assertNotNull(op);
+            op.setSourceProducts(slice1Product);
 
-        try {
-            // get targetProduct: execute initialize()
-            final Product targetProduct = op.getTargetProduct();
-            TestUtils.verifyProduct(targetProduct, false, false);
-        } catch (Exception e) {
-            String msg = e.getMessage();
-            assertTrue(msg.equals("Slice assembly requires at least two consecutive slice products"));
+            try {
+                // get targetProduct: execute initialize()
+                final Product targetProduct = op.getTargetProduct();
+                TestUtils.verifyProduct(targetProduct, false, false);
+            } catch (Exception e) {
+                String msg = e.getMessage();
+                assertTrue(msg.equals("Slice assembly requires at least two consecutive slice products"));
+            }
         }
     }
 
     @Test
     public void testNonSliceProduct() throws Exception {
 
-        final Product slice1Product = TestUtils.readSourceProduct(slice1File);
-        final Product nonSliceProduct = TestUtils.readSourceProduct(nonSliceFile);
+        try(final Product slice1Product = TestUtils.readSourceProduct(slice1File)) {
+            try(final Product nonSliceProduct = TestUtils.readSourceProduct(nonSliceFile)) {
 
-        final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(slice1Product, nonSliceProduct);
+                final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
+                assertNotNull(op);
+                op.setSourceProducts(slice1Product, nonSliceProduct);
 
-        try {
-            // get targetProduct: execute initialize()
-            final Product targetProduct = op.getTargetProduct();
-            TestUtils.verifyProduct(targetProduct, false, false);
-        } catch (Exception e) {
-            String msg = e.getMessage();
-            assertTrue(msg.contains("is not a slice product"));
+                try {
+                    // get targetProduct: execute initialize()
+                    final Product targetProduct = op.getTargetProduct();
+                    TestUtils.verifyProduct(targetProduct, false, false);
+                } catch (Exception e) {
+                    String msg = e.getMessage();
+                    assertTrue(msg.contains("is not a slice product"));
+                }
+            }
         }
     }
 
     @Test
     public void testOrder1_2() throws Exception {
 
-        final Product slice1Product = TestUtils.readSourceProduct(slice1File);
-        final Product slice2Product = TestUtils.readSourceProduct(slice2File);
+        try(final Product slice1Product = TestUtils.readSourceProduct(slice1File)) {
+            try (final Product slice2Product = TestUtils.readSourceProduct(slice2File)) {
 
-        final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(slice1Product, slice2Product);
+                final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
+                assertNotNull(op);
+                op.setSourceProducts(slice1Product, slice2Product);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+                // get targetProduct: execute initialize()
+                final Product targetProduct = op.getTargetProduct();
+                TestUtils.verifyProduct(targetProduct, true, true, true);
+            }
+        }
     }
 
     @Test
     public void testOrder2_1() throws Exception {
 
-        final Product slice1Product = TestUtils.readSourceProduct(slice1File);
-        final Product slice2Product = TestUtils.readSourceProduct(slice2File);
+        try(final Product slice1Product = TestUtils.readSourceProduct(slice1File)) {
+            try (final Product slice2Product = TestUtils.readSourceProduct(slice2File)) {
 
-        final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
-        assertNotNull(op);
-        op.setSourceProducts(slice2Product, slice1Product);
+                final SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
+                assertNotNull(op);
+                op.setSourceProducts(slice2Product, slice1Product);
 
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-        TestUtils.verifyProduct(targetProduct, true, true, true);
+                // get targetProduct: execute initialize()
+                final Product targetProduct = op.getTargetProduct();
+                TestUtils.verifyProduct(targetProduct, true, true, true);
+            }
+        }
     }
 
 }

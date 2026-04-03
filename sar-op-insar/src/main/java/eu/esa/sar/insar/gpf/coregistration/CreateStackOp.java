@@ -125,6 +125,7 @@ public class CreateStackOp extends Operator {
     private final Map<Product, int[]> slaveOffsetMap = new HashMap<>(10);
 
     private boolean appendToMaster = false;
+    private boolean isResampling = false;
 
     private static final String PRODUCT_SUFFIX = "_Stack";
 
@@ -142,7 +143,10 @@ public class CreateStackOp extends Operator {
 
             for (final Product prod : sourceProduct) {
                 final InputProductValidator validator = new InputProductValidator(prod);
-                if(validator.isTOPSARProduct() && !validator.isDebursted()) {
+                final MetadataElement prodAbsRoot = AbstractMetadata.getAbstractedMetadata(prod);
+                final boolean isTerrainCorrected = prodAbsRoot != null &&
+                        prodAbsRoot.getAttributeInt(AbstractMetadata.is_terrain_corrected, 0) == 1;
+                if(validator.isTOPSARProduct() && !validator.isDebursted() && !isTerrainCorrected) {
                     throw new OperatorException("For S1 TOPS SLC products, TOPS Coregistration should be used");
                 }
 
@@ -153,17 +157,7 @@ public class CreateStackOp extends Operator {
             }
 
             if (masterBandNames == null || masterBandNames.length == 0 || getMasterProduct(masterBandNames[0]) == null) {
-                final Product defaultProd = sourceProduct[0];
-                if (defaultProd != null) {
-                    final Band defaultBand = defaultProd.getBandAt(0);
-                    if (defaultBand != null) {
-                        if (defaultBand.getUnit() != null && defaultBand.getUnit().equals(Unit.REAL))
-                            masterBandNames = new String[]{defaultProd.getBandAt(0).getName(),
-                                    defaultProd.getBandAt(1).getName()};
-                        else
-                            masterBandNames = new String[]{defaultBand.getName()};
-                    }
-                }
+                masterBandNames = getMasterBands();
                 if (masterBandNames.length == 0) {
                     targetProduct = OperatorUtils.createDummyTargetProduct(sourceProduct);
                     return;
@@ -187,7 +181,8 @@ public class CreateStackOp extends Operator {
                 return;
             }
 
-            if (resamplingType.contains("NONE") && !extent.equals(MASTER_EXTENT)) {
+            isResampling = !resamplingType.contains("NONE");
+            if (!isResampling && !extent.equals(MASTER_EXTENT)) {
                 throw new OperatorException("Please select only Master extents when resampling type is None");
             }
 
@@ -253,11 +248,13 @@ public class CreateStackOp extends Operator {
                         targetProduct.addBand(targetBand);
 
                         ProductUtils.copyRasterDataNodeProperties(srcBand, targetBand);
+                        if(targetBand.getValidPixelExpression() != null) {
+                            targetBand.setValidPixelExpression(srcBand.getValidPixelExpression().replace(srcBand.getName(), targetBand.getName()));
+                        }
+
                         if (extent.equals(MASTER_EXTENT)) {
                             targetBand.setSourceImage(srcBand.getSourceImage());
                         }
-
-                        fixDependencies(targetBand, slaveBandList, suffix);
                     }
                 }
             }
@@ -281,7 +278,7 @@ public class CreateStackOp extends Operator {
                     if (targetProduct.getBand(tgtBandName) == null) {
                         final Product srcProduct = srcBand.getProduct();
                         int dataType;
-                        if (resamplingType.contains("NONE")) {
+                        if (!isResampling) {
                             dataType = srcBand.getDataType();
                         } else {
                             dataType = ProductData.TYPE_FLOAT32;
@@ -295,12 +292,14 @@ public class CreateStackOp extends Operator {
                         targetProduct.addBand(targetBand);
 
                         ProductUtils.copyRasterDataNodeProperties(srcBand, targetBand);
-                        if (extent.equals(MASTER_EXTENT) && srcProduct.isCompatibleProduct(targetProduct, 1.0e-3f)) {
+                        if(targetBand.getValidPixelExpression() != null) {
+                            targetBand.setValidPixelExpression(srcBand.getValidPixelExpression().replace(srcBand.getName(), targetBand.getName()));
+                        }
+
+                        if (!isResampling && extent.equals(MASTER_EXTENT) && srcProduct.isCompatibleProduct(targetProduct, 1.0e-3f)) {
                             targetBand.setSourceImage(srcBand.getSourceImage());
                         }
 
-                        fixDependencies(targetBand, slaveBandList, suffix);
-                        
                         // Disable using of no data value in slave so that valid 0s will be used in the interpolation
                         srcBand.setNoDataValueUsed(false);
                     }
@@ -323,7 +322,7 @@ public class CreateStackOp extends Operator {
                                                targetProduct.getSceneGeoCoding());
             }
 
-            if (!resamplingType.contains("NONE")) {
+            if (isResampling) {
                 selectedResampling = ResamplingFactory.createResampling(resamplingType);
                 if(selectedResampling == null) {
                     throw new OperatorException("Resampling method "+ selectedResampling + " is invalid");
@@ -342,7 +341,7 @@ public class CreateStackOp extends Operator {
 
             // set non-elevation areas to no data value for the master bands using the slave bands
             if (!extent.equals(MAX_EXTENT)) {
-                DEMAssistedCoregistrationOp.setMasterValidPixelExpression(targetProduct, true);
+                //DEMAssistedCoregistrationOp.setMasterValidPixelExpression(targetProduct, true);
             }
 
         } catch (Throwable e) {
@@ -350,17 +349,24 @@ public class CreateStackOp extends Operator {
         }
     }
 
-    private static void fixDependencies(final Band targetBand, final Band[] srcBandList, final String suffix) {
-//        String validPixelExpression = targetBand.getValidPixelExpression();
-//        if(validPixelExpression == null || validPixelExpression.isEmpty())
-//            return;
-//
-//        for(Band srcBand : srcBandList) {
-//            if(!validPixelExpression.contains(srcBand.getName() + suffix)) {
-//                validPixelExpression = validPixelExpression.replaceAll(srcBand.getName(), srcBand.getName() + suffix);
-//            }
-//        }
-//        targetBand.setValidPixelExpression(validPixelExpression);
+    private String[] getMasterBands() {
+        String[] masterBandNames = new String[] {};
+        final Product defaultProd = sourceProduct[0];
+        if (defaultProd != null) {
+            int index = 0;
+            for(Band band : defaultProd.getBands()) {
+                if (band.getUnit() != null && band.getUnit().equals(Unit.REAL)) {
+                    masterBandNames = new String[]{band.getName(),
+                            defaultProd.getBandAt(index + 1).getName()};
+                    break;
+                }
+                ++index;
+            }
+            if(masterBandNames.length == 0) {
+                masterBandNames = new String[]{defaultProd.getBandAt(0).getName()};
+            }
+        }
+        return masterBandNames;
     }
 
     private void updateMetadata() {
@@ -384,6 +390,18 @@ public class CreateStackOp extends Operator {
                 inputAttrb.getData().setElems(attrib.getData().getElemString());
             }
         }
+
+        if (isBiomassL1c()) {
+            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack, 1);
+        }
+    }
+
+    private boolean isBiomassL1c() {
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+        final MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(targetProduct);
+        final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION);
+        return mission.toLowerCase().contains("biomass") && (origProdRoot.getElement("annotation_coregistered") != null);
     }
 
     public static void getBaselines(final Product[] sourceProduct, final Product targetProduct) {
@@ -394,30 +412,30 @@ public class CreateStackOp extends Operator {
             final InSARStackOverview.IfgStack[] stackOverview = InSARStackOverview.calculateInSAROverview(sourceProduct);
 
             for(InSARStackOverview.IfgStack stack : stackOverview) {
-                final InSARStackOverview.IfgPair[] slaves = stack.getMasterSlave();
+                final InSARStackOverview.IfgPair[] secondaryList = stack.getMasterSlave();
                 //System.out.println("======");
-                //System.out.println("Master: " + StackUtils.createBandTimeStamp(
-                //        slaves[0].getMasterMetadata().getAbstractedMetadata().getProduct()).substring(1));
+                //System.out.println("Ref_" + StackUtils.createBandTimeStamp(
+                //        secondary[0].getMasterMetadata().getAbstractedMetadata().getProduct()).substring(1));
 
-                final MetadataElement masterElem = new MetadataElement("Master: " + StackUtils.createBandTimeStamp(
-                        slaves[0].getMasterMetadata().getAbstractedMetadata().getProduct()).substring(1));
+                final MetadataElement masterElem = new MetadataElement("Ref_" + StackUtils.createBandTimeStamp(
+                        secondaryList[0].getMasterMetadata().getAbstractedMetadata().getProduct()).substring(1));
                 baselinesElem.addElement(masterElem);
 
-                for (InSARStackOverview.IfgPair slave : slaves) {
-                    //System.out.println("Slave: " + StackUtils.createBandTimeStamp(
-                    //        slave.getSlaveMetadata().getAbstractedMetadata().getProduct()).substring(1) +
-                    //        " perp baseline: " + slave.getPerpendicularBaseline() +
-                    //        " temp baseline: " + slave.getTemporalBaseline());
+                for (InSARStackOverview.IfgPair secondary : secondaryList) {
+                    //System.out.println("Secondary_" + StackUtils.createBandTimeStamp(
+                    //        secondary.getSlaveMetadata().getAbstractedMetadata().getProduct()).substring(1) +
+                    //        " perp baseline: " + secondary.getPerpendicularBaseline() +
+                    //        " temp baseline: " + secondary.getTemporalBaseline());
 
-                    final MetadataElement slaveElem = new MetadataElement("Slave: " + StackUtils.createBandTimeStamp(
-                            slave.getSlaveMetadata().getAbstractedMetadata().getProduct()).substring(1));
+                    final MetadataElement slaveElem = new MetadataElement("Secondary_" + StackUtils.createBandTimeStamp(
+                            secondary.getSlaveMetadata().getAbstractedMetadata().getProduct()).substring(1));
                     masterElem.addElement(slaveElem);
 
-                    addAttrib(slaveElem, "Perp Baseline", slave.getPerpendicularBaseline());
-                    addAttrib(slaveElem, "Temp Baseline", slave.getTemporalBaseline());
-                    addAttrib(slaveElem, "Modelled Coherence", slave.getCoherence());
-                    addAttrib(slaveElem, "Height of Ambiguity", slave.getHeightAmb());
-                    addAttrib(slaveElem, "Doppler Difference", slave.getDopplerDifference());
+                    addAttrib(slaveElem, "Perp Baseline", secondary.getPerpendicularBaseline());
+                    addAttrib(slaveElem, "Temp Baseline", secondary.getTemporalBaseline());
+                    addAttrib(slaveElem, "Modelled Coherence", secondary.getCoherence());
+                    addAttrib(slaveElem, "Height of Ambiguity", secondary.getHeightAmb());
+                    addAttrib(slaveElem, "Doppler Difference", secondary.getDopplerDifference());
                 }
                 //System.out.println();
             }
@@ -518,14 +536,24 @@ public class CreateStackOp extends Operator {
         if (slaveBandNames == null || slaveBandNames.length == 0 || contains(masterBandNames, slaveBandNames[0])) {
             for (Product slvProduct : sourceProduct) {
                 for (Band band : slvProduct.getBands()) {
-                    if (band.getUnit() != null && band.getUnit().equals(Unit.PHASE))
+                    String bandUnit = band.getUnit();
+                    if (bandUnit != null && bandUnit.equals(Unit.PHASE))
                         continue;
-                    if (band instanceof VirtualBand)
+                    if (band instanceof VirtualBand && !(bandUnit != null && (bandUnit.equals(Unit.REAL) || bandUnit.equals(Unit.IMAGINARY))))
                         continue;
                     if (slvProduct == masterProduct && (band == masterBands[0] || band == masterBands[1] || appendToMaster))
                         continue;
 
-                    bandList.add(band);
+                    if(bandUnit == null) {
+                        bandList.add(band);
+                    } else {
+                        for (Band mstBand : masterBands) {
+                            if(bandUnit.equals(mstBand.getUnit())) {
+                                bandList.add(band);
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         } else {
@@ -882,7 +910,7 @@ public class CreateStackOp extends Operator {
             final int srcImageWidth = srcProduct.getSceneRasterWidth();
             final int srcImageHeight = srcProduct.getSceneRasterHeight();
 
-            if (resamplingType.contains("NONE")) { // without resampling
+            if (!isResampling) { // without resampling
 
                 final float noDataValue = (float) targetBand.getGeophysicalNoDataValue();
                 final Rectangle targetRectangle = targetTile.getRectangle();

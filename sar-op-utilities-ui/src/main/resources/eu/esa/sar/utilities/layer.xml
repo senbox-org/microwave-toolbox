@@ -32,6 +32,7 @@
                 <attr name="operatorName" stringvalue="BandSelect"/>
                 <attr name="dialogTitle" stringvalue="Band Select"/>
                 <attr name="ShortDescription" stringvalue="Select a subset of bands"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Subset"/>
                 <attr name="helpId" stringvalue="BandSelectOp"/>
                 <attr name="icon" stringvalue="esaIcon"/>
             </file>
@@ -99,13 +100,13 @@
             </folder>
         </folder>
         <folder name="Raster">
+            <file name="eu-esa-sar-utilities-gpf-BandSelectOp-Action.shadow">
+                <attr name="originalFile"
+                      stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-BandSelectOp-Action.instance"/>
+                <attr name="position" intvalue="500"/>
+            </file>
             <folder name="Data Conversion">
                 <attr name="position" intvalue="350"/>
-                <file name="eu-esa-sar-utilities-gpf-BandSelectOp-Action.shadow">
-                    <attr name="originalFile"
-                          stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-BandSelectOp-Action.instance"/>
-                    <attr name="position" intvalue="500"/>
-                </file>
                 <file name="eu-esa-sar-utilities-gpf-SetNoDataValueOp-Action.shadow">
                     <attr name="originalFile"
                           stringvalue="Actions/Operators/eu-esa-sar-utilities-gpf-SetNoDataValueOp-Action.instance"/>

@@ -15,45 +15,29 @@
  */
 package eu.esa.sar.io.ceos.records;
 
-import junit.framework.TestCase;
 import eu.esa.sar.io.binary.BinaryFileReader;
 import eu.esa.sar.io.binary.BinaryRecord;
 import eu.esa.sar.io.binary.IllegalBinaryFormatException;
 import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.ProductData;
+import org.junit.Before;
+import org.junit.Test;
 
 import javax.imageio.stream.ImageOutputStream;
 import java.io.IOException;
 
-public class BaseRecordTest extends TestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+public class BaseRecordTest {
 
     public static final int RECORD_LENGTH = 4680;
+    private static final String format = "ers";
+    private static final String recordDefinitionFile = "volume_descriptor.xml";
     private ImageOutputStream _ios;
     private String _prefix;
     private BinaryFileReader _reader;
-
-    private static String format = "ers";
-    private static String recordDefinitionFile = "volume_descriptor.xml";
-
-    protected void setUp() throws Exception {
-   /*     final ByteArrayOutputStream os = new ByteArrayOutputStream(24);
-        _ios = new MemoryCacheImageOutputStream(os);
-        _prefix = "BaseRecordTest_prefix";
-        _ios.writeBytes(_prefix);
-        writeRecordData(_ios);
-        _ios.writeBytes("BaseRecordTest_suffix"); // as suffix
-        _reader = new BinaryFileReader(_ios); */
-    }
-
-    public void testInitBaseRecord() throws IOException, IllegalBinaryFormatException {
-   /*     final BinaryRecord record = new BinaryRecord(_reader, _prefix.length(), format, recordDefinitionFile);
-
-        assertRecord(record);
-        assertSame(_reader, record.getReader());
-        assertEquals(_prefix.length(), record.getStartPos());
-        assertEquals(_prefix.length() + 12, _ios.getStreamPosition());  */
-    }
 
     /*
     public void testAssignMetadataTo() throws IOException,
@@ -109,6 +93,27 @@ public class BaseRecordTest extends TestCase {
         ios.write(022); // secondRecordSubtype = 22 octal
         ios.write(021); // thirdRecordSubtype = 22 octal (21 octal only for test)
         ios.writeInt(RECORD_LENGTH); // recordLength = variable
+    }
+
+    @Before
+    public void setUp() throws Exception {
+   /*     final ByteArrayOutputStream os = new ByteArrayOutputStream(24);
+        _ios = new MemoryCacheImageOutputStream(os);
+        _prefix = "BaseRecordTest_prefix";
+        _ios.writeBytes(_prefix);
+        writeRecordData(_ios);
+        _ios.writeBytes("BaseRecordTest_suffix"); // as suffix
+        _reader = new BinaryFileReader(_ios); */
+    }
+
+    @Test
+    public void testInitBaseRecord() throws IOException, IllegalBinaryFormatException {
+   /*     final BinaryRecord record = new BinaryRecord(_reader, _prefix.length(), format, recordDefinitionFile);
+
+        assertRecord(record);
+        assertSame(_reader, record.getReader());
+        assertEquals(_prefix.length(), record.getStartPos());
+        assertEquals(_prefix.length() + 12, _ios.getStreamPosition());  */
     }
    /*
     public void testCreateMetadataElement() {

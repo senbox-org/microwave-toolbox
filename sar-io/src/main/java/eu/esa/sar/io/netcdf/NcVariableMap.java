@@ -45,7 +45,7 @@ public class NcVariableMap {
     }
 
     private NcVariableMap(final List<Variable> variables) {
-        this(variables.toArray(new Variable[variables.size()]));
+        this(variables.toArray(new Variable[0]));
     }
 
     public static NcVariableMap create(final NetcdfFile file) {

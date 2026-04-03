@@ -390,7 +390,7 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
                 final String pathUser = homePath.substring(0, homePath.length() - internalPath.length());
                 try {
                     image = ImageIO.read(new File(pathUser +
-                                                          "s1tbx/s1tbx-rcp/src/main/resources/eu/esa/sar/dat/icons/SNAP_icon_128.jpg"));
+                                                          "s1tbx/s1tbx-rcp/src/main/resources/eu/esa/sar/dat/icons/SNAP_icon_128.png"));
                 } catch (IOException e) {
                 }
                 plot.setBackgroundImage(image);
@@ -499,11 +499,15 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
 
                 final String[] secondariesNames = referenceElem.getElementNames();
                 for (int i = 0; i < secondariesNames.length; i++) {
-                    secondariesNames[i] = secondariesNames[i].substring(7);
+                    secondariesNames[i] = extractDate(secondariesNames[i]);
                 }
                 return secondariesNames;
             }
         }
         return null;
+    }
+
+    public static String extractDate(final String bandName) {
+        return bandName.substring(bandName.lastIndexOf('_') + 1);
     }
 }

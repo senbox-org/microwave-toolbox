@@ -142,7 +142,7 @@ public class ProductGeometrySelectorDialog extends ModalDialog {
 
     public String[] getSelectedGeometries() {
         final List<String> list = geometries.getSelectedValuesList();
-        return list.toArray(new String[list.size()]);
+        return list.toArray(new String[0]);
     }
 
     public File getSaveFile() {

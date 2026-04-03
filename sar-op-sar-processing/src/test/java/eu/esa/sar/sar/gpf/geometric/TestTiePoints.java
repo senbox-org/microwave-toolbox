@@ -16,6 +16,7 @@
 package eu.esa.sar.sar.gpf.geometric;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Product;
@@ -32,11 +33,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Test performance of tie point grid geocoding
  */
-public class TestTiePoints {
-
-    static {
-        TestUtils.initTestEnvironment();
-    }
+public class TestTiePoints extends ProcessorTest {
 
     private final File inputFile = TestData.inputASAR_WSM;
 
@@ -45,15 +42,20 @@ public class TestTiePoints {
 
     @Before
     public void setUp() throws Exception {
-        // If the file does not exist: the test will be ignored
-        assumeTrue(inputFile + " not found", inputFile.exists());
+        try {
+            // If the file does not exist: the test will be ignored
+            assumeTrue(inputFile + " not found", inputFile.exists());
 
-        product1 = ProductIO.readProduct(inputFile);
-        product2 = ProductIO.readProduct(inputFile);
+            product1 = ProductIO.readProduct(inputFile);
+            product2 = ProductIO.readProduct(inputFile);
 
-        // If the product does not exist: the test will be ignored
-        assumeTrue(product1 + " not found", product1 != null);
-        assumeTrue(product2 + " not found", product2 != null);
+            // If the product does not exist: the test will be ignored
+            assumeTrue(product1 + " not found", product1 != null);
+            assumeTrue(product2 + " not found", product2 != null);
+        } catch (Exception e) {
+            TestUtils.skipTest(this, e.getMessage());
+            throw e;
+        }
     }
 
     @Test

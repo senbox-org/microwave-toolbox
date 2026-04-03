@@ -53,11 +53,11 @@ public class PolarimetricRegistry {
     }
 
     public Decomposition[] getAllDecompositions() {
-        return decompositions.getServices().toArray(new Decomposition[decompositions.getServices().size()]);
+        return decompositions.getServices().toArray(new Decomposition[0]);
     }
 
     public PolarimetricSpeckleFilter[] getAllSpeckleFilters() {
-        return speckleFilters.getServices().toArray(new PolarimetricSpeckleFilter[speckleFilters.getServices().size()]);
+        return speckleFilters.getServices().toArray(new PolarimetricSpeckleFilter[0]);
     }
 
     // Initialization on demand holder idiom
