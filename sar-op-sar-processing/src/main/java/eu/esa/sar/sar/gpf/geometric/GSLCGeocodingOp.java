@@ -20,6 +20,7 @@ import eu.esa.sar.commons.CRSGeoCodingHandler;
 import eu.esa.sar.commons.OrbitStateVectors;
 import eu.esa.sar.commons.SARGeocoding;
 import eu.esa.sar.commons.SARUtils;
+import eu.esa.sar.commons.Sentinel1Utils;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.dem.ElevationModel;
@@ -215,6 +216,12 @@ public class GSLCGeocodingOp extends Operator {
     private double bistaticCorrectionRefRange = 0.0;
     private String mission = null;
 
+    // TOPS burst-level processing fields
+    private boolean isTOPSProduct = false;
+    private Sentinel1Utils su = null;
+    private Sentinel1Utils.SubSwathInfo[] subSwath = null;
+    private int subSwathIndex = 0;
+
     public static final String externalDEMStr = "External DEM";
     private static final String PRODUCT_SUFFIX = "_GSLC";
     private static final double lightSpeedInMetersPerSecond = 299792458.0;
@@ -234,10 +241,23 @@ public class GSLCGeocodingOp extends Operator {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
             validator.checkIfMapProjected(false);
-            validator.checkIfTOPSARBurstProduct(false);
+
+            if (validator.isTOPSARProduct()) {
+                if (validator.isDebursted()) {
+                    throw new OperatorException(
+                            "Debursted TOPS SLC products are not supported for GSLC geocoding.\n" +
+                            "Please use the pre-deburst split product (single subswath with burst structure).\n" +
+                            "Processing chain: Apply-Orbit-File -> TOPSAR-Split -> GSLC-Terrain-Correction");
+                }
+                isTOPSProduct = true;
+            }
 
             getSourceImageDimension();
             getMetadata();
+
+            if (isTOPSProduct) {
+                initTOPSData();
+            }
 
             imgResampling = ResamplingFactory.createResampling(imgResamplingMethod);
             if (imgResampling == null) {
@@ -281,6 +301,16 @@ public class GSLCGeocodingOp extends Operator {
             bistaticCorrectionRefRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
         }
         srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
+
+        // SLC products are always in slant range geometry regardless of what the metadata says.
+        // The srgr_flag can be incorrectly set to true in some product readers.
+        final String sampleType = absRoot.getAttributeString(AbstractMetadata.SAMPLE_TYPE);
+        if (sampleType != null && sampleType.contains("COMPLEX")) {
+            if (srgrFlag) {
+                SystemUtils.LOG.warning("GSLC: Overriding srgr_flag to false for SLC product");
+                srgrFlag = false;
+            }
+        }
         
         // Robust wavelength calculation
         double freq = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.radar_frequency);
@@ -311,26 +341,41 @@ public class GSLCGeocodingOp extends Operator {
             throw new OperatorException("Invalid Obit State Vectors");
         }
 
+        // Always read near-edge slant range (needed for SLC range index and TOPS processing)
+        nearEdgeSlantRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        if (nearEdgeSlantRange < 10000.0) {
+            nearEdgeSlantRange *= (lightSpeedInMetersPerSecond / 2.0);
+            SystemUtils.LOG.info("GSLC: Converted nearEdgeSlantRange from seconds to meters: " + nearEdgeSlantRange);
+        }
+
         if (srgrFlag) {
             srgrConvParams = AbstractMetadata.getSRGRCoefficients(absRoot);
             if (srgrConvParams == null || srgrConvParams.length == 0) {
                 throw new OperatorException("Invalid SRGR Coefficients");
             }
-        } else {
-            nearEdgeSlantRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
-            // Check if nearEdgeSlantRange is in seconds (e.g. < 10000)
-            if (nearEdgeSlantRange < 10000.0) {
-                nearEdgeSlantRange *= (lightSpeedInMetersPerSecond / 2.0);
-                SystemUtils.LOG.info("GSLC: Converted nearEdgeSlantRange from seconds to meters: " + nearEdgeSlantRange);
-            }
         }
 
         incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
         nearRangeOnLeft = SARGeocoding.isNearRangeOnLeft(incidenceAngle, sourceImageWidth);
-        
-        SystemUtils.LOG.info("GSLC: Wavelength = " + wavelength + " m");
-        SystemUtils.LOG.info("GSLC: Range Spacing = " + rangeSpacing + " m");
-        SystemUtils.LOG.info("GSLC: Near Edge Range = " + nearEdgeSlantRange + " m");
+    }
+
+    private void initTOPSData() throws Exception {
+        su = new Sentinel1Utils(sourceProduct);
+        subSwath = su.getSubSwath();
+        su.computeDopplerRate();
+        su.computeReferenceTime();
+
+        final String[] subSwathNames = su.getSubSwathNames();
+        if (subSwathNames.length != 1) {
+            throw new OperatorException(
+                    "GSLC for TOPS requires a split product with a single subswath. " +
+                    "Please apply TOPSAR-Split first.");
+        }
+        subSwathIndex = 1; // always 1 for split product
+
+        SystemUtils.LOG.info("GSLC: TOPS mode enabled for " + subSwathNames[0] +
+                ", bursts=" + subSwath[0].numOfBursts +
+                ", linesPerBurst=" + subSwath[0].linesPerBurst);
     }
 
     private synchronized void getElevationModel() throws Exception {
@@ -364,13 +409,13 @@ public class GSLCGeocodingOp extends Operator {
                 pixelSpacingInMeter = Math.max(SARGeocoding.getAzimuthPixelSpacing(sourceProduct),
                         SARGeocoding.getRangePixelSpacing(sourceProduct));
                 pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
-                
+
                 // Apply oversampling percent
                 double multiplier = 1.0;
                 if (oversamplingPercent > 0.0 && oversamplingPercent < 100.0) {
                     multiplier = 1.0 - (oversamplingPercent / 100.0);
                 }
-                
+
                 pixelSpacingInMeter *= multiplier;
                 pixelSpacingInDegree *= multiplier;
             }
@@ -447,7 +492,7 @@ public class GSLCGeocodingOp extends Operator {
                     complexPairs.add(pair);
 
                     String suffix = b.getName().substring(b.getName().lastIndexOf("_"));
-                    ReaderUtils.createVirtualIntensityBand(targetProduct, b, q, suffix);
+                    ReaderUtils.createVirtualIntensityBand(targetProduct, pair.tgtI, pair.tgtQ, suffix);
                 }
             } else {
                 // Handle other bands if needed, but GSLC focuses on complex
@@ -566,6 +611,18 @@ public class GSLCGeocodingOp extends Operator {
                 getElevationModel();
             }
 
+            if (isTOPSProduct) {
+                computeTileStackTOPS(targetTiles, targetRectangle);
+            } else {
+                computeTileStackSM(targetTiles, targetRectangle);
+            }
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    private void computeTileStackSM(Map<Band, Tile> targetTiles, Rectangle targetRectangle) throws Exception {
+        {
             final int x0 = targetRectangle.x;
             final int y0 = targetRectangle.y;
             final int w = targetRectangle.width;
@@ -590,12 +647,22 @@ public class GSLCGeocodingOp extends Operator {
                 return;
             }
 
-            final Rectangle sourceRectangle = getSourceRectangle(x0, y0, w, h, tileGeoRef, localDEM);
-            
+            Rectangle sourceRectangle = getSourceRectangle(x0, y0, w, h, tileGeoRef, localDEM);
+
+            // Ensure the source rectangle intersects with the source image bounds
+            if (sourceRectangle != null) {
+                final Rectangle sourceBounds = new Rectangle(0, 0, sourceImageWidth, sourceImageHeight);
+                sourceRectangle = sourceRectangle.intersection(sourceBounds);
+                if (sourceRectangle.isEmpty()) {
+                    sourceRectangle = null;
+                }
+            }
+
             if (sourceRectangle == null) {
                  for (Tile t : targetTiles.values()) {
                      ProductData data = t.getRawSamples();
-                     for(int i=0; i<data.getNumElems(); i++) data.setElemDoubleAt(i, t.getRasterDataNode().getNoDataValue());
+                     final double noData = t.getRasterDataNode().getNoDataValue();
+                     for(int i = 0; i < data.getNumElems(); i++) data.setElemDoubleAt(i, noData);
                  }
                  return;
             }
@@ -640,9 +707,25 @@ public class GSLCGeocodingOp extends Operator {
             ProductData incidenceAngleFromEllipsoidBuffer = (saveIncidenceAngleFromEllipsoid && targetTiles.containsKey(targetProduct.getBand("incidenceAngleFromEllipsoid"))) ? targetTiles.get(targetProduct.getBand("incidenceAngleFromEllipsoid")).getRawSamples() : null;
             ProductData layoverShadowMaskBuffer = (saveLayoverShadowMask && targetTiles.containsKey(targetProduct.getBand("layoverShadowMask"))) ? targetTiles.get(targetProduct.getBand("layoverShadowMask")).getRawSamples() : null;
 
-            Resampling.Index resamplingIndex = imgResampling.createIndex();
-            PositionData posData = new PositionData();
-            GeoPos geoPos = new GeoPos();
+            final Resampling.Index resamplingIndex = imgResampling.createIndex();
+            final PositionData posData = new PositionData();
+            final GeoPos geoPos = new GeoPos();
+            final double phaseConstant = 4.0 * Math.PI / wavelength;
+
+            // Pre-fetch noDataValues for auxiliary bands to avoid repeated band lookups in the loop
+            final double noDataPhase = (simulatedPhaseBand != null) ? simulatedPhaseBand.getNoDataValue() : 0;
+            final double noDataUnwrappedPhase = (simulatedUnwrappedPhaseBand != null) ? simulatedUnwrappedPhaseBand.getNoDataValue() : 0;
+            final double noDataDem = (elevationBand != null) ? elevationBand.getNoDataValue() : 0;
+            final Band latBand = saveLatLon ? targetProduct.getBand("latitude") : null;
+            final Band lonBand = saveLatLon ? targetProduct.getBand("longitude") : null;
+            final Band localIncAngleBand = saveLocalIncidenceAngle ? targetProduct.getBand("localIncidenceAngle") : null;
+            final Band projIncAngleBand = saveProjectedLocalIncidenceAngle ? targetProduct.getBand("projectedLocalIncidenceAngle") : null;
+            final Band ellipIncAngleBand = saveIncidenceAngleFromEllipsoid ? targetProduct.getBand("incidenceAngleFromEllipsoid") : null;
+            final double noDataLat = (latBand != null) ? latBand.getNoDataValue() : 0;
+            final double noDataLon = (lonBand != null) ? lonBand.getNoDataValue() : 0;
+            final double noDataLocalInc = (localIncAngleBand != null) ? localIncAngleBand.getNoDataValue() : 0;
+            final double noDataProjInc = (projIncAngleBand != null) ? projIncAngleBand.getNoDataValue() : 0;
+            final double noDataEllipInc = (ellipIncAngleBand != null) ? ellipIncAngleBand.getNoDataValue() : 0;
 
             // Unified Loop
             for (int y = y0; y < y0 + h; y++) {
@@ -651,9 +734,9 @@ public class GSLCGeocodingOp extends Operator {
                     final int xx = x - x0 + 1;
                     final int idx = (y - y0) * w + (x - x0);
 
-                    Double alt = localDEM[yy][xx];
-                    boolean isNoData = alt.equals(demNoDataValue);
-                    
+                    final double alt = localDEM[yy][xx];
+                    boolean isNoData = (alt == demNoDataValue);
+
                     if (!isNoData) {
                         tileGeoRef.getGeoPos(x, y, geoPos);
                         if (!getPosition(geoPos.lat, geoPos.lon, alt, posData) || !isValidCell(posData.rangeIndex, posData.azimuthIndex)) {
@@ -662,37 +745,34 @@ public class GSLCGeocodingOp extends Operator {
                     }
 
                     if (isNoData) {
-                        // Set NoData for all active pairs
                         for (ActivePair ap : activePairs) {
                             if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, ap.noDataI);
                             if (ap.bufQ != null) ap.bufQ.setElemDoubleAt(idx, ap.noDataQ);
                         }
-                        // Set NoData for other bands
-                        if (bufPhase != null) bufPhase.setElemDoubleAt(idx, simulatedPhaseBand.getNoDataValue());
-                        if (bufUnwrappedPhase != null) bufUnwrappedPhase.setElemDoubleAt(idx, simulatedUnwrappedPhaseBand.getNoDataValue());
-                        if (demBuffer != null) demBuffer.setElemDoubleAt(idx, elevationBand.getNoDataValue());
-                        if (latBuffer != null) latBuffer.setElemDoubleAt(idx, targetProduct.getBand("latitude").getNoDataValue());
-                        if (lonBuffer != null) lonBuffer.setElemDoubleAt(idx, targetProduct.getBand("longitude").getNoDataValue());
-                        if (localIncidenceAngleBuffer != null) localIncidenceAngleBuffer.setElemDoubleAt(idx, targetProduct.getBand("localIncidenceAngle").getNoDataValue());
-                        if (projectedLocalIncidenceAngleBuffer != null) projectedLocalIncidenceAngleBuffer.setElemDoubleAt(idx, targetProduct.getBand("projectedLocalIncidenceAngle").getNoDataValue());
-                        if (incidenceAngleFromEllipsoidBuffer != null) incidenceAngleFromEllipsoidBuffer.setElemDoubleAt(idx, targetProduct.getBand("incidenceAngleFromEllipsoid").getNoDataValue());
+                        if (bufPhase != null) bufPhase.setElemDoubleAt(idx, noDataPhase);
+                        if (bufUnwrappedPhase != null) bufUnwrappedPhase.setElemDoubleAt(idx, noDataUnwrappedPhase);
+                        if (demBuffer != null) demBuffer.setElemDoubleAt(idx, noDataDem);
+                        if (latBuffer != null) latBuffer.setElemDoubleAt(idx, noDataLat);
+                        if (lonBuffer != null) lonBuffer.setElemDoubleAt(idx, noDataLon);
+                        if (localIncidenceAngleBuffer != null) localIncidenceAngleBuffer.setElemDoubleAt(idx, noDataLocalInc);
+                        if (projectedLocalIncidenceAngleBuffer != null) projectedLocalIncidenceAngleBuffer.setElemDoubleAt(idx, noDataProjInc);
+                        if (incidenceAngleFromEllipsoidBuffer != null) incidenceAngleFromEllipsoidBuffer.setElemDoubleAt(idx, noDataEllipInc);
                         if (layoverShadowMaskBuffer != null) layoverShadowMaskBuffer.setElemIntAt(idx, 0);
                         continue;
                     }
 
                     // Valid Pixel Processing
-                    
+
                     // 1. Complex Resampling
-                    double rangeIndex = posData.rangeIndex;
-                    double azimuthIndex = posData.azimuthIndex;
-                    double slantRange = posData.slantRange;
-                    
-                    // Pre-compute resampling index as it depends only on position
+                    final double rangeIndex = posData.rangeIndex;
+                    final double azimuthIndex = posData.azimuthIndex;
+                    final double slantRange = posData.slantRange;
+
                     imgResampling.computeCornerBasedIndex(rangeIndex, azimuthIndex, sourceImageWidth, sourceImageHeight, resamplingIndex);
 
-                    double phase = 4.0 * Math.PI * slantRange / wavelength;
-                    double cosPhi = FastMath.cos(phase);
-                    double sinPhi = FastMath.sin(phase);
+                    final double phase = phaseConstant * slantRange;
+                    final double cosPhi = FastMath.cos(phase);
+                    final double sinPhi = FastMath.sin(phase);
 
                     for (ActivePair ap : activePairs) {
                         ap.raster.setSlantRangeAtCenter(slantRange, rangeIndex);
@@ -761,8 +841,387 @@ public class GSLCGeocodingOp extends Operator {
                 }
             }
 
-        } catch (Throwable e) {
-            OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    private void computeTileStackTOPS(Map<Band, Tile> targetTiles, Rectangle targetRectangle) throws Exception {
+
+        final int x0 = targetRectangle.x;
+        final int y0 = targetRectangle.y;
+        final int w = targetRectangle.width;
+        final int h = targetRectangle.height;
+        final int numPixels = w * h;
+
+        final TileGeoreferencing tileGeoRef = new TileGeoreferencing(targetProduct, x0 - 1, y0 - 1, w + 2, h + 2);
+
+        double[][] localDEM = new double[h + 2][w + 2];
+        final boolean valid = DEMFactory.getLocalDEM(
+                dem, demNoDataValue, demResamplingMethod, tileGeoRef, x0, y0, w, h, sourceProduct,
+                nodataValueAtSea, localDEM);
+
+        if (!valid && nodataValueAtSea) {
+            fillAllNoData(targetTiles);
+            return;
+        }
+
+        // Phase 1: Backward geocode all target pixels with burst-aware azimuth mapping.
+        // For TOPS burst products, the azimuth time-to-line mapping is NOT linear across the
+        // full image — each burst has its own time window with gaps between bursts.
+        final double[] azimuthIndices = new double[numPixels];
+        final double[] rangeIndices = new double[numPixels];
+        final double[] slantRanges = new double[numPixels];
+        final int[] bestBurst = new int[numPixels];
+        java.util.Arrays.fill(bestBurst, -1);
+
+        final PosVector earthPoint = new PosVector();
+        final PosVector sensorPos = new PosVector();
+        final GeoPos geoPos = new GeoPos();
+        final Sentinel1Utils.SubSwathInfo ss = subSwath[subSwathIndex - 1];
+        final double phaseConstant = 4.0 * Math.PI / wavelength;
+
+        for (int y = y0; y < y0 + h; y++) {
+            final int yy = y - y0 + 1;
+            for (int x = x0; x < x0 + w; x++) {
+                final int xx = x - x0 + 1;
+                final int idx = (y - y0) * w + (x - x0);
+
+                final double alt = localDEM[yy][xx];
+                if (alt == demNoDataValue) continue;
+
+                tileGeoRef.getGeoPos(x, y, geoPos);
+                GeoUtils.geo2xyzWGS84(geoPos.lat, geoPos.lon, alt, earthPoint);
+
+                // Find zero-Doppler time using orbit state vector bisection (not pre-computed array).
+                // For TOPS burst products, the pre-computed array uses lineTimeInterval that includes
+                // burst gaps, causing incorrect orbit positions and failed Doppler searches.
+                final double zeroDopplerTime = SARGeocoding.getZeroDopplerTime(
+                        lineTimeInterval, wavelength, earthPoint, orbit);
+
+                if (zeroDopplerTime == SARGeocoding.NonValidZeroDopplerTime) continue;
+
+                // Compute slant range from orbit interpolation
+                double slantRange = SARGeocoding.computeSlantRange(
+                        zeroDopplerTime, orbit, earthPoint, sensorPos);
+
+                // Bistatic correction
+                double correctedTime = zeroDopplerTime;
+                if (!skipBistaticCorrection) {
+                    correctedTime += slantRange / Constants.lightSpeedInMetersPerDay;
+                    slantRange = SARGeocoding.computeSlantRange(
+                            correctedTime, orbit, earthPoint, sensorPos);
+                } else if (bistaticCorrectionRefRange > 0.0) {
+                    correctedTime += (slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
+                    slantRange = SARGeocoding.computeSlantRange(
+                            correctedTime, orbit, earthPoint, sensorPos);
+                }
+
+                // Convert zero-Doppler time to seconds for burst lookup
+                final double zeroDopplerTimeSec = correctedTime * Constants.secondsInDay;
+
+                // Determine burst membership
+                final int burst = selectBurst(zeroDopplerTimeSec, ss);
+                if (burst < 0) continue;
+
+                // Compute burst-local azimuth index
+                final double lineWithinBurst = (zeroDopplerTimeSec - ss.burstFirstLineTime[burst])
+                        / ss.azimuthTimeInterval;
+                final double azimuthIndex = burst * ss.linesPerBurst + lineWithinBurst;
+
+                // Compute range index
+                double rangeIndex;
+                if (!srgrFlag) {
+                    rangeIndex = (slantRange - nearEdgeSlantRange) / rangeSpacing;
+                } else {
+                    rangeIndex = SARGeocoding.computeRangeIndex(
+                            srgrFlag, sourceImageWidth, firstLineUTC, lastLineUTC, rangeSpacing,
+                            correctedTime, slantRange, nearEdgeSlantRange, srgrConvParams);
+                    if (rangeIndex == -1.0) continue;
+                }
+
+                if (!nearRangeOnLeft) {
+                    rangeIndex = sourceImageWidth - 1 - rangeIndex;
+                }
+
+                // Validate within burst valid region
+                if (!isValidBurstSample(burst, azimuthIndex, rangeIndex, ss)) continue;
+                if (!isValidCell(rangeIndex, azimuthIndex)) continue;
+
+                azimuthIndices[idx] = azimuthIndex;
+                rangeIndices[idx] = rangeIndex;
+                slantRanges[idx] = slantRange;
+                bestBurst[idx] = burst;
+            }
+        }
+
+        // Prepare output buffers
+        class ActivePair {
+            ComplexPair pair;
+            ProductData bufI;
+            ProductData bufQ;
+            double noDataI;
+            double noDataQ;
+        }
+        final List<ActivePair> activePairs = new ArrayList<>();
+
+        for (ComplexPair pair : complexPairs) {
+            boolean processI = targetTiles.containsKey(pair.tgtI);
+            boolean processQ = targetTiles.containsKey(pair.tgtQ);
+            if (!processI && !processQ) continue;
+
+            ActivePair ap = new ActivePair();
+            ap.pair = pair;
+            ap.bufI = processI ? targetTiles.get(pair.tgtI).getRawSamples() : null;
+            ap.bufQ = processQ ? targetTiles.get(pair.tgtQ).getRawSamples() : null;
+            ap.noDataI = pair.tgtI.getNoDataValue();
+            ap.noDataQ = pair.tgtQ.getNoDataValue();
+            activePairs.add(ap);
+        }
+
+        ProductData bufPhase = (saveSimulatedPhase && targetTiles.containsKey(simulatedPhaseBand))
+                ? targetTiles.get(simulatedPhaseBand).getRawSamples() : null;
+        ProductData bufUnwrappedPhase = (saveSimulatedUnwrappedPhase && targetTiles.containsKey(simulatedUnwrappedPhaseBand))
+                ? targetTiles.get(simulatedUnwrappedPhaseBand).getRawSamples() : null;
+
+        // Fill noData for pixels that didn't geocode
+        for (int idx = 0; idx < numPixels; idx++) {
+            if (bestBurst[idx] == -1) {
+                for (ActivePair ap : activePairs) {
+                    if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, ap.noDataI);
+                    if (ap.bufQ != null) ap.bufQ.setElemDoubleAt(idx, ap.noDataQ);
+                }
+                if (bufPhase != null) bufPhase.setElemDoubleAt(idx, simulatedPhaseBand.getNoDataValue());
+                if (bufUnwrappedPhase != null) bufUnwrappedPhase.setElemDoubleAt(idx, simulatedUnwrappedPhaseBand.getNoDataValue());
+            }
+        }
+
+        // Phase 2: Process burst by burst
+        final Resampling.Index resamplingIndex = imgResampling.createIndex();
+        final Rectangle sourceBounds = new Rectangle(0, 0, sourceImageWidth, sourceImageHeight);
+
+        for (int burstIndex = 0; burstIndex < ss.numOfBursts; burstIndex++) {
+
+            // Compute source rectangle for this burst's target pixels
+            final Rectangle burstSourceRect = computeBurstSourceRectangle(
+                    burstIndex, bestBurst, azimuthIndices, rangeIndices, w, h, ss);
+            if (burstSourceRect == null) continue;
+
+            // Clamp to source image bounds
+            final Rectangle clampedRect = burstSourceRect.intersection(sourceBounds);
+            if (clampedRect.isEmpty()) continue;
+
+            for (ActivePair ap : activePairs) {
+                final Tile srcTileI = getSourceTile(ap.pair.srcI, clampedRect);
+                final Tile srcTileQ = getSourceTile(ap.pair.srcQ, clampedRect);
+
+                // Compute deramp+demod phase for this burst region
+                final double[][] derampDemodPhase = su.computeDerampDemodPhase(
+                        subSwath, subSwathIndex, burstIndex, clampedRect);
+
+                // Apply deramp to source data
+                final int bw = clampedRect.width;
+                final int bh = clampedRect.height;
+                final double[][] derampedI = new double[bh][bw];
+                final double[][] derampedQ = new double[bh][bw];
+                performDerampDemod(srcTileI, srcTileQ, clampedRect, derampDemodPhase, derampedI, derampedQ);
+
+                // Create resampling rasters from deramped arrays
+                final ArrayResamplingRaster rasterI = new ArrayResamplingRaster(derampedI, bw, bh);
+                final ArrayResamplingRaster rasterQ = new ArrayResamplingRaster(derampedQ, bw, bh);
+                final ArrayResamplingRaster rasterPhase = new ArrayResamplingRaster(derampDemodPhase, bw, bh);
+
+                // Resample each target pixel belonging to this burst
+                for (int idx = 0; idx < numPixels; idx++) {
+                    if (bestBurst[idx] != burstIndex) continue;
+
+                    // Convert to local coordinates within the burst source rect
+                    final double localRg = rangeIndices[idx] - clampedRect.x;
+                    final double localAz = azimuthIndices[idx] - clampedRect.y;
+
+                    imgResampling.computeCornerBasedIndex(localRg, localAz, bw, bh, resamplingIndex);
+
+                    final double sampI = imgResampling.resample(rasterI, resamplingIndex);
+                    final double sampQ = imgResampling.resample(rasterQ, resamplingIndex);
+
+                    if (Double.isNaN(sampI) || Double.isNaN(sampQ)) {
+                        if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, ap.noDataI);
+                        if (ap.bufQ != null) ap.bufQ.setElemDoubleAt(idx, ap.noDataQ);
+                        continue;
+                    }
+
+                    // Interpolate the deramp phase at the resampled position and reramp
+                    final double sampPhase = imgResampling.resample(rasterPhase, resamplingIndex);
+                    final double cosReramp = FastMath.cos(sampPhase);
+                    final double sinReramp = FastMath.sin(sampPhase);
+                    double convergentI = sampI * cosReramp + sampQ * sinReramp;
+                    double convergentQ = -sampI * sinReramp + sampQ * cosReramp;
+
+                    // Apply range phase flattening
+                    if (outputFlattened) {
+                        final double rangePhase = phaseConstant * slantRanges[idx];
+                        final double cosPhi = FastMath.cos(rangePhase);
+                        final double sinPhi = FastMath.sin(rangePhase);
+                        final double iFinal = convergentI * cosPhi - convergentQ * sinPhi;
+                        final double qFinal = convergentQ * cosPhi + convergentI * sinPhi;
+                        convergentI = iFinal;
+                        convergentQ = qFinal;
+                    }
+
+                    if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, convergentI);
+                    if (ap.bufQ != null) ap.bufQ.setElemDoubleAt(idx, convergentQ);
+                }
+            }
+        }
+
+        // Simulated phase bands
+        for (int idx = 0; idx < numPixels; idx++) {
+            if (bestBurst[idx] == -1) continue;
+            final double phase = phaseConstant * slantRanges[idx];
+            if (bufPhase != null) bufPhase.setElemDoubleAt(idx, Math.atan2(FastMath.sin(phase), FastMath.cos(phase)));
+            if (bufUnwrappedPhase != null) bufUnwrappedPhase.setElemDoubleAt(idx, phase);
+        }
+    }
+
+    private void fillAllNoData(Map<Band, Tile> targetTiles) {
+        for (Tile t : targetTiles.values()) {
+            ProductData data = t.getRawSamples();
+            final double noData = t.getRasterDataNode().getNoDataValue();
+            for (int i = 0; i < data.getNumElems(); i++) data.setElemDoubleAt(i, noData);
+        }
+    }
+
+    /**
+     * Determine which burst a pixel belongs to using valid line times and midpoint overlap rule.
+     */
+    private static int selectBurst(double zeroDopplerTimeSec, Sentinel1Utils.SubSwathInfo ss) {
+        int firstBurst = -1;
+        int secondBurst = -1;
+
+        for (int i = 0; i < ss.numOfBursts; i++) {
+            // Use valid line times (not full burst extent) to avoid including invalid edge samples
+            if (zeroDopplerTimeSec >= ss.burstFirstValidLineTime[i] &&
+                    zeroDopplerTimeSec <= ss.burstLastValidLineTime[i]) {
+                if (firstBurst == -1) {
+                    firstBurst = i;
+                } else {
+                    secondBurst = i;
+                    break;
+                }
+            }
+        }
+
+        if (firstBurst == -1) return -1;
+        if (secondBurst == -1) return firstBurst;
+
+        // Overlap: use midpoint rule between valid regions (same as TOPSARDeburstOp)
+        final double midTime = (ss.burstLastValidLineTime[firstBurst] +
+                ss.burstFirstValidLineTime[secondBurst]) / 2.0;
+        return (zeroDopplerTimeSec < midTime) ? firstBurst : secondBurst;
+    }
+
+    /**
+     * Check if a source pixel falls within the valid sample region of its burst.
+     */
+    private static boolean isValidBurstSample(int burstIndex, double azimuthIndex, double rangeIndex,
+                                               Sentinel1Utils.SubSwathInfo ss) {
+        final int lineInBurst = (int) Math.round(azimuthIndex) - burstIndex * ss.linesPerBurst;
+        if (lineInBurst < 0 || lineInBurst >= ss.linesPerBurst) return false;
+
+        // Check valid line range
+        if (lineInBurst < ss.firstValidLine[burstIndex] || lineInBurst > ss.lastValidLine[burstIndex]) {
+            return false;
+        }
+
+        // Check valid sample range for this line
+        final int sample = (int) Math.round(rangeIndex);
+        final int firstValid = ss.firstValidSample[burstIndex][lineInBurst];
+        final int lastValid = ss.lastValidSample[burstIndex][lineInBurst];
+        return firstValid != -1 && sample >= firstValid && sample <= lastValid;
+    }
+
+    private Rectangle computeBurstSourceRectangle(int burstIndex, int[] bestBurst,
+                                                   double[] azimuthIndices, double[] rangeIndices,
+                                                   int w, int h, Sentinel1Utils.SubSwathInfo ss) {
+
+        final int burstFirstLine = burstIndex * ss.linesPerBurst;
+        final int burstLastLine = burstFirstLine + ss.linesPerBurst - 1;
+
+        int xMin = Integer.MAX_VALUE, xMax = Integer.MIN_VALUE;
+        int yMin = Integer.MAX_VALUE, yMax = Integer.MIN_VALUE;
+        boolean found = false;
+
+        for (int i = 0; i < w * h; i++) {
+            if (bestBurst[i] != burstIndex) continue;
+            found = true;
+            int rg = (int) Math.floor(rangeIndices[i]);
+            int az = (int) Math.floor(azimuthIndices[i]);
+            xMin = Math.min(xMin, rg);
+            xMax = Math.max(xMax, rg + 1);
+            yMin = Math.min(yMin, az);
+            yMax = Math.max(yMax, az + 1);
+        }
+
+        if (!found) return null;
+
+        xMin = Math.max(xMin - margin, 0);
+        xMax = Math.min(xMax + margin, sourceImageWidth - 1);
+        yMin = Math.max(yMin - margin, burstFirstLine);
+        yMax = Math.min(yMax + margin, burstLastLine);
+
+        if (xMin > xMax || yMin > yMax) return null;
+        return new Rectangle(xMin, yMin, xMax - xMin + 1, yMax - yMin + 1);
+    }
+
+    private static void performDerampDemod(final Tile tileI, final Tile tileQ,
+                                            final Rectangle rectangle, final double[][] derampDemodPhase,
+                                            final double[][] derampedI, final double[][] derampedQ) {
+
+        final int x0 = rectangle.x;
+        final int y0 = rectangle.y;
+        final int xMax = x0 + rectangle.width;
+        final int yMax = y0 + rectangle.height;
+
+        for (int y = y0; y < yMax; y++) {
+            final int yy = y - y0;
+            for (int x = x0; x < xMax; x++) {
+                final int xx = x - x0;
+                final double valueI = tileI.getSampleDouble(x, y);
+                final double valueQ = tileQ.getSampleDouble(x, y);
+                final double cosPhase = FastMath.cos(derampDemodPhase[yy][xx]);
+                final double sinPhase = FastMath.sin(derampDemodPhase[yy][xx]);
+                derampedI[yy][xx] = valueI * cosPhase - valueQ * sinPhase;
+                derampedQ[yy][xx] = valueI * sinPhase + valueQ * cosPhase;
+            }
+        }
+    }
+
+    private static class ArrayResamplingRaster implements Resampling.Raster {
+        private final double[][] data;
+        private final int width;
+        private final int height;
+
+        ArrayResamplingRaster(double[][] data, int width, int height) {
+            this.data = data;
+            this.width = width;
+            this.height = height;
+        }
+
+        @Override public int getWidth() { return width; }
+        @Override public int getHeight() { return height; }
+
+        @Override
+        public boolean getSamples(int[] x, int[] y, double[][] samples) {
+            boolean allValid = true;
+            for (int i = 0; i < y.length; i++) {
+                for (int j = 0; j < x.length; j++) {
+                    if (y[i] >= 0 && y[i] < height && x[j] >= 0 && x[j] < width) {
+                        samples[i][j] = data[y[i]][x[j]];
+                    } else {
+                        samples[i][j] = Double.NaN;
+                        allValid = false;
+                    }
+                }
+            }
+            return allValid;
         }
     }
 
@@ -793,7 +1252,7 @@ public class GSLCGeocodingOp extends Operator {
                     lastX = true;
                 }
 
-                tileGeoRef.getGeoPos(new PixelPos(x, y), geoPos);
+                tileGeoRef.getGeoPos(x, y, geoPos);
 
                 final Double alt = localDEM[y - y0 + 1][x - x0 + 1];
                 if (!alt.equals(demNoDataValue)) {
@@ -988,39 +1447,57 @@ public class GSLCGeocodingOp extends Operator {
                 cachedQ = new double[y.length][x.length];
             }
 
-            double k = 4.0 * Math.PI / wavelength;
-            double currentPhaseBase = centerSlantRange * k;
+            // Use incremental phase rotation across range samples to avoid per-sample cos/sin.
+            // Phase at kernel sample x[j] = phaseBase + (x[j] - centerRangeIndex) * sign * phaseStep
+            // For consecutive integer x values, phase increments by sign * phaseStep.
+            final double phaseBase = centerSlantRange * 4.0 * Math.PI / wavelength;
+            final double cosStep = FastMath.cos(sign * phaseStep);
+            final double sinStep = FastMath.sin(sign * phaseStep);
+
+            final int rxMin = rect.x;
+            final int rxMax = rect.x + rect.width - 1;
+            final int ryMin = rect.y;
+            final int ryMax = rect.y + rect.height - 1;
 
             for (int i = 0; i < y.length; i++) {
-                for (int j = 0; j < x.length; j++) {
-                    if (!rect.contains(x[j], y[i])) {
-                         cachedI[i][j] = noDataValue;
-                         cachedQ[i][j] = noDataValue;
-                         allValid = false;
-                         continue;
-                    }
+                final int yi = y[i];
+                final boolean yInBounds = (yi >= ryMin && yi <= ryMax);
 
-                    final double iVal = sourceTileI.getSampleDouble(x[j], y[i]);
-                    final double qVal = sourceTileQ.getSampleDouble(x[j], y[i]);
-                    
-                    if (iVal == noDataValue || qVal == noDataValue) {
+                // Compute phase for the first x sample in this row
+                double deltaX0 = (x[0] - centerRangeIndex) * sign;
+                double phi0 = phaseBase + deltaX0 * phaseStep;
+                double cosPhiCur = FastMath.cos(phi0);
+                double sinPhiCur = FastMath.sin(phi0);
+
+                for (int j = 0; j < x.length; j++) {
+                    final int xj = x[j];
+
+                    if (!yInBounds || xj < rxMin || xj > rxMax) {
                         cachedI[i][j] = noDataValue;
                         cachedQ[i][j] = noDataValue;
                         allValid = false;
-                        continue;
+                    } else {
+                        final double iVal = sourceTileI.getSampleDouble(xj, yi);
+                        final double qVal = sourceTileQ.getSampleDouble(xj, yi);
+
+                        if (iVal == noDataValue || qVal == noDataValue) {
+                            cachedI[i][j] = noDataValue;
+                            cachedQ[i][j] = noDataValue;
+                            allValid = false;
+                        } else {
+                            // (I + jQ) * e^{+j*phi} = (I*cos - Q*sin) + j(Q*cos + I*sin)
+                            cachedI[i][j] = iVal * cosPhiCur - qVal * sinPhiCur;
+                            cachedQ[i][j] = qVal * cosPhiCur + iVal * sinPhiCur;
+                        }
                     }
 
-                    // Phase Flattening
-                    double deltaX = (x[j] - centerRangeIndex) * sign;
-                    double phase = currentPhaseBase + deltaX * phaseStep;
-
-                    double cosPhi = FastMath.cos(phase);
-                    double sinPhi = FastMath.sin(phase);
-
-                    // (I + jQ) * (cos + j*sin) = (I*cos - Q*sin) + j(Q*cos + I*sin)
-                    // Multiply by e^+jphi to remove e^-jphi carrier
-                    cachedI[i][j] = iVal * cosPhi - qVal * sinPhi;
-                    cachedQ[i][j] = qVal * cosPhi + iVal * sinPhi;
+                    // Incremental phase rotation for next x sample: e^{j*(phi+step)} = e^{j*phi} * e^{j*step}
+                    if (j < x.length - 1) {
+                        final double cosNext = cosPhiCur * cosStep - sinPhiCur * sinStep;
+                        final double sinNext = sinPhiCur * cosStep + cosPhiCur * sinStep;
+                        cosPhiCur = cosNext;
+                        sinPhiCur = sinNext;
+                    }
                 }
             }
             
