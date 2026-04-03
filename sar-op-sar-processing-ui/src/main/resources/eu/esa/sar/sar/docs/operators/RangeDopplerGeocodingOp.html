@@ -394,6 +394,12 @@ angle will be saved as a band in the target product.&nbsp;</li>
         local incidence angle, local incidence angle or incidence angle from ellipsoid.
     </li>
     <li>Save Beta0 as a band: Checkbox indicating that Beta0 will be saved as a band in the target product.</li>
+    <li>Apply Atmospheric Path Delay Correction: When enabled, corrects for tropospheric path delay
+        using a standard atmosphere model (Saastamoinen dry delay). This improves range geolocation
+        accuracy by approximately 3 metres. The correction is derived from the target elevation and
+        incidence angle, and does not require external meteorological data. Applicable to all SAR missions.
+        Disabled by default.
+    </li>
     <li>Auxiliary
         File: available only for ASAR. User selected ASAR XCA file for radiometric normalization. The
         following options are available: <span style="font-weight: bold;">Latest Auxiliary File</span>, <span style="font-weight: bold;">Product

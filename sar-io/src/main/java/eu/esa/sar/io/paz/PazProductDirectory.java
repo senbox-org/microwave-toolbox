@@ -46,12 +46,6 @@ public class PazProductDirectory extends TerraSarXProductDirectory {
     }
 
     @Override
-    protected void findImages(final MetadataElement newRoot) throws IOException {
-        final String parentPath = getRelativePathToImageFolder();
-        findImages(parentPath, newRoot);
-    }
-
-    @Override
     protected String getMission() {
         return "PAZ";
     }

@@ -1,10 +1,14 @@
 # Microwave Toolbox 13
 
+## Update 13.0.3
+* [SNAP-4151] Open Biomass products directly from zip file
+* [SNAP-4148] Terrain Flattening applies only to partial scene 
+
 ## Update 13.0.2
 * [SNAP-4061] Investigate issues found in Biomass product supporting
 * [SNAP-4072] BIOMASS - Terrain corrected DGM image is not correct
 * [SNAP-4109] TOPSAR-Split operator ignores selected burst (always reverts to IW1)
-* [SNAP-4112] Imrpovements to terrain flattening
+* [SNAP-4112] Improvements to terrain flattening
 * [SNAP-4133] Biomass error when exporting to NetCDF
 * [SNAP-4134] TileIndex in HAlphaWishart
 
