@@ -31,7 +31,7 @@ import java.nio.file.Path;
 
 
 /**
- * The product reader for Sentinel1 products.
+ * The product reader for BIOMASS products.
  */
 public class BiomassProductReader extends SARReader {
 
