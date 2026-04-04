@@ -56,8 +56,11 @@ public class IceyeProductReader extends SARReader {
 
             if (fileName.startsWith(IceyeConstants.ICEYE_FILE_PREFIX.toLowerCase())) {
                 if (fileName.endsWith(".xml")) {
-                    inputFile = FileUtils.exchangeExtension(inputFile, ".h5");
-                    fileName = inputFile.getName().toLowerCase();
+                    final File h5File = FileUtils.exchangeExtension(inputFile, ".h5");
+                    if (h5File.exists()) {
+                        inputFile = h5File;
+                        fileName = inputFile.getName().toLowerCase();
+                    }
                 }
 
                 if (fileName.endsWith(".h5")) {
@@ -65,6 +68,9 @@ public class IceyeProductReader extends SARReader {
                 }
             }
 
+            if (reader == null) {
+                throw new IOException("Unable to find HDF5 file for ICEYE product: " + inputPath);
+            }
             return reader.readProductNodes(inputFile, getSubsetDef());
         } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());

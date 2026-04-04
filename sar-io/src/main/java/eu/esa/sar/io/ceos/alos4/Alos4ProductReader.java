@@ -37,7 +37,6 @@ public class Alos4ProductReader extends Alos2ProductReader {
         return new Alos4ProductDirectory(productDir);
     }
 
-    @Override
     DecodeQualification checkProductQualification(final Path path) {
         try {
             dataDir = createProductDirectory(createProductDir(path));
