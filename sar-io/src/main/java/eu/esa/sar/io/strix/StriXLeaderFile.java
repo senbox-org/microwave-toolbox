@@ -128,7 +128,7 @@ public class StriXLeaderFile extends CEOSLeaderFile {
                     header.seekToEnd();
                 }
             } catch (Exception e) {
-                System.out.println("Unable to read StriX facility record: " + e.getMessage());
+                SystemUtils.LOG.warning("Unable to read StriX facility record: " + e.getMessage());
             }
         }
     }

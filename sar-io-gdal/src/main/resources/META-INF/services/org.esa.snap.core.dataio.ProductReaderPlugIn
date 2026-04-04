@@ -1,2 +1,4 @@
 eu.esa.sar.iogdal.biomass.BiomassProductReaderPlugIn
+eu.esa.sar.iogdal.iceye.IceyeCOGReaderPlugIn
+eu.esa.sar.iogdal.qps.QPSSARProductReaderPlugIn
 eu.esa.sar.iogdal.sentinel1.Sentinel1GDALProductReaderPlugIn

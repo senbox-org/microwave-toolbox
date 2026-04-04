@@ -11,6 +11,15 @@
                 <attr name="helpId" stringvalue="importBiomassProduct"/>
                 <attr name="ShortDescription" stringvalue="Open BIOMASS data product."/>
             </file>
+            <file name="eu-esa-sar-iogdal-importQPSSAR.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
+                <attr name="displayName" stringvalue="QPS-SAR"/>
+                <attr name="formatName" stringvalue="QPS-SAR"/>
+                <attr name="useAllFileFilter" boolvalue="true"/>
+                <attr name="helpId" stringvalue="importQPSSAR"/>
+                <attr name="ShortDescription" stringvalue="Open iQPS QPS-SAR data product."/>
+            </file>
             <file name="eu-esa-sar-iogdal-importS1COG.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
@@ -30,6 +39,10 @@
                     <file name="eu-esa-sar-iogdal-importBiomass.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importBiomass.instance"/>
                         <attr name="position" intvalue="270"/>
+                    </file>
+                    <file name="eu-esa-sar-iogdal-importQPSSAR.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importQPSSAR.instance"/>
+                        <attr name="position" intvalue="800"/>
                     </file>
                     <file name="eu-esa-sar-iogdal-importS1COG.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importS1COG.instance"/>

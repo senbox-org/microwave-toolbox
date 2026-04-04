@@ -21,6 +21,15 @@
                     <attr name="helpId" stringvalue="ImportAlosPalsar"/>
                     <attr name="ShortDescription" stringvalue="Open ALOS-2 CEOS data product."/>
                 </file>
+                <file name="eu-esa-sar-io-ceos-importAlos4Product.instance">
+                    <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                    <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
+                    <attr name="displayName" stringvalue="ALOS-4 CEOS"/>
+                    <attr name="formatName" stringvalue="ALOS-4 CEOS"/>
+                    <attr name="useAllFileFilter" boolvalue="true"/>
+                    <attr name="helpId" stringvalue="ImportAlosPalsar"/>
+                    <attr name="ShortDescription" stringvalue="Open ALOS-4 PALSAR-3 CEOS data product."/>
+                </file>
                 <file name="eu-esa-sar-io-ceos-importERSProduct.instance">
                     <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                     <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
@@ -70,7 +79,7 @@
             <file name="eu-esa-sar-io-importGaofen3.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
-                <attr name="displayName" stringvalue="GAOFEN3"/>
+                <attr name="displayName" stringvalue="GAOFEN-3/3B/3C"/>
                 <attr name="formatName" stringvalue="Gaofen3"/>
                 <attr name="useAllFileFilter" boolvalue="true"/>
                 <attr name="helpId" stringvalue="importGaofen3"/>
@@ -281,6 +290,10 @@
                     <file name="eu-esa-sar-io-ceos-importAlos2Product.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/Ceos/eu-esa-sar-io-ceos-importAlos2Product.instance"/>
                         <attr name="position" intvalue="200"/>
+                    </file>
+                    <file name="eu-esa-sar-io-ceos-importAlos4Product.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Readers/Ceos/eu-esa-sar-io-ceos-importAlos4Product.instance"/>
+                        <attr name="position" intvalue="201"/>
                     </file>
                     <file name="eu-esa-sar-io-importAlos2GeoTiffProduct.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-io-importAlos2GeoTiffProduct.instance"/>

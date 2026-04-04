@@ -76,8 +76,7 @@ public class Alos2ProductDirectory extends AlosPalsarProductDirectory {
                         getProductLevel(), imageFile.fileName);
                 imgArray.add(imgFile);
             } catch (Exception e) {
-                e.printStackTrace();
-                // continue
+                org.esa.snap.core.util.SystemUtils.LOG.warning("Unable to read ALOS-2 image file: " + e.getMessage());
             }
         }
         imageFiles = imgArray.toArray(new AlosPalsarImageFile[0]);

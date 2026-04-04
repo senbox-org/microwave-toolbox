@@ -155,7 +155,7 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_near, getDouble(rootElem, "Near Incidence Angle"));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_far, getDouble(rootElem, "Far Incidence Angle"));
 
-        //AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier, rootElem.getAttributeString("L1B Software Version"));
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ProcessingSystemIdentifier, rootElem.getAttributeString("L1B Software Version", ""));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.algorithm, rootElem.getAttributeString("Focusing Algorithm ID"));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.antenna_pointing, rootElem.getAttributeString("Look Side").toLowerCase());
 

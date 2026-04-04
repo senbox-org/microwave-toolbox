@@ -110,7 +110,7 @@ public class StriXProductReader extends CEOSProductReader {
             }
 
         } catch (Throwable e) {
-            //handleReaderException(e);
+            handleReaderException(e);
         }
     }
 }

@@ -228,7 +228,7 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
                                                                   final BinaryRecord facilityRecord) {
 
         if (facilityRecord == null || facilityRecord.getAttributeDouble("Origin Line") == null) {
-            System.out.format("cannot access facilityRecord\n");
+            org.esa.snap.core.util.SystemUtils.LOG.warning("Cannot access ALOS facility record for geocoding coefficients");
             return;
         }
         final int originLine = (int) Math.floor(facilityRecord.getAttributeDouble("Origin Line"));

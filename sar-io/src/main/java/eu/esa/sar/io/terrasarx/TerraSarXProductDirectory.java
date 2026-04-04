@@ -96,7 +96,22 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
     @Override
     protected String getHeaderFileName() {
         if (ZipUtils.isZip(headerFile)) {
-            return ""; //todo
+            // For ZIP files, find the main XML annotation file inside
+            try {
+                final String[] files = listFiles("");
+                if (files != null) {
+                    for (String file : files) {
+                        final String name = file.toLowerCase();
+                        if (name.endsWith(".xml") && !name.contains("georef") && !name.contains("noise")
+                                && !name.contains("calibration") && !name.contains("support")) {
+                            return file;
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                SystemUtils.LOG.warning("Unable to find header file in ZIP: " + e.getMessage());
+            }
+            return headerFile.getName().replace(".zip", ".xml");
         } else {
             return headerFile.getName();
         }
