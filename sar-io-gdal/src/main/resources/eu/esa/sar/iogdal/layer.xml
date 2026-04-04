@@ -11,6 +11,15 @@
                 <attr name="helpId" stringvalue="importBiomassProduct"/>
                 <attr name="ShortDescription" stringvalue="Open BIOMASS data product."/>
             </file>
+            <file name="eu-esa-sar-iogdal-importIceyeCOG.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
+                <attr name="displayName" stringvalue="ICEYE COG"/>
+                <attr name="formatName" stringvalue="ICEYE COG"/>
+                <attr name="useAllFileFilter" boolvalue="true"/>
+                <attr name="helpId" stringvalue="importIceyeCOGProduct"/>
+                <attr name="ShortDescription" stringvalue="Open ICEYE COG data product."/>
+            </file>
             <file name="eu-esa-sar-iogdal-importQPSSAR.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
@@ -39,6 +48,10 @@
                     <file name="eu-esa-sar-iogdal-importBiomass.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importBiomass.instance"/>
                         <attr name="position" intvalue="270"/>
+                    </file>
+                    <file name="eu-esa-sar-iogdal-importIceyeCOG.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importIceyeCOG.instance"/>
+                        <attr name="position" intvalue="280"/>
                     </file>
                     <file name="eu-esa-sar-iogdal-importQPSSAR.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importQPSSAR.instance"/>

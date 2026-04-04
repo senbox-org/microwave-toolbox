@@ -1,8 +1,7 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARReader;
-import eu.esa.sar.io.iceye.util.IceyeConstants;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
@@ -19,7 +18,7 @@ import java.nio.file.Path;
 /**
  * @author Ahmad Hamouda
  */
-public class IceyeProductReader extends SARReader {
+public class IceyeCOGReader extends SARReader {
 
     private ProductReader reader;
 
@@ -30,7 +29,7 @@ public class IceyeProductReader extends SARReader {
      *                     <code>null</code> for internal reader
      *                     implementations
      */
-    public IceyeProductReader(final ProductReaderPlugIn readerPlugIn) {
+    public IceyeCOGReader(final ProductReaderPlugIn readerPlugIn) {
         super(readerPlugIn);
     }
 
@@ -57,11 +56,25 @@ public class IceyeProductReader extends SARReader {
             if (fileName.startsWith(IceyeConstants.ICEYE_FILE_PREFIX.toLowerCase())) {
                 if (fileName.endsWith(".xml")) {
                     inputFile = FileUtils.exchangeExtension(inputFile, ".h5");
+                    if (!inputFile.exists()) {
+                        inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
+                    }
                     fileName = inputFile.getName().toLowerCase();
                 }
 
-                if (fileName.endsWith(".h5")) {
-                    reader = new IceyeSLCProductReader(getReaderPlugIn());
+                if (fileName.endsWith(".json")) {
+                    inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
+                    fileName = inputFile.getName().toLowerCase();
+                }
+
+                if (fileName.endsWith(".tif")) {
+                    if (fileName.endsWith("aml.tif")) {
+                        reader = new IceyeAMLProductReader(getReaderPlugIn());
+                    } else if (fileName.contains("cpx.tif")) {
+                        reader = new IceyeCPXProductReader(getReaderPlugIn());
+                    } else {
+                        reader = new IceyeGRDProductReader(getReaderPlugIn());
+                    }
                 }
             }
 
@@ -88,9 +101,6 @@ public class IceyeProductReader extends SARReader {
             int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
             int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
             ProgressMonitor pm) throws IOException {
-        ((IceyeSLCProductReader) reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth,
-                sourceHeight,
-                sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer,
-                pm);
+        // All band data is accessed via source images set from GDAL/GeoTiff readers
     }
 }

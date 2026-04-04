@@ -1,8 +1,5 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
-import java.awt.image.DataBuffer;
-
-import eu.esa.sar.io.iceye.util.IceyeConstants;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -26,28 +23,39 @@ public class IceyeCPXProductReader extends IceyeAMLCPXProductReader {
     }
 
     void addProductSpecificBands(Product product, String polarization) {
-        final Band phaseBand = new Band(IceyeConstants.phase_band_prefix + polarization, ProductData.TYPE_FLOAT32, imageWidth, imageHeight);
+        // Phase band from GDAL (band index 1)
+        Band gdalPhaseBand = bandProduct.getBandAt(IceyeConstants.PHASE_BAND_INDEX);
+
+        final Band phaseBand = new Band(IceyeConstants.phase_band_prefix + polarization,
+                gdalPhaseBand.getDataType(), imageWidth, imageHeight);
         phaseBand.setUnit(Unit.PHASE);
         phaseBand.setNoDataValue(99999.0);
         phaseBand.setNoDataValueUsed(true);
+        phaseBand.setSourceImage(gdalPhaseBand.getSourceImage());
         product.addBand(phaseBand);
         bandMap.put(phaseBand, IceyeConstants.PHASE_BAND_INDEX);
 
-        final Band iBand = new VirtualBand(IceyeConstants.i_band_prefix + polarization, ProductData.TYPE_FLOAT32, imageWidth, imageHeight,
-                "Amplitude_VV * cos(Phase_VV)");
+        // Virtual I band
+        String ampBandName = IceyeConstants.amplitude_band_prefix + polarization;
+        String phsBandName = IceyeConstants.phase_band_prefix + polarization;
+
+        final Band iBand = new VirtualBand(IceyeConstants.i_band_prefix + polarization,
+                ProductData.TYPE_FLOAT32, imageWidth, imageHeight,
+                ampBandName + " * cos(" + phsBandName + ")");
         iBand.setUnit(Unit.REAL);
         iBand.setNoDataValue(0);
         iBand.setNoDataValueUsed(true);
         product.addBand(iBand);
-        bandMap.put(iBand, IceyeConstants.I_BAND_VIRTUAL_INDEX);
 
-        final Band qBand = new VirtualBand(IceyeConstants.q_band_prefix + polarization, ProductData.TYPE_FLOAT32, imageWidth, imageHeight,
-                "Amplitude_VV * sin(Phase_VV)");
+        // Virtual Q band
+        final Band qBand = new VirtualBand(IceyeConstants.q_band_prefix + polarization,
+                ProductData.TYPE_FLOAT32, imageWidth, imageHeight,
+                ampBandName + " * sin(" + phsBandName + ")");
         qBand.setUnit(Unit.IMAGINARY);
         qBand.setNoDataValue(0);
         qBand.setNoDataValueUsed(true);
         product.addBand(qBand);
-        bandMap.put(qBand, IceyeConstants.Q_BAND_VIRTUAL_INDEX);
+
         ReaderUtils.createVirtualIntensityBand(product, iBand, qBand, "_" + polarization);
     }
 
@@ -63,23 +71,5 @@ public class IceyeCPXProductReader extends IceyeAMLCPXProductReader {
             }
         }
         return slantRangeTimeList;
-    }
-
-    float getRasterValue(int srcIndex, int bandIndex, DataBuffer dataBuffer) {
-        srcIndex *= 2;
-        if (bandIndex < 2) {
-            return dataBuffer.getElemFloat(srcIndex + bandIndex);
-        } else if (bandIndex == IceyeConstants.I_BAND_VIRTUAL_INDEX) {
-            float amp = dataBuffer.getElemFloat(srcIndex + IceyeConstants.AMPLITUDE_BAND_INDEX);
-            float pha = dataBuffer.getElemFloat(srcIndex + IceyeConstants.PHASE_BAND_INDEX);
-            return amp * (float) Math.cos(pha);
-        } else if (bandIndex == IceyeConstants.Q_BAND_VIRTUAL_INDEX) {
-            float amp = dataBuffer.getElemFloat(srcIndex + IceyeConstants.AMPLITUDE_BAND_INDEX);
-            float pha = dataBuffer.getElemFloat(srcIndex + IceyeConstants.PHASE_BAND_INDEX);
-            return amp * (float) Math.sin(pha);
-        } else {
-            return 0;
-        }
-
     }
 }

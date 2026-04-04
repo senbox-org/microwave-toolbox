@@ -1,12 +1,10 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
 import com.bc.ceres.core.ProgressMonitor;
 
 import eu.esa.sar.commons.io.JSONProductDirectory;
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.product.Missions;
-import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
-import eu.esa.sar.io.iceye.util.IceyeConstants;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFIFD;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageMetadata;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReader;
@@ -17,6 +15,7 @@ import org.esa.snap.engine_utilities.datamodel.AbstractMetadata.DopplerCentroidC
 import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
+import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
@@ -24,6 +23,7 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.ProductData.UTC;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.dataio.gdal.reader.plugins.GTiffDriverProductReaderPlugIn;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.json.simple.JSONArray;
@@ -35,17 +35,14 @@ import org.w3c.dom.Node;
 import org.esa.snap.core.datamodel.Product;
 
 import javax.imageio.ImageIO;
-import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.awt.Rectangle;
-import java.awt.image.DataBuffer;
-import java.awt.image.Raster;
-import java.awt.image.RenderedImage;
+import java.util.Iterator;
 
 
 
@@ -56,8 +53,10 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
 
     private boolean lookLeft;
     private ImageInputStream inputStream;
-    private TIFFImageReader imageReader = null;
     private JSONObject metadataJSON = null;
+
+    private static final GTiffDriverProductReaderPlugIn gdalReaderPlugIn = new GTiffDriverProductReaderPlugIn();
+    protected Product bandProduct = null;
 
     public IceyeAMLCPXProductReader(ProductReaderPlugIn readerPlugIn) {
         super(readerPlugIn);
@@ -74,11 +73,24 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
 
             final File inputFile = inputPath.toFile();
 
+            // Use ImageIO only for metadata extraction from TIFF tags
             inputStream = ImageIO.createImageInputStream(inputFile);
-            imageReader = (TIFFImageReader) GeoTiffUtils.getTiffIIOReader(inputStream);
-            imageReader.setInput(inputStream, false);
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(inputStream);
+            TIFFImageReader tiffReader = null;
+            while (readers.hasNext()) {
+                ImageReader r = readers.next();
+                if (r instanceof TIFFImageReader) {
+                    tiffReader = (TIFFImageReader) r;
+                    tiffReader.setInput(inputStream, false);
+                    break;
+                }
+            }
+            if (tiffReader == null) {
+                close();
+                throw new IllegalFileFormatException("TIFF reader not found.");
+            }
 
-            TIFFImageMetadata tiffMetadata = (TIFFImageMetadata) imageReader.getImageMetadata(0);
+            TIFFImageMetadata tiffMetadata = (TIFFImageMetadata) tiffReader.getImageMetadata(0);
 
             if (tiffMetadata == null) {
                 close();
@@ -118,6 +130,10 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
             Product product = new Product(inputFile.getName(), productType, imageWidth, imageHeight, this);
             product.setFileLocation(inputFile);
 
+            // Open via GDAL for raster data access
+            ProductReader gdalReader = gdalReaderPlugIn.createReaderInstance();
+            bandProduct = gdalReader.readProductNodes(inputFile, null);
+
             addMetadataToProduct(product);
             addBandsToProduct(product);
             addGeoCodingToProduct(product, tiffMetadata);
@@ -126,7 +142,6 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
             addCommonSARMetadata(product);
             addDopplerCentroidCoefficients(product);
 
-            product.getGcpGroup(); // why is this called??
             product.setModified(false);
             File qlFile = getQuicklookFile(inputFile);
             if (qlFile != null)
@@ -145,6 +160,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
     private File getQuicklookFile(File inputFile) {
         File dir = inputFile.getParentFile();
         File[] files = dir.listFiles();
+        if (files == null) return null;
         for (String suffix : new String[] { IceyeConstants.qlk_png, IceyeConstants.thm_png }) {
             for (File f : files) {
                 if (f.getName().toLowerCase().endsWith(suffix))
@@ -157,11 +173,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
     private JSONObject parseMetadataJSON(String jsonString) throws Exception {
         jsonString = jsonString.replaceAll("&quot;", "\"");
         JSONParser parser = new JSONParser();
-        try {
-            return (JSONObject) parser.parse(jsonString);
-        } catch (Exception e) {
-            throw e;
-        }
+        return (JSONObject) parser.parse(jsonString);
     }
 
     static UTC parseUTC(String input) {
@@ -173,9 +185,17 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
         }
     }
 
+    @Override
     public synchronized void close() throws IOException {
+        if (bandProduct != null) {
+            bandProduct.dispose();
+            bandProduct = null;
+        }
+        if (inputStream != null) {
+            inputStream.close();
+            inputStream = null;
+        }
         super.close();
-        inputStream.close();
     }
 
     void addMetadataToProduct(Product product) {
@@ -333,7 +353,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
             AbstractMetadata.setAttribute(meta, tag, value);
             return value;
         } catch (Exception e) {
-            SystemUtils.LOG.severe("Unable to parse UTC from metadata :: tag: " + tag);
+            SystemUtils.LOG.severe("Unable to parse string from metadata :: tag: " + tag);
         }
         return null;
     }
@@ -342,7 +362,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
         try {
             AbstractMetadata.setAttribute(meta, tag, (Long) getFromJSON(keyString));
         } catch (Exception e) {
-            SystemUtils.LOG.severe("Unable to parse UTC from metadata :: tag: " + tag);
+            SystemUtils.LOG.severe("Unable to parse long from metadata :: tag: " + tag);
         }
     }
 
@@ -352,7 +372,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
             AbstractMetadata.setAttribute(meta, tag, value);
             return value;
         } catch (Exception e) {
-            SystemUtils.LOG.severe("Unable to parse doube from metadata :: tag: " + tag);
+            SystemUtils.LOG.severe("Unable to parse double from metadata :: tag: " + tag);
         }
         return null;
     }
@@ -430,10 +450,14 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
         String polarization = (String) ((JSONArray) getFromJSON(IceyeConstants.polarization)).get(0);
         String bandName = IceyeConstants.amplitude_band_prefix + polarization;
 
-        final Band ampBand = new Band(bandName, ProductData.TYPE_FLOAT32, imageWidth, imageHeight);
+        // Get the amplitude band from GDAL product
+        Band gdalBand = bandProduct.getBandAt(IceyeConstants.AMPLITUDE_BAND_INDEX);
+
+        final Band ampBand = new Band(bandName, gdalBand.getDataType(), imageWidth, imageHeight);
         ampBand.setUnit(Unit.AMPLITUDE);
         ampBand.setNoDataValue(0);
         ampBand.setNoDataValueUsed(true);
+        ampBand.setSourceImage(gdalBand.getSourceImage());
         product.addBand(ampBand);
         bandMap.put(ampBand, IceyeConstants.AMPLITUDE_BAND_INDEX);
 
@@ -580,42 +604,13 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
         }
     }
 
-    public void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY,
+    @Override
+    protected void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY,
             int sourceWidth, int sourceHeight,
             int sourceStepX, int sourceStepY,
             Band destBand,
             int destOffsetX, int destOffsetY,
             int destWidth, int destHeight,
             ProductData destBuffer, ProgressMonitor pm) throws IOException {
-
-        pm.beginTask("Reading util from band " + destBand.getName(), destHeight);
-
-        final ImageReadParam param = imageReader.getDefaultReadParam();
-        param.setSourceSubsampling(sourceStepY, sourceStepX, sourceOffsetY % sourceStepY, sourceOffsetX % sourceStepX);
-        Rectangle rect = lookLeft
-                ? new Rectangle(imageHeight - destHeight - destOffsetY, destOffsetX, destHeight, destWidth)
-                : new Rectangle(destOffsetY, destOffsetX, destHeight, destWidth);
-        Raster data = readRect(param, rect, 0);
-        DataBuffer dataBuffer = data.getDataBuffer();
-
-        final int bandIndex = bandMap.get(destBand);
-
-        for (int i = 0; i < destHeight; i++) {
-            for (int j = 0; j < destWidth; j++) {
-                int srcIndex = lookLeft
-                        ? destHeight * (j + 1) - 1 - i
-                        : j * destHeight + i;
-                destBuffer.setElemFloatAt(i * destWidth + j, getRasterValue(srcIndex, bandIndex, dataBuffer));
-            }
-            pm.worked(1);
-        }
-        pm.done();
     }
-
-    private synchronized Raster readRect(ImageReadParam param, Rectangle rect, int id) throws IOException {
-        RenderedImage im = imageReader.readAsRenderedImage(id, param);
-        return im.getData(rect);
-    }
-
-    abstract float getRasterValue(int srcIndex, int bandIndex, DataBuffer dataBuffer);
 }
