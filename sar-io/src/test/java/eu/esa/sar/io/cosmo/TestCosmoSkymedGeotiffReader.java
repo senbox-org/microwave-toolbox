@@ -43,6 +43,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
     public final static File inputSC_GeoTiff_DGM_tif = new File(TestData.inputSAR + "Cosmo/SCANSAR-1/HH_Level_1B_TIFF/CSG_SSAR1_DGM_B_0301_SC1_001_HH_RA_F_20200923102555_20200923102610_1_F_41N_Z18_N00.IMG.tif");
     public final static File inputSC_GeoTiff_GEC_tif = new File(TestData.inputSAR + "Cosmo/SCANSAR-1/HH_Level_1C_GeoTIFF/CSG_SSAR1_GEC_B_0301_SC1_001_HH_RA_F_20200923102555_20200923102610_1_F_41N_Z18_N00.IMG.tif");
 
+    public final static File inputNG_tif = new File("E:\\EO\\CosmoSkymed\\Level GEC_B GeoTIFF HH\\CSG_SSAR2_GEC_B_0101_STR_020_HH_RD_F_20220925165358_20220925165404_1_F_53N_Z33_N00.IMG.tif");
 
     private final static String inputCosmo = SARTests.inputPathProperty + "SAR/Cosmo/";
     private final static File[] rootPathsCosmoSkymed = SARTests.loadFilePath(inputCosmo);
@@ -113,6 +114,18 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
     @STTM("SNAP-2602")
     public void testOpeningSC_GeoTiff_GEC_tif() throws Exception {
         Product prod = testReader(inputSC_GeoTiff_GEC_tif.toPath());
+
+        final ProductValidator validator = new ProductValidator(prod);
+        validator.validateProduct();
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+    }
+
+    @Test
+    public void testOpeningNG_GeoTiff_GEC_tif() throws Exception {
+        if(!inputNG_tif.exists())
+            return;
+        Product prod = testReader(inputNG_tif.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();

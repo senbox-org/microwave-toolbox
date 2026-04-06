@@ -44,6 +44,9 @@ public class TestCosmoSkymedReader extends ReaderTest {
     public final static File inputSC_SCS_H5 = new File(TestData.inputSAR + "Cosmo/SCANSAR-1/HH_Level_1A_hdf5/CSG_SSAR1_SCS_B_0101_SC1_001_HH_RA_F_20200923102555_20200923102610_1_F_41N_Z18_N00.h5");
     public final static File inputSC_DGM_H5 = new File(TestData.inputSAR + "Cosmo/SCANSAR-1/HH_Level_1B_hdf5/CSG_SSAR1_DGM_B_0301_SC1_001_HH_RA_F_20200923102555_20200923102610_1_F_41N_Z18_N00.h5");
 
+    public final static File inputNG_DGM_H5 = new File("E:\\EO\\CosmoSkymed\\Level DGM_B hdf5 HH\\CSG_SSAR2_DGM_B_0401_SC2_003_HH_RA_F_20220822043643_20220822043712_1_F_53N_Z33_N00.h5");
+    public final static File inputNG_SCS_H5 = new File(        "E:\\EO\\CosmoSkymed\\Level SCS_B hdf5 HH\\CSG_SSAR2_SCS_B_0101_QPS_012_HH_RD_F_20220926171205_20220926171211_1_F_53N_Z33_N00.h5");
+
     public final static String inputCosmo = SARTests.inputPathProperty + "SAR/Cosmo/";
     public final static File[] rootPathsCosmoSkymed = SARTests.loadFilePath(inputCosmo);
 
@@ -73,7 +76,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
     }
 
     @Test
@@ -83,7 +86,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+        validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV"});
     }
 
 
@@ -94,7 +97,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
     }
 
     @Test
@@ -104,7 +107,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
     }
 
     @Test
@@ -114,7 +117,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
     }
 
     @Test
@@ -124,7 +127,33 @@ public class TestCosmoSkymedReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude","Intensity"});
+        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+    }
+
+
+    // NG
+    @Test
+    public void testOpeningNG_DGM_H5() throws Exception {
+        if(!inputNG_DGM_H5.exists())
+            return;
+        Product prod = testReader(inputNG_DGM_H5.toPath());
+
+        final ProductValidator validator = new ProductValidator(prod);
+        validator.validateProduct();
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+    }
+
+    @Test
+    public void testOpeningNG_SCS_H5() throws Exception {
+        if(!inputNG_SCS_H5.exists())
+            return;
+        Product prod = testReader(inputNG_SCS_H5.toPath());
+
+        final ProductValidator validator = new ProductValidator(prod);
+        validator.validateProduct();
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
     }
 
     /**

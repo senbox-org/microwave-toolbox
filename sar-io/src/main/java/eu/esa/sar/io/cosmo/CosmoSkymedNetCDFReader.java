@@ -541,16 +541,21 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
         for (Variable variable : variables) {
             final int height = variable.getDimension(0).getLength();
             final int width = variable.getDimension(1).getLength();
-            String cntStr = "";
-            if (variables.length > 1) {
-                final String polStr = getPolarization(product, cnt);
-                if (polStr != null) {
-                    cntStr = "_" + polStr;
+            String cntStr;
+            final String polStr = getPolarization(product, cnt);
+            if (polStr != null) {
+                cntStr = "_" + polStr;
+            } else {
+                // Fallback to metadata polarization or counter
+                final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+                final String metaPol = absRoot.getAttributeString(AbstractMetadata.mds1_tx_rx_polar, "");
+                if (!metaPol.isEmpty() && variables.length == 1) {
+                    cntStr = "_" + metaPol;
                 } else {
                     cntStr = "_" + cnt;
                 }
-                ++cnt;
             }
+            ++cnt;
 
             if (isComplex) {     // add i and q
                 final Band bandI = NetCDFUtils.createBand(variable, width, height);
@@ -588,16 +593,34 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
 
         final MetadataElement globalElem = AbstractMetadata.getOriginalProductMetadata(product).getElement(NetcdfConstants.GLOBAL_ATTRIBUTES_NAME);
         if (globalElem != null) {
-            final MetadataElement s01Elem = globalElem.getElement("S0" + cnt);
-            if (s01Elem != null) {
-                final String polStr = s01Elem.getAttributeString("Polarisation", "");
-                if (!polStr.isEmpty())
-                    return polStr;
-            } else {
-                final String prefix = "S0" + cnt + '_';
-                final String polStr = globalElem.getAttributeString(prefix+"Polarisation", "");
-                if (!polStr.isEmpty())
-                    return polStr;
+            final MetadataElement sElem = globalElem.getElement("S0" + cnt);
+            if (sElem != null) {
+                // Try both Polarisation and Polarization spellings
+                String polStr = sElem.getAttributeString("Polarisation", "");
+                if (polStr.isEmpty()) polStr = sElem.getAttributeString("Polarization", "");
+                if (!polStr.isEmpty()) return polStr;
+            }
+            // Try flat prefixed attributes
+            final String prefix = "S0" + cnt + '_';
+            for (String suffix : new String[]{"Polarisation", "Polarization"}) {
+                final String polStr = globalElem.getAttributeString(prefix + suffix, "");
+                if (!polStr.isEmpty()) return polStr;
+            }
+        }
+
+        // Fallback: extract from filename
+        final String fileName = product.getFileLocation() != null ? product.getFileLocation().getName().toUpperCase() : "";
+        if (fileName.contains("_HH_")) return "HH";
+        if (fileName.contains("_HV_")) return "HV";
+        if (fileName.contains("_VH_")) return "VH";
+        if (fileName.contains("_VV_")) return "VV";
+
+        // Fallback: from abstracted metadata
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+        if (absRoot != null) {
+            final String metaPol = absRoot.getAttributeString(AbstractMetadata.mds1_tx_rx_polar, "");
+            if (!metaPol.isEmpty() && !metaPol.equals(AbstractMetadata.NO_METADATA_STRING)) {
+                return metaPol;
             }
         }
         return null;

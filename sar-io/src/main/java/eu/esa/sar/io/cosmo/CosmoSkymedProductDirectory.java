@@ -26,6 +26,7 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -74,7 +75,7 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
 
     protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
         final String name = getBandFileNameFromImage(imgPath).toLowerCase();
-        if ((name.endsWith("tif") || name.endsWith("tiff")) && !name.contains("_browse")) {
+        if ((name.endsWith("tif") || name.endsWith("tiff")) && !name.contains("_browse") && !name.contains(".qlk.")) {
             final File file = new File(getBaseDir(), imgPath);
             if (file.exists() && file.length() > 0) {
                 final ProductReader geoTiffReader = geoTiffPlugIn.createReaderInstance();
@@ -102,18 +103,60 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
     protected void addBands(final Product trgProduct) {
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(trgProduct);
-        final String pol = absRoot.getAttributeString(AbstractMetadata.mds1_tx_rx_polar);
+        final boolean isSLC = absRoot.getAttributeString(AbstractMetadata.SAMPLE_TYPE, "").equalsIgnoreCase("COMPLEX");
 
+        // Get per-band polarizations from metadata
+        final String[] pols = new String[]{
+                absRoot.getAttributeString(AbstractMetadata.mds1_tx_rx_polar, ""),
+                absRoot.getAttributeString(AbstractMetadata.mds2_tx_rx_polar, ""),
+                absRoot.getAttributeString(AbstractMetadata.mds3_tx_rx_polar, ""),
+                absRoot.getAttributeString(AbstractMetadata.mds4_tx_rx_polar, "")
+        };
+
+        int polIdx = 0;
         for (Product bandProduct : bandProducts) {
+            // Determine polarization for this band product
+            String pol = null;
+            if (polIdx < pols.length && !pols[polIdx].isEmpty()
+                    && !pols[polIdx].equals(AbstractMetadata.NO_METADATA_STRING)) {
+                pol = pols[polIdx];
+            }
+            // Fallback: extract from band product filename
+            if (pol == null && bandProduct.getName() != null) {
+                final String bpName = bandProduct.getName().toUpperCase();
+                if (bpName.contains("_HH")) pol = "HH";
+                else if (bpName.contains("_HV")) pol = "HV";
+                else if (bpName.contains("_VH")) pol = "VH";
+                else if (bpName.contains("_VV")) pol = "VV";
+            }
+            if (pol == null) pol = "VV";
+            polIdx++;
 
-            for (Band band : bandProduct.getBands()) {
-                String trgBandName = "Amplitude_" + pol;
-                Band trgBand = ProductUtils.copyBand(band.getName(), bandProduct, trgBandName, trgProduct, true);
+            if (isSLC && bandProduct.getNumBands() >= 2) {
+                // SLC: create I/Q band pairs
+                Band srcBandI = bandProduct.getBandAt(0);
+                Band srcBandQ = bandProduct.getBandAt(1);
+
+                Band trgBandI = ProductUtils.copyBand(srcBandI.getName(), bandProduct, "i_" + pol, trgProduct, true);
+                trgBandI.setUnit(Unit.REAL);
+                trgBandI.setNoDataValue(0);
+                trgBandI.setNoDataValueUsed(true);
+
+                Band trgBandQ = ProductUtils.copyBand(srcBandQ.getName(), bandProduct, "q_" + pol, trgProduct, true);
+                trgBandQ.setUnit(Unit.IMAGINARY);
+                trgBandQ.setNoDataValue(0);
+                trgBandQ.setNoDataValueUsed(true);
+
+                ReaderUtils.createVirtualIntensityBand(trgProduct, trgBandI, trgBandQ, "_" + pol);
+            } else {
+                // GRD: create Amplitude band
+                Band srcBand = bandProduct.getBandAt(0);
+                Band trgBand = ProductUtils.copyBand(srcBand.getName(), bandProduct, "Amplitude_" + pol, trgProduct, true);
                 trgBand.setUnit(Unit.AMPLITUDE);
                 trgBand.setNoDataValue(0);
                 trgBand.setNoDataValueUsed(true);
 
-                SARReader.createVirtualIntensityBand(trgProduct, band, '_' + pol);
+                SARReader.createVirtualIntensityBand(trgProduct, trgBand, "_" + pol);
             }
         }
     }
@@ -129,15 +172,22 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
         reader.addDeliveryNote(origProdRoot, baseDir);
 
         final MetadataElement hdf5Attributes = origProdRoot.getElement("HDF5Attributes");
-        final MetadataElement rootElem = hdf5Attributes.getElement("_Root_");
+        // Handle both _Root_ (NetCDF reader) and _ROOT_ (GeoTIFF attribs.xml) element names
+        MetadataElement rootElem = hdf5Attributes.getElement("_Root_");
+        if (rootElem == null) {
+            rootElem = hdf5Attributes.getElement("_ROOT_");
+        }
+        if (rootElem == null) {
+            throw new IOException("Cannot find root metadata element in COSMO-SkyMed product");
+        }
         final MetadataElement s01 = hdf5Attributes.getElement("S01");
         final MetadataElement img = hdf5Attributes.getElement("IMG");
         final MetadataElement lrhm = hdf5Attributes.getElement("LRHM");
 
         convert(rootElem);
-        convert(s01);
-        convert(img);
-        convert(lrhm);
+        if (s01 != null) convert(s01);
+        if (img != null) convert(img);
+        if (lrhm != null) convert(lrhm);
 
         productName = productInputFile.getName().substring(0, productInputFile.getName().lastIndexOf('.'));
         productType = rootElem.getAttributeString("Product Type");
@@ -171,8 +221,10 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
                     rootElem.getAttributeString("Projection ID", defStr));
         }
 
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, getDouble(img,"Column Spacing"));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, getDouble(img,"Line Spacing"));
+        if (img != null) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, getDouble(img, "Column Spacing"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, getDouble(img, "Line Spacing"));
+        }
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks,
                 getDouble(rootElem, "Range Processing Number of Looks"));
@@ -203,8 +255,10 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
 //                getDouble(rootElem, "Reference Slant Range"));
 //        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range_exp,
 //                getDouble(rootElem, "Reference Slant Range Exponent"));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.rescaling_factor,
-                getDouble(img, "Rescaling Factor"));
+        if (img != null) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.rescaling_factor,
+                    getDouble(img, "Rescaling Factor"));
+        }
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds1_tx_rx_polar, rootElem.getAttributeString("Polarization"));
 
@@ -217,15 +271,16 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
                 ReaderUtils.getLineTimeInterval(startTime, stopTime,
                         absRoot.getAttributeInt(AbstractMetadata.num_output_lines)));
 
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency, getDouble(s01, "PRF"));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
-                getDouble(s01, "Sampling Rate") / Constants.oneMillion);
+        if (s01 != null) {
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency, getDouble(s01, "PRF"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate,
+                    getDouble(s01, "Sampling Rate") / Constants.oneMillion);
 
-        // add Range and Azimuth bandwidth
-        final double rangeBW = getDouble(s01, "Range Focusing Bandwidth"); // Hz
-        final double azimuthBW = getDouble(s01, "Azimuth Focusing Bandwidth"); // Hz
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth, rangeBW / Constants.oneMillion);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth, azimuthBW);
+            final double rangeBW = getDouble(s01, "Range Focusing Bandwidth"); // Hz
+            final double azimuthBW = getDouble(s01, "Azimuth Focusing Bandwidth"); // Hz
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_bandwidth, rangeBW / Constants.oneMillion);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_bandwidth, azimuthBW);
+        }
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
 
@@ -324,7 +379,13 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
 
         final MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
         final MetadataElement hdf5Attributes = origProdRoot.getElement("HDF5Attributes");
-        final MetadataElement rootElem = hdf5Attributes.getElement("_Root_");
+        if (hdf5Attributes == null) return;
+
+        MetadataElement rootElem = hdf5Attributes.getElement("_Root_");
+        if (rootElem == null) {
+            rootElem = hdf5Attributes.getElement("_ROOT_");
+        }
+        if (rootElem == null) return;
 
         addGeocodingFromMetadata(product, rootElem);
     }
@@ -361,8 +422,7 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
             addGeoCoding(product, 2, numRows, lats, lons);
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
-            // continue
+            SystemUtils.LOG.warning("Unable to add COSMO geocoding: " + e.getMessage());
         }
     }
 
