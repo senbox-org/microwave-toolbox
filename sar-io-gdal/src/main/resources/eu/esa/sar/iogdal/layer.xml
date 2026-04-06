@@ -20,6 +20,15 @@
                 <attr name="helpId" stringvalue="importIceyeCOGProduct"/>
                 <attr name="ShortDescription" stringvalue="Open ICEYE COG data product."/>
             </file>
+            <file name="eu-esa-sar-iogdal-importEOS4Cog.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
+                <attr name="displayName" stringvalue="EOS-04"/>
+                <attr name="formatName" stringvalue="EOS-04"/>
+                <attr name="useAllFileFilter" boolvalue="true"/>
+                <attr name="helpId" stringvalue="importRISAT1"/>
+                <attr name="ShortDescription" stringvalue="Open EOS-04 / RISAT COG data product."/>
+            </file>
             <file name="eu-esa-sar-iogdal-importQPSSAR.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
@@ -51,7 +60,11 @@
                     </file>
                     <file name="eu-esa-sar-iogdal-importIceyeCOG.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importIceyeCOG.instance"/>
-                        <attr name="position" intvalue="280"/>
+                        <attr name="position" intvalue="572"/>
+                    </file>
+                    <file name="eu-esa-sar-iogdal-importEOS4Cog.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importEOS4Cog.instance"/>
+                        <attr name="position" intvalue="825"/>
                     </file>
                     <file name="eu-esa-sar-iogdal-importQPSSAR.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-iogdal-importQPSSAR.instance"/>

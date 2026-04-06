@@ -119,6 +119,12 @@ public class QPSSARProductReader extends SARReader {
                 ProductUtils.copyGeoCoding(bandProduct, product);
             }
 
+            // Match resolution levels for COG pyramid compatibility with virtual bands
+            final Band firstProductBand = product.getBandAt(0);
+            if (firstProductBand != null && firstProductBand.isSourceImageSet()) {
+                product.setNumResolutionsMax(firstProductBand.getSourceImage().getModel().getLevelCount());
+            }
+
             addCommonSARMetadata(product);
             product.setModified(false);
 

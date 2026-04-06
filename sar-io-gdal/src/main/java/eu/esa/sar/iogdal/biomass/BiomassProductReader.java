@@ -83,8 +83,12 @@ public class BiomassProductReader extends SARReader {
             dataDir.readProductDirectory();
             final Product product = dataDir.createProduct();
 
+            // Match resolution levels for COG pyramid compatibility with virtual bands
+            if (product.getNumBands() > 0 && product.getBandAt(0).isSourceImageSet()) {
+                product.setNumResolutionsMax(product.getBandAt(0).getSourceImage().getModel().getLevelCount());
+            }
+
             addCommonSARMetadata(product);
-            product.getGcpGroup();
             product.setFileLocation(metadataFile);
             product.setProductReader(this);
 
