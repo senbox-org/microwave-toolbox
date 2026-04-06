@@ -70,7 +70,7 @@ public class IceyeCOGReader extends SARReader {
                 if (fileName.endsWith(".tif")) {
                     if (fileName.endsWith("aml.tif")) {
                         reader = new IceyeAMLProductReader(getReaderPlugIn());
-                    } else if (fileName.contains("cpx.tif")) {
+                    } else if (fileName.contains("cpx.tif") || fileName.contains("slc.tif")) {
                         reader = new IceyeCPXProductReader(getReaderPlugIn());
                     } else {
                         reader = new IceyeGRDProductReader(getReaderPlugIn());

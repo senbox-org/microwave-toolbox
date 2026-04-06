@@ -28,7 +28,7 @@ public class TestIceyeCOGReaderPlugIn extends AbstractProductReaderPlugInGDALTes
 
     @Test
     public void testGetDefaultFileExtensions() {
-        assertArrayEquals(new String[]{ ".tif", ".xml", ".json" }, plugin.getDefaultFileExtensions());
+        assertArrayEquals(new String[]{ ".TIF", ".XML", ".JSON" }, plugin.getDefaultFileExtensions());
     }
 
     @Override

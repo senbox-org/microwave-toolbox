@@ -19,7 +19,7 @@ import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.datamodel.quicklooks.Quicklook;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
-import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
+import org.esa.snap.dataio.gdal.reader.plugins.GTiffDriverProductReaderPlugIn;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -51,7 +51,7 @@ import java.util.Map;
  */
 public class IceyeGRDProductReader extends SARReader {
 
-    private static final GeoTiffProductReaderPlugIn geoTiffPlugIn = new GeoTiffProductReaderPlugIn();
+    private static final GTiffDriverProductReaderPlugIn geoTiffPlugIn = new GTiffDriverProductReaderPlugIn();
     private Product bandProduct;
 
     private final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -189,6 +189,11 @@ public class IceyeGRDProductReader extends SARReader {
             addBandsToProduct();
             addGeoCodingToProduct();
             addTiePointGridsToProduct();
+            // Match resolution levels for virtual band pyramid compatibility
+            if (product.getNumBands() > 0 && product.getBandAt(0).isSourceImageSet()) {
+                product.setNumResolutionsMax(product.getBandAt(0).getSourceImage().getModel().getLevelCount());
+            }
+
             addCommonSARMetadata(product);
             addDopplerCentroidCoefficients();
 

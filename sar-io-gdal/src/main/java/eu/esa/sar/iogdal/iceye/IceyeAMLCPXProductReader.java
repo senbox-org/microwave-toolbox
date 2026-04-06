@@ -139,6 +139,12 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
             addGeoCodingToProduct(product, tiffMetadata);
             addTiePointGridsToProduct(product);
 
+            // Match resolution levels for COG pyramid compatibility with virtual bands
+            final Band firstProductBand = product.getBandAt(0);
+            if (firstProductBand != null && firstProductBand.isSourceImageSet()) {
+                product.setNumResolutionsMax(firstProductBand.getSourceImage().getModel().getLevelCount());
+            }
+
             addCommonSARMetadata(product);
             addDopplerCentroidCoefficients(product);
 
