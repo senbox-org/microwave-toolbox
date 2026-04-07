@@ -38,7 +38,7 @@ import java.io.File;
 
 public class ALOSCalibrator extends BaseCalibrator implements Calibrator {
 
-    private static final String[] SUPPORTED_MISSIONS = new String[] {"ALOS","ALOS2"};
+    private static final String[] SUPPORTED_MISSIONS = new String[] {"ALOS", "ALOS2", "ALOS4"};
 
     private boolean inputSigma0 = false;
     private double calibrationFactor = 0;
@@ -63,7 +63,7 @@ public class ALOSCalibrator extends BaseCalibrator implements Calibrator {
      */
     public void setExternalAuxFile(File file) throws OperatorException {
         if (file != null) {
-            throw new OperatorException("No external auxiliary file should be selected for ALOS PALSAR product");
+            throw new OperatorException("No external auxiliary file should be selected for ALOS/ALOS-2/ALOS-4 product");
         }
     }
 

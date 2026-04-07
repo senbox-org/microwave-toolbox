@@ -29,7 +29,17 @@ import java.io.File;
 
 public class StriXCalibrator extends BaseCalibrator implements Calibrator {
 
-    private static final String[] SUPPORTED_MISSIONS = new String[] {"STRIX","STRIX-A","STRIX-B"};
+    // StriX constellation: alpha, beta, and numbered satellites (1-30 planned)
+    private static final String[] SUPPORTED_MISSIONS = new String[] {
+            "STRIX", "STRIX-ALPHA", "STRIX-BETA",
+            "STRIX-A", "STRIX-B",
+            "STRIX-1", "STRIX-2", "STRIX-3", "STRIX-4", "STRIX-5",
+            "STRIX-6", "STRIX-7", "STRIX-8", "STRIX-9", "STRIX-10",
+            "STRIX-11", "STRIX-12", "STRIX-13", "STRIX-14", "STRIX-15",
+            "STRIX-16", "STRIX-17", "STRIX-18", "STRIX-19", "STRIX-20",
+            "STRIX-21", "STRIX-22", "STRIX-23", "STRIX-24", "STRIX-25",
+            "STRIX-26", "STRIX-27", "STRIX-28", "STRIX-29", "STRIX-30"
+    };
 
     private boolean inputSigma0 = false;
     private double calibrationFactor = 0;
@@ -54,7 +64,7 @@ public class StriXCalibrator extends BaseCalibrator implements Calibrator {
      */
     public void setExternalAuxFile(File file) throws OperatorException {
         if (file != null) {
-            throw new OperatorException("No external auxiliary file should be selected for ALOS PALSAR product");
+            throw new OperatorException("No external auxiliary file should be selected for StriX product");
         }
     }
 
@@ -79,7 +89,7 @@ public class StriXCalibrator extends BaseCalibrator implements Calibrator {
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
             final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION).toUpperCase();
-            if(!StringUtils.contains(SUPPORTED_MISSIONS, mission)) {
+            if(!mission.startsWith("STRIX")) {
                 throw new OperatorException(mission + " is not a valid mission for StriX Calibration");
             }
 
@@ -117,7 +127,6 @@ public class StriXCalibrator extends BaseCalibrator implements Calibrator {
         //}
 
         //calibrationFactor = FastMath.pow(10.0, calibrationFactor / 10.0); // dB to linear scale
-        //System.out.println("Calibration factor is " + calibrationFactor);
     }
 
     /**
@@ -224,7 +233,7 @@ public class StriXCalibrator extends BaseCalibrator implements Calibrator {
                 } else if (srcBandUnit == Unit.UnitType.INTENSITY_DB) {
                     dn = FastMath.pow(10, dn / 10.0); // convert dB to linear scale
                 } else {
-                    throw new OperatorException("ALOS Calibration: unhandled unit");
+                    throw new OperatorException("StriX Calibration: unhandled unit");
                 }
 
                 if (inputSigma0) {

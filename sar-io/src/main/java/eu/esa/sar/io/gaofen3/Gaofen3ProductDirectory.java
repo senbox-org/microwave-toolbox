@@ -93,7 +93,7 @@ public class Gaofen3ProductDirectory extends XMLProductDirectory  {
             try (final InputStream is = getInputStream(incFile)) {
                 xmlDoc = XMLSupport.LoadXML(is);
             } catch (IOException e) {
-                e.printStackTrace();
+                SystemUtils.LOG.warning("Unable to read incidence angle file: " + e.getMessage());
             }
 
             final int nval = Integer.parseInt(xmlDoc.getRootElement().getChild("numberofIncidenceValue").getValue());
@@ -141,10 +141,7 @@ public class Gaofen3ProductDirectory extends XMLProductDirectory  {
         final String pass = productMetadata.getAttributeString("Direction", defStr);
         final String lookDir = sensorMetadata.getAttributeString("lookDirection");
         final String imagingMode = sensorMetadata.getAttributeString("imagingMode", defStr);
-        final ArrayList<String> testedModes = new ArrayList<String>() {{add("ss");add("fsi");add("fsii");add("ufs");}};
-        if (!testedModes.contains(imagingMode.toLowerCase())){
-            throw new IOException("Imaging mode \"" + imagingMode + "\" not tested! ");
-        }
+        // All 12 GF-3/3B/3C imaging modes accepted (SL, UFS, FSI, FSII, SS, NSC, WSC, GLO, QPSI, QPSII, WAV, EXT)
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION,
                 productMetadata.getAttributeString("satellite", defStr));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, getProductName());
@@ -356,7 +353,7 @@ public class Gaofen3ProductDirectory extends XMLProductDirectory  {
         try {
             AbstractMetadata.setOrbitStateVectors(absRoot, stateVectorsFinal);
         } catch (Exception e) {
-            e.printStackTrace();
+            SystemUtils.LOG.warning("Gaofen-3 processing error: " + e.getMessage());
         }
     }
 
@@ -578,7 +575,7 @@ public class Gaofen3ProductDirectory extends XMLProductDirectory  {
         try {
             AbstractMetadata.setOrbitStateVectors(absRoot, stateVectorsFinal);
         } catch (Exception e) {
-            e.printStackTrace();
+            SystemUtils.LOG.warning("Gaofen-3 processing error: " + e.getMessage());
         }
     }
 
@@ -674,8 +671,7 @@ public class Gaofen3ProductDirectory extends XMLProductDirectory  {
             }
             myReader.close();
         } catch (FileNotFoundException e) {
-            System.out.println("An error occurred.");
-            e.printStackTrace();
+            SystemUtils.LOG.warning("Unable to read RPC parameters: " + e.getMessage());
         }
     }
 

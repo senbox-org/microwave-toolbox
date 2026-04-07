@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.io.ceos.alos;
 
+import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
@@ -66,6 +67,11 @@ public class TestAlosPalsarProductReader extends ReaderTest {
 
         final Product product = reader.readProductNodes(inputFile, null);
         Assert.assertTrue(product != null);
+
+        final ProductValidator validator = new ProductValidator(product);
+        validator.validateProduct();
+        //validator.validateMetadata();
+        validator.validateBands(new String[] {"Amplitude_HH", "Intensity_HH"});
     }
 
     /**

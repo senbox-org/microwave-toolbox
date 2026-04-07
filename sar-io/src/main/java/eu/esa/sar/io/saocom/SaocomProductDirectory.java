@@ -203,7 +203,9 @@ public class SaocomProductDirectory extends XMLProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, productName);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, productType);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, getMission());
-        absRoot.getAttribute(AbstractMetadata.abs_calibration_flag).getData().setElemBoolean(true);
+        // DI/GEC/GTC products are pre-calibrated to sigma0; SLC products are not
+        final boolean isPreCalibrated = productType != null && !productType.equals("SLC");
+        absRoot.getAttribute(AbstractMetadata.abs_calibration_flag).getData().setElemBoolean(isPreCalibrated);
 
         final MetadataElement imageAttributes = features.getElement("imageAttributes");
         final MetadataElement bands = imageAttributes.getElement("bands");
@@ -405,6 +407,64 @@ public class SaocomProductDirectory extends XMLProductDirectory {
         addOrbitStateVectors(absRoot, features.getElement("StateVectorData"));
         addSRGRCoefficients(absRoot, channel.getElement("GroundToSlant"));
         addDopplerCentroidCoefficients(absRoot, channel);
+        addCalibrationMetadata(absRoot);
+    }
+
+    private void addCalibrationMetadata(final MetadataElement absRoot) {
+        try {
+            final VirtualDir virtualDir = getProductDir();
+            // Try Calibration/ directory relative to product root
+            String calPath = "Calibration/";
+            String[] calFiles = null;
+            try {
+                calFiles = virtualDir.list(calPath);
+            } catch (Exception e) {
+                // Try under product name
+                calPath = productName + "/Calibration/";
+                try {
+                    calFiles = virtualDir.list(calPath);
+                } catch (Exception e2) {
+                    // No calibration directory found
+                }
+            }
+
+            if (calFiles != null) {
+                final MetadataElement calibrationElem = new MetadataElement("calibration");
+                absRoot.addElement(calibrationElem);
+
+                final MetadataElement noiseElem = new MetadataElement("noise");
+                absRoot.addElement(noiseElem);
+
+                for (String calFile : calFiles) {
+                    final String nameLower = calFile.toLowerCase();
+                    if (nameLower.endsWith(".xml")) {
+                        try {
+                            final File file = getFile(calPath + calFile);
+                            final Document xmlDoc = XMLSupport.LoadXML(file.getAbsolutePath());
+                            final Element xmlRoot = xmlDoc.getRootElement();
+                            final MetadataElement fileElem = new MetadataElement(calFile);
+
+                            if (nameLower.startsWith("calibrationlut")) {
+                                calibrationElem.addElement(fileElem);
+                                AbstractMetadataIO.AddXMLMetadata(xmlRoot, fileElem);
+                            } else if (nameLower.startsWith("noiselut")) {
+                                noiseElem.addElement(fileElem);
+                                AbstractMetadataIO.AddXMLMetadata(xmlRoot, fileElem);
+                            }
+                        } catch (Exception e) {
+                            SystemUtils.LOG.warning("Unable to read calibration/noise file: " + calFile + " - " + e.getMessage());
+                        }
+                    }
+                }
+
+                // Remove empty elements
+                if (noiseElem.getNumElements() == 0) {
+                    absRoot.removeElement(noiseElem);
+                }
+            }
+        } catch (Exception e) {
+            SystemUtils.LOG.fine("No calibration LUTs found for SAOCOM product: " + e.getMessage());
+        }
     }
 
     private static ProductData.UTC getTime(final MetadataElement elem, final String tag, final DateFormat timeFormat) {

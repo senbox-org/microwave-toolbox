@@ -10,6 +10,7 @@ import eu.esa.sar.io.ceos.CEOSImageFile;
 import eu.esa.sar.io.ceos.CEOSProductDirectory;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.util.Guardian;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.OrbitStateVector;
 import org.esa.snap.engine_utilities.datamodel.Orbits;
@@ -876,7 +877,7 @@ public class StriXProductDirectory extends CEOSProductDirectory {
                                                                   final BinaryRecord facilityRecord) {
 
         if (facilityRecord == null || facilityRecord.getAttributeDouble("Origin Line") == null) {
-            System.out.format("cannot access facilityRecord\n");
+            SystemUtils.LOG.warning("Cannot access StriX facility record for geocoding coefficients");
             return;
         }
         final int originLine = (int) Math.floor(facilityRecord.getAttributeDouble("Origin Line"));

@@ -43,7 +43,12 @@ public class Risat1ProductReaderPlugIn implements ProductReaderPlugIn {
         if (path != null) {
             final File metadataFile = findMetadataFile(path.toFile());
             if (metadataFile != null) {
-                return DecodeQualification.INTENDED;
+                // Only claim if SatID is RISAT-1 (or absent for legacy products)
+                final String satId = readSatId(metadataFile);
+                if (satId == null || satId.toUpperCase().contains("RISAT")) {
+                    return DecodeQualification.INTENDED;
+                }
+                return DecodeQualification.UNABLE;
             }
             File file = path.toFile();
             if(file.isFile()) {
@@ -57,6 +62,24 @@ public class Risat1ProductReaderPlugIn implements ProductReaderPlugIn {
         return DecodeQualification.UNABLE;
     }
 
+    /**
+     * Read the SatID field from BAND_META.txt to determine the mission.
+     * Returns null if the field is not found or the file cannot be read.
+     */
+    static String readSatId(final File bandMetaFile) {
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(bandMetaFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("SatID=")) {
+                    return line.substring(6).trim();
+                }
+            }
+        } catch (Exception e) {
+            // Cannot read file — let detection proceed without filtering
+        }
+        return null;
+    }
+
     private static File findMetadataFile(final File folder) {
         if (folder.isDirectory()) {
             final File[] fileList = folder.listFiles();
@@ -65,6 +88,7 @@ public class Risat1ProductReaderPlugIn implements ProductReaderPlugIn {
                 for (File f : fileList) {
                     if (f.getName().equals(Risat1Constants.BAND_HEADER_NAME)) {
                         bandMetaFile = f;
+                        break;
                     }
                     // don't search deeper
 //                    if (f.isDirectory()) {

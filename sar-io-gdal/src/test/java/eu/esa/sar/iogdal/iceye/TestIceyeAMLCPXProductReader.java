@@ -1,4 +1,4 @@
-package eu.esa.sar.io.iceye;
+package eu.esa.sar.iogdal.iceye;
 
 import static org.junit.Assume.assumeTrue;
 
@@ -33,7 +33,7 @@ public class TestIceyeAMLCPXProductReader extends ReaderTest {
     private final String[] exceptionExemptions = { "not supported" };
 
     public TestIceyeAMLCPXProductReader() {
-        super(new IceyeProductReaderPlugIn());
+        super(new IceyeCOGReaderPlugIn());
     }
 
     @Before

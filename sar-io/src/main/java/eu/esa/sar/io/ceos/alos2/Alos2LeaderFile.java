@@ -64,7 +64,7 @@ public class Alos2LeaderFile extends AlosPalsarLeaderFile {
                     header.seekToEnd();
                 }
             } catch (Exception e) {
-                System.out.println("Unable to read ALOS facility record: " + e.getMessage());
+                org.esa.snap.core.util.SystemUtils.LOG.warning("Unable to read ALOS-2 facility record: " + e.getMessage());
             }
         }
     }
