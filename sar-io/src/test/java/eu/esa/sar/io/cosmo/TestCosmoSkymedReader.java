@@ -22,6 +22,7 @@ import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -77,6 +78,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -87,6 +89,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV"});
+        validator.validateBandData();
     }
 
 
@@ -98,6 +101,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -108,6 +112,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -118,6 +123,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -128,6 +134,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
 

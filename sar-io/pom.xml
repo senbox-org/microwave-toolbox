@@ -52,6 +52,11 @@
             <artifactId>snap-netcdf</artifactId>
         </dependency>
         <dependency>
+            <groupId>ncsa.hdf</groupId>
+            <artifactId>lib-hdf</artifactId>
+            <version>${snap.version}</version>
+        </dependency>
+        <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>

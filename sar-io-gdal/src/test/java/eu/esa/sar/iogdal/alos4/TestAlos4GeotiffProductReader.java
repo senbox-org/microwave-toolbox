@@ -59,5 +59,6 @@ public class TestAlos4GeotiffProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH","Amplitude_HV","Intensity_HV"});
+        validator.validateBandData();
     }
 }

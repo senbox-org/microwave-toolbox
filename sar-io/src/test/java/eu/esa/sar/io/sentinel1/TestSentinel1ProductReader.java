@@ -139,6 +139,7 @@ public class TestSentinel1ProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV","Amplitude_VH","Intensity_VH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -149,6 +150,7 @@ public class TestSentinel1ProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV","Amplitude_VH","Intensity_VH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -159,6 +161,7 @@ public class TestSentinel1ProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_WV1_IMG001_VV", "q_WV1_IMG001_VV", "Intensity_WV1_IMG001_VV", "i_WV2_IMG002_VV", "q_WV2_IMG002_VV", "Intensity_WV2_IMG002_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -170,6 +173,7 @@ public class TestSentinel1ProductReader extends ReaderTest {
         assertTrue(prod.containsBand("oswCartSpecRe_WV1_IMG001_VV"));
         //validator.validateProduct();
         validator.validateMetadata();
+        validator.validateBandData();
     }
 
     @Test
@@ -186,6 +190,7 @@ public class TestSentinel1ProductReader extends ReaderTest {
                     "i_IW2_VV", "q_IW2_VV", "Intensity_IW2_VV",
                     "i_IW3_VH", "q_IW3_VH", "Intensity_IW3_VH",
                     "i_IW3_VV", "q_IW3_VV", "Intensity_IW3_VV"});
+            validator.validateBandData();
         }
     }
 }

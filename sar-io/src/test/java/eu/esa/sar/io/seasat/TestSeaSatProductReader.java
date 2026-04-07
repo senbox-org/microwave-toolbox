@@ -59,6 +59,7 @@ public class TestSeaSatProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -69,5 +70,6 @@ public class TestSeaSatProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 }

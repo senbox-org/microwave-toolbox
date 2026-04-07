@@ -80,6 +80,7 @@ public class TestIceyeAMLCPXProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] { "Amplitude_VV", "Intensity_VV" });
+        validator.validateBandData();
     }
 
     @Test
@@ -90,6 +91,7 @@ public class TestIceyeAMLCPXProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] { "Amplitude_VV", "Phase_VV", "i_VV", "q_VV", "Intensity_VV" });
+        validator.validateBandData();
     }
 
     @Test
@@ -100,6 +102,7 @@ public class TestIceyeAMLCPXProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] { "Amplitude_VV", "Intensity_VV" });
+        validator.validateBandData();
     }
 
     @Test
@@ -112,6 +115,7 @@ public class TestIceyeAMLCPXProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] { "Amplitude_VV", "Phase_VV", "i_VV", "q_VV", "Intensity_VV" });
+        validator.validateBandData();
     }
 
 }

@@ -564,6 +564,18 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
                 bandI.setNoDataValue(0);
                 bandI.setNoDataValueUsed(true);
                 product.addBand(bandI);
+                try {
+                    ucar.nc2.Attribute minAt = variable.findAttribute("Image Min");
+                    ucar.nc2.Attribute maxAt = variable.findAttribute("Image Max");
+                    if (minAt != null && maxAt != null) {
+                        double min = minAt.getNumericValue().doubleValue();
+                        double max = maxAt.getNumericValue().doubleValue();
+                        bandI.setStx(new org.esa.snap.core.datamodel.StxFactory().withMinimum(min).withMaximum(max)
+                                .withIntHistogram(false).withHistogramBins(new int[512]).create());
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
                 bandMap.put(bandI, variable);
 
                 final Band bandQ = NetCDFUtils.createBand(variable, width, height);
@@ -572,6 +584,18 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
                 bandQ.setNoDataValue(0);
                 bandQ.setNoDataValueUsed(true);
                 product.addBand(bandQ);
+                try {
+                    ucar.nc2.Attribute minAt = variable.findAttribute("Image Min");
+                    ucar.nc2.Attribute maxAt = variable.findAttribute("Image Max");
+                    if (minAt != null && maxAt != null) {
+                        double min = minAt.getNumericValue().doubleValue();
+                        double max = maxAt.getNumericValue().doubleValue();
+                        bandQ.setStx(new org.esa.snap.core.datamodel.StxFactory().withMinimum(min).withMaximum(max)
+                                .withIntHistogram(false).withHistogramBins(new int[512]).create());
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
                 bandMap.put(bandQ, variable);
 
                 ReaderUtils.createVirtualIntensityBand(product, bandI, bandQ, cntStr);
@@ -582,6 +606,18 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
                 band.setNoDataValue(0);
                 band.setNoDataValueUsed(true);
                 product.addBand(band);
+                try {
+                    ucar.nc2.Attribute minAt = variable.findAttribute("Image Min");
+                    ucar.nc2.Attribute maxAt = variable.findAttribute("Image Max");
+                    if (minAt != null && maxAt != null) {
+                        double min = minAt.getNumericValue().doubleValue();
+                        double max = maxAt.getNumericValue().doubleValue();
+                        band.setStx(new org.esa.snap.core.datamodel.StxFactory().withMinimum(min).withMaximum(max)
+                                .withIntHistogram(false).withHistogramBins(new int[512]).create());
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
                 bandMap.put(band, variable);
 
                 SARReader.createVirtualIntensityBand(product, band, cntStr);

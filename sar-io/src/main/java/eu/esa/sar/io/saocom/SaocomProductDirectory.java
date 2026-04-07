@@ -37,6 +37,7 @@ import org.esa.snap.engine_utilities.util.ZipUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
 
+import javax.imageio.ImageIO;
 import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.ImageLayout;
 import java.awt.*;
@@ -498,16 +499,13 @@ public class SaocomProductDirectory extends XMLProductDirectory {
     protected void addImageFile(final String imgPath, final MetadataElement newRoot) {
         if (!imgPath.toLowerCase().endsWith(".xml")) {
             try {
-                final Dimension bandDimensions = new Dimension(width, height);
-                final InputStream inStream = getInputStream(imgPath);
-                if (inStream.available() > 0) {
-                    final ImageInputStream imgStream = ImageIOFile.createImageInputStream(inStream, bandDimensions);
+                final File file = getFile(imgPath);
+                if (file.exists() && file.length() > 0) {
+                    final ImageInputStream imgStream = ImageIO.createImageInputStream(file);
 
                     final ImageIOFile img = new ImageIOFile(imgPath, imgStream, GeoTiffUtils.getTiffIIOReader(imgStream),
                             1, 1, ProductData.TYPE_FLOAT64, productInputFile);
                     bandImageFileMap.put(img.getName(), img);
-                } else {
-                    inStream.close();
                 }
             } catch (Exception e) {
                 SystemUtils.LOG.severe(imgPath + " not found");

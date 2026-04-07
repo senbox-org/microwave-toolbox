@@ -25,3 +25,4 @@ eu.esa.sar.io.strix.StriXProductReaderPlugIn
 eu.esa.sar.io.terrasarx.TerraSarXProductReaderPlugIn
 eu.esa.sar.io.TAXI.RATProductReaderPlugIn
 eu.esa.sar.io.uavsar.UAVSARReaderPlugIn
+eu.esa.sar.io.nisar.NisarProductReaderPlugIn
