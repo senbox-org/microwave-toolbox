@@ -17,10 +17,8 @@ package eu.esa.sar.calibration.gpf.calibrators;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.apache.commons.math3.util.FastMath;
-import eu.esa.sar.calibration.gpf.Sentinel1RemoveThermalNoiseOp;
 import eu.esa.sar.calibration.gpf.support.BaseCalibrator;
 import eu.esa.sar.calibration.gpf.support.Calibrator;
-import eu.esa.sar.commons.Sentinel1Utils;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
@@ -35,7 +33,9 @@ import org.esa.snap.engine_utilities.gpf.TileIndex;
 import java.awt.*;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Calibration for ESA Biomass data products.
@@ -47,6 +47,8 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
 
     private TiePointGrid sigma0TPG = null;
     private TiePointGrid gamma0TPG = null;
+    private TiePointGrid incidenceAngleTPG = null;
+    private final Map<String, Double> calibrationConstants = new HashMap<>();
     private CALTYPE dataType = null;
     private Boolean doRetroCalibration = false;
 
@@ -69,7 +71,7 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
      */
     public void setExternalAuxFile(File file) throws OperatorException {
         if (file != null) {
-            throw new OperatorException("No external auxiliary file should be selected for Sentinel1 product");
+            throw new OperatorException("No external auxiliary file should be selected for BIOMASS product");
         }
     }
 
@@ -114,6 +116,18 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
     private void getTiePointGrids() {
         sigma0TPG = sourceProduct.getTiePointGrid("sigmaNought");
         gamma0TPG = sourceProduct.getTiePointGrid("gammaNought");
+        incidenceAngleTPG = sourceProduct.getTiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE);
+
+        // Read per-polarization calibration constants from band metadata
+        final MetadataElement[] bandMetadataList = AbstractMetadata.getBandAbsMetadataList(absRoot);
+        for (MetadataElement bandMeta : bandMetadataList) {
+            final String pol = bandMeta.getAttributeString(AbstractMetadata.polarization, "");
+            final double calFactor = bandMeta.getAttributeDouble(AbstractMetadata.calibration_factor,
+                    AbstractMetadata.NO_METADATA);
+            if (!pol.isEmpty() && calFactor != AbstractMetadata.NO_METADATA) {
+                calibrationConstants.put(pol, calFactor);
+            }
+        }
     }
 
     /**
@@ -123,9 +137,6 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
         absRoot.getAttribute(AbstractMetadata.abs_calibration_flag).getData().setElemBoolean(true);
-
-        final String[] targetBandNames = targetProduct.getBandNames();
-        Sentinel1Utils.updateBandNames(absRoot, selectedPolList, targetBandNames);
 
         final MetadataElement[] bandMetadataList = AbstractMetadata.getBandAbsMetadataList(absRoot);
         for (MetadataElement bandMeta : bandMetadataList) {
@@ -270,7 +281,7 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
             final int maxX = x0 + w;
 
             final CALTYPE calType = getCalibrationType(targetBandName);
-            float trgFloorValue = Sentinel1RemoveThermalNoiseOp.trgFloorValue;
+            final String bandPol = OperatorUtils.getPolarizationFromBandName(targetBandName);
             double srcNodataValue = sourceBand1.getNoDataValue();
             double trgNodataValue = targetBand.getNoDataValue();
 
@@ -290,11 +301,11 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
 
                     double calibrationFactor = 1.0;
                     if (calType != null) {
-                        calibrationFactor = getLutValue(calType, x, y);
+                        calibrationFactor = getLutValue(calType, x, y, bandPol);
                     }
 
                     if (doRetroCalibration && dataType != null) {
-                        calibrationFactor /= getLutValue(dataType, x, y);
+                        calibrationFactor /= getLutValue(dataType, x, y, bandPol);
                     }
 
                     if (isUnitAmplitude) {
@@ -319,15 +330,6 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
                     }
 
                     double calValue = dn * calibrationFactor;
-                    if (dn == trgFloorValue) {
-                        final int max_iter = 1000;
-                        int iter = 0;
-                        while( (float)calValue < 0.00001 && iter < max_iter) {
-                            dn *= 2;
-                            calValue = dn * calibrationFactor;
-                            iter += 1;
-                        }
-                    }
 
                     if (isComplex && outputImageInComplex) {
                         calValue = Math.sqrt(calValue) * phaseTerm;
@@ -358,16 +360,36 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
         return calType;
     }
 
-    private double getLutValue(final CALTYPE calType, final double x, final double y) {
+    private double getLutValue(final CALTYPE calType, final double x, final double y, final String bandPol) {
+
+        // Use pre-computed LUT tie-point grids if available (e.g. from external calibration data)
+        if (calType.equals(CALTYPE.SIGMA0) && sigma0TPG != null) {
+            return sigma0TPG.getPixelDouble(x, y);
+        } else if (calType.equals(CALTYPE.GAMMA) && gamma0TPG != null) {
+            return gamma0TPG.getPixelDouble(x, y);
+        }
+
+        // Fall back to per-polarization absolute calibration constants from annotation metadata
+        final double K = calibrationConstants.getOrDefault(bandPol != null ? bandPol.toUpperCase() : "", 1.0);
 
         if (calType.equals(CALTYPE.SIGMA0)) {
-            return sigma0TPG.getPixelDouble(x, y);
+            return K;
         } else if (calType.equals(CALTYPE.BETA0)) {
-            return 1.0;
+            if (incidenceAngleTPG != null) {
+                final double incAngleRad = Math.toRadians(incidenceAngleTPG.getPixelDouble(x, y));
+                final double sinInc = Math.sin(incAngleRad);
+                return sinInc > 0 ? K / sinInc : K;
+            }
+            return K;
         } else if (calType.equals(CALTYPE.GAMMA)) {
-            return gamma0TPG.getPixelDouble(x, y);
+            if (incidenceAngleTPG != null) {
+                final double incAngleRad = Math.toRadians(incidenceAngleTPG.getPixelDouble(x, y));
+                final double cosInc = Math.cos(incAngleRad);
+                return cosInc > 0 ? K / cosInc : K;
+            }
+            return K;
         } else {
-            return 1.0;
+            return 1.0; // DN - no calibration
         }
     }
 
@@ -378,7 +400,7 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
             final String bandName, final String bandPolar, final Unit.UnitType bandUnit, int[] subSwathIndex) {
 
         final CALTYPE calType = getCalibrationType(bandName);
-        final double lutVal = getLutValue(calType, rangeIndex, azimuthIndex);
+        final double lutVal = getLutValue(calType, rangeIndex, azimuthIndex, bandPolar);
 
         double sigma = 0.0;
         if (bandUnit == Unit.UnitType.AMPLITUDE) {

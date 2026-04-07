@@ -3,62 +3,72 @@
     <link rel="stylesheet" href="../style.css"></head><body>
 
 <table class="header">
-
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp;
-            Import Gaofen-3 SAR&nbsp;</td>
+        <td class="header">&nbsp; Import Gaofen-3 SAR</td>
         <td class="header" align="right"><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
-
     </tbody>
 </table>
 
 
 <h3>Import Gaofen-3 Product</h3>
 
-<p class="MsoNormal" style="text-align: justify;">Gaofen-3 is a Chinese SAR satellite constellation launched in 2016. It has a C-band SAR sensor with single, dual and quad polarizations.</p>
+<p class="MsoNormal" style="text-align: justify;">Gaofen-3 is a Chinese C-band SAR satellite constellation
+operated by CRESDA (China Centre for Resources Satellite Data and Application). The constellation consists of
+three satellites providing approximately 3-4 day revisit.</p>
 
-
-<p class="MsoNormal"><b style="">Operational:</b>
-2016-08-10 to present</p>
+<p class="MsoNormal"><b>Satellites:</b></p>
+<ul>
+    <li>GF-3 (launched 2016-08-10, operational)</li>
+    <li>GF-3B (launched 2022-04-07, operational)</li>
+    <li>GF-3C (launched 2024-12, operational)</li>
+</ul>
 
 <p class="MsoNormal"><b style="">Frequency Band:</b>
-C-band</p>
+C-band (5.4 GHz)</p>
 
-<p class="MsoNormal"><b style="">Acquisition Modes:</b></p>
+<p class="MsoNormal"><b style="">Acquisition Modes (12 modes):</b></p>
 <ul>
-    <li>Spotlight [SL]</li>
-    <li>Ultra-fine stripmap [UFS]</li>
-    <li>Fine stripmap [FSI]</li>
-    <li>Wide fine stripmap [FSII]</li>
-    <li>Standard stripmap [SS]</li>
-    <li>Narrow ScanSAR [NSC]</li>
-    <li>Wide ScanSAR [WSC]</li>
-    <li>Global observation [GLO]</li>
-    <li>Quad-pol stripmap [QPSI]</li>
-    <li>Wide quad-pol stripmap [QPSII]</li>
+    <li>Spotlight [SL] (~1 m resolution)</li>
+    <li>Ultra-fine stripmap [UFS] (~3 m)</li>
+    <li>Fine stripmap [FSI] (~5 m)</li>
+    <li>Wide fine stripmap [FSII] (~10 m)</li>
+    <li>Standard stripmap [SS] (~25 m)</li>
+    <li>Narrow ScanSAR [NSC] (~50 m)</li>
+    <li>Wide ScanSAR [WSC] (~100 m)</li>
+    <li>Global observation [GLO] (~500 m)</li>
+    <li>Quad-pol stripmap [QPSI] (~8 m)</li>
+    <li>Wide quad-pol stripmap [QPSII] (~25 m)</li>
     <li>Wave [WAV]</li>
     <li>Extended incidence angle [EXT]</li>
 </ul>
 
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
+<p class="MsoNormal"><b style="">Product Types:</b></p>
 <ul>
-    <li>Single-look complex (SLC)</li>
-    <li>Single-look image products (SLP)</li>
-    <li>Multi-look image products (MLP)</li>
-    <li>Geocoded products (SGC)</li>
+    <li>L1A Single-look complex (SLC)</li>
+    <li>L1B Single-look / Multi-look image products (detected)</li>
+    <li>L2 Geocoded products</li>
 </ul>
 
-<p class="MsoNormal"><b style="">Polarizations: </b>Single, Dual and Quad polarizations.</p>
+<p class="MsoNormal"><b style="">Polarizations:</b> Single (HH or VV), Dual (HH+HV, VV+VH), Quad (HH+HV+VH+VV)</p>
+
+<p class="MsoNormal"><b style="">File Format:</b> GeoTIFF imagery with XML metadata (.meta.xml) and
+RPC geocoding parameters (.rpc file).</p>
 
 <p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the metadata file. Opening zipped products
-(*.zip) directly is also supported.</p>
+Products can be opened by selecting the .meta.xml metadata file or the product directory.
+Opening zipped products (*.zip) directly is also supported.
+All three satellites (GF-3, GF-3B, GF-3C) use the same product format.</p>
+
+<p class="MsoNormal"><b style="">Data Access:</b></p>
+<ul>
+    <li>CRESDA: <a href="https://osdds.cresda.com">https://osdds.cresda.com</a></li>
+    <li>PIE-Engine: <a href="https://pie.cresda.cn">https://pie.cresda.cn</a></li>
+</ul>
 
 <p class="MsoNormal"><b style="">Further Information: </b></p>
-<p class="MsoNormal"><a href="https://www.eoportal.org/satellite-missions/gaofen-3">https://www.eoportal.org/satellite-missions/gaofen-3</a><b style=""></b></p>
+<p class="MsoNormal"><a href="https://www.eoportal.org/satellite-missions/gaofen-3">https://www.eoportal.org/satellite-missions/gaofen-3</a></p>
 
 <hr>
 </body></html>

@@ -1,0 +1,9 @@
+{
+  "testProducts": [
+    {
+      "id": "ALOS2-Geotiff",
+      "relativePath": "SAR/ALOS2/GeoTiff/0000021461_001001_ALOS2004060740-140620/summary.txt",
+      "description": "ALOS2 GRD product"
+    }
+  ]
+}

@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.io.ceos.alos2;
+package eu.esa.sar.iogdal.alos2;
 
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
@@ -29,7 +29,6 @@ import java.util.*;
 
 public class Alos2GeoTiffProductReaderPlugIn implements ProductReaderPlugIn {
     private static final String[] FORMAT_NAMES = new String[]{"ALOS-2 GeoTIFF"};
-
 
     @Override
     public DecodeQualification getDecodeQualification(Object input) {
@@ -51,7 +50,6 @@ public class Alos2GeoTiffProductReaderPlugIn implements ProductReaderPlugIn {
         }
     }
 
-    // Additional helper functions for getDecodeQualification
     private DecodeQualification checkFileName(File inputFile) {
         boolean hasValidImage = false;
         boolean hasMetadata = false;
@@ -61,7 +59,6 @@ public class Alos2GeoTiffProductReaderPlugIn implements ProductReaderPlugIn {
             for (File f : files) {
                 String name = f.getName().toUpperCase();
                 if (name.equals("SUMMARY.TXT")) {
-                    // File name contains the right keywords, and the folder contains the metadata file.
                     hasMetadata = true;
                 }
                 if (name.contains("ALOS2") && (name.endsWith("TIF") || name.endsWith("TIFF")) &&

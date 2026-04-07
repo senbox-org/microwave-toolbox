@@ -1,0 +1,9 @@
+{
+  "testProducts": [
+    {
+      "id": "ICEYE_GRD_SM_7247_20190801T043405",
+      "relativePath": "SAR/Iceye/GRD/ICEYE_GRD_SM_7247_20190801T043405.xml",
+      "description": "Iceye GRD product"
+    }
+  ]
+}

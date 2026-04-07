@@ -1,4 +1,6 @@
 eu.esa.sar.calibration.gpf.CalibrationOp$Spi
 eu.esa.sar.calibration.gpf.RemoveAntennaPatternOp$Spi
 eu.esa.sar.calibration.gpf.Sentinel1RemoveThermalNoiseOp$Spi
+eu.esa.sar.calibration.gpf.SaocomRemoveThermalNoiseOp$Spi
+eu.esa.sar.calibration.gpf.RCMRemoveThermalNoiseOp$Spi
 eu.esa.sar.calibration.gpf.RemoveGRDBorderNoiseOp$Spi

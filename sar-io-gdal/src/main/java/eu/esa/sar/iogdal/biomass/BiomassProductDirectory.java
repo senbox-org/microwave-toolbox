@@ -118,10 +118,9 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     }
 
     private static ZipEntry findInZip(final File file, final String prefix, final String suffix, final String contains, final String exclude) {
-        try {
-            final ZipFile productZip = new ZipFile(file, ZipFile.OPEN_READ);
+        try (final ZipFile productZip = new ZipFile(file, ZipFile.OPEN_READ)) {
 
-            final Optional result = productZip.stream()
+            final Optional<? extends ZipEntry> result = productZip.stream()
                     .filter(ze -> !ze.isDirectory())
                     .filter(ze -> ze.getName().toLowerCase().endsWith(suffix.toLowerCase()))
                     .filter(ze -> ze.getName().toLowerCase().startsWith(prefix.toLowerCase()))
@@ -129,7 +128,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     .filter(ze -> exclude == null || exclude.isEmpty() || !ze.getName().toLowerCase().contains(exclude.toLowerCase()))
                     .findFirst();
             if(result.isPresent()) {
-                return (ZipEntry)result.get();
+                return result.get();
             }
         } catch (Exception e) {
             SystemUtils.LOG.warning("unable to read zip file " + file + ": " + e.getMessage());
@@ -489,9 +488,6 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             if (attrib.getName().matches(".*[^a-zA-Z0-9_].*")) {
                 attrib.setName(attrib.getName().replaceAll("[^a-zA-Z0-9_]", "_"));
             }
-            if (attrib.getDataType() == ProductData.TYPE_ASCII) {
-                attrib.setDataElems(attrib.getData().getElemString().replaceAll("[^a-zA-Z0-9_]", "_"));
-            }
         }
 
 //        MetadataElement parent = root.getParentElement();
@@ -707,9 +703,12 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
     private void readOrbitStateVectors(final MetadataElement absRoot) throws IOException {
 
-        String navFolder = getRootFolder() + "annotation/navigation";
+        String navFolder = getRootFolder() + annotationName + "/navigation";
         if(!exists(navFolder)) {
             navFolder = getRootFolder() + "annotation_coregistered/navigation";
+            if(!exists(navFolder)) {
+                navFolder = getRootFolder() + "annotation/navigation";
+            }
         }
 
         final String[] filenames = listFiles(navFolder);
@@ -1052,13 +1051,25 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 for(Variable variable : rasters) {
                     try {
                         String name = variable.getShortName();
-                        int gridWidth = variable.getDimension(1).getLength();
-                        int gridHeight = variable.getDimension(0).getLength();
+                        final int rank = variable.getRank();
+                        int gridWidth = variable.getDimension(rank - 1).getLength();
+                        int gridHeight = variable.getDimension(rank - 2).getLength();
 
                         final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
                         final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
 
-                        Array dataArray = variable.read();
+                        Array dataArray;
+                        if (rank > 2) {
+                            // Read only the first 2D spatial slice for higher-dimensional variables
+                            final int[] origin = new int[rank];
+                            final int[] shape = variable.getShape();
+                            for (int d = 0; d < rank - 2; d++) {
+                                shape[d] = 1;
+                            }
+                            dataArray = variable.read(origin, shape).reduce();
+                        } else {
+                            dataArray = variable.read();
+                        }
                         // Convert array data to a 1D float array, regardless of original type.
                         float[] floatData = (float[]) dataArray.get1DJavaArray(DataType.FLOAT);
 
@@ -1096,18 +1107,22 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                                 MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
                                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.avg_scene_height, avgHeight);
                             }
-                            final TiePointGrid incidentAngleGrid = new TiePointGrid(name,
+                            final TiePointGrid tpg = new TiePointGrid(name,
                                     gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                            incidentAngleGrid.setUnit(Unit.DEGREES);
-                            product.addTiePointGrid(incidentAngleGrid);
+                            if(name.equalsIgnoreCase("height")) {
+                                tpg.setUnit(Unit.METERS);
+                            } else {
+                                tpg.setUnit(Unit.DEGREES);
+                            }
+                            product.addTiePointGrid(tpg);
                         }
                     } catch (Exception e) {
-                        System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+                        SystemUtils.LOG.warning("Error reading netCDFLUT variable: " + e.getMessage());
                     }
                 }
 
             } catch (Exception e) {
-                System.out.println("Error reading netCDFLUT file: " + e.getMessage());
+                SystemUtils.LOG.warning("Error reading netCDFLUT file: " + e.getMessage());
             }
         }
         

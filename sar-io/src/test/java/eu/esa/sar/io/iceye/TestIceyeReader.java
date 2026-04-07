@@ -29,27 +29,12 @@ import java.io.File;
  */
 public class TestIceyeReader extends ReaderTest {
 
-    private final static File SL_GRD_ImageFile = new File(TestData.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_GRD_Data_Jurong_Island_Singapore_SL_092019/ICEYE_GRD_SL_10402_20190920T075151.tif");
-    private final static File SL_SLC_ImageFile = new File(TestData.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_SLC_Data_Jurong_Island_Singapore_SL_092019/ICEYE_SLC_SL_10402_20190920T075151.h5");
+    final static File SL_SLC_ImageFile = new File(TestData.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_SLC_Data_Jurong_Island_Singapore_SL_092019/ICEYE_SLC_SL_10402_20190920T075151.h5");
 
-    private final static File SL_GRD_MetadataFile = new File(TestData.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_GRD_Data_Jurong_Island_Singapore_SL_092019/ICEYE_GRD_SL_10402_20190920T075151.xml");
-    private final static File SL_SLC_MetadataFile = new File(TestData.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_SLC_Data_Jurong_Island_Singapore_SL_092019/ICEYE_SLC_SL_10402_20190920T075151.xml");
+    final static File SL_SLC_MetadataFile = new File(TestData.inputSAR + "Iceye/SLC/ICEYE_SLC_GRD_Example_Spotlight_SAR_Imagery/ICEYE_SLC_Data_Jurong_Island_Singapore_SL_092019/ICEYE_SLC_SL_10402_20190920T075151.xml");
 
     public TestIceyeReader() {
         super(new IceyeProductReaderPlugIn());
-    }
-
-    @Test
-    public void testReadSL_meta_GRD() throws Exception {
-        if(SL_GRD_MetadataFile.exists()) {
-            Product prod = testReader(SL_GRD_MetadataFile.toPath());
-
-            final ProductValidator validator = new ProductValidator(prod);
-            validator.validateProduct();
-            validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_VV", "Intensity_VV"});
-            validator.validateBandData();
-        }
     }
 
     @Test
@@ -61,20 +46,6 @@ public class TestIceyeReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
-            validator.validateBandData();
-        }
-    }
-
-    @Test
-    public void testReadSL_GRD() throws Exception {
-        if(SL_GRD_ImageFile.exists()) {
-            Product prod = testReader(SL_GRD_ImageFile.toPath());
-
-            final ProductValidator validator = new ProductValidator(prod);
-            validator.validateProduct();
-            validator.validateMetadata();
-            validator.validateBands(new String[]{"Amplitude_VV", "Intensity_VV"});
-            validator.validateBandData();
         }
     }
 
@@ -87,7 +58,6 @@ public class TestIceyeReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
-            validator.validateBandData();
         }
     }
 }

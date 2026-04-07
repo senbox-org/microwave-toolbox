@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 /**
- * The ReaderPlugIn for Sentinel1 products.
+ * The ReaderPlugIn for BIOMASS products.
  */
 public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
 
@@ -58,6 +58,9 @@ public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
         if (path != null) {
             if(Files.isDirectory(path)) {
                 File[] files = path.toFile().listFiles();
+                if(files == null) {
+                    return DecodeQualification.UNABLE;
+                }
                 for(File file : files) {
                     final String filename = file.getName().toLowerCase();
                     if (filename.startsWith(PRODUCT_PREFIX.toLowerCase()) && filename.endsWith(PRODUCT_EXT.toLowerCase())) {

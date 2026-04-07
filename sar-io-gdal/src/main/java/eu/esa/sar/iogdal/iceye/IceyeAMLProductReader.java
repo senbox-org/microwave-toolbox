@@ -1,9 +1,6 @@
-package eu.esa.sar.io.iceye;
-
-import java.awt.image.DataBuffer;
+package eu.esa.sar.iogdal.iceye;
 
 import eu.esa.sar.commons.io.SARReader;
-import eu.esa.sar.io.iceye.util.IceyeConstants;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
@@ -68,9 +65,5 @@ public class IceyeAMLProductReader extends IceyeAMLCPXProductReader {
             }
         }
         return slantRangeTimeList;
-    }
-
-    float getRasterValue(int srcIndex, int bandIndex, DataBuffer dataBuffer) {
-        return dataBuffer.getElemFloat(srcIndex);
     }
 }

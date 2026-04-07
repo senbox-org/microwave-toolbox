@@ -30,12 +30,12 @@ import java.util.Locale;
  */
 public class Gaofen3ProductReaderPlugIn implements SARProductReaderPlugIn {
 
-    private static final String[] PRODUCT_PREFIX = new String[] {"GF3_"};
+    private static final String[] PRODUCT_PREFIX = new String[] {"GF3_", "GF3B_", "GF3C_"};
     private static final String PRODUCT_FORMAT = "Gaofen3";
     private static final String METADATA_EXT = ".meta.xml";
     private static final String RPC_EXT = ".rpc";
 
-    private static final String PLUGIN_DESCRIPTION = "Gaofen-3 Product Format";
+    private static final String PLUGIN_DESCRIPTION = "Gaofen-3/3B/3C Product Format";
     private static final Class[] VALID_INPUT_TYPES = new Class[]{Path.class, File.class, String.class};
 
     /**
@@ -62,7 +62,7 @@ public class Gaofen3ProductReaderPlugIn implements SARProductReaderPlugIn {
                     return DecodeQualification.INTENDED;
                 }
             } catch (Exception e) {
-                System.out.println(e);
+                org.esa.snap.core.util.SystemUtils.LOG.fine("Gaofen-3 qualification check: " + e.getMessage());
             }
         }
         return DecodeQualification.UNABLE;
