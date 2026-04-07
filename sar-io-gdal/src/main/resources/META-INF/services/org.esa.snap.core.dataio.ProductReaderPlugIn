@@ -1,3 +1,5 @@
+eu.esa.sar.iogdal.alos2.Alos2GeoTiffProductReaderPlugIn
+eu.esa.sar.iogdal.alos4.Alos4GeoTiffProductReaderPlugIn
 eu.esa.sar.iogdal.biomass.BiomassProductReaderPlugIn
 eu.esa.sar.iogdal.iceye.IceyeCOGReaderPlugIn
 eu.esa.sar.iogdal.qps.QPSSARProductReaderPlugIn

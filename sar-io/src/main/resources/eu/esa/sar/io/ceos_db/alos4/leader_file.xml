@@ -57,7 +57,7 @@
 	<rec name="Calibration record length" type="2" num="6"/>
 	<rec name="Number of GCP records" type="2" num="6"/>
 	<rec name="GCP record length" type="2" num="6"/>
-	<rec name="skipBytes" type="0" num="60"/>
+	<rec name="skipBytes" type="0" num="64"/>
 	<rec name="Number of facility data records" type="2" num="6"/>
 	<rec name="Facility data record maximum length" type="2" num="6"/>
 	<rec name="skipBytes" type="0" num="2"/>

@@ -60,7 +60,7 @@ public class Alos4ProductDirectory extends Alos2ProductDirectory {
 
         leaderFile = new Alos4LeaderFile(getCEOSFile(constants.getLeaderFilePrefix())[0].imgInputStream);
         final CeosFile[] trlFile = getCEOSFile(constants.getTrailerFilePrefix());
-        if (trlFile != null) {
+        if (trlFile != null && trlFile.length > 0) {
             trailerFile = new AlosPalsarTrailerFile(trlFile[0].imgInputStream);
         }
 
@@ -110,6 +110,21 @@ public class Alos4ProductDirectory extends Alos2ProductDirectory {
         Product product = super.createProduct();
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, "ALOS4");
+
+        final String sensorMode = leaderFile.getSceneRecord().getAttributeString(
+                "Sensor ID and mode of operation for this channel");
+        if (sensorMode != null) {
+            final String mode = sensorMode.toUpperCase().trim();
+            if (mode.contains("SPT")) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, "Spotlight");
+            } else if (mode.contains("WBS") || mode.contains("WBD") || mode.contains("VBS") ||
+                       mode.contains("VBD") || mode.contains("UWS") || mode.contains("UWD")) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, "ScanSAR");
+            } else {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, "Stripmap");
+            }
+        }
+
         return product;
     }
 }

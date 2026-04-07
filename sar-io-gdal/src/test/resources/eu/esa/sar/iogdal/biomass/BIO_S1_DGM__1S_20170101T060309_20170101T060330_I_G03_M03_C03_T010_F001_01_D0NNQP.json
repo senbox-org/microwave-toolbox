@@ -1,0 +1,500 @@
+{
+    "id": "BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP",
+    "decodeQualification": "INTENDED",
+    "expectedContent": {
+        "sceneWidth": 2139,
+        "sceneHeight": 6321,
+        "startTime": "01-JAN-2017 06:03:09.335941",
+        "endTime": "01-JAN-2017 06:03:30.013863",
+        "geoCoding": {
+            "coordinates": [
+                {
+                    "x": 922.0,
+                    "y": 3397.0,
+                    "lat": 11.59257384023859,
+                    "lon": -5.081071089540294
+                },
+                {
+                    "x": 1588.0,
+                    "y": 4101.0,
+                    "lat": 11.727804790576887,
+                    "lon": -5.2696163716668565
+                }
+            ],
+            "reverseAccuracy": 0.20394186877297216
+        },
+        "tiePointGrids": [
+            {
+                "name": "denoisingHH",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.87931034482759",
+                "subSamplingY": "35.91477272727273",
+                "expectedPixels": [
+                    {
+                        "x": 111,
+                        "y": 1126,
+                        "value": 0.0
+                    },
+                    {
+                        "x": 1465,
+                        "y": 5376,
+                        "value": 0.0
+                    }
+                ]
+            },
+            {
+                "name": "denoisingHV",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.87931034482759",
+                "subSamplingY": "35.91477272727273",
+                "expectedPixels": [
+                    {
+                        "x": 622,
+                        "y": 1623,
+                        "value": 0.0
+                    },
+                    {
+                        "x": 1305,
+                        "y": 2308,
+                        "value": 0.0
+                    }
+                ]
+            },
+            {
+                "name": "denoisingVH",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.87931034482759",
+                "subSamplingY": "35.91477272727273",
+                "expectedPixels": [
+                    {
+                        "x": 1176,
+                        "y": 4711,
+                        "value": 0.0
+                    },
+                    {
+                        "x": 1301,
+                        "y": 5868,
+                        "value": 0.0
+                    }
+                ]
+            },
+            {
+                "name": "denoisingVV",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.87931034482759",
+                "subSamplingY": "35.91477272727273",
+                "expectedPixels": [
+                    {
+                        "x": 338,
+                        "y": 4210,
+                        "value": 0.0
+                    },
+                    {
+                        "x": 1110,
+                        "y": 5774,
+                        "value": 0.0
+                    }
+                ]
+            },
+            {
+                "name": "latitude",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.25423728813559",
+                "subSamplingY": "29.95734597156398",
+                "expectedPixels": [
+                    {
+                        "x": 1617,
+                        "y": 3063,
+                        "value": 11.478477
+                    },
+                    {
+                        "x": 2033,
+                        "y": 3071,
+                        "value": 11.460552
+                    }
+                ]
+            },
+            {
+                "name": "longitude",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.25423728813559",
+                "subSamplingY": "29.95734597156398",
+                "expectedPixels": [
+                    {
+                        "x": 728,
+                        "y": 5685,
+                        "value": -5.1594796
+                    },
+                    {
+                        "x": 21,
+                        "y": 2975,
+                        "value": -4.841894
+                    }
+                ]
+            },
+            {
+                "name": "height",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.25423728813559",
+                "subSamplingY": "29.95734597156398",
+                "expectedPixels": [
+                    {
+                        "x": 700,
+                        "y": 1245,
+                        "value": 8.7815616E-10
+                    },
+                    {
+                        "x": 584,
+                        "y": 273,
+                        "value": 0.0
+                    }
+                ]
+            },
+            {
+                "name": "elevation_angle",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.25423728813559",
+                "subSamplingY": "29.95734597156398",
+                "expectedPixels": [
+                    {
+                        "x": 2077,
+                        "y": 3822,
+                        "value": 24.484373
+                    },
+                    {
+                        "x": 1224,
+                        "y": 4530,
+                        "value": 23.033821
+                    }
+                ]
+            },
+            {
+                "name": "terrain_slope",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.25423728813559",
+                "subSamplingY": "29.95734597156398",
+                "expectedPixels": [
+                    {
+                        "x": 496,
+                        "y": 3144,
+                        "value": -2.4182353
+                    },
+                    {
+                        "x": 686,
+                        "y": 4567,
+                        "value": -2.4637442
+                    }
+                ]
+            },
+            {
+                "name": "incident_angle",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.25423728813559",
+                "subSamplingY": "29.95734597156398",
+                "expectedPixels": [
+                    {
+                        "x": 765,
+                        "y": 3149,
+                        "value": 22.197422
+                    },
+                    {
+                        "x": 861,
+                        "y": 2795,
+                        "value": 22.37521
+                    }
+                ]
+            },
+            {
+                "name": "sigmaNought",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.25423728813559",
+                "subSamplingY": "29.95734597156398",
+                "expectedPixels": [
+                    {
+                        "x": 1229,
+                        "y": 580,
+                        "value": 0.43252498
+                    },
+                    {
+                        "x": 1380,
+                        "y": 100,
+                        "value": 0.43722957
+                    }
+                ]
+            },
+            {
+                "name": "gammaNought",
+                "offsetX": "0.5",
+                "offsetY": "0.5",
+                "subSamplingX": "36.25423728813559",
+                "subSamplingY": "29.95734597156398",
+                "expectedPixels": [
+                    {
+                        "x": 2085,
+                        "y": 2321,
+                        "value": 0.51557004
+                    },
+                    {
+                        "x": 2032,
+                        "y": 5982,
+                        "value": 0.51347893
+                    }
+                ]
+            },
+            {
+                "name": "slant_range_time",
+                "offsetX": "0.0",
+                "offsetY": "0.0",
+                "subSamplingX": "713.0",
+                "subSamplingY": "2107.0",
+                "expectedPixels": [
+                    {
+                        "x": 237,
+                        "y": 2856,
+                        "value": 4842531.5
+                    },
+                    {
+                        "x": 1221,
+                        "y": 3555,
+                        "value": 4912523.0
+                    }
+                ]
+            }
+        ],
+        "bands": [
+            {
+                "name": "Amplitude_HH",
+                "bandWidth": 2139,
+                "bandHeight": 6321,
+                "geophysicalUnit": "amplitude",
+                "noDataValue": "-9999.0",
+                "noDataValueUsed": "true",
+                "spectralWavelength": "0.0",
+                "spectralBandwidth": "0.0",
+                "expectedPixels": [
+                    {
+                        "x": 1081,
+                        "y": 3297,
+                        "value": 2.8666207E-6
+                    },
+                    {
+                        "x": 964,
+                        "y": 3672,
+                        "value": 3.2482617E-7
+                    }
+                ]
+            },
+            {
+                "name": "Intensity_HH",
+                "description": "Intensity from complex data",
+                "bandWidth": 2139,
+                "bandHeight": 6321,
+                "geophysicalUnit": "intensity",
+                "noDataValue": "-9999.0",
+                "noDataValueUsed": "true",
+                "spectralWavelength": "0.0",
+                "spectralBandwidth": "0.0",
+                "expectedPixels": [
+                    {
+                        "x": 30,
+                        "y": 2684,
+                        "value": 7.254779E-14
+                    },
+                    {
+                        "x": 150,
+                        "y": 6275,
+                        "value": 1.3729197E-15
+                    }
+                ]
+            },
+            {
+                "name": "Amplitude_HV",
+                "bandWidth": 2139,
+                "bandHeight": 6321,
+                "geophysicalUnit": "amplitude",
+                "noDataValue": "-9999.0",
+                "noDataValueUsed": "true",
+                "spectralWavelength": "0.0",
+                "spectralBandwidth": "0.0",
+                "expectedPixels": [
+                    {
+                        "x": 634,
+                        "y": 4709,
+                        "value": 1.2057227E-7
+                    },
+                    {
+                        "x": 1718,
+                        "y": 4654,
+                        "value": 2.67685E-7
+                    }
+                ]
+            },
+            {
+                "name": "Intensity_HV",
+                "description": "Intensity from complex data",
+                "bandWidth": 2139,
+                "bandHeight": 6321,
+                "geophysicalUnit": "intensity",
+                "noDataValue": "-9999.0",
+                "noDataValueUsed": "true",
+                "spectralWavelength": "0.0",
+                "spectralBandwidth": "0.0",
+                "expectedPixels": [
+                    {
+                        "x": 1784,
+                        "y": 5976,
+                        "value": 3.145422E-14
+                    },
+                    {
+                        "x": 531,
+                        "y": 3361,
+                        "value": 5.4224403E-11
+                    }
+                ]
+            },
+            {
+                "name": "Amplitude_VH",
+                "bandWidth": 2139,
+                "bandHeight": 6321,
+                "geophysicalUnit": "amplitude",
+                "noDataValue": "-9999.0",
+                "noDataValueUsed": "true",
+                "spectralWavelength": "0.0",
+                "spectralBandwidth": "0.0",
+                "expectedPixels": [
+                    {
+                        "x": 1306,
+                        "y": 1644,
+                        "value": 4.179258E-8
+                    },
+                    {
+                        "x": 1182,
+                        "y": 954,
+                        "value": 7.174825E-8
+                    }
+                ]
+            },
+            {
+                "name": "Intensity_VH",
+                "description": "Intensity from complex data",
+                "bandWidth": 2139,
+                "bandHeight": 6321,
+                "geophysicalUnit": "intensity",
+                "noDataValue": "-9999.0",
+                "noDataValueUsed": "true",
+                "spectralWavelength": "0.0",
+                "spectralBandwidth": "0.0",
+                "expectedPixels": [
+                    {
+                        "x": 1017,
+                        "y": 3534,
+                        "value": 2.7719943E-13
+                    },
+                    {
+                        "x": 204,
+                        "y": 5371,
+                        "value": 5.5881495E-15
+                    }
+                ]
+            },
+            {
+                "name": "Amplitude_VV",
+                "bandWidth": 2139,
+                "bandHeight": 6321,
+                "geophysicalUnit": "amplitude",
+                "noDataValue": "-9999.0",
+                "noDataValueUsed": "true",
+                "spectralWavelength": "0.0",
+                "spectralBandwidth": "0.0",
+                "expectedPixels": [
+                    {
+                        "x": 205,
+                        "y": 491,
+                        "value": 3.541035E-8
+                    },
+                    {
+                        "x": 973,
+                        "y": 4275,
+                        "value": 1.7201748E-7
+                    }
+                ]
+            },
+            {
+                "name": "Intensity_VV",
+                "description": "Intensity from complex data",
+                "bandWidth": 2139,
+                "bandHeight": 6321,
+                "geophysicalUnit": "intensity",
+                "noDataValue": "-9999.0",
+                "noDataValueUsed": "true",
+                "spectralWavelength": "0.0",
+                "spectralBandwidth": "0.0",
+                "expectedPixels": [
+                    {
+                        "x": 994,
+                        "y": 5658,
+                        "value": 1.177909E-14
+                    },
+                    {
+                        "x": 1855,
+                        "y": 3792,
+                        "value": 6.547495E-14
+                    }
+                ]
+            }
+        ],
+        "metadata": [
+            {
+                "path": "Original_Product_Metadata/EarthObservation/phenomenonTime/TimePeriod/id",
+                "value": "BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP_2"
+            },
+            {
+                "path": "Original_Product_Metadata/annotation/bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_annot_xml/mainAnnotation/rawDataAnalysis/errorCounters/numErrRank",
+                "value": "0"
+            },
+            {
+                "path": "Original_Product_Metadata/EarthObservation/observedProperty/nil",
+                "value": "true"
+            },
+            {
+                "path": "Abstracted_Metadata/SRGR_Coefficients/srgr_coef_list.12/coefficient.4/srgr_coef",
+                "value": "-3.691071446347388E-13"
+            },
+            {
+                "path": "Original_Product_Metadata/annotation/bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_annot_xml/mainAnnotation/rawDataAnalysis/rawDataStatisticsList/rawDataStatistics[4]/iBias",
+                "value": "0.0"
+            },
+            {
+                "path": "Original_Product_Metadata/EarthObservation/result/EarthObservationResult/product[6]/ProductInformation/size/size",
+                "value": "32703"
+            },
+            {
+                "path": "Abstracted_Metadata/Doppler_Centroid_Coefficients/dop_coef_list.22/coefficient.4/dop_coef",
+                "value": "1.22205242197442E8"
+            },
+            {
+                "path": "Abstracted_Metadata/Band_S1_VV/line_time_interval",
+                "value": "0.00327182309901117"
+            },
+            {
+                "path": "Abstracted_Metadata/SRGR_Coefficients/srgr_coef_list.23/coefficient.2/srgr_coef",
+                "value": "0.39938475178062116"
+            },
+            {
+                "path": "Original_Product_Metadata/annotation/bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_annot_xml/mainAnnotation/ionosphereCorrection/ionosphereHeightEstimated/ionosphereHeightEstimated",
+                "value": "-1.0"
+            }
+        ]
+    }
+}

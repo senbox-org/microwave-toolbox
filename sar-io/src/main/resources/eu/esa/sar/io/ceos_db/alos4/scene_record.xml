@@ -135,6 +135,7 @@
 	<rec name="Stop line of calibration at bottom image" type="2" num="8"/>
 	<rec name="PRF switching indicator" type="2" num="4"/>	
 	<rec name="Line locator of PRF switching" type="2" num="8"/>
+	<rec name="skipBytes" type="0" num="8"/>
 
 	<rec name="Direction of beam center in scene center" type="5" num="16"/>
 	<rec name="Yew steering mode flag" type="2" num="4"/>

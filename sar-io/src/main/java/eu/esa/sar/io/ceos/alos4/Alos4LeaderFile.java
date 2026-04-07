@@ -38,11 +38,17 @@ public class Alos4LeaderFile extends AlosPalsarLeaderFile {
     private static final String facility_record1_5DefinitionFile = "facility_record1_5.xml";
 
     private static final Document leaderXML = BinaryDBReader.loadDefinitionFile(mission, leader_recordDefinitionFile);
+    private static final Document sceneXML = BinaryDBReader.loadDefinitionFile(mission, scene_recordDefinitionFile);
+    private static final Document mapProjXML = BinaryDBReader.loadDefinitionFile(mission, mapproj_recordDefinitionFile);
+    private static final Document platformXML = BinaryDBReader.loadDefinitionFile(mission, platformPosition_recordDefinitionFile);
+    private static final Document attitudeXML = BinaryDBReader.loadDefinitionFile(mission, attitude_recordDefinitionFile);
+    private static final Document radiometricXML = BinaryDBReader.loadDefinitionFile(mission, radiometric_recordDefinitionFile);
+    private static final Document dataQualityXML = BinaryDBReader.loadDefinitionFile(mission, dataQuality_recordDefinitionFile);
     private static final Document facilityXML = BinaryDBReader.loadDefinitionFile(mission, facility_recordDefinitionFile);
     private static final Document facility1_5XML = BinaryDBReader.loadDefinitionFile(mission, facility_record1_5DefinitionFile);
 
     public Alos4LeaderFile(final ImageInputStream stream) throws IOException {
-        super(stream, leaderXML);
+        super(stream, leaderXML, sceneXML, mapProjXML, platformXML, attitudeXML, radiometricXML, dataQualityXML);
     }
 
     @Override

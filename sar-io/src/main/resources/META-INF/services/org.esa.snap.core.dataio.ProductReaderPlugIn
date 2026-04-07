@@ -3,7 +3,6 @@ eu.esa.sar.io.ceos.ers.ERSProductReaderPlugIn
 eu.esa.sar.io.ceos.jers.JERSProductReaderPlugIn
 eu.esa.sar.io.ceos.alos.AlosPalsarProductReaderPlugIn
 eu.esa.sar.io.ceos.alos2.Alos2ProductReaderPlugIn
-eu.esa.sar.io.ceos.alos2.Alos2GeoTiffProductReaderPlugIn
 eu.esa.sar.io.ceos.alos4.Alos4ProductReaderPlugIn
 eu.esa.sar.io.ceos.basic.BasicCeosProductReaderPlugIn
 eu.esa.sar.io.cosmo.CosmoSkymedReaderPlugIn

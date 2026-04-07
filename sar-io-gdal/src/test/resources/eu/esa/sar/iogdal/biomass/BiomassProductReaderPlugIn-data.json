@@ -1,0 +1,9 @@
+{
+  "testProducts": [
+    {
+      "id": "BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP",
+      "relativePath": "SAR/BIOMASS/L1A_and_L1B/BIO_S1_DGM__1S_20170101T060309_20170101T060330_I_G03_M03_C03_T010_F001_01_D0NNQP/bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnqp.xml",
+      "description": "Biomass GRD product"
+    }
+  ]
+}

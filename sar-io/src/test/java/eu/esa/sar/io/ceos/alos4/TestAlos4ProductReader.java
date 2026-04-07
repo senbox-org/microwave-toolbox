@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 by Array Systems Computing Inc. http://www.array.ca
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.io.ceos.alos;
+package eu.esa.sar.io.ceos.alos4;
 
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
@@ -31,47 +31,42 @@ import java.io.File;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Test ALOS PALSAR CEOS Product Reader.
+ * Test ALOS 4 CEOS Product Reader.
  *
  * @author lveci
  */
-public class TestAlosPalsarProductReader extends ReaderTest {
+public class TestAlos4ProductReader extends ReaderTest {
+
+    private final static File slc = new File("E:\\EO\\ALOS4\\ALOS40182900250502UWDPRD0107_1.1__-\\ALOS40182900250502UWDPRD0107_1.1__-\\VOL-ALOS40182900250502UWDPRD0107-1.1__-");
 
     private String[] exceptionExemptions = {"geocoding is null", "not supported"};
 
-    private static File inputFile = TestData.inputALOS_Zip;
-
-    public final static String inputALOS = TestData.inputSAR + "ALOS/";
-    public final static File[] rootPathsALOS = SARTests.loadFilePath(inputALOS);
-
+    private final static String inputALOS4 = TestData.inputSAR + "ALOS4/";
+    private final static File[] rootPathsALOS4 = SARTests.loadFilePath(inputALOS4);
 
     @Before
     public void setUp() {
         // If the file does not exist: the test will be ignored
-        assumeTrue(inputFile + " not found", inputFile.exists());
-
-        for (File file : rootPathsALOS) {
-            assumeTrue(file + " not found", file.exists());
-        }
+        assumeTrue(slc + " not found", slc.exists());
     }
 
-    public TestAlosPalsarProductReader() {
-        super(new AlosPalsarProductReaderPlugIn());
+    public TestAlos4ProductReader() {
+        super(new Alos4ProductReaderPlugIn());
     }
 
     @Test
-    public void testOpeningZip() throws Exception {
+    public void testOpeningSLC() throws Exception {
 
-        final DecodeQualification canRead = readerPlugIn.getDecodeQualification(inputFile);
+        final DecodeQualification canRead = readerPlugIn.getDecodeQualification(slc);
         Assert.assertTrue(canRead == DecodeQualification.INTENDED);
 
-        final Product product = reader.readProductNodes(inputFile, null);
+        final Product product = reader.readProductNodes(slc, null);
         Assert.assertTrue(product != null);
 
         final ProductValidator validator = new ProductValidator(product);
         validator.validateProduct();
-        //validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_HH", "Intensity_HH"});
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
     }
 
     /**
@@ -82,6 +77,6 @@ public class TestAlosPalsarProductReader extends ReaderTest {
     @Test
     public void testOpenAll() throws Exception {
         TestProcessor testProcessor = SARTests.createTestProcessor();
-        testProcessor.recurseReadFolder(this, rootPathsALOS, readerPlugIn, reader, null, exceptionExemptions);
+        testProcessor.recurseReadFolder(this, rootPathsALOS4, readerPlugIn, reader, null, exceptionExemptions);
     }
 }
