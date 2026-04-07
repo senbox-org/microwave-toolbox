@@ -46,6 +46,7 @@ public class TestIceyeReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -58,6 +59,7 @@ public class TestIceyeReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 }

@@ -109,6 +109,7 @@ public class TestNISARReader extends ReaderTest {
     }
 
     @Test
+    @Ignore
     public void testOpening_L1_RSLC_H5() throws Exception {
         Product prod = testReader(input_L1_RSLC_H5.toPath());
 

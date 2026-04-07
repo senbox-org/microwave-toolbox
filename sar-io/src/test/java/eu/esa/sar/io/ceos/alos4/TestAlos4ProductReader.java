@@ -67,6 +67,7 @@ public class TestAlos4ProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     /**

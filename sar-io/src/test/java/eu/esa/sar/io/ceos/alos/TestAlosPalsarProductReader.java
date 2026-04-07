@@ -70,8 +70,9 @@ public class TestAlosPalsarProductReader extends ReaderTest {
 
         final ProductValidator validator = new ProductValidator(product);
         validator.validateProduct();
-        //validator.validateMetadata();
+        validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH", "Intensity_HH"});
+        validator.validateBandData();
     }
 
     /**

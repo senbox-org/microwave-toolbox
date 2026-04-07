@@ -65,6 +65,7 @@ public class TestSaocomTOPSProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_HH","Sigma0_HV","Sigma0_VV","Sigma0_VH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -75,6 +76,7 @@ public class TestSaocomTOPSProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_HH","Sigma0_HV","Sigma0_VV","Sigma0_VH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -84,5 +86,6 @@ public class TestSaocomTOPSProductReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
+        validator.validateBandData();
     }
 }

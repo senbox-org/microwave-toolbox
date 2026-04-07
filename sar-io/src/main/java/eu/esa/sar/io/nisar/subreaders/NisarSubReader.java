@@ -142,6 +142,9 @@ public abstract class NisarSubReader {
             }
 
             Variable[] rasterVariables = getRasterVariables(groupFrequency);
+            if (rasterVariables.length == 0) {
+                throw new IOException("No raster variables found in frequency group for product type " + productType);
+            }
 
             final int rasterHeight = rasterVariables[0].getDimension(0).getLength();
             final int rasterWidth = rasterVariables[0].getDimension(1).getLength();

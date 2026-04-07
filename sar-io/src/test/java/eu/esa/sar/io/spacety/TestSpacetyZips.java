@@ -75,6 +75,7 @@ public class TestSpacetyZips extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -86,6 +87,7 @@ public class TestSpacetyZips extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -97,6 +99,7 @@ public class TestSpacetyZips extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -108,6 +111,7 @@ public class TestSpacetyZips extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV_NS1", "q_VV_NS1", "Intensity_VV_NS1", "i_VV_NS2", "q_VV_NS2", "Intensity_VV_NS2", "i_VV_NS3", "q_VV_NS3", "Intensity_VV_NS3", "i_VV_NS4", "q_VV_NS4", "Intensity_VV_NS4"});
+            validator.validateBandData();
         }
     }
 }

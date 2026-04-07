@@ -44,13 +44,39 @@ public class NisarRSLCProductReader extends NisarSubReader {
             }
         }
 
+        // Fallback: check for polarization variables inside subgroups
+        if (rasterVariables.isEmpty()) {
+            for (Group subGroup : groupFrequency.getGroups()) {
+                String name = subGroup.getShortName();
+                for (String pol : pols) {
+                    if (name.equals(pol)) {
+                        // Look for the SLC dataset inside the polarization group
+                        Variable v = subGroup.findVariable(pol);
+                        if (v == null) {
+                            // Try common variable names inside the polarization subgroup
+                            List<Variable> vars = subGroup.getVariables();
+                            for (Variable var : vars) {
+                                if (var.getRank() >= 2) {
+                                    v = var;
+                                    break;
+                                }
+                            }
+                        }
+                        if (v != null) {
+                            rasterVariables.add(v);
+                        }
+                    }
+                }
+            }
+        }
+
         return rasterVariables.toArray(new Variable[0]);
     }
 
     @Override
     protected void addBandsForFrequency(Group groupFrequency, String suffix) {
         for (String polarization : pols) {
-            Variable variable = groupFrequency.findVariable(polarization);
+            Variable variable = findPolarizationVariable(groupFrequency, polarization);
             if (variable != null) {
                 String pol = '_'+polarization+suffix;
 
@@ -60,6 +86,29 @@ public class NisarRSLCProductReader extends NisarSubReader {
                 ReaderUtils.createVirtualPhaseBand(product, i, q, pol);
             }
         }
+    }
+
+    private Variable findPolarizationVariable(Group groupFrequency, String polarization) {
+        // First try direct variable
+        Variable v = groupFrequency.findVariable(polarization);
+        if (v != null) {
+            return v;
+        }
+        // Fallback: look inside a polarization subgroup
+        Group polGroup = groupFrequency.findGroup(polarization);
+        if (polGroup != null) {
+            v = polGroup.findVariable(polarization);
+            if (v != null) {
+                return v;
+            }
+            // Try first 2D+ variable in the group
+            for (Variable var : polGroup.getVariables()) {
+                if (var.getRank() >= 2) {
+                    return var;
+                }
+            }
+        }
+        return null;
     }
 
     private Band newBand(Variable var, String bandName, String cpxType, String bandUnit, float nodatavalue) {

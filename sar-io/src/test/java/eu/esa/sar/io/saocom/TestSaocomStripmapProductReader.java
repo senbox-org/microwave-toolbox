@@ -84,6 +84,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -94,6 +95,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -104,6 +106,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_HH","Sigma0_HV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -114,6 +117,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_HH","Sigma0_HV","Sigma0_VV","Sigma0_VH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -124,6 +128,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_HH","Sigma0_HV","Sigma0_VV","Sigma0_VH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -134,6 +139,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -144,6 +150,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_HH","Sigma0_HV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -154,6 +161,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Sigma0_HH","Sigma0_HV","Sigma0_VV","Sigma0_VH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -164,6 +172,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -174,6 +183,7 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH","i_HV","q_HV","Intensity_HV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -188,5 +198,6 @@ public class TestSaocomStripmapProductReader extends ReaderTest {
                 "i_HV","q_HV","Intensity_HV",
                 "i_VV","q_VV","Intensity_VV",
                 "i_VH","q_VH","Intensity_VH"});
+        validator.validateBandData();
     }
 }
