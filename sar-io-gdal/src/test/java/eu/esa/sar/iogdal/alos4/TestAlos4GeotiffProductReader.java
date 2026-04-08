@@ -39,7 +39,7 @@ public class TestAlos4GeotiffProductReader extends ReaderTest {
     @Before
     public void setUp() {
         // If the file does not exist: the test will be ignored
-        //assumeTrue(grd + " not found", grd.exists());
+        assumeTrue(grd + " not found", grd.exists());
     }
 
     public TestAlos4GeotiffProductReader() {
