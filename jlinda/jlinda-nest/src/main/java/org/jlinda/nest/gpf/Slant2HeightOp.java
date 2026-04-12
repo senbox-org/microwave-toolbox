@@ -15,6 +15,7 @@ import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.jblas.DoubleMatrix;
@@ -75,8 +76,8 @@ public class Slant2HeightOp extends Operator {
     private int orbitDegree = 3;
 
     // source maps
-    private HashMap<Integer, CplxContainer> masterMap = new HashMap<>();
-    private HashMap<Integer, CplxContainer> slaveMap = new HashMap<>();
+    private HashMap<Integer, CplxContainer> referenceMap = new HashMap<>();
+    private HashMap<Integer, CplxContainer> secondaryMap = new HashMap<>();
 
     // target maps
     private HashMap<String, ProductContainer> targetMap = new HashMap<>();
@@ -111,36 +112,36 @@ public class Slant2HeightOp extends Operator {
 
         int sourceImageWidth = sourceProduct.getSceneRasterWidth();
         int sourceImageHeight = sourceProduct.getSceneRasterHeight();
-        for (Integer keyMaster : masterMap.keySet()) {
-            CplxContainer master = masterMap.get(keyMaster);
-            for (Integer keySlave : slaveMap.keySet()) {
-                CplxContainer slave = slaveMap.get(keySlave);
+        for (Integer keyReference : referenceMap.keySet()) {
+            CplxContainer reference = referenceMap.get(keyReference);
+            for (Integer keySecondary : secondaryMap.keySet()) {
+                CplxContainer secondary = secondaryMap.get(keySecondary);
 
                 Slant2Height slant2Height = new Slant2Height(nPoints, nHeights, degree1D, degree2D,
-                        master.metaData, master.orbit, slave.metaData, slave.orbit);
+                        reference.metaData, reference.orbit, secondary.metaData, secondary.orbit);
                 slant2Height.setDataWindow(new Window(0, sourceImageHeight, 0, sourceImageWidth));
                 slant2Height.schwabisch();
 
-                slant2HeightMap.put(slave.date, slant2Height);
+                slant2HeightMap.put(secondary.date, slant2Height);
             }
         }
     }
 
     private void constructTargetMetadata() {
 
-        for (Integer keyMaster : masterMap.keySet()) {
+        for (Integer keyReference : referenceMap.keySet()) {
 
-            CplxContainer master = masterMap.get(keyMaster);
+            CplxContainer reference = referenceMap.get(keyReference);
 
-            for (Integer keySlave : slaveMap.keySet()) {
+            for (Integer keySecondary : secondaryMap.keySet()) {
 
                 // generate name for product bands
-                String productName = keyMaster.toString() + "_" + keySlave.toString();
+                String productName = keyReference.toString() + "_" + keySecondary.toString();
 
-                final CplxContainer slave = slaveMap.get(keySlave);
-                final ProductContainer product = new ProductContainer(productName, master, slave, false);
+                final CplxContainer secondary = secondaryMap.get(keySecondary);
+                final ProductContainer product = new ProductContainer(productName, reference, secondary, false);
 
-                product.targetBandName_I = PRODUCT_TAG + "_" + master.date + "_" + slave.date;
+                product.targetBandName_I = PRODUCT_TAG + "_" + reference.date + "_" + secondary.date;
 
                 // put ifg-product bands into map
                 targetMap.put(productName, product);
@@ -164,22 +165,21 @@ public class Slant2HeightOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        // define sourceMaster/sourceSlave name tags
-        final String masterTag = "ifg";
-        final String slaveTag = "ifg";
-        final MetadataElement masterMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
-        MetadataElement[] slaveRoot;
+        // define sourceReference/sourceSecondary name tags
+        final String referenceTag = "ifg";
+        final String secondaryTag = "ifg";
+        final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        MetadataElement[] secondaryRoot;
 
         /* organize metadata */
-        // put sourceMaster metadata into the masterMap
-        metaMapPut(masterTag, masterMeta, sourceProduct, masterMap);
+        // put sourceReference metadata into the referenceMap
+        metaMapPut(referenceTag, referenceMeta, sourceProduct, referenceMap);
 
-        // put sourceSlave metadata into slaveDefoMap
-        slaveRoot = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot).getElements();
-        for (MetadataElement meta : slaveRoot) {
+        // put sourceSecondary metadata into secondaryMap
+        secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
+        for (MetadataElement meta : secondaryRoot) {
             if (!meta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                metaMapPut(slaveTag, meta, sourceProduct, slaveMap);
+                metaMapPut(secondaryTag, meta, sourceProduct, secondaryMap);
         }
     }
 
@@ -262,14 +262,14 @@ public class Slant2HeightOp extends Operator {
                 if (targetBand.getName().equals(product.targetBandName_I)) {
 
                     // check out from source
-                    Tile tileRealMaster = getSourceTile(product.sourceMaster.realBand, rect);
-                    final DoubleMatrix dataMaster = TileUtilsDoris.pullDoubleMatrix(tileRealMaster);// check out from source
+                    Tile tileRealReference = getSourceTile(product.sourceRef.realBand, rect);
+                    final DoubleMatrix dataReference = TileUtilsDoris.pullDoubleMatrix(tileRealReference);// check out from source
 
-                    // get class for this slave from the map
-                    Slant2Height slant2Height = slant2HeightMap.get(product.sourceSlave.date);
-                    slant2Height.applySchwabisch(tileWindow, dataMaster);
+                    // get class for this secondary from the map
+                    Slant2Height slant2Height = slant2HeightMap.get(product.sourceSec.date);
+                    slant2Height.applySchwabisch(tileWindow, dataReference);
 
-                    TileUtilsDoris.pushDoubleMatrix(dataMaster, targetTile, targetTile.getRectangle());
+                    TileUtilsDoris.pushDoubleMatrix(dataReference, targetTile, targetTile.getRectangle());
                 }
             }
 

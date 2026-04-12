@@ -59,8 +59,8 @@ public class MultitemporalCompositingOp extends Operator {
 
 
     private static final String PRODUCT_SUFFIX = "_MC";
-    private static final String MASTER_TAG = "_mst";
-    private static final String SLAVE_TAG = "_slv";
+    private static final String REFERENCE_TAG = "_ref";
+    private static final String SECONDARY_TAG = "_sec";
     private static final String SIMULATED_IMAGE = "simulatedImage";
 
     /**
@@ -103,10 +103,10 @@ public class MultitemporalCompositingOp extends Operator {
 
         final String[] sourceBandNames = sourceProduct.getBandNames();
         for (String srcBandName : sourceBandNames) {
-            if (srcBandName.contains(SLAVE_TAG) || srcBandName.contains(SIMULATED_IMAGE)) {
+            if (srcBandName.contains(SECONDARY_TAG) || srcBandName.contains(SIMULATED_IMAGE)) {
                 continue;
             }
-            final String tgtBandName = srcBandName.substring(0, srcBandName.indexOf(MASTER_TAG));
+            final String tgtBandName = srcBandName.substring(0, srcBandName.indexOf(REFERENCE_TAG));
             targetProduct.addBand(tgtBandName, ProductData.TYPE_FLOAT32);
         }
     }

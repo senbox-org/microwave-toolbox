@@ -97,8 +97,8 @@ public final class SubtRefDemOp extends Operator {
     private boolean demDefined = false;
 
     // source maps
-    private Map<String, CplxContainer> masterMap = new HashMap<>();
-    private Map<String, CplxContainer> slaveMap = new HashMap<>();
+    private Map<String, CplxContainer> referenceMap = new HashMap<>();
+    private Map<String, CplxContainer> secondaryMap = new HashMap<>();
 
     // target maps
     private Map<String, ProductContainer> targetMap = new HashMap<>();
@@ -150,6 +150,7 @@ public final class SubtRefDemOp extends Operator {
                 constructSourceMetadata();
                 constructTargetMetadata();
             }
+
 
             createTargetProduct();
 
@@ -255,29 +256,28 @@ public final class SubtRefDemOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        final MetadataElement masterMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        masterMetaMapPut(masterMeta, sourceProduct, masterMap);
+        final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        referenceMetaMapPut(referenceMeta, sourceProduct, referenceMap);
 
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
-        MetadataElement[] slaveRoot = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot).getElements();
-        for (MetadataElement slaveMeta : slaveRoot) {
-            if (!slaveMeta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                slaveMetaMapPut(masterMeta, slaveMeta, sourceProduct, slaveMap);
+        MetadataElement[] secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
+        for (MetadataElement secMeta : secondaryRoot) {
+            if (!secMeta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
+                secondaryMetaMapPut(referenceMeta, secMeta, sourceProduct, secondaryMap);
         }
     }
 
-    private void masterMetaMapPut(final MetadataElement mstRoot, final Product product,
+    private void referenceMetaMapPut(final MetadataElement refRoot, final Product product,
                                   final Map<String, CplxContainer> map) throws Exception {
 
-        final String date = OperatorUtils.getAcquisitionDate(mstRoot);
-        final Orbit orbit = new Orbit(mstRoot, orbitDegree);
-        final SLCImage meta = new SLCImage(mstRoot, product);
+        final String date = OperatorUtils.getAcquisitionDate(refRoot);
+        final Orbit orbit = new Orbit(refRoot, orbitDegree);
+        final SLCImage meta = new SLCImage(refRoot, product);
         meta.setMlAz(1);
         meta.setMlRg(1);
 
         for (String polarisation : polarisations) {
             final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
-            String mapKey = mstRoot.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
+            String mapKey = refRoot.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
 
             Band bandReal = null;
             Band bandImag = null;
@@ -304,26 +304,26 @@ public final class SubtRefDemOp extends Operator {
         }
     }
 
-    private void slaveMetaMapPut(final MetadataElement mstRoot, final MetadataElement slvRoot,
+    private void secondaryMetaMapPut(final MetadataElement refRoot, final MetadataElement secRoot,
                                  final Product product, final Map<String, CplxContainer> map) throws Exception {
 
-        final String mstAcqDate = OperatorUtils.getAcquisitionDate(mstRoot);
+        final String refAcqDate = OperatorUtils.getAcquisitionDate(refRoot);
 
         for (String polarisation : polarisations) {
             final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
-            final String mapKey = slvRoot.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
-            final String slvAcqDate = OperatorUtils.getAcquisitionDate(slvRoot);
-            final Orbit orbit = new Orbit(slvRoot, orbitDegree);
-            final SLCImage meta = new SLCImage(slvRoot, product);
+            final String mapKey = secRoot.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
+            final String secAcqDate = OperatorUtils.getAcquisitionDate(secRoot);
+            final Orbit orbit = new Orbit(secRoot, orbitDegree);
+            final SLCImage meta = new SLCImage(secRoot, product);
             meta.setMlAz(1);
             meta.setMlRg(1);
 
-            final String mstAcqDate_slvAcqDate = mstAcqDate + "_" + slvAcqDate;
+            final String refAcqDate_secAcqDate = refAcqDate + "_" + secAcqDate;
             Band bandReal = null;
             Band bandImag = null;
 
             for (String bandName : product.getBandNames()) {
-                if (bandName.contains("ifg") && bandName.contains(mstAcqDate_slvAcqDate)) {
+                if (bandName.contains("ifg") && bandName.contains(refAcqDate_secAcqDate)) {
                     if (pol.isEmpty() || bandName.contains(pol)) {
                         final Band band = product.getBand(bandName);
                         if (BandUtilsDoris.isBandReal(band)) {
@@ -338,22 +338,22 @@ public final class SubtRefDemOp extends Operator {
                 }
             }
 
-            map.put(mapKey, new CplxContainer(slvAcqDate, meta, orbit, bandReal, bandImag));
+            map.put(mapKey, new CplxContainer(secAcqDate, meta, orbit, bandReal, bandImag));
         }
     }
 
     private void constructTargetMetadata() {
 
-        for (String keyMaster : masterMap.keySet()) {
+        for (String keyReference : referenceMap.keySet()) {
 
-            CplxContainer master = masterMap.get(keyMaster);
+            CplxContainer reference = referenceMap.get(keyReference);
 
-            for (String keySlave : slaveMap.keySet()) {
-                final CplxContainer slave = slaveMap.get(keySlave);
+            for (String keySecondary : secondaryMap.keySet()) {
+                final CplxContainer secondary = secondaryMap.get(keySecondary);
 
-                if (master.polarisation == null || master.polarisation.equals(slave.polarisation)) {
-                    String productName = keyMaster + '_' + keySlave;
-                    final ProductContainer product = new ProductContainer(productName, master, slave, true);
+                if (reference.polarisation == null || reference.polarisation.equals(secondary.polarisation)) {
+                    String productName = keyReference + '_' + keySecondary;
+                    final ProductContainer product = new ProductContainer(productName, reference, secondary, true);
                     targetMap.put(productName, product);
                 }
             }
@@ -364,19 +364,19 @@ public final class SubtRefDemOp extends Operator {
 
         final String[] sourceBandNames = sourceProduct.getBandNames();
         final Map<String, MetadataElement> dateMetaMap = new HashMap<>();
-        final MetadataElement masterMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        final String mstAcqDate = OperatorUtils.getAcquisitionDate(masterMeta);
-        dateMetaMap.put(mstAcqDate, masterMeta);
+        final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        final String refAcqDate = OperatorUtils.getAcquisitionDate(referenceMeta);
+        dateMetaMap.put(refAcqDate, referenceMeta);
 
-        final SLCImage masterSLCImage = new SLCImage(masterMeta, sourceProduct);
-        masterSLCImage.setMlAz(1);
-        masterSLCImage.setMlRg(1);
+        final SLCImage referenceSLCImage = new SLCImage(referenceMeta, sourceProduct);
+        referenceSLCImage.setMlAz(1);
+        referenceSLCImage.setMlRg(1);
         Band bandReal = null;
         Band bandImag = null;
         for (String bandName : sourceBandNames) {
-            if (bandName.startsWith("i_ifg") && bandName.contains(mstAcqDate)) {
+            if (bandName.startsWith("i_ifg") && bandName.contains(refAcqDate)) {
                 bandReal = sourceProduct.getBand(bandName);
-            } else if (bandName.startsWith("q_ifg") && bandName.contains(mstAcqDate)) {
+            } else if (bandName.startsWith("q_ifg") && bandName.contains(refAcqDate)) {
                 bandImag = sourceProduct.getBand(bandName);
             }
             if (bandReal != null && bandImag != null) {
@@ -384,47 +384,46 @@ public final class SubtRefDemOp extends Operator {
             }
         }
 
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
-        MetadataElement[] slaveRoot = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot).getElements();
-        for (MetadataElement slaveMeta : slaveRoot) {
-            final String slvAcqDate = OperatorUtils.getAcquisitionDate(slaveMeta);
-            dateMetaMap.put(slvAcqDate, slaveMeta);
+        MetadataElement[] secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
+        for (MetadataElement secMeta : secondaryRoot) {
+            final String secAcqDate = OperatorUtils.getAcquisitionDate(secMeta);
+            dateMetaMap.put(secAcqDate, secMeta);
         }
 
         for (String bandName : sourceBandNames) {
             if (bandName.startsWith("i_ifg")) {
-                final String[] mstDateSlvDatePol = getMstDateSlvDatePol(bandName);
-                final String mstDate = mstDateSlvDatePol[0];
-                final String slvDate = mstDateSlvDatePol[1];
-                final String pol = mstDateSlvDatePol[2];
+                final String[] refDateSecDatePol = getRefDateSecDatePol(bandName);
+                final String refDate = refDateSecDatePol[0];
+                final String secDate = refDateSecDatePol[1];
+                final String pol = refDateSecDatePol[2];
 
                 final Band iBand = sourceProduct.getBand(bandName);
                 final Band qBand = sourceProduct.getBand("q_" + bandName.substring(2));
 
-                final MetadataElement mstMeta = dateMetaMap.get(mstDate);
-                final Orbit mstOrbit = new Orbit(mstMeta, orbitDegree);
-                final SLCImage mstSLCImage = new SLCImage(mstMeta, sourceProduct);
-                mstSLCImage.setMlAz(1);
-                mstSLCImage.setMlRg(1);
-                final CplxContainer mstContainer = new CplxContainer(mstDate, mstSLCImage, mstOrbit, iBand, qBand);
-                String mstKey = mstMeta.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
+                final MetadataElement refMeta = dateMetaMap.get(refDate);
+                final Orbit refOrbit = new Orbit(refMeta, orbitDegree);
+                final SLCImage refSLCImage = new SLCImage(refMeta, sourceProduct);
+                refSLCImage.setMlAz(1);
+                refSLCImage.setMlRg(1);
+                final CplxContainer refContainer = new CplxContainer(refDate, refSLCImage, refOrbit, iBand, qBand);
+                String refKey = refMeta.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
 
-                final MetadataElement slvMeta = dateMetaMap.get(slvDate);
-                final Orbit slvOrbit = new Orbit(slvMeta, orbitDegree);
-                final SLCImage slvSLCImage = new SLCImage(slvMeta, sourceProduct);
-                slvSLCImage.setMlAz(1);
-                slvSLCImage.setMlRg(1);
-                final CplxContainer slvContainer = new CplxContainer(slvDate, slvSLCImage, slvOrbit, iBand, qBand);
-                String slvKey = slvMeta.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
+                final MetadataElement secMeta = dateMetaMap.get(secDate);
+                final Orbit secOrbit = new Orbit(secMeta, orbitDegree);
+                final SLCImage secSLCImage = new SLCImage(secMeta, sourceProduct);
+                secSLCImage.setMlAz(1);
+                secSLCImage.setMlRg(1);
+                final CplxContainer secContainer = new CplxContainer(secDate, secSLCImage, secOrbit, iBand, qBand);
+                String secKey = secMeta.getAttributeInt(AbstractMetadata.ABS_ORBIT) + pol;
 
-                String productName = mstKey + '_' + slvKey;
-                final ProductContainer product = new ProductContainer(productName, mstContainer, slvContainer, true);
+                String productName = refKey + '_' + secKey;
+                final ProductContainer product = new ProductContainer(productName, refContainer, secContainer, true);
                 targetMap.put(productName, product);
             }
         }
     }
 
-    private String[] getMstDateSlvDatePol(final String iBandName) {
+    private String[] getRefDateSecDatePol(final String iBandName) {
         // i_ifg_IW1_VV_19Oct2016_12Nov2016
         String pol = null;
         if (iBandName.contains("_HH")) {
@@ -439,10 +438,10 @@ public final class SubtRefDemOp extends Operator {
 
         final int i = iBandName.lastIndexOf("_");
         final int j = iBandName.lastIndexOf("_", i - 1);
-        final String mstDate = iBandName.substring(j + 1, i);
-        final String slvDate = iBandName.substring(i + 1);
+        final String refDate = iBandName.substring(j + 1, i);
+        final String secDate = iBandName.substring(i + 1);
 
-        return new String[]{mstDate, slvDate, pol};
+        return new String[]{refDate, secDate, pol};
     }
 
     private void createTargetProduct() throws Exception {
@@ -457,12 +456,12 @@ public final class SubtRefDemOp extends Operator {
         for (String key : targetMap.keySet()) {
             final List<String> targetBandNames = new ArrayList<>();
             final ProductContainer container = targetMap.get(key);
-            final CplxContainer master = container.sourceMaster;
-            final CplxContainer slave = container.sourceSlave;
+            final CplxContainer reference = container.sourceRef;
+            final CplxContainer secondary = container.sourceSec;
 
-            final String pol = (master.polarisation == null || master.polarisation.isEmpty()) ? "" :
-                    '_' + master.polarisation.toUpperCase();
-            final String tag = pol + '_' + master.date + '_' + slave.date;
+            final String pol = (reference.polarisation == null || reference.polarisation.isEmpty()) ? "" :
+                    '_' + reference.polarisation.toUpperCase();
+            final String tag = pol + '_' + reference.date + '_' + secondary.date;
 
             String targetBandName_I = "i_ifg" + tag;
             Band iBand = targetProduct.addBand(targetBandName_I, ProductData.TYPE_FLOAT32);
@@ -519,8 +518,8 @@ public final class SubtRefDemOp extends Operator {
             }
 
             if (!isMultiRefIfg) {
-                String slvProductName = StackUtils.findOriginalSlaveProductName(sourceProduct, container.sourceSlave.realBand);
-                StackUtils.saveSlaveProductBandNames(targetProduct, slvProductName,
+                String secProductName = StackUtils.findOriginalSecondaryProductName(sourceProduct, container.sourceSec.realBand);
+                StackUtils.saveSecondaryProductBandNames(targetProduct, secProductName,
                         targetBandNames.toArray(new String[0]));
             }
         }
@@ -594,8 +593,8 @@ public final class SubtRefDemOp extends Operator {
 
                 TopoPhase topoPhase = TopoPhase.computeTopoPhase(product, tileWindow, demTile, outputElevationBand, false);
 
-                Tile tileReal = getSourceTile(product.sourceSlave.realBand, targetRectangle);
-                Tile tileImag = getSourceTile(product.sourceSlave.imagBand, targetRectangle);
+                Tile tileReal = getSourceTile(product.sourceSec.realBand, targetRectangle);
+                Tile tileImag = getSourceTile(product.sourceSec.imagBand, targetRectangle);
                 ComplexDoubleMatrix complexIfg = TileUtilsDoris.pullComplexDoubleMatrix(tileReal, tileImag);
 
                 final ComplexDoubleMatrix cplxTopoPhase = new ComplexDoubleMatrix(

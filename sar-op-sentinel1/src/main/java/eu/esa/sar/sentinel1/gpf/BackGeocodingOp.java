@@ -92,7 +92,7 @@ public final class BackGeocodingOp extends Operator {
     private double externalDEMNoDataValue = 0;
 
     @Parameter(defaultValue = ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME,
-            description = "The method to be used when resampling the slave grid onto the master grid.",
+            description = "The method to be used when resampling the secondary grid onto the reference grid.",
             label = "Resampling Type")
     private String resamplingType = ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME;
 
@@ -110,12 +110,12 @@ public final class BackGeocodingOp extends Operator {
 
     private Resampling selectedResampling = null;
 
-    private Product masterProduct = null;
-    private List<SlaveData> slaveDataList = new ArrayList<>();
+    private Product referenceProduct = null;
+    private List<SecondaryData> secondaryDataList = new ArrayList<>();
 
     private Sentinel1Utils mSU = null;
     private Sentinel1Utils.SubSwathInfo[] mSubSwath = null;
-    private String mstSuffix = null;
+    private String refSuffix = null;
 
     private ElevationModel dem = null;
     private boolean isElevationModelAvailable = false;
@@ -129,8 +129,8 @@ public final class BackGeocodingOp extends Operator {
     private String swathIndexStr = null;
     private String swathID = null;
 
-    private final HashMap<Band, Band> targetBandToSlaveBandMap = new HashMap<>(2);
-    private final HashMap<Band, SlaveData> targetBandToSlaveDataMap = new HashMap<>(2);
+    private final HashMap<Band, Band> targetBandToSecondaryBandMap = new HashMap<>(2);
+    private final HashMap<Band, SecondaryData> targetBandToSecondaryDataMap = new HashMap<>(2);
 
     private static final double invalidIndex = -9999.0;
 
@@ -170,16 +170,16 @@ public final class BackGeocodingOp extends Operator {
 
             checkSourceProductValidity();
 
-            masterProduct = sourceProduct[0];
-            mSU = new Sentinel1Utils(masterProduct);
+            referenceProduct = sourceProduct[0];
+            mSU = new Sentinel1Utils(referenceProduct);
             mSubSwath = mSU.getSubSwath();
             mSU.computeDopplerRate();
             mSU.computeReferenceTime();
 
             for(Product product : sourceProduct) {
-                if(product.equals(masterProduct))
+                if(product.equals(referenceProduct))
                     continue;
-                slaveDataList.add(new SlaveData(product));
+                secondaryDataList.add(new SecondaryData(product));
             }
 
             /*
@@ -192,8 +192,8 @@ public final class BackGeocodingOp extends Operator {
             final String[] mSubSwathNames = mSU.getSubSwathNames();
             final String[] mPolarizations = mSU.getPolarizations();
 
-            for(SlaveData slaveData : slaveDataList) {
-                final String[] sSubSwathNames = slaveData.sSU.getSubSwathNames();
+            for(SecondaryData secondaryData : secondaryDataList) {
+                final String[] sSubSwathNames = secondaryData.sSU.getSubSwathNames();
                 if (mSubSwathNames.length != 1 || sSubSwathNames.length != 1) {
                     throw new OperatorException("Split product is expected.");
                 }
@@ -202,7 +202,7 @@ public final class BackGeocodingOp extends Operator {
                     throw new OperatorException("Same sub-swath is expected.");
                 }
 
-                final String[] sPolarizations = slaveData.sSU.getPolarizations();
+                final String[] sPolarizations = secondaryData.sSU.getPolarizations();
                 if (!StringUtils.containsIgnoreCase(sPolarizations, mPolarizations[0])) {
                     throw new OperatorException("Same polarization is expected.");
                 }
@@ -216,7 +216,7 @@ public final class BackGeocodingOp extends Operator {
                 DEMFactory.checkIfDEMInstalled(demName);
             }
 
-            DEMFactory.validateDEM(demName, masterProduct);
+            DEMFactory.validateDEM(demName, referenceProduct);
 
             selectedResampling = ResamplingFactory.createResampling(resamplingType);
             if(selectedResampling == null) {
@@ -225,36 +225,36 @@ public final class BackGeocodingOp extends Operator {
 
             createTargetProduct();
 
-            final List<String> masterProductBands = new ArrayList<>();
-            for (String bandName : masterProduct.getBandNames()) {
-                if (masterProduct.getBand(bandName) instanceof VirtualBand) {
+            final List<String> referenceProductBands = new ArrayList<>();
+            for (String bandName : referenceProduct.getBandNames()) {
+                if (referenceProduct.getBand(bandName) instanceof VirtualBand) {
                     continue;
                 }
-                masterProductBands.add(bandName + mstSuffix);
+                referenceProductBands.add(bandName + refSuffix);
             }
 
-            StackUtils.saveMasterProductBandNames(targetProduct,
-                    masterProductBands.toArray(new String[0]));
-            StackUtils.saveSlaveProductNames(sourceProduct, targetProduct,
-                    masterProduct, targetBandToSlaveBandMap);
+            StackUtils.saveReferenceProductBandNames(targetProduct,
+                    referenceProductBands.toArray(new String[0]));
+            StackUtils.saveSecondaryProductNames(sourceProduct, targetProduct,
+                    referenceProduct, targetBandToSecondaryBandMap);
 
             updateTargetProductMetadata();
 
-            final Band masterBandI = getBand(masterProduct, "i_", swathIndexStr, mSU.getPolarizations()[0]);
-            if(masterBandI != null && masterBandI.isNoDataValueUsed()) {
-                noDataValue = masterBandI.getNoDataValue();
+            final Band referenceBandI = getBand(referenceProduct, "i_", swathIndexStr, mSU.getPolarizations()[0]);
+            if(referenceBandI != null && referenceBandI.isNoDataValueUsed()) {
+                noDataValue = referenceBandI.getNoDataValue();
             }
 
-            // coregister master and slave TPGs if ETAD data is found in TPGs
+            // coregister reference and secondary TPGs if ETAD data is found in TPGs
             if (findETADTPG()) {
                 final String[] tgtSlvTPGList = getTargetSlvTPGList();
                 final boolean tgtSlvTPGCreated = checkTargetTPG(tgtSlvTPGList);
                 if (!tgtSlvTPGCreated) {
                     coregisterETADTPG();
                 }
-                saveMasterETADTPG();
-                saveSlaveETADTPG(tgtSlvTPGList);
-                saveSlaveBurstIndexArray();
+                saveReferenceETADTPG();
+                saveSecondaryETADTPG(tgtSlvTPGList);
+                saveSecondaryBurstIndexArray();
             }
 
         } catch (Throwable e) {
@@ -266,19 +266,19 @@ public final class BackGeocodingOp extends Operator {
     private boolean findETADTPG() {
 
         boolean foundETADTPG = false;
-        for(SlaveData slaveData : slaveDataList) {
-            final TiePointGrid[] tpgs = slaveData.slaveProduct.getTiePointGrids();
+        for(SecondaryData secondaryData : secondaryDataList) {
+            final TiePointGrid[] tpgs = secondaryData.secondaryProduct.getTiePointGrids();
             for (TiePointGrid tpg : tpgs) {
                 final String tpgName = tpg.getName();
                 if (tpgName.contains(ETAD_PHASE_CORRECTION)) {
-                    slaveData.foundETADCorrection = true;
+                    secondaryData.foundETADCorrection = true;
                 } else if (tpg.getName().contains(ETAD_HEIGHT)) {
-                    slaveData.foundETADHeight = true;
+                    secondaryData.foundETADHeight = true;
                 } else if (tpg.getName().contains(ETAD_GRADIENT)) {
-                    slaveData.foundETADGradient = true;
+                    secondaryData.foundETADGradient = true;
                 }
             }
-            if (!foundETADTPG && slaveData.foundETADCorrection && slaveData.foundETADHeight && slaveData.foundETADGradient) {
+            if (!foundETADTPG && secondaryData.foundETADCorrection && secondaryData.foundETADHeight && secondaryData.foundETADGradient) {
                 foundETADTPG = true;
             }
         }
@@ -302,48 +302,48 @@ public final class BackGeocodingOp extends Operator {
         final double demSamplingLon = demSamplingLat;
 
         int i = 1;
-        for(SlaveData slaveData : slaveDataList) {
-            final String slvSuffix = StackUtils.SLV + i + StackUtils.createBandTimeStamp(slaveData.slaveProduct);
-            final List<Integer> slvBurstIndexList = getBurstIndexList(slaveData.slaveProduct);
+        for(SecondaryData secondaryData : secondaryDataList) {
+            final String secSuffix = StackUtils.SEC + i + StackUtils.createBandTimeStamp(secondaryData.secondaryProduct);
+            final List<Integer> secBurstIndexList = getBurstIndexList(secondaryData.secondaryProduct);
 
-            final int[] slvBurstIndexArray = new int[slvBurstIndexList.size()];
-            final int[] mstBurstIndexArray = new int[slvBurstIndexList.size()];
+            final int[] secBurstIndexArray = new int[secBurstIndexList.size()];
+            final int[] refBurstIndexArray = new int[secBurstIndexList.size()];
             int bc = 0;
-            for (final int slvBurstIndex : slvBurstIndexList) {
-                final ETADUtils.Burst slvBurst = getBurst(slvBurstIndex, slaveData.slaveProduct.getMetadataRoot());
-                final int mstBurstIndex = findMasterBurstIndex(slvBurst, masterProduct.getMetadataRoot());
-                slvBurstIndexArray[bc] = slvBurstIndex;
-                mstBurstIndexArray[bc++] = mstBurstIndex;
-                if (mstBurstIndex == -1) {
+            for (final int secBurstIndex : secBurstIndexList) {
+                final ETADUtils.Burst secBurst = getBurst(secBurstIndex, secondaryData.secondaryProduct.getMetadataRoot());
+                final int refBurstIndex = findReferenceBurstIndex(secBurst, referenceProduct.getMetadataRoot());
+                secBurstIndexArray[bc] = secBurstIndex;
+                refBurstIndexArray[bc++] = refBurstIndex;
+                if (refBurstIndex == -1) {
                     continue;
                 }
-                final ETADUtils.Burst mstBurst = getBurst(mstBurstIndex, masterProduct.getMetadataRoot());
+                final ETADUtils.Burst refBurst = getBurst(refBurstIndex, referenceProduct.getMetadataRoot());
 
-                final PixelPos[][] slaveBurstPointPos = computeSlaveBurstPointPosition(slaveData, slvBurst, mstBurst,
+                final PixelPos[][] secondaryBurstPointPos = computeSecondaryBurstPointPosition(secondaryData, secBurst, refBurst,
                         dem, demNoDataValue, demSamplingLat, demSamplingLon);
 
-                if (slaveBurstPointPos == null) {
+                if (secondaryBurstPointPos == null) {
                     continue;
                 }
 
-                final TiePointGrid[] slvTpgs = slaveData.slaveProduct.getTiePointGrids();
-                for (TiePointGrid slvTpg : slvTpgs) {
-                    final String tpgName = slvTpg.getName();
-                    if (!tpgName.startsWith("etad") || !tpgName.endsWith("_" + slvBurstIndex)) {
+                final TiePointGrid[] secTpgs = secondaryData.secondaryProduct.getTiePointGrids();
+                for (TiePointGrid secTpg : secTpgs) {
+                    final String tpgName = secTpg.getName();
+                    if (!tpgName.startsWith("etad") || !tpgName.endsWith("_" + secBurstIndex)) {
                         continue;
                     }
 
-                    final float[] coregisteredSlaveBurst = computeCoregisteredSlaveETADBurst(
-                            slvTpg, slaveBurstPointPos, resampling);
+                    final float[] coregisteredSecondaryBurst = computeCoregisteredSecondaryETADBurst(
+                            secTpg, secondaryBurstPointPos, resampling);
 
-                    TPGManager.instance().setTPG(tpgName + slvSuffix, mstBurst.rangeExtent,
-                            mstBurst.azimuthExtent, coregisteredSlaveBurst);
+                    TPGManager.instance().setTPG(tpgName + secSuffix, refBurst.rangeExtent,
+                            refBurst.azimuthExtent, coregisteredSecondaryBurst);
                 }
             }
-            // save mstBurstIndexArray and slvBurstIndexArray to memory
-            final String mstSuffix = StackUtils.MST + i + StackUtils.createBandTimeStamp(masterProduct);
-            TPGManager.instance().setBurstIndexArray(mstSuffix, mstBurstIndexArray);
-            TPGManager.instance().setBurstIndexArray(slvSuffix, slvBurstIndexArray);
+            // save refBurstIndexArray and secBurstIndexArray to memory
+            final String refSuffix = StackUtils.REF + i + StackUtils.createBandTimeStamp(referenceProduct);
+            TPGManager.instance().setBurstIndexArray(refSuffix, refBurstIndexArray);
+            TPGManager.instance().setBurstIndexArray(secSuffix, secBurstIndexArray);
             ++i;
         }
     }
@@ -352,15 +352,15 @@ public final class BackGeocodingOp extends Operator {
 
         List<String> list = new LinkedList<String>();
         int i = 1;
-        for(SlaveData slaveData : slaveDataList) {
-            final String slvSuffix = StackUtils.SLV + i + StackUtils.createBandTimeStamp(slaveData.slaveProduct);
-            final List<Integer> burstIndexList = getBurstIndexList(slaveData.slaveProduct);
+        for(SecondaryData secondaryData : secondaryDataList) {
+            final String secSuffix = StackUtils.SEC + i + StackUtils.createBandTimeStamp(secondaryData.secondaryProduct);
+            final List<Integer> burstIndexList = getBurstIndexList(secondaryData.secondaryProduct);
             for (final int burstIndex : burstIndexList) {
-                final TiePointGrid[] tpgs = slaveData.slaveProduct.getTiePointGrids();
+                final TiePointGrid[] tpgs = secondaryData.secondaryProduct.getTiePointGrids();
                 for (TiePointGrid tpg : tpgs) {
                     final String tpgName = tpg.getName();
                     if (tpgName.startsWith("etad") && tpgName.endsWith("_" + burstIndex)) {
-                        list.add(tpgName + slvSuffix);
+                        list.add(tpgName + secSuffix);
                     }
                 }
             }
@@ -380,10 +380,10 @@ public final class BackGeocodingOp extends Operator {
         return true;
     }
 
-    private void saveMasterETADTPG() {
+    private void saveReferenceETADTPG() {
 
-        final String mstSuffix = StackUtils.MST + StackUtils.createBandTimeStamp(masterProduct);
-        final TiePointGrid[] tpgsMst = masterProduct.getTiePointGrids();
+        final String refSuffix = StackUtils.REF + StackUtils.createBandTimeStamp(referenceProduct);
+        final TiePointGrid[] tpgsMst = referenceProduct.getTiePointGrids();
         for (TiePointGrid tpgMst : tpgsMst) {
             final String tpgName = tpgMst.getName();
             if (!tpgName.startsWith("etad")) {
@@ -395,12 +395,12 @@ public final class BackGeocodingOp extends Operator {
                 targetProduct.removeTiePointGrid(tgtTPG);
             }
 
-            tpgMst.setName(tpgMst.getName() + mstSuffix);
+            tpgMst.setName(tpgMst.getName() + refSuffix);
             targetProduct.addTiePointGrid(tpgMst.cloneTiePointGrid());
         }
     }
 
-    private void saveSlaveETADTPG(final String[] tgtSlvTPGList) {
+    private void saveSecondaryETADTPG(final String[] tgtSlvTPGList) {
 
         for (String tpgName : tgtSlvTPGList) {
             final TiePointGrid tpg = TPGManager.instance().getTPG(tpgName);
@@ -409,7 +409,7 @@ public final class BackGeocodingOp extends Operator {
                 continue;
             }
 
-            final String tpgNameInProduct = tpgName.substring(0, tpgName.indexOf("_slv"));
+            final String tpgNameInProduct = tpgName.substring(0, tpgName.indexOf("_sec"));
             final TiePointGrid oldTPG = targetProduct.getTiePointGrid(tpgNameInProduct);
             if (oldTPG != null) {
                 targetProduct.removeTiePointGrid(oldTPG);
@@ -419,39 +419,39 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
-    private void saveSlaveBurstIndexArray() {
+    private void saveSecondaryBurstIndexArray() {
 
         int i = 1;
-        for(SlaveData slaveData : slaveDataList) {
-            final String slvSuffix = StackUtils.SLV + i + StackUtils.createBandTimeStamp(slaveData.slaveProduct);
-            final String mstSuffix = StackUtils.MST + i + StackUtils.createBandTimeStamp(masterProduct);
-            final int[] mstBurstIndexArray = TPGManager.instance().getBurstIndexArray(mstSuffix);
-            final int[] slvBurstIndexArray = TPGManager.instance().getBurstIndexArray(slvSuffix);
-            saveSlaveBurstIndexArray(mstBurstIndexArray, slvBurstIndexArray, slaveData.slaveProduct);
+        for(SecondaryData secondaryData : secondaryDataList) {
+            final String secSuffix = StackUtils.SEC + i + StackUtils.createBandTimeStamp(secondaryData.secondaryProduct);
+            final String refSuffix = StackUtils.REF + i + StackUtils.createBandTimeStamp(referenceProduct);
+            final int[] refBurstIndexArray = TPGManager.instance().getBurstIndexArray(refSuffix);
+            final int[] secBurstIndexArray = TPGManager.instance().getBurstIndexArray(secSuffix);
+            saveSecondaryBurstIndexArray(refBurstIndexArray, secBurstIndexArray, secondaryData.secondaryProduct);
             ++i;
         }
     }
 
-    private void saveSlaveBurstIndexArray(final int[] mstBurstIndexArray, final int[] slvBurstIndexArray,
-                                          final Product slaveProduct) {
+    private void saveSecondaryBurstIndexArray(final int[] refBurstIndexArray, final int[] secBurstIndexArray,
+                                          final Product secondaryProduct) {
 
-        MetadataElement slaveElem = targetProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        if (slaveElem == null) {
+        MetadataElement secondaryElem = StackUtils.findSecondaryMetadataRoot(targetProduct);
+        if (secondaryElem == null) {
             return;
         }
-        final MetadataElement[] slaveRoot = slaveElem.getElements();
-        for (MetadataElement meta : slaveRoot) {
-            if(meta.getName().contains(slaveProduct.getName())) {
+        final MetadataElement[] secondaryRoot = secondaryElem.getElements();
+        for (MetadataElement meta : secondaryRoot) {
+            if(meta.getName().contains(secondaryProduct.getName())) {
                 final MetadataElement etadBurstsElem = new MetadataElement("ETAD_Burst_Index_Array");
-                String mstBursts = "", slvBursts = "";
-                for (int i = 0; i < mstBurstIndexArray.length; ++i) {
-                    if (mstBurstIndexArray[i] != -1) {
-                        mstBursts += mstBurstIndexArray[i] + " ";
-                        slvBursts += slvBurstIndexArray[i] + " ";
+                String refBursts = "", secBursts = "";
+                for (int i = 0; i < refBurstIndexArray.length; ++i) {
+                    if (refBurstIndexArray[i] != -1) {
+                        refBursts += refBurstIndexArray[i] + " ";
+                        secBursts += secBurstIndexArray[i] + " ";
                     }
                 }
-                etadBurstsElem.setAttributeString("master_bursts", mstBursts);
-                etadBurstsElem.setAttributeString("slave_bursts", slvBursts);
+                etadBurstsElem.setAttributeString("reference_bursts", refBursts);
+                etadBurstsElem.setAttributeString("secondary_bursts", secBursts);
                 meta.addElement(etadBurstsElem);
             }
         }
@@ -480,9 +480,9 @@ public final class BackGeocodingOp extends Operator {
         return ETADUtils.createBurst(burstIndex, annotationElem);
     }
 
-    private int findMasterBurstIndex(final ETADUtils.Burst slvBurst, final MetadataElement mstMetadataRoot) {
+    private int findReferenceBurstIndex(final ETADUtils.Burst secBurst, final MetadataElement refMetadataRoot) {
 
-        final MetadataElement etadElem = mstMetadataRoot.getElement("ETAD_Product_Metadata");
+        final MetadataElement etadElem = refMetadataRoot.getElement("ETAD_Product_Metadata");
         final MetadataElement annotationElem = etadElem.getElement("annotation");
         final MetadataElement etadProductElem = annotationElem.getElement("etadProduct");
         final MetadataElement etadBurstListElem = etadProductElem.getElement("etadBurstList");
@@ -492,7 +492,7 @@ public final class BackGeocodingOp extends Operator {
             // ID information
             final MetadataElement burstDataElem = elem.getElement("burstData");
             final int sIdx = Integer.parseInt(burstDataElem.getAttributeString("sIndex"));
-            if (sIdx != slvBurst.sIndex) {
+            if (sIdx != secBurst.sIndex) {
                 continue;
             }
 
@@ -510,20 +510,20 @@ public final class BackGeocodingOp extends Operator {
                 final String corner = coordinatesElem.getAttributeString("corner");
                 switch (corner) {
                     case "EarlyAzimuthNearRange":
-                        maxLatError = Math.max(maxLatError, Math.abs(slvBurst.EarlyAzimuthNearRangeLat - lat));
-                        maxLonError = Math.max(maxLonError, Math.abs(slvBurst.EarlyAzimuthNearRangeLon - lon));
+                        maxLatError = Math.max(maxLatError, Math.abs(secBurst.EarlyAzimuthNearRangeLat - lat));
+                        maxLonError = Math.max(maxLonError, Math.abs(secBurst.EarlyAzimuthNearRangeLon - lon));
                         break;
                     case "EarlyAzimuthFarRange":
-                        maxLatError = Math.max(maxLatError, Math.abs(slvBurst.EarlyAzimuthFarRangeLat - lat));
-                        maxLonError = Math.max(maxLonError, Math.abs(slvBurst.EarlyAzimuthFarRangeLon - lon));
+                        maxLatError = Math.max(maxLatError, Math.abs(secBurst.EarlyAzimuthFarRangeLat - lat));
+                        maxLonError = Math.max(maxLonError, Math.abs(secBurst.EarlyAzimuthFarRangeLon - lon));
                         break;
                     case "LateAzimuthNearRange":
-                        maxLatError = Math.max(maxLatError, Math.abs(slvBurst.LateAzimuthNearRangeLat - lat));
-                        maxLonError = Math.max(maxLonError, Math.abs(slvBurst.LateAzimuthNearRangeLon - lon));
+                        maxLatError = Math.max(maxLatError, Math.abs(secBurst.LateAzimuthNearRangeLat - lat));
+                        maxLonError = Math.max(maxLonError, Math.abs(secBurst.LateAzimuthNearRangeLon - lon));
                         break;
                     case "LateAzimuthFarRange":
-                        maxLatError = Math.max(maxLatError, Math.abs(slvBurst.LateAzimuthFarRangeLat - lat));
-                        maxLonError = Math.max(maxLonError, Math.abs(slvBurst.LateAzimuthFarRangeLon - lon));
+                        maxLatError = Math.max(maxLatError, Math.abs(secBurst.LateAzimuthFarRangeLat - lat));
+                        maxLonError = Math.max(maxLonError, Math.abs(secBurst.LateAzimuthFarRangeLon - lon));
                         break;
                 }
             }
@@ -535,14 +535,14 @@ public final class BackGeocodingOp extends Operator {
         return -1;
     }
 
-    private PixelPos[][] computeSlaveBurstPointPosition(final SlaveData slaveData, final ETADUtils.Burst slvBurst,
-                                                        final ETADUtils.Burst mstBurst,
+    private PixelPos[][] computeSecondaryBurstPointPosition(final SecondaryData secondaryData, final ETADUtils.Burst secBurst,
+                                                        final ETADUtils.Burst refBurst,
                                                         final ElevationModel dem, final double demNoDataValue,
                                                         final double demSamplingLat, final double demSamplingLon)
             throws Exception {
 
         final double[] latLonMinMax = new double[4];
-        computeBurstGeoBoundary(mstBurst, latLonMinMax);
+        computeBurstGeoBoundary(refBurst, latLonMinMax);
 
         final int[] latLonDEMIndices = getBoundaryInDEM(latLonMinMax, dem, demSamplingLat, demSamplingLon);
         final int latMinIdx = latLonDEMIndices[0];
@@ -552,22 +552,22 @@ public final class BackGeocodingOp extends Operator {
 
         final int numLines = latMinIdx - latMaxIdx;
         final int numPixels = lonMaxIdx - lonMinIdx;
-        double[][] masterAz = new double[numLines][numPixels];
-        double[][] masterRg = new double[numLines][numPixels];
-        double[][] slaveAz = new double[numLines][numPixels];
-        double[][] slaveRg = new double[numLines][numPixels];
+        double[][] referenceAz = new double[numLines][numPixels];
+        double[][] referenceRg = new double[numLines][numPixels];
+        double[][] secondaryAz = new double[numLines][numPixels];
+        double[][] secondaryRg = new double[numLines][numPixels];
         double[][] lat = new double[numLines][numPixels];
         double[][] lon = new double[numLines][numPixels];
 
-        final boolean noValidSlavePixPos = computeMasterSlavePositions(latMaxIdx, lonMinIdx, numLines, numPixels,
-                slaveData, mstBurst, slvBurst, dem, demNoDataValue, masterAz, masterRg, slaveAz, slaveRg, lat, lon);
+        final boolean noValidSecondaryPixPos = computeReferenceSecondaryPositions(latMaxIdx, lonMinIdx, numLines, numPixels,
+                secondaryData, refBurst, secBurst, dem, demNoDataValue, referenceAz, referenceRg, secondaryAz, secondaryRg, lat, lon);
 
-        if (noValidSlavePixPos) {
+        if (noValidSecondaryPixPos) {
             return null;
         }
 
         final org.jlinda.core.Window tileWindow = new org.jlinda.core.Window(
-                0, mstBurst.azimuthExtent - 1, 0, mstBurst.rangeExtent - 1);
+                0, refBurst.azimuthExtent - 1, 0, refBurst.rangeExtent - 1);
 
         final double rgAzRatio = mSU.rangeSpacing / mSU.azimuthSpacing;
         final double[][] latArray = new double[(int)tileWindow.lines()][(int)tileWindow.pixels()];
@@ -582,27 +582,27 @@ public final class BackGeocodingOp extends Operator {
         }
 
         TriangleInterpolator.ZData[] dataList = new TriangleInterpolator.ZData[] {
-                new TriangleInterpolator.ZData(slaveAz, azArray),
-                new TriangleInterpolator.ZData(slaveRg, rgArray),
+                new TriangleInterpolator.ZData(secondaryAz, azArray),
+                new TriangleInterpolator.ZData(secondaryRg, rgArray),
                 new TriangleInterpolator.ZData(lat, latArray),
                 new TriangleInterpolator.ZData(lon, lonArray)
         };
 
-        TriangleInterpolator.gridDataLinear(masterAz, masterRg, dataList,
+        TriangleInterpolator.gridDataLinear(referenceAz, referenceRg, dataList,
                 tileWindow, rgAzRatio, 1, 1, invalidIndex, 0);
 
-        final PixelPos[][] slaveBurstPointPos = new PixelPos[mstBurst.azimuthExtent][mstBurst.rangeExtent];
-        for(int yy = 0; yy < mstBurst.azimuthExtent; ++yy) {
-            for (int xx = 0; xx < mstBurst.rangeExtent; xx++) {
+        final PixelPos[][] secondaryBurstPointPos = new PixelPos[refBurst.azimuthExtent][refBurst.rangeExtent];
+        for(int yy = 0; yy < refBurst.azimuthExtent; ++yy) {
+            for (int xx = 0; xx < refBurst.rangeExtent; xx++) {
                 if (rgArray[yy][xx] == invalidIndex || azArray[yy][xx] == invalidIndex) {
-                    slaveBurstPointPos[yy][xx] = null;
+                    secondaryBurstPointPos[yy][xx] = null;
                 } else {
-                    slaveBurstPointPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
+                    secondaryBurstPointPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
                 }
             }
         }
 
-        return slaveBurstPointPos;
+        return secondaryBurstPointPos;
     }
 
     private int[] getBoundaryInDEM(final double[] latLonMinMax, final ElevationModel dem, final double demSamplingLat,
@@ -638,19 +638,19 @@ public final class BackGeocodingOp extends Operator {
         getLatLonMinMax(lats, lons, latLonMinMax);
     }
 
-    private boolean computeMasterSlavePositions(final int latMaxIdx, final int lonMinIdx,
-                                                final int numLines, final int numPixels, final SlaveData slaveData,
-                                                final ETADUtils.Burst mstBurst, final ETADUtils.Burst slvBurst,
+    private boolean computeReferenceSecondaryPositions(final int latMaxIdx, final int lonMinIdx,
+                                                final int numLines, final int numPixels, final SecondaryData secondaryData,
+                                                final ETADUtils.Burst refBurst, final ETADUtils.Burst secBurst,
                                                 final ElevationModel dem, final double demNoDataValue,
-                                                final double[][] masterAz, final double[][] masterRg,
-                                                final double[][] slaveAz, final double[][] slaveRg,
+                                                final double[][] referenceAz, final double[][] referenceRg,
+                                                final double[][] secondaryAz, final double[][] secondaryRg,
                                                 final double[][] lat, final double[][] lon) throws Exception {
 
         final PositionData posData = new PositionData();
         final PixelPos pix = new PixelPos();
         final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
 
-        boolean noValidSlavePixPos = true;
+        boolean noValidSecondaryPixPos = true;
         for (int l = 0; l < numLines; ++l) {
             for (int p = 0; p < numPixels; ++p) {
 
@@ -666,24 +666,24 @@ public final class BackGeocodingOp extends Operator {
 
                 if (!alt.equals(demNoDataValue)) {
                     GeoUtils.geo2xyzWGS84(gp.lat, gp.lon, alt, posData.earthPoint);
-                    if(getPosition(mstBurst, mSU, posData)) {
+                    if(getPosition(refBurst, mSU, posData)) {
 
-                        masterAz[l][p] = posData.azimuthIndex;
-                        masterRg[l][p] = posData.rangeIndex;
-                        if (getPosition(slvBurst, slaveData.sSU, posData)) {
+                        referenceAz[l][p] = posData.azimuthIndex;
+                        referenceRg[l][p] = posData.rangeIndex;
+                        if (getPosition(secBurst, secondaryData.sSU, posData)) {
 
-                            slaveAz[l][p] = posData.azimuthIndex;
-                            slaveRg[l][p] = posData.rangeIndex;
-                            noValidSlavePixPos = false;
+                            secondaryAz[l][p] = posData.azimuthIndex;
+                            secondaryRg[l][p] = posData.rangeIndex;
+                            noValidSecondaryPixPos = false;
                             continue;
                         }
                     }
                 }
-                masterAz[l][p] = invalidIndex;
-                masterRg[l][p] = invalidIndex;
+                referenceAz[l][p] = invalidIndex;
+                referenceRg[l][p] = invalidIndex;
             }
         }
-        return noValidSlavePixPos;
+        return noValidSecondaryPixPos;
     }
 
     private static boolean getPosition(final ETADUtils.Burst burst, final Sentinel1Utils su, final PositionData data) {
@@ -741,33 +741,33 @@ public final class BackGeocodingOp extends Operator {
         return oneD;
     }
 
-    private float[] computeCoregisteredSlaveETADBurst(final TiePointGrid tpgSlaveETADBurst,
-                                                      final PixelPos[][] slaveBurstPointPos,
+    private float[] computeCoregisteredSecondaryETADBurst(final TiePointGrid tpgSecondaryETADBurst,
+                                                      final PixelPos[][] secondaryBurstPointPos,
                                                       final Resampling resampling) throws Exception{
 
-        final int sbh = tpgSlaveETADBurst.getGridHeight();
-        final int sbw = tpgSlaveETADBurst.getGridWidth();
-        final double[][] slaveBurst = oneD2TwoD(tpgSlaveETADBurst.getTiePoints(), sbh, sbw);
+        final int sbh = tpgSecondaryETADBurst.getGridHeight();
+        final int sbw = tpgSecondaryETADBurst.getGridWidth();
+        final double[][] secondaryBurst = oneD2TwoD(tpgSecondaryETADBurst.getTiePoints(), sbh, sbw);
 
-        final BurstResamplingRaster resamplingRaster = new BurstResamplingRaster(0.0, slaveBurst);
+        final BurstResamplingRaster resamplingRaster = new BurstResamplingRaster(0.0, secondaryBurst);
         final Resampling.Index resamplingIndex = resampling.createIndex();
 
-        final int mbh = slaveBurstPointPos.length;
-        final int mbw = slaveBurstPointPos[0].length;
-        final double[][] coregisteredSlvBurst = new double[mbh][mbw];
+        final int mbh = secondaryBurstPointPos.length;
+        final int mbw = secondaryBurstPointPos[0].length;
+        final double[][] coregisteredSecBurst = new double[mbh][mbw];
         for (int yy = 0; yy < mbh; ++yy) {
             for (int xx = 0; xx < mbw; ++xx) {
-                final PixelPos slavePointPos = slaveBurstPointPos[yy][xx];
-                if (slavePointPos == null || slavePointPos.x < 0 || slavePointPos.x >= sbw ||
-                        slavePointPos.y < 0 || slavePointPos.y >= sbh) {
-                    coregisteredSlvBurst[yy][xx] = noDataValue;
+                final PixelPos secondaryPointPos = secondaryBurstPointPos[yy][xx];
+                if (secondaryPointPos == null || secondaryPointPos.x < 0 || secondaryPointPos.x >= sbw ||
+                        secondaryPointPos.y < 0 || secondaryPointPos.y >= sbh) {
+                    coregisteredSecBurst[yy][xx] = noDataValue;
                     continue;
                 }
-                resampling.computeCornerBasedIndex(slavePointPos.x, slavePointPos.y, sbw, sbh, resamplingIndex);
-                coregisteredSlvBurst[yy][xx] = resampling.resample(resamplingRaster, resamplingIndex);
+                resampling.computeCornerBasedIndex(secondaryPointPos.x, secondaryPointPos.y, sbw, sbh, resamplingIndex);
+                coregisteredSecBurst[yy][xx] = resampling.resample(resamplingRaster, resamplingIndex);
             }
         }
-        return twoD2OneD(coregisteredSlvBurst);
+        return twoD2OneD(coregisteredSecBurst);
     }
 
     private static class BurstResamplingRaster implements Resampling.Raster {
@@ -869,24 +869,24 @@ public final class BackGeocodingOp extends Operator {
     private void createTargetProduct() {
 
         targetProduct = new Product(
-                masterProduct.getName() + PRODUCT_SUFFIX,
-                masterProduct.getProductType(),
-                masterProduct.getSceneRasterWidth(),
-                masterProduct.getSceneRasterHeight());
+                referenceProduct.getName() + PRODUCT_SUFFIX,
+                referenceProduct.getProductType(),
+                referenceProduct.getSceneRasterWidth(),
+                referenceProduct.getSceneRasterHeight());
 
-        ProductUtils.copyProductNodes(masterProduct, targetProduct);
+        ProductUtils.copyProductNodes(referenceProduct, targetProduct);
 
-        final String[] masterBandNames = masterProduct.getBandNames();
-        mstSuffix = StackUtils.MST + StackUtils.createBandTimeStamp(masterProduct);
-        for (String bandName : masterBandNames) {
-            final Band srcBand = masterProduct.getBand(bandName);
+        final String[] referenceBandNames = referenceProduct.getBandNames();
+        refSuffix = StackUtils.REF + StackUtils.createBandTimeStamp(referenceProduct);
+        for (String bandName : referenceBandNames) {
+            final Band srcBand = referenceProduct.getBand(bandName);
             if (srcBand instanceof VirtualBand) {
                 continue;
             }
 
             Band targetBand;
             if (disableReramp) {
-                targetBand = new Band(bandName + mstSuffix, ProductData.TYPE_FLOAT32,
+                targetBand = new Band(bandName + refSuffix, ProductData.TYPE_FLOAT32,
                         srcBand.getRasterWidth(), srcBand.getRasterHeight());
 
                 targetBand.setUnit(srcBand.getUnit());
@@ -894,47 +894,47 @@ public final class BackGeocodingOp extends Operator {
                 targetProduct.addBand(targetBand);
 
             } else {
-                targetBand = ProductUtils.copyBand(bandName, masterProduct, bandName + mstSuffix,
+                targetBand = ProductUtils.copyBand(bandName, referenceProduct, bandName + refSuffix,
                         targetProduct, true);
             }
 
             if(targetBand != null && targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
                 int idx = targetProduct.getBandIndex(targetBand.getName());
-                ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, mstSuffix);
+                ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, refSuffix);
             }
         }
 
-        final Band masterBand = masterProduct.getBand(masterBandNames[0]);
-        final int masterBandWidth = masterBand.getRasterWidth();
-        final int masterBandHeight = masterBand.getRasterHeight();
+        final Band referenceBand = referenceProduct.getBand(referenceBandNames[0]);
+        final int referenceBandWidth = referenceBand.getRasterWidth();
+        final int referenceBandHeight = referenceBand.getRasterHeight();
 
         if (outputDerampDemodPhase) {
-            final Band mstPhaseBand = new Band(
-                    "derampDemodPhase" + mstSuffix,
+            final Band refPhaseBand = new Band(
+                    "derampDemodPhase" + refSuffix,
                     ProductData.TYPE_FLOAT32,
-                    masterBandWidth,
-                    masterBandHeight);
+                    referenceBandWidth,
+                    referenceBandHeight);
 
-            mstPhaseBand.setUnit("radian");
-            targetProduct.addBand(mstPhaseBand);
+            refPhaseBand.setUnit("radian");
+            targetProduct.addBand(refPhaseBand);
         }
 
         int i = 1;
-        for(SlaveData slaveData : slaveDataList) {
-            final String[] slaveBandNames = slaveData.slaveProduct.getBandNames();
-            final String slvSuffix = StackUtils.SLV + i + StackUtils.createBandTimeStamp(slaveData.slaveProduct);
-            slaveData.slvSuffix = slvSuffix;
-            for (String bandName : slaveBandNames) {
-                final Band srcBand = slaveData.slaveProduct.getBand(bandName);
+        for(SecondaryData secondaryData : secondaryDataList) {
+            final String[] secondaryBandNames = secondaryData.secondaryProduct.getBandNames();
+            final String secSuffix = StackUtils.SEC + i + StackUtils.createBandTimeStamp(secondaryData.secondaryProduct);
+            secondaryData.secSuffix = secSuffix;
+            for (String bandName : secondaryBandNames) {
+                final Band srcBand = secondaryData.secondaryProduct.getBand(bandName);
                 if (srcBand instanceof VirtualBand) {
                     continue;
                 }
 
                 final Band targetBand = new Band(
-                        bandName + slvSuffix,
+                        bandName + secSuffix,
                         ProductData.TYPE_FLOAT32,
-                        masterBandWidth,
-                        masterBandHeight);
+                        referenceBandWidth,
+                        referenceBandHeight);
 
                 targetBand.setUnit(srcBand.getUnit());
                 targetBand.setDescription(srcBand.getDescription());
@@ -943,75 +943,75 @@ public final class BackGeocodingOp extends Operator {
                     targetBand.setNoDataValue(noDataValue);
                 }
                 targetProduct.addBand(targetBand);
-                targetBandToSlaveBandMap.put(targetBand, srcBand);
+                targetBandToSecondaryBandMap.put(targetBand, srcBand);
 
                 if (targetBand.getUnit().equals(Unit.IMAGINARY)) {
                     int idx = targetProduct.getBandIndex(targetBand.getName());
-                    ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx - 1), targetBand, slvSuffix);
+                    ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx - 1), targetBand, secSuffix);
                 }
 
-                targetBandToSlaveDataMap.put(targetBand, slaveData);
+                targetBandToSecondaryDataMap.put(targetBand, secondaryData);
             }
 
-            copySlaveMetadata(slaveData.slaveProduct);
+            copySecondaryMetadata(secondaryData.secondaryProduct);
 
             if (outputRangeAzimuthOffset) {
                 final Band azOffsetBand = new Band(
-                        "azOffset" + slvSuffix,
+                        "azOffset" + secSuffix,
                         ProductData.TYPE_FLOAT32,
-                        masterBandWidth,
-                        masterBandHeight);
+                        referenceBandWidth,
+                        referenceBandHeight);
 
                 azOffsetBand.setUnit("Index");
                 targetProduct.addBand(azOffsetBand);
 
                 final Band rgOffsetBand = new Band(
-                        "rgOffset" + slvSuffix,
+                        "rgOffset" + secSuffix,
                         ProductData.TYPE_FLOAT32,
-                        masterBandWidth,
-                        masterBandHeight);
+                        referenceBandWidth,
+                        referenceBandHeight);
 
                 rgOffsetBand.setUnit("Index");
                 targetProduct.addBand(rgOffsetBand);
             }
 
             if (outputDerampDemodPhase) {
-                final Band slvPhaseBand = new Band(
-                        "derampDemodPhase" + slvSuffix,
+                final Band secPhaseBand = new Band(
+                        "derampDemodPhase" + secSuffix,
                         ProductData.TYPE_FLOAT32,
-                        masterBandWidth,
-                        masterBandHeight);
+                        referenceBandWidth,
+                        referenceBandHeight);
 
-                slvPhaseBand.setUnit("radian");
-                targetProduct.addBand(slvPhaseBand);
+                secPhaseBand.setUnit("radian");
+                targetProduct.addBand(secPhaseBand);
             }
             ++i;
         }
 
-        // set non-elevation areas to no data value for the master bands using the slave bands
-        DEMAssistedCoregistrationOp.setMasterValidPixelExpression(targetProduct, maskOutAreaWithoutElevation);
+        // set non-elevation areas to no data value for the reference bands using the secondary bands
+        DEMAssistedCoregistrationOp.setReferenceValidPixelExpression(targetProduct, maskOutAreaWithoutElevation);
 
         if (outputDEM) {
             final Band elevBand = new Band(
                     "elevation",
                     ProductData.TYPE_FLOAT32,
-                    masterBandWidth,
-                    masterBandHeight);
+                    referenceBandWidth,
+                    referenceBandHeight);
 
             elevBand.setUnit(Unit.METERS);
             targetProduct.addBand(elevBand);
         }
     }
 
-    private void copySlaveMetadata(final Product slaveProduct) {
+    private void copySecondaryMetadata(final Product secondaryProduct) {
 
-        final MetadataElement targetSlaveMetadataRoot = AbstractMetadata.getSlaveMetadata(targetProduct.getMetadataRoot());
-        final MetadataElement slvAbsMetadata = AbstractMetadata.getAbstractedMetadata(slaveProduct);
-        if (slvAbsMetadata != null) {
-            final String timeStamp = StackUtils.createBandTimeStamp(slaveProduct);
-            final MetadataElement targetSlaveMetadata = new MetadataElement(slaveProduct.getName() + timeStamp);
-            targetSlaveMetadataRoot.addElement(targetSlaveMetadata);
-            ProductUtils.copyMetadata(slvAbsMetadata, targetSlaveMetadata);
+        final MetadataElement targetSecondaryMetadataRoot = AbstractMetadata.getSecondaryMetadata(targetProduct.getMetadataRoot());
+        final MetadataElement secAbsMetadata = AbstractMetadata.getAbstractedMetadata(secondaryProduct);
+        if (secAbsMetadata != null) {
+            final String timeStamp = StackUtils.createBandTimeStamp(secondaryProduct);
+            final MetadataElement targetSecondaryMetadata = new MetadataElement(secondaryProduct.getName() + timeStamp);
+            targetSecondaryMetadataRoot.addElement(targetSecondaryMetadata);
+            ProductUtils.copyMetadata(secAbsMetadata, targetSecondaryMetadata);
         }
     }
 
@@ -1024,10 +1024,10 @@ public final class BackGeocodingOp extends Operator {
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.coregistered_stack, 1);
 
         final MetadataElement inputElem = ProductInformation.getInputProducts(targetProduct);
-        for(SlaveData slaveData : slaveDataList) {
-            final MetadataElement slvInputElem = ProductInformation.getInputProducts(slaveData.slaveProduct);
-            final MetadataAttribute[] slvInputProductAttrbList = slvInputElem.getAttributes();
-            for (MetadataAttribute attrib : slvInputProductAttrbList) {
+        for(SecondaryData secondaryData : secondaryDataList) {
+            final MetadataElement secInputElem = ProductInformation.getInputProducts(secondaryData.secondaryProduct);
+            final MetadataAttribute[] secInputProductAttrbList = secInputElem.getAttributes();
+            for (MetadataAttribute attrib : secInputProductAttrbList) {
                 final MetadataAttribute inputAttrb = AbstractMetadata.addAbstractedAttribute(
                         inputElem, "InputProduct", ProductData.TYPE_ASCII, "", "");
                 inputAttrb.getData().setElems(attrib.getData().getElemString());
@@ -1085,11 +1085,11 @@ public final class BackGeocodingOp extends Operator {
                 double[] extendedAmount = {0.0, 0.0, 0.0, 0.0};
                 computeExtendedAmount(ntx0, nty0, ntw, nth, extendedAmount);
 
-                for(SlaveData slaveData : slaveDataList) {
-                    //slaveData.print();
+                for(SecondaryData secondaryData : secondaryDataList) {
+                    //secondaryData.print();
 
                     computePartialTile(subSwathIndex, burstIndex, ntx0, nty0, ntw, nth, targetTileMap,
-                            slaveData, extendedAmount);
+                            secondaryData, extendedAmount);
                 }
             }
 
@@ -1158,11 +1158,11 @@ public final class BackGeocodingOp extends Operator {
                         continue;
                     }
 
-                    for(SlaveData slaveData : slaveDataList) {
-                        if(slaveData.burstOffset != -9999)
+                    for(SecondaryData secondaryData : secondaryDataList) {
+                        if(secondaryData.burstOffset != -9999)
                             continue;
 
-                        final Sentinel1Utils sSU = slaveData.sSU;
+                        final Sentinel1Utils sSU = secondaryData.sSU;
                         final BurstIndices sBurstIndices = getBurstIndices(subSwathIndex, sSU, earthPoint);
                         if (mBurstIndices == null || sBurstIndices == null ||
                                 (mBurstIndices.firstBurstIndex == -1 && mBurstIndices.secondBurstIndex == -1) ||
@@ -1171,22 +1171,22 @@ public final class BackGeocodingOp extends Operator {
                         }
 
                         if (mBurstIndices.inUpperPartOfFirstBurst == sBurstIndices.inUpperPartOfFirstBurst) {
-                            slaveData.burstOffset = sBurstIndices.firstBurstIndex - mBurstIndices.firstBurstIndex;
+                            secondaryData.burstOffset = sBurstIndices.firstBurstIndex - mBurstIndices.firstBurstIndex;
                         } else if (sBurstIndices.secondBurstIndex != -1 &&
                                 mBurstIndices.inUpperPartOfFirstBurst == sBurstIndices.inUpperPartOfSecondBurst) {
-                            slaveData.burstOffset = sBurstIndices.secondBurstIndex - mBurstIndices.firstBurstIndex;
+                            secondaryData.burstOffset = sBurstIndices.secondBurstIndex - mBurstIndices.firstBurstIndex;
                         } else if (mBurstIndices.secondBurstIndex != -1 &&
                                 mBurstIndices.inUpperPartOfSecondBurst == sBurstIndices.inUpperPartOfFirstBurst) {
-                            slaveData.burstOffset = sBurstIndices.firstBurstIndex - mBurstIndices.secondBurstIndex;
+                            secondaryData.burstOffset = sBurstIndices.firstBurstIndex - mBurstIndices.secondBurstIndex;
                         } else if (mBurstIndices.secondBurstIndex != -1 && sBurstIndices.secondBurstIndex != -1 &&
                                 mBurstIndices.inUpperPartOfSecondBurst == sBurstIndices.inUpperPartOfSecondBurst) {
-                            slaveData.burstOffset = sBurstIndices.secondBurstIndex - mBurstIndices.secondBurstIndex;
+                            secondaryData.burstOffset = sBurstIndices.secondBurstIndex - mBurstIndices.secondBurstIndex;
                         }
                     }
 
                     boolean allComputed = true;
-                    for(SlaveData slaveData : slaveDataList) {
-                        if (slaveData.burstOffset == -9999) {
+                    for(SecondaryData secondaryData : secondaryDataList) {
+                        if (secondaryData.burstOffset == -9999) {
                             allComputed = false;
                             break;
                         }
@@ -1199,8 +1199,8 @@ public final class BackGeocodingOp extends Operator {
                 }
             }
 
-            for(SlaveData slaveData : slaveDataList) {
-                slaveData.burstOffset = 0;
+            for(SecondaryData secondaryData : secondaryDataList) {
+                secondaryData.burstOffset = 0;
             }
             burstOffsetComputed = true;
 
@@ -1346,12 +1346,12 @@ public final class BackGeocodingOp extends Operator {
 
     private void computePartialTile(final int subSwathIndex, final int mBurstIndex,
                                     final int x0, final int y0, final int w, final int h,
-                                    final Map<Band, Tile> targetTileMap, final SlaveData slaveData,
+                                    final Map<Band, Tile> targetTileMap, final SecondaryData secondaryData,
                                     final double[] extendedAmount)
             throws Exception {
 
-        final int sBurstIndex = mBurstIndex + slaveData.burstOffset;
-        if (sBurstIndex < 0 || sBurstIndex >= slaveData.sSU.getSubSwath()[subSwathIndex - 1].numOfBursts) {
+        final int sBurstIndex = mBurstIndex + secondaryData.burstOffset;
+        if (sBurstIndex < 0 || sBurstIndex >= secondaryData.sSU.getSubSwath()[subSwathIndex - 1].numOfBursts) {
             return;
         }
 
@@ -1360,16 +1360,16 @@ public final class BackGeocodingOp extends Operator {
             elevation = new double[h][w];
         }
 
-        final PixelPos[][] slavePixPos = new PixelPos[h][w];
-        final boolean isSuccessful = computeSlavePixPos(
-                subSwathIndex, mBurstIndex, sBurstIndex, x0, y0, w, h, extendedAmount, slavePixPos, slaveData, elevation);
+        final PixelPos[][] secondaryPixPos = new PixelPos[h][w];
+        final boolean isSuccessful = computeSecondaryPixPos(
+                subSwathIndex, mBurstIndex, sBurstIndex, x0, y0, w, h, extendedAmount, secondaryPixPos, secondaryData, elevation);
 
         if (!isSuccessful) {
             return;
         }
 
         if (outputRangeAzimuthOffset) {
-            outputRangeAzimuthOffsets(x0, y0, w, h, targetTileMap, slavePixPos, subSwathIndex, slaveData,
+            outputRangeAzimuthOffsets(x0, y0, w, h, targetTileMap, secondaryPixPos, subSwathIndex, secondaryData,
                     mBurstIndex, sBurstIndex);
         }
 
@@ -1378,77 +1378,77 @@ public final class BackGeocodingOp extends Operator {
         }
 
         final int margin = selectedResampling.getKernelSize();
-        final Rectangle sourceRectangle = getBoundingBox(slavePixPos, margin, subSwathIndex, sBurstIndex,
-                slaveData.sSU.getSubSwath());
+        final Rectangle sourceRectangle = getBoundingBox(secondaryPixPos, margin, subSwathIndex, sBurstIndex,
+                secondaryData.sSU.getSubSwath());
 
         if (sourceRectangle == null) {
             return;
         }
 
-        final double[][] slvDerampDemodPhase = slaveData.sSU.computeDerampDemodPhase(slaveData.sSU.getSubSwath(),
+        final double[][] secDerampDemodPhase = secondaryData.sSU.computeDerampDemodPhase(secondaryData.sSU.getSubSwath(),
                 subSwathIndex, sBurstIndex, sourceRectangle);
 
-        if (slvDerampDemodPhase == null) {
+        if (secDerampDemodPhase == null) {
             return;
         }
 
         final Rectangle targetRectangle = new Rectangle(x0, y0, w, h);
-        final double[][] mstDerampDemodPhase = mSU.computeDerampDemodPhase(mSubSwath,
+        final double[][] refDerampDemodPhase = mSU.computeDerampDemodPhase(mSubSwath,
                 subSwathIndex, mBurstIndex, targetRectangle);
 
-        if (mstDerampDemodPhase == null) {
+        if (refDerampDemodPhase == null) {
             return;
         }
 
         for(String polarization : mSU.getPolarizations()) {
 
-            // master bands
+            // reference bands
             if (disableReramp) {
-                final Band masterBandI = getBand(masterProduct, "i_", swathIndexStr, polarization);
-                final Band masterBandQ = getBand(masterProduct, "q_", swathIndexStr, polarization);
-                final Tile masterTileI = getSourceTile(masterBandI, targetRectangle);
-                final Tile masterTileQ = getSourceTile(masterBandQ, targetRectangle);
+                final Band referenceBandI = getBand(referenceProduct, "i_", swathIndexStr, polarization);
+                final Band referenceBandQ = getBand(referenceProduct, "q_", swathIndexStr, polarization);
+                final Tile referenceTileI = getSourceTile(referenceBandI, targetRectangle);
+                final Tile referenceTileQ = getSourceTile(referenceBandQ, targetRectangle);
 
-                if (masterTileI == null || masterTileQ == null) {
+                if (referenceTileI == null || referenceTileQ == null) {
                     return;
                 }
 
-                final double[][] mstDerampDemodI = new double[targetRectangle.height][targetRectangle.width];
-                final double[][] mstDerampDemodQ = new double[targetRectangle.height][targetRectangle.width];
+                final double[][] refDerampDemodI = new double[targetRectangle.height][targetRectangle.width];
+                final double[][] refDerampDemodQ = new double[targetRectangle.height][targetRectangle.width];
 
-                performDerampDemod(masterTileI, masterTileQ, targetRectangle, mstDerampDemodPhase,
-                        mstDerampDemodI, mstDerampDemodQ);
+                performDerampDemod(referenceTileI, referenceTileQ, targetRectangle, refDerampDemodPhase,
+                        refDerampDemodI, refDerampDemodQ);
 
-                saveMasterBands(x0, y0, w, h, targetTileMap, mstDerampDemodPhase, mstDerampDemodI,
-                        mstDerampDemodQ, polarization);
+                saveReferenceBands(x0, y0, w, h, targetTileMap, refDerampDemodPhase, refDerampDemodI,
+                        refDerampDemodQ, polarization);
             }
 
-            // slave bands
-            final Band slaveBandI = getBand(slaveData.slaveProduct, "i_", swathIndexStr, polarization);
-            final Band slaveBandQ = getBand(slaveData.slaveProduct, "q_", swathIndexStr, polarization);
-            final Tile slaveTileI = getSourceTile(slaveBandI, sourceRectangle);
-            final Tile slaveTileQ = getSourceTile(slaveBandQ, sourceRectangle);
+            // secondary bands
+            final Band secondaryBandI = getBand(secondaryData.secondaryProduct, "i_", swathIndexStr, polarization);
+            final Band secondaryBandQ = getBand(secondaryData.secondaryProduct, "q_", swathIndexStr, polarization);
+            final Tile secondaryTileI = getSourceTile(secondaryBandI, sourceRectangle);
+            final Tile secondaryTileQ = getSourceTile(secondaryBandQ, sourceRectangle);
 
-            if (slaveTileI == null || slaveTileQ == null) {
+            if (secondaryTileI == null || secondaryTileQ == null) {
                 return;
             }
 
-            final double[][] slvDerampDemodI = new double[sourceRectangle.height][sourceRectangle.width];
-            final double[][] slvDerampDemodQ = new double[sourceRectangle.height][sourceRectangle.width];
+            final double[][] secDerampDemodI = new double[sourceRectangle.height][sourceRectangle.width];
+            final double[][] secDerampDemodQ = new double[sourceRectangle.height][sourceRectangle.width];
 
-            performDerampDemod(slaveTileI, slaveTileQ, sourceRectangle, slvDerampDemodPhase,
-                    slvDerampDemodI, slvDerampDemodQ);
+            performDerampDemod(secondaryTileI, secondaryTileQ, sourceRectangle, secDerampDemodPhase,
+                    secDerampDemodI, secDerampDemodQ);
 
-            performInterpolation(x0, y0, w, h, sourceRectangle, slaveTileI, slaveTileQ, targetTileMap, slvDerampDemodPhase,
-                    slvDerampDemodI, slvDerampDemodQ, slavePixPos, subSwathIndex, sBurstIndex, slaveData, polarization);
+            performInterpolation(x0, y0, w, h, sourceRectangle, secondaryTileI, secondaryTileQ, targetTileMap, secDerampDemodPhase,
+                    secDerampDemodI, secDerampDemodQ, secondaryPixPos, subSwathIndex, sBurstIndex, secondaryData, polarization);
         }
 
     }
 
-    private boolean computeSlavePixPos(final int subSwathIndex, final int mBurstIndex, final int sBurstIndex,
+    private boolean computeSecondaryPixPos(final int subSwathIndex, final int mBurstIndex, final int sBurstIndex,
                                        final int x0, final int y0, final int w, final int h,
-                                       final double[] extendedAmount, final PixelPos[][] slavePixelPos,
-                                       final SlaveData slaveData,
+                                       final double[] extendedAmount, final PixelPos[][] secondaryPixelPos,
+                                       final SecondaryData secondaryData,
                                        final double[][] elevation)
             throws Exception {
 
@@ -1472,10 +1472,10 @@ public final class BackGeocodingOp extends Operator {
             // get its lat/lon and its azimuth/range indices in target image;
             final int numLines = latMinIdx - latMaxIdx;
             final int numPixels = lonMaxIdx - lonMinIdx;
-            double[][] masterAz = new double[numLines][numPixels];
-            double[][] masterRg = new double[numLines][numPixels];
-            double[][] slaveAz = new double[numLines][numPixels];
-            double[][] slaveRg = new double[numLines][numPixels];
+            double[][] referenceAz = new double[numLines][numPixels];
+            double[][] referenceRg = new double[numLines][numPixels];
+            double[][] secondaryAz = new double[numLines][numPixels];
+            double[][] secondaryRg = new double[numLines][numPixels];
             double[][] lat = new double[numLines][numPixels];
             double[][] lon = new double[numLines][numPixels];
             final PositionData posData = new PositionData();
@@ -1483,7 +1483,7 @@ public final class BackGeocodingOp extends Operator {
 
             final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
 
-            boolean noValidSlavePixPos = true;
+            boolean noValidSecondaryPixPos = true;
             for (int l = 0; l < numLines; l++) {
                 for (int p = 0; p < numPixels; p++) {
 
@@ -1501,24 +1501,24 @@ public final class BackGeocodingOp extends Operator {
                         GeoUtils.geo2xyzWGS84(gp.lat, gp.lon, alt, posData.earthPoint);
                         if(getPosition(subSwathIndex, mBurstIndex, mSU, posData)) {
 
-                            masterAz[l][p] = posData.azimuthIndex;
-                            masterRg[l][p] = posData.rangeIndex;
-                            if (getPosition(subSwathIndex, sBurstIndex, slaveData.sSU, posData)) {
+                            referenceAz[l][p] = posData.azimuthIndex;
+                            referenceRg[l][p] = posData.rangeIndex;
+                            if (getPosition(subSwathIndex, sBurstIndex, secondaryData.sSU, posData)) {
 
-                                slaveAz[l][p] = posData.azimuthIndex;
-                                slaveRg[l][p] = posData.rangeIndex;
-                                noValidSlavePixPos = false;
+                                secondaryAz[l][p] = posData.azimuthIndex;
+                                secondaryRg[l][p] = posData.rangeIndex;
+                                noValidSecondaryPixPos = false;
                                 continue;
                             }
                         }
                     }
 
-                    masterAz[l][p] = invalidIndex;
-                    masterRg[l][p] = invalidIndex;
+                    referenceAz[l][p] = invalidIndex;
+                    referenceRg[l][p] = invalidIndex;
                 }
             }
 
-            if (noValidSlavePixPos) {
+            if (noValidSecondaryPixPos) {
                 return false;
             }
 
@@ -1540,13 +1540,13 @@ public final class BackGeocodingOp extends Operator {
             }
 
             TriangleInterpolator.ZData[] dataList = new TriangleInterpolator.ZData[] {
-                    new TriangleInterpolator.ZData(slaveAz, azArray),
-                    new TriangleInterpolator.ZData(slaveRg, rgArray),
+                    new TriangleInterpolator.ZData(secondaryAz, azArray),
+                    new TriangleInterpolator.ZData(secondaryRg, rgArray),
                     new TriangleInterpolator.ZData(lat, latArray),
                     new TriangleInterpolator.ZData(lon, lonArray)
             };
 
-            TriangleInterpolator.gridDataLinear(masterAz, masterRg, dataList,
+            TriangleInterpolator.gridDataLinear(referenceAz, referenceRg, dataList,
                     tileWindow, rgAzRatio, 1, 1, invalidIndex, 0);
 
             boolean allElementsAreNull = true;
@@ -1554,7 +1554,7 @@ public final class BackGeocodingOp extends Operator {
             for(int yy = 0; yy < h; yy++) {
                 for (int xx = 0; xx < w; xx++) {
                     if (rgArray[yy][xx] == invalidIndex || azArray[yy][xx] == invalidIndex) {
-                        slavePixelPos[yy][xx] = null;
+                        secondaryPixelPos[yy][xx] = null;
                     } else {
                         if (maskOutAreaWithoutElevation || elevation != null) {
                             alt = dem.getElevation(new GeoPos(latArray[yy][xx], lonArray[yy][xx]));
@@ -1562,13 +1562,13 @@ public final class BackGeocodingOp extends Operator {
                                 elevation[yy][xx] = alt;
                             }
                             if (!alt.equals(demNoDataValue)) {
-                                slavePixelPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
+                                secondaryPixelPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
                                 allElementsAreNull = false;
                             } else {
-                                slavePixelPos[yy][xx] = null;
+                                secondaryPixelPos[yy][xx] = null;
                             }
                         } else {
-                            slavePixelPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
+                            secondaryPixelPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
                             allElementsAreNull = false;
                         }
                     }
@@ -1578,7 +1578,7 @@ public final class BackGeocodingOp extends Operator {
             return !allElementsAreNull;
 
         } catch (Throwable e) {
-            OperatorUtils.catchOperatorException("computeSlavePixPos", e);
+            OperatorUtils.catchOperatorException("computeSecondaryPixPos", e);
         }
 
         return false;
@@ -1714,10 +1714,10 @@ public final class BackGeocodingOp extends Operator {
     }
 
     /**
-     * Get the source rectangle in slave image that contains all the given pixels.
+     * Get the source rectangle in secondary image that contains all the given pixels.
      */
     public static Rectangle getBoundingBox(
-            final PixelPos[][] slavePixPos, final int margin, final int subSwathIndex, final int sBurstIndex,
+            final PixelPos[][] secondaryPixPos, final int margin, final int subSwathIndex, final int sBurstIndex,
             Sentinel1Utils.SubSwathInfo[] sSubswath) {
 
         final int firstLineIndex = sBurstIndex*sSubswath[subSwathIndex - 1].linesPerBurst;
@@ -1730,11 +1730,11 @@ public final class BackGeocodingOp extends Operator {
         int minY = Integer.MAX_VALUE;
         int maxY = -Integer.MAX_VALUE;
 
-        for (PixelPos[] slavePixPo : slavePixPos) {
-            for (int j = 0; j < slavePixPos[0].length; j++) {
-                if (slavePixPo[j] != null) {
-                    final int x = (int) Math.floor(slavePixPo[j].getX());
-                    final int y = (int) Math.floor(slavePixPo[j].getY());
+        for (PixelPos[] secondaryPixPo : secondaryPixPos) {
+            for (int j = 0; j < secondaryPixPos[0].length; j++) {
+                if (secondaryPixPo[j] != null) {
+                    final int x = (int) Math.floor(secondaryPixPo[j].getX());
+                    final int y = (int) Math.floor(secondaryPixPo[j].getY());
 
                     if (x < minX) {
                         minX = x;
@@ -1797,14 +1797,14 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
-    private void saveMasterBands(final int x0, final int y0, final int w, final int h,
-                                 final Map<Band, Tile> targetTileMap, final double[][] mstDerampDemodPhase,
-                                 final double[][] mstDerampDemodI, final double[][] mstDerampDemodQ,
+    private void saveReferenceBands(final int x0, final int y0, final int w, final int h,
+                                 final Map<Band, Tile> targetTileMap, final double[][] refDerampDemodPhase,
+                                 final double[][] refDerampDemodI, final double[][] refDerampDemodQ,
                                  final String polarization) throws OperatorException {
 
         try {
-            final Band iBand = getTargetBand("i_", mstSuffix, polarization);
-            final Band qBand = getTargetBand("q_", mstSuffix, polarization);
+            final Band iBand = getTargetBand("i_", refSuffix, polarization);
+            final Band qBand = getTargetBand("q_", refSuffix, polarization);
 
             if (iBand == null || qBand == null) {
                 throw new OperatorException("Unable to find " + iBand.getName() +" or "+ qBand.getName());
@@ -1819,7 +1819,7 @@ public final class BackGeocodingOp extends Operator {
             Tile tgtTilePhase;
             ProductData tgtBufferPhase = null;
             if (outputDerampDemodPhase) {
-                final Band phaseBand = getTargetBand("derampDemodPhase", mstSuffix, null);
+                final Band phaseBand = getTargetBand("derampDemodPhase", refSuffix, null);
                 if(phaseBand == null) {
                     throw new OperatorException("derampDemodPhase not found");
                 }
@@ -1833,33 +1833,33 @@ public final class BackGeocodingOp extends Operator {
                 for (int x = x0; x < x0 + w; x++) {
                     final int xx = x - x0;
                     final int tgtIdx = tgtIndex.getIndex(x);
-                    tgtBufferI.setElemDoubleAt(tgtIdx, mstDerampDemodI[yy][xx]);
-                    tgtBufferQ.setElemDoubleAt(tgtIdx, mstDerampDemodQ[yy][xx]);
+                    tgtBufferI.setElemDoubleAt(tgtIdx, refDerampDemodI[yy][xx]);
+                    tgtBufferQ.setElemDoubleAt(tgtIdx, refDerampDemodQ[yy][xx]);
 
                     if (outputDerampDemodPhase && tgtBufferPhase != null) {
-                        tgtBufferPhase.setElemFloatAt(tgtIdx, (float)mstDerampDemodPhase[yy][xx]);
+                        tgtBufferPhase.setElemFloatAt(tgtIdx, (float)refDerampDemodPhase[yy][xx]);
                     }
                 }
             }
         } catch (Throwable e) {
-            OperatorUtils.catchOperatorException("saveMasterBands", e);
+            OperatorUtils.catchOperatorException("saveReferenceBands", e);
         }
     }
 
     private void performInterpolation(final int x0, final int y0, final int w, final int h,
-                                      final Rectangle sourceRectangle, final Tile slaveTileI, final Tile slaveTileQ,
+                                      final Rectangle sourceRectangle, final Tile secondaryTileI, final Tile secondaryTileQ,
                                       final Map<Band, Tile> targetTileMap, final double[][] derampDemodPhase,
                                       final double[][] derampDemodI, final double[][] derampDemodQ,
-                                      final PixelPos[][] slavePixPos, final int subswathIndex, final int sBurstIndex,
-                                      final SlaveData slaveData, final String polarization) throws OperatorException {
+                                      final PixelPos[][] secondaryPixPos, final int subswathIndex, final int sBurstIndex,
+                                      final SecondaryData secondaryData, final String polarization) throws OperatorException {
 
         try {
-            final ResamplingRaster resamplingRasterI = new ResamplingRaster(slaveTileI, derampDemodI);
-            final ResamplingRaster resamplingRasterQ = new ResamplingRaster(slaveTileQ, derampDemodQ);
-            final ResamplingRaster resamplingRasterPhase = new ResamplingRaster(slaveTileI, derampDemodPhase);
+            final ResamplingRaster resamplingRasterI = new ResamplingRaster(secondaryTileI, derampDemodI);
+            final ResamplingRaster resamplingRasterQ = new ResamplingRaster(secondaryTileQ, derampDemodQ);
+            final ResamplingRaster resamplingRasterPhase = new ResamplingRaster(secondaryTileI, derampDemodPhase);
 
-            final Band iBand = getTargetBand("i_", slaveData.slvSuffix, polarization);
-            final Band qBand = getTargetBand("q_", slaveData.slvSuffix, polarization);
+            final Band iBand = getTargetBand("i_", secondaryData.secSuffix, polarization);
+            final Band qBand = getTargetBand("q_", secondaryData.secSuffix, polarization);
 
             if (iBand == null || qBand == null) {
                 throw new OperatorException("Unable to find " + iBand.getName() +" or "+ qBand.getName());
@@ -1874,7 +1874,7 @@ public final class BackGeocodingOp extends Operator {
             Tile tgtTilePhase;
             ProductData tgtBufferPhase = null;
             if (outputDerampDemodPhase) {
-                final Band phaseBand = getTargetBand("derampDemodPhase", slaveData.slvSuffix, null);
+                final Band phaseBand = getTargetBand("derampDemodPhase", secondaryData.secSuffix, null);
                 if(phaseBand == null) {
                     throw new OperatorException("derampDemodPhase not found");
                 }
@@ -1895,10 +1895,10 @@ public final class BackGeocodingOp extends Operator {
                 for (int x = x0; x < x0 + w; x++) {
                     final int xx = x - x0;
                     final int tgtIdx = tgtIndex.getIndex(x);
-                    final PixelPos slavePixelPos = slavePixPos[yy][xx];
+                    final PixelPos secondaryPixelPos = secondaryPixPos[yy][xx];
 
-                    if (slavePixelPos == null || slavePixelPos.x < sxMin || slavePixelPos.x > sxMax ||
-                            slavePixelPos.y < syMin || slavePixelPos.y > syMax) {
+                    if (secondaryPixelPos == null || secondaryPixelPos.x < sxMin || secondaryPixelPos.x > sxMax ||
+                            secondaryPixelPos.y < syMin || secondaryPixelPos.y > syMax) {
 
                         tgtBufferI.setElemDoubleAt(tgtIdx, noDataValue);
                         tgtBufferQ.setElemDoubleAt(tgtIdx, noDataValue);
@@ -1910,7 +1910,7 @@ public final class BackGeocodingOp extends Operator {
                     }
 
                     selectedResampling.computeCornerBasedIndex(
-                            slavePixelPos.x - sourceRectangle.x, slavePixelPos.y - sourceRectangle.y,
+                            secondaryPixelPos.x - sourceRectangle.x, secondaryPixelPos.y - sourceRectangle.y,
                             sourceRectangle.width, sourceRectangle.height, resamplingIndex);
 
                     final double samplePhase = selectedResampling.resample(resamplingRasterPhase, resamplingIndex);
@@ -1955,15 +1955,15 @@ public final class BackGeocodingOp extends Operator {
 
     private void performInterpolationOnETADBand(
             final int x0, final int y0, final int w, final int h, final Rectangle sourceRectangle,
-            final Map<Band, Tile> targetTileMap, final PixelPos[][] secPixPos, final SlaveData secData,
+            final Map<Band, Tile> targetTileMap, final PixelPos[][] secPixPos, final SecondaryData secData,
             final String bandName) throws OperatorException {
 
         try {
-            final Band secETADBand = secData.slaveProduct.getBand(bandName);
+            final Band secETADBand = secData.secondaryProduct.getBand(bandName);
             final Tile secETADTile = getSourceTile(secETADBand, sourceRectangle);
             final double[][] secETADData = getETADData(secETADTile, sourceRectangle);
 
-            final Band tgtETADBand = getTargetBand(bandName, secData.slvSuffix, null);
+            final Band tgtETADBand = getTargetBand(bandName, secData.secSuffix, null);
             final Tile tgtETADTile = targetTileMap.get(tgtETADBand);
             final ProductData tgtETADBuffer = tgtETADTile.getDataBuffer();
             final TileIndex tgtIndex = new TileIndex(tgtETADTile);
@@ -2046,28 +2046,28 @@ public final class BackGeocodingOp extends Operator {
         return null;
     }
 
-    private boolean isSlavePixPosValid(final PixelPos slavePixPos, final int subswathIndex, final int sBurstIndex,
+    private boolean isSecondaryPixPosValid(final PixelPos secondaryPixPos, final int subswathIndex, final int sBurstIndex,
                                        final Sentinel1Utils.SubSwathInfo[] sSubswath) {
-        return (slavePixPos != null &&
-                slavePixPos.y >= sSubswath[subswathIndex - 1].linesPerBurst*sBurstIndex &&
-                slavePixPos.y < sSubswath[subswathIndex - 1].linesPerBurst*(sBurstIndex+1));
+        return (secondaryPixPos != null &&
+                secondaryPixPos.y >= sSubswath[subswathIndex - 1].linesPerBurst*sBurstIndex &&
+                secondaryPixPos.y < sSubswath[subswathIndex - 1].linesPerBurst*(sBurstIndex+1));
     }
 
     private void outputRangeAzimuthOffsets(final int x0, final int y0, final int w, final int h,
-                                           final Map<Band, Tile> targetTileMap, final PixelPos[][] slavePixPos,
-                                           final int subSwathIndex, final SlaveData slaveData,
+                                           final Map<Band, Tile> targetTileMap, final PixelPos[][] secondaryPixPos,
+                                           final int subSwathIndex, final SecondaryData secondaryData,
                                            final int mBurstIndex, final int sBurstIndex) {
 
         try {
-            final Band azOffsetBand = getTargetBand("azOffset", slaveData.slvSuffix, null);
-            final Band rgOffsetBand = getTargetBand("rgOffset", slaveData.slvSuffix, null);
+            final Band azOffsetBand = getTargetBand("azOffset", secondaryData.secSuffix, null);
+            final Band rgOffsetBand = getTargetBand("rgOffset", secondaryData.secSuffix, null);
 
             if (azOffsetBand == null || rgOffsetBand == null) {
                 return;
             }
 
             //Sentinel1Utils.SubSwathInfo mSubSwath = mSU.getSubSwath()[subSwathIndex - 1];
-            //Sentinel1Utils.SubSwathInfo sSubSwath = slaveData.sSU.getSubSwath()[subSwathIndex - 1];
+            //Sentinel1Utils.SubSwathInfo sSubSwath = secondaryData.sSU.getSubSwath()[subSwathIndex - 1];
 
             final Tile tgtTileAzOffset = targetTileMap.get(azOffsetBand);
             final Tile tgtTileRgOffset = targetTileMap.get(rgOffsetBand);
@@ -2082,7 +2082,7 @@ public final class BackGeocodingOp extends Operator {
                     final int tgtIdx = tgtIndex.getIndex(x);
                     final int xx = x - x0;
 
-                    if (slavePixPos[yy][xx] == null) {
+                    if (secondaryPixPos[yy][xx] == null) {
                         tgtBufferAzOffset.setElemFloatAt(tgtIdx, (float) noDataValue);
                         tgtBufferRgOffset.setElemFloatAt(tgtIdx, (float) noDataValue);
                     } else {
@@ -2093,19 +2093,19 @@ public final class BackGeocodingOp extends Operator {
                         final double mY = (mta - mSubSwath.burstFirstLineTime[0]) / mSubSwath.azimuthTimeInterval;
 
                         final double sta = sSubSwath.burstFirstLineTime[sBurstIndex] +
-                                (slavePixPos[yy][xx].y - sBurstIndex*sSubSwath.linesPerBurst)*sSubSwath.azimuthTimeInterval;
+                                (secondaryPixPos[yy][xx].y - sBurstIndex*sSubSwath.linesPerBurst)*sSubSwath.azimuthTimeInterval;
 
                         final double sY = (sta - sSubSwath.burstFirstLineTime[0]) / sSubSwath.azimuthTimeInterval;
 
                         final float yOffset = (float)(mY - sY);
 
                         tgtBufferAzOffset.setElemFloatAt(tgtIdx, yOffset);
-                        tgtBufferRgOffset.setElemFloatAt(tgtIdx, (float)(x - slavePixPos[yy][xx].x));
+                        tgtBufferRgOffset.setElemFloatAt(tgtIdx, (float)(x - secondaryPixPos[yy][xx].x));
 */
-                        //tgtBufferAzOffset.setElemFloatAt(tgtIdx, (float)(y - slavePixPos[yy][xx].y));
-                        //tgtBufferRgOffset.setElemFloatAt(tgtIdx, (float)(x - slavePixPos[yy][xx].x));
-                        tgtBufferAzOffset.setElemFloatAt(tgtIdx, (float)(slavePixPos[yy][xx].y));
-                        tgtBufferRgOffset.setElemFloatAt(tgtIdx, (float)(slavePixPos[yy][xx].x));
+                        //tgtBufferAzOffset.setElemFloatAt(tgtIdx, (float)(y - secondaryPixPos[yy][xx].y));
+                        //tgtBufferRgOffset.setElemFloatAt(tgtIdx, (float)(x - secondaryPixPos[yy][xx].x));
+                        tgtBufferAzOffset.setElemFloatAt(tgtIdx, (float)(secondaryPixPos[yy][xx].y));
+                        tgtBufferRgOffset.setElemFloatAt(tgtIdx, (float)(secondaryPixPos[yy][xx].x));
                     }
                 }
             }
@@ -2235,17 +2235,17 @@ public final class BackGeocodingOp extends Operator {
         boolean inUpperPartOfSecondBurst = false;
     }
 
-    private static class SlaveData {
-        Product slaveProduct;
+    private static class SecondaryData {
+        Product secondaryProduct;
         Sentinel1Utils sSU;
         int burstOffset = -9999;
-        String slvSuffix;
+        String secSuffix;
         boolean foundETADCorrection = false;
         boolean foundETADHeight = false;
         boolean foundETADGradient = false;
 
-        SlaveData(final Product product) throws Exception {
-            this.slaveProduct = product;
+        SecondaryData(final Product product) throws Exception {
+            this.secondaryProduct = product;
             this.sSU = new Sentinel1Utils(product);
 
             sSU.computeDopplerRate();
@@ -2253,7 +2253,7 @@ public final class BackGeocodingOp extends Operator {
         }
 
         public void print() {
-            SystemUtils.LOG.info(slvSuffix +" burstOffset="+burstOffset);
+            SystemUtils.LOG.info(secSuffix +" burstOffset="+burstOffset);
         }
     }
 

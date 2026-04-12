@@ -1019,6 +1019,9 @@ public class SpacetyDirectory extends XMLProductDirectory {
 
     @Override
     protected Dimension getProductDimensions(final MetadataElement newRoot) {
+        if (bandProduct == null) {
+            throw new IllegalStateException("No image data found in product");
+        }
         final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
         int w = bandProduct.getSceneRasterWidth();
         int h = bandProduct.getSceneRasterHeight();

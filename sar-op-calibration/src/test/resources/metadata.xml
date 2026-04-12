@@ -145,14 +145,14 @@
         </Ref_23Dec2006>
       </Baselines>
       <Orbit_Offsets>
-        <init_offsets_slv1_25Aug2007>
+        <init_offsets_sec1_25Aug2007>
           <attrib name="init_offset_X" value="0" type="12" />
           <attrib name="init_offset_Y" value="67" type="12" />
-        </init_offsets_slv1_25Aug2007>
-        <init_offsets_slv2_23Dec2006>
+        </init_offsets_sec1_25Aug2007>
+        <init_offsets_sec2_23Dec2006>
           <attrib name="init_offset_X" value="-3" type="12" />
           <attrib name="init_offset_Y" value="3433" type="12" />
-        </init_offsets_slv2_23Dec2006>
+        </init_offsets_sec2_23Dec2006>
       </Orbit_Offsets>
       <attrib name="PRODUCT" value="S1A_IW_SLC__1SDV_20181115T125000_20181115T125015_024599_02B387_2799" type="41" desc="Product name" />
       <attrib name="PRODUCT_TYPE" value="SLC" type="41" desc="Product type" />

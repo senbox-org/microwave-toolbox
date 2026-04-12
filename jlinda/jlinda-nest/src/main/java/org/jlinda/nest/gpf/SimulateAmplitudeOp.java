@@ -17,6 +17,7 @@ import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.dem.dataio.FileElevationModel;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -77,8 +78,8 @@ public final class SimulateAmplitudeOp extends Operator {
     private double demSampling;
 
     // source maps
-    private HashMap<Integer, CplxContainer> masterMap = new HashMap<>();
-    private HashMap<Integer, CplxContainer> slaveMap = new HashMap<>();
+    private HashMap<Integer, CplxContainer> referenceMap = new HashMap<>();
+    private HashMap<Integer, CplxContainer> secondaryMap = new HashMap<>();
 
     // target maps
     private HashMap<String, ProductContainer> targetMap = new HashMap<>();
@@ -154,24 +155,23 @@ public final class SimulateAmplitudeOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        // define sourceMaster/sourceSlave name tags
-        final String masterTag = "ifg";
-        final String slaveTag = "dummy";
+        // define sourceReference/sourceSecondary name tags
+        final String referenceTag = "ifg";
+        final String secondaryTag = "dummy";
 
-        // get sourceMaster & sourceSlave MetadataElement
-        final MetadataElement masterMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
+        // get sourceReference & sourceSecondary MetadataElement
+        final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
         /* organize metadata */
 
-        // put sourceMaster metadata into the masterMap
-        metaMapPut(masterTag, masterMeta, sourceProduct, masterMap);
+        // put sourceReference metadata into the referenceMap
+        metaMapPut(referenceTag, referenceMeta, sourceProduct, referenceMap);
 
-        // pug sourceSlave metadata into slaveMap
-        MetadataElement[] slaveRoot = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot).getElements();
-        for (MetadataElement meta : slaveRoot) {
+        // put sourceSecondary metadata into secondaryMap
+        MetadataElement[] secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
+        for (MetadataElement meta : secondaryRoot) {
             if (!meta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                metaMapPut(slaveTag, meta, sourceProduct, slaveMap);
+                metaMapPut(secondaryTag, meta, sourceProduct, secondaryMap);
         }
 
     }
@@ -221,23 +221,23 @@ public final class SimulateAmplitudeOp extends Operator {
 
     private void constructTargetMetadata() {
 
-        for (Integer keyMaster : masterMap.keySet()) {
+        for (Integer keyReference : referenceMap.keySet()) {
 
-            CplxContainer master = masterMap.get(keyMaster);
+            CplxContainer reference = referenceMap.get(keyReference);
 
-            for (Integer keySlave : slaveMap.keySet()) {
+            for (Integer keySecondary : secondaryMap.keySet()) {
 
                 // generate name for product bands
-                String productName = keyMaster.toString() + "_" + keySlave.toString();
+                String productName = keyReference.toString() + "_" + keySecondary.toString();
 
-                final CplxContainer slave = slaveMap.get(keySlave);
-                final ProductContainer product = new ProductContainer(productName, master, slave, true);
+                final CplxContainer secondary = secondaryMap.get(keySecondary);
+                final ProductContainer product = new ProductContainer(productName, reference, secondary, true);
 
-                product.targetBandName_I = "i" + PRODUCT_TAG + "_" + master.date + "_" + slave.date;
-                product.targetBandName_Q = "q" + PRODUCT_TAG + "_" + master.date + "_" + slave.date;
+                product.targetBandName_I = "i" + PRODUCT_TAG + "_" + reference.date + "_" + secondary.date;
+                product.targetBandName_Q = "q" + PRODUCT_TAG + "_" + reference.date + "_" + secondary.date;
 
                 product.masterSubProduct.name = simAmpBandName;
-                product.masterSubProduct.targetBandName_I = simAmpBandName + "_" + master.date + "_" + slave.date;
+                product.masterSubProduct.targetBandName_I = simAmpBandName + "_" + reference.date + "_" + secondary.date;
 
                 // put ifg-product bands into map
                 targetMap.put(productName, product);
@@ -269,8 +269,8 @@ public final class SimulateAmplitudeOp extends Operator {
             targetProduct.addBand(targetBandName_Q, ProductData.TYPE_FLOAT64);
             targetProduct.getBand(targetBandName_Q).setUnit(Unit.IMAGINARY);
 
-            final String tag0 = targetMap.get(key).sourceMaster.date;
-            final String tag1 = targetMap.get(key).sourceSlave.date;
+            final String tag0 = targetMap.get(key).sourceRef.date;
+            final String tag1 = targetMap.get(key).sourceSec.date;
             if (CREATE_VIRTUAL_BAND) {
 //                String countStr = "_" + PRODUCT_TAG + "_" + tag0 + "_" + tag1;
                 String countStr = PRODUCT_TAG + "_" + tag0 + "_" + tag1;
@@ -325,8 +325,8 @@ public final class SimulateAmplitudeOp extends Operator {
                 /// get dem of tile ///
 
                 // compute tile geo-corners ~ work on ellipsoid
-                GeoPoint[] geoCorners = GeoUtils.computeCorners(product.sourceMaster.metaData,
-                        product.sourceMaster.orbit,
+                GeoPoint[] geoCorners = GeoUtils.computeCorners(product.sourceRef.metaData,
+                        product.sourceRef.orbit,
                         tileWindow);
 
                 // get corners as DEM indices
@@ -339,7 +339,7 @@ public final class SimulateAmplitudeOp extends Operator {
 
                 // compute extra lat/lon for dem tile
                 GeoPoint geoExtent = GeoUtils.defineExtraPhiLam(tileHeights[0], tileHeights[1],
-                        tileWindow, product.sourceMaster.metaData, product.sourceMaster.orbit);
+                        tileWindow, product.sourceRef.metaData, product.sourceRef.orbit);
 
                 // extend corners
                 geoCorners = GeoUtils.extendCorners(geoExtent, geoCorners);
@@ -379,16 +379,16 @@ public final class SimulateAmplitudeOp extends Operator {
                         nLatPixels, nLonPixels, demSampling, demSampling, (long) demNoDataValue);
                 demTile.setData(elevation);
 
-                final ThetaTile thetaTile = new ThetaTile(product.sourceMaster.metaData, product.sourceMaster.orbit, tileWindow, demTile);
+                final ThetaTile thetaTile = new ThetaTile(product.sourceRef.metaData, product.sourceRef.orbit, tileWindow, demTile);
                 thetaTile.radarCode();
                 thetaTile.gridData();
 
-                final SimAmpTile simAmpTile = new SimAmpTile(product.sourceMaster.metaData, product.sourceMaster.orbit, tileWindow, thetaTile, demTile);
+                final SimAmpTile simAmpTile = new SimAmpTile(product.sourceRef.metaData, product.sourceRef.orbit, tileWindow, thetaTile, demTile);
                 simAmpTile.simulateAmplitude();
 
                 /// check out results from source ///
-                Tile tileReal = getSourceTile(product.sourceMaster.realBand, targetRectangle);
-                Tile tileImag = getSourceTile(product.sourceMaster.imagBand, targetRectangle);
+                Tile tileReal = getSourceTile(product.sourceRef.realBand, targetRectangle);
+                Tile tileImag = getSourceTile(product.sourceRef.imagBand, targetRectangle);
                 ComplexDoubleMatrix complexIfg = TileUtilsDoris.pullComplexDoubleMatrix(tileReal, tileImag);
 
                 /// commit to target ///

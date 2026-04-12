@@ -128,22 +128,22 @@ public class PolBandUtils {
         final List<PolSourceBand> quadSrcBandList = new ArrayList<>(10);
 
         if (isCoregistered) {
-            final String[] mstBandNames = StackUtils.getMasterBandNames(srcProduct);
-            final Band[] mstBands = getBands(srcProduct, sourceProductType, mstBandNames);
-            final String suffix = mstBandNames[0].substring(mstBandNames[0].lastIndexOf('_'), mstBandNames[0].length());
-            quadSrcBandList.add(new PolSourceBand(srcProduct.getName(), mstBands, suffix));
+            final String[] refBandNames = StackUtils.getReferenceBandNames(srcProduct);
+            final Band[] refBands = getBands(srcProduct, sourceProductType, refBandNames);
+            final String suffix = refBandNames[0].substring(refBandNames[0].lastIndexOf('_'), refBandNames[0].length());
+            quadSrcBandList.add(new PolSourceBand(srcProduct.getName(), refBands, suffix));
 
-            final String[] slvProductNames = StackUtils.getSlaveProductNames(srcProduct);
-            for (String slvProd : slvProductNames) {
-                final String[] slvBandNames = StackUtils.getSlaveBandNames(srcProduct, slvProd);
-                final Band[] slvBands = getBands(srcProduct, sourceProductType, slvBandNames);
-                final String suf = slvBandNames[0].substring(slvBandNames[0].lastIndexOf('_'), slvBandNames[0].length());
-                quadSrcBandList.add(new PolSourceBand(slvProd, slvBands, suf));
+            final String[] secProductNames = StackUtils.getSecondaryProductNames(srcProduct);
+            for (String secProd : secProductNames) {
+                final String[] secBandNames = StackUtils.getSecondaryBandNames(srcProduct, secProd);
+                final Band[] secBands = getBands(srcProduct, sourceProductType, secBandNames);
+                final String suf = secBandNames[0].substring(secBandNames[0].lastIndexOf('_'), secBandNames[0].length());
+                quadSrcBandList.add(new PolSourceBand(secProd, secBands, suf));
             }
         } else {
             final String[] bandNames = srcProduct.getBandNames();
-            final Band[] mstBands = getBands(srcProduct, sourceProductType, bandNames);
-            quadSrcBandList.add(new PolSourceBand(srcProduct.getName(), mstBands, ""));
+            final Band[] refBands = getBands(srcProduct, sourceProductType, bandNames);
+            quadSrcBandList.add(new PolSourceBand(srcProduct.getName(), refBands, ""));
         }
         return quadSrcBandList.toArray(new PolSourceBand[0]);
     }
@@ -326,15 +326,15 @@ public class PolBandUtils {
 
     public static void saveNewBandNames(final Product targetProduct, final PolSourceBand[] srcBandList) throws Exception {
         if (StackUtils.isCoregisteredStack(targetProduct)) {
-            boolean masterProduct = true;
+            boolean referenceProduct = true;
             for (final PolSourceBand bandList : srcBandList) {
-                if (masterProduct) {
+                if (referenceProduct) {
                     final String[] bandNames = StackUtils.bandsToStringArray(bandList.targetBands);
-                    StackUtils.saveMasterProductBandNames(targetProduct, bandNames);
-                    masterProduct = false;
+                    StackUtils.saveReferenceProductBandNames(targetProduct, bandNames);
+                    referenceProduct = false;
                 } else {
                     final String[] bandNames = StackUtils.bandsToStringArray(bandList.targetBands);
-                    StackUtils.saveSlaveProductBandNames(targetProduct, bandList.productName, bandNames);
+                    StackUtils.saveSecondaryProductBandNames(targetProduct, bandList.productName, bandNames);
                 }
             }
         }

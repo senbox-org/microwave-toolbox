@@ -8,6 +8,7 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.junit.Test;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
 
 import java.io.File;
@@ -29,19 +30,19 @@ public class RangeFilterOpTest {
         Product trgProduct = op.getTargetProduct();
 
         assertNotNull(trgProduct);
-        assertNotNull(trgProduct.getBand("i_IW1_VH_mst_10Jul2018"));
-        assertNotNull(trgProduct.getBand("q_IW1_VH_mst_10Jul2018"));
-        assertNotNull(trgProduct.getBand("Intensity_IW1_VH_mst_10Jul2018"));
-        assertNotNull(trgProduct.getBand("i_IW1_VV_mst_10Jul2018"));
-        assertNotNull(trgProduct.getBand("q_IW1_VV_mst_10Jul2018"));
-        assertNotNull(trgProduct.getBand("Intensity_IW1_VV_mst_10Jul2018"));
+        assertNotNull(trgProduct.getBand("i_IW1_VH_ref_10Jul2018"));
+        assertNotNull(trgProduct.getBand("q_IW1_VH_ref_10Jul2018"));
+        assertNotNull(trgProduct.getBand("Intensity_IW1_VH_ref_10Jul2018"));
+        assertNotNull(trgProduct.getBand("i_IW1_VV_ref_10Jul2018"));
+        assertNotNull(trgProduct.getBand("q_IW1_VV_ref_10Jul2018"));
+        assertNotNull(trgProduct.getBand("Intensity_IW1_VV_ref_10Jul2018"));
 
-        assertNotNull(trgProduct.getBand("i_IW1_VH_slv1_22Jul2018"));
-        assertNotNull(trgProduct.getBand("q_IW1_VH_slv1_22Jul2018"));
-        assertNotNull(trgProduct.getBand("Intensity_IW1_VH_slv1_22Jul2018"));
-        assertNotNull(trgProduct.getBand("i_IW1_VV_slv1_22Jul2018"));
-        assertNotNull(trgProduct.getBand("q_IW1_VV_slv1_22Jul2018"));
-        assertNotNull(trgProduct.getBand("Intensity_IW1_VV_slv1_22Jul2018"));
+        assertNotNull(trgProduct.getBand("i_IW1_VH_sec1_22Jul2018"));
+        assertNotNull(trgProduct.getBand("q_IW1_VH_sec1_22Jul2018"));
+        assertNotNull(trgProduct.getBand("Intensity_IW1_VH_sec1_22Jul2018"));
+        assertNotNull(trgProduct.getBand("i_IW1_VV_sec1_22Jul2018"));
+        assertNotNull(trgProduct.getBand("q_IW1_VV_sec1_22Jul2018"));
+        assertNotNull(trgProduct.getBand("Intensity_IW1_VV_sec1_22Jul2018"));
     }
 
     /**
@@ -54,36 +55,36 @@ public class RangeFilterOpTest {
         Band targetBandQ;
 
         final Product testProduct = TestUtils.createProduct("SLC", size, size);
-        targetBandI = TestUtils.createBand(testProduct, "i_IW1_VH_mst_10Jul2018", ProductData.TYPE_FLOAT32,
+        targetBandI = TestUtils.createBand(testProduct, "i_IW1_VH_ref_10Jul2018", ProductData.TYPE_FLOAT32,
                 Unit.REAL, size, size, true);
-        targetBandQ = TestUtils.createBand(testProduct, "q_IW1_VH_mst_10Jul2018", ProductData.TYPE_FLOAT32,
+        targetBandQ = TestUtils.createBand(testProduct, "q_IW1_VH_ref_10Jul2018", ProductData.TYPE_FLOAT32,
                 Unit.IMAGINARY, size, size, true);
         ReaderUtils.createVirtualIntensityBand(testProduct, targetBandI, targetBandQ, "");
 
-        targetBandI = TestUtils.createBand(testProduct, "i_IW1_VV_mst_10Jul2018", ProductData.TYPE_FLOAT32,
+        targetBandI = TestUtils.createBand(testProduct, "i_IW1_VV_ref_10Jul2018", ProductData.TYPE_FLOAT32,
                 Unit.REAL, size, size, true);
-        targetBandQ = TestUtils.createBand(testProduct, "q_IW1_VV_mst_10Jul2018", ProductData.TYPE_FLOAT32,
+        targetBandQ = TestUtils.createBand(testProduct, "q_IW1_VV_ref_10Jul2018", ProductData.TYPE_FLOAT32,
                 Unit.IMAGINARY, size, size, true);
         ReaderUtils.createVirtualIntensityBand(testProduct, targetBandI, targetBandQ, "");
 
-        targetBandI = TestUtils.createBand(testProduct, "i_IW1_VH_slv1_22Jul2018", ProductData.TYPE_FLOAT32,
+        targetBandI = TestUtils.createBand(testProduct, "i_IW1_VH_sec1_22Jul2018", ProductData.TYPE_FLOAT32,
                 Unit.REAL, size, size, true);
-        targetBandQ = TestUtils.createBand(testProduct, "q_IW1_VH_slv1_22Jul2018", ProductData.TYPE_FLOAT32,
+        targetBandQ = TestUtils.createBand(testProduct, "q_IW1_VH_sec1_22Jul2018", ProductData.TYPE_FLOAT32,
                 Unit.IMAGINARY, size, size, true);
         ReaderUtils.createVirtualIntensityBand(testProduct, targetBandI, targetBandQ, "");
 
-        targetBandI = TestUtils.createBand(testProduct, "i_IW1_VV_slv1_22Jul2018", ProductData.TYPE_FLOAT32,
+        targetBandI = TestUtils.createBand(testProduct, "i_IW1_VV_sec1_22Jul2018", ProductData.TYPE_FLOAT32,
                 Unit.REAL, size, size, true);
-        targetBandQ = TestUtils.createBand(testProduct, "q_IW1_VV_slv1_22Jul2018", ProductData.TYPE_FLOAT32,
+        targetBandQ = TestUtils.createBand(testProduct, "q_IW1_VV_sec1_22Jul2018", ProductData.TYPE_FLOAT32,
                 Unit.IMAGINARY, size, size, true);
         ReaderUtils.createVirtualIntensityBand(testProduct, targetBandI, targetBandQ, "");
 
         AbstractMetadataIO.Load(testProduct, testProduct.getMetadataRoot(), new File("src/test/resources/dualPolMetadata.xml"));
 
-        final MetadataElement slvRoot = testProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        final MetadataElement[] slaveElem = slvRoot.getElements();
-        slvRoot.removeElement(slaveElem[1]);
-        slvRoot.removeElement(slaveElem[2]);
+        final MetadataElement secRoot = StackUtils.findSecondaryMetadataRoot(testProduct);
+        final MetadataElement[] secondaryElem = secRoot.getElements();
+        secRoot.removeElement(secondaryElem[1]);
+        secRoot.removeElement(secondaryElem[2]);
 
         return testProduct;
     }

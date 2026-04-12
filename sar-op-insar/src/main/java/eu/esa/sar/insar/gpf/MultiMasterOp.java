@@ -30,6 +30,7 @@ import org.esa.snap.core.util.ThreadExecutor;
 import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,12 +41,12 @@ import java.util.HashMap;
         authors = "Alex McVittie",
         version = "1.0",
         copyright = "Copyright (C) 2020 by SkyWatch Space Applications Inc.",
-        description = "Generates a set of master-slave pairs from a coregistered stack for use in SBAS processing")
+        description = "Generates a set of reference-secondary pairs from a coregistered stack for use in SBAS processing")
 public class MultiMasterOp extends Operator{
     // Things this needs:
     // output folder
     // input coregistered stack product
-    @SourceProduct(alias = "source", label="Coregistered stack with single master and multiple (2 or more) slaves")
+    @SourceProduct(alias = "source", label="Coregistered stack with single reference and multiple (2 or more) secondaries")
     private Product sourceProduct;
     @Parameter(description = "Output folder", alias="outputFolder",
             defaultValue = "" , label = "Output folder location for putting coregistered image pairs into.")
@@ -58,10 +59,10 @@ public class MultiMasterOp extends Operator{
     /* Processing steps:
         1) Create a 2D list of band pairs, so you have your A-B B-C C-D interferogram network
         2) Loop through the 2D list and add those two bands to a new product, and set the metadata to have
-            master/slave metadata, with the master being the oldest band in the list and the slave being the newest band
-                a) Set the band names accordingly so that you have mst as master, and slv as slave.
+            reference/secondary metadata, with the reference being the oldest band in the list and the secondary being the newest band
+                a) Set the band names accordingly so that you have ref as reference, and sec as secondary.
                 b) Update any band name info in the metadata accordingly, as you have in step 2b
-        3) With your folder of master/slave coregistered pairs, you should now perform any additional preprocessing
+        3) With your folder of reference/secondary coregistered pairs, you should now perform any additional preprocessing
             steps needed (goldstein phase filter, deburst, subset, etc)
         4) Perform snaphu unwrapping on each product - loop through and extract the command from the snaphu.conf file
         5) Loop through and import the bands back in, apply terrain correction
@@ -95,29 +96,29 @@ public class MultiMasterOp extends Operator{
         pm.beginTask("Splitting stack into multiple products", 100);
         pm.worked(1);
 
-        final Product singleMaster_MultiSlave = sourceProduct; //ProductIO.readProduct(filepath);
-        MetadataElement rootMetadata = singleMaster_MultiSlave.getMetadataRoot();
-        Band[] bands = singleMaster_MultiSlave.getBands();
-        MetadataElement slaves = rootMetadata.getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        MetadataElement [] slaveAbstractedMetadata = slaves.getElements();
-        MetadataElement masterAbstractedMetadata = rootMetadata.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
+        final Product singleReference_MultiSecondary = sourceProduct; //ProductIO.readProduct(filepath);
+        MetadataElement rootMetadata = singleReference_MultiSecondary.getMetadataRoot();
+        Band[] bands = singleReference_MultiSecondary.getBands();
+        MetadataElement secondaries = StackUtils.findSecondaryMetadataRoot(rootMetadata);
+        MetadataElement [] secondaryAbstractedMetadata = secondaries.getElements();
+        MetadataElement referenceAbstractedMetadata = rootMetadata.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
 
         //MetadataElement masterOrbitData = masterAbstractedMetadata.getElement("Orbit_State_Vectors");
         HashMap<Integer, ArrayList<Band>> date_bandpairs = new HashMap<Integer, ArrayList<Band>>();
         HashMap<Integer, MetadataElement> date_metadatapairs = new HashMap<Integer, MetadataElement>();
         ArrayList<Integer> dates = new ArrayList<Integer>();
-        String masterDate = masterAbstractedMetadata.getAttributeString("PROC_TIME").split(" ")[0];
-        int masterDateInt = strDatetoInt(masterDate);
-        ArrayList<Band> mstBands = new ArrayList<Band>();
+        String referenceDate = referenceAbstractedMetadata.getAttributeString("PROC_TIME").split(" ")[0];
+        int referenceDateInt = strDatetoInt(referenceDate);
+        ArrayList<Band> refBands = new ArrayList<Band>();
         for(Band b: bands){
-            if (b.getName().contains("mst")){
-                mstBands.add(b);
+            if (b.getName().contains("ref") || b.getName().contains("mst")){
+                refBands.add(b);
             }
         }
-        date_bandpairs.put(masterDateInt, mstBands);
-        date_metadatapairs.put(masterDateInt, masterAbstractedMetadata);
-        dates.add(masterDateInt);
-        for(MetadataElement s : slaveAbstractedMetadata){
+        date_bandpairs.put(referenceDateInt, refBands);
+        date_metadatapairs.put(referenceDateInt, referenceAbstractedMetadata);
+        dates.add(referenceDateInt);
+        for(MetadataElement s : secondaryAbstractedMetadata){
             String date = s.getAttributeString("first_line_time").split(" ")[0];
             int dateInt = strDatetoInt(date);
             date_metadatapairs.put(dateInt, s);
@@ -139,20 +140,20 @@ public class MultiMasterOp extends Operator{
         ArrayList<String> writtenProductPaths = new ArrayList<>();
 
         for (int x = 0; x < dates.size() - 1; x++){
-            int dateMst = dates.get(x);
-            int dateSlv = dates.get(x + 1);
-            String productName = singleMaster_MultiSlave.getProductType() + "_" + dateMst + "_" + dateSlv;
-            Product tmp = new Product(productName,singleMaster_MultiSlave.getProductType());
-            ProductUtils.copyProductNodes(singleMaster_MultiSlave, tmp);
+            int dateRef = dates.get(x);
+            int dateSec = dates.get(x + 1);
+            String productName = singleReference_MultiSecondary.getProductType() + "_" + dateRef + "_" + dateSec;
+            Product tmp = new Product(productName,singleReference_MultiSecondary.getProductType());
+            ProductUtils.copyProductNodes(singleReference_MultiSecondary, tmp);
             final Product p = cleanProduct(tmp);
             MetadataElement root = p.getMetadataRoot();
             MetadataElement absMetadata = new MetadataElement("Abstracted_Metadata");// date_metadatapairs.get(dateMst);
-            ProductUtils.copyMetadata(masterAbstractedMetadata, absMetadata);
+            ProductUtils.copyMetadata(referenceAbstractedMetadata, absMetadata);
             root.addElement(absMetadata);
-            MetadataAttribute multimaster = new MetadataAttribute("multimaster_split", ProductData.TYPE_UINT8);
-            absMetadata.addAttribute(multimaster);
+            MetadataAttribute multireference = new MetadataAttribute("multireference_split", ProductData.TYPE_UINT8);
+            absMetadata.addAttribute(multireference);
             //absMetadata.removeElement(absMetadata.getElement("Orbit_State_Vectors"));
-            //absMetadata.addElement(masterOrbitData);
+            //absMetadata.addElement(refOrbitData);
             try{
                 MetadataElement original_product_metadata = rootMetadata.getElement("Original_Product_Metadata");
                 root.addElement(original_product_metadata);
@@ -161,17 +162,17 @@ public class MultiMasterOp extends Operator{
             }
 
             absMetadata.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
-            MetadataElement slave_data = new MetadataElement(AbstractMetadata.SLAVE_METADATA_ROOT);
+            MetadataElement secondary_data = new MetadataElement(AbstractMetadata.SECONDARY_METADATA_ROOT);
 
-            slave_data.addElement(date_metadatapairs.get(dateMst));
-            slave_data.addElement(date_metadatapairs.get(dateSlv));
+            secondary_data.addElement(date_metadatapairs.get(dateRef));
+            secondary_data.addElement(date_metadatapairs.get(dateSec));
 
 
-            root.addElement(slave_data);
-            mstBands = date_bandpairs.get(dateMst);
-            final ArrayList<Band> slvBands = date_bandpairs.get(dateSlv);
-            final ArrayList<Band> finalMstBands = mstBands;
-            GeoCoding g = singleMaster_MultiSlave.getSceneGeoCoding();
+            root.addElement(secondary_data);
+            refBands = date_bandpairs.get(dateRef);
+            final ArrayList<Band> secBands = date_bandpairs.get(dateSec);
+            final ArrayList<Band> finalRefBands = refBands;
+            GeoCoding g = singleReference_MultiSecondary.getSceneGeoCoding();
             //p.setSceneGeoCoding(g);
             final int finalX = x;
             final ThreadRunnable runnable = new ThreadRunnable() {
@@ -179,13 +180,13 @@ public class MultiMasterOp extends Operator{
                 @Override
                 public void process() {
                     try {
-                        for (Band b: finalMstBands){
-                            ProductUtils.copyBand(b.getName(), singleMaster_MultiSlave, p, true);
-                            p.getBand(b.getName()).setName(b.getName().replace("slv", "mst"));
+                        for (Band b: finalRefBands){
+                            ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
+                            p.getBand(b.getName()).setName(b.getName().replace("sec", "ref").replace("slv", "ref"));
                         }
-                        for (Band b: slvBands){
-                            ProductUtils.copyBand(b.getName(), singleMaster_MultiSlave, p, true);
-                            p.getBand(b.getName()).setName(b.getName().replace( "mst", "slv"));
+                        for (Band b: secBands){
+                            ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
+                            p.getBand(b.getName()).setName(b.getName().replace("ref", "sec").replace("mst", "sec"));
                         }
 
                         ProductIO.writeProduct(p, outputFolder + "/" + p.getName(), "BEAM-DIMAP");
