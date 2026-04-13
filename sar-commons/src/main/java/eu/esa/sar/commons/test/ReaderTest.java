@@ -24,6 +24,8 @@ import org.esa.snap.engine_utilities.util.TestUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ReaderTest extends ProcessorTest {
 
@@ -32,13 +34,24 @@ public class ReaderTest extends ProcessorTest {
     protected boolean verifyTime = true;
     protected boolean verifyGeoCoding = true;
 
+    private final List<Product> productsToDispose = new ArrayList<>();
+
     public ReaderTest(final ProductReaderPlugIn readerPlugIn) {
         this.readerPlugIn = readerPlugIn;
         this.reader = readerPlugIn.createReaderInstance();
     }
 
     protected void close() throws IOException {
-        reader.close();
+        for (Product product : productsToDispose) {
+            if (product != null) {
+                product.dispose();
+            }
+        }
+        productsToDispose.clear();
+        try {
+            reader.close();
+        } catch (IOException ignore) {
+        }
     }
 
     protected Product testReader(final Path inputPath) throws Exception {
@@ -62,6 +75,7 @@ public class ReaderTest extends ProcessorTest {
             throw new Exception("Unable to read product");
         }
 
+        productsToDispose.add(product);
         return product;
     }
 }
