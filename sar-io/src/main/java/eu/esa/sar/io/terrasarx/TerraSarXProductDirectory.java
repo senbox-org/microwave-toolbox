@@ -84,8 +84,8 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
     private final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
 
     // For TDM CoSSC products only
-    private String masterProductName = null;
-    private String slaveProductName = null;
+    private String referenceProductName = null;
+    private String secondaryProductName = null;
     private boolean isTanDEMX = false;
 
     public TerraSarXProductDirectory(final File inputFile) {
@@ -133,87 +133,87 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
         // xmlDoc is the "main" annotation (i.e., the file with name "TDM... .xml")
         final Element mainRootElement = xmlDoc.getRootElement();
 
-        final String inSARmasterID = mainRootElement.getChild("commonAcquisitionInfo")
+        final String inSARreferenceID = mainRootElement.getChild("commonAcquisitionInfo")
                 .getChild("inSARmasterID").getText().toLowerCase();
-        final String inSARslaveID = inSARmasterID.endsWith("1") ? "sat2" : "sat1";
-        final String masterSatellite = mainRootElement.getChild("commonAcquisitionInfo")
-                .getChild("satelliteID" + inSARmasterID).getText();
-        final String slaveSatellite = mainRootElement.getChild("commonAcquisitionInfo")
-                .getChild("satelliteID" + inSARslaveID).getText();
+        final String inSARsecondaryID = inSARreferenceID.endsWith("1") ? "sat2" : "sat1";
+        final String referenceSatellite = mainRootElement.getChild("commonAcquisitionInfo")
+                .getChild("satelliteID" + inSARreferenceID).getText();
+        final String secondarySatellite = mainRootElement.getChild("commonAcquisitionInfo")
+                .getChild("satelliteID" + inSARsecondaryID).getText();
 
         final List<Element> componentList = mainRootElement.getChild("productComponents").getChildren("component");
-        Element masterAnnotationComponent = null;
-        Element slaveAnnotationComponent = null;
+        Element referenceAnnotationComponent = null;
+        Element secondaryAnnotationComponent = null;
         for (Element component : componentList) {
             final String satId = component.getChild("instrument").getChildText("satIDs");
             if (component.getChildText("name").startsWith("cossc_annotation")) {
-                if (satId.equals(masterSatellite)) {
-                    masterAnnotationComponent = component;
+                if (satId.equals(referenceSatellite)) {
+                    referenceAnnotationComponent = component;
                 }
-                if (satId.equals(slaveSatellite)) {
-                    slaveAnnotationComponent = component;
+                if (satId.equals(secondarySatellite)) {
+                    secondaryAnnotationComponent = component;
                 }
             }
-            if (masterAnnotationComponent != null && slaveAnnotationComponent != null) {
+            if (referenceAnnotationComponent != null && secondaryAnnotationComponent != null) {
                 break;
             }
         }
-        if (masterAnnotationComponent == null) {
-            throw new IOException("Cannot locate primary annotation component (master product) in main annotation of TDM product");
+        if (referenceAnnotationComponent == null) {
+            throw new IOException("Cannot locate primary annotation component (reference product) in main annotation of TDM product");
         }
-        if (slaveAnnotationComponent == null) {
-            throw new IOException("Cannot locate secondary annotation component (slave product) in main annotation of TDM product");
+        if (secondaryAnnotationComponent == null) {
+            throw new IOException("Cannot locate secondary annotation component (secondary product) in main annotation of TDM product");
         }
 
-        String masterHeader = masterAnnotationComponent.getChild("file").getChild("location").getChildText("name");
-        masterProductName = masterHeader.substring(0, masterHeader.indexOf('/'));
+        String referenceHeader = referenceAnnotationComponent.getChild("file").getChild("location").getChildText("name");
+        referenceProductName = referenceHeader.substring(0, referenceHeader.indexOf('/'));
 
-        masterHeader = findHeaderFile(masterHeader, masterProductName);
+        referenceHeader = findHeaderFile(referenceHeader, referenceProductName);
 
-        // Build the slave metadata
+        // Build the secondary metadata
 
-        String slaveHeader = slaveAnnotationComponent.getChild("file").getChild("location").getChildText("name");
-        slaveProductName = slaveHeader.substring(0, slaveHeader.indexOf('/'));
+        String secondaryHeader = secondaryAnnotationComponent.getChild("file").getChild("location").getChildText("name");
+        secondaryProductName = secondaryHeader.substring(0, secondaryHeader.indexOf('/'));
 
-        slaveHeader = findHeaderFile(slaveHeader, slaveProductName);
+        secondaryHeader = findHeaderFile(secondaryHeader, secondaryProductName);
 
-        final Document slaveDoc;
-        try (final InputStream is = getInputStream(slaveHeader)) {
-            slaveDoc = XMLSupport.LoadXML(is);
+        final Document secondaryDoc;
+        try (final InputStream is = getInputStream(secondaryHeader)) {
+            secondaryDoc = XMLSupport.LoadXML(is);
         }
-        final Element slaveRootElement = slaveDoc.getRootElement();
+        final Element secondaryRootElement = secondaryDoc.getRootElement();
 
-        final MetadataElement slaveRoot = new MetadataElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        AbstractMetadataIO.AddXMLMetadata(slaveRootElement, AbstractMetadata.addOriginalProductMetadata(slaveRoot));
-        addAbstractedMetadataHeader(slaveRoot);
+        final MetadataElement secondaryRoot = new MetadataElement(AbstractMetadata.SECONDARY_METADATA_ROOT);
+        AbstractMetadataIO.AddXMLMetadata(secondaryRootElement, AbstractMetadata.addOriginalProductMetadata(secondaryRoot));
+        addAbstractedMetadataHeader(secondaryRoot);
 
-        final MetadataElement slaveAbstractedMetadataElem = slaveRoot.getElement("Abstracted_Metadata");
+        final MetadataElement secondaryAbstractedMetadataElem = secondaryRoot.getElement("Abstracted_Metadata");
 
-        // Add Product_Information to slave Abstracted_Metadata
+        // Add Product_Information to secondary Abstracted_Metadata
         final MetadataElement productInfo = new MetadataElement("Product_Information");
         final MetadataElement inputProd = new MetadataElement("InputProducts");
         productInfo.addElement(inputProd);
-        inputProd.setAttributeString("InputProduct", slaveProductName);
-        slaveAbstractedMetadataElem.addElement(productInfo);
+        inputProd.setAttributeString("InputProduct", secondaryProductName);
+        secondaryAbstractedMetadataElem.addElement(productInfo);
 
-        // Change the name from Abstracted_Metadata to the slave product name
-        slaveAbstractedMetadataElem.setName(slaveProductName);
+        // Change the name from Abstracted_Metadata to the secondary product name
+        secondaryAbstractedMetadataElem.setName(secondaryProductName);
 
-        // Use the master's annotation to build the Abstracted_Metadata and Original_Product_Metadata.
+        // Use the reference's annotation to build the Abstracted_Metadata and Original_Product_Metadata.
 
         final MetadataElement metadataRoot = new MetadataElement(Product.METADATA_ROOT_NAME);
 
-        final Document masterDoc;
-        try (final InputStream is = getInputStream(masterHeader)) {
-            masterDoc = XMLSupport.LoadXML(is);
+        final Document referenceDoc;
+        try (final InputStream is = getInputStream(referenceHeader)) {
+            referenceDoc = XMLSupport.LoadXML(is);
         }
 
-        final Element masterRootElement = masterDoc.getRootElement();
-        AbstractMetadataIO.AddXMLMetadata(masterRootElement, AbstractMetadata.addOriginalProductMetadata(metadataRoot));
+        final Element referenceRootElement = referenceDoc.getRootElement();
+        AbstractMetadataIO.AddXMLMetadata(referenceRootElement, AbstractMetadata.addOriginalProductMetadata(metadataRoot));
 
         addAbstractedMetadataHeader(metadataRoot);
 
-        // Replace the product name (which right now is the master product) with the TDM product.
+        // Replace the product name (which right now is the reference product) with the TDM product.
         // Replace data in Abstracted_Metadata with TDM values.
 
         MetadataElement abstractedMetadata = metadataRoot.getElement("Abstracted_Metadata");
@@ -243,29 +243,29 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
         // Turn on the bi-static flag
         abstractedMetadata.setAttributeInt("bistatic_stack", 1);
 
-        // Add the slave metadata
-        metadataRoot.addElement(slaveRoot);
+        // Add the secondary metadata
+        metadataRoot.addElement(secondaryRoot);
 
         return metadataRoot;
     }
 
-    private String findHeaderFile(final String slaveHeader, final String slaveProductName) throws IOException {
+    private String findHeaderFile(final String headerPath, final String productName) throws IOException {
         try {
             // test file
-            File slaveHeaderFile = getFile(slaveHeader);
+            File headerFile = getFile(headerPath);
         } catch (FileNotFoundException e) {
-            File slaveProductFolder = getFile(slaveProductName);
-            File[] files = slaveProductFolder.listFiles(new FileFilter() {
+            File productFolder = getFile(productName);
+            File[] files = productFolder.listFiles(new FileFilter() {
                 @Override
                 public boolean accept(File pathname) {
                     return pathname.getName().toLowerCase().endsWith(".xml");
                 }
             });
             if (files != null && files.length > 0) {
-                return slaveProductName + '/' + files[0].getName();
+                return productName + '/' + files[0].getName();
             }
         }
-        return slaveHeader;
+        return headerPath;
     }
 
     public boolean isTanDEMX() {
@@ -485,10 +485,10 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
             addAzimuthTimeZpSpotlight(dopplerSpotlightElem);
         }
 
-        // handle ATI products by copying abs metadata to slv metadata
+        // handle ATI products by copying abs metadata to secondary metadata
         final String antennaReceiveConfiguration = acquisitionInfo.getAttributeString("antennaReceiveConfiguration", "");
         if (antennaReceiveConfiguration.equals("DRA")) {
-            final MetadataElement targetSlaveMetadataRoot = AbstractMetadata.getSlaveMetadata(root);
+            final MetadataElement targetSecondaryMetadataRoot = AbstractMetadata.getSecondaryMetadata(root);
 
             // copy Abstracted Metadata
             for (File cosFile : cosarFileList) {
@@ -496,9 +496,9 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
                 if (fileName.contains("_SRA_"))
                     continue;
                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack, 1);
-                final MetadataElement targetSlaveMetadata = new MetadataElement(fileName);
-                targetSlaveMetadataRoot.addElement(targetSlaveMetadata);
-                ProductUtils.copyMetadata(absRoot, targetSlaveMetadata);
+                final MetadataElement targetSecondaryMetadata = new MetadataElement(fileName);
+                targetSecondaryMetadataRoot.addElement(targetSecondaryMetadata);
+                ProductUtils.copyMetadata(absRoot, targetSecondaryMetadata);
             }
 
             // modify abstracted metadata
@@ -509,10 +509,10 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
 
     private void findImagesForTanDemX(final MetadataElement newRoot) throws IOException {
 
-        String parentPath = masterProductName + '/' + getRelativePathToImageFolder();
+        String parentPath = referenceProductName + '/' + getRelativePathToImageFolder();
         findImages(parentPath, newRoot);
 
-        parentPath = slaveProductName + '/' + getRelativePathToImageFolder();
+        parentPath = secondaryProductName + '/' + getRelativePathToImageFolder();
         findImages(parentPath, newRoot);
     }
 
@@ -725,10 +725,10 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
 
         File level1ProductDir = getBaseDir();
         if (getHeaderFileName().startsWith("TDM")) {
-            // Using the master product is important here.
-            // The slave product is coregistered to the master without its geocoding being updated afterwards.
+            // Using the reference product is important here.
+            // The secondary product is coregistered to the reference without its geocoding being updated afterwards.
             // Its geocoding is unusable because of this.
-            level1ProductDir = new File(getBaseDir(), masterProductName);
+            level1ProductDir = new File(getBaseDir(), referenceProductName);
         }
         File georefFile = new File(level1ProductDir, "ANNOTATION" + File.separator + "GEOREF.xml");
         if (georefFile.exists()) {
@@ -1101,8 +1101,8 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
 
         if (!cosarFileList.isEmpty()) {
 
-            String masterBands = "";
-            String slaveBands = "";
+            String referenceBands = "";
+            String secondaryBands = "";
 
             final boolean polsUnique = arePolarizationsUnique();
             String extraInfo = "";         // if pols not unique add the extra info
@@ -1115,10 +1115,10 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
 
                 if (mission.contains("TDM")) {
                     final String level1ProductDirName = file.getParentFile().getParentFile().getName();
-                    if (level1ProductDirName.equals(masterProductName)) {
-                        extraInfo = StackUtils.MST;
-                    } else if (level1ProductDirName.equals(slaveProductName)) {
-                        extraInfo = StackUtils.SLV + '1';
+                    if (level1ProductDirName.equals(referenceProductName)) {
+                        extraInfo = StackUtils.REF;
+                    } else if (level1ProductDirName.equals(secondaryProductName)) {
+                        extraInfo = StackUtils.SEC + '1';
                     }
                     extraInfo += StackUtils.createBandTimeStamp(product);
                 } else if (!polsUnique) {
@@ -1135,8 +1135,8 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
                 realBand.setNoDataValueUsed(true);
                 product.addBand(realBand);
 
-                masterBands = appendIfMatch(realBand, "mst", masterBands);
-                slaveBands = appendIfMatch(realBand, "slv", slaveBands);
+                referenceBands = appendIfMatch(realBand, "ref", referenceBands);
+                secondaryBands = appendIfMatch(realBand, "sec", secondaryBands);
 
                 final Band imaginaryBand = new Band("q_" + pol + extraInfo, bandDataType, width, height);
                 imaginaryBand.setUnit(Unit.IMAGINARY);
@@ -1144,8 +1144,8 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
                 imaginaryBand.setNoDataValueUsed(true);
                 product.addBand(imaginaryBand);
 
-                masterBands = appendIfMatch(imaginaryBand, "mst", masterBands);
-                slaveBands = appendIfMatch(imaginaryBand, "slv", slaveBands);
+                referenceBands = appendIfMatch(imaginaryBand, "ref", referenceBands);
+                secondaryBands = appendIfMatch(imaginaryBand, "sec", secondaryBands);
 
                 ReaderUtils.createVirtualIntensityBand(product, realBand, imaginaryBand, "");
 
@@ -1158,14 +1158,14 @@ public class TerraSarXProductDirectory extends XMLProductDirectory {
             }
 
             if (mission.contains("TDM")) {
-                final MetadataElement slaveMetadata = absRoot.getParentElement().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
+                final MetadataElement secondaryMetadata = StackUtils.findSecondaryMetadataRoot(absRoot.getParentElement());
 
-                slaveMetadata.setAttributeString("Master_bands", masterBands);
+                secondaryMetadata.setAttributeString(AbstractMetadata.REFERENCE_BANDS, referenceBands);
 
-                final MetadataElement slaveProduct = slaveMetadata.getElement(slaveProductName);
-                final MetadataAttribute slaveBandsAttr = new MetadataAttribute("Slave_bands", ProductData.TYPE_ASCII);
-                slaveProduct.addAttribute(slaveBandsAttr);
-                slaveProduct.setAttributeString(slaveBandsAttr.getName(), slaveBands);
+                final MetadataElement secondaryProduct = secondaryMetadata.getElement(secondaryProductName);
+                final MetadataAttribute secondaryBandsAttr = new MetadataAttribute(AbstractMetadata.SECONDARY_BANDS, ProductData.TYPE_ASCII);
+                secondaryProduct.addAttribute(secondaryBandsAttr);
+                secondaryProduct.setAttributeString(secondaryBandsAttr.getName(), secondaryBands);
             }
         }
 

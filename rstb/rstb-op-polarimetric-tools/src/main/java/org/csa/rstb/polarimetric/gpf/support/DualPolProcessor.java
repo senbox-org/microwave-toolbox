@@ -201,7 +201,7 @@ public interface DualPolProcessor extends PolarimetricProcessor, MatrixMath {
     default void getMeanCorrelationMatrixC2(
             final int x, final int y, final int halfWindowSizeX, final int halfWindowSizeY,
             final int sourceImageWidth, final int sourceImageHeight, final PolBandUtils.MATRIX sourceProductType,
-            final Tile[] sourceTiles, final ProductData[] mstDataBuffers, final ProductData[] slvDataBuffers,
+            final Tile[] sourceTiles, final ProductData[] refDataBuffers, final ProductData[] secDataBuffers,
             final double[][] Cr, final double[][] Ci) {
 
         final int xSt = Math.max(x - halfWindowSizeX, 0);
@@ -233,8 +233,8 @@ public interface DualPolProcessor extends PolarimetricProcessor, MatrixMath {
                 for (int xx = xSt; xx <= xEd; ++xx) {
                     final int idx = srcIndex.getIndex(xx);
 
-                    getScatterVector(idx, mstDataBuffers, K1r, K1i);
-                    getScatterVector(idx, slvDataBuffers, K2r, K2i);
+                    getScatterVector(idx, refDataBuffers, K1r, K1i);
+                    getScatterVector(idx, secDataBuffers, K2r, K2i);
 
                     computeCorrelationMatrixC2(K1r, K1i, K2r, K2i, tmpCrMat, tmpCiMat);
 

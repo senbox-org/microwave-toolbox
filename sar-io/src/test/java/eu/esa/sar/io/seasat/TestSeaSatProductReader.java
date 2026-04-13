@@ -64,6 +64,7 @@ public class TestSeaSatProductReader extends ReaderTest {
 
     @Test
     public void testOpenZip() throws Exception {
+        assumeTrue(zipFile + " not found", zipFile.exists());
         Product prod = testReader(zipFile.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);

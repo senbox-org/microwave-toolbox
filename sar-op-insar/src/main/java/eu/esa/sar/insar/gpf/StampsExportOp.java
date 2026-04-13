@@ -118,14 +118,14 @@ public class StampsExportOp extends Operator {
 
             // First product should be stack product
             String bandnames[] = sourceProduct[0].getBandNames();
-            boolean foundmst = false;
+            boolean foundRef = false;
             for (String bandname : bandnames) {
-                if (bandname.toLowerCase().contains("mst")) {
-                    foundmst = true;
+                if (bandname.toLowerCase().contains("ref") || bandname.toLowerCase().contains("mst")) {
+                    foundRef = true;
                     break;
                 }
             }
-            if (!foundmst) {
+            if (!foundRef) {
                 throw new OperatorException("The 1st product should be a stack of coregistered SLC products, the 2nd should be interferogram");
             }
 
@@ -182,8 +182,8 @@ public class StampsExportOp extends Operator {
 
                         //System.out.println("copy/add " + srcBandName + " to " + targetBand.getName());
                     } else if (srcBandName.equals("orthorectifiedLat") || srcBandName.equals("orthorectifiedLon")) {
-                        final String masterDateStr = extractDate(sourceProduct[0].getBandAt(0).getName(), FOLDERS.GEO);
-                        String targetBandName = masterDateStr;
+                        final String referenceDateStr = extractDate(sourceProduct[0].getBandAt(0).getName(), FOLDERS.GEO);
+                        String targetBandName = referenceDateStr;
                         if (srcBandName.equals("orthorectifiedLat")) {
                             targetBandName = targetBandName + ".lat";
                             includesLat = true;
@@ -235,9 +235,9 @@ public class StampsExportOp extends Operator {
     private String extractDate(final String bandName, final FOLDERS folderType) {
         String dateStr = bandName.substring(bandName.lastIndexOf('_') + 1, bandName.length());
         if (folderType.equals(FOLDERS.DIFF)) {
-            String mstStr = bandName.substring(0, bandName.lastIndexOf('_'));
-            String mstDate = mstStr.substring(mstStr.lastIndexOf('_') + 1, mstStr.length());
-            return convertFormat(mstDate) + '_' + convertFormat(dateStr);
+            String refStr = bandName.substring(0, bandName.lastIndexOf('_'));
+            String refDate = refStr.substring(refStr.lastIndexOf('_') + 1, refStr.length());
+            return convertFormat(refDate) + '_' + convertFormat(dateStr);
         }
         return convertFormat(dateStr);
     }
@@ -319,23 +319,23 @@ public class StampsExportOp extends Operator {
 
         InSARStackOverview.IfgStack[] stackOverview = InSARStackOverview.calculateInSAROverview(sourceProduct[0]);
 
-        String masterDate = info.targetBandName.substring(0, info.targetBandName.indexOf('_'));
-        String slaveDate = info.targetBandName.substring(info.targetBandName.indexOf('_')+1, info.targetBandName.indexOf('.'));
+        String referenceDate = info.targetBandName.substring(0, info.targetBandName.indexOf('_'));
+        String secondaryDate = info.targetBandName.substring(info.targetBandName.indexOf('_')+1, info.targetBandName.indexOf('.'));
 
-        // find correct master slave pair
-        int mstIndex = 0, slvIndex = 0;
+        // find correct reference secondary pair
+        int refIndex = 0, secIndex = 0;
         for(int i=0; i < stackOverview.length; ++i) {
-            double mstMJD = stackOverview[i].getMasterSlave()[0].getMasterMetadata().getMjd();
-            final String mstDate = dateFormat.format(new ProductData.UTC(mstMJD).getAsDate());
+            double refMJD = stackOverview[i].getMasterSlave()[0].getMasterMetadata().getMjd();
+            final String refDate = dateFormat.format(new ProductData.UTC(refMJD).getAsDate());
 
-            if(masterDate.equals(mstDate)) {
-                mstIndex = i;
+            if(referenceDate.equals(refDate)) {
+                refIndex = i;
                 for(int j=0; j< stackOverview[i].getMasterSlave().length; ++j) {
-                    double slvMJD = stackOverview[i].getMasterSlave()[j].getSlaveMetadata().getMjd();
-                    final String slvDate = dateFormat.format(new ProductData.UTC(slvMJD).getAsDate());
+                    double secMJD = stackOverview[i].getMasterSlave()[j].getSlaveMetadata().getMjd();
+                    final String secDate = dateFormat.format(new ProductData.UTC(secMJD).getAsDate());
 
-                    if (slaveDate.equals(slvDate)) {
-                        slvIndex = j;
+                    if (secondaryDate.equals(secDate)) {
+                        secIndex = j;
                         break;
                     }
                 }
@@ -343,13 +343,13 @@ public class StampsExportOp extends Operator {
             }
         }
 
-        final double bh0 = stackOverview[mstIndex].getMasterSlave()[slvIndex].getHorizontalBaseline(firstLine, refPixel, height);
-        final double bhN = stackOverview[mstIndex].getMasterSlave()[slvIndex].getHorizontalBaseline(lastLine, refPixel, height);
+        final double bh0 = stackOverview[refIndex].getMasterSlave()[secIndex].getHorizontalBaseline(firstLine, refPixel, height);
+        final double bhN = stackOverview[refIndex].getMasterSlave()[secIndex].getHorizontalBaseline(lastLine, refPixel, height);
         final double bhm = (bh0 + bhN) * 0.5;
         final double bhr = (bhN - bh0) / (tN - t0);
 
-        final double bv0 = stackOverview[mstIndex].getMasterSlave()[slvIndex].getVerticalBaseline(firstLine, refPixel, height);
-        final double bvN = stackOverview[mstIndex].getMasterSlave()[slvIndex].getVerticalBaseline(lastLine, refPixel, height);
+        final double bv0 = stackOverview[refIndex].getMasterSlave()[secIndex].getVerticalBaseline(firstLine, refPixel, height);
+        final double bvN = stackOverview[refIndex].getMasterSlave()[secIndex].getVerticalBaseline(lastLine, refPixel, height);
         final double bvm = (bv0 + bvN) * 0.5;
         final double bvr = (bvN - bv0) / (tN - t0);
 

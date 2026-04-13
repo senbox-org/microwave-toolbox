@@ -251,7 +251,7 @@ import java.util.Map;
                 final TileIndex srcIndex = new TileIndex(srcTile);
                 final TileIndex tgtIndex = new TileIndex(tgtTile);
 
-                final ResamplingRaster slvResamplingRaster = new ResamplingRaster(srcTile, srcData);
+                final ResamplingRaster secResamplingRaster = new ResamplingRaster(srcTile, srcData);
                 final Resampling.Index resamplingIndex = selectedResampling.createIndex();
 
                 for (int y = y0; y <= yMax; ++y) {
@@ -267,7 +267,7 @@ import java.util.Map;
                         selectedResampling.computeCornerBasedIndex(slavePixelPos.x, slavePixelPos.y,
                                 sourceImageWidth, sourceImageHeight, resamplingIndex);
 
-                        final double v = selectedResampling.resample(slvResamplingRaster, resamplingIndex);
+                        final double v = selectedResampling.resample(secResamplingRaster, resamplingIndex);
                         tgtData.setElemDoubleAt(tgtIdx, v);
                     }
                 }

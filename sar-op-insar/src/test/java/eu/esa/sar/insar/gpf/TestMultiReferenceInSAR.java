@@ -96,7 +96,7 @@ public class TestMultiReferenceInSAR {
     @Test
     public void test_targetProduct_is_missing_required_bands() throws Exception {
         Product sourceProductWithoutRequiredBands = createStackProduct();
-        sourceProductWithoutRequiredBands.removeBand(sourceProductWithoutRequiredBands.getBand("i_VV_mst_26Apr2008"));
+        sourceProductWithoutRequiredBands.removeBand(sourceProductWithoutRequiredBands.getBand("i_VV_ref_26Apr2008"));
 
         MultiMasterInSAROp op = new MultiMasterInSAROp();
         op.setSourceProduct(sourceProductWithoutRequiredBands);
@@ -142,12 +142,12 @@ public class TestMultiReferenceInSAR {
     private Product createStackProduct() throws IOException {
         int size = 10;
         Product srcProduct = TestUtils.createProduct("stackProduct", size, size);
-        TestUtils.createBand(srcProduct, "i_VV_mst_26Apr2008", size, size);
-        TestUtils.createBand(srcProduct, "q_VV_mst_26Apr2008", size, size);
-        TestUtils.createBand(srcProduct, "i_VV_slv1_25Aug2007", size, size);
-        TestUtils.createBand(srcProduct, "q_VV_slv1_25Aug2007", size, size);
-        TestUtils.createBand(srcProduct, "i_VV_slv2_23Dec2006", size, size);
-        TestUtils.createBand(srcProduct, "q_VV_slv2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_ref_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_ref_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_sec1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_sec1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_sec2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_sec2_23Dec2006", size, size);
         TestUtils.createBand(srcProduct, "elevation", size, size);
 
         AbstractMetadataIO.Load(srcProduct, srcProduct.getMetadataRoot(), new File("src/test/resources/metadata.xml"));
@@ -158,18 +158,18 @@ public class TestMultiReferenceInSAR {
     private Product createDualPolStackProduct() throws IOException {
         int size = 10;
         Product srcProduct = TestUtils.createProduct("stackProduct", size, size);
-        TestUtils.createBand(srcProduct, "i_VH_mst_26Apr2008", size, size);
-        TestUtils.createBand(srcProduct, "q_VH_mst_26Apr2008", size, size);
-        TestUtils.createBand(srcProduct, "i_VV_mst_26Apr2008", size, size);
-        TestUtils.createBand(srcProduct, "q_VV_mst_26Apr2008", size, size);
-        TestUtils.createBand(srcProduct, "i_VH_slv1_25Aug2007", size, size);
-        TestUtils.createBand(srcProduct, "q_VH_slv1_25Aug2007", size, size);
-        TestUtils.createBand(srcProduct, "i_VV_slv1_25Aug2007", size, size);
-        TestUtils.createBand(srcProduct, "q_VV_slv1_25Aug2007", size, size);
-        TestUtils.createBand(srcProduct, "i_VH_slv2_23Dec2006", size, size);
-        TestUtils.createBand(srcProduct, "q_VH_slv2_23Dec2006", size, size);
-        TestUtils.createBand(srcProduct, "i_VV_slv2_23Dec2006", size, size);
-        TestUtils.createBand(srcProduct, "q_VV_slv2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "i_VH_ref_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "q_VH_ref_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_ref_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_ref_26Apr2008", size, size);
+        TestUtils.createBand(srcProduct, "i_VH_sec1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "q_VH_sec1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_sec1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_sec1_25Aug2007", size, size);
+        TestUtils.createBand(srcProduct, "i_VH_sec2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "q_VH_sec2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "i_VV_sec2_23Dec2006", size, size);
+        TestUtils.createBand(srcProduct, "q_VV_sec2_23Dec2006", size, size);
         TestUtils.createBand(srcProduct, "elevation", size, size);
 
         AbstractMetadataIO.Load(srcProduct, srcProduct.getMetadataRoot(), new File("src/test/resources/metadata.xml"));

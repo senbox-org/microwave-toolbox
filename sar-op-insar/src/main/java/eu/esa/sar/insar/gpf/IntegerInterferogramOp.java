@@ -57,13 +57,13 @@ public class IntegerInterferogramOp extends Operator {
     @TargetProduct
     Product targetProduct;
 
-    private MetadataElement mstRoot = null;
-    private MetadataElement slv1Root = null;
-    private MetadataElement slv2Root = null;
-    private Band slv1BandI = null;
-    private Band slv1BandQ = null;
-    private Band slv2BandI = null;
-    private Band slv2BandQ = null;
+    private MetadataElement refRoot = null;
+    private MetadataElement sec1Root = null;
+    private MetadataElement sec2Root = null;
+    private Band sec1BandI = null;
+    private Band sec1BandQ = null;
+    private Band sec2BandI = null;
+    private Band sec2BandQ = null;
     private Band ifgBandI = null;
     private Band ifgBandQ = null;
     private double hoa1 = 0.0; // height of ambiguity
@@ -129,19 +129,19 @@ public class IntegerInterferogramOp extends Operator {
 
     private void getMetadata() {
 
-        mstRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct[0]);
+        refRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct[0]);
 
-        MetadataElement slaveElem1 = sourceProduct[0].getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        if (slaveElem1 == null) {
-            throw new OperatorException("Slave_Metadata not found in product " + sourceProduct[0].getName());
+        MetadataElement secondaryElem1 = StackUtils.findSecondaryMetadataRoot(sourceProduct[0]);
+        if (secondaryElem1 == null) {
+            throw new OperatorException("Secondary_Metadata not found in product " + sourceProduct[0].getName());
         }
-        slv1Root = slaveElem1.getElements()[0];
+        sec1Root = secondaryElem1.getElements()[0];
 
-        MetadataElement slaveElem2 = sourceProduct[1].getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        if (slaveElem2 == null) {
-            throw new OperatorException("Slave_Metadata not found in product " + sourceProduct[1].getName());
+        MetadataElement secondaryElem2 = StackUtils.findSecondaryMetadataRoot(sourceProduct[1]);
+        if (secondaryElem2 == null) {
+            throw new OperatorException("Secondary_Metadata not found in product " + sourceProduct[1].getName());
         }
-        slv2Root = slaveElem2.getElements()[0];
+        sec2Root = secondaryElem2.getElements()[0];
     }
 
     /**
@@ -150,7 +150,7 @@ public class IntegerInterferogramOp extends Operator {
     private void getHOA() throws Exception {
 
         InSARStackOverview.IfgStack[] stackOverview1 = InSARStackOverview.calculateInSAROverview(
-                new MetadataElement[]{mstRoot, slv1Root});
+                new MetadataElement[]{refRoot, sec1Root});
 
         hoa1 = stackOverview1[0].getMasterSlave()[1].getHeightAmb();
         if (StackUtils.isBiStaticStack(sourceProduct[0])) {
@@ -158,7 +158,7 @@ public class IntegerInterferogramOp extends Operator {
         }
 
         InSARStackOverview.IfgStack[] stackOverview2 = InSARStackOverview.calculateInSAROverview(
-                new MetadataElement[]{mstRoot, slv2Root});
+                new MetadataElement[]{refRoot, sec2Root});
 
         hoa2 = stackOverview2[0].getMasterSlave()[1].getHeightAmb();
         if (StackUtils.isBiStaticStack(sourceProduct[1])) {
@@ -187,12 +187,12 @@ public class IntegerInterferogramOp extends Operator {
 
     private void getSourceBands() {
 
-        final String mstDate = OperatorUtils.getAcquisitionDate(mstRoot);
-        final String slv1Date = OperatorUtils.getAcquisitionDate(slv1Root);
-        final String slv2Date = OperatorUtils.getAcquisitionDate(slv2Root);
+        final String refDate = OperatorUtils.getAcquisitionDate(refRoot);
+        final String sec1Date = OperatorUtils.getAcquisitionDate(sec1Root);
+        final String sec2Date = OperatorUtils.getAcquisitionDate(sec2Root);
 
-        final String slv1Tag = mstDate + '_' + slv1Date;
-        final String slv2Tag = mstDate + '_' + slv2Date;
+        final String sec1Tag = refDate + '_' + sec1Date;
+        final String sec2Tag = refDate + '_' + sec2Date;
 
         final Band[] srcBands1 = sourceProduct[0].getBands();
         for (Band band : srcBands1) {
@@ -201,11 +201,11 @@ public class IntegerInterferogramOp extends Operator {
             }
 
             final String unit = band.getUnit();
-            if (band.getName().contains(slv1Tag)) {
+            if (band.getName().contains(sec1Tag)) {
                 if (unit.equals(Unit.REAL)) {
-                    slv1BandI = band;
+                    sec1BandI = band;
                 } else if (unit.equals(Unit.IMAGINARY)) {
-                    slv1BandQ = band;
+                    sec1BandQ = band;
                 }
             }
         }
@@ -217,16 +217,16 @@ public class IntegerInterferogramOp extends Operator {
             }
 
             final String unit = band.getUnit();
-            if (band.getName().contains(slv2Tag)) {
+            if (band.getName().contains(sec2Tag)) {
                 if (unit.equals(Unit.REAL)) {
-                    slv2BandI = band;
+                    sec2BandI = band;
                 } else if (unit.equals(Unit.IMAGINARY)) {
-                    slv2BandQ = band;
+                    sec2BandQ = band;
                 }
             }
         }
 
-        if (slv1BandI == null || slv1BandQ == null || slv2BandI == null || slv2BandQ == null) {
+        if (sec1BandI == null || sec1BandQ == null || sec2BandI == null || sec2BandQ == null) {
             throw new OperatorException("Two interferogram products are expected.");
         }
     }
@@ -287,18 +287,18 @@ public class IntegerInterferogramOp extends Operator {
             final ProductData ifgDataBufferI = ifgTileI.getDataBuffer();
             final ProductData ifgDataBufferQ = ifgTileQ.getDataBuffer();
 
-            final Tile slv1TileI = getSourceTile(slv1BandI, targetRectangle);
-            final Tile slv1TileQ = getSourceTile(slv1BandQ, targetRectangle);
-            final ProductData slv1DataBufferI = slv1TileI.getDataBuffer();
-            final ProductData slv1DataBufferQ = slv1TileQ.getDataBuffer();
+            final Tile sec1TileI = getSourceTile(sec1BandI, targetRectangle);
+            final Tile sec1TileQ = getSourceTile(sec1BandQ, targetRectangle);
+            final ProductData sec1DataBufferI = sec1TileI.getDataBuffer();
+            final ProductData sec1DataBufferQ = sec1TileQ.getDataBuffer();
 
-            final Tile slv2TileI = getSourceTile(slv2BandI, targetRectangle);
-            final Tile slv2TileQ = getSourceTile(slv2BandQ, targetRectangle);
-            final ProductData slv2DataBufferI = slv2TileI.getDataBuffer();
-            final ProductData slv2DataBufferQ = slv2TileQ.getDataBuffer();
+            final Tile sec2TileI = getSourceTile(sec2BandI, targetRectangle);
+            final Tile sec2TileQ = getSourceTile(sec2BandQ, targetRectangle);
+            final ProductData sec2DataBufferI = sec2TileI.getDataBuffer();
+            final ProductData sec2DataBufferQ = sec2TileQ.getDataBuffer();
 
             final TileIndex tgtIndex = new TileIndex(ifgTileI);
-            final TileIndex srcIndex = new TileIndex(slv1TileI);
+            final TileIndex srcIndex = new TileIndex(sec1TileI);
 
             for (int y = y0; y < yMax; ++y) {
                 tgtIndex.calculateStride(y);
@@ -308,13 +308,13 @@ public class IntegerInterferogramOp extends Operator {
                     final int tgtIdx = tgtIndex.getIndex(x);
                     final int srcIdx = srcIndex.getIndex(x);
 
-                    final double slv1IfgI = slv1DataBufferI.getElemDoubleAt(srcIdx);
-                    final double slv1IfgQ = slv1DataBufferQ.getElemDoubleAt(srcIdx);
-                    final double slv2IfgI = slv2DataBufferI.getElemDoubleAt(srcIdx);
-                    final double slv2IfgQ = slv2DataBufferQ.getElemDoubleAt(srcIdx);
+                    final double sec1IfgI = sec1DataBufferI.getElemDoubleAt(srcIdx);
+                    final double sec1IfgQ = sec1DataBufferQ.getElemDoubleAt(srcIdx);
+                    final double sec2IfgI = sec2DataBufferI.getElemDoubleAt(srcIdx);
+                    final double sec2IfgQ = sec2DataBufferQ.getElemDoubleAt(srcIdx);
 
-                    ifgDataBufferI.setElemFloatAt(tgtIdx, (float)(qOpt1*slv1IfgI + qOpt2*slv2IfgI));
-                    ifgDataBufferQ.setElemFloatAt(tgtIdx, (float)(qOpt1*slv1IfgQ + qOpt2*slv2IfgQ));
+                    ifgDataBufferI.setElemFloatAt(tgtIdx, (float)(qOpt1*sec1IfgI + qOpt2*sec2IfgI));
+                    ifgDataBufferQ.setElemFloatAt(tgtIdx, (float)(qOpt1*sec1IfgQ + qOpt2*sec2IfgQ));
                 }
             }
 

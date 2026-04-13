@@ -60,18 +60,18 @@ import java.util.List;
  * Image co-registration is fundamental for Interferometry SAR (InSAR) imaging and its applications, such as
  * DEM map generation and analysis. To obtain a high quality InSAR image, the individual complex images need
  * to be co-registered to sub-pixel accuracy. The co-registration is accomplished through an alignment of a
- * master image with a slave image.
+ * reference image with a secondary image.
  * <p>
- * To achieve the alignment of master and slave images, the first step is to generate a set of uniformly
- * spaced ground control points (GCPs) in the master image, along with the corresponding GCPs in the slave
+ * To achieve the alignment of reference and secondary images, the first step is to generate a set of uniformly
+ * spaced ground control points (GCPs) in the reference image, along with the corresponding GCPs in the secondary
  * image. Details of the generation of the GCP pairs are given in GCPSelectionOperator. The next step is to
- * construct a warp distortion function from the computed GCP pairs and generate co-registered slave image.
+ * construct a warp distortion function from the computed GCP pairs and generate co-registered secondary image.
  * <p>
- * This operator computes the warp function from the master-slave GCP pairs for given polynomial order.
+ * This operator computes the warp function from the reference-secondary GCP pairs for given polynomial order.
  * Basically coefficients of two polynomials are determined from the GCP pairs with each polynomial for
  * one coordinate of the image pixel. With the warp function determined, the co-registered image can be
- * obtained by mapping slave image pixels to master image pixels. In particular, for each pixel position in
- * the master image, warp function produces its corresponding pixel position in the slave image, and the
+ * obtained by mapping secondary image pixels to reference image pixels. In particular, for each pixel position in
+ * the reference image, warp function produces its corresponding pixel position in the secondary image, and the
  * pixel value is computed through interpolation. The following interpolation methods are available:
  * <p>
  * 1. Nearest-neighbour interpolation
@@ -260,21 +260,21 @@ public class WarpOp extends Operator {
     }
 
     private void getMasterBands() {
-        String mstBandName = sourceProduct.getBandAt(0).getName();
+        String refBandName = sourceProduct.getBandAt(0).getName();
 
         // find co-pol bands
-        final String[] masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
+        final String[] masterBandNames = StackUtils.getReferenceBandNames(sourceProduct);
         for (String bandName : masterBandNames) {
-            final String mstPol = OperatorUtils.getPolarizationFromBandName(bandName);
-            if (mstPol != null && (mstPol.equals("hh") || mstPol.equals("vv"))) {
-                mstBandName = bandName;
+            final String refPol = OperatorUtils.getPolarizationFromBandName(bandName);
+            if (refPol != null && (refPol.equals("hh") || refPol.equals("vv"))) {
+                refBandName = bandName;
                 break;
             }
         }
-        masterBand = sourceProduct.getBand(mstBandName);
+        masterBand = sourceProduct.getBand(refBandName);
         if (masterBand.getUnit() != null && masterBand.getUnit().equals(Unit.REAL)) {
-            int mstIdx = sourceProduct.getBandIndex(mstBandName);
-            if (sourceProduct.getNumBands() > mstIdx + 1) {
+            int refIdx = sourceProduct.getBandIndex(refBandName);
+            if (sourceProduct.getNumBands() > refIdx + 1) {
                 complexCoregistration = true;
             }
         }
@@ -323,7 +323,7 @@ public class WarpOp extends Operator {
                                     sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
 
-        masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
+        masterBandNames = StackUtils.getReferenceBandNames(sourceProduct);
 
         final Band[] sourceBands = sourceProduct.getBands();
         for (int i = 0; i < sourceBands.length; i++) {
@@ -345,7 +345,7 @@ public class WarpOp extends Operator {
                 targetBand = targetProduct.addBand(targetBandName, ProductData.TYPE_FLOAT32);
                 ProductUtils.copyRasterDataNodeProperties(srcBand, targetBand);
 
-                // find demodulation band for slave corresponding to srcBand
+                // find demodulation band for secondary corresponding to srcBand
                 for (Band band : sourceBands) {
                     if (band.getName().equals(DEMOD_PHASE_PREFIX + StackUtils.getBandSuffix(srcBand.getName()))
                             && srcBand.getUnit().equals(Unit.REAL)) {
@@ -354,7 +354,7 @@ public class WarpOp extends Operator {
                     }
                 }
 
-                // find slave etad band corresponding to srcBand
+                // find secondary etad band corresponding to srcBand
                 if (srcBand.getUnit() != null && srcBand.getUnit().equals(Unit.REAL)) {
                     for (Band band : sourceBands) {
                         final String bandName = band.getName();
@@ -409,7 +409,7 @@ public class WarpOp extends Operator {
             }
         }
 
-        // co-registered image should have the same geo-coding as the master image
+        // co-registered image should have the same geo-coding as the reference image
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
         updateTargetProductMetadata();
     }
@@ -422,7 +422,7 @@ public class WarpOp extends Operator {
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
 
         if (excludeMaster) {
-            final String[] slaveNames = StackUtils.getSlaveProductNames(sourceProduct);
+            final String[] slaveNames = StackUtils.getSecondaryProductNames(sourceProduct);
             absTgt.setAttributeString(AbstractMetadata.PRODUCT, slaveNames[0]);
 
             final ProductData.UTC[] times = StackUtils.getProductTimes(sourceProduct);
@@ -434,7 +434,7 @@ public class WarpOp extends Operator {
             targetProduct.setEndTime(endTime);
 
         } else {
-            // only if it's a full coregistered stack including master band
+            // only if it's a full coregistered stack including reference band
             AbstractMetadata.setAttribute(absTgt, AbstractMetadata.coregistered_stack, 1);
         }
     }
@@ -543,22 +543,22 @@ public class WarpOp extends Operator {
     }
 
     private ProductNodeGroup<Placemark> getGCPGroup(final Band srcBand) {
-        ProductNodeGroup<Placemark> slaveGCPGroup = GCPManager.instance().getGcpGroup(srcBand);
-        if (slaveGCPGroup.getNodeCount() < 3) {
-            // find others for same slave product
-            final String slvProductName = StackUtils.getSlaveProductName(sourceProduct, srcBand, null);
+        ProductNodeGroup<Placemark> secondaryGCPGroup = GCPManager.instance().getGcpGroup(srcBand);
+        if (secondaryGCPGroup.getNodeCount() < 3) {
+            // find others for same secondary product
+            final String secProductName = StackUtils.getSecondaryProductName(sourceProduct, srcBand, null);
             for (Band band : sourceProduct.getBands()) {
                 if (band != srcBand && !StringUtils.contains(masterBandNames, band.getName())) {
-                    final String productName = StackUtils.getSlaveProductName(sourceProduct, band, null);
-                    if (slvProductName != null && slvProductName.equals(productName)) {
-                        slaveGCPGroup = GCPManager.instance().getGcpGroup(band);
-                        if (slaveGCPGroup.getNodeCount() >= 3)
+                    final String productName = StackUtils.getSecondaryProductName(sourceProduct, band, null);
+                    if (secProductName != null && secProductName.equals(productName)) {
+                        secondaryGCPGroup = GCPManager.instance().getGcpGroup(band);
+                        if (secondaryGCPGroup.getNodeCount() >= 3)
                             break;
                     }
                 }
             }
         }
-        return slaveGCPGroup;
+        return secondaryGCPGroup;
     }
 
     private synchronized void getWarpData(final Rectangle targetRectangle) throws Exception {
@@ -567,7 +567,7 @@ public class WarpOp extends Operator {
             return;
         }
 
-        // find first real slave band
+        // find first real secondary band
         final Band targetBand = targetProduct.getBand(processedSlaveBand);
         // force getSourceTile to computeTiles on GCPSelection
         final Tile sourceRaster = getSourceTile(sourceRasterMap.get(targetBand), targetRectangle);
@@ -575,7 +575,7 @@ public class WarpOp extends Operator {
         final ProductNodeGroup<Placemark> masterGCPGroup = GCPManager.instance().getGcpGroup(masterBand);
         final org.jlinda.core.Window masterWindow = new org.jlinda.core.Window(0, sourceProduct.getSceneRasterHeight(), 0, sourceProduct.getSceneRasterWidth());
 
-        // setup master metadata
+        // setup reference metadata
         SLCImage masterMeta = null;
         Orbit masterOrbit = null;
         if (demRefinement) {
@@ -584,7 +584,7 @@ public class WarpOp extends Operator {
             masterOrbit = new Orbit(absRoot, ORBIT_INTERP_DEGREE);
         }
 
-        // for all slave bands or band pairs compute a warp
+        // for all secondary bands or band pairs compute a warp
         final int slaveMetaCnt = 0;
         final Band[] sourceBands = sourceProduct.getBands();
 
@@ -612,7 +612,7 @@ public class WarpOp extends Operator {
                         continue;
                     }
 
-                    // setup slave metadata
+                    // setup secondary metadata
                     if (demRefinement && !cpm.noRedundancy) {
 
                         // get height for corresponding points
@@ -621,7 +621,7 @@ public class WarpOp extends Operator {
 
                         for (int j = 0; j < nodeCount; j++) {
 
-                            // work only with windows that survived threshold for this slave
+                            // work only with windows that survived threshold for this secondary
                             slaveGCPList.add(slaveGCPGroup.get(j));
                             final Placemark sPin = slaveGCPList.get(j);
                             final Placemark mPin = masterGCPGroup.get(sPin.getName());
@@ -639,7 +639,7 @@ public class WarpOp extends Operator {
                             heightArray[j] = height;
                         }
 
-                        final MetadataElement slaveRoot = targetProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElementAt(slaveMetaCnt);
+                        final MetadataElement slaveRoot = StackUtils.findSecondaryMetadataRoot(targetProduct).getElementAt(slaveMetaCnt);
                         final SLCImage slaveMeta = new SLCImage(slaveRoot, targetProduct);
                         final Orbit slaveOrbit = new Orbit(slaveRoot, ORBIT_INTERP_DEGREE);
                         cpm.setDemNoDataValue(demNoDataValue);
@@ -755,11 +755,11 @@ public class WarpOp extends Operator {
                     final MetadataElement gcpElem = new MetadataElement("GCP" + i);
                     warpDataElem.addElement(gcpElem);
 
-                    gcpElem.setAttributeDouble("mst_x", warpData.getXMasterCoord(i));
-                    gcpElem.setAttributeDouble("mst_y", warpData.getYMasterCoord(i));
+                    gcpElem.setAttributeDouble("ref_x", warpData.getXMasterCoord(i));
+                    gcpElem.setAttributeDouble("ref_y", warpData.getYMasterCoord(i));
 
-                    gcpElem.setAttributeDouble("slv_x", warpData.getXSlaveCoord(i));
-                    gcpElem.setAttributeDouble("slv_y", warpData.getYSlaveCoord(i));
+                    gcpElem.setAttributeDouble("sec_x", warpData.getXSlaveCoord(i));
+                    gcpElem.setAttributeDouble("sec_y", warpData.getYSlaveCoord(i));
 
                     if (warpData.isValid()) {
                         gcpElem.setAttributeDouble("rms", warpData.getRMS(i));

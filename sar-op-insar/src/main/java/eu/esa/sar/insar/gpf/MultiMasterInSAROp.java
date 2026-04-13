@@ -97,15 +97,15 @@ public class MultiMasterInSAROp extends Operator {
     private int cohWindowRg = 10;
 
     // Metadata maps
-    private SLCImage slcImageMaster;
-    private Orbit orbitMaster;
-    private final Map<Band, SLCImage> slcImageSlaveMap = new HashMap<>(10);
-    private final Map<Band, Orbit> orbitSlaveMap = new HashMap<>(10);
+    private SLCImage slcImageReference;
+    private Orbit orbitReference;
+    private final Map<Band, SLCImage> slcImageSecondaryMap = new HashMap<>(10);
+    private final Map<Band, Orbit> orbitSecondaryMap = new HashMap<>(10);
     private final Map<String, List<Band>> dateMap = new HashMap<>(10);
 
     // These apply per SLC
     private final Map<Band, Band> complexSrcMap = new HashMap<>(10);
-    private final Map<Band, Band> wavenumberMap = new HashMap<>(10); // the master is excluded
+    private final Map<Band, Band> wavenumberMap = new HashMap<>(10); // the reference is excluded
 
     // These apply to the whole stack
     private Band sourceBandElevation;
@@ -212,14 +212,14 @@ public class MultiMasterInSAROp extends Operator {
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
-        // Get source I/Q bands (master); skip if not in any pair
-        final String[] masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
+        // Get source I/Q bands (reference); skip if not in any pair
+        final String[] referenceBandNames = StackUtils.getReferenceBandNames(sourceProduct);
         String dateToRemove = null;
         for (String polarisation : polarisations) {
             final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
             Band refSourceBandI = null;
             Band refSourceBandQ = null;
-            for (String bandName : masterBandNames) {
+            for (String bandName : referenceBandNames) {
                 if (bandName.contains("i_") && (pol.isEmpty() || bandName.contains(pol))) {
                     refSourceBandI = sourceProduct.getBand(bandName);
                 } else if (bandName.contains("q_") && (pol.isEmpty() || bandName.contains(pol))) {
@@ -250,17 +250,17 @@ public class MultiMasterInSAROp extends Operator {
             datesInPairsList.remove(dateToRemove);
         }
 
-        // Get source I/Q bands (slaves) and create wavenumber band; skip if not in any pair
-        final String[] slaveProductNames = StackUtils.getSlaveProductNames(sourceProduct);
-        for (String slaveProductName : slaveProductNames) {
-            final String[] slvBandNames = StackUtils.getSlaveBandNames(sourceProduct, slaveProductName);
+        // Get source I/Q bands (secondaries) and create wavenumber band; skip if not in any pair
+        final String[] secondaryProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
+        for (String secondaryProductName : secondaryProductNames) {
+            final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secondaryProductName);
             String secDateToRemove = null;
             for (String polarisation : polarisations) {
                 final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
                 Band secSourceBandI = null;
                 Band secSourceBandQ = null;
 
-                for (String bandName : slvBandNames) {
+                for (String bandName : secBandNames) {
                     if (bandName.contains("i_") && (pol.isEmpty() || bandName.contains(pol))) {
                         secSourceBandI = sourceProduct.getBand(bandName);
                     } else if (bandName.contains("q_") && (pol.isEmpty() || bandName.contains(pol))) {
@@ -433,61 +433,61 @@ public class MultiMasterInSAROp extends Operator {
 
     private void getProductMetadata() throws Exception {
 
-        // Master
-        String[] masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
-        final List<Band> mstBandIList = new ArrayList<>(2);
+        // Reference
+        String[] referenceBandNames = StackUtils.getReferenceBandNames(sourceProduct);
+        final List<Band> refBandIList = new ArrayList<>(2);
         for (String polarisation : polarisations) {
             final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
-            for (String bandName : masterBandNames) {
+            for (String bandName : referenceBandNames) {
                 if (bandName.contains("i_") && (pol.isEmpty() || bandName.contains(pol))) {
                     final Band sourceBandI = sourceProduct.getBand(bandName);
-                    mstBandIList.add(sourceBandI);
+                    refBandIList.add(sourceBandI);
                 }
             }
         }
-        final MetadataElement mstAbs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        getMasterBandMetadata(mstBandIList, mstAbs);
-        subswath = mstAbs.getAttributeString(AbstractMetadata.SWATH);
+        final MetadataElement refAbs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        getReferenceBandMetadata(refBandIList, refAbs);
+        subswath = refAbs.getAttributeString(AbstractMetadata.SWATH);
 
-        // Slaves
-        final String[] slaveProductNames = StackUtils.getSlaveProductNames(sourceProduct);
-        for (String slaveProductName : slaveProductNames) { // for each slave
-            final String[] slvBandNames = StackUtils.getSlaveBandNames(sourceProduct, slaveProductName);
-            final List<Band> slvBandIList = new ArrayList<>(2);
+        // Secondaries
+        final String[] secondaryProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
+        for (String secondaryProductName : secondaryProductNames) { // for each secondary
+            final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secondaryProductName);
+            final List<Band> secBandIList = new ArrayList<>(2);
             for (String polarisation : polarisations) {
                 final String pol = polarisation.isEmpty() ? "" : '_' + polarisation.toUpperCase();
-                for (String bandName : slvBandNames) {
+                for (String bandName : secBandNames) {
                     if (bandName.contains("i_") && (pol.isEmpty() || bandName.contains(pol))) {
                         final Band sourceBandI = sourceProduct.getBand(bandName);
-                        slvBandIList.add(sourceBandI);
+                        secBandIList.add(sourceBandI);
                     }
                 }
             }
-            final MetadataElement slvAbs = AbstractMetadata.getSlaveMetadata(sourceProduct.getMetadataRoot())
-                    .getElement(slaveProductName);
-            getSlaveBandMetadata(slvBandIList, slvAbs);
+            final MetadataElement secAbs = AbstractMetadata.getSecondaryMetadata(sourceProduct.getMetadataRoot())
+                    .getElement(secondaryProductName);
+            getSecondaryBandMetadata(secBandIList, secAbs);
         }
     }
 
-    private void getMasterBandMetadata(final List<Band> sourceBandIList, final MetadataElement abs) throws Exception {
+    private void getReferenceBandMetadata(final List<Band> sourceBandIList, final MetadataElement abs) throws Exception {
 
         // Get SLCImage and Orbit
-        slcImageMaster = new SLCImage(abs, sourceProduct);
-        orbitMaster = new Orbit(abs, orbitDegree);
+        slcImageReference = new SLCImage(abs, sourceProduct);
+        orbitReference = new Orbit(abs, orbitDegree);
 
         // Get date
         final String date = OperatorUtils.getAcquisitionDate(abs);
         dateMap.put(date, sourceBandIList); // (date: source I) pairs
     }
 
-    private void getSlaveBandMetadata(final List<Band> sourceBandIList, final MetadataElement abs) throws Exception {
+    private void getSecondaryBandMetadata(final List<Band> sourceBandIList, final MetadataElement abs) throws Exception {
 
         // Get SLCImage and Orbit
         final SLCImage slcImage = new SLCImage(abs, sourceProduct);
         final Orbit orbit = new Orbit(abs, orbitDegree);
         for (Band sourceBandI : sourceBandIList) {
-            slcImageSlaveMap.put(sourceBandI, slcImage); // (source I: SLCImage) pairs
-            orbitSlaveMap.put(sourceBandI, orbit); // (source I: Orbit) pairs
+            slcImageSecondaryMap.put(sourceBandI, slcImage); // (source I: SLCImage) pairs
+            orbitSecondaryMap.put(sourceBandI, orbit); // (source I: Orbit) pairs
         }
 
         // Get date
@@ -577,11 +577,11 @@ public class MultiMasterInSAROp extends Operator {
                 final Tile elevationTile = getSourceTile(sourceBandElevation, targetRectangle);
                 for (Band sourceBandI : complexSrcMap.keySet()) { // for each SLC
                     final Band targetBandWavenumber = wavenumberMap.get(sourceBandI);
-                    if (targetBandWavenumber != null) { // if it's not the master
+                    if (targetBandWavenumber != null) { // if it's not the reference
                         final Tile wavenumberTile = targetTileMap.get(targetBandWavenumber);
                         computeWavenumber(elevationTile, wavenumberTile, targetRectangle,
-                                          slcImageSlaveMap.get(sourceBandI),
-                                          orbitSlaveMap.get(sourceBandI));
+                                          slcImageSecondaryMap.get(sourceBandI),
+                                          orbitSecondaryMap.get(sourceBandI));
                     }
                 }
             } catch (Throwable e) {
@@ -604,12 +604,12 @@ public class MultiMasterInSAROp extends Operator {
             // Pre-compute reference phases
             final Map<Band, double[][]> referencePhaseMap = new HashMap<>(10);
             for (Band sourceBandI0 : complexSrcMap.keySet()) { // for each SLC
-                if (slcImageSlaveMap.get(sourceBandI0) == null) { // if it's the master
+                if (slcImageSecondaryMap.get(sourceBandI0) == null) { // if it's the reference
                     referencePhaseMap.put(sourceBandI0, new double[sourceRectangle.height][sourceRectangle.width]);
-                } else { // if it's a slave
+                } else { // if it's a secondary
                     final double[][] referencePhase = computeReferencePhase(elevationTile, sourceRectangle,
-                                                                            slcImageSlaveMap.get(sourceBandI0),
-                                                                            orbitSlaveMap.get(sourceBandI0));
+                                                                            slcImageSecondaryMap.get(sourceBandI0),
+                                                                            orbitSecondaryMap.get(sourceBandI0));
                     referencePhaseMap.put(sourceBandI0, referencePhase);
                 }
             }
@@ -623,7 +623,7 @@ public class MultiMasterInSAROp extends Operator {
                 Guardian.assertTrue("Interferogram mismatch",
                                     sourceBandI1List.size() == targetBandIfgIList.size()
                                             && sourceBandI1List.size() == targetBandCoherenceList.size());
-                for (int i = 0; i < sourceBandI1List.size(); i++) { // for each interferogram involving the current slave
+                for (int i = 0; i < sourceBandI1List.size(); i++) { // for each interferogram involving the current secondary
                     final Band sourceBandI1 = sourceBandI1List.get(i);
                     final Band sourceBandQ1 = complexSrcMap.get(sourceBandI1);
                     final Band targetBandIfgI = targetBandIfgIList.get(i);
@@ -676,7 +676,7 @@ public class MultiMasterInSAROp extends Operator {
                 final double heightWrtEllipsoid = sourceBufferElevation.getElemDoubleAt(elevationIdx);
 
                 // Compute lat/lon
-                final double[] latLonHeight = orbitMaster.lph2ell(y, x, heightWrtEllipsoid, slcImageMaster);
+                final double[] latLonHeight = orbitReference.lph2ell(y, x, heightWrtEllipsoid, slcImageReference);
 
                 targetBufferLat.setElemDoubleAt(targetIdx, Math.toDegrees(latLonHeight[0]));
                 targetBufferLon.setElemDoubleAt(targetIdx, Math.toDegrees(latLonHeight[1]));
@@ -711,8 +711,8 @@ public class MultiMasterInSAROp extends Operator {
                 final double heightWrtEllipsoid = sourceBufferElevation.getElemDoubleAt(elevationIdx);
 
                 // Compute incidence angle
-                final Point xyzPositionNextPixel = orbitMaster.lph2xyz(y, x + 1, heightWrtEllipsoid, slcImageMaster);
-                final Point xyzPositionPixel = orbitMaster.lph2xyz(y, x, heightWrtEllipsoid, slcImageMaster);
+                final Point xyzPositionNextPixel = orbitReference.lph2xyz(y, x + 1, heightWrtEllipsoid, slcImageReference);
+                final Point xyzPositionPixel = orbitReference.lph2xyz(y, x, heightWrtEllipsoid, slcImageReference);
                 final double rangeSpacingGround = xyzPositionNextPixel.distance(xyzPositionPixel);
                 final double incidenceAngle = Math.toDegrees(Math.asin(rangeSpacing / rangeSpacingGround));
 
@@ -722,8 +722,8 @@ public class MultiMasterInSAROp extends Operator {
     }
 
     private void computeWavenumber(final Tile elevationTile, final Tile wavenumberTile,
-                                   final Rectangle rectangle, final SLCImage slcImageSlave,
-                                   final Orbit orbitSlave) throws Exception {
+                                   final Rectangle rectangle, final SLCImage slcImageSecondary,
+                                   final Orbit orbitSecondary) throws Exception {
 
         final int x0 = rectangle.x;
         final int y0 = rectangle.y;
@@ -738,7 +738,7 @@ public class MultiMasterInSAROp extends Operator {
         final TileIndex elevationIndex = new TileIndex(elevationTile);
         final TileIndex targetIndex = new TileIndex(wavenumberTile);
 
-        final double wavenumberFactor = -4 * Constants.PI / slcImageSlave.getRadarWavelength();
+        final double wavenumberFactor = -4 * Constants.PI / slcImageSecondary.getRadarWavelength();
 
         for (int y = y0; y < yMax; y++) {
             elevationIndex.calculateStride(y);
@@ -749,11 +749,11 @@ public class MultiMasterInSAROp extends Operator {
                 final double heightWrtEllipsoid = sourceBufferElevation.getElemDoubleAt(elevationIdx);
 
                 // Compute vertical wavenumber
-                final Point xyzPosition = orbitMaster.lph2xyz(y, x, heightWrtEllipsoid, slcImageMaster);
-                final Point xyzPositionUp = orbitMaster.lph2xyz(y, x, heightWrtEllipsoid + 1, slcImageMaster);
-                final double slaveOneWayRangeTime = orbitSlave.xyz2t(xyzPosition, slcImageSlave).x;
-                final double slaveOneWayRangeTimeUp = orbitSlave.xyz2t(xyzPositionUp, slcImageSlave).x;
-                final double forwardDifference = Constants.lightSpeed * (slaveOneWayRangeTimeUp - slaveOneWayRangeTime);
+                final Point xyzPosition = orbitReference.lph2xyz(y, x, heightWrtEllipsoid, slcImageReference);
+                final Point xyzPositionUp = orbitReference.lph2xyz(y, x, heightWrtEllipsoid + 1, slcImageReference);
+                final double secondaryOneWayRangeTime = orbitSecondary.xyz2t(xyzPosition, slcImageSecondary).x;
+                final double secondaryOneWayRangeTimeUp = orbitSecondary.xyz2t(xyzPositionUp, slcImageSecondary).x;
+                final double forwardDifference = Constants.lightSpeed * (secondaryOneWayRangeTimeUp - secondaryOneWayRangeTime);
 
                 targetBufferWavenumber.setElemDoubleAt(targetIdx, wavenumberFactor * forwardDifference);
             }
@@ -761,8 +761,8 @@ public class MultiMasterInSAROp extends Operator {
     }
 
     private double[][] computeReferencePhase(final Tile elevationTile, final Rectangle rectangle,
-                                             final SLCImage slcImageSlave,
-                                             final Orbit orbitSlave) throws Exception {
+                                             final SLCImage slcImageSecondary,
+                                             final Orbit orbitSecondary) throws Exception {
 
         final int x0 = rectangle.x;
         final int y0 = rectangle.y;
@@ -776,19 +776,19 @@ public class MultiMasterInSAROp extends Operator {
         final ProductData sourceBufferElevation = elevationTile.getDataBuffer();
         final TileIndex elevationIndex = new TileIndex(elevationTile);
 
-        final double phaseFactor = -4 * Constants.PI / slcImageSlave.getRadarWavelength();
+        final double phaseFactor = -4 * Constants.PI / slcImageSecondary.getRadarWavelength();
 
         for (int y = y0; y < yMax; y++) {
             elevationIndex.calculateStride(y);
             for (int x = x0; x < xMax; x++) {
                 final int elevationIdx = elevationIndex.getIndex(x);
-                final double masterOneWayRangeTime = slcImageMaster.pix2tr(x);
+                final double referenceOneWayRangeTime = slcImageReference.pix2tr(x);
                 final double heightWrtEllipsoid = sourceBufferElevation.getElemDoubleAt(elevationIdx);
 
                 // Compute reference distance
-                Point xyzPosition = orbitMaster.lph2xyz(y, x, heightWrtEllipsoid, slcImageMaster);
-                final double slaveOneWayRangeTime = orbitSlave.xyz2t(xyzPosition, slcImageSlave).x;
-                final double referenceDistance = Constants.lightSpeed * (slaveOneWayRangeTime - masterOneWayRangeTime);
+                Point xyzPosition = orbitReference.lph2xyz(y, x, heightWrtEllipsoid, slcImageReference);
+                final double secondaryOneWayRangeTime = orbitSecondary.xyz2t(xyzPosition, slcImageSecondary).x;
+                final double referenceDistance = Constants.lightSpeed * (secondaryOneWayRangeTime - referenceOneWayRangeTime);
 
                 phase[y - y0][x - x0] = phaseFactor * referenceDistance;
             }

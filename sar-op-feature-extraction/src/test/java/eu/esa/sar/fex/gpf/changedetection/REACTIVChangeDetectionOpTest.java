@@ -192,20 +192,20 @@ public class REACTIVChangeDetectionOpTest {
         absRoot.setAttributeDouble(AbstractMetadata.radar_frequency, 5405.000454334349);
         absRoot.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
 
-        createBand(srcProduct, "Amplitude_POL_mst_01Mar2024", txRxPolar, 3.0f);
-        createBand(srcProduct, "Amplitude_POL_slv1_01May2024", txRxPolar,  1.0f);
-        createBand(srcProduct, "Amplitude_POL_slv3_01Jul2024", txRxPolar, 4.0f);
-        createBand(srcProduct, "Amplitude_POL_slv5_01Sep2024", txRxPolar, 1.0f);
-        createBand(srcProduct, "Amplitude_POL_slv7_01Nov2024", txRxPolar, 5.0f);
+        createBand(srcProduct, "Amplitude_POL_ref_01Mar2024", txRxPolar, 3.0f);
+        createBand(srcProduct, "Amplitude_POL_sec1_01May2024", txRxPolar,  1.0f);
+        createBand(srcProduct, "Amplitude_POL_sec3_01Jul2024", txRxPolar, 4.0f);
+        createBand(srcProduct, "Amplitude_POL_sec5_01Sep2024", txRxPolar, 1.0f);
+        createBand(srcProduct, "Amplitude_POL_sec7_01Nov2024", txRxPolar, 5.0f);
 
         if(txRxPolar2 != null) {
             absRoot.setAttributeString(AbstractMetadata.mds2_tx_rx_polar, txRxPolar2);
 
-            createBand(srcProduct, "Amplitude_POL_mst_01Mar2024", txRxPolar2, 2.0f);
-            createBand(srcProduct, "Amplitude_POL_slv2_01May2024", txRxPolar2,7.0f);
-            createBand(srcProduct, "Amplitude_POL_slv4_01Jul2024", txRxPolar2,1.0f);
-            createBand(srcProduct, "Amplitude_POL_slv6_01Sep2024", txRxPolar2, 8.0f);
-            createBand(srcProduct, "Amplitude_POL_slv8_01Nov2024", txRxPolar2,2.0f);
+            createBand(srcProduct, "Amplitude_POL_ref_01Mar2024", txRxPolar2, 2.0f);
+            createBand(srcProduct, "Amplitude_POL_sec2_01May2024", txRxPolar2,7.0f);
+            createBand(srcProduct, "Amplitude_POL_sec4_01Jul2024", txRxPolar2,1.0f);
+            createBand(srcProduct, "Amplitude_POL_sec6_01Sep2024", txRxPolar2, 8.0f);
+            createBand(srcProduct, "Amplitude_POL_sec8_01Nov2024", txRxPolar2,2.0f);
         }
 
         return srcProduct;

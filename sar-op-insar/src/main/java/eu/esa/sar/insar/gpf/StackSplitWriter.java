@@ -95,16 +95,16 @@ public class StackSplitWriter extends Operator {
             targetProduct.setPreferredTileSize(new Dimension(width, height));
 
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-            final String mstProductName = absRoot.getAttributeString(AbstractMetadata.PRODUCT, sourceProduct.getName());
-            final String[] mstNames = StackUtils.getMasterBandNames(sourceProduct);
-            //System.out.println("mstProductName = " + mstProductName);
-            createSubset(mstProductName, getBandNames(mstNames));
+            final String refProductName = absRoot.getAttributeString(AbstractMetadata.PRODUCT, sourceProduct.getName());
+            final String[] refNames = StackUtils.getReferenceBandNames(sourceProduct);
+            //System.out.println("refProductName = " + refProductName);
+            createSubset(refProductName, getBandNames(refNames));
 
-            final String[] slvProductNames = StackUtils.getSlaveProductNames(sourceProduct);
-            for(String slvProductName : slvProductNames) {
-                final String[] slvBandNames = StackUtils.getSlaveBandNames(sourceProduct, slvProductName);
-                //System.out.println("slvProductName = " + slvProductName);
-                createSubset(slvProductName, getBandNames(slvBandNames));
+            final String[] secProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
+            for(String secProductName : secProductNames) {
+                final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secProductName);
+                //System.out.println("secProductName = " + secProductName);
+                createSubset(secProductName, getBandNames(secBandNames));
             }
 
         } catch (Throwable t) {

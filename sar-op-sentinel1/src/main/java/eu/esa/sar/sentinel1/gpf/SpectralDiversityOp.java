@@ -136,7 +136,7 @@ public class SpectralDiversityOp extends Operator {
     @SourceProduct(alias = "source")
     private Product sourceProduct;
 
-    @TargetProduct(description = "The target product which will use the master's grid.")
+    @TargetProduct(description = "The target product which will use the reference's grid.")
     private Product targetProduct = null;
 
     @Parameter(valueSet = {"32", "64", "128", "256", "512", "1024", "2048"}, defaultValue = "512",
@@ -265,9 +265,9 @@ public class SpectralDiversityOp extends Operator {
     private String[] subSwathNames = null;
     private String[] polarizations = null;
 
-    private Map<String, CplxContainer> masterMap = new HashMap<>();  // master complex image map: master images indexed by <date>_<swath>_<polarization>
-    private Map<String, CplxContainer> slaveMap = new HashMap<>();  // slave complex images map: slave images indexed by <date>_<swath>_<polarization>
-    private Map<String, ProductContainer> targetMap = new HashMap<>();  // image pairs for the target bands: master-slave pairs indexed by masterKey_slave<i>Key (keys are the same in masterMap and slaveMap)
+    private Map<String, CplxContainer> referenceMap = new HashMap<>();  // reference complex image map: reference images indexed by <date>_<swath>_<polarization>
+    private Map<String, CplxContainer> secondaryMap = new HashMap<>();  // secondary complex images map: secondary images indexed by <date>_<swath>_<polarization>
+    private Map<String, ProductContainer> targetMap = new HashMap<>();  // image pairs for the target bands: reference-secondary pairs indexed by referenceKey_secondary<i>Key (keys are the same in referenceMap and secondaryMap)
     private Map<String, AzRgOffsets> targetOffsetMap = new HashMap<>();  // range and azimuth offsets for the target bands
 
     private static final int cohWin = 5; // window size for coherence calculation
@@ -280,7 +280,7 @@ public class SpectralDiversityOp extends Operator {
     private WeightFunction weightFunction;
 
     // integration network
-    private Map<String, List<CplxContainer>> complexImages = new HashMap<>(); // map with lists of complex images (master is first), indexed by swath-polarization
+    private Map<String, List<CplxContainer>> complexImages = new HashMap<>(); // map with lists of complex images (reference is first), indexed by swath-polarization
     private int[][] arcs;
 
 
@@ -370,32 +370,30 @@ public class SpectralDiversityOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        // master image
-        MetadataElement mstRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
+        // reference image
+        MetadataElement refRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        metadataMapPut(StackUtils.REF, refRoot, sourceProduct, referenceMap, complexImages);
 
-        metadataMapPut(StackUtils.MST, mstRoot, sourceProduct, masterMap, complexImages);
-
-        // slave images
-        MetadataElement slaveElem = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot);
-        if (slaveElem == null) {
-            slaveElem = sourceProduct.getMetadataRoot().getElement("Slave Metadata");
+        // secondary images
+        MetadataElement secondaryElem = StackUtils.findSecondaryMetadataRoot(sourceProduct);
+        if (secondaryElem == null) {
+            secondaryElem = sourceProduct.getMetadataRoot().getElement("Slave Metadata");
         }
-        if (slaveElem == null) {
+        if (secondaryElem == null) {
             throw new OperatorException("Product must be coregistered (missing Slave_Metadata in Metadata)");
         }
-        MetadataElement[] slaveRoot = slaveElem.getElements();
-        for (MetadataElement meta : slaveRoot) {
+        MetadataElement[] secondaryRoot = secondaryElem.getElements();
+        for (MetadataElement meta : secondaryRoot) {
             if (!meta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                metadataMapPut(StackUtils.SLV, meta, sourceProduct, slaveMap, complexImages);
+                metadataMapPut(StackUtils.SEC, meta, sourceProduct, secondaryMap, complexImages);
         }
     }
 
     /**
      * Fills the map with the product's metadata and adds the complex image(s) to a list.
      *
-     * @param tag           either  "_mst" or "_slv". For differentiating master and slave bands in the product.
-     * @param root          Abstracted_Metadata for tag "_mst" and one of the slave meta data under Slave_Metadata for tag "_slv".
+     * @param tag           either  "_ref" or "_sec". For differentiating reference and secondary bands in the product.
+     * @param root          Abstracted_Metadata for tag "_ref" and one of the secondary meta data under Secondary_Metadata for tag "_sec".
      * @param product       source product.
      * @param map           map of complex images.
      * @param complexImages list of complex images for each polarization-swath combination.
@@ -409,10 +407,10 @@ public class SpectralDiversityOp extends Operator {
 
         // There is really just one subswath, i.e., subSwathNames.length() is 1
         // Polarization can be 1 or more
-        // "ABS_ORBIT" is from root so it is expected to be unique for each master and slave product
-        // Say #polarizations is N and #slaves is M.
-        // We are expecting to have only N elements (one element for each pol) in masterMap and
-        // N*M elements in the slaveMap?
+        // "ABS_ORBIT" is from root so it is expected to be unique for each reference and secondary product
+        // Say #polarizations is N and #secondaries is M.
+        // We are expecting to have only N elements (one element for each pol) in referenceMap and
+        // N*M elements in secondaryMap?
         for (String swath : subSwathNames) {
             // Can swath ever be empty??
             final String subswath = swath.isEmpty() ? "" : '_' + swath.toUpperCase();
@@ -435,8 +433,8 @@ public class SpectralDiversityOp extends Operator {
                 Band bandReal = null;
                 Band bandImag = null;
                 for (String bandName : product.getBandNames()) {
-                    // When looking for the master band, tag is sufficient
-                    // date is needed to pick the correct slave band
+                    // When looking for the reference band, tag is sufficient
+                    // date is needed to pick the correct secondary band
                     if (bandName.contains(tag) && bandName.contains(date)) {
                         if (subswath.isEmpty() || bandName.contains(subswath)) {
                             if (pol.isEmpty() || bandName.contains(pol)) {
@@ -473,13 +471,13 @@ public class SpectralDiversityOp extends Operator {
 
     private void constructTargetMetadata() {
 
-        for (String keyMaster : masterMap.keySet()) {
-            CplxContainer master = masterMap.get(keyMaster);
-            for (String keySlave : slaveMap.keySet()) {
-                final CplxContainer slave = slaveMap.get(keySlave);
-                if (master.polarisation == null || master.polarisation.equals(slave.polarisation)) {
-                    final String productName = keyMaster + '_' + keySlave;
-                    final ProductContainer product = new ProductContainer(productName, master, slave, true);
+        for (String keyReference : referenceMap.keySet()) {
+            CplxContainer reference = referenceMap.get(keyReference);
+            for (String keySecondary : secondaryMap.keySet()) {
+                final CplxContainer secondary = secondaryMap.get(keySecondary);
+                if (reference.polarisation == null || reference.polarisation.equals(secondary.polarisation)) {
+                    final String productName = keyReference + '_' + keySecondary;
+                    final ProductContainer product = new ProductContainer(productName, reference, secondary, true);
                     // System.out.println("SpectralDiversity.constructTargetMetadata: productName = " + productName + " add to map");
                     targetMap.put(productName, product);
                 }
@@ -508,7 +506,7 @@ public class SpectralDiversityOp extends Operator {
                 }
 
                 Band targetBand;
-                if (StackUtils.isMasterBand(srcBandName, sourceProduct)) {
+                if (StackUtils.isReferenceBand(srcBandName, sourceProduct)) {
                     targetBand = ProductUtils.copyBand(srcBandName, sourceProduct, srcBandName, targetProduct, true);
                 } else if (srcBandName.contains("azOffset") || srcBandName.contains("rgOffset") ||
                         srcBandName.contains("derampDemod")) {
@@ -542,18 +540,18 @@ public class SpectralDiversityOp extends Operator {
 
         MetadataElement esdMeasurement = new MetadataElement("ESD Measurement");
 
-        // generate metadata for master-slave pairs
+        // generate metadata for reference-secondary pairs
         for (String key : targetMap.keySet()) {
-            final CplxContainer master = targetMap.get(key).sourceMaster;
-            final CplxContainer slave = targetMap.get(key).sourceSlave;
-            final String mstSlvTag = getImagePairTag(master, slave);
-            // System.out.println("SpectralDiversity.updateTargetMetadata: mstSlvTag = " + mstSlvTag);
-            final MetadataElement mstSlvTagElem = new MetadataElement(mstSlvTag);
-            esdMeasurement.addElement(mstSlvTagElem);
+            final CplxContainer ref = targetMap.get(key).sourceRef;
+            final CplxContainer sec = targetMap.get(key).sourceSec;
+            final String refSecTag = getImagePairTag(ref, sec);
+            // System.out.println("SpectralDiversity.updateTargetMetadata: refSecTag = " + refSecTag);
+            final MetadataElement refSecTagElem = new MetadataElement(refSecTag);
+            esdMeasurement.addElement(refSecTagElem);
 
             final MetadataElement overallRgAzShiftElem = new MetadataElement("Overall_Range_Azimuth_Shift");
             overallRgAzShiftElem.addElement(new MetadataElement(subSwathNames[0]));
-            mstSlvTagElem.addElement(overallRgAzShiftElem);
+            refSecTagElem.addElement(overallRgAzShiftElem);
         }
         absTgt.addElement(esdMeasurement);
 
@@ -596,19 +594,19 @@ public class SpectralDiversityOp extends Operator {
 
         if (useSuppliedRangeShift) {
             for (String key : targetMap.keySet()) {
-                final CplxContainer master = targetMap.get(key).sourceMaster;
-                final CplxContainer slave = targetMap.get(key).sourceSlave;
-                final String mstSlvTag = getImagePairTag(master, slave);
-                saveOverallRangeShift(mstSlvTag, overallRangeShift);
+                final CplxContainer ref = targetMap.get(key).sourceRef;
+                final CplxContainer sec = targetMap.get(key).sourceSec;
+                final String refSecTag = getImagePairTag(ref, sec);
+                saveOverallRangeShift(refSecTag, overallRangeShift);
             }
         }
 
         if (useSuppliedAzimuthShift) {
             for (String key : targetMap.keySet()) {
-                final CplxContainer master = targetMap.get(key).sourceMaster;
-                final CplxContainer slave = targetMap.get(key).sourceSlave;
-                final String mstSlvTag = getImagePairTag(master, slave);
-                saveOverallAzimuthShift(mstSlvTag, overallAzimuthShift);
+                final CplxContainer ref = targetMap.get(key).sourceRef;
+                final CplxContainer sec = targetMap.get(key).sourceSec;
+                final String refSecTag = getImagePairTag(ref, sec);
+                saveOverallAzimuthShift(refSecTag, overallAzimuthShift);
             }
         }
     }
@@ -812,13 +810,13 @@ public class SpectralDiversityOp extends Operator {
             // apply offsets to target tiles
             if (!doNotWriteTargetBands) {
                 for (String key : targetMap.keySet()) {
-                    final CplxContainer slave = targetMap.get(key).sourceSlave;
+                    final CplxContainer sec = targetMap.get(key).sourceSec;
 
                     final AzRgOffsets azRgOffsets = targetOffsetMap.get(key);
                     double rgOffset = useSuppliedRangeShift ? overallRangeShift : azRgOffsets.rgOffset;
                     double azOffset = useSuppliedAzimuthShift ? overallAzimuthShift : azRgOffsets.azOffset;
 
-                    performRangeAzimuthShift(azOffset, rgOffset, slave.realBand, slave.imagBand, targetRectangle,
+                    performRangeAzimuthShift(azOffset, rgOffset, sec.realBand, sec.imagBand, targetRectangle,
                                              targetTileMap);
                 }
             }
@@ -907,11 +905,11 @@ public class SpectralDiversityOp extends Operator {
                     List<CplxContainer> complexImages = this.complexImages.get(imagesKey);
                     SystemUtils.LOG.fine("Saving range offset for: " + imagesKey);
 
-                    CplxContainer masterImage = complexImages.get(0);
+                    CplxContainer referenceImage = complexImages.get(0);
                     for (int i = 1; i < imageShifts.length; i++) {
-                        CplxContainer slaveImage = complexImages.get(i);
+                        CplxContainer secondaryImage = complexImages.get(i);
 
-                        String pairKey = getCanonicalId(masterImage) + "_" + getCanonicalId(slaveImage);
+                        String pairKey = getCanonicalId(referenceImage) + "_" + getCanonicalId(secondaryImage);
                         if (targetOffsetMap.get(pairKey) == null) {
                             targetOffsetMap.put(pairKey, new AzRgOffsets(0.0, imageShifts[i]));
                         } else {
@@ -919,14 +917,14 @@ public class SpectralDiversityOp extends Operator {
                         }
 
                         // Although shifts are computed considering all pairs in the network, tag names are kept with
-                        // the same old structure (master-slave) for backward compatibility with ESD generated metadata
-                        CplxContainer master = complexImages.get(0);
-                        CplxContainer slave = complexImages.get(i);
-                        String mstSlvTag = getImagePairTag(master, slave);
-                        saveOverallRangeShift(mstSlvTag, imageShifts[i]);
+                        // the same old structure (reference-secondary) for backward compatibility with ESD generated metadata
+                        CplxContainer ref = complexImages.get(0);
+                        CplxContainer sec = complexImages.get(i);
+                        String refSecTag = getImagePairTag(ref, sec);
+                        saveOverallRangeShift(refSecTag, imageShifts[i]);
 
                         // add to json object for writing to a file
-                        rangeShifts.put(mstSlvTag, imageShifts[i]);
+                        rangeShifts.put(refSecTag, imageShifts[i]);
                     }
                 }
 
@@ -1208,11 +1206,11 @@ public class SpectralDiversityOp extends Operator {
                     List<CplxContainer> complexImages = this.complexImages.get(imagesKey);
                     SystemUtils.LOG.fine("Saving azimuth offset for: " + imagesKey);
 
-                    CplxContainer masterImage = complexImages.get(0);
+                    CplxContainer referenceImage = complexImages.get(0);
                     for (int i = 1; i < imageShifts.length; i++) {
-                        CplxContainer slaveImage = complexImages.get(i);
+                        CplxContainer secondaryImage = complexImages.get(i);
 
-                        String pairKey = getCanonicalId(masterImage) + "_" + getCanonicalId(slaveImage);
+                        String pairKey = getCanonicalId(referenceImage) + "_" + getCanonicalId(secondaryImage);
                         if (targetOffsetMap.get(pairKey) == null) {
                             targetOffsetMap.put(pairKey, new AzRgOffsets(imageShifts[i], 0.0));
                         } else {
@@ -1220,14 +1218,14 @@ public class SpectralDiversityOp extends Operator {
                         }
 
                         // Although shifts are computed considering all pairs in the network, tag names are kept with
-                        // the same old structure (master-slave) for backward compatibility with ESD generated metadata
-                        CplxContainer master = complexImages.get(0);
-                        CplxContainer slave = complexImages.get(i);
-                        String mstSlvTag = getImagePairTag(master, slave);
-                        saveOverallAzimuthShift(mstSlvTag, imageShifts[i]);
+                        // the same old structure (reference-secondary) for backward compatibility with ESD generated metadata
+                        CplxContainer ref = complexImages.get(0);
+                        CplxContainer sec = complexImages.get(i);
+                        String refSecTag = getImagePairTag(ref, sec);
+                        saveOverallAzimuthShift(refSecTag, imageShifts[i]);
 
                         // add to json object for writing to a file
-                        azimuthShifts.put(mstSlvTag, imageShifts[i]);
+                        azimuthShifts.put(refSecTag, imageShifts[i]);
                     }
                 }
 
@@ -1587,7 +1585,7 @@ public class SpectralDiversityOp extends Operator {
         return sum / blockWeight.length;
     }
 
-    private void saveOverallRangeShift(final String mstSlvPairTag, final double rangeShift) {
+    private void saveOverallRangeShift(final String refSecPairTag, final double rangeShift) {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if (absTgt == null) {
@@ -1595,8 +1593,8 @@ public class SpectralDiversityOp extends Operator {
         }
 
         final MetadataElement ESDMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = ESDMeasurement.getElement(mstSlvPairTag);
-        final MetadataElement OverallRgAzShiftElem = mstSlvPairElem.getElement("Overall_Range_Azimuth_Shift");
+        final MetadataElement refSecPairElem = ESDMeasurement.getElement(refSecPairTag);
+        final MetadataElement OverallRgAzShiftElem = refSecPairElem.getElement("Overall_Range_Azimuth_Shift");
         final MetadataElement swathElem = OverallRgAzShiftElem.getElement(subSwathNames[0]);
 
         final MetadataAttribute rangeShiftAttr = new MetadataAttribute("rangeShift", ProductData.TYPE_FLOAT32);
@@ -1605,7 +1603,7 @@ public class SpectralDiversityOp extends Operator {
         swathElem.setAttributeDouble("rangeShift", rangeShift);
     }
 
-    private void saveOverallAzimuthShift(final String mstSlvPairTag, final double azimuthShift) {
+    private void saveOverallAzimuthShift(final String refSecPairTag, final double azimuthShift) {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if (absTgt == null) {
@@ -1613,8 +1611,8 @@ public class SpectralDiversityOp extends Operator {
         }
 
         final MetadataElement ESDMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = ESDMeasurement.getElement(mstSlvPairTag);
-        final MetadataElement OverallRgAzShiftElem = mstSlvPairElem.getElement("Overall_Range_Azimuth_Shift");
+        final MetadataElement refSecPairElem = ESDMeasurement.getElement(refSecPairTag);
+        final MetadataElement OverallRgAzShiftElem = refSecPairElem.getElement("Overall_Range_Azimuth_Shift");
         final MetadataElement swathElem = OverallRgAzShiftElem.getElement(subSwathNames[0]);
 
         final MetadataAttribute azimuthShiftAttr = new MetadataAttribute("azimuthShift", ProductData.TYPE_FLOAT32);
@@ -1624,7 +1622,7 @@ public class SpectralDiversityOp extends Operator {
     }
 
     private void saveRangeShiftPerBurst(
-            final String mstSlvPairTag, final List<Double> rangeShiftArray, final List<Integer> burstIndexArray) {
+            final String refSecPairTag, final List<Double> rangeShiftArray, final List<Integer> burstIndexArray) {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if (absTgt == null) {
@@ -1632,8 +1630,8 @@ public class SpectralDiversityOp extends Operator {
         }
 
         final MetadataElement ESDMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = ESDMeasurement.getElement(mstSlvPairTag);
-        final MetadataElement RangeShiftPerBurstElem = mstSlvPairElem.getElement("Range_Shift_Per_Burst");
+        final MetadataElement refSecPairElem = ESDMeasurement.getElement(refSecPairTag);
+        final MetadataElement RangeShiftPerBurstElem = refSecPairElem.getElement("Range_Shift_Per_Burst");
         final MetadataElement swathElem = RangeShiftPerBurstElem.getElement(subSwathNames[0]);
 
         swathElem.addAttribute(new MetadataAttribute("count", ProductData.TYPE_INT16));
@@ -1652,7 +1650,7 @@ public class SpectralDiversityOp extends Operator {
     }
 
     private void saveAzimuthShiftPerBurst(
-            final String mstSlvPairTag, final List<Double> rangeShiftArray, final List<Integer> burstIndexArray) {
+            final String refSecPairTag, final List<Double> rangeShiftArray, final List<Integer> burstIndexArray) {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if (absTgt == null) {
@@ -1660,8 +1658,8 @@ public class SpectralDiversityOp extends Operator {
         }
 
         final MetadataElement ESDMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = ESDMeasurement.getElement(mstSlvPairTag);
-        final MetadataElement AzimuthShiftPerBurstElem = mstSlvPairElem.getElement("Azimuth_Shift_Per_Burst");
+        final MetadataElement refSecPairElem = ESDMeasurement.getElement(refSecPairTag);
+        final MetadataElement AzimuthShiftPerBurstElem = refSecPairElem.getElement("Azimuth_Shift_Per_Burst");
         final MetadataElement swathElem = AzimuthShiftPerBurstElem.getElement(subSwathNames[0]);
 
         swathElem.addAttribute(new MetadataAttribute("count", ProductData.TYPE_INT16));
@@ -1688,8 +1686,8 @@ public class SpectralDiversityOp extends Operator {
         }
 
         final MetadataElement esdMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = esdMeasurement.getElement(imagePairTag);
-        final MetadataElement azShiftPerOverlapElem = mstSlvPairElem.getElement("Azimuth_Shift_Per_Overlap");
+        final MetadataElement refSecPairElem = esdMeasurement.getElement(imagePairTag);
+        final MetadataElement azShiftPerOverlapElem = refSecPairElem.getElement("Azimuth_Shift_Per_Overlap");
         final MetadataElement swathElem = azShiftPerOverlapElem.getElement(subSwathNames[0]);
 
         swathElem.addAttribute(new MetadataAttribute("count", ProductData.TYPE_INT16));
@@ -1713,7 +1711,7 @@ public class SpectralDiversityOp extends Operator {
         }
     }
 
-    private void saveAzimuthShiftPerBlock(final String mstSlvPairTag, final List<ShiftData> azShiftArray) {
+    private void saveAzimuthShiftPerBlock(final String refSecPairTag, final List<ShiftData> azShiftArray) {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if (absTgt == null) {
@@ -1721,8 +1719,8 @@ public class SpectralDiversityOp extends Operator {
         }
 
         final MetadataElement ESDMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = ESDMeasurement.getElement(mstSlvPairTag);
-        final MetadataElement AzShiftPerBlockElem = mstSlvPairElem.getElement("Azimuth_Shift_Per_Block");
+        final MetadataElement refSecPairElem = ESDMeasurement.getElement(refSecPairTag);
+        final MetadataElement AzShiftPerBlockElem = refSecPairElem.getElement("Azimuth_Shift_Per_Block");
         final MetadataElement swathElem = AzShiftPerBlockElem.getElement(subSwathNames[0]);
 
         swathElem.addAttribute(new MetadataAttribute("count", ProductData.TYPE_INT16));
@@ -1859,10 +1857,10 @@ public class SpectralDiversityOp extends Operator {
      * \phi_\textup{ESD} = \arg{\left \{ (m_i \cdot s^*_i) (m_{i+1} \cdot s^*_{i+1})^* \right \}}
      * </code>
      *
-     * @param mBandI            The band with the real part of the master image.
-     * @param mBandQ            The band with the imaginary part of the master image.
-     * @param sBandI            The band with the real part of the slave image.
-     * @param sBandQ            The band with the imaginary part of the slave image.
+     * @param mBandI            The band with the real part of the reference image.
+     * @param mBandQ            The band with the imaginary part of the reference image.
+     * @param sBandI            The band with the real part of the secondary image.
+     * @param sBandQ            The band with the imaginary part of the secondary image.
      * @param backwardRectangle First burst rectangle.
      * @param forwardRectangle  Second burst rectangle.
      * @return ESD phase.
@@ -2200,22 +2198,22 @@ public class SpectralDiversityOp extends Operator {
         final int halfWindowSize = cohWin / 2;
         final double[][] coherence = new double[h][w];
 
-        final Tile mstTileI = getSourceTile(mBandI, rectangle);
-        final Tile mstTileQ = getSourceTile(mBandQ, rectangle);
-        final ProductData mstDataBufferI = mstTileI.getDataBuffer();
-        final ProductData mstDataBufferQ = mstTileQ.getDataBuffer();
+        final Tile refTileI = getSourceTile(mBandI, rectangle);
+        final Tile refTileQ = getSourceTile(mBandQ, rectangle);
+        final ProductData refDataBufferI = refTileI.getDataBuffer();
+        final ProductData refDataBufferQ = refTileQ.getDataBuffer();
 
-        final Tile slvTileI = getSourceTile(sBandI, rectangle);
-        final Tile slvTileQ = getSourceTile(sBandQ, rectangle);
-        final ProductData slvDataBufferI = slvTileI.getDataBuffer();
-        final ProductData slvDataBufferQ = slvTileQ.getDataBuffer();
+        final Tile secTileI = getSourceTile(sBandI, rectangle);
+        final Tile secTileQ = getSourceTile(sBandQ, rectangle);
+        final ProductData secDataBufferI = secTileI.getDataBuffer();
+        final ProductData secDataBufferQ = secTileQ.getDataBuffer();
 
-        final TileIndex srcIndex = new TileIndex(mstTileI);
+        final TileIndex srcIndex = new TileIndex(refTileI);
 
         final double[][] cohReal = new double[h][w];
         final double[][] cohImag = new double[h][w];
-        final double[][] mstPower = new double[h][w];
-        final double[][] slvPower = new double[h][w];
+        final double[][] refPower = new double[h][w];
+        final double[][] secPower = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
             srcIndex.calculateStride(y);
             final int yy = y - y0;
@@ -2223,15 +2221,15 @@ public class SpectralDiversityOp extends Operator {
                 final int srcIdx = srcIndex.getIndex(x);
                 final int xx = x - x0;
 
-                final float mI = mstDataBufferI.getElemFloatAt(srcIdx);
-                final float mQ = mstDataBufferQ.getElemFloatAt(srcIdx);
-                final float sI = slvDataBufferI.getElemFloatAt(srcIdx);
-                final float sQ = slvDataBufferQ.getElemFloatAt(srcIdx);
+                final float mI = refDataBufferI.getElemFloatAt(srcIdx);
+                final float mQ = refDataBufferQ.getElemFloatAt(srcIdx);
+                final float sI = secDataBufferI.getElemFloatAt(srcIdx);
+                final float sQ = secDataBufferQ.getElemFloatAt(srcIdx);
 
                 cohReal[yy][xx] = mI * sI + mQ * sQ;
                 cohImag[yy][xx] = mQ * sI - mI * sQ;
-                mstPower[yy][xx] = mI * mI + mQ * mQ;
-                slvPower[yy][xx] = sI * sI + sQ * sQ;
+                refPower[yy][xx] = mI * mI + mQ * mQ;
+                secPower[yy][xx] = sI * sI + sQ * sQ;
             }
         }
 
@@ -2245,25 +2243,25 @@ public class SpectralDiversityOp extends Operator {
                 final int colSt = Math.max(xx - halfWindowSize, 0);
                 final int colEd = Math.min(xx + halfWindowSize, w - 1);
 
-                double cohRealSum = 0.0f, cohImagSum = 0.0f, mstPowerSum = 0.0f, slvPowerSum = 0.0f;
+                double cohRealSum = 0.0f, cohImagSum = 0.0f, refPowerSum = 0.0f, secPowerSum = 0.0f;
                 int count = 0;
                 for (int r = rowSt; r <= rowEd; r++) {
                     for (int c = colSt; c <= colEd; c++) {
                         cohRealSum += cohReal[r][c];
                         cohImagSum += cohImag[r][c];
-                        mstPowerSum += mstPower[r][c];
-                        slvPowerSum += slvPower[r][c];
+                        refPowerSum += refPower[r][c];
+                        secPowerSum += secPower[r][c];
                         count++;
                     }
                 }
 
-                if (count > 0 && mstPowerSum != 0.0 && slvPowerSum != 0.0) {
+                if (count > 0 && refPowerSum != 0.0 && secPowerSum != 0.0) {
                     final double cohRealMean = cohRealSum / (double) count;
                     final double cohImagMean = cohImagSum / (double) count;
-                    final double mstPowerMean = mstPowerSum / (double) count;
-                    final double slvPowerMean = slvPowerSum / (double) count;
+                    final double refPowerMean = refPowerSum / (double) count;
+                    final double secPowerMean = secPowerSum / (double) count;
                     coherence[yy][xx] = Math.sqrt((cohRealMean * cohRealMean + cohImagMean * cohImagMean) /
-                                                          (mstPowerMean * slvPowerMean));
+                                                          (refPowerMean * secPowerMean));
                 }
             }
         }
@@ -2271,7 +2269,7 @@ public class SpectralDiversityOp extends Operator {
     }
 
     private void performRangeAzimuthShift(final double azOffset, final double rgOffset,
-                                          final Band slvBandI, final Band slvBandQ,
+                                          final Band secBandI, final Band secBandQ,
                                           final Rectangle targetRectangle, Map<Band, Tile> targetTileMap) {
 
         final int x0 = targetRectangle.x;
@@ -2280,11 +2278,11 @@ public class SpectralDiversityOp extends Operator {
         final int h = targetRectangle.height;
         final int burstIndex = y0 / subSwath[subSwathIndex - 1].linesPerBurst;
 
-        final float noDataValue = (float) slvBandI.getNoDataValue();
-        final Tile slvTileI = getSourceTile(slvBandI, targetRectangle);
-        final Tile slvTileQ = getSourceTile(slvBandQ, targetRectangle);
-        final float[] slvArrayI = (float[]) slvTileI.getDataBuffer().getElems();
-        final float[] slvArrayQ = (float[]) slvTileQ.getDataBuffer().getElems();
+        final float noDataValue = (float) secBandI.getNoDataValue();
+        final Tile secTileI = getSourceTile(secBandI, targetRectangle);
+        final Tile secTileQ = getSourceTile(secBandQ, targetRectangle);
+        final float[] secArrayI = (float[]) secTileI.getDataBuffer().getElems();
+        final float[] secArrayQ = (float[]) secTileQ.getDataBuffer().getElems();
 
         // Perform range shift
 
@@ -2300,8 +2298,8 @@ public class SpectralDiversityOp extends Operator {
             final int rw = r * w;
             for (int c = 0; c < w; c++) {
                 int c2 = c * 2;
-                line[c2] = slvArrayI[rw + c];
-                line[c2 + 1] = slvArrayQ[rw + c];
+                line[c2] = secArrayI[rw + c];
+                line[c2 + 1] = secArrayQ[rw + c];
             }
 
             row_fft.complexForward(line);
@@ -2337,8 +2335,8 @@ public class SpectralDiversityOp extends Operator {
         computeShiftPhaseArray(azOffset, h, phaseAz);
 
         // perform azimuth shift using FFT, and perform reramp and remodulation
-        final Band tgtBandI = targetProduct.getBand(slvBandI.getName());
-        final Band tgtBandQ = targetProduct.getBand(slvBandQ.getName());
+        final Band tgtBandI = targetProduct.getBand(secBandI.getName());
+        final Band tgtBandQ = targetProduct.getBand(secBandQ.getName());
         final Tile tgtTileI = targetTileMap.get(tgtBandI);
         final Tile tgtTileQ = targetTileMap.get(tgtBandQ);
         final ProductData tgtDataI = tgtTileI.getDataBuffer();
@@ -2368,7 +2366,7 @@ public class SpectralDiversityOp extends Operator {
             col_fft.complexInverse(col2, true);
 
             for (int r = 0; r < h; r++) {
-                if (slvArrayI[r * w + c] != noDataValue) {
+                if (secArrayI[r * w + c] != noDataValue) {
                     int r2 = r * 2;
                     final int y = y0 + r;
                     final int idx = tgtTileI.getDataBufferIndex(x, y);

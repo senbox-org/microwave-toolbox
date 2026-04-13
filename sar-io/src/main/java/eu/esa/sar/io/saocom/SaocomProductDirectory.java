@@ -76,10 +76,10 @@ public class SaocomProductDirectory extends XMLProductDirectory {
 
     @Override
     public void close() throws IOException {
+        super.close();
         if(dataDir != null) {
             dataDir.close();
         }
-        super.close();
     }
 
     @Override

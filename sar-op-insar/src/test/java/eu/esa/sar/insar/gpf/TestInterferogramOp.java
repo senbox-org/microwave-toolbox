@@ -122,10 +122,10 @@ public class TestInterferogramOp {
     private Product createStackProduct() throws IOException {
         int size = 10;
         Product srcProduct = TestUtils.createProduct("stackProduct", size, size);
-        TestUtils.createBand(srcProduct, "i_IW2_VV_mst_14Sep2020", size, size);
-        TestUtils.createBand(srcProduct, "q_IW2_VV_mst_14Sep2020", size, size);
-        TestUtils.createBand(srcProduct, "i_IW2_VV_slv1_27Aug2020", size, size);
-        TestUtils.createBand(srcProduct, "q_IW2_VV_slv1_27Aug2020", size, size);
+        TestUtils.createBand(srcProduct, "i_IW2_VV_ref_14Sep2020", size, size);
+        TestUtils.createBand(srcProduct, "q_IW2_VV_ref_14Sep2020", size, size);
+        TestUtils.createBand(srcProduct, "i_IW2_VV_sec1_27Aug2020", size, size);
+        TestUtils.createBand(srcProduct, "q_IW2_VV_sec1_27Aug2020", size, size);
 
         MetadataElement elem = new MetadataElement("ETAD_Product_Metadata");
         srcProduct.getMetadataRoot().addElement(elem);

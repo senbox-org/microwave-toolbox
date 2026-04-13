@@ -23,6 +23,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.eo.GeoUtils;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,7 +48,7 @@ public class PyRateHeaderWriter {
     private MetadataElement[] roots;
     public PyRateHeaderWriter(Product product){
         this.srcProduct = product;
-        final MetadataElement[] secondaryS = srcProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElements();
+        final MetadataElement[] secondaryS = StackUtils.findSecondaryMetadataRoot(srcProduct).getElements();
         roots = new MetadataElement[secondaryS.length + 1];
         roots[0] = srcProduct.getMetadataRoot().getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
         System.arraycopy(secondaryS, 0, roots, 1, secondaryS.length);
