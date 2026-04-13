@@ -46,7 +46,6 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
     private TiePointGrid incidenceAngle = null;
 
     private static final String USE_INCIDENCE_ANGLE_FROM_DEM = "Use projected local incidence angle from DEM";
-    private static final String CALIBRATION_FACTOR = "calibration_factor";
 
     /**
      * Default constructor. The graph processing framework
@@ -119,7 +118,7 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
      */
     private void getCalibrationFactor() {
 
-        calibrationFactor = origMetadataRoot.getAttributeDouble(CALIBRATION_FACTOR);
+        calibrationFactor = absRoot.getAttributeDouble(AbstractMetadata.calibration_factor);
     }
 
     /**
