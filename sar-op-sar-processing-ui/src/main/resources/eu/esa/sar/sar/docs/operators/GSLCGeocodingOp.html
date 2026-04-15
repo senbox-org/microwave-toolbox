@@ -270,13 +270,13 @@
     pixel-aligned. No separate coregistration step is needed.</p>
 
 <pre>
-  Primary SLC (Date 1)
-    &rarr; Apply-Orbit-File &rarr; TOPSAR-Split &rarr; GSLC-Terrain-Correction &rarr; GSLC<sub>primary</sub>
+  Reference SLC (Date 1)
+    &rarr; Apply-Orbit-File &rarr; TOPSAR-Split &rarr; GSLC-Terrain-Correction &rarr; GSLC<sub>reference</sub>
 
   Secondary SLC (Date 2)
     &rarr; Apply-Orbit-File &rarr; TOPSAR-Split &rarr; GSLC-Terrain-Correction &rarr; GSLC<sub>secondary</sub>
 
-  GSLC<sub>primary</sub> + GSLC<sub>secondary</sub>
+  GSLC<sub>reference</sub> + GSLC<sub>secondary</sub>
     &rarr; CreateStack
     &rarr; Interferogram
     &rarr; (optional) Goldstein-Phase-Filtering
@@ -303,7 +303,7 @@
     <tr>
         <td>3</td>
         <td>BackGeocoding (coregistration)</td>
-        <td>GSLC-Terrain-Correction (primary)</td>
+        <td>GSLC-Terrain-Correction (reference)</td>
     </tr>
     <tr>
         <td>4</td>
