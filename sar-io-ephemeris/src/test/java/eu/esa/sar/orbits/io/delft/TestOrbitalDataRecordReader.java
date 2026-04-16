@@ -22,6 +22,8 @@ import org.junit.Test;
 
 import java.nio.file.Path;
 
+import static org.junit.Assert.*;
+
 /**
  * OrbitalDataRecordReader Tester.
  *
@@ -87,4 +89,108 @@ public class TestOrbitalDataRecordReader {
         TestUtils.log.info(str.toString());
     }
 
+    // --- New tests ---
+
+    @Test
+    public void testSingletonInstance() {
+        OrbitalDataRecordReader instance1 = OrbitalDataRecordReader.getInstance();
+        OrbitalDataRecordReader instance2 = OrbitalDataRecordReader.getInstance();
+        assertNotNull(instance1);
+        assertSame(instance1, instance2);
+    }
+
+    @Test
+    public void testEnvisatHeaderValues() throws Exception {
+        final OrbitalDataRecordReader reader = new OrbitalDataRecordReader();
+        assertTrue(reader.readOrbitFile(basePath.resolve(envisatOrbitFilePath)));
+
+        assertNotNull(reader.getProductSpecifier());
+        assertNotNull(reader.getSatelliteName());
+        assertTrue(reader.getNumRecords() > 0);
+        assertTrue(reader.getArcStart() > 0);
+    }
+
+    @Test
+    public void testERS1HeaderValues() throws Exception {
+        final OrbitalDataRecordReader reader = new OrbitalDataRecordReader();
+        assertTrue(reader.readOrbitFile(basePath.resolve(ers1OrbitFilePath)));
+
+        String satellite = reader.getSatelliteName();
+        assertNotNull(satellite);
+        assertTrue(reader.getNumRecords() > 0);
+        assertTrue(reader.getVersion() > 0);
+    }
+
+    @Test
+    public void testERS2HeaderValues() throws Exception {
+        final OrbitalDataRecordReader reader = new OrbitalDataRecordReader();
+        assertTrue(reader.readOrbitFile(basePath.resolve(ers2OrbitFilePath)));
+
+        assertNotNull(reader.getSatelliteName());
+        assertTrue(reader.getNumRecords() > 0);
+    }
+
+    @Test
+    public void testDataRecordsNotEmpty() throws Exception {
+        final OrbitalDataRecordReader reader = new OrbitalDataRecordReader();
+        assertTrue(reader.readOrbitFile(basePath.resolve(envisatOrbitFilePath)));
+
+        OrbitalDataRecordReader.OrbitDataRecord[] records = reader.getDataRecords();
+        assertNotNull(records);
+        assertEquals(reader.getNumRecords(), records.length);
+
+        // Verify first record has reasonable values
+        assertTrue(records[0].time > 0);
+    }
+
+    @Test
+    public void testOpenNonExistentFile() {
+        final OrbitalDataRecordReader reader = new OrbitalDataRecordReader();
+        assertFalse(reader.OpenOrbitFile(Path.of("/nonexistent/path/orbit.file")));
+    }
+
+    @Test
+    public void testInvalidArcNumberConstant() {
+        assertEquals(-1, OrbitalDataRecordReader.invalidArcNumber);
+    }
+
+    @Test
+    public void testOrbitDataRecordFields() {
+        OrbitalDataRecordReader.OrbitDataRecord record = new OrbitalDataRecordReader.OrbitDataRecord();
+        assertEquals(0, record.time);
+        assertEquals(0, record.latitude);
+        assertEquals(0, record.longitude);
+        assertEquals(0, record.heightOfCenterOfMass);
+    }
+
+    @Test
+    public void testOrbitPositionRecordDefaults() {
+        OrbitalDataRecordReader.OrbitPositionRecord record = new OrbitalDataRecordReader.OrbitPositionRecord();
+        assertEquals(0.0, record.utcTime, 0.0);
+        assertEquals(0.0, record.xPos, 0.0);
+        assertEquals(0.0, record.yPos, 0.0);
+        assertEquals(0.0, record.zPos, 0.0);
+    }
+
+    @Test
+    public void testOrbitVectorDefaults() {
+        OrbitalDataRecordReader.OrbitVector vector = new OrbitalDataRecordReader.OrbitVector();
+        assertEquals(0.0, vector.utcTime, 0.0);
+        assertEquals(0.0, vector.xPos, 0.0);
+        assertEquals(0.0, vector.yPos, 0.0);
+        assertEquals(0.0, vector.zPos, 0.0);
+        assertEquals(0.0, vector.xVel, 0.0);
+        assertEquals(0.0, vector.yVel, 0.0);
+        assertEquals(0.0, vector.zVel, 0.0);
+    }
+
+    @Test
+    public void testRecordCountConsistency() throws Exception {
+        final OrbitalDataRecordReader reader = new OrbitalDataRecordReader();
+        assertTrue(reader.readOrbitFile(basePath.resolve(envisatOrbitFilePath)));
+
+        int numRecords = reader.getNumRecords();
+        OrbitalDataRecordReader.OrbitDataRecord[] records = reader.getDataRecords();
+        assertEquals(numRecords, records.length);
+    }
 }
