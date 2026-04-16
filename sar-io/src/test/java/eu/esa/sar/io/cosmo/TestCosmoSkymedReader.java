@@ -19,7 +19,9 @@ import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
+import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.Stx;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -27,6 +29,8 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -79,6 +83,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_VV","q_VV","Intensity_VV"});
         validator.validateBandData();
+        validateBandStats(prod, "i_VV", "q_VV");
     }
 
     @Test
@@ -90,6 +95,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_VV","Intensity_VV"});
         validator.validateBandData();
+        validateBandStats(prod, "Amplitude_VV");
     }
 
 
@@ -102,6 +108,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
         validator.validateBandData();
+        validateBandStats(prod, "i_HH", "q_HH");
     }
 
     @Test
@@ -113,6 +120,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
         validator.validateBandData();
+        validateBandStats(prod, "Amplitude_HH");
     }
 
     @Test
@@ -124,6 +132,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
         validator.validateBandData();
+        validateBandStats(prod, "i_HH", "q_HH");
     }
 
     @Test
@@ -135,6 +144,7 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
         validator.validateBandData();
+        validateBandStats(prod, "Amplitude_HH");
     }
 
 
@@ -149,6 +159,8 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBandData();
+        validateBandStats(prod, "Amplitude_HH");
     }
 
     @Test
@@ -161,6 +173,29 @@ public class TestCosmoSkymedReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBandData();
+        validateBandStats(prod, "i_HH", "q_HH");
+    }
+
+    /**
+     * Asserts that each named band has its default Stx populated from the NetCDF
+     * "Image Min" / "Image Max" attributes (or their indexed / underscore variants).
+     * Regression guard for CosmoSkymedNetCDFReader.applyImageStats — without that fix,
+     * NG-generation complex products would leave Stx unset because they use
+     * "Image_Min.1"/"Image_Min.2" rather than plain "Image Min".
+     */
+    private static void validateBandStats(final Product prod, final String... bandNames) {
+        for (final String bandName : bandNames) {
+            final Band band = prod.getBand(bandName);
+            assertNotNull("Band " + bandName + " not found", band);
+            assertTrue("Band " + bandName + " has no Stx set (Image Min/Max attributes were not applied)",
+                    band.isStxSet());
+            final Stx stx = band.getStx();
+            final double min = stx.getMinimum();
+            final double max = stx.getMaximum();
+            assertTrue("Band " + bandName + " has invalid Stx range [" + min + ", " + max + "]",
+                    Double.isFinite(min) && Double.isFinite(max) && min <= max);
+        }
     }
 
     /**
