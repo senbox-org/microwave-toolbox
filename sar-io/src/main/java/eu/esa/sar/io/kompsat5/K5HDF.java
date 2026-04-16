@@ -41,6 +41,7 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import eu.esa.sar.io.netcdf.NetCDFCacheSupport;
 import ucar.ma2.Array;
 import ucar.ma2.InvalidRangeException;
 import ucar.nc2.NetcdfFile;
@@ -70,6 +71,7 @@ public class K5HDF implements K5Format {
     private final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
     private final Map<Band, Variable> bandMap = new HashMap<>(10);
     private final Map<Band, TiePointGeoCoding> bandGeocodingMap = new HashMap<>(5);
+    private final NetCDFCacheSupport cacheSupport = new NetCDFCacheSupport();
 
 
     public K5HDF(final ProductReaderPlugIn readerPlugIn, final Kompsat5Reader reader) {
@@ -132,10 +134,13 @@ public class K5HDF implements K5Format {
 
         addGeocodingToProduct(product);
 
+        cacheSupport.init(product, bandMap, netcdfFile, yFlipped, useFloatBands);
+
         return product;
     }
 
     public void close() throws IOException {
+        cacheSupport.dispose();
         if (netcdfFile != null) {
             variableMap.clear();
             variableMap = null;
@@ -553,18 +558,7 @@ public class K5HDF implements K5Format {
                 bandI.setNoDataValue(0);
                 bandI.setNoDataValueUsed(true);
                 product.addBand(bandI);
-                try {
-                    ucar.nc2.Attribute minAt = variable.findAttribute("Image Min");
-                    ucar.nc2.Attribute maxAt = variable.findAttribute("Image Max");
-                    if (minAt != null && maxAt != null) {
-                        double min = minAt.getNumericValue().doubleValue();
-                        double max = maxAt.getNumericValue().doubleValue();
-                        bandI.setStx(new org.esa.snap.core.datamodel.StxFactory().withMinimum(min).withMaximum(max)
-                                .withIntHistogram(false).withHistogramBins(new int[512]).create());
-                    }
-                } catch (Exception e) {
-                    // ignore
-                }
+                applyImageStats(bandI, variable, 1);
                 bandMap.put(bandI, variable);
 
                 Band bandQ = useFloatBands ?
@@ -575,18 +569,7 @@ public class K5HDF implements K5Format {
                 bandQ.setNoDataValue(0);
                 bandQ.setNoDataValueUsed(true);
                 product.addBand(bandQ);
-                try {
-                    ucar.nc2.Attribute minAt = variable.findAttribute("Image Min");
-                    ucar.nc2.Attribute maxAt = variable.findAttribute("Image Max");
-                    if (minAt != null && maxAt != null) {
-                        double min = minAt.getNumericValue().doubleValue();
-                        double max = maxAt.getNumericValue().doubleValue();
-                        bandQ.setStx(new org.esa.snap.core.datamodel.StxFactory().withMinimum(min).withMaximum(max)
-                                .withIntHistogram(false).withHistogramBins(new int[512]).create());
-                    }
-                } catch (Exception e) {
-                    // ignore
-                }
+                applyImageStats(bandQ, variable, 2);
                 bandMap.put(bandQ, variable);
 
                 ReaderUtils.createVirtualIntensityBand(product, bandI, bandQ, cntStr);
@@ -599,23 +582,71 @@ public class K5HDF implements K5Format {
                 band.setNoDataValue(0);
                 band.setNoDataValueUsed(true);
                 product.addBand(band);
-                try {
-                    ucar.nc2.Attribute minAt = variable.findAttribute("Image Min");
-                    ucar.nc2.Attribute maxAt = variable.findAttribute("Image Max");
-                    if (minAt != null && maxAt != null) {
-                        double min = minAt.getNumericValue().doubleValue();
-                        double max = maxAt.getNumericValue().doubleValue();
-                        band.setStx(new org.esa.snap.core.datamodel.StxFactory().withMinimum(min).withMaximum(max)
-                                .withIntHistogram(false).withHistogramBins(new int[512]).create());
-                    }
-                } catch (Exception e) {
-                    // ignore
-                }
+                applyImageStats(band, variable, 1);
                 bandMap.put(band, variable);
 
                 SARReader.createVirtualIntensityBand(product, band, cntStr);
             }
         }
+    }
+
+    /**
+     * Reads "Image Min" / "Image Max" attributes from the variable and sets the band's
+     * default statistics. Handles the attribute forms produced by different Kompsat-5
+     * product versions and NetCDF-Java backends:
+     * <ul>
+     *   <li>Plain single-valued:  {@code Image Min} / {@code Image Max}</li>
+     *   <li>Plain multi-valued:   {@code Image Min} holding {@code [I, Q]}</li>
+     *   <li>Per-channel indexed:  {@code Image Min.1} / {@code Image Min.2} (and
+     *       {@code Image_Min.1} / {@code Image_Min.2} with underscores)</li>
+     * </ul>
+     *
+     * @param band         the target band
+     * @param variable     the NetCDF variable backing the band
+     * @param channelIndex 1-based channel: 1 for I / amplitude, 2 for Q
+     */
+    private static void applyImageStats(final Band band, final Variable variable, final int channelIndex) {
+        try {
+            final Double min = findImageStat(variable, "Image Min", channelIndex);
+            final Double max = findImageStat(variable, "Image Max", channelIndex);
+            if (min != null && max != null) {
+                band.setStx(new org.esa.snap.core.datamodel.StxFactory()
+                        .withMinimum(min).withMaximum(max)
+                        .withIntHistogram(false).withHistogramBins(new int[512]).create());
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    private static Double findImageStat(final Variable variable, final String baseName, final int channelIndex) {
+        // Plain attribute name — may be single-valued or a [I, Q] array.
+        ucar.nc2.Attribute attr = variable.findAttribute(baseName);
+        if (attr == null) {
+            attr = variable.findAttribute(baseName.replace(' ', '_'));
+        }
+        if (attr != null && attr.getLength() > 0) {
+            final int pickIndex = attr.getLength() >= channelIndex ? channelIndex - 1 : 0;
+            final Number value = attr.getNumericValue(pickIndex);
+            if (value != null) {
+                return value.doubleValue();
+            }
+        }
+
+        // Per-channel indexed attribute names (1-based: .1 = I, .2 = Q).
+        for (final String name : new String[]{
+                baseName + "." + channelIndex,
+                baseName.replace(' ', '_') + "." + channelIndex}) {
+            final ucar.nc2.Attribute idxAttr = variable.findAttribute(name);
+            if (idxAttr != null && idxAttr.getLength() > 0) {
+                final Number value = idxAttr.getNumericValue();
+                if (value != null) {
+                    return value.doubleValue();
+                }
+            }
+        }
+
+        return null;
     }
 
     private static String getPolarization(final Product product, final int cnt) {
@@ -886,6 +917,11 @@ public class K5HDF implements K5Format {
         final int sceneWidth = product.getSceneRasterWidth();
         destHeight = Math.min(destHeight, sceneHeight - sourceOffsetY);
         destWidth = Math.min(destWidth, sceneWidth - destOffsetX);
+
+        if (cacheSupport.isActive()) {
+            cacheSupport.readFromCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
+            return;
+        }
 
         final int y0 = yFlipped ? (sceneHeight - 1) - sourceOffsetY : sourceOffsetY;
 

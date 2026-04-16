@@ -21,6 +21,11 @@ import eu.esa.sar.io.netcdf.NetCDFUtils;
 import eu.esa.sar.io.netcdf.NetcdfConstants;
 import eu.esa.sar.io.nisar.util.NisarXConstants;
 import eu.esa.sar.io.pcidsk.UTM2LatLon;
+import eu.esa.snap.core.dataio.cache.CacheDataProvider;
+import eu.esa.snap.core.dataio.cache.CacheManager;
+import eu.esa.snap.core.dataio.cache.DataBuffer;
+import eu.esa.snap.core.dataio.cache.ProductCache;
+import eu.esa.snap.core.dataio.cache.VariableDescriptor;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
@@ -61,15 +66,28 @@ import java.util.Map;
 
 import static ucar.ma2.DataType.STRUCTURE;
 
-public abstract class NisarSubReader {
+public abstract class NisarSubReader implements CacheDataProvider {
 
     protected final Map<Band, Variable> bandMap = new HashMap<>();
+
+    // Reverse lookup: band name → Variable, used by ProductCache
+    private final Map<String, Variable> bandNameToVariable = new HashMap<>();
+
+    // Tracks which complex bands want the imaginary component (vs real)
+    private final java.util.Set<String> imaginaryBandNames = new java.util.HashSet<>();
 
     // Row-strip LRU cache for compound/Structure reads.
     // SNAP requests tiles from many Y positions concurrently (multi-threaded),
     // so we cache multiple strips to avoid thrashing.
     private static final int STRIP_HEIGHT = 512;
     private static final int MAX_CACHED_STRIPS = 8;
+
+    // System property to toggle between ProductCache (true) and direct reads (false)
+    // for non-STRUCTURE variables. Set -Dnisar.useProductCache=true to enable.
+    protected static final boolean USE_PRODUCT_CACHE =
+            Boolean.parseBoolean(System.getProperty("nisar.useProductCache", "true"));
+
+    private ProductCache productCache;
 
     private static class StripData {
         final float[] real;
@@ -99,6 +117,11 @@ public abstract class NisarSubReader {
     protected boolean isComplex = true;
 
     public void close() throws IOException {
+        if (productCache != null) {
+            CacheManager.getInstance().remove(productCache);
+            productCache = null;
+        }
+        bandNameToVariable.clear();
         if (netcdfFile != null) {
             netcdfFile.close();
             netcdfFile = null;
@@ -160,6 +183,20 @@ public abstract class NisarSubReader {
             addBandsToProduct();
             addTiePointGridsToProduct();
             addDopplerMetadata();
+
+            // Build reverse lookup (bandName → Variable) and track imaginary bands
+            for (Map.Entry<Band, Variable> entry : bandMap.entrySet()) {
+                final Band band = entry.getKey();
+                bandNameToVariable.put(band.getName(), entry.getValue());
+                if (Unit.IMAGINARY.equals(band.getUnit()) || band.getName().startsWith("q_")) {
+                    imaginaryBandNames.add(band.getName());
+                }
+            }
+            if (USE_PRODUCT_CACHE) {
+                productCache = new ProductCache(this);
+                CacheManager.getInstance().register(productCache);
+                SystemUtils.LOG.info("NISAR ProductCache enabled for " + inputFile.getName());
+            }
 
             // Set Stx for all bands that don't have it set yet
             // This must happen after all product setup is complete as some operations can clear Stx
@@ -1297,42 +1334,21 @@ public abstract class NisarSubReader {
 
         pm.beginTask("Reading band " + destBand.getName(), 1);
         try {
-            if (variable.getDataType() == STRUCTURE) {
-                // HDF5 compound type (complex64 = {float r; float i}):
-                // NetCDF4-Java may report rank=0 for compound Structure variables even when the
-                // underlying dataset is 2D, so ranged reads fail. Instead: read the full variable
-                // once (cached), extract the I or Q member float array (cached per band), then
-                // copy the requested tile from the in-memory array.
+            if (productCache != null && variable.getDataType() == STRUCTURE) {
+                // Route complex compound reads through ProductCache
+                readFromProductCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
+            } else if (variable.getDataType() == STRUCTURE) {
+                // Fallback: strip cache for complex compound types when ProductCache is disabled
                 readComplexBandTile(variable, destBand, sceneWidth, sceneHeight,
                         sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY,
                         destWidth, destHeight, destBuffer);
+            } else if (productCache != null) {
+                // Route through ProductCache for tile-based caching with global memory management
+                readFromProductCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
             } else {
-                final List<Range> tileRanges = new ArrayList<>();
-                tileRanges.add(new Range(sourceOffsetY, sourceOffsetY + readHeight - 1, sourceStepY));
-                tileRanges.add(new Range(sourceOffsetX, sourceOffsetX + readWidth - 1, sourceStepX));
-
-                final Array array;
-                try {
-                    synchronized (netcdfFile) {
-                        array = variable.read(tileRanges);
-                    }
-                } catch (InvalidRangeException e) {
-                    throw new IOException(e);
-                }
-
-                final float[] tempArray = (float[]) array.get1DJavaArray(DataType.FLOAT);
-                final int actualHeight = array.getShape()[0];
-                final int actualWidth = array.getShape()[1];
-
-                if (actualWidth == destWidth) {
-                    System.arraycopy(tempArray, 0, destBuffer.getElems(), 0, tempArray.length);
-                } else {
-                    for (int y = 0; y < actualHeight; y++) {
-                        if (y >= destHeight) break;
-                        System.arraycopy(tempArray, y * actualWidth, destBuffer.getElems(), y * destWidth,
-                                Math.min(actualWidth, destWidth));
-                    }
-                }
+                // Direct read from NetCDF — no caching
+                readFloatBandDirect(variable, sourceOffsetX, sourceOffsetY, readWidth, readHeight,
+                        sourceStepX, sourceStepY, destWidth, destHeight, destBuffer);
             }
             pm.worked(1);
         } catch (Exception e) {
@@ -1344,6 +1360,215 @@ public abstract class NisarSubReader {
 
 //        stopWatch.stop();
 //        System.out.println("readBandRasterDataImpl sourceOffsetY="+sourceOffsetY+" in " + stopWatch.getTimeDiffString());
+    }
+
+    /**
+     * Read a standard float band tile directly from NetCDF without caching.
+     */
+    private void readFloatBandDirect(Variable variable, int sourceOffsetX, int sourceOffsetY,
+                                     int readWidth, int readHeight, int sourceStepX, int sourceStepY,
+                                     int destWidth, int destHeight, ProductData destBuffer) throws IOException {
+        final List<Range> tileRanges = new ArrayList<>();
+        try {
+            tileRanges.add(new Range(sourceOffsetY, sourceOffsetY + readHeight - 1, sourceStepY));
+            tileRanges.add(new Range(sourceOffsetX, sourceOffsetX + readWidth - 1, sourceStepX));
+        } catch (InvalidRangeException e) {
+            throw new IOException(e);
+        }
+
+        final Array array;
+        try {
+            synchronized (netcdfFile) {
+                array = variable.read(tileRanges);
+            }
+        } catch (InvalidRangeException e) {
+            throw new IOException(e);
+        }
+
+        final float[] tempArray = (float[]) array.get1DJavaArray(DataType.FLOAT);
+        final int actualHeight = array.getShape()[0];
+        final int actualWidth = array.getShape()[1];
+
+        if (actualWidth == destWidth) {
+            System.arraycopy(tempArray, 0, destBuffer.getElems(), 0, tempArray.length);
+        } else {
+            for (int y = 0; y < actualHeight; y++) {
+                if (y >= destHeight) break;
+                System.arraycopy(tempArray, y * actualWidth, destBuffer.getElems(), y * destWidth,
+                        Math.min(actualWidth, destWidth));
+            }
+        }
+    }
+
+    /**
+     * Read a band tile through the ProductCache.
+     */
+    private void readFromProductCache(String bandName, int x, int y, int w, int h,
+                                      ProductData destBuffer) throws IOException {
+        final int[] offsets = new int[]{y, x};
+        final int[] shapes = new int[]{h, w};
+        final DataBuffer target = new DataBuffer(destBuffer, offsets, shapes);
+        productCache.read(bandName, offsets, shapes, target);
+    }
+
+    // --- CacheDataProvider implementation ---
+
+    @Override
+    public VariableDescriptor getVariableDescriptor(String variableName) throws IOException {
+        final Variable variable = bandNameToVariable.get(variableName);
+        if (variable == null) {
+            throw new IOException("Variable not known: " + variableName);
+        }
+
+        final VariableDescriptor desc = new VariableDescriptor();
+        desc.name = variableName;
+        desc.dataType = ProductData.TYPE_FLOAT32;
+        desc.layers = -1;
+
+        final int[] shape = variable.getShape();
+        if (shape.length >= 2) {
+            desc.height = shape[0];
+            desc.width = shape[1];
+        } else {
+            // STRUCTURE variables may report rank=0; use band dimensions from the product
+            final Band band = product.getBand(variableName);
+            if (band != null) {
+                desc.height = band.getRasterHeight();
+                desc.width = band.getRasterWidth();
+            } else {
+                throw new IOException("Cannot determine dimensions for variable: " + variableName);
+            }
+        }
+
+        // Use HDF5 chunk sizes for tile dimensions if available, otherwise default to 512
+        final Attribute chunkSizes = variable.findAttribute("_ChunkSizes");
+        if (chunkSizes != null && chunkSizes.getLength() >= 2) {
+            final ucar.ma2.Array chunkValues = chunkSizes.getValues();
+            desc.tileHeight = chunkValues.getInt(0);
+            desc.tileWidth = chunkValues.getInt(1);
+        } else {
+            desc.tileHeight = Math.min(512, desc.height);
+            desc.tileWidth = Math.min(512, desc.width);
+        }
+
+        return desc;
+    }
+
+    @SuppressWarnings("SynchronizeOnNonFinalField")
+    @Override
+    public DataBuffer readCacheBlock(String variableName, int[] offsets, int[] shapes,
+                                     ProductData targetData) throws IOException {
+        final Variable variable = bandNameToVariable.get(variableName);
+        if (variable == null) {
+            throw new IOException("Variable not known: " + variableName);
+        }
+
+        final int numPixels = shapes[0] * shapes[1];
+
+        // CacheData2D calls with targetData=null — allocate the buffer
+        if (targetData == null) {
+            targetData = ProductData.createInstance(ProductData.TYPE_FLOAT32, numPixels);
+        }
+
+        if (variable.getDataType() == STRUCTURE) {
+            readStructureCacheBlock(variable, variableName, offsets, shapes, numPixels, targetData);
+        } else {
+            final Array rawBuffer;
+            synchronized (netcdfFile) {
+                try {
+                    rawBuffer = variable.read(offsets, shapes);
+                } catch (InvalidRangeException e) {
+                    throw new IOException(e);
+                }
+            }
+            targetData.setElems(rawBuffer.get1DJavaArray(DataType.FLOAT));
+        }
+
+        return new DataBuffer(targetData, offsets, shapes);
+    }
+
+    /**
+     * Read a tile from an HDF5 compound/STRUCTURE variable and extract the real or imaginary component.
+     */
+    private void readStructureCacheBlock(Variable variable, String bandName,
+                                         int[] offsets, int[] shapes, int numPixels,
+                                         ProductData targetData) throws IOException {
+        final boolean wantImag = imaginaryBandNames.contains(bandName);
+        final int rowStart = offsets[0];
+        final int colStart = offsets[1];
+        final int tileHeight = shapes[0];
+        final int tileWidth = shapes[1];
+
+        try {
+            final ArrayStructure structArray;
+
+            if (variable.getRank() >= 2) {
+                final List<Range> tileRanges = new ArrayList<>();
+                tileRanges.add(new Range(rowStart, rowStart + tileHeight - 1));
+                tileRanges.add(new Range(colStart, colStart + tileWidth - 1));
+
+                synchronized (netcdfFile) {
+                    structArray = (ArrayStructure) variable.read(tileRanges);
+                }
+            } else if (variable instanceof ucar.nc2.Structure) {
+                // rank-0 fallback: compute linear offset from 2D coordinates
+                final int sceneWidth = product.getSceneRasterWidth();
+                final int linearStart = rowStart * sceneWidth + colStart;
+
+                final ucar.nc2.Structure struct = (ucar.nc2.Structure) variable;
+                synchronized (netcdfFile) {
+                    structArray = struct.readStructure(linearStart, numPixels);
+                }
+            } else {
+                throw new IOException("Unsupported STRUCTURE variable layout for " + bandName);
+            }
+
+            final float[] result = new float[numPixels];
+
+            if (structArray instanceof ArrayStructureBB) {
+                final ArrayStructureBB bbArray = (ArrayStructureBB) structArray;
+                final ByteBuffer bb = bbArray.getByteBuffer();
+                bb.order(ByteOrder.nativeOrder());
+
+                final StructureMembers members = bbArray.getStructureMembers();
+                final int elementSize = members.getStructureSize();
+
+                int componentOffset = wantImag ? 4 : 0;
+                for (StructureMembers.Member m : members.getMembers()) {
+                    final String n = m.getName().toLowerCase();
+                    if (!wantImag && (n.equals("r") || n.equals("real") || n.endsWith("_r"))) {
+                        componentOffset = m.getDataParam();
+                    } else if (wantImag && (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i"))) {
+                        componentOffset = m.getDataParam();
+                    }
+                }
+
+                for (int idx = 0; idx < numPixels; idx++) {
+                    result[idx] = bb.getFloat(idx * elementSize + componentOffset);
+                }
+            } else {
+                final StructureMembers members = structArray.getStructureMembers();
+                StructureMembers.Member targetMember = null;
+                for (StructureMembers.Member m : members.getMembers()) {
+                    final String n = m.getName().toLowerCase();
+                    if (!wantImag && (n.equals("r") || n.equals("real") || n.endsWith("_r"))) {
+                        targetMember = m;
+                    } else if (wantImag && (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i"))) {
+                        targetMember = m;
+                    }
+                }
+                if (targetMember != null) {
+                    for (int idx = 0; idx < numPixels; idx++) {
+                        result[idx] = structArray.getScalarFloat(idx, targetMember);
+                    }
+                }
+            }
+
+            targetData.setElems(result);
+
+        } catch (InvalidRangeException e) {
+            throw new IOException(e);
+        }
     }
 
     /**
