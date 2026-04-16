@@ -294,6 +294,29 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
             }
         }
 
+        // Fallback for annotation-only products (no measurement data)
+        if (bandImageFileMap.isEmpty() && !imgBandMetadataMap.isEmpty()) {
+            SystemUtils.LOG.warning("No measurement data found. Product may be an annotation-only product.");
+            for (String bandMetadataName : imgBandMetadataMap.values()) {
+                final String p = bandMetadataName.substring(bandMetadataName.lastIndexOf("_") + 1);
+                if (pol == null) {
+                    pol = p;
+                } else if (!p.equals(pol)) {
+                    continue;
+                }
+
+                final MetadataElement bandMetadata = absRoot.getElement(bandMetadataName);
+                if (bandMetadata != null) {
+                    int width = bandMetadata.getAttributeInt(AbstractMetadata.num_samples_per_line);
+                    int height = bandMetadata.getAttributeInt(AbstractMetadata.num_output_lines);
+                    totalWidth += width;
+                    if (height > maxHeight) {
+                        maxHeight = height;
+                    }
+                }
+            }
+        }
+
         if (isSLC() && isTOPSAR()) {  // approximate does not account for overlap
             absRoot.setAttributeInt(AbstractMetadata.num_samples_per_line, totalWidth);
             absRoot.setAttributeInt(AbstractMetadata.num_output_lines, maxHeight);
@@ -828,6 +851,13 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         if(band != null) {
             sceneRasterWidth = band.getRasterWidth();
             sceneRasterHeight = band.getRasterHeight();
+        }
+
+        if (sceneRasterWidth <= 0 || sceneRasterHeight <= 0 || newGridWidth <= 1 || newGridHeight <= 1) {
+            SystemUtils.LOG.warning("Unable to create tie-point grids: invalid dimensions" +
+                    " (rasterWidth=" + sceneRasterWidth + ", rasterHeight=" + sceneRasterHeight +
+                    ", gridWidth=" + newGridWidth + ", gridHeight=" + newGridHeight + ")");
+            return;
         }
 
         final double subSamplingX = (double) sceneRasterWidth / (newGridWidth - 1);

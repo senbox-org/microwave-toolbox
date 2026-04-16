@@ -522,7 +522,7 @@ public class NetCDFUtils {
         return currentParent; // This is the element where the leaf node should be added
     }
 
-    private static int getProductDataType(Variable variable) {
+    public static int getProductDataType(Variable variable) {
         final DataType ncDataType = variable.getDataType();
         final boolean unsigned = variable.getDataType().isUnsigned();
         final boolean rasterDataOnly = false;

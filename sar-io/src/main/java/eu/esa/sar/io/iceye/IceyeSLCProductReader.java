@@ -20,6 +20,7 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import eu.esa.sar.io.netcdf.NetCDFCacheSupport;
 import ucar.ma2.Array;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
@@ -39,6 +40,7 @@ import java.util.Map;
 public class IceyeSLCProductReader extends SARReader {
 
     private final Map<Band, Variable> bandMap = new HashMap<>(10);
+    private final NetCDFCacheSupport cacheSupport = new NetCDFCacheSupport();
     private final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd'T'HH:mm:ss");
     private NetcdfFile netcdfFile = null;
     private Product product = null;
@@ -223,6 +225,8 @@ public class IceyeSLCProductReader extends SARReader {
             addDopplerMetadata();
             setQuicklookBandName(product);
 
+            cacheSupport.init(product, bandMap, netcdfFile, false, false);
+
             product.getGcpGroup();
             product.setModified(false);
 
@@ -235,6 +239,7 @@ public class IceyeSLCProductReader extends SARReader {
 
     @Override
     public void close() throws IOException {
+        cacheSupport.dispose();
         if (product != null) {
             product = null;
             netcdfFile.close();
@@ -641,11 +646,17 @@ public class IceyeSLCProductReader extends SARReader {
         final int sceneHeight = product.getSceneRasterHeight();
         final int sceneWidth = product.getSceneRasterWidth();
 
+        destHeight = Math.min(destHeight, sceneHeight - sourceOffsetY);
+        destWidth = Math.min(destWidth, sceneWidth - destOffsetX);
+
+        if (cacheSupport.isActive()) {
+            cacheSupport.readFromCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
+            return;
+        }
+
         final Variable variable = bandMap.get(destBand);
 
-        destHeight = Math.min(destHeight, sceneHeight - sourceOffsetY);
         sourceWidth = Math.min(sourceWidth, sceneWidth - sourceOffsetX);
-        destWidth = Math.min(destWidth, sceneWidth - destOffsetX);
         final int[] origin = {sourceOffsetY, sourceOffsetX};
         final int[] shape = {1, sourceWidth};
         pm.beginTask("Reading util from band " + destBand.getName(), destHeight);
