@@ -4,6 +4,7 @@ import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorException;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
@@ -32,6 +33,19 @@ public class TestMultiReferenceInSAR {
     public void setUp() throws Exception {
         sourceProduct = createStackProduct();
         dualPolSrcProduct = createDualPolStackProduct();
+    }
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final MultiMasterInSAROp op = (MultiMasterInSAROp) new MultiMasterInSAROp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = MultiMasterInSAROp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("MultiMasterInSAR", md.alias());
     }
 
     @Test

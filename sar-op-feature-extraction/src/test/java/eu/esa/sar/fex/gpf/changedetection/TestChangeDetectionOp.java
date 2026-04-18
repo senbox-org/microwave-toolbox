@@ -18,6 +18,7 @@ package eu.esa.sar.fex.gpf.changedetection;
 import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Test;
@@ -27,6 +28,18 @@ import static org.junit.Assert.assertNotNull;
 
 public class TestChangeDetectionOp {
 
+    @Test
+    public void testSpiCreatesOperator() {
+        final ChangeDetectionOp op = (ChangeDetectionOp) new ChangeDetectionOp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = ChangeDetectionOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Change-Detection", md.alias());
+    }
 
     @Test()
     @STTM("SNAP-3930")

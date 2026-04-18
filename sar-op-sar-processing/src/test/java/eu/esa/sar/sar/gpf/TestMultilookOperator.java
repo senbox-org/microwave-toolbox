@@ -21,6 +21,7 @@ import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
@@ -33,6 +34,7 @@ import java.io.File;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -60,6 +62,19 @@ public class TestMultilookOperator extends ProcessorTest {
     private static final String[] productTypeExemptions = {"-","_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
     private static final String[] exceptionExemptions = {"not supported", "not intended", "not be map projected",
             "first be deburst","has no bands"};
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final MultilookOp op = (MultilookOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = MultilookOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Multilook", md.alias());
+    }
 
     /**
      * Tests multi-look operator with a 4x16 "DETECTED" test product.

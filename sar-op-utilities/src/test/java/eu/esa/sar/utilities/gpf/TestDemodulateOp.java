@@ -20,6 +20,7 @@ import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -28,6 +29,7 @@ import java.io.File;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -39,6 +41,19 @@ public class TestDemodulateOp {
     private final static File inputFile = TestData.inputStackIMS;
 
     private final static OperatorSpi spi = new DemodulateOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final DemodulateOp op = (DemodulateOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = DemodulateOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Demodulate", md.alias());
+    }
 
     @Before
     public void setUp() throws Exception {

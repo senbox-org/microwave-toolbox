@@ -17,6 +17,7 @@ package eu.esa.sar.calibration.gpf;
 
 import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.*;
@@ -37,9 +38,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Unit test for RemoveThermalNoise Operator.
+ * Unit test for Sentinel1RemoveThermalNoise Operator.
  */
-public class TestRemoveThermalNoiseOp {
+public class TestRemoveThermalNoiseOp extends ProcessorTest {
 
     private final static File inputFile1 = TestData.inputS1_GRD;
     private final static File inputFile2 = TestData.inputS1_StripmapSLC;
@@ -51,11 +52,13 @@ public class TestRemoveThermalNoiseOp {
         assumeTrue(inputFile2 + "not found", inputFile2.exists());
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
-
     private final static OperatorSpi spi = new Sentinel1RemoveThermalNoiseOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final Sentinel1RemoveThermalNoiseOp op = (Sentinel1RemoveThermalNoiseOp) spi.createOperator();
+        assertNotNull(op);
+    }
 
     private String[] productTypeExemptions = {"OCN"};
     private String[] exceptionExemptions = {"not supported", "numbands is zero",

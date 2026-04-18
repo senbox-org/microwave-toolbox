@@ -19,6 +19,7 @@ import com.bc.ceres.core.ProgressMonitor;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -26,6 +27,7 @@ import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -38,6 +40,19 @@ public class TestCrossCorrelationOp {
         TestUtils.initTestEnvironment();
     }
     private final static OperatorSpi spi = new CrossCorrelationOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final CrossCorrelationOp op = (CrossCorrelationOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = CrossCorrelationOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Cross-Correlation", md.alias());
+    }
 
     @Test
     public void testOperator() throws Exception {

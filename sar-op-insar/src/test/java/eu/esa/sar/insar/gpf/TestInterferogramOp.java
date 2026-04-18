@@ -20,6 +20,7 @@ import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Assert;
@@ -29,6 +30,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -50,6 +52,19 @@ public class TestInterferogramOp {
     }
 
     private final static OperatorSpi spi = new InterferogramOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final InterferogramOp op = (InterferogramOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = InterferogramOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Interferogram", md.alias());
+    }
 
     @Test
     @STTM("SNAP-3687")

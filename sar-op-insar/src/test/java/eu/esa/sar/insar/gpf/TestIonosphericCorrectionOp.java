@@ -9,6 +9,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -22,6 +23,19 @@ import static org.junit.Assert.*;
 public class TestIonosphericCorrectionOp extends ProcessorTest {
 
     private final static OperatorSpi spi = new IonosphericCorrectionOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final IonosphericCorrectionOp op = (IonosphericCorrectionOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = IonosphericCorrectionOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("IonosphericCorrection", md.alias());
+    }
 
     @Test
     @STTM("SNAP-4000")

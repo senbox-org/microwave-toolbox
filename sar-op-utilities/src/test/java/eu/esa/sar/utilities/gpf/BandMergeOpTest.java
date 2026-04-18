@@ -6,12 +6,26 @@ import org.esa.snap.core.datamodel.FlagCoding;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.OperatorException;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 
 public class BandMergeOpTest {
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final BandMergeOp op = (BandMergeOp) new BandMergeOp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = BandMergeOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("BandMerge", md.alias());
+    }
 
     @Test
     public void testMergeOp_includeAll() {

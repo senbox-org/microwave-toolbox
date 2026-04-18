@@ -21,6 +21,7 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -29,9 +30,23 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 public class RPCAOpTest {
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final RPCAOp op = (RPCAOp) new RPCAOp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = RPCAOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("RPCA-Change-Detection", md.alias());
+    }
 
     @STTM("SRM-187")
     @Test
