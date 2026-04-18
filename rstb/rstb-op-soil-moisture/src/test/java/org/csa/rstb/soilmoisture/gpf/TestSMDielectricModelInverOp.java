@@ -22,11 +22,13 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -36,6 +38,19 @@ import static org.junit.Assert.assertTrue;
 public class TestSMDielectricModelInverOp {
 
     private final static OperatorSpi spi = new SMDielectricModelInverOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final SMDielectricModelInverOp op = (SMDielectricModelInverOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = SMDielectricModelInverOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("SM-Dielectric-Modeling", md.alias());
+    }
 
     public static boolean almostEqual(final double a, final double b, final double epsilon) {
 

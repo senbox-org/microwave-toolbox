@@ -22,6 +22,7 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.core.util.ResourceInstaller;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -31,6 +32,7 @@ import org.junit.Test;
 
 import java.nio.file.Path;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -44,6 +46,19 @@ public class TestIEMHybridInverOp {
 
     final private int rows = 3;
     final private int cols = 2;
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final IEMHybridInverOp op = (IEMHybridInverOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = IEMHybridInverOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("IEM-Hybrid-Inversion", md.alias());
+    }
 
     @Test
     public void testCreate() {

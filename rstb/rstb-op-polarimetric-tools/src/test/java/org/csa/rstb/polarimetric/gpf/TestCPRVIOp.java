@@ -19,12 +19,14 @@ import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -39,6 +41,19 @@ public class TestCPRVIOp {
     }
 
     private final static OperatorSpi spi = new CPRVIOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final CPRVIOp op = (CPRVIOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = CPRVIOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Compactpol-Radar-Vegetation-Index", md.alias());
+    }
 
     private final static String inputPath = TestData.inputSAR + "/RCM/CP/subset_0_of_RCM1_OK76385_PK678063_2_16MCP2_20080415_143807_CH_CV_SLC.dim";
 

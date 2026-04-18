@@ -18,12 +18,14 @@ package org.csa.rstb.polarimetric.gpf;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -38,6 +40,19 @@ public class TestOrientationAngleOp {
     }
 
     private final static OperatorSpi spi = new OrientationAngleCorrectionOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final OrientationAngleCorrectionOp op = (OrientationAngleCorrectionOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = OrientationAngleCorrectionOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Orientation-Angle-Correction", md.alias());
+    }
 
     private final static String inputPathQuad = TestData.inputSAR + "/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900.dim";
     private final static String inputQuadFullStack = TestData.inputSAR + "/QuadPolStack/RS2-Quad_Pol_Stack.dim";
