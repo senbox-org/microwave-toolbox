@@ -1334,19 +1334,20 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
         pm.beginTask("Reading band " + destBand.getName(), 1);
         try {
-            if (productCache != null && variable.getDataType() == STRUCTURE) {
+            final boolean noDecimation = sourceStepX == 1 && sourceStepY == 1;
+            if (noDecimation && productCache != null && variable.getDataType() == STRUCTURE) {
                 // Route complex compound reads through ProductCache
-                readFromProductCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
+                readFromProductCache(destBand.getName(), sourceOffsetX, sourceOffsetY, destWidth, destHeight, destBuffer);
             } else if (variable.getDataType() == STRUCTURE) {
-                // Fallback: strip cache for complex compound types when ProductCache is disabled
+                // Fallback: strip cache for complex compound types (ProductCache disabled or decimated read)
                 readComplexBandTile(variable, destBand, sceneWidth, sceneHeight,
                         sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY,
                         destWidth, destHeight, destBuffer);
-            } else if (productCache != null) {
+            } else if (noDecimation && productCache != null) {
                 // Route through ProductCache for tile-based caching with global memory management
-                readFromProductCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
+                readFromProductCache(destBand.getName(), sourceOffsetX, sourceOffsetY, destWidth, destHeight, destBuffer);
             } else {
-                // Direct read from NetCDF — no caching
+                // Direct read from NetCDF — no caching (also used for decimated reads the cache can't service)
                 readFloatBandDirect(variable, sourceOffsetX, sourceOffsetY, readWidth, readHeight,
                         sourceStepX, sourceStepY, destWidth, destHeight, destBuffer);
             }
@@ -1499,75 +1500,81 @@ public abstract class NisarSubReader implements CacheDataProvider {
         final int tileHeight = shapes[0];
         final int tileWidth = shapes[1];
 
-        try {
-            final ArrayStructure structArray;
+        final float[] result = new float[numPixels];
 
+        try {
             if (variable.getRank() >= 2) {
                 final List<Range> tileRanges = new ArrayList<>();
                 tileRanges.add(new Range(rowStart, rowStart + tileHeight - 1));
                 tileRanges.add(new Range(colStart, colStart + tileWidth - 1));
 
+                final ArrayStructure structArray;
                 synchronized (netcdfFile) {
                     structArray = (ArrayStructure) variable.read(tileRanges);
                 }
+                extractStructureComponent(structArray, wantImag, result, 0, numPixels);
             } else if (variable instanceof ucar.nc2.Structure) {
-                // rank-0 fallback: compute linear offset from 2D coordinates
+                // rank-0 fallback: read each tile row separately so we don't wrap past
+                // column tileWidth into the next row's pixels when tileWidth < sceneRasterWidth.
                 final int sceneWidth = product.getSceneRasterWidth();
-                final int linearStart = rowStart * sceneWidth + colStart;
-
                 final ucar.nc2.Structure struct = (ucar.nc2.Structure) variable;
                 synchronized (netcdfFile) {
-                    structArray = struct.readStructure(linearStart, numPixels);
+                    for (int r = 0; r < tileHeight; r++) {
+                        final int rowStartLinear = (rowStart + r) * sceneWidth + colStart;
+                        final ArrayStructure rowArray = struct.readStructure(rowStartLinear, tileWidth);
+                        extractStructureComponent(rowArray, wantImag, result, r * tileWidth, tileWidth);
+                    }
                 }
             } else {
                 throw new IOException("Unsupported STRUCTURE variable layout for " + bandName);
-            }
-
-            final float[] result = new float[numPixels];
-
-            if (structArray instanceof ArrayStructureBB) {
-                final ArrayStructureBB bbArray = (ArrayStructureBB) structArray;
-                final ByteBuffer bb = bbArray.getByteBuffer();
-                bb.order(ByteOrder.nativeOrder());
-
-                final StructureMembers members = bbArray.getStructureMembers();
-                final int elementSize = members.getStructureSize();
-
-                int componentOffset = wantImag ? 4 : 0;
-                for (StructureMembers.Member m : members.getMembers()) {
-                    final String n = m.getName().toLowerCase();
-                    if (!wantImag && (n.equals("r") || n.equals("real") || n.endsWith("_r"))) {
-                        componentOffset = m.getDataParam();
-                    } else if (wantImag && (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i"))) {
-                        componentOffset = m.getDataParam();
-                    }
-                }
-
-                for (int idx = 0; idx < numPixels; idx++) {
-                    result[idx] = bb.getFloat(idx * elementSize + componentOffset);
-                }
-            } else {
-                final StructureMembers members = structArray.getStructureMembers();
-                StructureMembers.Member targetMember = null;
-                for (StructureMembers.Member m : members.getMembers()) {
-                    final String n = m.getName().toLowerCase();
-                    if (!wantImag && (n.equals("r") || n.equals("real") || n.endsWith("_r"))) {
-                        targetMember = m;
-                    } else if (wantImag && (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i"))) {
-                        targetMember = m;
-                    }
-                }
-                if (targetMember != null) {
-                    for (int idx = 0; idx < numPixels; idx++) {
-                        result[idx] = structArray.getScalarFloat(idx, targetMember);
-                    }
-                }
             }
 
             targetData.setElems(result);
 
         } catch (InvalidRangeException e) {
             throw new IOException(e);
+        }
+    }
+
+    private static void extractStructureComponent(ArrayStructure structArray, boolean wantImag,
+                                                  float[] dest, int destOffset, int count) {
+        if (structArray instanceof ArrayStructureBB) {
+            final ArrayStructureBB bbArray = (ArrayStructureBB) structArray;
+            final ByteBuffer bb = bbArray.getByteBuffer();
+            bb.order(ByteOrder.nativeOrder());
+
+            final StructureMembers members = bbArray.getStructureMembers();
+            final int elementSize = members.getStructureSize();
+
+            int componentOffset = wantImag ? 4 : 0;
+            for (StructureMembers.Member m : members.getMembers()) {
+                final String n = m.getName().toLowerCase();
+                if (!wantImag && (n.equals("r") || n.equals("real") || n.endsWith("_r"))) {
+                    componentOffset = m.getDataParam();
+                } else if (wantImag && (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i"))) {
+                    componentOffset = m.getDataParam();
+                }
+            }
+
+            for (int idx = 0; idx < count; idx++) {
+                dest[destOffset + idx] = bb.getFloat(idx * elementSize + componentOffset);
+            }
+        } else {
+            final StructureMembers members = structArray.getStructureMembers();
+            StructureMembers.Member targetMember = null;
+            for (StructureMembers.Member m : members.getMembers()) {
+                final String n = m.getName().toLowerCase();
+                if (!wantImag && (n.equals("r") || n.equals("real") || n.endsWith("_r"))) {
+                    targetMember = m;
+                } else if (wantImag && (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i"))) {
+                    targetMember = m;
+                }
+            }
+            if (targetMember != null) {
+                for (int idx = 0; idx < count; idx++) {
+                    dest[destOffset + idx] = structArray.getScalarFloat(idx, targetMember);
+                }
+            }
         }
     }
 

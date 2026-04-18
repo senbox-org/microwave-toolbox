@@ -286,11 +286,11 @@ public class RangeFilterOp extends Operator {
 
             // generate REAL band of secondary-sub-product
             targetBandI = targetProduct.addBand(ifg.slaveSubProduct.targetBandName_I, OUT_PRODUCT_DATA_TYPE);
-            ProductUtils.copyRasterDataNodeProperties(ifg.sourceRef.realBand, targetBandI);
+            ProductUtils.copyRasterDataNodeProperties(ifg.sourceSec.realBand, targetBandI);
 
             // generate IMAGINARY band
             targetBandQ = targetProduct.addBand(ifg.slaveSubProduct.targetBandName_Q, OUT_PRODUCT_DATA_TYPE);
-            ProductUtils.copyRasterDataNodeProperties(ifg.sourceRef.imagBand, targetBandQ);
+            ProductUtils.copyRasterDataNodeProperties(ifg.sourceSec.imagBand, targetBandQ);
 
             // generate virtual bands
             if (CREATE_VIRTUAL_BAND) {
