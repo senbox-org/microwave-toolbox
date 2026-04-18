@@ -919,7 +919,7 @@ public class K5HDF implements K5Format {
         destWidth = Math.min(destWidth, sceneWidth - destOffsetX);
 
         if (cacheSupport.isActive()) {
-            cacheSupport.readFromCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
+            cacheSupport.readFromCache(destBand.getName(), sourceOffsetX, sourceOffsetY, destWidth, destHeight, destBuffer);
             return;
         }
 
