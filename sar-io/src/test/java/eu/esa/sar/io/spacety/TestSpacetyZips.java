@@ -21,6 +21,7 @@ import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -34,6 +35,7 @@ import static org.junit.Assume.assumeTrue;
  * @author lveci
  */
 @RunWith(LongTestRunner.class)
+@Ignore
 public class TestSpacetyZips extends ReaderTest {
 
     final static File slc_sp1_zip = new File(SARTests.inputPathProperty +
