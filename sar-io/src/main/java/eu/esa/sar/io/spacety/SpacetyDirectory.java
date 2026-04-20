@@ -24,6 +24,7 @@ import eu.esa.sar.io.sentinel1.SafeManifest;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
+import org.esa.snap.core.util.ImageUtils;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileUtils;
@@ -38,7 +39,6 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
 
-import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.*;
 import java.io.*;
@@ -89,7 +89,7 @@ public class SpacetyDirectory extends XMLProductDirectory {
                 ImageInputStream imgStream = null;
                 if(!productDir.isCompressed()) {
                     File file = productDir.getFile(imgPath);
-                    imgStream = new FileImageInputStream(file);
+                    imgStream = ImageUtils.getImageInputStream(file);
                 } else {
                     final InputStream inStream = getInputStream(imgPath);
                     if (inStream.available() > 0) {
