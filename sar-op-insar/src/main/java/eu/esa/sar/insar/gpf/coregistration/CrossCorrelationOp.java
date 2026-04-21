@@ -56,17 +56,17 @@ import java.util.Map;
  * Image co-registration is fundamental for Interferometry SAR (InSAR) imaging and its applications, such as
  * DEM map generation and analysis. To obtain a high quality InSAR image, the individual complex images need
  * to be co-registered to sub-pixel accuracy. The co-registration is accomplished through an alignment of a
- * master image with a slave image.
+ * reference image with a secondary image.
  * <p>
- * To achieve the alignment of master and slave images, the first step is to generate a set of uniformly
- * spaced ground control points (GCPs) in the master image, along with the corresponding GCPs in the slave
+ * To achieve the alignment of reference and secondary images, the first step is to generate a set of uniformly
+ * spaced ground control points (GCPs) in the reference image, along with the corresponding GCPs in the secondary
  * image. These GCP pairs are used in constructing a warp distortion function, which establishes a map
- * between pixels in the slave and master images.
+ * between pixels in the secondary and reference images.
  * <p>
- * This operator computes the slave GCPS for given master GCPs. First the geometric information of the
- * master GCPs is used in determining the initial positions of the slave GCPs. Then a cross-correlation
- * is performed between imagettes surrounding each master GCP and its corresponding slave GCP to obtain
- * accurate slave GCP position. This step is repeated several times until the slave GCP position is
+ * This operator computes the secondary GCPs for given reference GCPs. First the geometric information of the
+ * reference GCPs is used in determining the initial positions of the secondary GCPs. Then a cross-correlation
+ * is performed between imagettes surrounding each reference GCP and its corresponding secondary GCP to obtain
+ * accurate secondary GCP position. This step is repeated several times until the secondary GCP position is
  * accurate enough.
  */
 
@@ -98,7 +98,7 @@ public class CrossCorrelationOp extends Operator {
     @Parameter(description = "The maximum number of iterations", interval = "(1, 10]", defaultValue = "10",
             label = "Max Iterations")
     private int maxIteration = 10;
-    @Parameter(description = "Tolerance in slave GCP validation check", interval = "(0, *)", defaultValue = "0.5",
+    @Parameter(description = "Tolerance in secondary GCP validation check", interval = "(0, *)", defaultValue = "0.5",
             label = "GCP Tolerance")
     private double gcpTolerance = 0.5;
 
@@ -151,16 +151,16 @@ public class CrossCorrelationOp extends Operator {
 
     private int sourceImageWidth;
     private int sourceImageHeight;
-    private int cWindowWidth = 0; // row dimension for master and slave imagette for cross correlation, must be power of 2
-    private int cWindowHeight = 0; // column dimension for master and slave imagette for cross correlation, must be power of 2
+    private int cWindowWidth = 0; // row dimension for reference and secondary imagette for cross correlation, must be power of 2
+    private int cWindowHeight = 0; // column dimension for reference and secondary imagette for cross correlation, must be power of 2
     private int rowUpSamplingFactor = 0; // cross correlation interpolation factor in row direction, must be power of 2
     private int colUpSamplingFactor = 0; // cross correlation interpolation factor in column direction, must be power of 2
     private int cHalfWindowWidth;
     private int cHalfWindowHeight;
 
     // parameters used for complex co-registration
-    private int fWindowWidth = 0;  // row dimension for master and slave imagette for computing coherence, must be power of 2
-    private int fWindowHeight = 0; // column dimension for master and slave imagette for computing coherence, must be power of 2
+    private int fWindowWidth = 0;  // row dimension for reference and secondary imagette for computing coherence, must be power of 2
+    private int fWindowHeight = 0; // column dimension for reference and secondary imagette for computing coherence, must be power of 2
 
     private final static double MaxInvalidPixelPercentage = 0.66; // maximum percentage of invalid pixels allowed in xcorrelation
 
@@ -169,7 +169,7 @@ public class CrossCorrelationOp extends Operator {
     private final Map<Band, Boolean> gcpsComputedMap = new HashMap<>();
     final Map<Band, Band> bandsToCoregister = new HashMap<>();
 
-    private Band primarySlaveBand = null;    // the slave band to process
+    private Band primarySlaveBand = null;    // the secondary band to process
     private boolean collocatedStack = false;
 
     private ElevationModel dem = null;
@@ -256,26 +256,26 @@ public class CrossCorrelationOp extends Operator {
     }
 
     private void getMasterBands() {
-        String mstBandName = sourceProduct.getBandAt(0).getName();
+        String refBandName = sourceProduct.getBandAt(0).getName();
 
         // find co-pol bands
-        masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
+        masterBandNames = StackUtils.getReferenceBandNames(sourceProduct);
         for (String bandName : masterBandNames) {
-            final String mstPol = OperatorUtils.getPolarizationFromBandName(bandName);
-            if (mstPol != null && (mstPol.equals("hh") || mstPol.equals("vv"))) {
-                mstBandName = bandName;
+            final String refPol = OperatorUtils.getPolarizationFromBandName(bandName);
+            if (refPol != null && (refPol.equals("hh") || refPol.equals("vv"))) {
+                refBandName = bandName;
                 break;
             }
         }
-        masterBand1 = sourceProduct.getBand(mstBandName);
+        masterBand1 = sourceProduct.getBand(refBandName);
         if(masterBand1 == null) {
-            mstBandName = sourceProduct.getBandAt(0).getName();
-            masterBand1 = sourceProduct.getBand(mstBandName);
+            refBandName = sourceProduct.getBandAt(0).getName();
+            masterBand1 = sourceProduct.getBand(refBandName);
         }
         if (masterBand1.getUnit() != null && masterBand1.getUnit().equals(Unit.REAL)) {
-            int mstIdx = sourceProduct.getBandIndex(mstBandName);
-            if (sourceProduct.getNumBands() > mstIdx + 1) {
-                masterBand2 = sourceProduct.getBandAt(mstIdx + 1);
+            int refIdx = sourceProduct.getBandIndex(refBandName);
+            if (sourceProduct.getNumBands() > refIdx + 1) {
+                masterBand2 = sourceProduct.getBandAt(refIdx + 1);
                 complexCoregistration = true;
             }
         }
@@ -338,36 +338,36 @@ public class CrossCorrelationOp extends Operator {
 
         final int numSrcBands = sourceProduct.getNumBands();
 
-        //find slave band matching master pol
-        Band slvBand1 = null, slvBand2 = null;
-        final String mstPol = OperatorUtils.getPolarizationFromBandName(masterBand1.getName());
-        for (Band slvBand : sourceProduct.getBands()) {
-            if (!StringUtils.contains(masterBandNames, slvBand.getName()) && slvBand != masterBand1) {
-                final String slvPol = OperatorUtils.getPolarizationFromBandName(slvBand.getName());
-                if (mstPol == null || slvPol == null || mstPol.equals(slvPol)) {
-                    final String unit = slvBand.getUnit();
+        //find secondary band matching reference pol
+        Band secBand1 = null, secBand2 = null;
+        final String refPol = OperatorUtils.getPolarizationFromBandName(masterBand1.getName());
+        for (Band secBand : sourceProduct.getBands()) {
+            if (!StringUtils.contains(masterBandNames, secBand.getName()) && secBand != masterBand1) {
+                final String secPol = OperatorUtils.getPolarizationFromBandName(secBand.getName());
+                if (refPol == null || secPol == null || refPol.equals(secPol)) {
+                    final String unit = secBand.getUnit();
                     if (unit != null && !unit.contains(Unit.IMAGINARY)) {
-                        slvBand1 = slvBand;
+                        secBand1 = secBand;
                         break;
                     } else if (unit == null) {
                         // Assume that the image is real-valued if no unit is set
-                        slvBand1 = slvBand;
+                        secBand1 = secBand;
                     }
                 }
             }
         }
 
-        if (slvBand1 == null) {
+        if (secBand1 == null) {
             //get any polarization
-            for (Band slvBand : sourceProduct.getBands()) {
-                if (!StringUtils.contains(masterBandNames, slvBand.getName()) && slvBand != masterBand1) {
-                    final String unit = slvBand.getUnit();
+            for (Band secBand : sourceProduct.getBands()) {
+                if (!StringUtils.contains(masterBandNames, secBand.getName()) && secBand != masterBand1) {
+                    final String unit = secBand.getUnit();
                     if (unit != null && !unit.contains(Unit.IMAGINARY)) {
-                        slvBand1 = slvBand;
+                        secBand1 = secBand;
                         break;
                     } else if (unit == null) {
                         // Assume that the image is real-valued if no unit is set
-                        slvBand1 = slvBand;
+                        secBand1 = secBand;
                     }
                 }
             }
@@ -382,7 +382,7 @@ public class CrossCorrelationOp extends Operator {
             gcpsComputedMap.put(srcBand, false);
 
             if (!(srcBand == masterBand1 || srcBand == masterBand2 || oneSlaveProcessed ||
-                    (srcBand != slvBand1 && slvBand1 != null) ||
+                    (srcBand != secBand1 && secBand1 != null) ||
                     StringUtils.contains(masterBandNames, srcBand.getName()))) {
                 final String unit = srcBand.getUnit();
                 if (!oneSlaveProcessed && (unit == null || !unit.contains(Unit.IMAGINARY))) {
@@ -412,31 +412,31 @@ public class CrossCorrelationOp extends Operator {
     }
 
     private void determineBandsToCoregister() {
-        // select only one band per slave product
-        final Map<String, Band> singleSlvBandMap = new HashMap<>();
+        // select only one band per secondary product
+        final Map<String, Band> singleSecBandMap = new HashMap<>();
         for (Band targetBand : targetProduct.getBands()) {
 
-            final Band slaveBand = sourceRasterMap.get(targetBand);
-            if (slaveBand == masterBand1 || slaveBand == masterBand2 ||
-                    StringUtils.contains(masterBandNames, slaveBand.getName())) {
+            final Band secondaryBand = sourceRasterMap.get(targetBand);
+            if (secondaryBand == masterBand1 || secondaryBand == masterBand2 ||
+                    StringUtils.contains(masterBandNames, secondaryBand.getName())) {
                 continue;
             }
 
             if (collocatedStack && !useAllPolarimetricBands) {
-                final String mstPol = OperatorUtils.getPolarizationFromBandName(masterBand1.getName());
-                final String slvProductName = StackUtils.getSlaveProductName(targetProduct, targetBand, mstPol);
-                if (slvProductName == null || singleSlvBandMap.get(slvProductName) != null) {
+                final String refPol = OperatorUtils.getPolarizationFromBandName(masterBand1.getName());
+                final String secProductName = StackUtils.getSecondaryProductName(targetProduct, targetBand, refPol);
+                if (secProductName == null || singleSecBandMap.get(secProductName) != null) {
                     continue;
                 }
-                singleSlvBandMap.put(slvProductName, targetBand);
+                singleSecBandMap.put(secProductName, targetBand);
             }
 
-            final String unit = slaveBand.getUnit();
+            final String unit = secondaryBand.getUnit();
             if (unit != null && (unit.contains(Unit.IMAGINARY) || unit.contains(Unit.BIT) ||
                     (complexCoregistration && unit.contains(Unit.INTENSITY)))) {
                 continue;
             }
-            bandsToCoregister.put(targetBand, slaveBand);
+            bandsToCoregister.put(targetBand, secondaryBand);
         }
     }
 
@@ -492,26 +492,26 @@ public class CrossCorrelationOp extends Operator {
             final Map<Band, Band> bandList = new HashMap<>();
             for (Band targetBand : bandsToCoregister.keySet()) {
 
-                final Band slaveBand = sourceRasterMap.get(targetBand);
-                if (gcpsComputedMap.get(slaveBand)) {
+                final Band secondaryBand = sourceRasterMap.get(targetBand);
+                if (gcpsComputedMap.get(secondaryBand)) {
                     bandList.put(targetBand, primarySlaveBand);
                     break;
                 }
-                bandList.put(targetBand, slaveBand);
+                bandList.put(targetBand, secondaryBand);
             }
 
             int bandCnt = 0;
             Band firstTargetBand = null;
             for (Band targetBand : bandList.keySet()) {
                 ++bandCnt;
-                final Band slaveBand = bandList.get(targetBand);
+                final Band secondaryBand = bandList.get(targetBand);
 
                 if (collocatedStack || (!collocatedStack && bandCnt == 1)) {
                     final String bandCountStr = bandCnt + " of " + bandList.size();
                     if (complexCoregistration) {
-                        computeSlaveGCPs(slaveBand, complexSrcMap.get(slaveBand), targetBand, bandCountStr);
+                        computeSlaveGCPs(secondaryBand, complexSrcMap.get(secondaryBand), targetBand, bandCountStr);
                     } else {
-                        computeSlaveGCPs(slaveBand, null, targetBand, bandCountStr);
+                        computeSlaveGCPs(secondaryBand, null, targetBand, bandCountStr);
                     }
 
                     if (bandCnt == 1) {
@@ -522,12 +522,12 @@ public class CrossCorrelationOp extends Operator {
                 }
             }
 
-            // copy slave data to target
+            // copy secondary data to target
             for (Band targetBand : targetProduct.getBands()) {
-                final Band slaveBand = sourceRasterMap.get(targetBand);
+                final Band srcBand = sourceRasterMap.get(targetBand);
                 final Tile targetTile = targetTileMap.get(targetBand);
                 if (targetTile != null) {
-                    targetTile.setRawSamples(getSourceTile(slaveBand, targetRectangle).getRawSamples());
+                    targetTile.setRawSamples(getSourceTile(srcBand, targetRectangle).getRawSamples());
                 }
             }
 
@@ -537,7 +537,7 @@ public class CrossCorrelationOp extends Operator {
     }
 
     /**
-     * Compute slave GCPs for the given tile.
+     * Compute secondary GCPs for the given tile.
      *
      * @param slaveBand1 the input band
      * @param slaveBand2 for complex
@@ -581,7 +581,7 @@ public class CrossCorrelationOp extends Operator {
                     final PixelPos sGCPPixelPos = new PixelPos(mPin.getPixelPos().x + offset[0],
                                                                mPin.getPixelPos().y + offset[1]);
                     if (!checkSlaveGCPValidity(sGCPPixelPos)) {
-                        //System.out.println("GCP(" + i + ") is outside slave image.");
+                        //System.out.println("GCP(" + i + ") is outside secondary image.");
                         status.worked(1);
                         continue;
                     }
@@ -654,7 +654,7 @@ public class CrossCorrelationOp extends Operator {
     private void determiningImageOffset(final Band slaveBand1, final Band slaveBand2, int[] offset) {
 
         try {
-            // get master and slave imagettes
+            // get reference and secondary imagettes
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
             double groundRangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 1);
             final double azimuthSpacing = absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing, 1);
@@ -714,18 +714,18 @@ public class CrossCorrelationOp extends Operator {
                             final int yEnd = yMax * nAzLooks;
 
                             final Rectangle srcRect = new Rectangle(xStart, yStart, xEnd - xStart, yEnd - yStart);
-                            final Tile mstTile1 = getSourceTile(masterBand1, srcRect);
-                            final ProductData mstData1 = mstTile1.getDataBuffer();
-                            final TileIndex mstIndex = new TileIndex(mstTile1);
-                            final Tile slvTile1 = getSourceTile(slaveBand1, srcRect);
-                            final ProductData slvData1 = slvTile1.getDataBuffer();
-                            final TileIndex slvIndex = new TileIndex(slvTile1);
+                            final Tile refTile1 = getSourceTile(masterBand1, srcRect);
+                            final ProductData refData1 = refTile1.getDataBuffer();
+                            final TileIndex refIndex = new TileIndex(refTile1);
+                            final Tile secTile1 = getSourceTile(slaveBand1, srcRect);
+                            final ProductData secData1 = secTile1.getDataBuffer();
+                            final TileIndex secIndex = new TileIndex(secTile1);
 
-                            ProductData mstData2 = null;
-                            ProductData slvData2 = null;
+                            ProductData refData2 = null;
+                            ProductData secData2 = null;
                             if (complexCoregistration) {
-                                mstData2 = getSourceTile(masterBand2, srcRect).getDataBuffer();
-                                slvData2 = getSourceTile(slaveBand2, srcRect).getDataBuffer();
+                                refData2 = getSourceTile(masterBand2, srcRect).getDataBuffer();
+                                secData2 = getSourceTile(slaveBand2, srcRect).getDataBuffer();
                             }
 
                             final double rgAzLooks = nRgLooks * nAzLooks;
@@ -737,8 +737,8 @@ public class CrossCorrelationOp extends Operator {
                                 for (int x = x0; x < xMax; x++) {
                                     final int x1 = x * nRgLooks;
                                     final int x2 = x1 + nRgLooks;
-                                    mI[yByWidth + x] = getMeanValue(x1, x2, y1, y2, mstData1, mstData2, mstIndex, rgAzLooks);
-                                    sI[yByWidth + x] = getMeanValue(x1, x2, y1, y2, slvData1, slvData2, slvIndex, rgAzLooks);
+                                    mI[yByWidth + x] = getMeanValue(x1, x2, y1, y2, refData1, refData2, refIndex, rgAzLooks);
+                                    sI[yByWidth + x] = getMeanValue(x1, x2, y1, y2, secData1, secData2, secIndex, rgAzLooks);
                                 }
                             }
 
@@ -756,7 +756,7 @@ public class CrossCorrelationOp extends Operator {
                 status.done();
             }
 
-            // correlate master and slave imagettes
+            // correlate reference and secondary imagettes
             final RenderedImage masterImage = createRenderedImage(mI, windowWidth, windowHeight);
             final PlanarImage masterSpectrum = JAIFunctions.dft(masterImage);
 
@@ -858,7 +858,7 @@ public class CrossCorrelationOp extends Operator {
     }
 
     /**
-     * Check if a given master GCP is within the given tile and the GCP imagette is within the image.
+     * Check if a given reference GCP is within the given tile and the GCP imagette is within the image.
      *
      * @param mPin The GCP position.
      * @return flag Return true if the GCP is within the given tile and the GCP imagette is within the image,
@@ -876,7 +876,7 @@ public class CrossCorrelationOp extends Operator {
     }
 
     /**
-     * Check if a given slave GCP imagette is within the image.
+     * Check if a given secondary GCP imagette is within the image.
      *
      * @param pixelPos The GCP pixel position.
      * @return flag Return true if the GCP is within the image, false otherwise.
@@ -962,7 +962,7 @@ public class CrossCorrelationOp extends Operator {
                 if (!getSISuccess) {
                     return false;
                 }
-                //System.out.println("Slave imagette:");
+                //System.out.println("Secondary imagette:");
                 //outputRealImage(sI);
 
                 final double[] shift = {0, 0};
@@ -1006,12 +1006,12 @@ public class CrossCorrelationOp extends Operator {
                 noDataValue2 = masterBand2.getNoDataValue();
             }
 
-            final TileIndex mstIndex = new TileIndex(masterImagetteRaster1);
+            final TileIndex refIndex = new TileIndex(masterImagetteRaster1);
 
             int k = 0;
             int numInvalidPixels = 0;
             for (int j = 0; j < cWindowHeight; j++) {
-                final int offset = mstIndex.calculateStride(yul + j);
+                final int offset = refIndex.calculateStride(yul + j);
                 for (int i = 0; i < cWindowWidth; i++) {
                     final int index = xul + i - offset;
                     if (complexCoregistration) {
@@ -1212,18 +1212,18 @@ public class CrossCorrelationOp extends Operator {
         //System.out.println("Master spectrum:");
         //outputComplexImage(masterSpectrum);
 
-        // get slave imagette spectrum
+        // get secondary imagette spectrum
         final RenderedImage slaveImage = createRenderedImage(sI, cWindowWidth, cWindowHeight);
         final PlanarImage slaveSpectrum = JAIFunctions.dft(slaveImage);
-        //System.out.println("Slave spectrum:");
+        //System.out.println("Secondary spectrum:");
         //outputComplexImage(slaveSpectrum);
 
-        // get conjugate slave spectrum
+        // get conjugate secondary spectrum
         final PlanarImage conjugateSlaveSpectrum = JAIFunctions.conjugate(slaveSpectrum);
-        //System.out.println("Conjugate slave spectrum:");
+        //System.out.println("Conjugate secondary spectrum:");
         //outputComplexImage(conjugateSlaveSpectrum);
 
-        // multiply master spectrum and conjugate slave spectrum
+        // multiply reference spectrum and conjugate secondary spectrum
         final PlanarImage crossSpectrum = JAIFunctions.multiplyComplex(masterSpectrum, conjugateSlaveSpectrum);
         //System.out.println("Cross spectrum:");
         //outputComplexImage(crossSpectrum);
@@ -1288,8 +1288,8 @@ public class CrossCorrelationOp extends Operator {
      * @param windowHeight        The window height for cross-correlation
      * @param rowUpSamplingFactor The row up sampling rate
      * @param colUpSamplingFactor The column up sampling rate
-     * @param maxIter             The maximum number of iterations in computing slave GCP shift
-     * @param tolerance           The stopping criterion for slave GCP shift calculation
+     * @param maxIter             The maximum number of iterations in computing secondary GCP shift
+     * @param tolerance           The stopping criterion for secondary GCP shift calculation
      */
     public void setTestParameters(final String windowWidth,
                                   final String windowHeight,
@@ -1332,9 +1332,9 @@ public class CrossCorrelationOp extends Operator {
 
             getInitialComplexSlaveImagette(complexData, slaveBand1, slaveBand2, sGCPPixelPos);
             /*
-            System.out.println("Real part of initial slave imagette:");
+            System.out.println("Real part of initial secondary imagette:");
             outputRealImage(complexData.sII0);
-            System.out.println("Imaginary part of initial slave imagette:");
+            System.out.println("Imaginary part of initial secondary imagette:");
             outputRealImage(complexData.sIQ0);
             */
 

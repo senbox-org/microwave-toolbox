@@ -228,7 +228,7 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
                                                                   final BinaryRecord facilityRecord) {
 
         if (facilityRecord == null || facilityRecord.getAttributeDouble("Origin Line") == null) {
-            System.out.format("cannot access facilityRecord\n");
+            org.esa.snap.core.util.SystemUtils.LOG.warning("Cannot access ALOS facility record for geocoding coefficients");
             return;
         }
         final int originLine = (int) Math.floor(facilityRecord.getAttributeDouble("Origin Line"));
@@ -924,6 +924,7 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SPH_DESCRIPTOR,
                 sceneRec.getAttributeString("Product type descriptor"));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, getMission());
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, getAcquisitionMode(sceneRec));
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.antenna_pointing, "right");
 
@@ -1102,6 +1103,16 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
             return "Geocoded";
         }
         return " ";
+    }
+
+    private static String getAcquisitionMode(final BinaryRecord sceneRec) {
+        final String descriptor = sceneRec.getAttributeString("Product type descriptor").toUpperCase();
+        if (descriptor.contains("SCANSAR") || descriptor.contains("WIDE")) {
+            return "ScanSAR";
+        } else if (descriptor.contains("POLARIMETRIC") || descriptor.contains("PLR")) {
+            return "Stripmap";
+        }
+        return "Stripmap";
     }
 
     private ProductData.UTC getStartTime(final BinaryRecord sceneRec, final MetadataElement origProductMetadata,

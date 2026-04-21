@@ -58,7 +58,7 @@ public class AzimuthShiftOp extends Operator {
     @SourceProduct(alias = "source")
     private Product sourceProduct;
 
-    @TargetProduct(description = "The target product which will use the master's grid.")
+    @TargetProduct(description = "The target product which will use the reference's grid.")
     private Product targetProduct = null;
 
     @Parameter(description = "The coherence threshold for outlier removal", interval = "(0, 1]", defaultValue = "0.15",
@@ -167,7 +167,7 @@ public class AzimuthShiftOp extends Operator {
             }
 
             Band targetBand;
-            if (srcBandName.contains(StackUtils.MST) || srcBandName.contains("derampDemod")) {
+            if (srcBandName.contains(StackUtils.REF) || srcBandName.contains("derampDemod")) {
                 targetBand = ProductUtils.copyBand(srcBandName, sourceProduct, srcBandName, targetProduct, true);
             } else if (srcBandName.contains("azOffset") || srcBandName.contains("rgOffset")) {
                 continue;
@@ -190,45 +190,45 @@ public class AzimuthShiftOp extends Operator {
         /*
         // test data generation
         final String[] bandNames = sourceProduct.getBandNames();
-        String mstBandI = null, mstBandQ = null, slvBandI = null, slvBandQ = null, derampBand = null;
+        String refBandI = null, refBandQ = null, secBandI = null, secBandQ = null, derampBand = null;
         for (String srcBandName : bandNames) {
-            if (srcBandName.contains("i_") && srcBandName.contains(StackUtils.MST)) {
-                mstBandI = srcBandName;
-            } else if (srcBandName.contains("q_") && srcBandName.contains(StackUtils.MST)) {
-                mstBandQ = srcBandName;
-            } else if (srcBandName.contains("i_") && srcBandName.contains(StackUtils.SLV)) {
-                slvBandI = srcBandName;
-            } else if (srcBandName.contains("q_") && srcBandName.contains(StackUtils.SLV)) {
-                slvBandQ = srcBandName;
+            if (srcBandName.contains("i_") && srcBandName.contains(StackUtils.REF)) {
+                refBandI = srcBandName;
+            } else if (srcBandName.contains("q_") && srcBandName.contains(StackUtils.REF)) {
+                refBandQ = srcBandName;
+            } else if (srcBandName.contains("i_") && srcBandName.contains(StackUtils.SEC)) {
+                secBandI = srcBandName;
+            } else if (srcBandName.contains("q_") && srcBandName.contains(StackUtils.SEC)) {
+                secBandQ = srcBandName;
             } else if (srcBandName.contains("derampDemod")) {
                 derampBand = srcBandName;
             }
         }
 
-        final Band tgtMstBandI = ProductUtils.copyBand(slvBandI, sourceProduct, mstBandI, targetProduct, true);
-        final Band tgtMstBandQ = ProductUtils.copyBand(slvBandQ, sourceProduct, mstBandQ, targetProduct, true);
+        final Band tgtRefBandI = ProductUtils.copyBand(secBandI, sourceProduct, refBandI, targetProduct, true);
+        final Band tgtRefBandQ = ProductUtils.copyBand(secBandQ, sourceProduct, refBandQ, targetProduct, true);
         ProductUtils.copyBand(derampBand, sourceProduct, derampBand, targetProduct, true);
 
-        Band tgtSlvBandI = new Band(slvBandI,
-                sourceProduct.getBand(slvBandI).getDataType(),
-                sourceProduct.getBand(slvBandI).getRasterWidth(),
-                sourceProduct.getBand(slvBandI).getRasterHeight());
+        Band tgtSecBandI = new Band(secBandI,
+                sourceProduct.getBand(secBandI).getDataType(),
+                sourceProduct.getBand(secBandI).getRasterWidth(),
+                sourceProduct.getBand(secBandI).getRasterHeight());
 
-        Band tgtSlvBandQ = new Band(slvBandQ,
-                sourceProduct.getBand(slvBandQ).getDataType(),
-                sourceProduct.getBand(slvBandQ).getRasterWidth(),
-                sourceProduct.getBand(slvBandQ).getRasterHeight());
+        Band tgtSecBandQ = new Band(secBandQ,
+                sourceProduct.getBand(secBandQ).getDataType(),
+                sourceProduct.getBand(secBandQ).getRasterWidth(),
+                sourceProduct.getBand(secBandQ).getRasterHeight());
 
-        tgtSlvBandI.setUnit(Unit.REAL);
-        tgtSlvBandQ.setUnit(Unit.IMAGINARY);
-        targetProduct.addBand(tgtSlvBandI);
-        targetProduct.addBand(tgtSlvBandQ);
+        tgtSecBandI.setUnit(Unit.REAL);
+        tgtSecBandQ.setUnit(Unit.IMAGINARY);
+        targetProduct.addBand(tgtSecBandI);
+        targetProduct.addBand(tgtSecBandQ);
 
-        final String slvSuffix = slvBandI.substring(1);
-        ReaderUtils.createVirtualIntensityBand(targetProduct, tgtSlvBandI, tgtSlvBandQ, slvSuffix);
+        final String secSuffix = secBandI.substring(1);
+        ReaderUtils.createVirtualIntensityBand(targetProduct, tgtSecBandI, tgtSecBandQ, secSuffix);
 
-        final String mstSuffix = mstBandI.substring(1);
-        ReaderUtils.createVirtualIntensityBand(targetProduct, tgtMstBandI, tgtMstBandQ, mstSuffix);
+        final String refSuffix = refBandI.substring(1);
+        ReaderUtils.createVirtualIntensityBand(targetProduct, tgtRefBandI, tgtRefBandQ, refSuffix);
         //==============
         */
 
@@ -299,19 +299,19 @@ public class AzimuthShiftOp extends Operator {
             // test data generation
             //azOffset = 0.0002;
 
-            Band slvBandI = null, slvBandQ = null;
+            Band secBandI = null, secBandQ = null;
             Band tgtBandI = null, tgtBandQ = null;
             Band derampDemodPhaseBand = null;
             final Band[] sourceBands = sourceProduct.getBands();
             for (Band band:sourceBands) {
                 final String bandName = band.getName();
-                if (bandName.contains("i_") && bandName.contains(StackUtils.SLV)) {
-                    slvBandI = band;
+                if (bandName.contains("i_") && bandName.contains(StackUtils.SEC)) {
+                    secBandI = band;
                     tgtBandI = targetProduct.getBand(bandName);
                 }
 
-                if (bandName.contains("q_") && bandName.contains(StackUtils.SLV)) {
-                    slvBandQ = band;
+                if (bandName.contains("q_") && bandName.contains(StackUtils.SEC)) {
+                    secBandQ = band;
                     tgtBandQ = targetProduct.getBand(bandName);
                 }
 
@@ -335,12 +335,12 @@ public class AzimuthShiftOp extends Operator {
             }
 
             // perform deramp and demodulation
-            final Tile slvTileI = getSourceTile(slvBandI, targetRectangle);
-            final Tile slvTileQ = getSourceTile(slvBandQ, targetRectangle);
+            final Tile secTileI = getSourceTile(secBandI, targetRectangle);
+            final Tile secTileQ = getSourceTile(secBandQ, targetRectangle);
             final double[][] derampDemodI = new double[h][w];
             final double[][] derampDemodQ = new double[h][w];
             BackGeocodingOp.performDerampDemod(
-                    slvTileI, slvTileQ, targetRectangle, derampDemodPhase, derampDemodI, derampDemodQ);
+                    secTileI, secTileQ, targetRectangle, derampDemodPhase, derampDemodI, derampDemodQ);
 
             // compute shift phase
             final double[] phase = new double[2*h];
@@ -410,10 +410,10 @@ public class AzimuthShiftOp extends Operator {
 
         final ThreadExecutor executor = new ThreadExecutor();
         try {
-            final Band mBandI = getBand(StackUtils.MST, "i_", swathIndexStr, polarizations[0]);
-            final Band mBandQ = getBand(StackUtils.MST, "q_", swathIndexStr, polarizations[0]);
-            final Band sBandI = getBand(StackUtils.SLV, "i_", swathIndexStr, polarizations[0]);
-            final Band sBandQ = getBand(StackUtils.SLV, "q_", swathIndexStr, polarizations[0]);
+            final Band mBandI = getBand(StackUtils.REF, "i_", swathIndexStr, polarizations[0]);
+            final Band mBandQ = getBand(StackUtils.REF, "q_", swathIndexStr, polarizations[0]);
+            final Band sBandI = getBand(StackUtils.SEC, "i_", swathIndexStr, polarizations[0]);
+            final Band sBandQ = getBand(StackUtils.SEC, "q_", swathIndexStr, polarizations[0]);
 
             final double spectralSeparation = computeSpectralSeparation();
 
@@ -869,22 +869,22 @@ public class AzimuthShiftOp extends Operator {
         final int halfWindowSize = cohWin / 2;
         final double[][] coherence = new double[h][w];
 
-        final Tile mstTileI = getSourceTile(mBandI, rectangle);
-        final Tile mstTileQ = getSourceTile(mBandQ, rectangle);
-        final ProductData mstDataBufferI = mstTileI.getDataBuffer();
-        final ProductData mstDataBufferQ = mstTileQ.getDataBuffer();
+        final Tile refTileI = getSourceTile(mBandI, rectangle);
+        final Tile refTileQ = getSourceTile(mBandQ, rectangle);
+        final ProductData refDataBufferI = refTileI.getDataBuffer();
+        final ProductData refDataBufferQ = refTileQ.getDataBuffer();
 
-        final Tile slvTileI = getSourceTile(sBandI, rectangle);
-        final Tile slvTileQ = getSourceTile(sBandQ, rectangle);
-        final ProductData slvDataBufferI = slvTileI.getDataBuffer();
-        final ProductData slvDataBufferQ = slvTileQ.getDataBuffer();
+        final Tile secTileI = getSourceTile(sBandI, rectangle);
+        final Tile secTileQ = getSourceTile(sBandQ, rectangle);
+        final ProductData secDataBufferI = secTileI.getDataBuffer();
+        final ProductData secDataBufferQ = secTileQ.getDataBuffer();
 
-        final TileIndex srcIndex = new TileIndex(mstTileI);
+        final TileIndex srcIndex = new TileIndex(refTileI);
 
         final double[][] cohReal = new double[h][w];
         final double[][] cohImag = new double[h][w];
-        final double[][] mstPower = new double[h][w];
-        final double[][] slvPower = new double[h][w];
+        final double[][] refPower = new double[h][w];
+        final double[][] secPower = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
             srcIndex.calculateStride(y);
             final int yy = y - y0;
@@ -892,15 +892,15 @@ public class AzimuthShiftOp extends Operator {
                 final int srcIdx = srcIndex.getIndex(x);
                 final int xx = x - x0;
 
-                final float mI = mstDataBufferI.getElemFloatAt(srcIdx);
-                final float mQ = mstDataBufferQ.getElemFloatAt(srcIdx);
-                final float sI = slvDataBufferI.getElemFloatAt(srcIdx);
-                final float sQ = slvDataBufferQ.getElemFloatAt(srcIdx);
+                final float mI = refDataBufferI.getElemFloatAt(srcIdx);
+                final float mQ = refDataBufferQ.getElemFloatAt(srcIdx);
+                final float sI = secDataBufferI.getElemFloatAt(srcIdx);
+                final float sQ = secDataBufferQ.getElemFloatAt(srcIdx);
 
                 cohReal[yy][xx] = mI * sI + mQ * sQ;
                 cohImag[yy][xx] = mQ * sI - mI * sQ;
-                mstPower[yy][xx] = mI * mI + mQ * mQ;
-                slvPower[yy][xx] = sI * sI + sQ * sQ;
+                refPower[yy][xx] = mI * mI + mQ * mQ;
+                secPower[yy][xx] = sI * sI + sQ * sQ;
             }
         }
 
@@ -914,25 +914,25 @@ public class AzimuthShiftOp extends Operator {
                 final int colSt = Math.max(xx - halfWindowSize, 0);
                 final int colEd = Math.min(xx + halfWindowSize, w - 1);
 
-                float cohRealSum = 0.0f, cohImagSum = 0.0f, mstPowerSum = 0.0f, slvPowerSum = 0.0f;
+                float cohRealSum = 0.0f, cohImagSum = 0.0f, refPowerSum = 0.0f, secPowerSum = 0.0f;
                 int count = 0;
                 for (int r = rowSt; r <= rowEd; r++) {
                     for (int c = colSt; c <= colEd; c++) {
                         cohRealSum += cohReal[r][c];
                         cohImagSum += cohImag[r][c];
-                        mstPowerSum += mstPower[r][c];
-                        slvPowerSum += slvPower[r][c];
+                        refPowerSum += refPower[r][c];
+                        secPowerSum += secPower[r][c];
                         count++;
                     }
                 }
 
-                if (count > 0 && mstPowerSum != 0.0 && slvPowerSum != 0.0) {
+                if (count > 0 && refPowerSum != 0.0 && secPowerSum != 0.0) {
                     final double cohRealMean = cohRealSum / count;
                     final double cohImagMean = cohImagSum / count;
-                    final double mstPowerMean = mstPowerSum / count;
-                    final double slvPowerMean = slvPowerSum / count;
+                    final double refPowerMean = refPowerSum / count;
+                    final double secPowerMean = secPowerSum / count;
                     coherence[yy][xx] = Math.sqrt((cohRealMean * cohRealMean + cohImagMean * cohImagMean) /
-                            (mstPowerMean * slvPowerMean));
+                            (refPowerMean * secPowerMean));
                 }
             }
         }

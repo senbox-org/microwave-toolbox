@@ -22,6 +22,7 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.core.util.ResourceInstaller;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -31,6 +32,7 @@ import org.junit.Test;
 
 import java.nio.file.Path;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -44,6 +46,19 @@ public class TestIEMMultiAngleInverOp {
 
     final private int rows = 3;
     final private int cols = 2;
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final IEMMultiAngleInverOp op = (IEMMultiAngleInverOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = IEMMultiAngleInverOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("IEM-Multi-Angle-Inversion", md.alias());
+    }
 
     @Test
     public void testCreate() {
@@ -112,7 +127,7 @@ public class TestIEMMultiAngleInverOp {
         // AM image
 
         final double[] sigmaHHValuesAM = new double[w * h];
-        final Band sigmaHHBandAM = testProduct[0].addBand("Sigma0_HH_slv2_11Oct2013", ProductData.TYPE_FLOAT64);
+        final Band sigmaHHBandAM = testProduct[0].addBand("Sigma0_HH_sec2_11Oct2013", ProductData.TYPE_FLOAT64);
         sigmaHHBandAM.setUnit("dB");
         switch (pol) {
             case HH1HH2:
@@ -158,7 +173,7 @@ public class TestIEMMultiAngleInverOp {
         sigmaHHBandAM.setData(sigmaHHDataAM);
 
         final double[] sigmaVVValuesAM = new double[w * h];
-        final Band sigmaVVBandAM = testProduct[0].addBand("Sigma0_VV_mst_11Oct2013", ProductData.TYPE_FLOAT64);
+        final Band sigmaVVBandAM = testProduct[0].addBand("Sigma0_VV_ref_11Oct2013", ProductData.TYPE_FLOAT64);
         sigmaVVBandAM.setUnit("dB");
         switch (pol) {
             case HH1HH2:
@@ -204,7 +219,7 @@ public class TestIEMMultiAngleInverOp {
         sigmaVVBandAM.setData(sigmaVVDataAM);
 
         final double[] thetaValuesAM = new double[w * h];
-        final Band thetaBandAM = testProduct[0].addBand("incidenceAngleFromEllipsoid_slv4_11Oct2013", ProductData.TYPE_FLOAT64);
+        final Band thetaBandAM = testProduct[0].addBand("incidenceAngleFromEllipsoid_sec4_11Oct2013", ProductData.TYPE_FLOAT64);
         thetaBandAM.setUnit("degrees");
         thetaValuesAM[0] = 18.1;    // (1, 1)
         thetaValuesAM[1] = 21.2;    // (1, 2)
@@ -216,7 +231,7 @@ public class TestIEMMultiAngleInverOp {
         thetaBandAM.setData(thetaDataAM);
 
         final double[] sigmaHVValuesAM = new double[w * h];
-        final Band sigmaHVBandAM = testProduct[0].addBand("Sigma0_HV_slv3_11Oct2103", ProductData.TYPE_FLOAT64);
+        final Band sigmaHVBandAM = testProduct[0].addBand("Sigma0_HV_sec3_11Oct2103", ProductData.TYPE_FLOAT64);
         sigmaHVBandAM.setUnit("dB");
         for (int i = 0; i < sigmaHVValuesAM.length; i++) {
             sigmaHVValuesAM[i] = 0.0;
@@ -225,7 +240,7 @@ public class TestIEMMultiAngleInverOp {
         sigmaHVBandAM.setData(sigmaHVDataAM);
 
         final double[] sigmaVHValuesAM = new double[w * h];
-        final Band sigmaVHBandAM = testProduct[0].addBand("Sigma0_VH_slv1_11Oct2103", ProductData.TYPE_FLOAT64);
+        final Band sigmaVHBandAM = testProduct[0].addBand("Sigma0_VH_sec1_11Oct2103", ProductData.TYPE_FLOAT64);
         sigmaVHBandAM.setUnit("dB");
         for (int i = 0; i < sigmaVHValuesAM.length; i++) {
             sigmaVHValuesAM[i] = 0.0;
@@ -236,7 +251,7 @@ public class TestIEMMultiAngleInverOp {
         // PM source image
 
         final double[] sigmaHHValuesPM = new double[w * h];
-        final Band sigmaHHBandPM = testProduct[0].addBand("Sigma0_HH_slv7_11Oct2013", ProductData.TYPE_FLOAT64);
+        final Band sigmaHHBandPM = testProduct[0].addBand("Sigma0_HH_sec7_11Oct2013", ProductData.TYPE_FLOAT64);
         sigmaHHBandPM.setUnit(Unit.INTENSITY_DB);
         switch (pol) {
             case HH1HH2:
@@ -282,7 +297,7 @@ public class TestIEMMultiAngleInverOp {
         sigmaHHBandPM.setData(sigmaHHDataPM);
 
         final double[] sigmaVVValuesPM = new double[w * h];
-        final Band sigmaVVBandPM = testProduct[0].addBand("Sigma0_VV_slv5_11Oct2013", ProductData.TYPE_FLOAT64);
+        final Band sigmaVVBandPM = testProduct[0].addBand("Sigma0_VV_sec5_11Oct2013", ProductData.TYPE_FLOAT64);
         sigmaVVBandPM.setUnit(Unit.INTENSITY_DB);
         switch (pol) {
             case HH1HH2:
@@ -328,7 +343,7 @@ public class TestIEMMultiAngleInverOp {
         sigmaVVBandPM.setData(sigmaVVDataPM);
 
         final double[] thetaValuesPM = new double[w * h];
-        final Band thetaBandPM = testProduct[0].addBand("incidenceAngleFromEllipsoid_slv9_11Oct2013", ProductData.TYPE_FLOAT64);
+        final Band thetaBandPM = testProduct[0].addBand("incidenceAngleFromEllipsoid_sec9_11Oct2013", ProductData.TYPE_FLOAT64);
         thetaBandPM.setUnit("degrees");
         thetaValuesPM[0] = 30.3;    // (1, 1)
         thetaValuesPM[1] = 31.4;    // (1, 2)
@@ -340,7 +355,7 @@ public class TestIEMMultiAngleInverOp {
         thetaBandPM.setData(thetaDataPM);
 
         final double[] sigmaHVValuesPM = new double[w * h];
-        final Band sigmaHVBandPM = testProduct[0].addBand("Sigma0_HV_slv8_11Oct2103", ProductData.TYPE_FLOAT64);
+        final Band sigmaHVBandPM = testProduct[0].addBand("Sigma0_HV_sec8_11Oct2103", ProductData.TYPE_FLOAT64);
         sigmaHVBandPM.setUnit("dB");
         for (int i = 0; i < sigmaHVValuesPM.length; i++) {
             sigmaHVValuesPM[i] = 0.0;
@@ -349,7 +364,7 @@ public class TestIEMMultiAngleInverOp {
         sigmaHVBandPM.setData(sigmaHVDataPM);
 
         final double[] sigmaVHValuesPM = new double[w * h];
-        final Band sigmaVHBandPM = testProduct[0].addBand("Sigma0_VH_slv6_11Oct2103", ProductData.TYPE_FLOAT64);
+        final Band sigmaVHBandPM = testProduct[0].addBand("Sigma0_VH_sec6_11Oct2103", ProductData.TYPE_FLOAT64);
         sigmaVHBandPM.setUnit("dB");
         for (int i = 0; i < sigmaVHValuesPM.length; i++) {
             sigmaVHValuesPM[i] = 0.0;
@@ -362,14 +377,14 @@ public class TestIEMMultiAngleInverOp {
         metadata0.setAttributeDouble(AbstractMetadata.incidence_near, 18.1d);
         metadata0.setAttributeDouble(AbstractMetadata.incidence_far, 21.2d);
 
-        final MetadataElement slvMetadata = AbstractMetadata.getSlaveMetadata(testProduct[0].getMetadataRoot());
+        final MetadataElement secMetadata = AbstractMetadata.getSecondaryMetadata(testProduct[0].getMetadataRoot());
 
-        final MetadataElement metadata1 = new MetadataElement("slv");
+        final MetadataElement metadata1 = new MetadataElement("sec");
 
         metadata1.setAttributeDouble(AbstractMetadata.incidence_near, 20.2d);
         metadata1.setAttributeDouble(AbstractMetadata.incidence_far, 32.4d);
 
-        slvMetadata.addElement(metadata1);
+        secMetadata.addElement(metadata1);
 
         if (clay) {
 

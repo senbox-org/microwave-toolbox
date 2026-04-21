@@ -21,6 +21,7 @@ import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Assert;
@@ -45,6 +46,19 @@ public class TestS1ETADCorrectionOp {
     private final File S1_SM_ETAD = new File(TestData.inputSAR + "S1/ETAD/SM/S1B_S4_ETA__AXDV_20200827T014634_20200827T014658_023102_02BDCF_82DD.SAFE/manifest.safe");
 
     private final static OperatorSpi spi = new S1ETADCorrectionOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final S1ETADCorrectionOp op = (S1ETADCorrectionOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = S1ETADCorrectionOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("S1-ETAD-Correction", md.alias());
+    }
 
     @Before
     public void setUp() {

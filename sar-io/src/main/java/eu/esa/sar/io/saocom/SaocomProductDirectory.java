@@ -37,6 +37,7 @@ import org.esa.snap.engine_utilities.util.ZipUtils;
 import org.jdom2.Document;
 import org.jdom2.Element;
 
+import javax.imageio.ImageIO;
 import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.ImageLayout;
 import java.awt.*;
@@ -75,10 +76,10 @@ public class SaocomProductDirectory extends XMLProductDirectory {
 
     @Override
     public void close() throws IOException {
+        super.close();
         if(dataDir != null) {
             dataDir.close();
         }
-        super.close();
     }
 
     @Override
@@ -192,7 +193,9 @@ public class SaocomProductDirectory extends XMLProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, productName);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, productType);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, getMission());
-        absRoot.getAttribute(AbstractMetadata.abs_calibration_flag).getData().setElemBoolean(true);
+        // DI/GEC/GTC products are pre-calibrated to sigma0; SLC products are not
+        final boolean isPreCalibrated = productType != null && !productType.equals("SLC");
+        absRoot.getAttribute(AbstractMetadata.abs_calibration_flag).getData().setElemBoolean(isPreCalibrated);
 
         final MetadataElement imageAttributes = features.getElement("imageAttributes");
         final MetadataElement bands = imageAttributes.getElement("bands");
@@ -310,58 +313,60 @@ public class SaocomProductDirectory extends XMLProductDirectory {
         }
 
         final MetadataElement channel = origProdRoot.getElement("Channel");
-        final MetadataElement datasetInfo = channel.getElement("DataSetInfo");
-        final MetadataElement swathInfo = channel.getElement("SwathInfo");
-        final MetadataElement samplingConstants = channel.getElement("SamplingConstants");
+        if (channel != null) {
+            final MetadataElement datasetInfo = channel.getElement("DataSetInfo");
+            final MetadataElement swathInfo = channel.getElement("SwathInfo");
+            final MetadataElement samplingConstants = channel.getElement("SamplingConstants");
 
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency, datasetInfo.getAttributeDouble("fc_hz") / Constants.oneMillion);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME, getTime(datasetInfo, "ProcessingDate", dateFormat2));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency, swathInfo.getAttributeDouble("AcquisitionPRF"));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency, datasetInfo.getAttributeDouble("fc_hz") / Constants.oneMillion);
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME, getTime(datasetInfo, "ProcessingDate", dateFormat2));
+            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency, swathInfo.getAttributeDouble("AcquisitionPRF"));
 
-        double rangeSpacing = 0.0, azimuthSpacing = 0.0;
-        if(samplingConstants != null && samplingConstants.containsElement("PSrg_m") && samplingConstants.containsElement("PSaz_m")) {
-            final MetadataElement psrg_m = samplingConstants.getElement("PSrg_m");
-            rangeSpacing = psrg_m.getAttributeDouble("PSrg_m");
-            final MetadataElement psaz_m = samplingConstants.getElement("PSaz_m");
-            azimuthSpacing = psaz_m.getAttributeDouble("PSaz_m");
-        }
-
-        if (rangeSpacing > 0.0 && azimuthSpacing > 0.0) {
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, rangeSpacing);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, azimuthSpacing);
-        } else {
-            final MetadataElement rasterInfo = channel.getElement("RasterInfo");
-            final MetadataElement samplesStep = rasterInfo.getElement("SamplesStep");
-//            final MetadataElement linesStep = rasterInfo.getElement("LinesStep");
-            rangeSpacing = samplesStep.getAttributeDouble("SamplesStep");
-//            azimuthSpacing = linesStep.getAttributeDouble("LinesStep");
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, rangeSpacing);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, rangeSpacing);
-        }
-
-        double rangeSamplingRateMHz = 0.0;
-        if (samplingConstants != null && samplingConstants.containsElement("frg_hz")) {
-            final MetadataElement frg_hz = samplingConstants.getElement("frg_hz");
-            rangeSamplingRateMHz = frg_hz.getAttributeDouble("frg_hz") / 1e6;
-        }
-
-        if (rangeSamplingRateMHz > 0.0) {
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate, rangeSamplingRateMHz);
-        } else {
-            final MetadataElement rasterInfo = channel.getElement("RasterInfo");
-            final MetadataElement samplesStep = rasterInfo.getElement("SamplesStep");
-            final String unit = samplesStep.getAttributeString("unit");
-            final double step = samplesStep.getAttributeDouble("SamplesStep");
-            if (unit != null && unit.equals("s") && step > 0.0) {
-                rangeSamplingRateMHz = 1.0 / (step * 1.0e6);
-                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate, rangeSamplingRateMHz);
+            double rangeSpacing = 0.0, azimuthSpacing = 0.0;
+            if (samplingConstants != null && samplingConstants.containsElement("PSrg_m") && samplingConstants.containsElement("PSaz_m")) {
+                final MetadataElement psrg_m = samplingConstants.getElement("PSrg_m");
+                rangeSpacing = psrg_m.getAttributeDouble("PSrg_m");
+                final MetadataElement psaz_m = samplingConstants.getElement("PSaz_m");
+                azimuthSpacing = psaz_m.getAttributeDouble("PSaz_m");
             }
-        }
 
-        final MetadataElement slantToGround = channel.getElement("SlantToGround");
-        if(slantToGround != null) {
-            double trg0_s = slantToGround.getAttributeDouble("trg0_s", 0);
-            AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel, trg0_s * Constants.halfLightSpeed);
+            if (rangeSpacing > 0.0 && azimuthSpacing > 0.0) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, rangeSpacing);
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, azimuthSpacing);
+            } else {
+                final MetadataElement rasterInfo = channel.getElement("RasterInfo");
+                final MetadataElement samplesStep = rasterInfo.getElement("SamplesStep");
+                rangeSpacing = samplesStep.getAttributeDouble("SamplesStep");
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, rangeSpacing);
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, rangeSpacing);
+            }
+
+            double rangeSamplingRateMHz = 0.0;
+            if (samplingConstants != null && samplingConstants.containsElement("frg_hz")) {
+                final MetadataElement frg_hz = samplingConstants.getElement("frg_hz");
+                rangeSamplingRateMHz = frg_hz.getAttributeDouble("frg_hz") / 1e6;
+            }
+
+            if (rangeSamplingRateMHz > 0.0) {
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate, rangeSamplingRateMHz);
+            } else {
+                final MetadataElement rasterInfo = channel.getElement("RasterInfo");
+                final MetadataElement samplesStep = rasterInfo.getElement("SamplesStep");
+                final String unit = samplesStep.getAttributeString("unit");
+                final double step = samplesStep.getAttributeDouble("SamplesStep");
+                if (unit != null && unit.equals("s") && step > 0.0) {
+                    rangeSamplingRateMHz = 1.0 / (step * 1.0e6);
+                    AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_sampling_rate, rangeSamplingRateMHz);
+                }
+            }
+
+            final MetadataElement slantToGround = channel.getElement("SlantToGround");
+            if (slantToGround != null) {
+                double trg0_s = slantToGround.getAttributeDouble("trg0_s", 0);
+                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.slant_range_to_first_pixel, trg0_s * Constants.halfLightSpeed);
+            }
+        } else {
+            SystemUtils.LOG.warning("SAOCOM metadata: 'Channel' element missing from original product root; skipping channel-dependent metadata");
         }
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks, 1.0);
@@ -392,8 +397,68 @@ public class SaocomProductDirectory extends XMLProductDirectory {
         }
 
         addOrbitStateVectors(absRoot, features.getElement("StateVectorData"));
-        addSRGRCoefficients(absRoot, channel.getElement("GroundToSlant"));
-        addDopplerCentroidCoefficients(absRoot, channel);
+        if (channel != null) {
+            addSRGRCoefficients(absRoot, channel.getElement("GroundToSlant"));
+            addDopplerCentroidCoefficients(absRoot, channel);
+        }
+        addCalibrationMetadata(absRoot);
+    }
+
+    private void addCalibrationMetadata(final MetadataElement absRoot) {
+        try {
+            final VirtualDir virtualDir = getProductDir();
+            // Try Calibration/ directory relative to product root
+            String calPath = "Calibration/";
+            String[] calFiles = null;
+            try {
+                calFiles = virtualDir.list(calPath);
+            } catch (Exception e) {
+                // Try under product name
+                calPath = productName + "/Calibration/";
+                try {
+                    calFiles = virtualDir.list(calPath);
+                } catch (Exception e2) {
+                    // No calibration directory found
+                }
+            }
+
+            if (calFiles != null) {
+                final MetadataElement calibrationElem = new MetadataElement("calibration");
+                absRoot.addElement(calibrationElem);
+
+                final MetadataElement noiseElem = new MetadataElement("noise");
+                absRoot.addElement(noiseElem);
+
+                for (String calFile : calFiles) {
+                    final String nameLower = calFile.toLowerCase();
+                    if (nameLower.endsWith(".xml")) {
+                        try {
+                            final File file = getFile(calPath + calFile);
+                            final Document xmlDoc = XMLSupport.LoadXML(file.getAbsolutePath());
+                            final Element xmlRoot = xmlDoc.getRootElement();
+                            final MetadataElement fileElem = new MetadataElement(calFile);
+
+                            if (nameLower.startsWith("calibrationlut")) {
+                                calibrationElem.addElement(fileElem);
+                                AbstractMetadataIO.AddXMLMetadata(xmlRoot, fileElem);
+                            } else if (nameLower.startsWith("noiselut")) {
+                                noiseElem.addElement(fileElem);
+                                AbstractMetadataIO.AddXMLMetadata(xmlRoot, fileElem);
+                            }
+                        } catch (Exception e) {
+                            SystemUtils.LOG.warning("Unable to read calibration/noise file: " + calFile + " - " + e.getMessage());
+                        }
+                    }
+                }
+
+                // Remove empty elements
+                if (noiseElem.getNumElements() == 0) {
+                    absRoot.removeElement(noiseElem);
+                }
+            }
+        } catch (Exception e) {
+            SystemUtils.LOG.fine("No calibration LUTs found for SAOCOM product: " + e.getMessage());
+        }
     }
 
     private static ProductData.UTC getTime(final MetadataElement elem, final String tag, final DateFormat timeFormat) {
@@ -427,19 +492,16 @@ public class SaocomProductDirectory extends XMLProductDirectory {
     protected void addImageFile(final String imgPath, final MetadataElement newRoot) {
         if (!imgPath.toLowerCase().endsWith(".xml")) {
             try {
-                final Dimension bandDimensions = new Dimension(width, height);
-                final InputStream inStream = getInputStream(imgPath);
-                if (inStream.available() > 0) {
-                    final ImageInputStream imgStream = ImageIOFile.createImageInputStream(inStream, bandDimensions);
+                final File file = getFile(imgPath);
+                if (file.exists() && file.length() > 0) {
+                    final ImageInputStream imgStream = ImageIO.createImageInputStream(file);
 
                     final ImageIOFile img = new ImageIOFile(imgPath, imgStream, GeoTiffUtils.getTiffIIOReader(imgStream),
                             1, 1, ProductData.TYPE_FLOAT64, productInputFile);
                     bandImageFileMap.put(img.getName(), img);
-                } else {
-                    inStream.close();
                 }
             } catch (Exception e) {
-                SystemUtils.LOG.severe(imgPath + " not found");
+                SystemUtils.LOG.severe("Failed to add SAOCOM image " + imgPath + ": " + e.getClass().getSimpleName() + " " + e.getMessage());
             }
         }
     }

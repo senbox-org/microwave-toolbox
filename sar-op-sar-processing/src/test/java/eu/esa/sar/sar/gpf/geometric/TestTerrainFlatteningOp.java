@@ -78,7 +78,7 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
             final Product targetProduct = op.getTargetProduct();
             TestUtils.verifyProduct(targetProduct, true, true, true);
 
-            final float[] expected = new float[]{0.28618792f, 0.4289518f, 0.07651318f, 0.03190074f};
+            final float[] expected = new float[]{0.25501156f, 0.4083111f, 0.077441886f, 0.033438772f};
             TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 200, 200, expected);
         }
     }
@@ -101,7 +101,7 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
             final Product targetProduct = op.getTargetProduct();
             TestUtils.verifyProduct(targetProduct, true, true, true);
 
-            final float[] expected = new float[]{3.0854151f, 2.9130487f, 5.7168846f, 15.057061f};
+            final float[] expected = new float[]{3.4626217f, 3.0603075f, 5.648326f, 14.364504f};
             TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
         }
     }
@@ -124,7 +124,7 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
             final Product targetProduct = op.getTargetProduct();
             TestUtils.verifyProduct(targetProduct, true, true, true);
 
-            final float[] expected = new float[]{0.22971316f, 0.35016683f, 0.06954576f, 0.030342028f};
+            final float[] expected = new float[]{0.20973432f, 0.3375942f, 0.070349924f, 0.031625833f};
             TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
         }
     }

@@ -21,6 +21,7 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.OperatorException;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -29,6 +30,19 @@ import static org.junit.Assert.*;
 
 public class OilSpillDetectionOpTest {
 
+    @Test
+    public void testSpiCreatesOperator() {
+        final OilSpillDetectionOp op = (OilSpillDetectionOp) new OilSpillDetectionOp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = OilSpillDetectionOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertNotNull(md.alias());
+        assertTrue(md.alias().contains("Oil-Spill"));
+    }
 
     // Initialize the operator with valid source and target products
     @Test

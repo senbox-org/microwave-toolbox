@@ -433,12 +433,32 @@ public class CapellaProductDirectory extends JSONProductDirectory {
             product.addTiePointGrid(incidentAngleGrid);
         }
 
-//        final float[] fineSlantRange = new float[gridWidth * gridHeight];
-//        ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight, flippedSlantRangeCorners, fineSlantRange);
-//
-//        final TiePointGrid slantRangeGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME, gridWidth, gridHeight, 0, 0,
-//                subSamplingX, subSamplingY, fineSlantRange);
-//        slantRangeGrid.setUnit(Unit.NANOSECONDS);
-//        product.addTiePointGrid(slantRangeGrid);
+        if (isSLC() && product.getTiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME) == null) {
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+            final double slantRangeToFirstPixel = absRoot.getAttributeDouble(
+                    AbstractMetadata.slant_range_to_first_pixel, 0);
+            final double rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 0);
+
+            if (slantRangeToFirstPixel > 0 && rangeSpacing > 0) {
+                final double slantRangeToLastPixel = slantRangeToFirstPixel +
+                        (product.getSceneRasterWidth() - 1) * rangeSpacing;
+
+                // Convert slant range distance (m) to two-way travel time (ns)
+                final double firstTimeNs = slantRangeToFirstPixel / Constants.halfLightSpeed * Constants.oneBillion;
+                final double lastTimeNs = slantRangeToLastPixel / Constants.halfLightSpeed * Constants.oneBillion;
+
+                final double[] slantRangeCorners = new double[]{
+                        firstTimeNs, lastTimeNs, firstTimeNs, lastTimeNs
+                };
+
+                final float[] fineSlantRange = new float[gridWidth * gridHeight];
+                ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight, slantRangeCorners, fineSlantRange);
+
+                final TiePointGrid slantRangeGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME,
+                        gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, fineSlantRange);
+                slantRangeGrid.setUnit(Unit.NANOSECONDS);
+                product.addTiePointGrid(slantRangeGrid);
+            }
+        }
     }
 }

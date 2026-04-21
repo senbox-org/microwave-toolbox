@@ -201,15 +201,15 @@ public class Sentinel1ProductReader extends SARReader {
                                   final ProductData destBuffer,
                                   final int destOffsetX, final int destOffsetY,
                                   int destWidth, int destHeight,
-                                  final ImageIOFile.BandInfo bandInfo) {
+                                  final ImageIOFile.BandInfo bandInfo) throws IOException {
 
-        final int length;
+        final int length = destWidth * destHeight;
         final int[] srcArray;
         final Rectangle destRect = new Rectangle(destOffsetX, destOffsetY, destWidth, destHeight);
 
-        synchronized (dataDir) {
-            srcArray = readRect(bandInfo, sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY, destRect);
-            length = srcArray.length;
+        final ImageReader imageReader = bandInfo.img.getReader();
+        synchronized (imageReader) {
+            srcArray = readRect(imageReader, sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY, destRect, length);
         }
 
         if (destBuffer.getElemSize() > 2) {
@@ -237,27 +237,30 @@ public class Sentinel1ProductReader extends SARReader {
         }
     }
 
-    private int[] readRect(final ImageIOFile.BandInfo bandInfo,
+    private static int[] readRect(final ImageReader imageReader,
                            int sourceOffsetX, int sourceOffsetY, int sourceStepX, int sourceStepY,
-                           final Rectangle destRect) {
+                           final Rectangle destRect, final int expectedLength) {
         try {
-            final ImageReader imageReader = bandInfo.img.getReader();
             final ImageReadParam param = imageReader.getDefaultReadParam();
             param.setSourceSubsampling(sourceStepX, sourceStepY,
                     sourceOffsetX % sourceStepX,
                     sourceOffsetY % sourceStepY);
+            param.setSourceRegion(destRect);
 
             final RenderedImage image = imageReader.readAsRenderedImage(0, param);
             final Raster data = image.getData(destRect);
 
             final DataBuffer dataBuffer = data.getDataBuffer();
             final SampleModel sampleModel = data.getSampleModel();
-            final int[] srcArray = new int[dataBuffer.getSize()];
-            sampleModel.getSamples(0, 0, data.getWidth(), data.getHeight(), 0, srcArray, dataBuffer);
+            final int w = data.getWidth();
+            final int h = data.getHeight();
+            final int[] srcArray = new int[w * h];
+            sampleModel.getSamples(0, 0, w, h, 0, srcArray, dataBuffer);
 
             return srcArray;
         } catch (Exception e) {
-            return new int[(int)destRect.getWidth()*(int)destRect.getHeight()];
+            SystemUtils.LOG.warning("Error reading SLC raster data: " + e.getMessage());
+            return new int[expectedLength];
         }
     }
 }

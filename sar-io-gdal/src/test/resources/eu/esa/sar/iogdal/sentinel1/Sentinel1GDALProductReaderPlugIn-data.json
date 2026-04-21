@@ -1,0 +1,14 @@
+{
+  "testProducts": [
+    {
+      "id": "S1A_S1_GRDM_COG_ZIP",
+      "relativePath": "SAR/S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE.zip",
+      "description": "Sentinel-1 GRD product Zip"
+    },
+    {
+      "id": "S1A_GRDM_COG",
+      "relativePath": "SAR/S1/COG/S1A_EW_GRDM_1SSH_20220225T025010_20220225T025115_042063_0502C8_6675_COG.SAFE/manifest.safe",
+      "description": "Sentinel-1 GRD product"
+    }
+  ]
+}

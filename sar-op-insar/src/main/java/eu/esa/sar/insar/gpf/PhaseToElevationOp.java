@@ -36,6 +36,7 @@ import org.esa.snap.core.util.math.MathUtils;
 import org.esa.snap.dem.dataio.DEMFactory;
 import org.esa.snap.dem.dataio.FileElevationModel;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.datamodel.OrbitStateVector;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
@@ -256,16 +257,15 @@ public final class PhaseToElevationOp extends Operator {
     }
 
     private void getBaseline() throws Exception {
-        final MetadataElement masterMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        final SLCImage masterMetaData = new SLCImage(masterMeta, sourceProduct);
-        final Orbit masterOrbit = new Orbit(masterMeta, 3);
+        final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        final SLCImage referenceMetaData = new SLCImage(referenceMeta, sourceProduct);
+        final Orbit referenceOrbit = new Orbit(referenceMeta, 3);
 
-        final MetadataElement[] slaveRoot = sourceProduct.getMetadataRoot().
-                getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElements();
-        final SLCImage slaveMetaData = new SLCImage(slaveRoot[0], sourceProduct);
-        final Orbit slaveOrbit = new Orbit(slaveRoot[0], 3);
+        final MetadataElement[] secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
+        final SLCImage secondaryMetaData = new SLCImage(secondaryRoot[0], sourceProduct);
+        final Orbit secondaryOrbit = new Orbit(secondaryRoot[0], 3);
 
-        baseline.model(masterMetaData, slaveMetaData, masterOrbit, slaveOrbit);
+        baseline.model(referenceMetaData, secondaryMetaData, referenceOrbit, secondaryOrbit);
     }
 
     /**

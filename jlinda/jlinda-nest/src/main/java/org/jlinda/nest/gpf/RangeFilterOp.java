@@ -16,6 +16,7 @@ import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -87,8 +88,8 @@ public class RangeFilterOp extends Operator {
     private boolean doWeightCorrel = false;
 
     // source
-    private HashMap<String, CplxContainer> masterMap = new HashMap<>();
-    private HashMap<String, CplxContainer> slaveMap = new HashMap<>();
+    private HashMap<String, CplxContainer> referenceMap = new HashMap<>();
+    private HashMap<String, CplxContainer> secondaryMap = new HashMap<>();
 
     // target
     private HashMap<String, ProductContainer> targetMap = new HashMap<>();
@@ -144,30 +145,30 @@ public class RangeFilterOp extends Operator {
 
     private void constructTargetMetadata() {
 
-        // loop through masters
-        for (String keyMaster : masterMap.keySet()) {
+        // loop through references
+        for (String keyReference : referenceMap.keySet()) {
 
-            CplxContainer master = masterMap.get(keyMaster);
-            String masterSourceName_I = master.realBand.getName();
-            String masterSourceName_Q = master.imagBand.getName();
+            CplxContainer reference = referenceMap.get(keyReference);
+            String referenceSourceName_I = reference.realBand.getName();
+            String referenceSourceName_Q = reference.imagBand.getName();
 
             // generate name for product bands
-            final String productName = keyMaster.toString();
+            final String productName = keyReference.toString();
 
-            for (String keySlave : slaveMap.keySet()) {
+            for (String keySecondary : secondaryMap.keySet()) {
 
-                final CplxContainer slave = slaveMap.get(keySlave);
-                if (master.polarisation == null || master.polarisation.equals(slave.polarisation)) {
-                    String slaveSourceName_I = slave.realBand.getName();
-                    String slaveSourceName_Q = slave.imagBand.getName();
+                final CplxContainer secondary = secondaryMap.get(keySecondary);
+                if (reference.polarisation == null || reference.polarisation.equals(secondary.polarisation)) {
+                    String secondarySourceName_I = secondary.realBand.getName();
+                    String secondarySourceName_Q = secondary.imagBand.getName();
 
-                    final ProductContainer product = new ProductContainer(productName, master, slaveMap.get(keySlave), true);
+                    final ProductContainer product = new ProductContainer(productName, reference, secondaryMap.get(keySecondary), true);
 
-                    product.masterSubProduct.targetBandName_I = masterSourceName_I;
-                    product.masterSubProduct.targetBandName_Q = masterSourceName_Q;
+                    product.masterSubProduct.targetBandName_I = referenceSourceName_I;
+                    product.masterSubProduct.targetBandName_Q = referenceSourceName_Q;
 
-                    product.slaveSubProduct.targetBandName_I = slaveSourceName_I;
-                    product.slaveSubProduct.targetBandName_Q = slaveSourceName_Q;
+                    product.slaveSubProduct.targetBandName_I = secondarySourceName_I;
+                    product.slaveSubProduct.targetBandName_Q = secondarySourceName_Q;
 
                     // put ifg-product bands into map
                     targetMap.put(productName, product);
@@ -178,23 +179,21 @@ public class RangeFilterOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        // define sourceMaster/sourceSlave name tags
-        final String masterTag = "mst";
-        final String slaveTag = "slv";
+        // define sourceReference/sourceSecondary name tags
+        final String referenceTag = "ref";
+        final String secondaryTag = "sec";
 
-        // get sourceMaster & sourceSlave MetadataElement
-        final MetadataElement masterMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
-
+        // get sourceReference & sourceSecondary MetadataElement
+        final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
         /* organize metadata */
-        // put sourceMaster metadata into the masterMap
-        metaMapPut(masterTag, masterMeta, sourceProduct, masterMap);
+        // put sourceReference metadata into the referenceMap
+        metaMapPut(referenceTag, referenceMeta, sourceProduct, referenceMap);
 
-        // pug sourceSlave metadata into slaveMap
-        MetadataElement[] slaveRoot = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot).getElements();
-        for (MetadataElement meta : slaveRoot) {
+        // put sourceSecondary metadata into secondaryMap
+        MetadataElement[] secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
+        for (MetadataElement meta : secondaryRoot) {
             if (!meta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                metaMapPut(slaveTag, meta, sourceProduct, slaveMap);
+                metaMapPut(secondaryTag, meta, sourceProduct, secondaryMap);
         }
 
     }
@@ -269,33 +268,33 @@ public class RangeFilterOp extends Operator {
             Band targetBandI;
             Band targetBandQ;
 
-            // generate REAL band of master-sub-product
+            // generate REAL band of reference-sub-product
             targetBandI = targetProduct.addBand(ifg.masterSubProduct.targetBandName_I, OUT_PRODUCT_DATA_TYPE);
-            ProductUtils.copyRasterDataNodeProperties(ifg.sourceMaster.realBand, targetBandI);
+            ProductUtils.copyRasterDataNodeProperties(ifg.sourceRef.realBand, targetBandI);
 
-            // generate IMAGINARY band of master-sub-product
+            // generate IMAGINARY band of reference-sub-product
             targetBandQ = targetProduct.addBand(ifg.masterSubProduct.targetBandName_Q, OUT_PRODUCT_DATA_TYPE);
-            ProductUtils.copyRasterDataNodeProperties(ifg.sourceMaster.imagBand, targetBandQ);
+            ProductUtils.copyRasterDataNodeProperties(ifg.sourceRef.imagBand, targetBandQ);
 
             // generate virtual bands
             if (CREATE_VIRTUAL_BAND) {
-                final String tag = ifg.sourceMaster.date;
+                final String tag = ifg.sourceRef.date;
                 ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, "");
                 final String suffix = ReaderUtils.createName(targetBandI.getName(), "");
                 ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandI, targetBandQ, suffix);
             }
 
-            // generate REAL band of master-sub-product
+            // generate REAL band of secondary-sub-product
             targetBandI = targetProduct.addBand(ifg.slaveSubProduct.targetBandName_I, OUT_PRODUCT_DATA_TYPE);
-            ProductUtils.copyRasterDataNodeProperties(ifg.sourceMaster.realBand, targetBandI);
+            ProductUtils.copyRasterDataNodeProperties(ifg.sourceSec.realBand, targetBandI);
 
             // generate IMAGINARY band
             targetBandQ = targetProduct.addBand(ifg.slaveSubProduct.targetBandName_Q, OUT_PRODUCT_DATA_TYPE);
-            ProductUtils.copyRasterDataNodeProperties(ifg.sourceMaster.imagBand, targetBandQ);
+            ProductUtils.copyRasterDataNodeProperties(ifg.sourceSec.imagBand, targetBandQ);
 
             // generate virtual bands
             if (CREATE_VIRTUAL_BAND) {
-                final String tag = ifg.sourceSlave.date;
+                final String tag = ifg.sourceSec.date;
                 ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, "");
                 final String suffix = ReaderUtils.createName(targetBandI.getName(), "");
                 ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandI, targetBandQ, suffix);
@@ -309,13 +308,14 @@ public class RangeFilterOp extends Operator {
         validator.checkIfCoregisteredStack();
         validator.checkIfSLC();
 
-        boolean mstSlvBandsFound = false;
+        boolean refSecBandsFound = false;
         for (Band band : sourceProduct.getBands()) {
-            if(band.getName().toLowerCase().contains("mst") || band.getName().toLowerCase().contains("slv")) {
-                mstSlvBandsFound = true;
+            if(band.getName().toLowerCase().contains("ref") || band.getName().toLowerCase().contains("sec") ||
+               band.getName().toLowerCase().contains("mst") || band.getName().toLowerCase().contains("slv")) {
+                refSecBandsFound = true;
             }
         }
-        if(!mstSlvBandsFound) {
+        if(!refSecBandsFound) {
             throw new OperatorException("Range spectral filtering should be applied before other insar processing");
         }
 
@@ -366,9 +366,9 @@ public class RangeFilterOp extends Operator {
             rect.height += TILE_OVERLAP_Y;
             //System.out.println("x0 = " + rect.x + ", y0 = " + rect.y + ", w = " + rect.width + ", h = " + rect.height);
 
-            boolean doFilterMaster = true;
-            if (masterMap.keySet().toArray().length > 1) {
-                doFilterMaster = false;
+            boolean doFilterReference = true;
+            if (referenceMap.keySet().toArray().length > 1) {
+                doFilterReference = false;
             }
 
             // loop over ifg(product)Container
@@ -387,61 +387,61 @@ public class RangeFilterOp extends Operator {
                 final ProductContainer ifg = targetMap.get(ifgTag);
 
                 // check out from source
-                Tile tileRealMaster = getSourceTile(ifg.sourceMaster.realBand, rect, border);
-                Tile tileImagMaster = getSourceTile(ifg.sourceMaster.imagBand, rect, border);
-                final ComplexDoubleMatrix masterMatrix = TileUtilsDoris.pullComplexDoubleMatrix(tileRealMaster, tileImagMaster);
+                Tile tileRealReference = getSourceTile(ifg.sourceRef.realBand, rect, border);
+                Tile tileImagReference = getSourceTile(ifg.sourceRef.imagBand, rect, border);
+                final ComplexDoubleMatrix referenceMatrix = TileUtilsDoris.pullComplexDoubleMatrix(tileRealReference, tileImagReference);
 
                 // check out from source
-                Tile tileRealSlave = getSourceTile(ifg.sourceSlave.realBand, rect, border);
-                Tile tileImagSlave = getSourceTile(ifg.sourceSlave.imagBand, rect, border);
-                final ComplexDoubleMatrix slaveMatrix = TileUtilsDoris.pullComplexDoubleMatrix(tileRealSlave, tileImagSlave);
+                Tile tileRealSecondary = getSourceTile(ifg.sourceSec.realBand, rect, border);
+                Tile tileImagSecondary = getSourceTile(ifg.sourceSec.imagBand, rect, border);
+                final ComplexDoubleMatrix secondaryMatrix = TileUtilsDoris.pullComplexDoubleMatrix(tileRealSecondary, tileImagSecondary);
 
-                rangeFilter.setMetadata(ifg.sourceMaster.metaData);
-                rangeFilter.setData(masterMatrix);
+                rangeFilter.setMetadata(ifg.sourceRef.metaData);
+                rangeFilter.setData(referenceMatrix);
 
-                rangeFilter.setMetadata1(ifg.sourceSlave.metaData);
-                rangeFilter.setData1(slaveMatrix);
+                rangeFilter.setMetadata1(ifg.sourceSec.metaData);
+                rangeFilter.setData1(secondaryMatrix);
 
                 // compute
                 rangeFilter.defineParameters();
                 rangeFilter.defineFilter();
 
-                if (doFilterMaster) {
+                if (doFilterReference) {
                     rangeFilter.applyFilter();
                 } else {
-                    // apply only on slave data!
+                    // apply only on secondary data!
                     rangeFilter.applyFilterSlave();
                 }
 
-                /// MASTER
-                ComplexDoubleMatrix filteredMaster;
-                if (doFilterMaster) {
-                    filteredMaster = rangeFilter.getData();
+                /// REFERENCE
+                ComplexDoubleMatrix filteredReference;
+                if (doFilterReference) {
+                    filteredReference = rangeFilter.getData();
                 } else {
-                    filteredMaster = masterMatrix;
+                    filteredReference = referenceMatrix;
                 }
 
                 // commit real() to target
                 targetBand = targetProduct.getBand(ifg.masterSubProduct.targetBandName_I);
-                tileRealMaster = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredMaster.real(), tileRealMaster, targetRectangle);
+                tileRealReference = targetTileMap.get(targetBand);
+                TileUtilsDoris.pushFloatMatrix(filteredReference.real(), tileRealReference, targetRectangle);
 
                 // commit imag() to target
                 targetBand = targetProduct.getBand(ifg.masterSubProduct.targetBandName_Q);
-                tileImagMaster = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredMaster.imag(), tileImagMaster, targetRectangle);
+                tileImagReference = targetTileMap.get(targetBand);
+                TileUtilsDoris.pushFloatMatrix(filteredReference.imag(), tileImagReference, targetRectangle);
 
-                /// SLAVE
-                final ComplexDoubleMatrix filteredSlave = rangeFilter.getData1();
+                /// SECONDARY
+                final ComplexDoubleMatrix filteredSecondary = rangeFilter.getData1();
                 // commit real() to target
                 targetBand = targetProduct.getBand(ifg.slaveSubProduct.targetBandName_I);
-                tileRealSlave = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredSlave.real(), tileRealSlave, targetRectangle);
+                tileRealSecondary = targetTileMap.get(targetBand);
+                TileUtilsDoris.pushFloatMatrix(filteredSecondary.real(), tileRealSecondary, targetRectangle);
 
                 // commit imag() to target
                 targetBand = targetProduct.getBand(ifg.slaveSubProduct.targetBandName_Q);
-                tileImagSlave = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredSlave.imag(), tileImagSlave, targetRectangle);
+                tileImagSecondary = targetTileMap.get(targetBand);
+                TileUtilsDoris.pushFloatMatrix(filteredSecondary.imag(), tileImagSecondary, targetRectangle);
 
 //                // save imag band of computation : this is somehow too slow?
 //                targetBand = targetProduct.getBand(ifg.targetBandName_Q);

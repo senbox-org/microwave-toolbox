@@ -60,7 +60,6 @@ public class IceyeConstants {
     public static final String RANGE_SAMPLING_RATE = "range_sampling_rate";
     public static final String RANGE_BANDWIDTH = "chirp_bandwidth";
     public static final String AZIMUTH_BANDWIDTH = "total_processed_bandwidth_azimuth";
-    public static final int BISTATIC_CORRECTION_APPLIED_DEFAULT = 1;
     public static final int MULTI_LOOK_FLAG_DEFAULT_VALUE = 0;
     public static final int COREGISTERED_STACK_DEFAULT_VALUE = 0;
     public static final String ORBIT_VECTOR_N_X_POS = "posX";
@@ -79,62 +78,23 @@ public class IceyeConstants {
     public static final String S_AMPLITUDE = "s_amplitude";
     public static final String ICEYE_PROCESSOR_NAME_PREFIX = "ICEYE_P_";
     public static final String PROC_TIME_UTC = "processing_time";
-    public static final String SLANT_RANGE_TO_FIRST_PIXEL = "slant_range_to_first_pixel";
-    public static final String RIGHT = "right";
     public static final String ASCENDING = "ascending";
     public static final String DESCENDING = "descending";
-    public static final String GRSR_GROUND_RANGE_ORIGIN = "grsr_ground_range_origin";
-    public static final String GRSR_COEFFICIENTS = "grsr_coefficients";
-    public static final String RANGE_SPACING = "range_spacing";
-    public static final String COORD_CENTER = "coord_center";
-    public static final String INCIDENCE_NEAR = "incidence_near";
-    public static final String DC_ESTIMATE_POLY_ORDER = "dc_estimate_poly_order";
-    public static final String DC_REFERENCE_PIXEL_TIME = "dc_reference_pixel_time";
-    public static final String DC_ESTIMATE_TIME_UTC = "dc_estimate_time_utc";
-    public static final String GRSR_ZERO_DOPPLER_TIME = "grsr_zero_doppler_time";
-    public static final String INCIDENCE_FAR = "incidence_far";
-    public static final String AZIMUTH_SPACING = "azimuth_spacing";
-    public static final String GDALMETADATA = "<GDALMetadata";
     public static final String GRD = "grd";
     public static final String SLC = "slc";
     public static final String COMPLEX = "COMPLEX";
     public static final String DETECTED = "DETECTED";
 
-    public static final String geo_ref_system_default = "WGS84";
     public static final String ground = "ground";
     public static final String ICEYE_FILE_PREFIX = "ICEYE";
     public static final String left = "left";
-    public static final String METADATA_JSON = "METADATA_JSON";
-    public static final String PRODUCT_NAME = "PRODUCT_NAME";
     public static final String ProductMetadata = "productMetadata";
-    public static final String spot = "spot";
     public static final String spotlight = "spotlight";
-    public static final String strip = "strip";
     public static final String stripmap = "stripmap";
     public static final String time = "time";
-    public static final String coeffs = "coeffs";
-    public static final String qlk_png = "qlk.png";
-    public static final String thm_png = "thm.png";
     public static final String Quicklook = "Quicklook";
-    public static final String Thumbnail = "Thumbnail";
 
     public static final DateFormat standardDateFormat = UTC.createDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-
-    public static final int TIFFTagImageWidth = 256;
-    public static final int TIFFTagImageLength = 257;
-    public static final int TIFFTagModelTransformation = 34264;
-    public static final int TIFFTagGDAL_METADATA = 42112;
-
-    public static final int AMPLITUDE_BAND_INDEX = 0;
-    public static final int PHASE_BAND_INDEX = 1;
-    public static final int I_BAND_VIRTUAL_INDEX = 2;
-    public static final int Q_BAND_VIRTUAL_INDEX = 3;
-    public static final int QUICKLOOK_INDEX = 4;
-
-    public static final String amplitude_band_prefix = "Amplitude_";
-    public static final String phase_band_prefix = "Phase_";
-    public static final String i_band_prefix = "i_";
-    public static final String q_band_prefix = "q_";
 
     public static final String SEP = ",";
 

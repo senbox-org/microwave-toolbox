@@ -55,5 +55,6 @@ public class TestPCIReader extends ReaderTest {
 
         ProductValidator validator = new ProductValidator(prod, productOptions);
         validator.validateProduct();
+        //validator.validateBandData();
     }
 }

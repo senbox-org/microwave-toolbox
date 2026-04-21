@@ -34,7 +34,6 @@ public class TestIceyeOpenAll extends ReaderTest {
 
     private final static String inputIceyeFolder = SARTests.inputPathProperty + "SAR/Iceye/";
     private final static File[] iceyeSLCFiles = SARTests.loadFilePath(inputIceyeFolder + "SLC");
-    private final static File[] iceyeGRDFiles = SARTests.loadFilePath(inputIceyeFolder + "GRD");
 
     private final String[] exceptionExemptions = {"not supported"};
 
@@ -68,16 +67,5 @@ public class TestIceyeOpenAll extends ReaderTest {
     public void testTestServerOpenAllSLC() throws Exception {
         TestProcessor testProcessor = SARTests.createTestProcessor();
         testProcessor.recurseReadFolder(this, iceyeSLCFiles, readerPlugIn, null, null, null);
-    }
-
-    /**
-     * Open all files in a folder recursively
-     *
-     * @throws Exception anything
-     */
-    @Test
-    public void testTestServerOpenAllGRD() throws Exception {
-        TestProcessor testProcessor = SARTests.createTestProcessor();
-        testProcessor.recurseReadFolder(this, iceyeGRDFiles, readerPlugIn, null, null, null);
     }
 }

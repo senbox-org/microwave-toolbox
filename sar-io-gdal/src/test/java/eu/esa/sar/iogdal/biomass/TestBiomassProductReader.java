@@ -67,6 +67,7 @@ public class TestBiomassProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH", "Amplitude_HV", "Intensity_HV", "Amplitude_VH", "Intensity_VH", "Amplitude_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -78,6 +79,7 @@ public class TestBiomassProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH", "Amplitude_HV", "Intensity_HV", "Amplitude_VH", "Intensity_VH", "Amplitude_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -89,6 +91,7 @@ public class TestBiomassProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH", "Amplitude_HV", "Intensity_HV", "Amplitude_VH", "Intensity_VH", "Amplitude_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -100,6 +103,7 @@ public class TestBiomassProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_HH", "Phase_HH", "i_HH", "q_HH", "Intensity_HH", "Amplitude_HV", "Phase_HV", "i_HV", "q_HV", "Intensity_HV", "Amplitude_VH", "Phase_VH", "i_VH", "q_VH", "Intensity_VH", "Amplitude_VV", "Phase_VV", "i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -111,6 +115,7 @@ public class TestBiomassProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_HH", "Phase_HH", "i_HH", "q_HH", "Intensity_HH", "Amplitude_VV", "Phase_VV", "i_VV", "q_VV", "Intensity_VV", "Amplitude_XX", "Phase_XX", "i_XX", "q_XX", "Intensity_XX"});
+            validator.validateBandData();
         }
     }
 }

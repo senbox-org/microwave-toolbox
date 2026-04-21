@@ -352,7 +352,7 @@ public class PazCalibrator extends BaseCalibrator implements Calibrator {
         final int y0 = targetTileRectangle.y;
         final int w = targetTileRectangle.width;
         final int h = targetTileRectangle.height;
-        //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
+
 
         Tile sourceRaster1 = null;
         ProductData srcData1 = null;

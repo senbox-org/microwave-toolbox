@@ -39,6 +39,7 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import eu.esa.sar.io.netcdf.NetCDFCacheSupport;
 import ucar.ma2.Array;
 import ucar.ma2.InvalidRangeException;
 import ucar.nc2.NetcdfFile;
@@ -66,6 +67,7 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
     private final CosmoSkymedReader reader;
 
     private final Map<Band, Variable> bandMap = new HashMap<>(10);
+    private final NetCDFCacheSupport cacheSupport = new NetCDFCacheSupport();
 
     private final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -126,11 +128,14 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
         addSRGRCoefficients();
         addDopplerCentroidCoefficients();
 
+        cacheSupport.init(product, bandMap, netcdfFile, yFlipped, false);
+
         return product;
     }
 
     @Override
     public void close() throws IOException {
+        cacheSupport.dispose();
         if (netcdfFile != null) {
             variableMap.clear();
             variableMap = null;
@@ -542,16 +547,21 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
         for (Variable variable : variables) {
             final int height = variable.getDimension(0).getLength();
             final int width = variable.getDimension(1).getLength();
-            String cntStr = "";
-            if (variables.length > 1) {
-                final String polStr = getPolarization(product, cnt);
-                if (polStr != null) {
-                    cntStr = "_" + polStr;
+            String cntStr;
+            final String polStr = getPolarization(product, cnt);
+            if (polStr != null) {
+                cntStr = "_" + polStr;
+            } else {
+                // Fallback to metadata polarization or counter
+                final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+                final String metaPol = absRoot.getAttributeString(AbstractMetadata.mds1_tx_rx_polar, "");
+                if (!metaPol.isEmpty() && variables.length == 1) {
+                    cntStr = "_" + metaPol;
                 } else {
                     cntStr = "_" + cnt;
                 }
-                ++cnt;
             }
+            ++cnt;
 
             if (isComplex) {     // add i and q
                 final Band bandI = NetCDFUtils.createBand(variable, width, height);
@@ -560,6 +570,7 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
                 bandI.setNoDataValue(0);
                 bandI.setNoDataValueUsed(true);
                 product.addBand(bandI);
+                applyImageStats(bandI, variable, 1);
                 bandMap.put(bandI, variable);
 
                 final Band bandQ = NetCDFUtils.createBand(variable, width, height);
@@ -568,6 +579,7 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
                 bandQ.setNoDataValue(0);
                 bandQ.setNoDataValueUsed(true);
                 product.addBand(bandQ);
+                applyImageStats(bandQ, variable, 2);
                 bandMap.put(bandQ, variable);
 
                 ReaderUtils.createVirtualIntensityBand(product, bandI, bandQ, cntStr);
@@ -578,6 +590,7 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
                 band.setNoDataValue(0);
                 band.setNoDataValueUsed(true);
                 product.addBand(band);
+                applyImageStats(band, variable, 1);
                 bandMap.put(band, variable);
 
                 SARReader.createVirtualIntensityBand(product, band, cntStr);
@@ -585,20 +598,97 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
         }
     }
 
+    /**
+     * Reads "Image Min" / "Image Max" attributes from the variable and sets the band's
+     * default statistics. Handles the attribute forms produced by different Cosmo-SkyMed
+     * product versions and NetCDF-Java backends:
+     * <ul>
+     *   <li>Plain single-valued:  {@code Image Min} / {@code Image Max}</li>
+     *   <li>Plain multi-valued:   {@code Image Min} holding {@code [I, Q]}</li>
+     *   <li>Per-channel indexed:  {@code Image Min.1} / {@code Image Min.2} (and
+     *       {@code Image_Min.1} / {@code Image_Min.2} with underscores)</li>
+     * </ul>
+     *
+     * @param band         the target band
+     * @param variable     the NetCDF variable backing the band
+     * @param channelIndex 1-based channel: 1 for I / amplitude, 2 for Q
+     */
+    private static void applyImageStats(final Band band, final Variable variable, final int channelIndex) {
+        try {
+            final Double min = findImageStat(variable, "Image Min", channelIndex);
+            final Double max = findImageStat(variable, "Image Max", channelIndex);
+            if (min != null && max != null) {
+                band.setStx(new org.esa.snap.core.datamodel.StxFactory()
+                        .withMinimum(min).withMaximum(max)
+                        .withIntHistogram(false).withHistogramBins(new int[512]).create());
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    private static Double findImageStat(final Variable variable, final String baseName, final int channelIndex) {
+        // Plain attribute name — may be single-valued or a [I, Q] array.
+        ucar.nc2.Attribute attr = variable.findAttribute(baseName);
+        if (attr == null) {
+            attr = variable.findAttribute(baseName.replace(' ', '_'));
+        }
+        if (attr != null && attr.getLength() > 0) {
+            final int pickIndex = attr.getLength() >= channelIndex ? channelIndex - 1 : 0;
+            final Number value = attr.getNumericValue(pickIndex);
+            if (value != null) {
+                return value.doubleValue();
+            }
+        }
+
+        // Per-channel indexed attribute names (1-based: .1 = I, .2 = Q).
+        for (final String name : new String[]{
+                baseName + "." + channelIndex,
+                baseName.replace(' ', '_') + "." + channelIndex}) {
+            final ucar.nc2.Attribute idxAttr = variable.findAttribute(name);
+            if (idxAttr != null && idxAttr.getLength() > 0) {
+                final Number value = idxAttr.getNumericValue();
+                if (value != null) {
+                    return value.doubleValue();
+                }
+            }
+        }
+
+        return null;
+    }
+
     private static String getPolarization(final Product product, final int cnt) {
 
         final MetadataElement globalElem = AbstractMetadata.getOriginalProductMetadata(product).getElement(NetcdfConstants.GLOBAL_ATTRIBUTES_NAME);
         if (globalElem != null) {
-            final MetadataElement s01Elem = globalElem.getElement("S0" + cnt);
-            if (s01Elem != null) {
-                final String polStr = s01Elem.getAttributeString("Polarisation", "");
-                if (!polStr.isEmpty())
-                    return polStr;
-            } else {
-                final String prefix = "S0" + cnt + '_';
-                final String polStr = globalElem.getAttributeString(prefix+"Polarisation", "");
-                if (!polStr.isEmpty())
-                    return polStr;
+            final MetadataElement sElem = globalElem.getElement("S0" + cnt);
+            if (sElem != null) {
+                // Try both Polarisation and Polarization spellings
+                String polStr = sElem.getAttributeString("Polarisation", "");
+                if (polStr.isEmpty()) polStr = sElem.getAttributeString("Polarization", "");
+                if (!polStr.isEmpty()) return polStr;
+            }
+            // Try flat prefixed attributes
+            final String prefix = "S0" + cnt + '_';
+            for (String suffix : new String[]{"Polarisation", "Polarization"}) {
+                final String polStr = globalElem.getAttributeString(prefix + suffix, "");
+                if (!polStr.isEmpty()) return polStr;
+            }
+        }
+
+        // Fallback: extract from filename
+        final String fileName = product.getFileLocation() != null ? product.getFileLocation().getName().toUpperCase() : "";
+        if (fileName.contains("_HH_")) return "HH";
+        if (fileName.contains("_HV_")) return "HV";
+        if (fileName.contains("_VH_")) return "VH";
+        if (fileName.contains("_VV_")) return "VV";
+
+        // Fallback: from abstracted metadata
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+        if (absRoot != null) {
+            final String metaPol = absRoot.getAttributeString(AbstractMetadata.mds1_tx_rx_polar, "");
+            if (!metaPol.isEmpty() && !metaPol.equals(AbstractMetadata.NO_METADATA_STRING)) {
+                return metaPol;
             }
         }
         return null;
@@ -748,6 +838,11 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
         final int sceneWidth = product.getSceneRasterWidth();
         destHeight = Math.min(destHeight, sceneHeight-sourceOffsetY);
         destWidth = Math.min(destWidth, sceneWidth-destOffsetX);
+
+        if (cacheSupport.isActive()) {
+            cacheSupport.readFromCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
+            return;
+        }
 
         final int y0 = yFlipped ? (sceneHeight - 1) - sourceOffsetY : sourceOffsetY;
 

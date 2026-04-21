@@ -22,6 +22,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Test;
@@ -34,6 +35,19 @@ import static org.junit.Assert.*;
 public class TestCreateStackOp extends ProcessorTest {
 
     private final static OperatorSpi spi = new CreateStackOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final CreateStackOp op = (CreateStackOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = CreateStackOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("CreateStack", md.alias());
+    }
 
     @Test
     public void testCreateStackRefExtent() throws Exception {

@@ -54,7 +54,7 @@ public class DoubleDifferenceInterferogramOp extends Operator {
     @SourceProduct(alias = "source")
     private Product sourceProduct;
 
-    @TargetProduct(description = "The target product which will use the master's grid.")
+    @TargetProduct(description = "The target product which will use the reference's grid.")
     private Product targetProduct = null;
 
     @Parameter(description = "Output coherence for overlapped area", defaultValue = "false",
@@ -69,10 +69,10 @@ public class DoubleDifferenceInterferogramOp extends Operator {
     private int subSwathIndex = 0;
     private int cohWin = 0;
     private int numOverlaps = 0;
-    private Band mstBandI = null;
-    private Band mstBandQ = null;
-    private Band slvBandI = null;
-    private Band slvBandQ = null;
+    private Band refBandI = null;
+    private Band refBandQ = null;
+    private Band secBandI = null;
+    private Band secBandQ = null;
     private Band ddiBand = null;
     private Band cohBand = null;
 
@@ -215,7 +215,7 @@ public class DoubleDifferenceInterferogramOp extends Operator {
 
             if (outputCoherence) {
                 final double[][] coh = computeCoherence(
-                        overlapInBurstOneRectangle, mstBandI, mstBandQ, slvBandI, slvBandQ, cohWin);
+                        overlapInBurstOneRectangle, refBandI, refBandQ, secBandI, secBandQ, cohWin);
 
                 for (int y = y0DDI; y < yMaxDDI; ++y) {
                     final int r = y - y0;
@@ -269,22 +269,22 @@ public class DoubleDifferenceInterferogramOp extends Operator {
             final String bandName = band.getName();
             final String unit = band.getUnit();
 
-            if (StackUtils.isMasterBand(bandName, sourceProduct)) {
-                if (unit.contains(Unit.REAL) && mstBandI == null) {
-                    mstBandI = band;
-                } else if (unit.contains(Unit.IMAGINARY) && mstBandQ == null) {
-                    mstBandQ = band;
+            if (StackUtils.isReferenceBand(bandName, sourceProduct)) {
+                if (unit.contains(Unit.REAL) && refBandI == null) {
+                    refBandI = band;
+                } else if (unit.contains(Unit.IMAGINARY) && refBandQ == null) {
+                    refBandQ = band;
                 }
-            } else if (StackUtils.isSlaveBand(bandName, sourceProduct)) {
-                if (unit.contains(Unit.REAL) && slvBandI == null) {
-                    slvBandI = band;
-                } else if (unit.contains(Unit.IMAGINARY) && slvBandQ == null) {
-                    slvBandQ = band;
+            } else if (StackUtils.isSecondaryBand(bandName, sourceProduct)) {
+                if (unit.contains(Unit.REAL) && secBandI == null) {
+                    secBandI = band;
+                } else if (unit.contains(Unit.IMAGINARY) && secBandQ == null) {
+                    secBandQ = band;
                 }
             }
         }
 
-        if (mstBandI == null || mstBandQ == null || slvBandI == null || slvBandQ == null) {
+        if (refBandI == null || refBandQ == null || secBandI == null || secBandQ == null) {
             throw new OperatorException("Invalid source bands");
         }
     }
@@ -302,15 +302,15 @@ public class DoubleDifferenceInterferogramOp extends Operator {
                 throw new OperatorException("Forward and backward rectangles have difference dimension");
             }
 
-            final double[][] mIBack = getSourceData(mstBandI, overlapInBurstTwoRectangle);
-            final double[][] mQBack = getSourceData(mstBandQ, overlapInBurstTwoRectangle);
-            final double[][] sIBack = getSourceData(slvBandI, overlapInBurstTwoRectangle);
-            final double[][] sQBack = getSourceData(slvBandQ, overlapInBurstTwoRectangle);
+            final double[][] mIBack = getSourceData(refBandI, overlapInBurstTwoRectangle);
+            final double[][] mQBack = getSourceData(refBandQ, overlapInBurstTwoRectangle);
+            final double[][] sIBack = getSourceData(secBandI, overlapInBurstTwoRectangle);
+            final double[][] sQBack = getSourceData(secBandQ, overlapInBurstTwoRectangle);
 
-            final double[][] mIFor = getSourceData(mstBandI, overlapInBurstOneRectangle);
-            final double[][] mQFor = getSourceData(mstBandQ, overlapInBurstOneRectangle);
-            final double[][] sIFor = getSourceData(slvBandI, overlapInBurstOneRectangle);
-            final double[][] sQFor = getSourceData(slvBandQ, overlapInBurstOneRectangle);
+            final double[][] mIFor = getSourceData(refBandI, overlapInBurstOneRectangle);
+            final double[][] mQFor = getSourceData(refBandQ, overlapInBurstOneRectangle);
+            final double[][] sIFor = getSourceData(secBandI, overlapInBurstOneRectangle);
+            final double[][] sQFor = getSourceData(secBandQ, overlapInBurstOneRectangle);
 
             final double[][] backIntReal = new double[h][w];
             final double[][] backIntImag = new double[h][w];
@@ -466,22 +466,22 @@ public class DoubleDifferenceInterferogramOp extends Operator {
         final int halfWindowSize = cohWin / 2;
         final double[][] coherence = new double[h][w];
 
-        final Tile mstTileI = getSourceTile(mBandI, rectangle);
-        final Tile mstTileQ = getSourceTile(mBandQ, rectangle);
-        final ProductData mstDataBufferI = mstTileI.getDataBuffer();
-        final ProductData mstDataBufferQ = mstTileQ.getDataBuffer();
+        final Tile refTileI = getSourceTile(mBandI, rectangle);
+        final Tile refTileQ = getSourceTile(mBandQ, rectangle);
+        final ProductData refDataBufferI = refTileI.getDataBuffer();
+        final ProductData refDataBufferQ = refTileQ.getDataBuffer();
 
-        final Tile slvTileI = getSourceTile(sBandI, rectangle);
-        final Tile slvTileQ = getSourceTile(sBandQ, rectangle);
-        final ProductData slvDataBufferI = slvTileI.getDataBuffer();
-        final ProductData slvDataBufferQ = slvTileQ.getDataBuffer();
+        final Tile secTileI = getSourceTile(sBandI, rectangle);
+        final Tile secTileQ = getSourceTile(sBandQ, rectangle);
+        final ProductData secDataBufferI = secTileI.getDataBuffer();
+        final ProductData secDataBufferQ = secTileQ.getDataBuffer();
 
-        final TileIndex srcIndex = new TileIndex(mstTileI);
+        final TileIndex srcIndex = new TileIndex(refTileI);
 
         final double[][] cohReal = new double[h][w];
         final double[][] cohImag = new double[h][w];
-        final double[][] mstPower = new double[h][w];
-        final double[][] slvPower = new double[h][w];
+        final double[][] refPower = new double[h][w];
+        final double[][] secPower = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
             srcIndex.calculateStride(y);
             final int yy = y - y0;
@@ -489,15 +489,15 @@ public class DoubleDifferenceInterferogramOp extends Operator {
                 final int srcIdx = srcIndex.getIndex(x);
                 final int xx = x - x0;
 
-                final float mI = mstDataBufferI.getElemFloatAt(srcIdx);
-                final float mQ = mstDataBufferQ.getElemFloatAt(srcIdx);
-                final float sI = slvDataBufferI.getElemFloatAt(srcIdx);
-                final float sQ = slvDataBufferQ.getElemFloatAt(srcIdx);
+                final float mI = refDataBufferI.getElemFloatAt(srcIdx);
+                final float mQ = refDataBufferQ.getElemFloatAt(srcIdx);
+                final float sI = secDataBufferI.getElemFloatAt(srcIdx);
+                final float sQ = secDataBufferQ.getElemFloatAt(srcIdx);
 
                 cohReal[yy][xx] = mI * sI + mQ * sQ;
                 cohImag[yy][xx] = mQ * sI - mI * sQ;
-                mstPower[yy][xx] = mI * mI + mQ * mQ;
-                slvPower[yy][xx] = sI * sI + sQ * sQ;
+                refPower[yy][xx] = mI * mI + mQ * mQ;
+                secPower[yy][xx] = sI * sI + sQ * sQ;
             }
         }
 
@@ -511,25 +511,25 @@ public class DoubleDifferenceInterferogramOp extends Operator {
                 final int colSt = Math.max(xx - halfWindowSize, 0);
                 final int colEd = Math.min(xx + halfWindowSize, w - 1);
 
-                double cohRealSum = 0.0f, cohImagSum = 0.0f, mstPowerSum = 0.0f, slvPowerSum = 0.0f;
+                double cohRealSum = 0.0f, cohImagSum = 0.0f, refPowerSum = 0.0f, secPowerSum = 0.0f;
                 int count = 0;
                 for (int r = rowSt; r <= rowEd; r++) {
                     for (int c = colSt; c <= colEd; c++) {
                         cohRealSum += cohReal[r][c];
                         cohImagSum += cohImag[r][c];
-                        mstPowerSum += mstPower[r][c];
-                        slvPowerSum += slvPower[r][c];
+                        refPowerSum += refPower[r][c];
+                        secPowerSum += secPower[r][c];
                         count++;
                     }
                 }
 
-                if (count > 0 && mstPowerSum != 0.0 && slvPowerSum != 0.0) {
+                if (count > 0 && refPowerSum != 0.0 && secPowerSum != 0.0) {
                     final double cohRealMean = cohRealSum / (double)count;
                     final double cohImagMean = cohImagSum / (double)count;
-                    final double mstPowerMean = mstPowerSum / (double)count;
-                    final double slvPowerMean = slvPowerSum / (double)count;
+                    final double refPowerMean = refPowerSum / (double)count;
+                    final double secPowerMean = secPowerSum / (double)count;
                     coherence[yy][xx] = Math.sqrt((cohRealMean * cohRealMean + cohImagMean * cohImagMean) /
-                            (mstPowerMean * slvPowerMean));
+                            (refPowerMean * secPowerMean));
                 }
             }
         }

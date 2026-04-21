@@ -15,6 +15,7 @@ import org.esa.snap.core.gpf.annotations.SourceProducts;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
@@ -67,11 +68,11 @@ public class DInSAROp extends Operator {
 
 
     // source maps
-    private HashMap<Integer, CplxContainer> masterMap = new HashMap<>();
-    private HashMap<Integer, CplxContainer> slaveDefoMap = new HashMap<>();
+    private HashMap<Integer, CplxContainer> referenceMap = new HashMap<>();
+    private HashMap<Integer, CplxContainer> secondaryDefoMap = new HashMap<>();
 
-    private HashMap<Integer, CplxContainer> masterTopoMap = new HashMap<>();
-    private HashMap<Integer, CplxContainer> slaveTopoMap = new HashMap<>();
+    private HashMap<Integer, CplxContainer> referenceTopoMap = new HashMap<>();
+    private HashMap<Integer, CplxContainer> secondaryTopoMap = new HashMap<>();
 
     // target maps
     private HashMap<String, ProductContainer> targetMap = new HashMap<>();
@@ -87,9 +88,9 @@ public class DInSAROp extends Operator {
     private int sourceImageWidth;
     private int sourceImageHeight;
 
-    private CplxContainer master;
-    private CplxContainer slaveDefo;
-    private CplxContainer slaveTopo;
+    private CplxContainer reference;
+    private CplxContainer secondaryDefo;
+    private CplxContainer secondaryTopo;
 
     private Product topoProduct = null;
     private Product defoProduct = null;
@@ -159,22 +160,22 @@ public class DInSAROp extends Operator {
     }
 
     private void baselineRatio() throws Exception {
-        int[] slaveKeys = new int[2];
-        int masterKey = 0;
+        int[] secondaryKeys = new int[2];
+        int referenceKey = 0;
 
-        for (Integer keyMaster : masterMap.keySet()) {
-            masterKey = keyMaster;
+        for (Integer keyReference : referenceMap.keySet()) {
+            referenceKey = keyReference;
             int i = 0;
-            for (Integer keySlave : slaveDefoMap.keySet()) {
-                slaveKeys[i++] = keySlave;
+            for (Integer keySecondary : secondaryDefoMap.keySet()) {
+                secondaryKeys[i++] = keySecondary;
             }
         }
 
-        master = masterMap.get(masterKey);
-        slaveTopo = slaveTopoMap.get(slaveKeys[0]);
-        slaveDefo = slaveDefoMap.get(slaveKeys[0]);
+        reference = referenceMap.get(referenceKey);
+        secondaryTopo = secondaryTopoMap.get(secondaryKeys[0]);
+        secondaryDefo = secondaryDefoMap.get(secondaryKeys[0]);
 
-        dinsar = new DInSAR(master.metaData, master.orbit, slaveDefo.metaData, slaveDefo.orbit, slaveTopo.metaData, slaveTopo.orbit);
+        dinsar = new DInSAR(reference.metaData, reference.orbit, secondaryDefo.metaData, secondaryDefo.orbit, secondaryTopo.metaData, secondaryTopo.orbit);
         dinsar.setDataWindow(new Window(0, sourceImageHeight, 0, sourceImageWidth));
         dinsar.computeBperpRatios();
 
@@ -206,8 +207,8 @@ public class DInSAROp extends Operator {
             targetProduct.addBand(targetBandName_I, ProductData.TYPE_FLOAT64);
             targetProduct.addBand(targetBandName_Q, ProductData.TYPE_FLOAT64);
 
-            final String tag0 = targetMap.get(key).sourceMaster.date;
-            final String tag1 = targetMap.get(key).sourceSlave.date;
+            final String tag0 = targetMap.get(key).sourceRef.date;
+            final String tag1 = targetMap.get(key).sourceSec.date;
             if (CREATE_VIRTUAL_BAND) {
                 String countStr = "_" + PRODUCT_TAG + "_" + tag0 + "_" + tag1;
                 ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBand(targetBandName_I), targetProduct.getBand(targetBandName_Q), countStr);
@@ -220,23 +221,23 @@ public class DInSAROp extends Operator {
 
     private void constructTargetMetadata() {
 
-        for (Integer keyMaster : masterMap.keySet()) {
+        for (Integer keyReference : referenceMap.keySet()) {
 
-            CplxContainer master = masterMap.get(keyMaster);
+            CplxContainer reference = referenceMap.get(keyReference);
 
             int counter = 0;
 
-            for (Integer keySlave : slaveDefoMap.keySet()) {
+            for (Integer keySecondary : secondaryDefoMap.keySet()) {
 
                 if (counter == 0) {
                     // generate name for product bands
-                    final String productName = keyMaster.toString() + "_" + keySlave.toString();
+                    final String productName = keyReference.toString() + "_" + keySecondary.toString();
 
-                    final CplxContainer slave = slaveDefoMap.get(keySlave);
-                    final ProductContainer product = new ProductContainer(productName, master, slave, true);
+                    final CplxContainer secondary = secondaryDefoMap.get(keySecondary);
+                    final ProductContainer product = new ProductContainer(productName, reference, secondary, true);
 
-                    product.targetBandName_I = "i_" + PRODUCT_TAG + "_" + master.date + "_" + slave.date;
-                    product.targetBandName_Q = "q_" + PRODUCT_TAG + "_" + master.date + "_" + slave.date;
+                    product.targetBandName_I = "i_" + PRODUCT_TAG + "_" + reference.date + "_" + secondary.date;
+                    product.targetBandName_Q = "q_" + PRODUCT_TAG + "_" + reference.date + "_" + secondary.date;
 
                     // put ifg-product bands into map
                     targetMap.put(productName, product);
@@ -253,45 +254,44 @@ public class DInSAROp extends Operator {
     private void constructSourceMetadata() throws Exception {
 
         /** --- DEFO PRODUCT -----*/
-        // define sourceMaster/sourceSlave name tags
-        String masterTag;
-        String slaveTag;
-        MetadataElement masterMeta;
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
-        MetadataElement[] slaveRoot;
+        // define sourceReference/sourceSecondary name tags
+        String referenceTag;
+        String secondaryTag;
+        MetadataElement referenceMeta;
+        MetadataElement[] secondaryRoot;
 
-        masterTag = "ifg";
-        slaveTag = "dummy";
+        referenceTag = "ifg";
+        secondaryTag = "dummy";
 
-        // get sourceMaster & sourceSlave MetadataElement
-        masterMeta = AbstractMetadata.getAbstractedMetadata(defoProduct);
+        // get sourceReference & sourceSecondary MetadataElement
+        referenceMeta = AbstractMetadata.getAbstractedMetadata(defoProduct);
 
         /* organize metadata */
 
-        // put sourceMaster metadata into the masterMap
-        metaMapPut(masterTag, masterMeta, defoProduct, masterMap);
+        // put sourceReference metadata into the referenceMap
+        metaMapPut(referenceTag, referenceMeta, defoProduct, referenceMap);
 
-        // pug sourceSlave metadata into slaveDefoMap
-        slaveRoot = defoProduct.getMetadataRoot().getElement(slaveMetadataRoot).getElements();
-        for (MetadataElement meta : slaveRoot) {
+        // put sourceSecondary metadata into secondaryDefoMap
+        secondaryRoot = StackUtils.findSecondaryMetadataRoot(defoProduct).getElements();
+        for (MetadataElement meta : secondaryRoot) {
             if (!meta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                metaMapPut(slaveTag, meta, defoProduct, slaveDefoMap);
+                metaMapPut(secondaryTag, meta, defoProduct, secondaryDefoMap);
         }
 
         /** --- TOPO PRODUCT -----*/
 
-        // get sourceMaster & sourceSlave MetadataElement
-        masterMeta = AbstractMetadata.getAbstractedMetadata(topoProduct);
+        // get sourceReference & sourceSecondary MetadataElement
+        referenceMeta = AbstractMetadata.getAbstractedMetadata(topoProduct);
 
         /* organize metadata */
 
-        // put sourceMaster metadata into the masterMap
-        metaMapPut(masterTag, masterMeta, topoProduct, masterTopoMap);
+        // put sourceReference metadata into the referenceMap
+        metaMapPut(referenceTag, referenceMeta, topoProduct, referenceTopoMap);
 
-        // pug sourceSlave metadata into slaveDefoMap
-        slaveRoot = topoProduct.getMetadataRoot().getElement(slaveMetadataRoot).getElements();
-        for (MetadataElement meta : slaveRoot) {
-            metaMapPut(slaveTag, meta, topoProduct, slaveTopoMap);
+        // put sourceSecondary metadata into secondaryTopoMap
+        secondaryRoot = StackUtils.findSecondaryMetadataRoot(topoProduct).getElements();
+        for (MetadataElement meta : secondaryRoot) {
+            metaMapPut(secondaryTag, meta, topoProduct, secondaryTopoMap);
         }
 
     }
@@ -366,8 +366,8 @@ public class DInSAROp extends Operator {
                 product = targetMap.get(ifgKey);
 
                 /// check out results from source ///
-                Tile tileReal = getSourceTile(product.sourceMaster.realBand, targetRectangle);
-                Tile tileImag = getSourceTile(product.sourceMaster.imagBand, targetRectangle);
+                Tile tileReal = getSourceTile(product.sourceRef.realBand, targetRectangle);
+                Tile tileImag = getSourceTile(product.sourceRef.imagBand, targetRectangle);
                 complexDefoPair = TileUtilsDoris.pullComplexDoubleMatrix(tileReal, tileImag);
 
             }

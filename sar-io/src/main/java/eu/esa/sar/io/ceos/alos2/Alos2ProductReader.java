@@ -130,7 +130,7 @@ public class Alos2ProductReader extends CEOSProductReader {
             }
 
         } catch (Throwable e) {
-            //handleReaderException(e);
+            handleReaderException(e);
         }
     }
 }

@@ -565,7 +565,6 @@ public class Risat1ProductDirectory extends PropertyMapProductDirectory {
         Angles angles = null;
         try {
             final String parentPath = getRelativePathToImageFolder();
-            System.out.println(parentPath);
 
             final String[] listing = productDir.list(parentPath);
             for(String path : listing) {

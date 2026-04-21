@@ -145,14 +145,14 @@
         </Ref_23Dec2006>
       </Baselines>
       <Orbit_Offsets>
-        <init_offsets_slv1_25Aug2007>
+        <init_offsets_sec1_25Aug2007>
           <attrib name="init_offset_X" value="0" type="12" />
           <attrib name="init_offset_Y" value="67" type="12" />
-        </init_offsets_slv1_25Aug2007>
-        <init_offsets_slv2_23Dec2006>
+        </init_offsets_sec1_25Aug2007>
+        <init_offsets_sec2_23Dec2006>
           <attrib name="init_offset_X" value="-3" type="12" />
           <attrib name="init_offset_Y" value="3433" type="12" />
-        </init_offsets_slv2_23Dec2006>
+        </init_offsets_sec2_23Dec2006>
       </Orbit_Offsets>
       <attrib name="PRODUCT" value="ASA_IMS_1PNESA20080426_134208_000000172068_00067_32185_0000.N1" type="41" desc="Product name" />
       <attrib name="PRODUCT_TYPE" value="ASA_IMS_1P" type="41" desc="Product type" />
@@ -392,7 +392,7 @@
         <attrib name="range_window_coefficient" value="99999.0" type="31" unit="" desc="Range window coefficient" />
         <attrib name="bistatic_correction_applied" value="0" type="20" unit="flag" desc="" />
         <attrib name="metadata_version" value="7.0" type="41" unit="" desc="AbsMetadata version" />
-        <attrib name="Slave_bands" value="i_VH_slv1_25Aug2007 q_VH_slv1_25Aug2007 i_VV_slv1_25Aug2007 q_VV_slv1_25Aug2007" type="41" />
+        <attrib name="Slave_bands" value="i_VH_sec1_25Aug2007 q_VH_sec1_25Aug2007 i_VV_sec1_25Aug2007 q_VV_sec1_25Aug2007" type="41" />
       </ASA_IMS_1PNESA20070825_134215_000000172061_00067_28678_0000_25Aug2007>
       <ASA_IMS_1PNESA20061223_134214_000000182054_00067_25171_0000_23Dec2006>
         <Orbit_State_Vectors>
@@ -546,9 +546,9 @@
         <attrib name="range_window_coefficient" value="99999.0" type="31" unit="" desc="Range window coefficient" />
         <attrib name="bistatic_correction_applied" value="0" type="20" unit="flag" desc="" />
         <attrib name="metadata_version" value="7.0" type="41" unit="" desc="AbsMetadata version" />
-        <attrib name="Slave_bands" value="i_VH_slv2_23Dec2006 q_VH_slv2_23Dec2006 i_VV_slv2_23Dec2006 q_VV_slv2_23Dec2006" type="41" />
+        <attrib name="Slave_bands" value="i_VH_sec2_23Dec2006 q_VH_sec2_23Dec2006 i_VV_sec2_23Dec2006 q_VV_sec2_23Dec2006" type="41" />
       </ASA_IMS_1PNESA20061223_134214_000000182054_00067_25171_0000_23Dec2006>
-      <attrib name="Master_bands" value="i_VH_mst_26Apr2008 q_VH_mst_26Apr2008 i_VV_mst_26Apr2008 q_VV_mst_26Apr2008" type="41" />
+      <attrib name="Master_bands" value="i_VH_ref_26Apr2008 q_VH_ref_26Apr2008 i_VV_ref_26Apr2008 q_VV_ref_26Apr2008" type="41" />
     </Slave_Metadata>
   </Abstracted_Metadata>
   <tie-point-grids>

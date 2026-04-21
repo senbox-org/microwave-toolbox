@@ -145,19 +145,19 @@ public class CoherenceOp extends Operator {
             defaultValue = "100")
     private String tileExtensionPercent = "100";
 
-    @Parameter(label = "Single Master", defaultValue = "true")
+    @Parameter(label = "Single Reference", defaultValue = "true")
     private Boolean singleMaster = true;
 
     // source
-    private Map<String, CplxContainer> masterMap = new HashMap<>();
-    private Map<String, CplxContainer> slaveMap = new HashMap<>();
+    private Map<String, CplxContainer> referenceMap = new HashMap<>();
+    private Map<String, CplxContainer> secondaryMap = new HashMap<>();
 
     private String[] polarisations;
     private String[] subswaths = new String[]{""};
 
     // target
     private Map<String, ProductContainer> targetMap = new HashMap<>();
-    private Map<Band, Band> detectedSlaveMap = new HashMap<>();
+    private Map<Band, Band> detectedSecondaryMap = new HashMap<>();
 
     private boolean isComplex;
     private boolean isTOPSARBurstProduct = false;
@@ -167,9 +167,9 @@ public class CoherenceOp extends Operator {
     private int numSubSwaths = 0;
     private int subSwathIndex = 0;
 
-    private MetadataElement mstRoot = null;
-    private MetadataElement slvRoot = null;
-    private org.jlinda.core.Point[] mstSceneCentreXYZ = null;
+    private MetadataElement refRoot = null;
+    private MetadataElement secRoot = null;
+    private org.jlinda.core.Point[] refSceneCentreXYZ = null;
     private HashMap<String, DoubleMatrix> flatEarthPolyMap = new HashMap<>();
     private int sourceImageWidth;
     private int sourceImageHeight;
@@ -203,11 +203,11 @@ public class CoherenceOp extends Operator {
         try {
             productTag = "coh";
 
-            mstRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-            final MetadataElement slaveElem =
-                    sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-            if (slaveElem != null) {
-                slvRoot = slaveElem.getElements()[0];
+            refRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            final MetadataElement secondaryElem =
+                    StackUtils.findSecondaryMetadataRoot(sourceProduct);
+            if (secondaryElem != null) {
+                secRoot = secondaryElem.getElements()[0];
             }
 
             if(singleMaster == null) {
@@ -232,7 +232,7 @@ public class CoherenceOp extends Operator {
 
             if (isComplex && subtractFlatEarthPhase) {
                 if (isTOPSARBurstProduct) {
-                    getMstApproxSceneCentreXYZ();
+                    getRefApproxSceneCentreXYZ();
                     constructFlatEarthPolynomialsForTOPSARProduct();
                 } else {
                     constructFlatEarthPolynomials();
@@ -268,7 +268,7 @@ public class CoherenceOp extends Operator {
             }
 
             final String[] polarisationsInBandNames = OperatorUtils.getPolarisations(sourceProduct);
-            polarisations = InterferogramOp.getPolsSharedByMstSlv(sourceProduct, polarisationsInBandNames);
+            polarisations = InterferogramOp.getPolsSharedByRefSec(sourceProduct, polarisationsInBandNames);
 
             sourceImageWidth = sourceProduct.getSceneRasterWidth();
             sourceImageHeight = sourceProduct.getSceneRasterHeight();
@@ -279,24 +279,24 @@ public class CoherenceOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        // define sourceMaster/sourceSlave name tags
-        final String masterTag = "mst";
-        final String slaveTag = "slv";
+        // define sourceReference/sourceSecondary name tags
+        final String referenceTag = "ref";
+        final String secondaryTag = "sec";
 
-        // get sourceMaster & sourceSlave MetadataElement
+        // get sourceReference & sourceSecondary MetadataElement
 
-        // put sourceMaster metadata into the masterMap
-        metaMapPut(masterTag, mstRoot, sourceProduct, masterMap);
+        // put sourceReference metadata into the referenceMap
+        metaMapPut(referenceTag, refRoot, sourceProduct, referenceMap);
 
-        // plug sourceSlave metadata into slaveMap
-        MetadataElement slaveElem = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        if (slaveElem == null) {
-            slaveElem = sourceProduct.getMetadataRoot().getElement("Slave Metadata");
+        // plug sourceSecondary metadata into secondaryMap
+        MetadataElement secondaryElem = StackUtils.findSecondaryMetadataRoot(sourceProduct);
+        if (secondaryElem == null) {
+            secondaryElem = sourceProduct.getMetadataRoot().getElement("Slave Metadata");
         }
-        MetadataElement[] slaveRoot = slaveElem.getElements();
-        for (MetadataElement meta : slaveRoot) {
+        MetadataElement[] secondaryRoot = secondaryElem.getElements();
+        for (MetadataElement meta : secondaryRoot) {
             if(!meta.getName().contains(AbstractMetadata.ORIGINAL_PRODUCT_METADATA)) {
-                metaMapPut(slaveTag, meta, sourceProduct, slaveMap);
+                metaMapPut(secondaryTag, meta, sourceProduct, secondaryMap);
             }
         }
     }
@@ -347,20 +347,20 @@ public class CoherenceOp extends Operator {
     private void constructTargetMetadata() {
 
         if(singleMaster) {
-            for (String keyMaster : masterMap.keySet()) {
+            for (String keyReference : referenceMap.keySet()) {
 
-                CplxContainer master = masterMap.get(keyMaster);
+                CplxContainer reference = referenceMap.get(keyReference);
 
-                for (String keySlave : slaveMap.keySet()) {
-                    final CplxContainer slave = slaveMap.get(keySlave);
+                for (String keySecondary : secondaryMap.keySet()) {
+                    final CplxContainer secondary = secondaryMap.get(keySecondary);
 
-                    if ((master.polarisation == null || slave.polarisation == null) ||
-                            (master.polarisation != null && slave.polarisation != null &&
-                                    master.polarisation.equals(slave.polarisation))) {
+                    if ((reference.polarisation == null || secondary.polarisation == null) ||
+                            (reference.polarisation != null && secondary.polarisation != null &&
+                                    reference.polarisation.equals(secondary.polarisation))) {
                         // generate name for product bands
-                        final String productName = keyMaster + '_' + keySlave;
+                        final String productName = keyReference + '_' + keySecondary;
 
-                        final ProductContainer productContainer = new ProductContainer(productName, master, slave, false);
+                        final ProductContainer productContainer = new ProductContainer(productName, reference, secondary, false);
 
                         // put ifg-product bands into map
                         targetMap.put(productName, productContainer);
@@ -371,31 +371,31 @@ public class CoherenceOp extends Operator {
         } else {
 
             final SortedSet<String> allKeys = new TreeSet<>();
-            allKeys.addAll(masterMap.keySet());
-            allKeys.addAll(slaveMap.keySet());
+            allKeys.addAll(referenceMap.keySet());
+            allKeys.addAll(secondaryMap.keySet());
             String[] keys  = allKeys.toArray(new String[0]);
 
             for(int i = 0; i < keys.length - 1; ++i) {
-                String keyMaster = keys[i];
-                CplxContainer master = masterMap.get(keyMaster);
-                if(master == null) {
-                    master = slaveMap.get(keyMaster);
+                String keyReference = keys[i];
+                CplxContainer reference = referenceMap.get(keyReference);
+                if(reference == null) {
+                    reference = secondaryMap.get(keyReference);
                 }
 
                 for (int j = i + 1; j < keys.length; ++j) {
-                    String keySlave = keys[j];
-                    CplxContainer slave = slaveMap.get(keySlave);
-                    if (slave == null) {
-                        slave = masterMap.get(keySlave);
+                    String keySecondary = keys[j];
+                    CplxContainer secondary = secondaryMap.get(keySecondary);
+                    if (secondary == null) {
+                        secondary = referenceMap.get(keySecondary);
                     }
 
-                    if ((master.polarisation == null || slave.polarisation == null) ||
-                            (master.polarisation != null && slave.polarisation != null &&
-                                    master.polarisation.equals(slave.polarisation))) {
+                    if ((reference.polarisation == null || secondary.polarisation == null) ||
+                            (reference.polarisation != null && secondary.polarisation != null &&
+                                    reference.polarisation.equals(secondary.polarisation))) {
                         // generate name for product bands
-                        final String productName = keyMaster + '_' + keySlave;
+                        final String productName = keyReference + '_' + keySecondary;
 
-                        final ProductContainer productContainer = new ProductContainer(productName, master, slave, false);
+                        final ProductContainer productContainer = new ProductContainer(productName, reference, secondary, false);
 
                         // put ifg-product bands into map
                         targetMap.put(productName, productContainer);
@@ -422,17 +422,17 @@ public class CoherenceOp extends Operator {
                 final java.util.List<String> targetBandNames = new ArrayList<>();
 
                 final ProductContainer container = targetMap.get(key);
-                final CplxContainer master = container.sourceMaster;
-                final CplxContainer slave = container.sourceSlave;
+                final CplxContainer reference = container.sourceRef;
+                final CplxContainer secondary = container.sourceSec;
 
-                final String subswath = master.subswath.isEmpty() ? "" : '_' + master.subswath.toUpperCase();
-                final String pol = InterferogramOp.getPolarisationTag(master);
-                final String tag = subswath + pol + '_' + master.date + '_' + slave.date;
+                final String subswath = reference.subswath.isEmpty() ? "" : '_' + reference.subswath.toUpperCase();
+                final String pol = InterferogramOp.getPolarisationTag(reference);
+                final String tag = subswath + pol + '_' + reference.date + '_' + secondary.date;
 
                 final String coherenceBandName = productTag + tag;
                 final Band coherenceBand = targetProduct.addBand(coherenceBandName, ProductData.TYPE_FLOAT32);
                 coherenceBand.setNoDataValueUsed(true);
-                coherenceBand.setNoDataValue(master.realBand.getNoDataValue());
+                coherenceBand.setNoDataValue(reference.realBand.getNoDataValue());
                 container.addBand(Unit.COHERENCE, coherenceBand.getName());
                 coherenceBand.setUnit(Unit.COHERENCE);
                 targetBandNames.add(coherenceBand.getName());
@@ -454,8 +454,8 @@ public class CoherenceOp extends Operator {
                 }
 
                 if (singleMaster) {
-                    String slvProductName = StackUtils.findOriginalSlaveProductName(sourceProduct, container.sourceSlave.realBand);
-                    StackUtils.saveSlaveProductBandNames(targetProduct, slvProductName,
+                    String secProductName = StackUtils.findOriginalSecondaryProductName(sourceProduct, container.sourceSec.realBand);
+                    StackUtils.saveSecondaryProductBandNames(targetProduct, secProductName,
                             targetBandNames.toArray(new String[0]));
                 }
             }
@@ -465,22 +465,22 @@ public class CoherenceOp extends Operator {
             if (numSrcBands < 2) {
                 throw new OperatorException("To create a coherence image, more than 2 bands are needed.");
             }
-            //masterBand = sourceProduct.getBand(findBandName(bandNames, "mst"));
-            //addTargetBand(masterBand.getName(), masterBand.getDataType(), masterBand.getUnit());
+            //referenceBand = sourceProduct.getBand(findBandName(bandNames, "ref"));
+            //addTargetBand(referenceBand.getName(), referenceBand.getDataType(), referenceBand.getUnit());
 
-            // add slave and coherence bands
+            // add secondary and coherence bands
             for (int i = 1; i <= numSrcBands; i++) {
 
-                final String slaveBandName = findBandName(bandNames, "slv" + i);
-                if (slaveBandName == null) {
+                final String secondaryBandName = findBandName(bandNames, "sec" + i);
+                if (secondaryBandName == null) {
                     break;
                 }
-                final Band slaveBand = sourceProduct.getBand(slaveBandName);
-                //addTargetBand(slaveBandName, slaveBand.getDataType(), slaveBand.getUnit());
+                final Band secondaryBand = sourceProduct.getBand(secondaryBandName);
+                //addTargetBand(secondaryBandName, secondaryBand.getDataType(), secondaryBand.getUnit());
 
-                final Band coherenceBand = targetProduct.addBand("Coherence_slv" + i, ProductData.TYPE_FLOAT32);
+                final Band coherenceBand = targetProduct.addBand("Coherence_sec" + i, ProductData.TYPE_FLOAT32);
                 coherenceBand.setUnit("coherence");
-                detectedSlaveMap.put(coherenceBand, slaveBand);
+                detectedSecondaryMap.put(coherenceBand, secondaryBand);
             }
         }
     }
@@ -497,10 +497,10 @@ public class CoherenceOp extends Operator {
         return bandName;
     }
 
-    private void getMstApproxSceneCentreXYZ() {
+    private void getRefApproxSceneCentreXYZ() {
 
         final int numOfBursts = subSwath[subSwathIndex - 1].numOfBursts;
-        mstSceneCentreXYZ = new Point[numOfBursts];
+        refSceneCentreXYZ = new Point[numOfBursts];
 
         for (int b = 0; b < numOfBursts; b++) {
             final double firstLineTime = subSwath[subSwathIndex - 1].burstFirstLineTime[b];
@@ -520,9 +520,9 @@ public class CoherenceOp extends Operator {
             final double lat = (latUL + latUR + latLL + latLR) / 4.0;
             final double lon = (lonUL + lonUR + lonLL + lonLR) / 4.0;
 
-            final PosVector mstSceneCenter = new PosVector();
-            GeoUtils.geo2xyzWGS84(lat, lon, 0.0, mstSceneCenter);
-            mstSceneCentreXYZ[b] = new Point(mstSceneCenter.toArray());
+            final PosVector refSceneCenter = new PosVector();
+            GeoUtils.geo2xyzWGS84(lat, lon, 0.0, refSceneCenter);
+            refSceneCentreXYZ[b] = new Point(refSceneCenter.toArray());
         }
     }
 
@@ -531,8 +531,8 @@ public class CoherenceOp extends Operator {
         for (String key : targetMap.keySet()) {
 
             final ProductContainer container = targetMap.get(key);
-            final CplxContainer master = container.sourceMaster;
-            final CplxContainer slave = container.sourceSlave;
+            final CplxContainer reference = container.sourceRef;
+            final CplxContainer secondary = container.sourceSec;
 
             for (int s = 0; s < numSubSwaths; s++) {
 
@@ -540,10 +540,10 @@ public class CoherenceOp extends Operator {
 
                 for (int b = 0; b < numBursts; b++) {
 
-                    final String polynomialName = slave.name + '_' + s + '_' + b;
+                    final String polynomialName = secondary.name + '_' + s + '_' + b;
 
                     flatEarthPolyMap.put(polynomialName, InterferogramOp.estimateFlatEarthPolynomial(
-                            master, slave, s + 1, b, mstSceneCentreXYZ, orbitDegree, srpPolynomialDegree,
+                            reference, secondary, s + 1, b, refSceneCentreXYZ, orbitDegree, srpPolynomialDegree,
                             srpNumberPoints, subSwath, su));
                 }
             }
@@ -555,11 +555,11 @@ public class CoherenceOp extends Operator {
         for (String key : targetMap.keySet()) {
 
             final ProductContainer container = targetMap.get(key);
-            final CplxContainer master = container.sourceMaster;
-            final CplxContainer slave = container.sourceSlave;
+            final CplxContainer reference = container.sourceRef;
+            final CplxContainer secondary = container.sourceSec;
 
-            flatEarthPolyMap.put(slave.name, InterferogramOp.estimateFlatEarthPolynomial(
-                        master.metaData, master.orbit, slave.metaData, slave.orbit, sourceImageWidth,
+            flatEarthPolyMap.put(secondary.name, InterferogramOp.estimateFlatEarthPolynomial(
+                        reference.metaData, reference.orbit, secondary.metaData, secondary.orbit, sourceImageWidth,
                         sourceImageHeight, srpPolynomialDegree, srpNumberPoints, sourceProduct));
         }
     }
@@ -634,7 +634,7 @@ public class CoherenceOp extends Operator {
                 final Tile targetTile = targetTileMap.get(targetBand);
 
                 final Band srcBand = sourceProduct.getBand(targetBand.getName());
-                if (!targetBand.getUnit().contains("coherence")) { // master and slave bands
+                if (!targetBand.getUnit().contains("coherence")) { // reference and secondary bands
 
                     final Tile srcRaster = getSourceTile(srcBand, targetRectangle);
                     final ProductData srcData = srcRaster.getDataBuffer();
@@ -649,15 +649,15 @@ public class CoherenceOp extends Operator {
 
                 } else { // coherence bands
                     String[] bandNames = sourceProduct.getBandNames();
-                    Band masterBand = sourceProduct.getBand(findBandName(bandNames, "mst"));
+                    Band referenceBand = sourceProduct.getBand(findBandName(bandNames, "ref"));
 
-                    final Band slaveBand = detectedSlaveMap.get(targetBand);
+                    final Band secondaryBand = detectedSecondaryMap.get(targetBand);
                     final float[] dataArray = new float[w * h];
                     final RealCoherenceData realData = new RealCoherenceData();
                     int k = 0;
                     for (int y = y0; y < maxY; y++) {
                         for (int x = x0; x < maxX; x++) {
-                            getMasterSlaveDataForCurWindow(x, y, masterBand, slaveBand, realData);
+                            getReferenceSecondaryDataForCurWindow(x, y, referenceBand, secondaryBand, realData);
                             dataArray[k++] = computeCoherence(realData);
                         }
                     }
@@ -671,8 +671,8 @@ public class CoherenceOp extends Operator {
         }
     }
 
-    private void getMasterSlaveDataForCurWindow(
-            int xC, int yC, Band masterBand, Band slaveBand, RealCoherenceData realData) {
+    private void getReferenceSecondaryDataForCurWindow(
+            int xC, int yC, Band referenceBand, Band secondaryBand, RealCoherenceData realData) {
 
         // compute upper left corner coordinate (xUL, yUL)
         final int halfWindowSizeAz = cohWinAz / 2;
@@ -692,17 +692,17 @@ public class CoherenceOp extends Operator {
         realData.s = new double[w * h];
 
         final Rectangle windowRectangle = new Rectangle(xUL, yUL, w, h);
-        final Tile masterRaster = getSourceTile(masterBand, windowRectangle);
-        final Tile slaveRaster = getSourceTile(slaveBand, windowRectangle);
-        final ProductData masterData = masterRaster.getDataBuffer();
-        final ProductData slaveData = slaveRaster.getDataBuffer();
+        final Tile referenceRaster = getSourceTile(referenceBand, windowRectangle);
+        final Tile secondaryRaster = getSourceTile(secondaryBand, windowRectangle);
+        final ProductData referenceData = referenceRaster.getDataBuffer();
+        final ProductData secondaryData = secondaryRaster.getDataBuffer();
 
         int k = 0;
         for (int y = yUL; y <= yLR; y++) {
             for (int x = xUL; x <= xLR; x++) {
-                final int index = masterRaster.getDataBufferIndex(x, y);
-                realData.m[k] = masterData.getElemDoubleAt(index);
-                realData.s[k] = slaveData.getElemDoubleAt(index);
+                final int index = referenceRaster.getDataBufferIndex(x, y);
+                realData.m[k] = referenceData.getElemDoubleAt(index);
+                realData.s[k] = secondaryData.getElemDoubleAt(index);
                 k++;
             }
         }
@@ -758,23 +758,23 @@ public class CoherenceOp extends Operator {
 
                 final ProductContainer product = targetMap.get(cohKey);
 
-                final Tile mstTileReal = getSourceTile(product.sourceMaster.realBand, extRect, border);
-                final Tile mstTileImag = getSourceTile(product.sourceMaster.imagBand, extRect, border);
-                final ComplexDoubleMatrix dataMaster = TileUtilsDoris.pullComplexDoubleMatrix(mstTileReal, mstTileImag);
+                final Tile refTileReal = getSourceTile(product.sourceRef.realBand, extRect, border);
+                final Tile refTileImag = getSourceTile(product.sourceRef.imagBand, extRect, border);
+                final ComplexDoubleMatrix dataReference = TileUtilsDoris.pullComplexDoubleMatrix(refTileReal, refTileImag);
 
-                final Tile slvTileReal = getSourceTile(product.sourceSlave.realBand, extRect, border);
-                final Tile slvTileImag = getSourceTile(product.sourceSlave.imagBand, extRect, border);
-                final ComplexDoubleMatrix dataSlave = TileUtilsDoris.pullComplexDoubleMatrix(slvTileReal, slvTileImag);
+                final Tile secTileReal = getSourceTile(product.sourceSec.realBand, extRect, border);
+                final Tile secTileImag = getSourceTile(product.sourceSec.imagBand, extRect, border);
+                final ComplexDoubleMatrix dataSecondary = TileUtilsDoris.pullComplexDoubleMatrix(secTileReal, secTileImag);
 
                 if (subtractFlatEarthPhase) {
                     final DoubleMatrix flatEarthPhase = computeFlatEarthPhase(
                             cohx0, cohx0 + cohw - 1, cohw, cohy0, cohy0 + cohh - 1, cohh,
-                            0, sourceImageWidth - 1, 0, sourceImageHeight - 1, product.sourceSlave.name);
+                            0, sourceImageWidth - 1, 0, sourceImageHeight - 1, product.sourceSec.name);
 
                     final ComplexDoubleMatrix complexReferencePhase = new ComplexDoubleMatrix(
                             MatrixFunctions.cos(flatEarthPhase), MatrixFunctions.sin(flatEarthPhase));
 
-                    dataSlave.muli(complexReferencePhase);
+                    dataSecondary.muli(complexReferencePhase);
 
                     if (OUTPUT_PHASE) {
                         saveFlatEarthPhase(x0, xN, y0, yN, flatEarthPhase, product, targetTileMap);
@@ -789,24 +789,24 @@ public class CoherenceOp extends Operator {
                             MatrixFunctions.cos(new DoubleMatrix(topoPhase.demPhase)),
                             MatrixFunctions.sin(new DoubleMatrix(topoPhase.demPhase)));
 
-                    dataSlave.muli(ComplexTopoPhase);
+                    dataSecondary.muli(ComplexTopoPhase);
 
                     if (OUTPUT_PHASE) {
                         saveTopoPhase(x0, xN, y0, yN, topoPhase.demPhase, product, targetTileMap);
                     }
                 }
 
-                for (int i = 0; i < dataMaster.length; i++) {
-                    double tmp = norm(dataMaster.get(i));
-                    dataMaster.put(i, dataMaster.get(i).mul(dataSlave.get(i).conj()));
-                    dataSlave.put(i, new ComplexDouble(norm(dataSlave.get(i)), tmp));
+                for (int i = 0; i < dataReference.length; i++) {
+                    double tmp = norm(dataReference.get(i));
+                    dataReference.put(i, dataReference.get(i).mul(dataSecondary.get(i).conj()));
+                    dataSecondary.put(i, new ComplexDouble(norm(dataSecondary.get(i)), tmp));
                 }
 
                 DoubleMatrix cohMatrix;
                 if (removeLocalPhaseRamp) {
-                    cohMatrix = SarUtils.coherence_LPR(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                    cohMatrix = SarUtils.coherence_LPR(dataReference, dataSecondary, cohWinAz, cohWinRg);
                 } else {
-                    cohMatrix = SarUtils.coherence3(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                    cohMatrix = SarUtils.coherence3(dataReference, dataSecondary, cohWinAz, cohWinRg);
                 }
 
                 saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
@@ -890,21 +890,21 @@ public class CoherenceOp extends Operator {
         final Tile coherenceTile = targetTileMap.get(coherenceBand);
         final ProductData coherenceData = coherenceTile.getDataBuffer();
 
-        final double srcNoDataValue = product.sourceMaster.realBand.getNoDataValue();
-        final Tile slvTileReal = getSourceTile(product.sourceSlave.realBand, targetRectangle);
-        final ProductData srcSlvData = slvTileReal.getDataBuffer();
-        final TileIndex srcSlvIndex = new TileIndex(slvTileReal);
+        final double srcNoDataValue = product.sourceRef.realBand.getNoDataValue();
+        final Tile secTileReal = getSourceTile(product.sourceSec.realBand, targetRectangle);
+        final ProductData srcSecData = secTileReal.getDataBuffer();
+        final TileIndex srcSecIndex = new TileIndex(secTileReal);
 
         final TileIndex tgtIndex = new TileIndex(coherenceTile);
         for (int y = y0; y < maxY; y++) {
             tgtIndex.calculateStride(y);
-            srcSlvIndex.calculateStride(y);
+            srcSecIndex.calculateStride(y);
             final int yy = y - y0;
             for (int x = x0; x < maxX; x++) {
                 final int tgtIdx = tgtIndex.getIndex(x);
                 final int xx = x - x0;
 
-                if (srcSlvData.getElemDoubleAt(srcSlvIndex.getIndex(x)) == srcNoDataValue) {
+                if (srcSecData.getElemDoubleAt(srcSecIndex.getIndex(x)) == srcNoDataValue) {
                     coherenceData.setElemFloatAt(tgtIdx, (float) srcNoDataValue);
                 } else {
                     double coh = cohMatrix.get(yy, xx);
@@ -977,13 +977,13 @@ public class CoherenceOp extends Operator {
             final org.jlinda.core.Window tileWindow = new org.jlinda.core.Window(
                     cohy0 - firstLineIdx, cohy0 + cohh - 1 - firstLineIdx, cohx0, cohx0 + cohw - 1);
 
-            final SLCImage mstMeta = targetMap.values().iterator().next().sourceMaster.metaData.clone();
-            updateMstMetaData(burstIndex, mstMeta);
-            final Orbit mstOrbit = targetMap.values().iterator().next().sourceMaster.orbit;
+            final SLCImage refMeta = targetMap.values().iterator().next().sourceRef.metaData.clone();
+            updateRefMetaData(burstIndex, refMeta);
+            final Orbit refOrbit = targetMap.values().iterator().next().sourceRef.orbit;
 
             DemTile demTile = null;
             if (subtractTopographicPhase) {
-                demTile = TopoPhase.getDEMTile(tileWindow, mstMeta, mstOrbit, dem,
+                demTile = TopoPhase.getDEMTile(tileWindow, refMeta, refOrbit, dem,
                         demNoDataValue, demSamplingLat, demSamplingLon, tileExtensionPercent);
 
                 if (demTile == null) {
@@ -1004,19 +1004,19 @@ public class CoherenceOp extends Operator {
             for (String cohKey : targetMap.keySet()) {
 
                 final ProductContainer product = targetMap.get(cohKey);
-                final SLCImage slvMeta = product.sourceSlave.metaData.clone();
-                updateSlvMetaData(product, burstIndex, slvMeta);
-                final Orbit slvOrbit = product.sourceSlave.orbit;
+                final SLCImage secMeta = product.sourceSec.metaData.clone();
+                updateSecMetaData(product, burstIndex, secMeta);
+                final Orbit secOrbit = product.sourceSec.orbit;
 
-                final Tile mstTileReal = getSourceTile(product.sourceMaster.realBand, extRect, border);
-                final Tile mstTileImag = getSourceTile(product.sourceMaster.imagBand, extRect, border);
-                final ComplexDoubleMatrix dataMaster = TileUtilsDoris.pullComplexDoubleMatrix(mstTileReal, mstTileImag);
+                final Tile refTileReal = getSourceTile(product.sourceRef.realBand, extRect, border);
+                final Tile refTileImag = getSourceTile(product.sourceRef.imagBand, extRect, border);
+                final ComplexDoubleMatrix dataReference = TileUtilsDoris.pullComplexDoubleMatrix(refTileReal, refTileImag);
 
-                final Tile slvTileReal = getSourceTile(product.sourceSlave.realBand, extRect, border);
-                final Tile slvTileImag = getSourceTile(product.sourceSlave.imagBand, extRect, border);
-                final ComplexDoubleMatrix dataSlave = TileUtilsDoris.pullComplexDoubleMatrix(slvTileReal, slvTileImag);
+                final Tile secTileReal = getSourceTile(product.sourceSec.realBand, extRect, border);
+                final Tile secTileImag = getSourceTile(product.sourceSec.imagBand, extRect, border);
+                final ComplexDoubleMatrix dataSecondary = TileUtilsDoris.pullComplexDoubleMatrix(secTileReal, secTileImag);
 
-                final String polynomialName = product.sourceSlave.name + '_' + (subSwathIndex - 1) + '_' + burstIndex;
+                final String polynomialName = product.sourceSec.name + '_' + (subSwathIndex - 1) + '_' + burstIndex;
                 if (subtractFlatEarthPhase) {
                     final DoubleMatrix flatEarthPhase = computeFlatEarthPhase(
                             cohx0, cohx0 + cohw - 1, cohw, cohy0 - firstLineIdx, cohy0 + cohh - 1 - firstLineIdx, cohh,
@@ -1025,7 +1025,7 @@ public class CoherenceOp extends Operator {
                     final ComplexDoubleMatrix complexReferencePhase = new ComplexDoubleMatrix(
                             MatrixFunctions.cos(flatEarthPhase), MatrixFunctions.sin(flatEarthPhase));
 
-                    dataSlave.muli(complexReferencePhase);
+                    dataSecondary.muli(complexReferencePhase);
 
                     if (OUTPUT_PHASE) {
                         saveFlatEarthPhase(x0, xN, y0, yN, flatEarthPhase, product, targetTileMap);
@@ -1034,30 +1034,30 @@ public class CoherenceOp extends Operator {
 
                 if (subtractTopographicPhase) {
                     TopoPhase topoPhase = TopoPhase.computeTopoPhase(
-                            mstMeta, mstOrbit, slvMeta, slvOrbit, tileWindow, demTile, false);
+                            refMeta, refOrbit, secMeta, secOrbit, tileWindow, demTile, false);
 
                     final ComplexDoubleMatrix ComplexTopoPhase = new ComplexDoubleMatrix(
                             MatrixFunctions.cos(new DoubleMatrix(topoPhase.demPhase)),
                             MatrixFunctions.sin(new DoubleMatrix(topoPhase.demPhase)));
 
-                    dataSlave.muli(ComplexTopoPhase);
+                    dataSecondary.muli(ComplexTopoPhase);
 
                     if (OUTPUT_PHASE) {
                         saveTopoPhase(x0, xN, y0, yN, topoPhase.demPhase, product, targetTileMap);
                     }
                 }
 
-                for (int i = 0; i < dataMaster.length; i++) {
-                    double tmp = norm(dataMaster.get(i));
-                    dataMaster.put(i, dataMaster.get(i).mul(dataSlave.get(i).conj()));
-                    dataSlave.put(i, new ComplexDouble(norm(dataSlave.get(i)), tmp));
+                for (int i = 0; i < dataReference.length; i++) {
+                    double tmp = norm(dataReference.get(i));
+                    dataReference.put(i, dataReference.get(i).mul(dataSecondary.get(i).conj()));
+                    dataSecondary.put(i, new ComplexDouble(norm(dataSecondary.get(i)), tmp));
                 }
 
                 DoubleMatrix cohMatrix;
                 if (removeLocalPhaseRamp) {
-                    cohMatrix = SarUtils.coherence_LPR(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                    cohMatrix = SarUtils.coherence_LPR(dataReference, dataSecondary, cohWinAz, cohWinRg);
                 } else {
-                    cohMatrix = SarUtils.coherence3(dataMaster, dataSlave, cohWinAz, cohWinRg);
+                    cohMatrix = SarUtils.coherence3(dataReference, dataSecondary, cohWinAz, cohWinRg);
                 }
 
                 saveCoherence(cohMatrix, product, targetTileMap, targetRectangle);
@@ -1068,7 +1068,7 @@ public class CoherenceOp extends Operator {
         }
     }
 
-    private void updateMstMetaData(final int burstIndex, final SLCImage mstMeta) {
+    private void updateRefMetaData(final int burstIndex, final SLCImage refMeta) {
 
         final double burstFirstLineTimeMJD = subSwath[subSwathIndex - 1].burstFirstLineTime[burstIndex] /
                 Constants.secondsInDay;
@@ -1076,31 +1076,31 @@ public class CoherenceOp extends Operator {
         final double burstFirstLineTimeSecondsOfDay = (burstFirstLineTimeMJD - (int)burstFirstLineTimeMJD) *
                 Constants.secondsInDay;
 
-        mstMeta.settAzi1(burstFirstLineTimeSecondsOfDay);
+        refMeta.settAzi1(burstFirstLineTimeSecondsOfDay);
 
-        mstMeta.setCurrentWindow(new org.jlinda.core.Window(0, subSwath[subSwathIndex - 1].linesPerBurst - 1,
+        refMeta.setCurrentWindow(new org.jlinda.core.Window(0, subSwath[subSwathIndex - 1].linesPerBurst - 1,
                 0, subSwath[subSwathIndex - 1].samplesPerBurst - 1));
 
-        mstMeta.setOriginalWindow(new org.jlinda.core.Window(0, subSwath[subSwathIndex - 1].linesPerBurst - 1,
+        refMeta.setOriginalWindow(new org.jlinda.core.Window(0, subSwath[subSwathIndex - 1].linesPerBurst - 1,
                 0, subSwath[subSwathIndex - 1].samplesPerBurst - 1));
 
-        mstMeta.setApproxGeoCentreOriginal(getApproxGeoCentre(subSwathIndex, burstIndex));
+        refMeta.setApproxGeoCentreOriginal(getApproxGeoCentre(subSwathIndex, burstIndex));
     }
 
-    private void updateSlvMetaData(final ProductContainer product, final int burstIndex, final SLCImage slvMeta) {
+    private void updateSecMetaData(final ProductContainer product, final int burstIndex, final SLCImage secMeta) {
 
-        final double slvBurstFirstLineTimeMJD = slvMeta.getMjd() - product.sourceMaster.metaData.getMjd() +
+        final double secBurstFirstLineTimeMJD = secMeta.getMjd() - product.sourceRef.metaData.getMjd() +
                 subSwath[subSwathIndex - 1].burstFirstLineTime[burstIndex] / Constants.secondsInDay;
 
-        final double slvBurstFirstLineTimeSecondsOfDay = (slvBurstFirstLineTimeMJD - (int)slvBurstFirstLineTimeMJD) *
+        final double secBurstFirstLineTimeSecondsOfDay = (secBurstFirstLineTimeMJD - (int)secBurstFirstLineTimeMJD) *
                 Constants.secondsInDay;
 
-        slvMeta.settAzi1(slvBurstFirstLineTimeSecondsOfDay);
+        secMeta.settAzi1(secBurstFirstLineTimeSecondsOfDay);
 
-        slvMeta.setCurrentWindow(new org.jlinda.core.Window(0, subSwath[subSwathIndex - 1].linesPerBurst - 1,
+        secMeta.setCurrentWindow(new org.jlinda.core.Window(0, subSwath[subSwathIndex - 1].linesPerBurst - 1,
                 0, subSwath[subSwathIndex - 1].samplesPerBurst - 1));
 
-        slvMeta.setOriginalWindow(new org.jlinda.core.Window(0, subSwath[subSwathIndex - 1].linesPerBurst - 1,
+        secMeta.setOriginalWindow(new org.jlinda.core.Window(0, subSwath[subSwathIndex - 1].linesPerBurst - 1,
                 0, subSwath[subSwathIndex - 1].samplesPerBurst - 1));
     }
 
@@ -1172,8 +1172,8 @@ public class CoherenceOp extends Operator {
     }
 
     private static class RealCoherenceData {
-        private double[] m = null;          // real master data for coherence computation
-        private double[] s = null;          // real slave data for coherence computation
+        private double[] m = null;          // real reference data for coherence computation
+        private double[] s = null;          // real secondary data for coherence computation
     }
 
     /**

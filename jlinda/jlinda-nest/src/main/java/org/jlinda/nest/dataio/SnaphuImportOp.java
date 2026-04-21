@@ -13,6 +13,7 @@ import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 
 @OperatorMetadata(alias = "SnaphuImport",
         category = "Radar/Interferometric/Unwrapping",
@@ -48,7 +49,7 @@ public class SnaphuImportOp extends Operator {
             final Product secondaryProduct;
 
             // check which one is the reference product:
-            // ....check on geocodings, and pick 1st one that has them as 'master'...
+            // ....check on geocodings, and pick 1st one that has them as 'reference'...
             if (sourceProducts[0].getSceneGeoCoding() != null && sourceProducts[0].getSceneGeoCoding().canGetGeoPos()) {
                 primaryProduct = sourceProducts[0];
                 secondaryProduct = sourceProducts[1];
@@ -68,8 +69,8 @@ public class SnaphuImportOp extends Operator {
             }
 
             // create target product
-            // ....Note: the productType of target is of slaveProduct (it's about using the metadata of master,
-            //           and bands of slave product)
+            // ....Note: the productType of target is of secondaryProduct (it's about using the metadata of reference,
+            //           and bands of secondary product)
             targetProduct = new Product(primaryProduct.getName(),
                     secondaryProduct.getProductType(),
                     primaryProduct.getSceneRasterWidth(),
@@ -96,9 +97,9 @@ public class SnaphuImportOp extends Operator {
                 String primaryDate = OperatorUtils.getAcquisitionDate(AbstractMetadata.getAbstractedMetadata(primaryProduct));
                 String secondaryDate = "";
                 String targetBandName = "";
-                if(primaryProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElements().length == 1){
+                if(StackUtils.findSecondaryMetadataRoot(primaryProduct).getElements().length == 1){
                     secondaryDate = OperatorUtils.getAcquisitionDate(
-                            primaryProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElements()[0]);
+                            StackUtils.findSecondaryMetadataRoot(primaryProduct).getElements()[0]);
                     targetBandName = "Unw_Phase_ifg_" + primaryDate + "_" + secondaryDate;
                 }else{
                     // We have multiple secondary metadata objects - cannot just blindly assign the first one!
@@ -110,7 +111,7 @@ public class SnaphuImportOp extends Operator {
                 final Band targetBand = ProductUtils.copyBand(sourceBandName, secondaryProduct, sourceBandName, targetProduct, true);
                 if (targetBand.getName().toLowerCase().contains("unw") || targetBand.getName().toLowerCase().contains("band")) {
                     targetBand.setUnit(Unit.ABS_PHASE); // if there is a band with "unw" set unit to ABS phase
-                    targetBand.setName(targetBandName); // set the name to Unw_Phase_ifg_masterDate_slaveDate
+                    targetBand.setName(targetBandName); // set the name to Unw_Phase_ifg_referenceDate_secondaryDate
                     targetProduct.setQuicklookBandName(targetBand.getName());
                     unwrappedPhaseFound = true;
 

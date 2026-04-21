@@ -211,4 +211,163 @@
     </tr>
 </table>
 
+<h2>Supported Product Types</h2>
+<table border="1" cellpadding="5">
+    <tr>
+        <th>Product Type</th>
+        <th>Supported</th>
+        <th>Notes</th>
+    </tr>
+    <tr>
+        <td>Stripmap (SM) SLC</td>
+        <td>Yes</td>
+        <td>Direct input. No additional preprocessing required beyond orbit file application.</td>
+    </tr>
+    <tr>
+        <td>IW/EW SLC (split, burst-level)</td>
+        <td>Yes</td>
+        <td>Must be a single-subswath product produced by TOPSAR-Split. The operator handles
+            azimuth deramping and burst-level processing internally.</td>
+    </tr>
+    <tr>
+        <td>IW/EW SLC (debursted)</td>
+        <td>No</td>
+        <td>Debursted products have lost the burst-level metadata required for azimuth deramping.
+            Use the pre-deburst split product instead.</td>
+    </tr>
+    <tr>
+        <td>GRD</td>
+        <td>No</td>
+        <td>GRD products are detected (amplitude only) and do not contain phase information.</td>
+    </tr>
+</table>
+
+<h2>Processing Workflows</h2>
+
+<h3>Single GSLC Generation</h3>
+
+<h4>Stripmap SLC</h4>
+<pre>
+  S-1 SM SLC Product
+    &rarr; Apply-Orbit-File
+    &rarr; (optional) Thermal-Noise-Removal
+    &rarr; GSLC-Terrain-Correction
+</pre>
+
+<h4>TOPS (IW/EW) SLC</h4>
+<pre>
+  S-1 IW SLC Product
+    &rarr; Apply-Orbit-File
+    &rarr; TOPSAR-Split (select one subswath, e.g. IW2, and polarisation)
+    &rarr; GSLC-Terrain-Correction
+</pre>
+<p>Repeat for each subswath if full-swath coverage is needed. The operator handles burst deramping,
+    geocoding, and burst mosaicking internally.</p>
+
+<h3>GSLC-Based InSAR</h3>
+<p>The GSLC approach simplifies InSAR processing because coregistration is implicit &mdash;
+    since both images are geocoded to the same map grid using the same DEM, they are already
+    pixel-aligned. No separate coregistration step is needed.</p>
+
+<pre>
+  Reference SLC (Date 1)
+    &rarr; Apply-Orbit-File &rarr; TOPSAR-Split &rarr; GSLC-Terrain-Correction &rarr; GSLC<sub>reference</sub>
+
+  Secondary SLC (Date 2)
+    &rarr; Apply-Orbit-File &rarr; TOPSAR-Split &rarr; GSLC-Terrain-Correction &rarr; GSLC<sub>secondary</sub>
+
+  GSLC<sub>reference</sub> + GSLC<sub>secondary</sub>
+    &rarr; CreateStack
+    &rarr; Interferogram
+    &rarr; (optional) Goldstein-Phase-Filtering
+    &rarr; (optional) Phase-Unwrapping
+</pre>
+
+<h3>Comparison with Traditional TOPS InSAR Workflow</h3>
+<table border="1" cellpadding="5">
+    <tr>
+        <th>Step</th>
+        <th>Traditional Workflow</th>
+        <th>GSLC-Based Workflow</th>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td>Apply-Orbit-File</td>
+        <td>Apply-Orbit-File</td>
+    </tr>
+    <tr>
+        <td>2</td>
+        <td>TOPSAR-Split</td>
+        <td>TOPSAR-Split</td>
+    </tr>
+    <tr>
+        <td>3</td>
+        <td>BackGeocoding (coregistration)</td>
+        <td>GSLC-Terrain-Correction (reference)</td>
+    </tr>
+    <tr>
+        <td>4</td>
+        <td>Enhanced-Spectral-Diversity</td>
+        <td>GSLC-Terrain-Correction (secondary)</td>
+    </tr>
+    <tr>
+        <td>5</td>
+        <td>Interferogram</td>
+        <td>CreateStack</td>
+    </tr>
+    <tr>
+        <td>6</td>
+        <td>TOPSAR-Deburst</td>
+        <td>Interferogram</td>
+    </tr>
+    <tr>
+        <td>7</td>
+        <td>TOPSAR-Merge</td>
+        <td>&mdash;</td>
+    </tr>
+    <tr>
+        <td>8</td>
+        <td>Terrain-Correction</td>
+        <td>&mdash;</td>
+    </tr>
+</table>
+<p><b>Advantages of the GSLC approach:</b></p>
+<ul>
+    <li>Fewer processing steps (no deburst, merge, or separate terrain correction)</li>
+    <li>Each acquisition can be processed independently and in parallel</li>
+    <li>The output is directly geocoded &mdash; ready for time-series analysis</li>
+    <li>Consistent geocoding across all acquisitions (same DEM and geometry)</li>
+</ul>
+
+<h3>Multi-Subswath Coverage</h3>
+<p>For full IW coverage (IW1 + IW2 + IW3), process each subswath independently:</p>
+<pre>
+  For each subswath (IW1, IW2, IW3):
+    TOPSAR-Split &rarr; GSLC-Terrain-Correction
+
+  Then mosaic the 3 GSLC subswaths per date.
+</pre>
+<p>Alternatively, process each subswath interferogram independently, then mosaic the interferograms.</p>
+
+<h2>Technical Notes</h2>
+<h3>TOPS Azimuth Deramping</h3>
+<p>In TOPS (IW/EW) mode, the antenna steers during each burst, imparting a quadratic phase ramp
+    in azimuth. This ramp must be removed (deramped) before any interpolation to prevent aliasing.
+    The operator handles this internally for TOPS products:</p>
+<ol>
+    <li>For each burst, the azimuth deramp and demodulation phase is computed using the Doppler
+        rate and centroid annotations from the product metadata.</li>
+    <li>The phase is applied to the source complex data before resampling.</li>
+    <li>After resampling, the interpolated phase is used to re-ramp the data.</li>
+    <li>Range phase flattening is then applied as in the Stripmap case.</li>
+</ol>
+
+<h3>Phase Flattening</h3>
+<p>The operator removes the geometric (carrier) phase before resampling to reduce fringe density
+    and improve interpolation accuracy. The simulated phase is:</p>
+<p style="margin-left: 40px;"><i>&phi;<sub>sim</sub> = 4&pi; R / &lambda;</i></p>
+<p>When "Output flattened complex data" is enabled (default), the output phase represents only
+    the residual phase (deformation, atmosphere, noise). When disabled, the full geometric phase
+    is restored after resampling.</p>
+
 </body></html>

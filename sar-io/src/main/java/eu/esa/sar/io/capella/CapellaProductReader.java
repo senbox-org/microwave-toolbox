@@ -23,6 +23,7 @@ import eu.esa.sar.io.DataCache;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 
 import javax.imageio.ImageReadParam;
@@ -187,11 +188,10 @@ public class CapellaProductReader extends SARReader {
             }
             return cachedData;
         } catch (Exception e) {
+            SystemUtils.LOG.severe("Error reading band raster data: " + e.getMessage());
             final int[] srcArray = new int[(int) destRect.getWidth() * (int) destRect.getHeight()];
             DataCache.Data cachedData = new DataCache.Data(srcArray);
-            if (datakey != null) {
-                cache.put(datakey, cachedData);
-            }
+            cachedData.valid = false;
             return cachedData;
         }
     }

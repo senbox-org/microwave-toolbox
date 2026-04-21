@@ -15,6 +15,7 @@ import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -64,8 +65,8 @@ public class AzimuthFilterOp extends Operator {
     private float alphaHamming = (float) 0.75;
 
     // source
-    private LinkedHashMap<Integer, CplxContainer> masterMap = new LinkedHashMap<>();
-    private LinkedHashMap<Integer, CplxContainer> slaveMap = new LinkedHashMap<>();
+    private LinkedHashMap<Integer, CplxContainer> referenceMap = new LinkedHashMap<>();
+    private LinkedHashMap<Integer, CplxContainer> secondaryMap = new LinkedHashMap<>();
 
     // target
     private LinkedHashMap<String, ProductContainer> targetMap = new LinkedHashMap<>();
@@ -73,7 +74,7 @@ public class AzimuthFilterOp extends Operator {
     private static final int ORBIT_DEGREE = 3; // hardcoded
     private static final boolean CREATE_VIRTUAL_BAND = true;
 
-    private static boolean doFilterMaster = true;
+    private static boolean doFilterReference = true;
 
     private static final String PRODUCT_NAME = "azimuth_filter";
     private static final String PRODUCT_TAG = "azifilt";
@@ -120,26 +121,26 @@ public class AzimuthFilterOp extends Operator {
 
     private void constructTargetMetadata() {
 
-        if (doFilterMaster) {
+        if (doFilterReference) {
 
-            // this means there is only one slave! but still do it in the loop
-            // loop through masters
-            for (Integer keyMaster : masterMap.keySet()) {
+            // this means there is only one secondary! but still do it in the loop
+            // loop through references
+            for (Integer keyReference : referenceMap.keySet()) {
 
-                CplxContainer master = masterMap.get(keyMaster);
-                String sourceName_I = master.realBand.getName();
-                String sourceName_Q = master.imagBand.getName();
+                CplxContainer reference = referenceMap.get(keyReference);
+                String sourceName_I = reference.realBand.getName();
+                String sourceName_Q = reference.imagBand.getName();
 
                 String targetName_I = sourceName_I + "_" + PRODUCT_TAG;
                 String targetName_Q = sourceName_Q + "_" + PRODUCT_TAG;
 
                 // generate name for product bands
-                final String productName = keyMaster.toString();
+                final String productName = keyReference.toString();
 
-                for (Integer keySlave : slaveMap.keySet()) {
+                for (Integer keySecondary : secondaryMap.keySet()) {
 
-                    final CplxContainer slave = slaveMap.get(keySlave);
-                    final ProductContainer product = new ProductContainer(productName, master, slave, false);
+                    final CplxContainer secondary = secondaryMap.get(keySecondary);
+                    final ProductContainer product = new ProductContainer(productName, reference, secondary, false);
 
                     product.targetBandName_I = targetName_I;
                     product.targetBandName_Q = targetName_Q;
@@ -152,12 +153,12 @@ public class AzimuthFilterOp extends Operator {
             }
         }
 
-        // loop through slaves
-        for (Integer key : slaveMap.keySet()) {
+        // loop through secondaries
+        for (Integer key : secondaryMap.keySet()) {
 
-            CplxContainer slave = slaveMap.get(key);
-            String sourceName_I = slave.realBand.getName();
-            String sourceName_Q = slave.imagBand.getName();
+            CplxContainer secondary = secondaryMap.get(key);
+            String sourceName_I = secondary.realBand.getName();
+            String sourceName_Q = secondary.imagBand.getName();
 
             String targetName_I = sourceName_I + "_" + PRODUCT_TAG;
             String targetName_Q = sourceName_Q + "_" + PRODUCT_TAG;
@@ -165,10 +166,10 @@ public class AzimuthFilterOp extends Operator {
             // generate name for product bands
             final String productName = key.toString();
 
-            for (Integer keySlave : masterMap.keySet()) {
+            for (Integer keyReference : referenceMap.keySet()) {
 
-                final CplxContainer master = masterMap.get(keySlave);
-                final ProductContainer product = new ProductContainer(productName, slave, master, false);
+                final CplxContainer reference = referenceMap.get(keyReference);
+                final ProductContainer product = new ProductContainer(productName, secondary, reference, false);
 
                 product.targetBandName_I = targetName_I;
                 product.targetBandName_Q = targetName_Q;
@@ -184,28 +185,27 @@ public class AzimuthFilterOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        // define sourceMaster/sourceSlave name tags
-        final String masterTag = "mst";
-        final String slaveTag = "slv";
+        // define sourceReference/sourceSecondary name tags
+        final String referenceTag = "ref";
+        final String secondaryTag = "sec";
 
-        // get sourceMaster & sourceSlave MetadataElement
-        final MetadataElement masterMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
+        // get sourceReference & sourceSecondary MetadataElement
+        final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
         /* organize metadata */
-        // put sourceMaster metadata into the masterMap
-        metaMapPut(masterTag, masterMeta, sourceProduct, masterMap);
+        // put sourceReference metadata into the referenceMap
+        metaMapPut(referenceTag, referenceMeta, sourceProduct, referenceMap);
 
-        // pug sourceSlave metadata into slaveMap
-        MetadataElement[] slaveRoot = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot).getElements();
-        for (MetadataElement meta : slaveRoot) {
+        // put sourceSecondary metadata into secondaryMap
+        MetadataElement[] secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
+        for (MetadataElement meta : secondaryRoot) {
             if (!meta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                metaMapPut(slaveTag, meta, sourceProduct, slaveMap);
+                metaMapPut(secondaryTag, meta, sourceProduct, secondaryMap);
         }
 
-        // check how many slaves
-        if (slaveMap.keySet().toArray().length > 1) {
-            doFilterMaster = false;
+        // check how many secondaries
+        if (secondaryMap.keySet().toArray().length > 1) {
+            doFilterReference = false;
         }
 
     }
@@ -279,17 +279,17 @@ public class AzimuthFilterOp extends Operator {
             Band targetBandI;
             Band targetBandQ;
 
-            // generate REAL band of master-sub-product
+            // generate REAL band of reference-sub-product
             targetBandI = targetProduct.addBand(product.targetBandName_I, OUT_PRODUCT_DATA_TYPE);
-            ProductUtils.copyRasterDataNodeProperties(product.sourceMaster.realBand, targetBandI);
+            ProductUtils.copyRasterDataNodeProperties(product.sourceRef.realBand, targetBandI);
 
-            // generate IMAGINARY band of master-sub-product
+            // generate IMAGINARY band of reference-sub-product
             targetBandQ = targetProduct.addBand(product.targetBandName_Q, OUT_PRODUCT_DATA_TYPE);
-            ProductUtils.copyRasterDataNodeProperties(product.sourceMaster.imagBand, targetBandQ);
+            ProductUtils.copyRasterDataNodeProperties(product.sourceRef.imagBand, targetBandQ);
 
             // generate virtual bands
             if (CREATE_VIRTUAL_BAND) {
-                final String tag = product.sourceMaster.date;
+                final String tag = product.sourceRef.date;
                 ReaderUtils.createVirtualIntensityBand(targetProduct, targetBandI, targetBandQ, ("_" + tag));
                 ReaderUtils.createVirtualPhaseBand(targetProduct, targetBandI, targetBandQ, ("_" + tag));
             }
@@ -303,13 +303,14 @@ public class AzimuthFilterOp extends Operator {
         validator.checkIfCoregisteredStack();
         validator.checkIfSLC();
 
-        boolean mstSlvBandsFound = false;
+        boolean refSecBandsFound = false;
         for (Band band : sourceProduct.getBands()) {
-            if(band.getName().toLowerCase().contains("mst") || band.getName().toLowerCase().contains("slv")) {
-                mstSlvBandsFound = true;
+            if(band.getName().toLowerCase().contains("ref") || band.getName().toLowerCase().contains("sec") ||
+               band.getName().toLowerCase().contains("mst") || band.getName().toLowerCase().contains("slv")) {
+                refSecBandsFound = true;
             }
         }
-        if(!mstSlvBandsFound) {
+        if(!refSecBandsFound) {
             throw new OperatorException("Azimuth spectral filtering should be applied before other insar processing");
         }
     }
@@ -366,32 +367,32 @@ public class AzimuthFilterOp extends Operator {
 
             final BorderExtender border = BorderExtender.createInstance(BorderExtender.BORDER_ZERO);
 
-            // loop over ifg(product)Container : both master and slave defined in container
+            // loop over ifg(product)Container : both reference and secondary defined in container
             for (ProductContainer product : targetMap.values()) {
 
                 // check out from source
-                Tile tileRealMaster = getSourceTile(product.sourceMaster.realBand, rect, border);
-                Tile tileImagMaster = getSourceTile(product.sourceMaster.imagBand, rect, border);
-                final ComplexDoubleMatrix dataMaster = TileUtilsDoris.pullComplexDoubleMatrix(tileRealMaster, tileImagMaster);
+                Tile tileRealReference = getSourceTile(product.sourceRef.realBand, rect, border);
+                Tile tileImagReference = getSourceTile(product.sourceRef.imagBand, rect, border);
+                final ComplexDoubleMatrix dataReference = TileUtilsDoris.pullComplexDoubleMatrix(tileRealReference, tileImagReference);
 
                 // construct azimuthfilter
-                final AzimuthFilter azimuthMaster = new AzimuthFilter();
+                final AzimuthFilter azimuthReference = new AzimuthFilter();
 
                 // set filtering parameters
-                azimuthMaster.setHammingAlpha(alphaHamming);
-                azimuthMaster.setMetadata(product.sourceMaster.metaData);
-                azimuthMaster.setMetadata1(product.sourceSlave.metaData);
+                azimuthReference.setHammingAlpha(alphaHamming);
+                azimuthReference.setMetadata(product.sourceRef.metaData);
+                azimuthReference.setMetadata1(product.sourceSec.metaData);
                 // TODO: variable constant hard-coded, further testing needed
-                azimuthMaster.setVariableFilter(false); // hardcoded to const filtering!
-                azimuthMaster.setTile(new Window(rect));
+                azimuthReference.setVariableFilter(false); // hardcoded to const filtering!
+                azimuthReference.setTile(new Window(rect));
 
                 // set data for filtering
-                azimuthMaster.setData(dataMaster);
+                azimuthReference.setData(dataReference);
 
                 // define parameters and filter
-                azimuthMaster.defineParameters();
-                azimuthMaster.defineFilter();
-                azimuthMaster.applyFilter();
+                azimuthReference.defineParameters();
+                azimuthReference.defineFilter();
+                azimuthReference.applyFilter();
 
                 ComplexDoubleMatrix filteredData;
                 if (rectAdjusted) {
@@ -404,23 +405,23 @@ public class AzimuthFilterOp extends Operator {
                     LinearAlgebraUtils.setdata(filteredData,
                             new Window(0, (long) (targetRectangle.height - 1),
                                     0, (long) (targetRectangle.width - 1)),
-                            azimuthMaster.getData(),
+                            azimuthReference.getData(),
                             new Window(offsetY, rect.height - 1, offsetX, rect.width - 1));
 
                 } else {
-                    filteredData = azimuthMaster.getData();
+                    filteredData = azimuthReference.getData();
                 }
 
                 // get data from filter
                 // commit real() to target
                 targetBand = targetProduct.getBand(product.targetBandName_I);
-                tileRealMaster = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredData.real(), tileRealMaster, targetRectangle);
+                tileRealReference = targetTileMap.get(targetBand);
+                TileUtilsDoris.pushFloatMatrix(filteredData.real(), tileRealReference, targetRectangle);
 
                 // commit imag() to target
                 targetBand = targetProduct.getBand(product.targetBandName_Q);
-                tileImagMaster = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredData.imag(), tileImagMaster, targetRectangle);
+                tileImagReference = targetTileMap.get(targetBand);
+                TileUtilsDoris.pushFloatMatrix(filteredData.imag(), tileImagReference, targetRectangle);
 
             }
         } catch (Throwable e) {

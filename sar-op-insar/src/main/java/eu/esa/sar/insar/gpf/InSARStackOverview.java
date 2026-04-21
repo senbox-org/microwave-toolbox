@@ -20,6 +20,7 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.util.Debug;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.jlinda.core.Baseline;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.Point;
@@ -63,7 +64,7 @@ public class InSARStackOverview {
         }
     }
 
-    // returns orbit number of an "optimal master"
+    // returns orbit number of an "optimal reference"
     public long getOrbitNumber() {
         return orbitNumber;
     }
@@ -110,16 +111,16 @@ public class InSARStackOverview {
         pm.beginTask("Computing...", numOfImages);
         for (int i = 0; i < numOfImages; i++) {
 
-            CplxContainer master = cplxContainers[i];
+            CplxContainer reference = cplxContainers[i];
 
             for (int j = 0; j < numOfImages; j++) {
 
-                CplxContainer slave = cplxContainers[j];
-                ifgPair[i][j] = new IfgPair(master, slave);
+                CplxContainer secondary = cplxContainers[j];
+                ifgPair[i][j] = new IfgPair(reference, secondary);
 
             }
 
-            ifgStack[i] = new IfgStack(master, ifgPair[i]);
+            ifgStack[i] = new IfgStack(reference, ifgPair[i]);
             ifgStack[i].meanCoherence();
 
             pm.worked(1);
@@ -160,10 +161,10 @@ public class InSARStackOverview {
     }
 
     /**
-     * Finds the optimal master product from a list of products
+     * Finds the optimal reference product from a list of products
      *
      * @param srcProducts input products
-     * @return the optimal master product
+     * @return the optimal reference product
      */
     public static Product findOptimalMasterProduct(final Product[] srcProducts) throws Exception {
         final int size = srcProducts.length;
@@ -190,14 +191,11 @@ public class InSARStackOverview {
 
     public static InSARStackOverview.IfgStack[] calculateInSAROverview(final Product coregProduct) throws Exception {
 
-        MetadataElement slaveElem = coregProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        if (slaveElem == null) {
-            slaveElem = coregProduct.getMetadataRoot().getElement("Slave Metadata");
-        }
+        MetadataElement secondaryElem = StackUtils.findSecondaryMetadataRoot(coregProduct);
 
         final List<MetadataElement> absMetaList = new ArrayList<>();
         absMetaList.add(AbstractMetadata.getAbstractedMetadata(coregProduct));
-        absMetaList.addAll(Arrays.asList(slaveElem.getElements()));
+        absMetaList.addAll(Arrays.asList(secondaryElem.getElements()));
 
         return InSARStackOverview.calculateInSAROverview(absMetaList.toArray(new MetadataElement[0]));
     }
@@ -255,23 +253,23 @@ public class InSARStackOverview {
     public static class IfgStack {
 
         private final CplxContainer master;
-        private final IfgPair[] master_slave;
+        private final IfgPair[] reference_secondary;
         private float meanCoherence;
 
-        public IfgStack(CplxContainer master, IfgPair... master_slave) {
+        public IfgStack(CplxContainer master, IfgPair... reference_secondary) {
             this.master = master;
-            this.master_slave = master_slave;
+            this.reference_secondary = reference_secondary;
         }
 
         public void meanCoherence() {
-            for (IfgPair aMaster_slave : master_slave) {
-                meanCoherence += aMaster_slave.coherence;
+            for (IfgPair aReference_secondary : reference_secondary) {
+                meanCoherence += aReference_secondary.coherence;
             }
-            meanCoherence /= master_slave.length;
+            meanCoherence /= reference_secondary.length;
         }
 
         public IfgPair[] getMasterSlave() {
-            return master_slave;
+            return reference_secondary;
         }
     }
 
@@ -280,7 +278,7 @@ public class InSARStackOverview {
         private final int refLine, refPixel;
         private final double refHeight;
 
-        private final CplxContainer master, slave;
+        private final CplxContainer reference, secondary;
         private Baseline baseline = null;
 
         private float bPerp;            // perpendicular baseline
@@ -289,27 +287,27 @@ public class InSARStackOverview {
         private final float coherence;        // modeled coherence
         private float heightAmb;        // modeled coherence
 
-        public IfgPair(CplxContainer master, CplxContainer slave) {
+        public IfgPair(CplxContainer reference, CplxContainer secondary) {
 
-            this.master = master;
-            this.slave = slave;
+            this.reference = reference;
+            this.secondary = secondary;
 
-            final Point refPoint = master.metaData.getApproxRadarCentreOriginal();
+            final Point refPoint = reference.metaData.getApproxRadarCentreOriginal();
             this.refPixel = (int) refPoint.x;
             this.refLine = (int) refPoint.y;
             this.refHeight = 0;
 
             try {
                 baseline = new Baseline();
-                baseline.model(master.metaData, slave.metaData, master.orbit, slave.orbit);
+                baseline.model(reference.metaData, secondary.metaData, reference.orbit, secondary.orbit);
                 bPerp = (float) baseline.getBperp(refLine, refPixel);
                 heightAmb = (float) baseline.getHamb(refLine, refPixel, refHeight);
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            bTemp = (float) (master.dateMjd - slave.dateMjd);
-            deltaDoppler = (float) (master.metaData.doppler.getF_DC_a0() - slave.metaData.doppler.getF_DC_a0());
+            bTemp = (float) (reference.dateMjd - secondary.dateMjd);
+            deltaDoppler = (float) (reference.metaData.doppler.getF_DC_a0() - secondary.metaData.doppler.getF_DC_a0());
 
             coherence = modelCoherence(bPerp, bTemp, deltaDoppler);
         }
@@ -355,11 +353,11 @@ public class InSARStackOverview {
         }
 
         public SLCImage getMasterMetadata() {
-            return master.metaData;
+            return reference.metaData;
         }
 
         public SLCImage getSlaveMetadata() {
-            return slave.metaData;
+            return secondary.metaData;
         }
     }
 }

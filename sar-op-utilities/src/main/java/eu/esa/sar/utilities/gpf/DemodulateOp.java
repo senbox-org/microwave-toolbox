@@ -60,9 +60,9 @@ public class DemodulateOp extends Operator {
     @TargetProduct
     private Product targetProduct;
 
-    //@Parameter(description = "Do not demodulate master image", label = "Exclude Master",
+    //@Parameter(description = "Do not demodulate reference image", label = "Exclude Reference",
     //        defaultValue = "true")
-    private boolean excludeMaster = true;
+    private boolean excludeReference = true;
 
     private final Map<Band, Band> sourceRasterMap = new HashMap<>(10);
     private final Map<Band, Band> complexSrcMap = new HashMap<>(10);
@@ -143,22 +143,22 @@ public class DemodulateOp extends Operator {
         Band sourceBandI = null;
         Band sourceBandQ = null;
 
-        // Master
-        final String[] masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
-        for (String bandName : masterBandNames) {
+        // Reference
+        final String[] referenceBandNames = StackUtils.getReferenceBandNames(sourceProduct);
+        for (String bandName : referenceBandNames) {
             if (bandName.contains("i_")) {
                 sourceBandI = sourceProduct.getBand(bandName);
             } else {
                 sourceBandQ = sourceProduct.getBand(bandName);
             }
         }
-        createTargetBands(sourceBandI, sourceBandQ, excludeMaster);
+        createTargetBands(sourceBandI, sourceBandQ, excludeReference);
 
-        // Slaves
-        final String[] slaveProductNames = StackUtils.getSlaveProductNames(sourceProduct);
-        for (String slaveProductName : slaveProductNames) {
-            final String[] slvBandNames = StackUtils.getSlaveBandNames(sourceProduct, slaveProductName);
-            for (String bandName : slvBandNames) {
+        // Secondaries
+        final String[] secondaryProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
+        for (String secondaryProductName : secondaryProductNames) {
+            final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secondaryProductName);
+            for (String bandName : secBandNames) {
                 if (bandName.contains("i_")) {
                     sourceBandI = sourceProduct.getBand(bandName);
                 } else {
@@ -205,10 +205,10 @@ public class DemodulateOp extends Operator {
 
     private void getProductMetadata() {
 
-        // Master
-        if (!excludeMaster) {
-            String[] masterBandNames = StackUtils.getMasterBandNames(sourceProduct);
-            for (String bandName : masterBandNames) {
+        // Reference
+        if (!excludeReference) {
+            String[] referenceBandNames = StackUtils.getReferenceBandNames(sourceProduct);
+            for (String bandName : referenceBandNames) {
                 if (bandName.contains("i_")) {
                     final Band sourceBandI = sourceProduct.getBand(bandName);
                     final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
@@ -218,15 +218,15 @@ public class DemodulateOp extends Operator {
             }
         }
 
-        // Slaves
-        final String[] slaveProductNames = StackUtils.getSlaveProductNames(sourceProduct);
-        for (String slaveProductName : slaveProductNames) { // for each slave
-            final String[] slvBandNames = StackUtils.getSlaveBandNames(sourceProduct, slaveProductName);
-            for (String bandName : slvBandNames) {
+        // Secondaries
+        final String[] secondaryProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
+        for (String secondaryProductName : secondaryProductNames) { // for each secondary
+            final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secondaryProductName);
+            for (String bandName : secBandNames) {
                 if (bandName.contains("i_")) {
                     final Band sourceBandI = sourceProduct.getBand(bandName);
-                    final MetadataElement abs = AbstractMetadata.getSlaveMetadata(sourceProduct.getMetadataRoot())
-                            .getElement(slaveProductName);
+                    final MetadataElement abs = AbstractMetadata.getSecondaryMetadata(sourceProduct.getMetadataRoot())
+                            .getElement(secondaryProductName);
                     getBandMetadata(sourceBandI, abs);
                     break;
                 }

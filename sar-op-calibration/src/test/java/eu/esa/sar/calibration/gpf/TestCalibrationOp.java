@@ -18,7 +18,6 @@ package eu.esa.sar.calibration.gpf;
 import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
-import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -49,6 +48,12 @@ public class TestCalibrationOp extends ProcessorTest {
         assumeTrue(TestData.inputS1_GRD + "not found", TestData.inputS1_GRD.exists());
         assumeTrue(TestData.inputS1C_GRD + "not found", TestData.inputS1C_GRD.exists());
         assumeTrue(TestData.inputS1_StripmapSLC + "not found", TestData.inputS1_StripmapSLC.exists());
+    }
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final CalibrationOp op = (CalibrationOp) spi.createOperator();
+        assertNotNull(op);
     }
 
     @Test
@@ -126,14 +131,7 @@ public class TestCalibrationOp extends ProcessorTest {
         absRoot.setAttributeString(AbstractMetadata.ACQUISITION_MODE, "Stripmap");
         absRoot.setAttributeString(AbstractMetadata.SAMPLE_TYPE, "DETECTED");
         absRoot.setAttributeDouble(AbstractMetadata.radar_frequency, 5405.000454334349);
-
-        final MetadataElement origRoot = AbstractMetadata.addOriginalProductMetadata(srcProduct.getMetadataRoot());
-        final MetadataAttribute attribute = new MetadataAttribute("calibration_factor", 31, 1);
-        attribute.setUnit("dB");
-        attribute.setDescription("Calibration constant");
-        attribute.setReadOnly(false);
-        attribute.getData().setElemDouble(1.8627006757903795E-4);
-        origRoot.addAttribute(attribute);
+        absRoot.setAttributeDouble(AbstractMetadata.calibration_factor, 1.8627006757903795E-4);
 
         TestUtils.createBand(srcProduct, "Amplitude_VV", 10, 10);
 

@@ -279,8 +279,8 @@ public final class TOPSARMergeOp extends Operator {
         // source band name is assumed in format: name_acquisitionModeAndSubSwathIndex_polarization_prefix
         // target band name is then in format: name_polarization_prefix
         boolean hasVirtualPhaseBand = false;
-        List<String> masterProductBands = new ArrayList<>();
-        List<String> slaveProductBands = new ArrayList<>();
+        List<String> referenceProductBands = new ArrayList<>();
+        List<String> secondaryProductBands = new ArrayList<>();
         for (Band srcBand : sourceBands) {
             final String srcBandName = srcBand.getName();
             if (!containSelectedPolarisations(srcBandName)) {
@@ -303,10 +303,10 @@ public final class TOPSARMergeOp extends Operator {
                     trgBand.setNoDataValue(srcBand.getNoDataValue());
                 }
 
-                if (StackUtils.isMasterBand(srcBandName, sourceProduct[prodIdx])) {
-                    masterProductBands.add(tgtBandName);
-                } else if (StackUtils.isSlaveBand(srcBandName, sourceProduct[prodIdx])) {
-                    slaveProductBands.add(tgtBandName);
+                if (StackUtils.isReferenceBand(srcBandName, sourceProduct[prodIdx])) {
+                    referenceProductBands.add(tgtBandName);
+                } else if (StackUtils.isSecondaryBand(srcBandName, sourceProduct[prodIdx])) {
+                    secondaryProductBands.add(tgtBandName);
                 }
             }
         }
@@ -338,15 +338,15 @@ public final class TOPSARMergeOp extends Operator {
         createTiePointGrids();
 
         if (StackUtils.isCoregisteredStack(targetProduct)) {
-            MetadataElement targetSlaveMetadataRoot = AbstractMetadata.getSlaveMetadata(targetProduct.getMetadataRoot());
-            if(!masterProductBands.isEmpty()) {
-                targetSlaveMetadataRoot.setAttributeString(AbstractMetadata.MASTER_BANDS,
-                        String.join(" ", masterProductBands.toArray(new String[0])));
+            MetadataElement targetSecondaryMetadataRoot = AbstractMetadata.getSecondaryMetadata(targetProduct.getMetadataRoot());
+            if(!referenceProductBands.isEmpty()) {
+                targetSecondaryMetadataRoot.setAttributeString(AbstractMetadata.REFERENCE_BANDS,
+                        String.join(" ", referenceProductBands.toArray(new String[0])));
             }
 
-            if(!slaveProductBands.isEmpty()) {
-                targetSlaveMetadataRoot.getElementAt(0).setAttributeString(AbstractMetadata.SLAVE_BANDS,
-                        String.join(" ", slaveProductBands.toArray(new String[0])));
+            if(!secondaryProductBands.isEmpty()) {
+                targetSecondaryMetadataRoot.getElementAt(0).setAttributeString(AbstractMetadata.SECONDARY_BANDS,
+                        String.join(" ", secondaryProductBands.toArray(new String[0])));
             }
         }
     }

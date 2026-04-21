@@ -80,7 +80,7 @@ public final class SLCImage {
     //    private static Rectangle originalWindow;       // position and size of the full scene
     Window originalWindow;       // position and size of the full scene
     Window currentWindow;        // position and size of the subset
-    SlaveWindow slaveMasterOffsets;   // overlapping slave window in master coordinates
+    SecondaryWindow slaveMasterOffsets;   // overlapping slave window in master coordinates
     public Doppler doppler;
     public boolean isBiStaticStack = false;
 
@@ -126,7 +126,7 @@ public final class SLCImage {
 //        f_DC_const = (actualDopplerChange() < maximumDopplerChange());
 
 
-        this.slaveMasterOffsets = new SlaveWindow();
+        this.slaveMasterOffsets = new SecondaryWindow();
         this.abstractedMetadata = null;
     }
 
@@ -474,17 +474,17 @@ public final class SLCImage {
     }
 
     public void setSlaveMaterOffset() {
-        this.slaveMasterOffsets = new SlaveWindow();
+        this.slaveMasterOffsets = new SecondaryWindow();
     }
 
-    public SlaveWindow getSlaveMaterOffset() {
+    public SecondaryWindow getSlaveMaterOffset() {
         return slaveMasterOffsets;
     }
 
     public void setSlaveMasterOffset(double ll00, double pp00, double ll0N, double pp0N, double llN0,
                                      double ppN0, double llNN, double ppNN) {
 
-        this.slaveMasterOffsets = new SlaveWindow(ll00, pp00, ll0N, pp0N, llN0, ppN0, llNN, ppNN);
+        this.slaveMasterOffsets = new SecondaryWindow(ll00, pp00, ll0N, pp0N, llN0, ppN0, llNN, ppNN);
 
     }
 
@@ -632,11 +632,11 @@ public final class SLCImage {
         return meta;
     }
 
-    public static class SlaveWindow {
+    public static class SecondaryWindow {
 
         public double l00, p00, l0N, p0N, lN0, pN0, lNN, pNN;
 
-        SlaveWindow() {
+        SecondaryWindow() {
             this.l00 = 0;
             this.p00 = 0;
             this.l0N = 0;
@@ -647,8 +647,8 @@ public final class SLCImage {
             this.pNN = 0;
         }
 
-        SlaveWindow(double ll00, double pp00, double ll0N, double pp0N, double llN0,
-                    double ppN0, double llNN, double ppNN) {
+        SecondaryWindow(double ll00, double pp00, double ll0N, double pp0N, double llN0,
+                        double ppN0, double llNN, double ppNN) {
             this.l00 = ll00;
             this.p00 = pp00;
             this.l0N = ll0N;
@@ -659,7 +659,7 @@ public final class SLCImage {
             this.pNN = ppNN;
         }
 
-        SlaveWindow(final SlaveWindow w) {
+        SecondaryWindow(final SecondaryWindow w) {
             l00 = w.l00;
             p00 = w.p00;
             l0N = w.l0N;

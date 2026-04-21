@@ -184,7 +184,7 @@ public class SaocomProductReader extends SARReader {
                     }
                 }
             } catch (Exception e) {
-                System.out.println("Error reading " +destBand.getName()+" "+ e.getMessage());
+                SystemUtils.LOG.warning("Error reading " + destBand.getName() + ", falling back to double array: " + e.getMessage());
 
                 final double[] dArray = new double[destWidth * destHeight];
                 sampleModel.getSamples(0, 0, data.getWidth(), data.getHeight(), sampleOffset, dArray, dataBuffer);
@@ -195,7 +195,7 @@ public class SaocomProductReader extends SARReader {
                 }
             }
         } catch (Exception e2) {
-            System.out.println("Error reading " +destBand.getName()+" "+ e2.getMessage());
+            SystemUtils.LOG.severe("Error reading " + destBand.getName() + ": " + e2.getMessage());
             int size = destWidth * destHeight;
             for (int i = 0; i < size; ++i) {
                 destBuffer.setElemDoubleAt(i++, 0);

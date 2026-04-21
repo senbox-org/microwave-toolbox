@@ -130,14 +130,14 @@
         </Ref_23Dec2006>
       </Baselines>
       <Orbit_Offsets>
-        <init_offsets_slv1_25Aug2007>
+        <init_offsets_sec1_25Aug2007>
           <attrib name="init_offset_X" value="0" type="12" />
           <attrib name="init_offset_Y" value="67" type="12" />
-        </init_offsets_slv1_25Aug2007>
-        <init_offsets_slv2_23Dec2006>
+        </init_offsets_sec1_25Aug2007>
+        <init_offsets_sec2_23Dec2006>
           <attrib name="init_offset_X" value="-3" type="12" />
           <attrib name="init_offset_Y" value="3433" type="12" />
-        </init_offsets_slv2_23Dec2006>
+        </init_offsets_sec2_23Dec2006>
       </Orbit_Offsets>
       <attrib name="PRODUCT" value="ASA_IMS_1PNESA20080426_134208_000000172068_00067_32185_0000.N1" type="41" desc="Product name" />
       <attrib name="PRODUCT_TYPE" value="SLC" type="41" desc="Product type" />
@@ -642,7 +642,7 @@
         <attrib name="metadata_version" value="7.0" type="41" unit="" desc="AbsMetadata version" />
         <attrib name="Slave_bands" value="i_ifg_IW1_VV_10Jul2018_20Sep2018 q_ifg_IW1_VV_10Jul2018_20Sep2018 Phase_ifg_IW1_VV_10Jul2018_20Sep2018 coh_IW1_VV_10Jul2018_20Sep2018 i_ifg_IW1_VH_10Jul2018_20Sep2018 q_ifg_IW1_VH_10Jul2018_20Sep2018 Phase_ifg_IW1_VH_10Jul2018_20Sep2018 coh_IW1_VH_10Jul2018_20Sep2018" type="41" />
       </S1A_IW_SLC__1SDV_20180920T154034_20180920T154101_023784_02981E_302D_Orb_IW1_20Sep2018>
-      <attrib name="Master_bands" value="i_VH_mst_26Apr2008 q_VH_mst_26Apr2008 i_VV_mst_26Apr2008 q_VV_mst_26Apr2008" type="41" />
+      <attrib name="Master_bands" value="i_VH_ref_26Apr2008 q_VH_ref_26Apr2008 i_VV_ref_26Apr2008 q_VV_ref_26Apr2008" type="41" />
     </Slave_Metadata>
   </Abstracted_Metadata>
   <tie-point-grids>

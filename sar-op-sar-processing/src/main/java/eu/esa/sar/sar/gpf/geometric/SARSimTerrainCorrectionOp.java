@@ -249,6 +249,7 @@ public class SARSimTerrainCorrectionOp extends Operator {
     private Calibrator calibrator = null;
     private Band maskBand = null;
     private boolean skipBistaticCorrection = false;
+    private double bistaticCorrectionRefRange = 0.0;
 
     private boolean orthoDataProduced = false;  // check if any ortho data is actually produced
     private boolean processingStarted = false;
@@ -412,6 +413,9 @@ public class SARSimTerrainCorrectionOp extends Operator {
         mission = RangeDopplerGeocodingOp.getMissionType(absRoot);
 
         skipBistaticCorrection = absRoot.getAttributeInt(AbstractMetadata.bistatic_correction_applied, 0) == 1;
+        if (skipBistaticCorrection && mission != null && mission.startsWith("SENTINEL-1")) {
+            bistaticCorrectionRefRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        }
 
         srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
 
@@ -1010,9 +1014,13 @@ public class SARSimTerrainCorrectionOp extends Operator {
 
                     double zeroDoppler = zeroDopplerTime;
                     if (!skipBistaticCorrection) {
-                        // skip bistatic correction for COSMO, TerraSAR-X and RadarSAT-2
+                        // Full bistatic correction: product has no bulk correction applied
                         zeroDoppler = zeroDopplerTime + slantRange / Constants.lightSpeedInMetersPerDay;
-
+                        slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                                zeroDoppler, earthPoint, sensorPos);
+                    } else if (bistaticCorrectionRefRange > 0.0) {
+                        // Bistatic residual correction (Section 4.7.3 of UZH-S1-GC-AD v1.12)
+                        zeroDoppler = zeroDopplerTime + (slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
                         slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
                                 zeroDoppler, earthPoint, sensorPos);
                     }

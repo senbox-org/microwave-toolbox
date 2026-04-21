@@ -58,7 +58,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This operator performs cross-correlation on selected GCP-patches in master and slave images, and computes
+ * This operator performs cross-correlation on selected GCP-patches in reference and secondary images, and computes
  * glacier velocities based on the shift computed for each GCP. Then velocities for the whole image is computed
  * through interpolation of the velocities computed for GCPs.
  */
@@ -143,8 +143,8 @@ public class OffsetTrackingOp extends Operator {
     private int halfAvgWindowSize = 0;
     private CrossCorrelationOp.CorrelationWindow corrWin = null;
 
-    private Band masterBand = null;
-    private Band slaveBand = null;
+    private Band referenceBand = null;
+    private Band secondaryBand = null;
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
     private int numGCPsPerAzLine = 0;
@@ -160,7 +160,7 @@ public class OffsetTrackingOp extends Operator {
     private boolean velocityAvailable = false;
     private VelocityData velocityData = null;
     private Resampling selectedResampling = null;
-    private MetadataElement mstAbsRoot = null;
+    private MetadataElement refAbsRoot = null;
 
     private final static double invalidIndex = -9999.0;
     private final static String PRODUCT_SUFFIX = "_Vel";
@@ -173,10 +173,10 @@ public class OffsetTrackingOp extends Operator {
     private static final String VECTOR_NODE_NAME = VELOCITY;
     private static final String STYLE_FORMAT = "fill:#0000ff; fill-opacity:0.2; stroke:#ff0000; stroke-opacity:1.0; stroke-width:1.0; symbol:plus";
 
-    private static final String ATTRIB_MST_LAT = "mst_lat";
-    private static final String ATTRIB_MST_LON = "mst_lon";
-    private static final String ATTRIB_SLV_LAT = "slv_lat";
-    private static final String ATTRIB_SLV_LON = "slv_lon";
+    private static final String ATTRIB_MST_LAT = "ref_lat";
+    private static final String ATTRIB_MST_LON = "ref_lon";
+    private static final String ATTRIB_SLV_LAT = "sec_lat";
+    private static final String ATTRIB_SLV_LON = "sec_lon";
     private static final String ATTRIB_DISTANCE = "distance";
     private static final String ATTRIB_VELOCITY = "velocity";
     private static final String ATTRIB_HEADING = "heading";
@@ -208,8 +208,8 @@ public class OffsetTrackingOp extends Operator {
 
         try {
 
-            mstAbsRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-            if (mstAbsRoot != null && mstAbsRoot.getAttributeInt(AbstractMetadata.coregistered_stack, 0) != 1) {
+            refAbsRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            if (refAbsRoot != null && refAbsRoot.getAttributeInt(AbstractMetadata.coregistered_stack, 0) != 1) {
                 throw new OperatorException(
                         "Source product should be a coregistered stack created by DEM-Assisted Coregistration");
             }
@@ -226,7 +226,7 @@ public class OffsetTrackingOp extends Operator {
 
             getMetadata();
 
-            getMasterSlaveBands();
+            getReferenceSecondaryBands();
 
             createTargetProduct();
 
@@ -258,40 +258,40 @@ public class OffsetTrackingOp extends Operator {
 
     private void getMetadata() throws Exception {
 
-        final MetadataElement slvAbsRoot = AbstractMetadata.getSlaveMetadata(sourceProduct.getMetadataRoot()).getElementAt(0);
+        final MetadataElement secAbsRoot = AbstractMetadata.getSecondaryMetadata(sourceProduct.getMetadataRoot()).getElementAt(0);
 
-        final double mstFirstLineTime = AbstractMetadata.parseUTC(
-                mstAbsRoot.getAttributeString(AbstractMetadata.first_line_time)).getMJD(); // in days
+        final double refFirstLineTime = AbstractMetadata.parseUTC(
+                refAbsRoot.getAttributeString(AbstractMetadata.first_line_time)).getMJD(); // in days
 
-        rangeSpacing = AbstractMetadata.getAttributeDouble(mstAbsRoot, AbstractMetadata.range_spacing);
+        rangeSpacing = AbstractMetadata.getAttributeDouble(refAbsRoot, AbstractMetadata.range_spacing);
 
-        azimuthSpacing = AbstractMetadata.getAttributeDouble(mstAbsRoot, AbstractMetadata.azimuth_spacing);
+        azimuthSpacing = AbstractMetadata.getAttributeDouble(refAbsRoot, AbstractMetadata.azimuth_spacing);
 
-        final double slvFirstLineTime = AbstractMetadata.parseUTC(
-                slvAbsRoot.getAttributeString(AbstractMetadata.first_line_time)).getMJD(); // in days
+        final double secFirstLineTime = AbstractMetadata.parseUTC(
+                secAbsRoot.getAttributeString(AbstractMetadata.first_line_time)).getMJD(); // in days
 
-        acquisitionTimeInterval = Math.abs(slvFirstLineTime - mstFirstLineTime); // in days
+        acquisitionTimeInterval = Math.abs(secFirstLineTime - refFirstLineTime); // in days
 
         maxOffset = maxVelocity * acquisitionTimeInterval; // in m
     }
 
-    private void getMasterSlaveBands() {
+    private void getReferenceSecondaryBands() {
 
-        masterBand = getSourceBand(sourceProduct, StackUtils.MST);
-        slaveBand = getSourceBand(sourceProduct, StackUtils.SLV);
-        if (masterBand == null || slaveBand == null) {
-            throw new OperatorException("Cannot find master or slave amplitude or intensity band");
+        referenceBand = getSourceBand(sourceProduct, StackUtils.REF);
+        secondaryBand = getSourceBand(sourceProduct, StackUtils.SEC);
+        if (referenceBand == null || secondaryBand == null) {
+            throw new OperatorException("Cannot find reference or secondary amplitude or intensity band");
         }
     }
 
     private static Band getSourceBand(final Product sourceProduct, final String tag) {
 
         String[] bandNames;
-        if (tag.equals(StackUtils.MST)) {
-            bandNames = StackUtils.getMasterBandNames(sourceProduct);
+        if (tag.equals(StackUtils.REF)) {
+            bandNames = StackUtils.getReferenceBandNames(sourceProduct);
         } else {
-            final String[] slvProductNames = StackUtils.getSlaveProductNames(sourceProduct);
-            bandNames = StackUtils.getSlaveBandNames(sourceProduct, slvProductNames[0]);
+            final String[] secProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
+            bandNames = StackUtils.getSecondaryBandNames(sourceProduct, secProductNames[0]);
         }
 
         for (String bandName : bandNames) {
@@ -317,7 +317,7 @@ public class OffsetTrackingOp extends Operator {
                 sourceImageHeight);
 
         Band targetBand;
-        final String suffix = StackUtils.getBandSuffix(slaveBand.getName());
+        final String suffix = StackUtils.getBandSuffix(secondaryBand.getName());
         final String velocityBandName = VELOCITY + suffix;
         if (targetProduct.getBand(velocityBandName) == null) {
             targetBand = targetProduct.addBand(velocityBandName, ProductData.TYPE_FLOAT32);
@@ -349,7 +349,7 @@ public class OffsetTrackingOp extends Operator {
             }
         }
 
-        // co-registered image should have the same geo-coding as the master image
+        // co-registered image should have the same geo-coding as the reference image
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
     }
 
@@ -367,10 +367,10 @@ public class OffsetTrackingOp extends Operator {
             final int y = halfSpacingY + i * spacingY;
             for (int j = 0; j < numGCPsPerRgLine; j++) {
                 final int x = halfSpacingX + j * spacingX;
-                velocityData.mstGCPx[i][j] = x;
-                velocityData.mstGCPy[i][j] = y;
-                velocityData.slvGCPx[i][j] = invalidIndex;
-                velocityData.slvGCPy[i][j] = invalidIndex;
+                velocityData.refGCPx[i][j] = x;
+                velocityData.refGCPy[i][j] = y;
+                velocityData.secGCPx[i][j] = invalidIndex;
+                velocityData.secGCPy[i][j] = invalidIndex;
             }
         }
     }
@@ -482,9 +482,9 @@ public class OffsetTrackingOp extends Operator {
             if (outputDebuggingBands && tgtGCPPositionBuffer != null) {
                 for (int i = 0; i < numGCPsPerAzLine; i++) {
                     for (int j = 0; j < numGCPsPerRgLine; j++) {
-                        final int x = (int) velocityData.mstGCPx[i][j];
-                        final int y = (int) velocityData.mstGCPy[i][j];
-                        if (velocityData.slvGCPx[i][j] != invalidIndex && velocityData.slvGCPy[i][j] != invalidIndex
+                        final int x = (int) velocityData.refGCPx[i][j];
+                        final int y = (int) velocityData.refGCPy[i][j];
+                        if (velocityData.secGCPx[i][j] != invalidIndex && velocityData.secGCPy[i][j] != invalidIndex
                                 && x >= x0 && x < xMax && y >= y0 && y < yMax) {
                             tgtGCPPositionBuffer.setElemFloatAt(
                                     tgtGCPPositionTile.getDataBufferIndex(x, y), (float) velocityData.velocity[i][j]);
@@ -515,7 +515,7 @@ public class OffsetTrackingOp extends Operator {
 
         if (velocityAvailable) return;
 
-        computeSlaveGCPs();
+        computeSecondaryGCPs();
 
         computeGCPOffsets();
 
@@ -547,14 +547,14 @@ public class OffsetTrackingOp extends Operator {
         }
     }
 
-    private void computeSlaveGCPs() {
+    private void computeSecondaryGCPs() {
 
         try {
             final List<GCPData> gcpList = new ArrayList<>();
             for (int i = 0; i < numGCPsPerAzLine; i++) {
                 for (int j = 0; j < numGCPsPerRgLine; j++) {
 
-                    final PixelPos mGCP = new PixelPos(velocityData.mstGCPx[i][j], velocityData.mstGCPy[i][j]);
+                    final PixelPos mGCP = new PixelPos(velocityData.refGCPx[i][j], velocityData.refGCPy[i][j]);
                     if (!checkGCPValidity(mGCP)) {
                         continue;
                     }
@@ -564,7 +564,7 @@ public class OffsetTrackingOp extends Operator {
             }
 
             final StatusProgressMonitor status = new StatusProgressMonitor(StatusProgressMonitor.TYPE.SUBTASK);
-            status.beginTask("Computing slave GCPs... ", gcpList.size());
+            status.beginTask("Computing secondary GCPs... ", gcpList.size());
 
             final ThreadExecutor executor = new ThreadExecutor();
 
@@ -575,15 +575,15 @@ public class OffsetTrackingOp extends Operator {
                     @Override
                     public void process() {
                         final PixelPos sGCP = new PixelPos(gcpData.mGCP.x, gcpData.mGCP.y);
-                        boolean getSlaveGCP = getOffsets(gcpData.mGCP, sGCP);
-                        if (getSlaveGCP) {
-                            saveSlaveGCP(sGCP);
+                        boolean getSecondaryGCP = getOffsets(gcpData.mGCP, sGCP);
+                        if (getSecondaryGCP) {
+                            saveSecondaryGCP(sGCP);
                         }
                     }
 
-                    private synchronized void saveSlaveGCP(final PixelPos sGCP) {
-                        velocityData.slvGCPx[gcpData.i][gcpData.j] = sGCP.x;
-                        velocityData.slvGCPy[gcpData.i][gcpData.j] = sGCP.y;
+                    private synchronized void saveSecondaryGCP(final PixelPos sGCP) {
+                        velocityData.secGCPx[gcpData.i][gcpData.j] = sGCP.x;
+                        velocityData.secGCPy[gcpData.i][gcpData.j] = sGCP.y;
                     }
                 };
                 executor.execute(worker);
@@ -610,7 +610,7 @@ public class OffsetTrackingOp extends Operator {
                     final int iIdx = i;
                     final int jIdx = j;
 
-                    if (velocityData.slvGCPx[i][j] == invalidIndex || velocityData.slvGCPy[i][j] == invalidIndex) {
+                    if (velocityData.secGCPx[i][j] == invalidIndex || velocityData.secGCPy[i][j] == invalidIndex) {
                         continue;
                     }
 
@@ -619,19 +619,19 @@ public class OffsetTrackingOp extends Operator {
                         public void process() {
 
                             final double xShift =
-                                    (velocityData.mstGCPx[iIdx][jIdx] - velocityData.slvGCPx[iIdx][jIdx]) * rangeSpacing;
+                                    (velocityData.refGCPx[iIdx][jIdx] - velocityData.secGCPx[iIdx][jIdx]) * rangeSpacing;
 
                             final double yShift =
-                                    (velocityData.mstGCPy[iIdx][jIdx] - velocityData.slvGCPy[iIdx][jIdx]) * azimuthSpacing;
+                                    (velocityData.refGCPy[iIdx][jIdx] - velocityData.secGCPy[iIdx][jIdx]) * azimuthSpacing;
 
                             final double offset = Math.sqrt(xShift * xShift + yShift * yShift);
 
                             if (offset <= maxOffset) {
                                 saveOffset(xShift, yShift);
                             } else { // outliers
-                                synchronized (velocityData.slvGCPx) {
-                                    velocityData.slvGCPx[iIdx][jIdx] = invalidIndex;
-                                    velocityData.slvGCPy[iIdx][jIdx] = invalidIndex;
+                                synchronized (velocityData.secGCPx) {
+                                    velocityData.secGCPx[iIdx][jIdx] = invalidIndex;
+                                    velocityData.secGCPy[iIdx][jIdx] = invalidIndex;
                                 }
                             }
                         }
@@ -666,7 +666,7 @@ public class OffsetTrackingOp extends Operator {
                     final int iIdx = i;
                     final int jIdx = j;
 
-                    if (velocityData.slvGCPx[i][j] == invalidIndex || velocityData.slvGCPy[i][j] == invalidIndex) {
+                    if (velocityData.secGCPx[i][j] == invalidIndex || velocityData.secGCPy[i][j] == invalidIndex) {
                         continue;
                     }
 
@@ -683,8 +683,8 @@ public class OffsetTrackingOp extends Operator {
                             double rangeShiftSum = 0.0, azimuthShiftSum = 0.0;
                             for (int ii = i0; ii <= iN; ii++) {
                                 for (int jj = j0; jj <= jN; jj++) {
-                                    if (velocityData.slvGCPx[ii][jj] != invalidIndex &&
-                                            velocityData.slvGCPy[ii][jj] != invalidIndex) {
+                                    if (velocityData.secGCPx[ii][jj] != invalidIndex &&
+                                            velocityData.secGCPy[ii][jj] != invalidIndex) {
 
                                         rangeShiftSum += velocityData.rangeShift[ii][jj];
                                         azimuthShiftSum += velocityData.azimuthShift[ii][jj];
@@ -698,20 +698,20 @@ public class OffsetTrackingOp extends Operator {
 
                                 final double yShift = azimuthShiftSum / count;
 
-                                final double slvGCPx = velocityData.mstGCPx[iIdx][jIdx] - xShift / rangeSpacing;
+                                final double secGCPx = velocityData.refGCPx[iIdx][jIdx] - xShift / rangeSpacing;
 
-                                final double slvGCPy = velocityData.mstGCPy[iIdx][jIdx] - yShift / azimuthSpacing;
+                                final double secGCPy = velocityData.refGCPy[iIdx][jIdx] - yShift / azimuthSpacing;
 
-                                saveOffset(xShift, yShift, slvGCPx, slvGCPy);
+                                saveOffset(xShift, yShift, secGCPx, secGCPy);
                             }
                         }
 
                         private synchronized void saveOffset(
-                                final double xShift, final double yShift, final double slvGCPx, final double slvGCPy) {
+                                final double xShift, final double yShift, final double secGCPx, final double secGCPy) {
                             velocityData.rangeShift[iIdx][jIdx] = xShift;
                             velocityData.azimuthShift[iIdx][jIdx] = yShift;
-                            velocityData.slvGCPx[iIdx][jIdx] = slvGCPx;
-                            velocityData.slvGCPy[iIdx][jIdx] = slvGCPy;
+                            velocityData.secGCPx[iIdx][jIdx] = secGCPx;
+                            velocityData.secGCPy[iIdx][jIdx] = secGCPy;
                         }
                     };
                     executor.execute(worker);
@@ -736,7 +736,7 @@ public class OffsetTrackingOp extends Operator {
             final java.util.List<int[]> holeList = new ArrayList<>();
             for (int i = 0; i < numGCPsPerAzLine; i++) {
                 for (int j = 0; j < numGCPsPerRgLine; j++) {
-                    if (velocityData.slvGCPx[i][j] == invalidIndex || velocityData.slvGCPy[i][j] == invalidIndex) {
+                    if (velocityData.secGCPx[i][j] == invalidIndex || velocityData.secGCPy[i][j] == invalidIndex) {
                         holeList.add(new int[]{i, j});
                     }
                 }
@@ -776,10 +776,10 @@ public class OffsetTrackingOp extends Operator {
                             xShiftMean /= totalWeight;
                             yShiftMean /= totalWeight;
 
-                            final double slvGCPx = velocityData.mstGCPx[iIdx][jIdx] - xShiftMean / rangeSpacing;
-                            final double slvGCPy = velocityData.mstGCPy[iIdx][jIdx] - yShiftMean / azimuthSpacing;
+                            final double secGCPx = velocityData.refGCPx[iIdx][jIdx] - xShiftMean / rangeSpacing;
+                            final double secGCPy = velocityData.refGCPy[iIdx][jIdx] - yShiftMean / azimuthSpacing;
 
-                            saveOffset(xShiftMean, yShiftMean, slvGCPx, slvGCPy);
+                            saveOffset(xShiftMean, yShiftMean, secGCPx, secGCPy);
                         }
                     }
 
@@ -794,11 +794,11 @@ public class OffsetTrackingOp extends Operator {
                     }
 
                     private synchronized void saveOffset(
-                            final double xShift, final double yShift, final double slvGCPx, final double slvGCPy) {
+                            final double xShift, final double yShift, final double secGCPx, final double secGCPy) {
                         velocityData.rangeShift[iIdx][jIdx] = xShift;
                         velocityData.azimuthShift[iIdx][jIdx] = yShift;
-                        velocityData.slvGCPx[iIdx][jIdx] = slvGCPx;
-                        velocityData.slvGCPy[iIdx][jIdx] = slvGCPy;
+                        velocityData.secGCPx[iIdx][jIdx] = secGCPx;
+                        velocityData.secGCPy[iIdx][jIdx] = secGCPy;
                     }
                 };
                 executor.execute(worker);
@@ -825,7 +825,7 @@ public class OffsetTrackingOp extends Operator {
                     final int iIdx = i;
                     final int jIdx = j;
 
-                    if (velocityData.slvGCPx[i][j] == invalidIndex || velocityData.slvGCPy[i][j] == invalidIndex) {
+                    if (velocityData.secGCPx[i][j] == invalidIndex || velocityData.secGCPy[i][j] == invalidIndex) {
                         continue;
                     }
 
@@ -869,8 +869,8 @@ public class OffsetTrackingOp extends Operator {
     private boolean getOffsets(final PixelPos mGCPPixelPos, final PixelPos sGCPPixelPos) {
 
         try {
-            final ComplexDoubleMatrix mI = getComplexDoubleMatrix(masterBand, null, mGCPPixelPos, corrWin);
-            final ComplexDoubleMatrix sI = getComplexDoubleMatrix(slaveBand, null, sGCPPixelPos, corrWin);
+            final ComplexDoubleMatrix mI = getComplexDoubleMatrix(referenceBand, null, mGCPPixelPos, corrWin);
+            final ComplexDoubleMatrix sI = getComplexDoubleMatrix(secondaryBand, null, sGCPPixelPos, corrWin);
 
             final double[] coarseOffset = {0, 0};
 
@@ -926,7 +926,7 @@ public class OffsetTrackingOp extends Operator {
     private void writeGCPsToMetadata() {
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
-        final String suffix = StackUtils.getBandSuffix(slaveBand.getName());
+        final String suffix = StackUtils.getBandSuffix(secondaryBand.getName());
         final String velocityBandName = VELOCITY + suffix;
 
         final MetadataElement bandElem = AbstractMetadata.getBandAbsMetadata(absRoot, velocityBandName, true);
@@ -946,14 +946,14 @@ public class OffsetTrackingOp extends Operator {
         int k = 0;
         for (int i = 0; i < numGCPsPerAzLine; i++) {
             for (int j = 0; j < numGCPsPerRgLine; j++) {
-                if (velocityData.slvGCPx[i][j] != invalidIndex && velocityData.slvGCPx[i][j] != invalidIndex) {
+                if (velocityData.secGCPx[i][j] != invalidIndex && velocityData.secGCPx[i][j] != invalidIndex) {
                     final MetadataElement gcpElem = new MetadataElement("GCP" + k);
                     warpDataElem.addElement(gcpElem);
 
-                    gcpElem.setAttributeDouble("mst_x", velocityData.mstGCPx[i][j]);
-                    gcpElem.setAttributeDouble("mst_y", velocityData.mstGCPy[i][j]);
-                    gcpElem.setAttributeDouble("slv_x", velocityData.slvGCPx[i][j]);
-                    gcpElem.setAttributeDouble("slv_y", velocityData.slvGCPy[i][j]);
+                    gcpElem.setAttributeDouble("ref_x", velocityData.refGCPx[i][j]);
+                    gcpElem.setAttributeDouble("ref_y", velocityData.refGCPy[i][j]);
+                    gcpElem.setAttributeDouble("sec_x", velocityData.secGCPx[i][j]);
+                    gcpElem.setAttributeDouble("sec_y", velocityData.secGCPy[i][j]);
                     k++;
                 }
             }
@@ -987,29 +987,29 @@ public class OffsetTrackingOp extends Operator {
         DefaultFeatureCollection collection = vectorDataNode.getFeatureCollection();
         final GeometryFactory geometryFactory = new GeometryFactory();
         final GeoCoding geoCoding = targetProduct.getSceneGeoCoding();
-        final GeoPos mstGeoPos = new GeoPos();
-        final GeoPos slvGeoPos = new GeoPos();
+        final GeoPos refGeoPos = new GeoPos();
+        final GeoPos secGeoPos = new GeoPos();
 
         int c = collection.size();
         for (int i = 0; i < numGCPsPerAzLine; i++) {
             for (int j = 0; j < numGCPsPerRgLine; j++) {
-                if (velocityData.slvGCPx[i][j] != invalidIndex && velocityData.slvGCPx[i][j] != invalidIndex) {
+                if (velocityData.secGCPx[i][j] != invalidIndex && velocityData.secGCPx[i][j] != invalidIndex) {
 
                     final String name = "post_" + c;
 
-                    Point p = geometryFactory.createPoint(new Coordinate(velocityData.mstGCPx[i][j], velocityData.mstGCPy[i][j]));
+                    Point p = geometryFactory.createPoint(new Coordinate(velocityData.refGCPx[i][j], velocityData.refGCPy[i][j]));
 
                     final SimpleFeature feature = PlainFeatureFactory.createPlainFeature(windFeatureType, name, p, STYLE_FORMAT);
 
-                    geoCoding.getGeoPos(new PixelPos(velocityData.mstGCPx[i][j], velocityData.mstGCPy[i][j]), mstGeoPos);
-                    geoCoding.getGeoPos(new PixelPos(velocityData.slvGCPx[i][j], velocityData.slvGCPy[i][j]), slvGeoPos);
+                    geoCoding.getGeoPos(new PixelPos(velocityData.refGCPx[i][j], velocityData.refGCPy[i][j]), refGeoPos);
+                    geoCoding.getGeoPos(new PixelPos(velocityData.secGCPx[i][j], velocityData.secGCPy[i][j]), secGeoPos);
 
-                    GeoUtils.DistanceHeading heading = GeoUtils.vincenty_inverse(mstGeoPos, slvGeoPos);
+                    GeoUtils.DistanceHeading heading = GeoUtils.vincenty_inverse(refGeoPos, secGeoPos);
 
-                    feature.setAttribute(ATTRIB_MST_LAT, mstGeoPos.lat);
-                    feature.setAttribute(ATTRIB_MST_LON, mstGeoPos.lon);
-                    feature.setAttribute(ATTRIB_SLV_LAT, slvGeoPos.lat);
-                    feature.setAttribute(ATTRIB_SLV_LON, slvGeoPos.lon);
+                    feature.setAttribute(ATTRIB_MST_LAT, refGeoPos.lat);
+                    feature.setAttribute(ATTRIB_MST_LON, refGeoPos.lon);
+                    feature.setAttribute(ATTRIB_SLV_LAT, secGeoPos.lat);
+                    feature.setAttribute(ATTRIB_SLV_LON, secGeoPos.lon);
                     feature.setAttribute(ATTRIB_DISTANCE, heading.distance);
                     feature.setAttribute(ATTRIB_HEADING, heading.heading1);
                     feature.setAttribute(ATTRIB_VELOCITY, velocityData.velocity[i][j]);
@@ -1024,19 +1024,19 @@ public class OffsetTrackingOp extends Operator {
     }
 
     public static class VelocityData {
-        public final double[][] mstGCPx;
-        public final double[][] mstGCPy;
-        public final double[][] slvGCPx;
-        public final double[][] slvGCPy;
+        public final double[][] refGCPx;
+        public final double[][] refGCPy;
+        public final double[][] secGCPx;
+        public final double[][] secGCPy;
         public final double[][] velocity;
         public final double[][] rangeShift;
         public final double[][] azimuthShift;
 
         public VelocityData(final int numGCPsPerAzimuthLine, final int numGCPsPerRangeLine) {
-            this.mstGCPx = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
-            this.mstGCPy = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
-            this.slvGCPx = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
-            this.slvGCPy = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
+            this.refGCPx = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
+            this.refGCPy = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
+            this.secGCPx = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
+            this.secGCPy = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
             this.rangeShift = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
             this.azimuthShift = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];
             this.velocity = new double[numGCPsPerAzimuthLine][numGCPsPerRangeLine];

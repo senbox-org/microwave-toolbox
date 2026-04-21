@@ -23,7 +23,7 @@
         <jvm.version>21</jvm.version>
 
         <skipTests>false</skipTests>
-        <surefire.jvm.args>-enableassertions</surefire.jvm.args>
+        <surefire.jvm.args>-enableassertions -Xmx4096M -Dfile.encoding=UTF-8 --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/sun.awt.shell=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.base/java.security=ALL-UNNAMED --add-exports java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED</surefire.jvm.args>
         <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
         <buildDate>${maven.build.timestamp}</buildDate>
         <sonar.qualitygate.wait>true</sonar.qualitygate.wait>

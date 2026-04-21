@@ -21,6 +21,7 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.FilterWindow;
@@ -30,6 +31,7 @@ import org.junit.Test;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
@@ -38,6 +40,19 @@ import static org.junit.Assert.assertNotNull;
 public class TestUndersamplingOperator {
 
     private final static OperatorSpi spi = new UndersamplingOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final UndersamplingOp op = (UndersamplingOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = UndersamplingOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Undersample", md.alias());
+    }
 
     /**
      * Tests sub-sampling method in undersampling operator with a 6x12 "DETECTED" test product.

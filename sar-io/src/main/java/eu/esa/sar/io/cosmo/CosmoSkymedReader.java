@@ -144,7 +144,7 @@ public class CosmoSkymedReader extends SARReader {
                     AbstractMetadataIO.AddXMLMetadata(rootElement, origMeta);
                 }
             } catch (IOException e) {
-                //System.out.println("Unable to read Delivery Note for "+product.getName());
+                org.esa.snap.core.util.SystemUtils.LOG.fine("Unable to read delivery note: " + e.getMessage());
             }
         }
     }

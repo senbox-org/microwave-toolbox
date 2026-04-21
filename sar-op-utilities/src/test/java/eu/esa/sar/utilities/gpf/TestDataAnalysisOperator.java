@@ -18,6 +18,7 @@ package eu.esa.sar.utilities.gpf;
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.junit.Test;
 
@@ -30,6 +31,19 @@ import static org.junit.Assert.assertNotNull;
 public class TestDataAnalysisOperator {
 
     private final static OperatorSpi spi = new DataAnalysisOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final DataAnalysisOp op = (DataAnalysisOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = DataAnalysisOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Data-Analysis", md.alias());
+    }
 
 //    @Test
 //    public void testDataAnalysis() throws Exception {

@@ -398,9 +398,8 @@ import java.util.Map;
                 return;
             }
 
-            final double[][] mstDerampDemodPhase = mSU.computeDerampDemodPhase(mSubSwath,
+            final double[][] refDerampDemodPhase = mSU.computeDerampDemodPhase(mSubSwath,
                     subSwathIndex, mBurstIndex, sourceRectangle);
-
 
             for(String polarization : mSU.getPolarizations()) {
                 final Band masterBandI = BackGeocodingOp.getBand(sourceProduct, "i_", swathIndexStr, polarization);
@@ -412,11 +411,11 @@ import java.util.Map;
                     return;
                 }
 
-                final double[][] mstDerampDemodI = new double[sourceRectangle.height][sourceRectangle.width];
-                final double[][] mstDerampDemodQ = new double[sourceRectangle.height][sourceRectangle.width];
+                final double[][] refDerampDemodI = new double[sourceRectangle.height][sourceRectangle.width];
+                final double[][] refDerampDemodQ = new double[sourceRectangle.height][sourceRectangle.width];
 
-                BackGeocodingOp.performDerampDemod(masterTileI, masterTileQ, sourceRectangle, mstDerampDemodPhase,
-                        mstDerampDemodI, mstDerampDemodQ);
+                BackGeocodingOp.performDerampDemod(masterTileI, masterTileQ, sourceRectangle, refDerampDemodPhase,
+                        refDerampDemodI, refDerampDemodQ);
 
                 final Band targetBandI = targetProduct.getBand(masterBandI.getName());
                 final Band targetBandQ = targetProduct.getBand(masterBandQ.getName());
@@ -424,7 +423,7 @@ import java.util.Map;
                 final Tile targetTileQ = targetTileMap.get(targetBandQ);
 
                 PerformETADCorrection(x0, y0, w, h, sourceRectangle, masterTileI, masterTileQ, targetTileI,
-                        targetTileQ, mstDerampDemodPhase, mstDerampDemodI, mstDerampDemodQ, slavePixPos);
+                        targetTileQ, refDerampDemodPhase, refDerampDemodI, refDerampDemodQ, slavePixPos);
             }
 
         } catch (Throwable e) {

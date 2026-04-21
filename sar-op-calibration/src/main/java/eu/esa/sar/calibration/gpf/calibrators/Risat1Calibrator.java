@@ -39,7 +39,7 @@ import java.util.HashMap;
 
 public class Risat1Calibrator extends BaseCalibrator implements Calibrator {
 
-    private static final String[] SUPPORTED_MISSIONS = new String[] {"RISAT1"};
+    private static final String[] SUPPORTED_MISSIONS = new String[] {"RISAT1", "EOS-04"};
 
     private final HashMap<String, Double> calibrationFactor = new HashMap<>(2);
     private TiePointGrid incidenceAngle = null;
