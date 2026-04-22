@@ -16,11 +16,13 @@
 package eu.esa.microwave.benchmark;
 
 import eu.esa.sar.cloud.json.JSON;
+import eu.esa.snap.core.dataio.cache.CacheManager;
 import org.esa.snap.core.util.StopWatch;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.json.simple.JSONObject;
 
+import javax.media.jai.JAI;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,7 +36,7 @@ public abstract class Benchmark {
 
     private final static boolean DISABLE_BENCHMARKS = true;
     private final static String REFERENCE_NAME = "";
-    private final static int iterations = 2;
+    private final static int iterations = 3;
     private final static boolean deleteTempOutputFiles = true;
 
     private final String groupName;
@@ -71,7 +73,7 @@ public abstract class Benchmark {
             coldStartTimer.stop();
 
             SystemUtils.LOG.info("Cold start time " + coldStartTimer.getTimeDiffString());
-            SystemUtils.freeAllMemory();
+            resetCaches();
             if (deleteTempOutputFiles)
                 FileUtils.deleteTree(outputFolder);
             long totalTime = 0L;
@@ -92,7 +94,7 @@ public abstract class Benchmark {
 
                 SystemUtils.LOG.info("Run " + i + " of " + iterations + " end time " + timer.getTimeDiffString());
 
-                SystemUtils.freeAllMemory();
+                resetCaches();
                 FileUtils.deleteTree(outputFolder);
             }
 
@@ -159,6 +161,18 @@ public abstract class Benchmark {
             return (JSONObject) JSON.loadJSON(file);
         }
         return new JSONObject();
+    }
+
+    /**
+     * Drop everything that could carry state across iterations: the JAI tile cache
+     * (default 5+ GB in this module), the ProductCache's CacheManager, and a
+     * best-effort GC. Without this, run N+1 sees partial tiles from run N and
+     * timings become bi-modal.
+     */
+    private static void resetCaches() {
+        JAI.getDefaultInstance().getTileCache().flush();
+        CacheManager.dispose();
+        SystemUtils.freeAllMemory();
     }
 
     protected abstract void execute() throws Exception;
