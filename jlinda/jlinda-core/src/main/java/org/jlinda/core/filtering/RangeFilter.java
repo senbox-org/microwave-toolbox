@@ -89,7 +89,7 @@ public class RangeFilter extends ProductDataFilter {
 
         // define filtering params
         RSR = 0.5 * metadata.getRsr2x();
-        RBW = metadata.getRangeBandwidth() * Constants.MEGA;
+        RBW = metadata.getRangeBandwidth();
 
         doOversampleFlag = (ovsFactor != 1);
         doHamming = (alphaHamming < 0.9999);

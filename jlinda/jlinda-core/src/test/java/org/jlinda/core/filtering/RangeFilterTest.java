@@ -15,11 +15,10 @@ import java.io.FileNotFoundException;
 import static org.jlinda.core.io.DataReader.readCplxFloatData;
 import static org.jlinda.core.io.DataReader.readFloatData;
 
-@Ignore
 public class RangeFilterTest {
 
-    private static final double DELTA_04 = 1e-04;
     private static final double DELTA_03 = 1e-03;
+    // External binary fixtures required by the @Ignore'd tests below.
     private static final String testDirectory = "/d2/etna_test/rangeFilterTest/";
 
     /// tile size ///
@@ -32,24 +31,44 @@ public class RangeFilterTest {
     private static ComplexDoubleMatrix masterCplx_ACTUAL;
     private static ComplexDoubleMatrix slaveCplx_ACTUAL;
 
-    /// define parameters
-    final static int nlMean = 15;
-    final static int SNRThreshold = 5;
-    final static double RSR = 18962500.774137583;
-    final static int RBW = 15550000;
-
     @BeforeClass
-    public static void setUpTestData() throws FileNotFoundException {
-
-        /// load Input Data
-        String fileMasterDataName = "slc_image_128_128.cr4.swap";
-        masterCplx = readCplxFloatData(testDirectory + fileMasterDataName, 128, 128);
-
-        String fileSlaveDataName = "slc_image1_128_128.cr4.swap";
-        slaveCplx = readCplxFloatData(testDirectory + fileSlaveDataName, 128, 128);
-
+    public static void setUpTestData() {
+        // Tolerate missing fixtures so the class can load and runnable tests still execute.
+        if (!new File(testDirectory).isDirectory()) {
+            return;
+        }
+        try {
+            masterCplx = readCplxFloatData(testDirectory + "slc_image_128_128.cr4.swap", 128, 128);
+            slaveCplx = readCplxFloatData(testDirectory + "slc_image1_128_128.cr4.swap", 128, 128);
+        } catch (Exception ignored) {
+            // fixtures unavailable; the @Ignore'd tests below stay dormant
+        }
     }
 
+    /**
+     * Regression test for the SLCImage range-bandwidth unit fix.
+     *
+     * SLCImage stores rangeBandwidth in Hz (see field-init at line 102 and the
+     * .res-file path at line 279, which both produce Hz). Prior to the fix, the
+     * MetadataElement constructor stored the raw MHz value from
+     * {@link org.esa.snap.engine_utilities.datamodel.AbstractMetadata#range_bandwidth},
+     * and {@link RangeFilter#defineParameters()} silently compensated with a
+     * `* MEGA` multiplier. RangeFilter now consumes {@code getRangeBandwidth()}
+     * directly, so the Hz invariant must hold for every SLCImage construction
+     * path.
+     */
+    @Test
+    public void rangeBandwidthInvariantIsHz() {
+        SLCImage slc = new SLCImage();
+        Assert.assertEquals("default ERS2 bandwidth must be in Hz",
+                15.55e6, slc.getRangeBandwidth(), 1e-6);
+
+        slc.setRangeBandwidth(56.5e6);
+        Assert.assertEquals("setter round-trip preserves Hz",
+                56.5e6, slc.getRangeBandwidth(), 1e-6);
+    }
+
+    @Ignore("requires binary fixtures at " + testDirectory)
     @Test
     public void testDefineFilter() throws Exception {
 
@@ -82,6 +101,7 @@ public class RangeFilterTest {
     }
 
 
+    @Ignore("requires binary fixtures at " + testDirectory)
     @Test
     public void filterClass_HAMM() throws Exception {
 
@@ -120,6 +140,7 @@ public class RangeFilterTest {
 
     }
 
+    @Ignore("requires binary fixtures at " + testDirectory)
     @Test
     public void filterClass_RECT() throws Exception {
 
@@ -159,6 +180,7 @@ public class RangeFilterTest {
 
     }
 
+    @Ignore("requires binary fixtures at " + testDirectory)
     @Test
     public void filterClass_HAMM_OVSMP() throws Exception {
 
@@ -198,6 +220,7 @@ public class RangeFilterTest {
 
     }
 
+    @Ignore("requires binary fixtures at " + testDirectory)
     @Test
     public void filterClass_HAMM_OVSMP_SPLIT() throws Exception {
 
