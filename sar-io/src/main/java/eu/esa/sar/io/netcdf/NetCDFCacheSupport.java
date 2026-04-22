@@ -45,7 +45,7 @@ import java.util.Set;
  */
 public class NetCDFCacheSupport implements CacheDataProvider {
 
-    public static final boolean USE_PRODUCT_CACHE =
+    public static boolean USE_PRODUCT_CACHE =
             Boolean.parseBoolean(System.getProperty("sar.netcdf.useProductCache", "true"));
 
     private ProductCache productCache;

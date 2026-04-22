@@ -29,6 +29,7 @@ import eu.esa.snap.core.dataio.cache.VariableDescriptor;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
@@ -84,7 +85,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
     // System property to toggle between ProductCache (true) and direct reads (false)
     // for non-STRUCTURE variables. Set -Dnisar.useProductCache=true to enable.
-    protected static final boolean USE_PRODUCT_CACHE =
+    public static boolean USE_PRODUCT_CACHE =
             Boolean.parseBoolean(System.getProperty("nisar.useProductCache", "true"));
 
     private ProductCache productCache;
@@ -299,7 +300,58 @@ public abstract class NisarSubReader implements CacheDataProvider {
             }
         }
 
+        // NISAR HDF5 fixed-length string attributes can carry padding bytes
+        // (form feeds, NULs, etc.) past the value. Strip XML-illegal control
+        // chars before any consumer (e.g., DIMAP writer) tries to serialize them.
+        sanitizeXmlStrings(origMetadataRoot);
+
         addAbstractedMetadataHeader(product.getMetadataRoot());
+    }
+
+    private static void sanitizeXmlStrings(final MetadataElement element) {
+        for (MetadataAttribute attr : element.getAttributes()) {
+            final ProductData data = attr.getData();
+            if (data instanceof ProductData.ASCII) {
+                final String original = data.getElemString();
+                final String cleaned = stripIllegalXmlChars(original);
+                if (cleaned != original) {
+                    // The MetadataAttribute is created read-only by NetCDFUtils,
+                    // so attr.setData(...) would throw. Mutate the ProductData
+                    // in place — setElems on ASCII rewrites the backing byte[].
+                    // setElems rejects empty strings, so fall back to a space.
+                    data.setElems(cleaned.isEmpty() ? " " : cleaned);
+                }
+            }
+        }
+        for (MetadataElement child : element.getElements()) {
+            sanitizeXmlStrings(child);
+        }
+    }
+
+    /**
+     * Returns a string with characters illegal in XML 1.0 removed. Returns the
+     * input reference unchanged when nothing needs stripping (cheap fast path).
+     */
+    private static String stripIllegalXmlChars(final String s) {
+        if (s == null) {
+            return null;
+        }
+        StringBuilder sb = null;
+        for (int i = 0; i < s.length(); i++) {
+            final char c = s.charAt(i);
+            final boolean legal = c == 0x09 || c == 0x0A || c == 0x0D
+                    || (c >= 0x20 && c <= 0xD7FF)
+                    || (c >= 0xE000 && c <= 0xFFFD);
+            if (!legal) {
+                if (sb == null) {
+                    sb = new StringBuilder(s.length());
+                    sb.append(s, 0, i);
+                }
+            } else if (sb != null) {
+                sb.append(c);
+            }
+        }
+        return sb == null ? s : sb.toString();
     }
 
     protected void addAbstractedMetadataHeader(final MetadataElement root) throws Exception {
@@ -1545,20 +1597,12 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
             final StructureMembers members = bbArray.getStructureMembers();
             final int elementSize = members.getStructureSize();
+            final int[] offsets = findRealImagOffsets(members);
+            final int realOffset = offsets[0];
+            final int imagOffset = offsets[1];
 
-            int componentOffset = wantImag ? 4 : 0;
-            for (StructureMembers.Member m : members.getMembers()) {
-                final String n = m.getName().toLowerCase();
-                if (!wantImag && (n.equals("r") || n.equals("real") || n.endsWith("_r"))) {
-                    componentOffset = m.getDataParam();
-                } else if (wantImag && (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i"))) {
-                    componentOffset = m.getDataParam();
-                }
-            }
-
-            for (int idx = 0; idx < count; idx++) {
-                dest[destOffset + idx] = bb.getFloat(idx * elementSize + componentOffset);
-            }
+            decodeComplexBuffer(bb, elementSize, realOffset, imagOffset, count,
+                    wantImag ? null : dest, wantImag ? dest : null, destOffset);
         } else {
             final StructureMembers members = structArray.getStructureMembers();
             StructureMembers.Member targetMember = null;
@@ -1575,6 +1619,71 @@ public abstract class NisarSubReader implements CacheDataProvider {
                     dest[destOffset + idx] = structArray.getScalarFloat(idx, targetMember);
                 }
             }
+        }
+    }
+
+    /**
+     * Returns {@code [realOffset, imagOffset]} for a complex compound structure.
+     * Falls back to the float32 layout {0, 4} when members can't be matched —
+     * which is also what ucar.nc2 reports for NISAR float16 complex (it doesn't
+     * decode hdf float16 so the structure looks degenerate). The float16 case is
+     * recognised in {@link #decodeComplexBuffer} via {@code elementSize == 4}.
+     */
+    private static int[] findRealImagOffsets(StructureMembers members) {
+        int realOffset = 0;
+        int imagOffset = 4;
+        for (StructureMembers.Member m : members.getMembers()) {
+            final String n = m.getName().toLowerCase();
+            if (n.equals("r") || n.equals("real") || n.endsWith("_r")) {
+                realOffset = m.getDataParam();
+            } else if (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i")) {
+                imagOffset = m.getDataParam();
+            }
+        }
+        return new int[]{realOffset, imagOffset};
+    }
+
+    /**
+     * Decode a complex compound ByteBuffer into real/imag float arrays. Pass
+     * {@code null} for either array to skip that component.
+     *
+     * <p>Two layouts handled:
+     * <ul>
+     *   <li>{@code elementSize >= 8}: standard float32 complex; reads at the
+     *       supplied {@code realOffset} / {@code imagOffset} via {@code getFloat}.</li>
+     *   <li>{@code elementSize == 4}: NISAR's float16 complex
+     *       ({@code {float16 r; float16 i;}}). ucar.nc2 cannot decode hdf
+     *       float16 (logs <i>"not handling hdf float type with size= 2"</i>),
+     *       so we read the raw shorts and convert via
+     *       {@link Float#float16ToFloat(short)}.</li>
+     * </ul>
+     */
+    private static void decodeComplexBuffer(ByteBuffer bb, int elementSize,
+                                            int realOffset, int imagOffset, int count,
+                                            float[] realArr, float[] imagArr, int destOffset) {
+        if (elementSize <= 0) {
+            return;
+        }
+        final int safeCount = Math.min(count, bb.limit() / elementSize);
+
+        if (elementSize >= 8) {
+            final boolean realOk = realArr != null && realOffset + 4 <= elementSize;
+            final boolean imagOk = imagArr != null && imagOffset + 4 <= elementSize;
+            for (int idx = 0; idx < safeCount; idx++) {
+                final int base = idx * elementSize;
+                if (realOk) realArr[destOffset + idx] = bb.getFloat(base + realOffset);
+                if (imagOk) imagArr[destOffset + idx] = bb.getFloat(base + imagOffset);
+            }
+        } else if (elementSize == 4) {
+            // NISAR float16 complex: { float16 r; float16 i; }
+            for (int idx = 0; idx < safeCount; idx++) {
+                final int base = idx * elementSize;
+                if (realArr != null) realArr[destOffset + idx] = Float.float16ToFloat(bb.getShort(base));
+                if (imagArr != null) imagArr[destOffset + idx] = Float.float16ToFloat(bb.getShort(base + 2));
+            }
+        } else {
+            SystemUtils.LOG.warning("NISAR complex structure has unexpected elementSize=" + elementSize
+                    + " — affected band will read as zero");
         }
     }
 
@@ -1642,22 +1751,10 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
                 final StructureMembers members = bbArray.getStructureMembers();
                 final int elementSize = members.getStructureSize();
+                final int[] offsets = findRealImagOffsets(members);
 
-                int realOffset = 0, imagOffset = 4;
-                for (StructureMembers.Member m : members.getMembers()) {
-                    final String n = m.getName().toLowerCase();
-                    if (n.equals("r") || n.equals("real") || n.endsWith("_r")) {
-                        realOffset = m.getDataParam();
-                    } else if (n.equals("i") || n.equals("imag") || n.equals("imaginary") || n.endsWith("_i")) {
-                        imagOffset = m.getDataParam();
-                    }
-                }
-
-                for (int idx = 0; idx < numPixels; idx++) {
-                    final int baseOffset = idx * elementSize;
-                    realArr[idx] = bb.getFloat(baseOffset + realOffset);
-                    imagArr[idx] = bb.getFloat(baseOffset + imagOffset);
-                }
+                decodeComplexBuffer(bb, elementSize, offsets[0], offsets[1], numPixels,
+                        realArr, imagArr, 0);
             } else {
                 final StructureMembers members = structArray.getStructureMembers();
                 StructureMembers.Member realMember = null, imagMember = null;

@@ -16,6 +16,7 @@
 package eu.esa.sar.io.capella;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.io.GeoTiffCacheSupport;
 import eu.esa.sar.commons.io.ImageIOFile;
 import eu.esa.sar.commons.io.SARProductReaderPlugIn;
 import eu.esa.sar.commons.io.SARReader;
@@ -45,6 +46,7 @@ public class CapellaProductReader extends SARReader {
 
     private CapellaProductDirectory dataDir;
     private final DataCache cache;
+    private final GeoTiffCacheSupport cacheSupport = new GeoTiffCacheSupport();
     private final SARProductReaderPlugIn readerPlugIn;
 
     /**
@@ -61,6 +63,7 @@ public class CapellaProductReader extends SARReader {
 
     @Override
     public void close() throws IOException {
+        cacheSupport.dispose();
         if (dataDir != null) {
             dataDir.close();
             dataDir = null;
@@ -96,6 +99,8 @@ public class CapellaProductReader extends SARReader {
             product.setFileLocation(metadataFile);
             product.setProductReader(this);
 
+            registerCacheBands(product);
+
             return product;
         } catch (Throwable e) {
             handleReaderException(e);
@@ -113,6 +118,12 @@ public class CapellaProductReader extends SARReader {
                                           ProductData destBuffer,
                                           ProgressMonitor pm) throws IOException {
         if (dataDir == null) {
+            return;
+        }
+
+        if (cacheSupport.isActive() && sourceStepX == 1 && sourceStepY == 1) {
+            cacheSupport.readFromCache(destBand.getName(), destOffsetX, destOffsetY,
+                    destWidth, destHeight, destBuffer);
             return;
         }
 
@@ -158,6 +169,52 @@ public class CapellaProductReader extends SARReader {
                 }
             }
         }
+    }
+
+    private void registerCacheBands(final Product product) throws IOException {
+        final boolean isSLC = dataDir.isSLC();
+        final double scaleFactor = dataDir.getScaleFactor();
+
+        for (Band band : product.getBands()) {
+            final ImageIOFile.BandInfo bandInfo = dataDir.getBandInfo(band);
+            if (bandInfo == null) {
+                continue;
+            }
+            final float nodata = (float) band.getNoDataValue();
+            final GeoTiffCacheSupport.TileDecoder decoder;
+            if (isSLC) {
+                final boolean isImaginary = band.getUnit() != null && band.getUnit().contains(Unit.IMAGINARY);
+                decoder = (raw, n, dest) -> {
+                    final float[] elems = (float[]) dest.getElems();
+                    if (isImaginary) {
+                        for (int i = 0; i < n; ++i) {
+                            final double secondHalf = (short) (raw[i] & 0xffff);
+                            elems[i] = (float) (secondHalf * scaleFactor);
+                        }
+                    } else {
+                        for (int i = 0; i < n; ++i) {
+                            final double firstHalf = (short) (raw[i] >> 16);
+                            elems[i] = (float) (firstHalf * scaleFactor);
+                        }
+                    }
+                };
+            } else {
+                decoder = (raw, n, dest) -> {
+                    final float[] elems = (float[]) dest.getElems();
+                    for (int i = 0; i < n; ++i) {
+                        if (raw[i] != nodata) {
+                            final double scaledDN = raw[i] * scaleFactor;
+                            elems[i] = (float) (scaledDN * scaledDN);
+                        } else {
+                            elems[i] = nodata;
+                        }
+                    }
+                };
+            }
+            cacheSupport.registerBand(band.getName(), bandInfo.img, bandInfo.imageID,
+                    bandInfo.bandSampleOffset, decoder);
+        }
+        cacheSupport.init(product);
     }
 
     private synchronized DataCache.Data readRect(final DataCache.DataKey datakey, final ImageIOFile.BandInfo bandInfo,

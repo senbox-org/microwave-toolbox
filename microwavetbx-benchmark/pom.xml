@@ -31,6 +31,11 @@
 
     <packaging>jar</packaging>
 
+    <properties>
+        <!-- Benchmarks read large SAR products; override the parent pom's 4 GB cap. -->
+        <surefire.jvm.args>-enableassertions -Xms2048M -Xmx22024M -Dfile.encoding=UTF-8 --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/sun.awt.shell=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.base/java.security=ALL-UNNAMED --add-exports java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED</surefire.jvm.args>
+    </properties>
+
     <dependencies>
 
         <dependency>
@@ -107,5 +112,24 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                Each benchmark test runs in its own forked JVM so JIT state, JAI
+                tile caches, and the CacheManager singleton can't carry over
+                between tests. Removes the bi-modal timings caused by run N's
+                JAI cache affecting run N+1.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

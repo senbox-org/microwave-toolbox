@@ -16,6 +16,7 @@
 package eu.esa.sar.io.sentinel1;
 
 import com.bc.ceres.core.ProgressMonitor;
+import eu.esa.sar.commons.io.GeoTiffCacheSupport;
 import eu.esa.sar.commons.io.ImageIOFile;
 import eu.esa.sar.commons.io.SARReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
@@ -45,6 +46,7 @@ import java.nio.file.Path;
 public class Sentinel1ProductReader extends SARReader {
 
     protected Sentinel1Directory dataDir = null;
+    private final GeoTiffCacheSupport cacheSupport = new GeoTiffCacheSupport();
 
     /**
      * Constructs a new abstract product reader.
@@ -69,6 +71,7 @@ public class Sentinel1ProductReader extends SARReader {
      */
     @Override
     public void close() throws IOException {
+        cacheSupport.dispose();
         super.close();
         if (dataDir != null) {
             dataDir.close();
@@ -118,6 +121,8 @@ public class Sentinel1ProductReader extends SARReader {
             setQuicklookBandName(product);
             addQuicklook(product, Quicklook.DEFAULT_QUICKLOOK_NAME, getQuicklookFile());
             setBandGrouping(product);
+
+            registerCacheBands(product);
 
             product.setModified(false);
             return product;
@@ -174,6 +179,11 @@ public class Sentinel1ProductReader extends SARReader {
 
         final ImageIOFile.BandInfo bandInfo = dataDir.getBandInfo(destBand);
         if (bandInfo != null && bandInfo.img != null) {
+            if (cacheSupport.isActive() && sourceStepX == 1 && sourceStepY == 1) {
+                cacheSupport.readFromCache(destBand.getName(), destOffsetX, destOffsetY,
+                        destWidth, destHeight, destBuffer);
+                return;
+            }
             if (dataDir.isSLC()) {
 
                 readSLCRasterBand(sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY,
@@ -262,5 +272,71 @@ public class Sentinel1ProductReader extends SARReader {
             SystemUtils.LOG.warning("Error reading SLC raster data: " + e.getMessage());
             return new int[expectedLength];
         }
+    }
+
+    private void registerCacheBands(final Product product) throws IOException {
+        if (dataDir instanceof Sentinel1Level2Directory) {
+            return;
+        }
+        final boolean isSLC = dataDir.isSLC();
+
+        for (Band band : product.getBands()) {
+            final ImageIOFile.BandInfo bandInfo = dataDir.getBandInfo(band);
+            if (bandInfo == null || bandInfo.img == null) {
+                continue;
+            }
+
+            final GeoTiffCacheSupport.TileDecoder decoder;
+            final int sampleOffset;
+            if (isSLC) {
+                // SLC reads one int32 sample at offset 0; I/Q split via bit shift.
+                // Sharing offset 0 lets I and Q reuse the same cached tile.
+                sampleOffset = 0;
+                final boolean isImaginary = bandInfo.isImaginary;
+                decoder = (raw, n, dest) -> {
+                    final Object elems = dest.getElems();
+                    if (elems instanceof int[]) {
+                        final int[] out = (int[]) elems;
+                        if (isImaginary) {
+                            for (int i = 0; i < n; ++i) out[i] = (short) (raw[i] >> 16);
+                        } else {
+                            for (int i = 0; i < n; ++i) out[i] = (short) raw[i];
+                        }
+                    } else if (elems instanceof short[]) {
+                        final short[] out = (short[]) elems;
+                        if (isImaginary) {
+                            for (int i = 0; i < n; ++i) out[i] = (short) (raw[i] >> 16);
+                        } else {
+                            for (int i = 0; i < n; ++i) out[i] = (short) raw[i];
+                        }
+                    }
+                };
+            } else {
+                sampleOffset = bandInfo.bandSampleOffset;
+                decoder = (raw, n, dest) -> {
+                    final Object elems = dest.getElems();
+                    if (elems instanceof int[]) {
+                        System.arraycopy(raw, 0, elems, 0, n);
+                    } else if (elems instanceof short[]) {
+                        final short[] out = (short[]) elems;
+                        for (int i = 0; i < n; ++i) out[i] = (short) raw[i];
+                    } else if (elems instanceof float[]) {
+                        final float[] out = (float[]) elems;
+                        for (int i = 0; i < n; ++i) out[i] = raw[i];
+                    } else if (elems instanceof double[]) {
+                        final double[] out = (double[]) elems;
+                        for (int i = 0; i < n; ++i) out[i] = raw[i];
+                    } else {
+                        for (int i = 0; i < n; ++i) dest.setElemDoubleAt(i, raw[i]);
+                    }
+                };
+            }
+            // SLC's existing readRect hardcodes sampleOffset=0, so force imageID=0
+            // to keep I/Q sharing a single cached tile.
+            final int effectiveImageID = isSLC ? 0 : bandInfo.imageID;
+            cacheSupport.registerBand(band.getName(), bandInfo.img, effectiveImageID,
+                    sampleOffset, decoder);
+        }
+        cacheSupport.init(product);
     }
 }
