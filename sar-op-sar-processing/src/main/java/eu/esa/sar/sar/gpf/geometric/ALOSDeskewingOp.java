@@ -171,7 +171,7 @@ public class ALOSDeskewingOp extends Operator {
 
         orbitStateVectors = AbstractMetadata.getOrbitStateVectors(absRoot);
         if (orbitStateVectors == null) {
-            throw new OperatorException("Invalid Obit State Vectors");
+            throw new OperatorException("Invalid Orbit State Vectors");
         } else if (orbitStateVectors.length < 2) {
             throw new OperatorException("Not enough orbit state vectors");
         }

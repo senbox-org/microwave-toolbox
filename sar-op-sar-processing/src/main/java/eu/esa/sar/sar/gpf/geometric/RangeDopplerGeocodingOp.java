@@ -440,7 +440,7 @@ public class RangeDopplerGeocodingOp extends Operator {
 
         orbitStateVectors = AbstractMetadata.getOrbitStateVectors(absRoot);
         if (orbitStateVectors == null || orbitStateVectors.length == 0) {
-            throw new OperatorException("Invalid Obit State Vectors");
+            throw new OperatorException("Invalid Orbit State Vectors");
         }
 
         if (srgrFlag) {

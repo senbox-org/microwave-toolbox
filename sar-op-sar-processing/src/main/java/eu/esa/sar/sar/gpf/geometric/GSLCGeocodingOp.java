@@ -338,7 +338,7 @@ public class GSLCGeocodingOp extends Operator {
 
         orbitStateVectors = AbstractMetadata.getOrbitStateVectors(absRoot);
         if (orbitStateVectors == null || orbitStateVectors.length == 0) {
-            throw new OperatorException("Invalid Obit State Vectors");
+            throw new OperatorException("Invalid Orbit State Vectors");
         }
 
         // Always read near-edge slant range (needed for SLC range index and TOPS processing)
