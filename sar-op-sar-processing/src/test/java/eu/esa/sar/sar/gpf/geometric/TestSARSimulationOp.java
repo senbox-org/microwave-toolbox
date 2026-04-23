@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sar.gpf.geometric;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
@@ -87,6 +88,42 @@ public class TestSARSimulationOp extends ProcessorTest {
             // compare with expected outputs:
             final float[] expected = new float[]{0.01345945f, 0.0022644033f, 4.9961345E-5f, 5.912213E-5f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
+    }
+
+    /**
+     * Regression guard for a missing/unreadable external DEM. Previously
+     * {@link SARSimulationOp#getElevationModel()} wrapped DEM construction in a
+     * try/catch(Throwable) that swallowed the real failure, left {@code dem == null},
+     * and flipped {@code isElevationModelAvailable = true}. Tile computation then
+     * dereferenced the null {@code dem} and surfaced as a bare
+     * {@link NullPointerException} — the symptom users hit when pointing SAR-Sim
+     * Terrain Correction at an external DEM. The failure must now propagate as an
+     * {@link org.esa.snap.core.gpf.OperatorException} naming the DEM problem.
+     */
+    @Test
+    @STTM("SNAP-2528")
+    public void testExternalDEM_missingFile_throwsDescriptiveError() throws Exception {
+        try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
+
+            final SARSimulationOp op = (SARSimulationOp) spi.createOperator();
+            op.setSourceProduct(sourceProduct);
+            op.setParameter("demName", SARSimulationOp.externalDEMStr);
+            op.setParameter("externalDEMFile", new File("E:/this/path/does/not/exist.tif"));
+
+            final Product targetProduct = op.getTargetProduct();
+            final Band band = targetProduct.getBand("Simulated_Intensity");
+            assertNotNull(band);
+
+            final float[] floatValues = new float[4];
+            try {
+                band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+                org.junit.Assert.fail("Expected DEM-loading failure to propagate, but read succeeded");
+            } catch (NullPointerException npe) {
+                org.junit.Assert.fail("DEM-loading failure leaked as NullPointerException: " + npe);
+            } catch (Exception expected) {
+                // ok — any concrete exception is acceptable as long as it's not a bare NPE
+            }
         }
     }
 

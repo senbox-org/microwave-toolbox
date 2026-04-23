@@ -353,20 +353,17 @@ public final class SARSimulationOp extends Operator {
     private synchronized void getElevationModel() throws Exception {
 
         if (isElevationModelAvailable) return;
-        try {
-            if (demName.contains(externalDEMStr)) { // if external DEM file is specified by user
 
-                dem = new FileElevationModel(externalDEMFile, demResamplingMethod, externalDEMNoDataValue);
-                ((FileElevationModel)dem).applyEarthGravitionalModel(externalDEMApplyEGM);
-                demNoDataValue = externalDEMNoDataValue;
-                demName = externalDEMFile.getPath();
+        if (demName.contains(externalDEMStr)) { // if external DEM file is specified by user
 
-            } else {
-                dem = DEMFactory.createElevationModel(demName, demResamplingMethod);
-                demNoDataValue = dem.getDescriptor().getNoDataValue();
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
+            dem = new FileElevationModel(externalDEMFile, demResamplingMethod, externalDEMNoDataValue);
+            ((FileElevationModel)dem).applyEarthGravitionalModel(externalDEMApplyEGM);
+            demNoDataValue = externalDEMNoDataValue;
+            demName = externalDEMFile.getPath();
+
+        } else {
+            dem = DEMFactory.createElevationModel(demName, demResamplingMethod);
+            demNoDataValue = dem.getDescriptor().getNoDataValue();
         }
         isElevationModelAvailable = true;
     }
