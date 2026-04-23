@@ -191,8 +191,7 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
                 throw new OperatorException("Please select I and Q bands in pairs only");
             }
 
-            final String pol = srcBandI.getName().substring(srcBandI.getName().lastIndexOf("_") + 1);
-            if (!selectedPolList.isEmpty() && !selectedPolList.contains(pol)) {
+            if (shouldSkipForPolarisation(srcBandI.getName())) {
                 continue;
             }
 

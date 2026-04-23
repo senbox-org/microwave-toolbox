@@ -194,8 +194,7 @@ public class BaseCalibrator {
                 throw new OperatorException("Please select I and Q bands in pairs only");
             }
 
-            final String pol = srcBandI.getName().substring(srcBandI.getName().lastIndexOf("_") + 1);
-            if (!selectedPolList.isEmpty() && !selectedPolList.contains(pol)) {
+            if (shouldSkipForPolarisation(srcBandI.getName())) {
                 continue;
             }
 
@@ -271,8 +270,7 @@ public class BaseCalibrator {
                 srcBandNames[0] = srcBand.getName();
             }
 
-            final String pol = srcBandNames[0].substring(srcBandNames[0].lastIndexOf("_") + 1);
-            if (!selectedPolList.isEmpty() && !selectedPolList.contains(pol)) {
+            if (shouldSkipForPolarisation(srcBandNames[0])) {
                 continue;
             }
 
@@ -300,6 +298,23 @@ public class BaseCalibrator {
                 }
             }
         }
+    }
+
+    /**
+     * Polarisation filter. Uses band-name pattern plus abstracted metadata so that bands
+     * without a recognisable pol suffix (e.g. older CSK readers wrote "i_1"/"Amplitude_1"
+     * when pol extraction fell through) still resolve to the product's MDS polarisation
+     * instead of being dropped silently.
+     */
+    protected boolean shouldSkipForPolarisation(final String srcBandName) {
+        if (selectedPolList.isEmpty()) {
+            return false;
+        }
+        final String pol = OperatorUtils.getBandPolarization(srcBandName, absRoot);
+        if (pol == null || pol.isEmpty()) {
+            return false;
+        }
+        return !selectedPolList.contains(pol.toUpperCase());
     }
 
     /**

@@ -300,6 +300,10 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
                 throw new OperatorException("Please select I and Q bands in pairs only");
             }
 
+            if (shouldSkipForPolarisation(srcBandI.getName())) {
+                continue;
+            }
+
             final Band srcBandQ = sourceBands[i + 1];
             final String[] srcBandNames = {srcBandI.getName(), srcBandQ.getName()};
             targetBandNameToSourceBandName.put(srcBandNames[0], srcBandNames);
@@ -363,8 +367,11 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
                 final String[] srcBandNames = new String[2];
                 srcBandNames[0] = srcBand.getName();
                 srcBandNames[1] = sourceBands[i + 1].getName();
-                targetBandName = createTargetBandName(srcBandNames[0], absRoot);
                 ++i;
+                if (shouldSkipForPolarisation(srcBandNames[0])) {
+                    continue;
+                }
+                targetBandName = createTargetBandName(srcBandNames[0], absRoot);
                 if (targetProduct.getBand(targetBandName) == null) {
                     targetBandNameToSourceBandName.put(targetBandName, srcBandNames);
                 }
@@ -372,6 +379,9 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
             } else {
 
                 final String[] srcBandNames = {srcBand.getName()};
+                if (shouldSkipForPolarisation(srcBandNames[0])) {
+                    continue;
+                }
                 targetBandName = createTargetBandName(srcBandNames[0], absRoot);
                 if (targetProduct.getBand(targetBandName) == null) {
                     targetBandNameToSourceBandName.put(targetBandName, srcBandNames);
