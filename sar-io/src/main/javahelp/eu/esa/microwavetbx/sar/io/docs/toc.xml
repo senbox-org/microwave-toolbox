@@ -23,6 +23,7 @@
                     <tocitem text="SAR Sensors">
 					    <tocitem text="ALOS PALSAR 1" target="ImportAlosPalsar"/>
 						<tocitem text="ALOS PALSAR 2" target="ImportAlos2"/>
+                        <tocitem text="BIOMASS" target="importBiomassProduct"/>
 						<tocitem text="Capella" target="ImportCapella"/>
                         <tocitem text="Gaofen3" target="ImportGaofen3"/>
                         <tocitem text="Cosmo-Skymed" target="ImportCosmoSkymed"/>
@@ -30,15 +31,20 @@
                         <tocitem text="ERS-1" target="importErsProduct"/>
 						<tocitem text="ERS-2" target="importErs2Product"/>
                         <tocitem text="ICEYE" target="importIceyeProduct"/>
+                        <tocitem text="ICEYE COG" target="importIceyeCOGProduct"/>
                         <tocitem text="JERS-1" target="ImportJERSCeos"/>
                         <tocitem text="Kompsat-5" target="ImportKompsat5"/>
                         <tocitem text="Paz" target="ImportPaz"/>
+                        <tocitem text="QPS SAR" target="importQPSSAR"/>
                         <tocitem text="RISAT-1" target="ImportRISAT"/>
 						<tocitem text="SAOCOM" target="ImportSAOCOM"/>
                         <tocitem text="SeaSat" target="ImportSeaSat"/>
 						<tocitem text="Sentinel-1" target="importSentinel1Product"/>
+                        <tocitem text="Spacety" target="importSpacety"/>
+                        <tocitem text="StriX (Synspective)" target="importStriX"/>
 						<tocitem text="TerraSAR-X" target="ImportTerraSarX"/>
 						<tocitem text="TanDEM-X" target="ImportTanDEMX"/>
+                        <tocitem text="UAVSAR" target="importUAVSAR"/>
                     </tocitem>
                 </tocitem>
             </tocitem>

@@ -16,6 +16,9 @@
                 <tocitem text="Polarimetric Speckle Filtering" target="PolarimetricSpeckleFilterOp"/>
                 <tocitem text="Orientation Angle Correction" target="OrientationAngleCorrectionOp"/>
                 <tocitem text="Polarimetric Decomposition" target="PolarimetricDecompositionOp"/>
+                <tocitem text="Polarimetric Parameters" target="PolarimetricParametersOp"/>
+                <tocitem text="Cross-Channel SNR Correction" target="CrossChannelSNRCorrectionOp"/>
+                <tocitem text="Faraday Rotation Correction" target="FaradayRotationCorrectionOp"/>
 				<tocitem text="Dual-pol Radar Vegetation Index" target="RVIOp"/>
 				<tocitem text="Compact-pol Radar Vegetation Index" target="CPRVIOp"/>
 				<tocitem text="Generalized Radar Vegetation Index" target="GRVIOp"/>

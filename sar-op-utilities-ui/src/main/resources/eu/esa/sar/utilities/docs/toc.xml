@@ -8,6 +8,7 @@
         <tocitem text="Raster">
             <tocitem text="Data Conversion">
                 <tocitem text="Band Select" target="BandSelectOp"/>
+                <tocitem text="Set No-Data Value" target="SetNoDataValueOp"/>
             </tocitem>
         </tocitem>
         <tocitem text="Radar">

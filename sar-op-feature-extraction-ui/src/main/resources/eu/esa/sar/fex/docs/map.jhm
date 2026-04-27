@@ -15,4 +15,5 @@
     <mapID target="DecisionTreeOp" url="operators/DecisionTreeOp.html"/>
     <mapID target="ReactivOp" url="operators/REACTIVChangeDetectionOp.html"/>
     <mapID target="RPCAOp" url="operators/RPCAChangeDetectionOp.html"/>
+    <mapID target="GaborFilterOp" url="operators/GaborFilterOp.html"/>
 </map>

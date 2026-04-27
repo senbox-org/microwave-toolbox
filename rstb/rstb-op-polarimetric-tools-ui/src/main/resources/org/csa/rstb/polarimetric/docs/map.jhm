@@ -14,4 +14,7 @@
     <mapID target="PolarimetricDecompositionOp" url="operators/PolarimetricDecompositionOp.html"/>
     <mapID target="PolarimetricSpeckleFilterOp" url="operators/PolarimetricSpeckleFilterOp.html"/>
     <mapID target="OrientationAngleCorrectionOp" url="operators/OrientationAngleCorrectionOp.html"/>
+    <mapID target="PolarimetricParametersOp" url="operators/PolarimetricParametersOp.html"/>
+    <mapID target="CrossChannelSNRCorrectionOp" url="operators/CrossChannelSNRCorrectionOp.html"/>
+    <mapID target="FaradayRotationCorrectionOp" url="operators/FaradayRotationCorrectionOp.html"/>
 </map>

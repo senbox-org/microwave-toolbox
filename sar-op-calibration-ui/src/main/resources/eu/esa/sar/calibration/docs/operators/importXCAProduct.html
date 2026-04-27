@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Import ASAR XCA Product</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; View ASAR XCA Product</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>View ASAR External Calibration (XCA) Product</h3>
+
+<p class="MsoNormal">
+    Opens an ENVISAT ASAR <i>XCA</i> (External Calibration) auxiliary file in SNAP for
+    inspection. XCA files are the official ESA-issued instrument calibration data files
+    used by the <b>Radiometric Calibration</b> operator when calibrating ASAR products.
+    They contain antenna pattern look-up tables, calibration constants, and reference
+    elevation profiles, indexed by acquisition mode and swath.
+</p>
+
+<h4>What's in an XCA file</h4>
+<ul>
+    <li><b>Calibration constants</b> &mdash; mode- and polarization-dependent gains
+        used to convert raw DN to backscatter (sigma-nought).</li>
+    <li><b>Antenna elevation patterns</b> &mdash; swath-dependent two-way patterns
+        sampled across the elevation angle.</li>
+    <li><b>Reference incidence angle profile</b> &mdash; used by the calibrator to
+        normalize the pattern correction across the swath.</li>
+    <li><b>Validity period</b> &mdash; the start / stop times during which the file
+        is the authoritative calibration reference.</li>
+</ul>
+
+<h4>Usage</h4>
+<ol>
+    <li>Select <b>File &rarr; Import &rarr; SAR Auxiliary Data &rarr; ASAR XCA</b>.</li>
+    <li>Pick the <code>ASA_XCA_*</code> file from disk. The reader exposes the
+        calibration tables as bands and metadata so the user can plot antenna
+        patterns and inspect calibration constants.</li>
+    <li>For actual calibration of an ASAR scene, use the
+        <a href="CalibrationOp.html">Radiometric Calibration</a> operator and let it
+        select the matching XCA file from the auxiliary directory automatically;
+        this importer is for inspection / quality-check rather than as a calibration step.</li>
+</ol>
+
+<h4>Sources of XCA files</h4>
+<p class="MsoNormal">
+    XCA files are part of the ENVISAT ASAR auxiliary data collection at the ESA
+    Earth Online portal (<a href="https://earth.esa.int/eogateway/missions/envisat">earth.esa.int/eogateway/missions/envisat</a>).
+    SNAP's auxiliary-data manager downloads them on demand the first time a
+    Radiometric Calibration is run on an ASAR product whose acquisition date is
+    not yet covered by a cached XCA file.
+</p>
+
+</body>
+</html>

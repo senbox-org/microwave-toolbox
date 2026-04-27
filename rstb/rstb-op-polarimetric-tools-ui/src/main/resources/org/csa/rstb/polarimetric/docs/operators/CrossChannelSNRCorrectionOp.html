@@ -1,0 +1,68 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Cross-Channel SNR Correction</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Cross-Channel SNR Correction</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Cross-Channel SNR Correction Operator</h3>
+
+<p class="MsoNormal">
+    Estimates and removes the cross-channel noise floor in a quad-polarimetric SAR
+    product by exploiting the reciprocity assumption S<sub>HV</sub> = S<sub>VH</sub>.
+    For an ideal monostatic radar this equality holds, so any decorrelation between
+    the HV and VH channels reflects additive noise. The operator uses the local
+    HV-VH coherence inside a sliding window to estimate the channel SNR and
+    rescales the cross-pol channels to remove that noise contribution.
+</p>
+
+<h4>Algorithm (sketch)</h4>
+<p class="MsoNormal">
+    Inside each window the operator computes the sample HV-VH coherence:
+</p>
+<p class="MsoNormal" align="center">
+    &gamma;<sub>cross</sub> = | E[S<sub>HV</sub> &middot; conj(S<sub>VH</sub>)] | /
+    sqrt(E[|S<sub>HV</sub>|<sup>2</sup>] &middot; E[|S<sub>VH</sub>|<sup>2</sup>])
+</p>
+<p class="MsoNormal">
+    From &gamma;<sub>cross</sub> the per-channel noise variance is recovered (assuming the noise is
+    uncorrelated between channels and the signal is reciprocal), and the cross-pol
+    channels are rescaled so their corrected variance equals the noise-free signal
+    variance.
+</p>
+
+<h4>Input</h4>
+<p class="MsoNormal">
+    Full quad-pol SLC product. The operator rejects compact-pol or dual-pol inputs.
+</p>
+
+<h4>Output</h4>
+<p class="MsoNormal">
+    A new quad-pol product mirroring the input structure, with the HV / VH channels
+    SNR-corrected. The HH and VV channels pass through unchanged.
+</p>
+
+<h4>Parameters</h4>
+<ul>
+    <li><b>Window Size</b> &mdash; sliding window size used for the coherence
+        estimate (default 5; range 1&ndash;100). Larger windows reduce variance of
+        the coherence estimate at the cost of spatial resolution.</li>
+</ul>
+
+<h4>References</h4>
+<ol>
+    <li>Quegan, S. (1994). <i>A unified algorithm for phase and cross-talk calibration of
+        polarimetric data &mdash; Theory and observations.</i> IEEE TGRS 32(1), 89&ndash;99.</li>
+    <li>Touzi, R., Lopes, A. (1996). <i>Statistics of the Stokes parameters and of the complex
+        coherence parameters in one-look and multi-look speckle fields.</i> IEEE TGRS 34(2),
+        519&ndash;531.</li>
+</ol>
+
+</body>
+</html>

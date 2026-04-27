@@ -17,6 +17,7 @@
                     <tocitem text="Create Stack" target="CreateStackOp"/>
                     <tocitem text="Stack Averaging" target="StackAveragingOp"/>
                     <tocitem text="Stack Split" target="StackSplitOp"/>
+                    <tocitem text="Split Stack into Multiple References" target="MultiReference"/>
                 </tocitem>
             </tocitem>
             <tocitem text="Interferometric">

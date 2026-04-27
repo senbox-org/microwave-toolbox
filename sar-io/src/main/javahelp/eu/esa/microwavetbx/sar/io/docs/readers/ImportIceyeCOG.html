@@ -1,0 +1,38 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Import ICEYE COG</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Import ICEYE COG</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Import ICEYE Cloud-Optimized GeoTIFF Product</h3>
+
+<p class="MsoNormal"><b>Operator:</b> ICEYE Oy (Finland) commercial X-band SAR constellation.</p>
+<p class="MsoNormal"><b>Operational:</b> First spacecraft 2018; constellation now &gt;30 satellites.</p>
+<p class="MsoNormal"><b>Frequency Band:</b> X-band.</p>
+<p class="MsoNormal"><b>Acquisition Modes:</b> Stripmap, Spotlight, Scan, Dwell.</p>
+<p class="MsoNormal"><b>Product Types:</b></p>
+<ul>
+    <li>SLC, GRD, GEC, GTC delivered as Cloud-Optimized GeoTIFF (COG)</li>
+    <li>Sidecar JSON metadata describing acquisition, geometry, and calibration</li>
+</ul>
+<p class="MsoNormal"><b>Polarizations:</b> Single-pol VV (most modes).</p>
+
+<p class="MsoNormal"><b>Notes:</b> This is the GDAL-backed reader for the COG-format ICEYE delivery,
+distinct from the legacy native-HDF5 ICEYE reader (<i>Import ICEYE</i>). The COG
+format permits partial reads from cloud object storage so SNAP only fetches the
+window of interest; this reader uses GDAL's VSI streaming layer when the input
+URL points at S3 / GCS / Azure object storage.</p>
+
+<p class="MsoNormal"><b>Further Information:</b></p>
+<a href="https://www.iceye.com/">https://www.iceye.com/</a><br>
+<a href="https://sar.iceye.com/">https://sar.iceye.com/</a> &mdash; product-format documentation<br>
+
+<hr>
+</body></html>

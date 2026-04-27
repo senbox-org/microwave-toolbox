@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Import UAVSAR</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Import UAVSAR</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Import UAVSAR Product</h3>
+
+<p class="MsoNormal"><b>Operator:</b> NASA/JPL UAVSAR &mdash; airborne L-band SAR.</p>
+<p class="MsoNormal"><b>Operational:</b> 2007&ndash;present.</p>
+<p class="MsoNormal"><b>Platform:</b> Gulfstream-III (G-III) aircraft.</p>
+<p class="MsoNormal"><b>Frequency Band:</b> L-band (1.2575&nbsp;GHz centre, 80&nbsp;MHz bandwidth).</p>
+<p class="MsoNormal"><b>Acquisition Modes:</b> Quad-pol Stripmap; PolInSAR / Repeat-pass Interferometry; tomographic stacks.</p>
+<p class="MsoNormal"><b>Product Types:</b></p>
+<ul>
+    <li>SLC (Single Look Complex, native slant range)</li>
+    <li>MLC (Multi-Look Complex, 3&times;12 looks)</li>
+    <li>GRD (Ground Range Detected)</li>
+    <li>HGT (Synthetic ground-projected DEM heights)</li>
+    <li>ANN (Annotation file describing scene geometry &mdash; required by the reader)</li>
+</ul>
+<p class="MsoNormal"><b>Polarizations:</b> Full quad-pol (HH, HV, VH, VV).</p>
+
+<p class="MsoNormal"><b>Notes:</b> UAVSAR is delivered as flat binary cubes accompanied by a plain-text
+ANN annotation file describing dimensions, geometry, look angles, and pixel spacing. The reader expects
+the ANN file alongside the data files. Geocoded UAVSAR products are pre-projected to a regular lat/lon
+grid (no per-pixel geocoding step required); SLC products are in the native slant-range geometry and
+require <i>Range-Doppler Terrain Correction</i> for map-projected outputs.</p>
+
+<p class="MsoNormal"><b>Further Information:</b></p>
+<a href="https://uavsar.jpl.nasa.gov/">https://uavsar.jpl.nasa.gov/</a><br>
+<a href="https://uavsar.jpl.nasa.gov/cgi-bin/data.pl">UAVSAR Data Search</a><br>
+
+<hr>
+</body></html>

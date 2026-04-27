@@ -1,0 +1,54 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Set No-Data Value</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Set No-Data Value</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Set No-Data Value Operator</h3>
+
+<p class="MsoNormal">
+    Sets the no-data value and the <i>NoDataValueUsed</i> flag on every band of the
+    source product. Useful when an upstream operator has produced bands whose
+    sentinel-value flag is missing or wrong, causing downstream operators
+    (statistics, masking, terrain correction) to treat the sentinel as a valid
+    measurement.
+</p>
+
+<h4>Input</h4>
+<p class="MsoNormal">Any product. Virtual bands and physical bands are both handled.</p>
+
+<h4>Output</h4>
+<p class="MsoNormal">
+    A new product mirroring the source structure. Every band is copied through with
+    its no-data value and no-data-used flag set to the user-specified values. Pixel
+    samples are not modified.
+</p>
+
+<h4>Parameters</h4>
+<ul>
+    <li><b>No Data Value Used</b> &mdash; whether the no-data value should be honoured by
+        downstream operators. Default: <i>true</i>.</li>
+    <li><b>No Data Value</b> &mdash; the sentinel value treated as no-data. Default: <i>0.0</i>.
+        Common alternatives: <i>NaN</i> for floating-point bands, <i>-9999</i> for
+        integer-typed elevation / classification rasters.</li>
+</ul>
+
+<h4>Notes</h4>
+<ul>
+    <li>This operator only changes metadata flags &mdash; it does not edit pixels. To replace
+        actual sample values with a sentinel, use the BandMaths operator (e.g.,
+        <code>if x &lt; 0 then NaN else x</code>).</li>
+    <li>If the no-data value is <i>NaN</i>, set it via the operator parameter as
+        <code>NaN</code>; SNAP recognises the literal.</li>
+</ul>
+
+</body>
+</html>

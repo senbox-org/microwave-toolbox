@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Polarimetric Parameters</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Polarimetric Parameters</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Polarimetric Parameters Operator</h3>
+
+<p class="MsoNormal">
+    Computes a configurable bank of general-purpose polarimetric scalar parameters
+    from a quad-polarimetric or compact-polarimetric SAR product. The operator
+    works on either the original complex scattering matrix or on the locally
+    averaged coherency / covariance matrix (a 3&times;3 or 4&times;4 Hermitian
+    matrix produced by spatial multilooking inside a sliding window).
+</p>
+
+<h4>Available outputs</h4>
+<ul>
+    <li><b>Span</b> &mdash; total backscattered power, sum of |S<sub>HH</sub>|<sup>2</sup>,
+        2|S<sub>HV</sub>|<sup>2</sup>, |S<sub>VV</sub>|<sup>2</sup> for quad-pol.</li>
+    <li><b>Pedestal Height</b> &mdash; ratio of the smallest to the largest eigenvalue of
+        the coherency matrix; a measure of polarimetric noise / depolarisation floor.</li>
+    <li><b>Radar Vegetation Index (RVI)</b> &mdash; ratio of cross-pol to total power, sensitive
+        to volume scattering from canopies.</li>
+    <li><b>Radar Forest Degradation Index (RFDI)</b> &mdash; (HH&minus;HV) / (HH+HV).</li>
+    <li><b>Canopy Structure Index (CSI)</b>, <b>Volume Scattering Index (VSI)</b>,
+        <b>Biomass Index (BMI)</b>, <b>Interaction Index (ITI)</b> &mdash; structural indices
+        from Pope et al. (1994).</li>
+    <li><b>Ratios</b>: HH/VV, HH/HV, VV/VH (linear power).</li>
+</ul>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Quad-pol (S<sub>HH</sub>, S<sub>HV</sub>, S<sub>VH</sub>, S<sub>VV</sub>) SLC product, or</li>
+    <li>Coherency T<sub>3</sub> / covariance C<sub>3</sub> matrix product (already produced by
+        <i>Polarimetric Matrix Generation</i>), or</li>
+    <li>Compact-pol (RH, RV) hybrid-mode product.</li>
+</ul>
+
+<h4>Parameters</h4>
+<ul>
+    <li><b>Use Mean Matrix</b> &mdash; when <i>true</i>, parameters are computed on the
+        locally averaged coherency / covariance matrix (recommended). When <i>false</i>,
+        they are computed on the original single-look scattering matrix per pixel
+        (noisier output; only meaningful for fully developed point scatterers).</li>
+    <li><b>Window Size X / Y</b> &mdash; sliding window in range / azimuth used to compute the
+        mean matrix. Default 5&times;5. Use larger windows for noisier products at the
+        cost of resolution.</li>
+    <li><b>Output flags</b> &mdash; one boolean per output band (Span, Pedestal Height, RVI,
+        RFDI, CSI, VSI, BMI, ITI, HH/VV, HH/HV, VV/VH).</li>
+</ul>
+
+<h4>References</h4>
+<ol>
+    <li>Pope, K. O., Rey-Benayas, J. M., Paris, J. F. (1994). <i>Radar remote sensing of forest
+        and wetland ecosystems in the Central American tropics.</i> Remote Sensing of
+        Environment 48(2), 205&ndash;219.</li>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to
+        Applications.</i> CRC Press. (Chapters on coherency / covariance statistics and
+        polarimetric scalar descriptors.)</li>
+</ol>
+
+</body>
+</html>

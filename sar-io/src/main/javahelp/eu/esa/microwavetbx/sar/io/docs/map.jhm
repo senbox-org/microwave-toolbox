@@ -34,6 +34,36 @@
     <mapID target="importGenericBinary" url="readers/ImportGenericBinary.html"/>
     <mapID target="importComplexGenericBinary" url="readers/ImportComplexGenericBinary.html"/>
 
+    <!-- Aliases for layer.xml helpIds whose casing/spelling differs from the canonical mapIDs above.
+         JavaHelp targets are case-sensitive; the entries below resolve the helpId references coming
+         from each module's layer.xml directly to the existing reader pages. -->
+    <mapID target="importCapella" url="readers/ImportCapella.html"/>
+    <mapID target="importCosmoSkymed" url="readers/ImportCosmoSkymed.html"/>
+    <mapID target="importERSProduct" url="readers/ImportErs.html"/>
+    <mapID target="importGaofen3" url="readers/ImportGaofen3.html"/>
+    <mapID target="importGamma" url="readers/ImportGamma.html"/>
+    <mapID target="importJERSProduct" url="readers/ImportJERSCeos.html"/>
+    <mapID target="importKompsat5" url="readers/ImportKompsat-5.html"/>
+    <mapID target="importPolSARPro" url="readers/ImportPolsarPro.html"/>
+    <mapID target="importRAT" url="readers/ImportRAT.html"/>
+    <mapID target="importRISAT1" url="readers/ImportRISAT.html"/>
+    <mapID target="importSAOCOM" url="readers/ImportSAOCOM.html"/>
+    <mapID target="importSeaSat" url="readers/ImportSeaSat.html"/>
+
+    <!-- Newly authored reader pages -->
+    <mapID target="importSpacety" url="readers/ImportSpacety.html"/>
+    <mapID target="importStriX" url="readers/ImportStriX.html"/>
+    <mapID target="importUAVSAR" url="readers/ImportUAVSAR.html"/>
+
+    <!-- Cross-module helpId aliases. SNAP merges per-NBM helpsets via
+         UniteAppendMerge, so these targets are reachable from layer.xml
+         entries declared in sar-io-gdal and microwavetbx-rcp without
+         needing a separate JavaHelp infrastructure in those modules. -->
+    <mapID target="importBiomassProduct" url="readers/ImportBiomass.html"/>
+    <mapID target="importIceyeCOGProduct" url="readers/ImportIceyeCOG.html"/>
+    <mapID target="importQPSSAR" url="readers/ImportQPSSAR.html"/>
+    <mapID target="importGenericComplex" url="readers/ImportComplexGenericBinary.html"/>
+
     <!-- Product Writers -->
 
 </map>
