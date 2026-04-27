@@ -17,4 +17,8 @@
     <mapID target="PolarimetricParametersOp" url="operators/PolarimetricParametersOp.html"/>
     <mapID target="CrossChannelSNRCorrectionOp" url="operators/CrossChannelSNRCorrectionOp.html"/>
     <mapID target="FaradayRotationCorrectionOp" url="operators/FaradayRotationCorrectionOp.html"/>
+    <mapID target="DPRBIOp" url="operators/DPRBIOp.html"/>
+    <mapID target="DPRSIOp" url="operators/DPRSIOp.html"/>
+    <mapID target="DpDecompositionOp" url="operators/DpDecompositionOp.html"/>
+    <mapID target="DpFactorizationOp" url="operators/DpFactorizationOp.html"/>
 </map>

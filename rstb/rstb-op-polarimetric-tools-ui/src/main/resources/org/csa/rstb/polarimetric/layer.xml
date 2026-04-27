@@ -116,7 +116,7 @@
 			<file name="org-csa-rstb-polarimetric-gpf-RVIOp-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
-                <attr name="displayName" stringvalue="Dual-pol Radar Vegetation Index"/>
+                <attr name="displayName" stringvalue="DP Radar Vegetation Index"/>
                 <attr name="operatorName" stringvalue="Radar-Vegetation-Index"/>
                 <attr name="dialogTitle" stringvalue="Dual-pol Radar Vegetation Index"/>
                 <attr name="targetProductNameSuffix"  stringvalue="_dprvi"/>
@@ -146,6 +146,51 @@
                 <attr name="icon" stringvalue="rstbIcon"/>
                 <attr name="helpId" stringvalue="GRVIOp"/>
             </file>
+			<file name="org-csa-rstb-polarimetric-gpf-DPRBIOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="DP Radar Built-up Index (DpRBI)"/>
+                <attr name="operatorName" stringvalue="Dual-Radar-Builtup-Index"/>
+                <attr name="dialogTitle" stringvalue="Dual-pol Radar Built-up Index (DpRBI)"/>
+                <attr name="targetProductNameSuffix"  stringvalue="_dprbi"/>
+                <attr name="ShortDescription" stringvalue="Dual-pol Radar Built-up Index (DpRBI)"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="DPRBIOp"/>
+            </file>
+			<file name="org-csa-rstb-polarimetric-gpf-DPRSIOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="DP Radar Surface Index (DpRSI)"/>
+                <attr name="operatorName" stringvalue="Dual-Radar-Surface-Index"/>
+                <attr name="dialogTitle" stringvalue="Dual-pol Radar Surface Index (DpRSI)"/>
+                <attr name="targetProductNameSuffix"  stringvalue="_dprsi"/>
+                <attr name="ShortDescription" stringvalue="Dual-pol Radar Surface Index (DpRSI)"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="DPRSIOp"/>
+            </file>
+			<file name="org-csa-rstb-polarimetric-gpf-DpDecompositionOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="DP Scattering Powers (Decomposition)"/>
+                <attr name="operatorName" stringvalue="DualPol-Powers-Decomposition"/>
+                <attr name="dialogTitle" stringvalue="DP Scattering Powers (Decomposition)"/>
+                <attr name="targetProductNameSuffix"  stringvalue="_DpDcmp"/>
+                <attr name="ShortDescription" stringvalue="DP Scattering Powers (Decomposition)"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="DpDecompositionOp"/>
+            </file>
+			<file name="org-csa-rstb-polarimetric-gpf-DpFactorizationOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="DP Scattering Powers (Factorization)"/>
+                <attr name="operatorName" stringvalue="DualPol-Powers-Factorization"/>
+                <attr name="dialogTitle" stringvalue="DP Scattering Powers (Factorization)"/>
+                <attr name="targetProductNameSuffix"  stringvalue="_DpFact"/>
+                <attr name="ShortDescription" stringvalue="DP Scattering Powers (Factorization)"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="DpFactorizationOp"/>
+            </file>
+
         </folder>
     </folder>
 
@@ -168,6 +213,25 @@
                         <attr name="position" intvalue="400"/>
                     </file>
 				</folder>
+                <folder name="Dual Polarimetry">
+                    <attr name="position" intvalue="85"/>
+                    <file name="org-csa-rstb-polarimetric-gpf-DPRBIOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-DPRBIOp-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="org-csa-rstb-polarimetric-gpf-DPRSIOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-DPRSIOp-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
+                    </file>
+                    <file name="org-csa-rstb-polarimetric-gpf-DpDecompositionOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-DpDecompositionOp-Action.instance"/>
+                        <attr name="position" intvalue="300"/>
+                    </file>
+                    <file name="org-csa-rstb-polarimetric-gpf-DpFactorizationOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-DpFactorizationOp-Action.instance"/>
+                        <attr name="position" intvalue="400"/>
+                    </file>
+                </folder>
                 <folder name="Radar Vegetation Index">
                     <attr name="position" intvalue="95"/>
                     <file name="org-csa-rstb-polarimetric-gpf-RVIOp-Action.shadow">
@@ -185,7 +249,7 @@
                 </folder>
                 <file name="org-csa-rstb-polarimetric-gpf-PolarimetricMatricesOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-PolarimetricMatricesOp-Action.instance"/>
-                    <attr name="position" intvalue="100"/>
+                    <attr name="position" intvalue="120"/>
                 </file>
                 <file name="org-csa-rstb-polarimetric-gpf-PolarimetricSpeckleFilterOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-PolarimetricSpeckleFilterOp-Action.instance"/>
@@ -243,6 +307,10 @@
 		<file name="org.csa.rstb.polarimetric.gpf.ui.GRVIOpUI">
             <attr name="operatorUIClass" stringvalue="org.csa.rstb.polarimetric.gpf.ui.GRVIOpUI"/>
             <attr name="operatorName" stringvalue="Generalized-Radar-Vegetation-Index"/>
+        </file>
+		<file name="org.csa.rstb.polarimetric.gpf.ui.DPRBIOpUI">
+            <attr name="operatorUIClass" stringvalue="org.csa.rstb.polarimetric.gpf.ui.DPRBIOpUI"/>
+            <attr name="operatorName" stringvalue="Dual-Radar-Builtup-Index"/>
         </file>
     </folder>
 
