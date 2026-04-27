@@ -86,8 +86,8 @@ public class CoherenceOp extends Operator {
             label = "Coherence Range Window Size")
     private int cohWinRg = 10;
 
-    @Parameter(defaultValue = "false", label = "Subtract flat-earth phase in coherence phase")
-    private boolean subtractFlatEarthPhase = false;
+    @Parameter(defaultValue = "true", label = "Subtract flat-earth phase in coherence phase")
+    private boolean subtractFlatEarthPhase = true;
 
     @Parameter(valueSet = {"1", "2", "3", "4", "5", "6", "7", "8"},
             description = "Order of 'Flat earth phase' polynomial",
@@ -110,11 +110,11 @@ public class CoherenceOp extends Operator {
     @Parameter(description = "Use ground square pixel", defaultValue = "true", label = "Square Pixel")
     private Boolean squarePixel = true;
 
-    @Parameter(defaultValue="false", label="Subtract topographic phase")
-    private boolean subtractTopographicPhase = false;
+    @Parameter(defaultValue="true", label="Subtract topographic phase")
+    private boolean subtractTopographicPhase = true;
 
-    @Parameter(defaultValue = "false", label = "Correct Coherence Bias")
-    private boolean correctCoherenceBias = false;
+    @Parameter(defaultValue = "true", label = "Correct Coherence Bias")
+    private boolean correctCoherenceBias = true;
 
     @Parameter(defaultValue = "false", label = "Remove Local Phase Ramp")
     private boolean removeLocalPhaseRamp = false;

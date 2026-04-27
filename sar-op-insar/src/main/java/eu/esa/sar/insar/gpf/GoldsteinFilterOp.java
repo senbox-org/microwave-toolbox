@@ -54,9 +54,23 @@ public class GoldsteinFilterOp extends Operator {
     @TargetProduct
     private Product targetProduct;
 
-    @Parameter(description = "adaptive filter exponent", interval = "(0, 1]", defaultValue = "1.0",
+    @Parameter(description = "Filter exponent (used when adaptive alpha is disabled)",
+            interval = "(0, 1]", defaultValue = "1.0",
             label = "Adaptive Filter Exponent in (0,1]")
     private double alpha = 1.0;
+
+    @Parameter(description = "Adapt the filter exponent per FFT block from coherence (Baran 2003): " +
+            "alpha = clamp(1 - mean(coherence), [alphaMin, alphaMax]). Requires a coherence band in the source product.",
+            defaultValue = "true", label = "Use adaptive alpha")
+    private Boolean useAdaptiveAlpha = true;
+
+    @Parameter(description = "Lower bound for adaptive alpha", interval = "[0, 1]",
+            defaultValue = "0.2", label = "Adaptive alpha minimum")
+    private double alphaMin = 0.2;
+
+    @Parameter(description = "Upper bound for adaptive alpha", interval = "[0, 1]",
+            defaultValue = "1.0", label = "Adaptive alpha maximum")
+    private double alphaMax = 1.0;
 
     @Parameter(valueSet = {"32", "64", "128", "256"}, defaultValue = "64", label = "FFT Size")
     private String FFTSizeString = "64";
@@ -114,15 +128,26 @@ public class GoldsteinFilterOp extends Operator {
 
             createTargetProduct();
 
-            if (useCoherenceMask) {
+            if (useCoherenceMask || useAdaptiveAlpha) {
                 for (Band band : sourceProduct.getBands()) {
                     if(band.getUnit() != null && band.getUnit().equals(Unit.COHERENCE)) {
                         cohBand = band;
+                        break;
                     }
                 }
                 if (cohBand == null) {
-                    throw new OperatorException("Cannot find coherence band");
+                    if (useCoherenceMask) {
+                        throw new OperatorException("Cannot find coherence band");
+                    }
+                    // Adaptive alpha was requested but no coherence band is
+                    // available; fall back to the fixed user alpha rather than
+                    // failing the graph.
+                    useAdaptiveAlpha = false;
                 }
+            }
+
+            if (alphaMin > alphaMax) {
+                throw new OperatorException("alphaMin must be <= alphaMax");
             }
 
         } catch (Exception e) {
@@ -231,6 +256,18 @@ public class GoldsteinFilterOp extends Operator {
             final int sw = sourceTileRectangle.width;
             final int sh = sourceTileRectangle.height;
 
+            // Coherence tile fetched once per target rectangle so that both the
+            // adaptive-alpha selection (per-FFT-block mean) and the optional
+            // post-filter low-coherence mask can read from it.
+            Tile cohBandRaster = null;
+            ProductData cohBandData = null;
+            TileIndex cohIndex = null;
+            if (cohBand != null) {
+                cohBandRaster = getSourceTile(cohBand, sourceTileRectangle);
+                cohBandData = cohBandRaster.getDataBuffer();
+                cohIndex = new TileIndex(cohBandRaster);
+            }
+
             for (Band iBand : targetIQPair.keySet()) {
                 final Band qBand = targetIQPair.get(iBand);
 
@@ -287,7 +324,17 @@ public class GoldsteinFilterOp extends Operator {
 
                         getPowerSpectrum(specI, specQ, pwrSpec);
 
-                        getFilteredPowerSpectrum(pwrSpec, fltSpec, alpha, halfWindowSize);
+                        // Baran (2003) adaptive alpha: alpha = clamp(1 - mean(coh)) over the FFT block.
+                        // High coherence => alpha ~ 0 (light filtering, preserves resolution);
+                        // low coherence  => alpha ~ 1 (aggressive filtering of noisy spectrum).
+                        final double blockAlpha;
+                        if (useAdaptiveAlpha && cohBandData != null) {
+                            blockAlpha = computeBlockAlpha(x, y, cohBandData, cohIndex);
+                        } else {
+                            blockAlpha = alpha;
+                        }
+
+                        getFilteredPowerSpectrum(pwrSpec, fltSpec, blockAlpha, halfWindowSize);
 
                         performInverse2DFFT(specI, specQ, fltSpec, I, Q);
 
@@ -296,11 +343,8 @@ public class GoldsteinFilterOp extends Operator {
                 }
 
                 // mask out pixels with low coherence
-                if (cohBand != null) {
+                if (cohBand != null && useCoherenceMask) {
                     try {
-                        Tile cohBandRaster = getSourceTile(cohBand, targetRectangle);
-                        final ProductData cohBandData = cohBandRaster.getDataBuffer();
-                        final TileIndex cohIndex = new TileIndex(cohBandRaster);
                         final int yMax = y0 + h;
                         final int xMax = x0 + w;
                         for (int y = y0; y < yMax; y++) {
@@ -432,6 +476,37 @@ public class GoldsteinFilterOp extends Operator {
                 pwrSpec[r][c] = Math.sqrt(specI[r][c] * specI[r][c] + specQ[r][c] * specQ[r][c]);
             }
         }
+    }
+
+    /**
+     * Mean coherence over the FFT block, clamped via [alphaMin, alphaMax] into
+     * the Baran (2003) adaptive exponent: alpha = clamp(1 - mean(gamma)).
+     * No-data and out-of-range coherence samples are skipped; if every sample
+     * is invalid, the block falls back to the user-specified fixed alpha.
+     */
+    private double computeBlockAlpha(final int x, final int y,
+                                     final ProductData cohData, final TileIndex cohIndex) {
+        final int yEnd = Math.min(y + FFTSize, sourceImageHeight);
+        final int xEnd = Math.min(x + FFTSize, sourceImageWidth);
+        double sum = 0.0;
+        int n = 0;
+        for (int yy = y; yy < yEnd; yy++) {
+            cohIndex.calculateStride(yy);
+            for (int xx = x; xx < xEnd; xx++) {
+                final float coh = cohData.getElemFloatAt(cohIndex.getIndex(xx));
+                if (coh >= 0.0f && coh <= 1.0f && !Float.isNaN(coh)) {
+                    sum += coh;
+                    n++;
+                }
+            }
+        }
+        if (n == 0) {
+            return alpha;
+        }
+        final double a = 1.0 - (sum / n);
+        if (a < alphaMin) return alphaMin;
+        if (a > alphaMax) return alphaMax;
+        return a;
     }
 
     private void getFilteredPowerSpectrum(

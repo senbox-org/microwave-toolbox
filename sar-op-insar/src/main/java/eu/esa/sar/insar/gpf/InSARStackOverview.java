@@ -37,9 +37,58 @@ import java.util.List;
  */
 public class InSARStackOverview {
 
-    private final static int BTEMP_CRITICAL = 3 * 365;
-    private final static int BPERP_CRITICAL = 1200;
-    private final static int DFDC_CRITICAL = 1380;
+    /**
+     * Critical decorrelation thresholds per radar band. Values are practical
+     * (not strictly geometric) limits where modeled coherence approaches zero:
+     *   - bPerpCritical (m): perpendicular baseline beyond which range spectral
+     *     overlap is too small for useful interferometry.
+     *   - bTempCritical (days): temporal-decorrelation horizon for vegetated /
+     *     semi-stable surfaces; longer wavelengths penetrate canopy and stay
+     *     coherent for longer.
+     *   - dfDcCritical (Hz): Doppler-centroid difference beyond which the
+     *     azimuth spectra no longer overlap.
+     *
+     * Numbers chosen to match published practice for the canonical mission per
+     * band: Sentinel-1 IW (C), TerraSAR-X SM (X), NovaSAR (S), NISAR/ALOS-2 (L),
+     * BIOMASS (P).
+     */
+    public enum Band {
+        X(0.025, 0.040,   600,  730, 2200),
+        C(0.040, 0.080,  1200, 1095, 1380),
+        S(0.080, 0.150,  2500, 1825, 1500),
+        L(0.150, 0.300,  6000, 2920, 1500),
+        P(0.300, 1.000, 12000, 3650, 1200);
+
+        final double minLambda, maxLambda;
+        final int bPerpCritical;
+        final int bTempCritical;
+        final int dfDcCritical;
+
+        Band(double minLambda, double maxLambda, int bPerp, int bTemp, int dfDc) {
+            this.minLambda = minLambda;
+            this.maxLambda = maxLambda;
+            this.bPerpCritical = bPerp;
+            this.bTempCritical = bTemp;
+            this.dfDcCritical = dfDc;
+        }
+
+        public static Band fromWavelength(double lambdaMeters) {
+            for (Band b : values()) {
+                if (lambdaMeters >= b.minLambda && lambdaMeters < b.maxLambda) {
+                    return b;
+                }
+            }
+            // Fallback: out-of-range wavelengths (or zero/NaN) default to C.
+            return C;
+        }
+    }
+
+    // Default thresholds (C-band). Kept for backward compatibility with callers
+    // that build IfgPair without a Band override; the wavelength-aware
+    // constructor below should be preferred.
+    private final static int BTEMP_CRITICAL = Band.C.bTempCritical;
+    private final static int BPERP_CRITICAL = Band.C.bPerpCritical;
+    private final static int DFDC_CRITICAL = Band.C.dfDcCritical;
 
     private SLCImage[] slcImages;
     private Orbit[] orbits;
@@ -49,7 +98,6 @@ public class InSARStackOverview {
     private float modeledCoherence;
 
     // TODO: function to sort input array according to modeled coherence
-    // TODO: critical values for other sensors then C.band ESA
 
     public InSARStackOverview() {
     }
@@ -81,6 +129,12 @@ public class InSARStackOverview {
 
     private static float modelCoherence(float bPerp, float bTemp, float fDc) {
         return coherenceFnc(bPerp, BPERP_CRITICAL) * coherenceFnc(bTemp, BTEMP_CRITICAL) * coherenceFnc(fDc, DFDC_CRITICAL);
+    }
+
+    private static float modelCoherence(float bPerp, float bTemp, float fDc, Band band) {
+        return coherenceFnc(bPerp, band.bPerpCritical)
+                * coherenceFnc(bTemp, band.bTempCritical)
+                * coherenceFnc(fDc, band.dfDcCritical);
     }
 
     private static float coherenceFnc(float value, float value_CRITICAL) {
@@ -309,7 +363,12 @@ public class InSARStackOverview {
             bTemp = (float) (reference.dateMjd - secondary.dateMjd);
             deltaDoppler = (float) (reference.metaData.doppler.getF_DC_a0() - secondary.metaData.doppler.getF_DC_a0());
 
-            coherence = modelCoherence(bPerp, bTemp, deltaDoppler);
+            // Band-aware coherence model: pick critical thresholds from the
+            // reference radar wavelength so L-band stacks (NISAR, ALOS-2,
+            // SAOCOM) and X-band stacks (TSX, CSK) are not scored against
+            // hardcoded C-band defaults.
+            final Band band = Band.fromWavelength(reference.metaData.getRadarWavelength());
+            coherence = modelCoherence(bPerp, bTemp, deltaDoppler, band);
         }
 
         public float getPerpendicularBaseline(final double line, final double pixel, final double height) throws Exception {
