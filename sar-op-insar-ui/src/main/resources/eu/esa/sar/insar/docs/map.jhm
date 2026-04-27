@@ -29,5 +29,6 @@
     <mapID target="MultiReferenceInSAROp" url="operators/MultiReferenceInSAROp.html"/>
     <mapID target="HorizontalVerticalMotionOp" url="operators/HorizontalVerticalMotionOp.html"/>
     <mapID target="IonosphericCorrectionOp" url="operators/IonosphericCorrectionOp.html"/>
-    
+    <mapID target="EmpiricalTropoCorrectionOp" url="operators/EmpiricalTropoCorrectionOp.html"/>
+
 </map>
