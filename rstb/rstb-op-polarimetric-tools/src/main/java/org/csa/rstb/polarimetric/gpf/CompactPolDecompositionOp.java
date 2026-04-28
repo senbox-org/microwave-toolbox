@@ -16,6 +16,7 @@
 package org.csa.rstb.polarimetric.gpf;
 
 import org.csa.rstb.polarimetric.gpf.decompositions_cp.CP_HAlpha;
+import org.csa.rstb.polarimetric.gpf.decompositions_cp.CP_MAlpha;
 import org.csa.rstb.polarimetric.gpf.decompositions_cp.CP_MChi;
 import org.csa.rstb.polarimetric.gpf.decompositions_cp.CP_MDelta;
 import org.csa.rstb.polarimetric.gpf.decompositions_cp.CP_RVOG;
@@ -57,6 +58,7 @@ public final class CompactPolDecompositionOp extends Operator {
 
     public static final String M_CHI_DECOMPOSITION = "M-Chi Decomposition";
     public static final String M_DELTA_DECOMPOSITION = "M-Delta Decomposition";
+    public static final String M_ALPHA_DECOMPOSITION = "M-Alpha Decomposition";
     public static final String H_ALPHA_DECOMPOSITION = "H-Alpha Decomposition";
     public static final String RVOG_DECOMPOSITION = "2 Layer RVOG Model Based Decomposition";
     public static final String MF3CC_DECOMPOSITION = "Model-free 3-component decomposition";
@@ -67,7 +69,7 @@ public final class CompactPolDecompositionOp extends Operator {
     @TargetProduct
     private Product targetProduct;
 
-    @Parameter(valueSet = {M_CHI_DECOMPOSITION, M_DELTA_DECOMPOSITION, H_ALPHA_DECOMPOSITION, RVOG_DECOMPOSITION, MF3CC_DECOMPOSITION},
+    @Parameter(valueSet = {M_CHI_DECOMPOSITION, M_DELTA_DECOMPOSITION, M_ALPHA_DECOMPOSITION, H_ALPHA_DECOMPOSITION, RVOG_DECOMPOSITION, MF3CC_DECOMPOSITION},
             defaultValue = M_CHI_DECOMPOSITION, label = "Decomposition")
     private String decomposition = M_CHI_DECOMPOSITION;
 
@@ -100,8 +102,8 @@ public final class CompactPolDecompositionOp extends Operator {
     protected void SetDecomposition(final String s) {
 
         if (s.equals(M_CHI_DECOMPOSITION) || s.equals(M_DELTA_DECOMPOSITION) ||
-                s.equals(H_ALPHA_DECOMPOSITION) || s.equals(RVOG_DECOMPOSITION) ||
-                s.equals(MF3CC_DECOMPOSITION)) {
+                s.equals(M_ALPHA_DECOMPOSITION) || s.equals(H_ALPHA_DECOMPOSITION) ||
+                s.equals(RVOG_DECOMPOSITION) || s.equals(MF3CC_DECOMPOSITION)) {
             decomposition = s;
         } else {
             throw new OperatorException(s + " is an invalid decomposition name.");
@@ -178,6 +180,9 @@ public final class CompactPolDecompositionOp extends Operator {
                         sourceImageWidth, sourceImageHeight);
             case M_DELTA_DECOMPOSITION:
                 return new CP_MDelta(srcBandList, sourceProductType, compactMode, windowSizeX, windowSizeY,
+                        sourceImageWidth, sourceImageHeight);
+            case M_ALPHA_DECOMPOSITION:
+                return new CP_MAlpha(srcBandList, sourceProductType, compactMode, windowSizeX, windowSizeY,
                         sourceImageWidth, sourceImageHeight);
             case H_ALPHA_DECOMPOSITION:
                 return new CP_HAlpha(srcBandList, sourceProductType, compactMode, windowSizeX, windowSizeY, computeAlphaByT3,

@@ -13,6 +13,8 @@
                     <tocitem text="Compact-Pol Decomposition" target="CompactPolDecompositionOp"/>
                 </tocitem>
                 <tocitem text="Polarimetric Matrices" target="PolarimetricMatricesOp"/>
+                <tocitem text="Polarimetric Change Detection (P-CCD)" target="PolarimetricChangeDetectionOp"/>
+                <tocitem text="Polarimetric Calibration (Quegan/Ainsworth)" target="PolarimetricCalibrationOp"/>
                 <tocitem text="Polarimetric Speckle Filtering" target="PolarimetricSpeckleFilterOp"/>
                 <tocitem text="Orientation Angle Correction" target="OrientationAngleCorrectionOp"/>
                 <tocitem text="Polarimetric Decomposition" target="PolarimetricDecompositionOp"/>
@@ -26,6 +28,8 @@
                                 <tocitem text="Dual-pol Radar Surface Index" target="DPRSIOp"/>
                                 <tocitem text="Dual-pol Scattering Powers (Decomposition)" target="DpDecompositionOp"/>
                                 <tocitem text="Dual-pol Scattering Powers (Factorization)" target="DpFactorizationOp"/>
+                                <tocitem text="Dual-pol Ratio Indices (RFDI/CR/Span)" target="DualPolRatioIndicesOp"/>
+                                <tocitem text="Dual-pol Y3-DP Decomposition" target="DualPolY3DecompositionOp"/>
             </tocitem>
         </tocitem>
     </tocitem>

@@ -15,3 +15,7 @@ org.csa.rstb.polarimetric.gpf.DPRBIOp$Spi
 org.csa.rstb.polarimetric.gpf.DPRSIOp$Spi
 org.csa.rstb.polarimetric.gpf.DpDecompositionOp$Spi
 org.csa.rstb.polarimetric.gpf.DpFactorizationOp$Spi
+org.csa.rstb.polarimetric.gpf.DualPolRatioIndicesOp$Spi
+org.csa.rstb.polarimetric.gpf.PolarimetricChangeDetectionOp$Spi
+org.csa.rstb.polarimetric.gpf.DualPolY3DecompositionOp$Spi
+org.csa.rstb.polarimetric.gpf.PolarimetricCalibrationOp$Spi

@@ -71,6 +71,10 @@ public final class DpDecompositionOp extends Operator implements DualPolProcesso
     @Parameter(valueSet = {"3", "5", "7", "9", "11", "13", "15", "17", "19"}, defaultValue = "5", label = "Window Size")
     private int windowSize = 5;
 
+    @Parameter(description = "Noise Equivalent Sigma Zero (dB). Sensor-specific: S1 IW ~ -22, S1 EW ~ -19, RCM ~ -25, NISAR ~ -25.",
+            defaultValue = "-16.0", label = "NESZ (dB)")
+    private double NESZ = -16.0;
+
     final double slopeThreshold = 15.0;
     private Band slopeBand;
     private int halfWindowSize = 0;
@@ -92,7 +96,6 @@ public final class DpDecompositionOp extends Operator implements DualPolProcesso
     private double percentile5_g2 = 0.0;
     private double percentile5_g3 = 0.0;
     private double percentile5_g1_s = 0.0; // Required for DpRSI
-    final double NESZ = -16.0;
 
     private PolBandUtils.MATRIX sourceProductType = null;
     private PolBandUtils.PolSourceBand[] srcBandList;

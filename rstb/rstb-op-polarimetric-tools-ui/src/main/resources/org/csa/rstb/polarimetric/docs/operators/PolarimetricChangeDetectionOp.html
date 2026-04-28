@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Polarimetric Change Detection (P-CCD)</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Polarimetric Change Detection (P-CCD / GLRT)</td>
+        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Generalized Likelihood Ratio Test on Polarimetric Covariance Matrices</h3>
+<p>Detects change between two coregistered polarimetric SAR products by testing the null hypothesis
+   "the two complex Wishart-distributed covariance/coherency matrices are equal" via a generalized
+   likelihood ratio test [1].</p>
+
+<p>For two p&times;p Hermitian matrices C<sub>1</sub>, C<sub>2</sub> averaged over N looks each:</p>
+<pre>
+    ln Q = N &middot; ln |C<sub>1</sub>| + N &middot; ln |C<sub>2</sub>| &minus; 2N &middot; ln |(C<sub>1</sub> + C<sub>2</sub>) / 2|
+    T    = &minus;2 &middot; ln Q
+</pre>
+<p>Under the null hypothesis, T is asymptotically &chi;<sup>2</sup> distributed with p<sup>2</sup> degrees
+   of freedom (4 for C2 dual-pol, 9 for T3/C3 quad-pol). The change probability is:</p>
+<pre>
+    p_change = F<sub>&chi;<sup>2</sup>(p<sup>2</sup>)</sub>(T)
+</pre>
+
+<h3>Inputs</h3>
+<ul>
+    <li><b>Reference</b>: a polarimetric C2/C3/T3 covariance/coherency matrix product.</li>
+    <li><b>Secondary</b>: a coregistered polarimetric product of the same matrix type and dimensions.</li>
+</ul>
+
+<h3>Parameters</h3>
+<ul>
+    <li><b>Window Size</b>: square sliding window used to average each input matrix before the test.</li>
+    <li><b>Number of Looks (ENL)</b>: equivalent number of looks per pixel of the input product (~1 for SLC,
+        ~5&ndash;10 for multilooked GRD/RTC). Sets the N in the formula above.</li>
+    <li><b>Significance Level &alpha;</b>: false-alarm rate for the binary change mask. Pixel is flagged
+        as changed when p_change &ge; 1&minus;&alpha;.</li>
+</ul>
+
+<h3>Outputs</h3>
+<ul>
+    <li><b>TestStatistic</b>: T = &minus;2&middot;ln Q.</li>
+    <li><b>ChangeProbability</b>: p_change &isin; [0, 1] via the Wilson&ndash;Hilferty &chi;<sup>2</sup> CDF approximation.</li>
+    <li><b>ChangeMask</b>: binary 0/1 mask, 1 = changed at the chosen significance level.</li>
+</ul>
+
+<h3>Reference</h3>
+<p>[1] Conradsen, K., Nielsen, A.A., Schou, J., Skriver, H., 2003.
+   <i>A test statistic in the complex Wishart distribution and its application to change detection in
+   polarimetric SAR data.</i> IEEE Transactions on Geoscience and Remote Sensing, 41(1), 4&ndash;19.</p>
+
+<hr>
+</body>
+</html>

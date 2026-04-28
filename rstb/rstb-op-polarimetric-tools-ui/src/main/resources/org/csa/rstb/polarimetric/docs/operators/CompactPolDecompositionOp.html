@@ -21,6 +21,7 @@ operator performs the following decompositions on compact pol data:<br>
     <li>m-chi decomposition<br>
     </li>
     <li>m-delta decomposition</li>
+    <li>m-alpha decomposition</li>
     <li>H-Alpha decomposition</li>
     <li>2-layer RVOG decomposition<br>
     <li>Model-Free 3-Component Decomposition&nbsp;(MF3CC)<br>
@@ -46,6 +47,16 @@ where<br>
 <div style="text-align: center;"><img style="width: 169px; height: 97px;" alt="" src="images/m_delta_eq2.jpg"><br>
 </div>
 <br>
+<h5>m-alpha decomposition:</h5>
+<p>Three RGB power components computed from the Stokes vector and degree of polarization <i>m</i>:</p>
+<div style="text-align: center;">
+P<sub>d</sub> = m &middot; g<sub>0</sub> &middot; sin<sup>2</sup>(&alpha;<sub>s</sub>)&nbsp;&nbsp;(Red, double-bounce)<br>
+P<sub>v</sub> = (1 &minus; m) &middot; g<sub>0</sub>&nbsp;&nbsp;(Green, volume)<br>
+P<sub>s</sub> = m &middot; g<sub>0</sub> &middot; cos<sup>2</sup>(&alpha;<sub>s</sub>)&nbsp;&nbsp;(Blue, surface)
+</div>
+<p>where &alpha;<sub>s</sub> = &frac12; &middot; atan2(&radic;(g<sub>1</sub><sup>2</sup>+g<sub>2</sub><sup>2</sup>), &plusmn;g<sub>3</sub>)
+   is the compact-pol alpha angle (sign depending on RCH/LCH mode).</p>
+
 <h5>H-Alpha decomposition:</h5>
 <span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB"><span style="position: relative; top: 19pt;"><br>
 </span></span>
@@ -112,7 +123,7 @@ P<sub>v</sub><sup>CP</sup> is the diffused power component.
 </ol>
 <h4>Parameters Used</h4>&nbsp;&nbsp; The following processing parameters are needed (see Figure 1):<br>
 <ul>
-    <li>Decomposition: m-chi, m-delta, H-Alpha, RVOG decomposition or Model-Free 3-Component Decomposition<br>
+    <li>Decomposition: m-chi, m-delta, m-alpha, H-Alpha, RVOG decomposition or Model-Free 3-Component Decomposition<br>
     </li>
     <li>Window Size X: X dimension of the sliding window used in computing the mean covariance matrix</li>
   <li>Window Size Y: Y dimension of the sliding window used in computing the mean covariance matrix</li>

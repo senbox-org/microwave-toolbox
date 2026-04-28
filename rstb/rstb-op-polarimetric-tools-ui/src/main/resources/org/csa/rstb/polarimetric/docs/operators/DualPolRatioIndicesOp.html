@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Dual-pol Ratio Indices</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Dual-pol Ratio Indices (RFDI / Cross-Ratio / Span)</td>
+        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Inputs</h3>
+<p>A dual-pol C2 covariance matrix product (4 bands: c11, c12_real, c12_imag, c22).</p>
+
+<h3>Outputs (selectable)</h3>
+<ul>
+    <li><b>RFDI</b> = (c11 &minus; c22) / (c11 + c22) &mdash; Radar Forest Degradation Index. For HH+HV
+        input this is the original Mitchard et al. 2012 definition; for VV+VH input it is the analogous
+        co/cross intensity contrast widely used with Sentinel-1.</li>
+    <li><b>Cross-Ratio (CR)</b> = c22 / c11. Cross-pol over co-pol intensity. Used in soil moisture and
+        biomass studies.</li>
+    <li><b>Cross-Ratio (dB)</b> = 10 &middot; log<sub>10</sub>(c22 / c11).</li>
+    <li><b>Span</b> = c11 + c22. Total polarimetric power.</li>
+</ul>
+
+<h3>Window Size</h3>
+<p>Optional sliding window (default 1 = no averaging) to smooth the C2 matrix before computing the ratios.
+   Set &gt; 1 for noisier scenes; the existing PolarimetricSpeckleFilter operator is generally preferred.</p>
+
+<h3>Reference</h3>
+<p>Mitchard, E.T.A., Saatchi, S.S., White, L.J.T., et al., 2012.
+   <i>Mapping tropical forest biomass with radar and spaceborne LiDAR in Lop&eacute; National Park,
+   Gabon: overcoming problems of high biomass and persistent cloud.</i>
+   Carbon Balance and Management 7, 1.</p>
+
+<hr>
+</body>
+</html>

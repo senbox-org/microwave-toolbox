@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Polarimetric Calibration (Quegan / Ainsworth)</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Polarimetric Calibration (Quegan / Ainsworth)</td>
+        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h2 style="color:#a00">Read this before running the operator</h2>
+
+<p><b>This operator is NOT the same as radiometric calibration.</b> Most polsar workflows do
+   not need it. Running it on data that is already polarimetrically calibrated will degrade
+   the calibration, not improve it.</p>
+
+<h3>What this operator does</h3>
+<p>It estimates and corrects two kinds of distortion in the measured 2&times;2 scattering matrix:</p>
+<ul>
+    <li><b>Channel imbalance</b> &mdash; complex amplitude/phase mismatch between the H and V transmit/receive paths.</li>
+    <li><b>Crosstalk</b> &mdash; leakage between the polarisation channels caused by imperfect antenna isolation,
+        described by four complex parameters &delta;<sub>1..4</sub>.</li>
+</ul>
+<p>The output is a corrected full-pol scattering-matrix product (8 bands: i/q for HH, HV, VH, VV).</p>
+
+<h3>What this operator is NOT</h3>
+<p>It is not a replacement for the standard <i>Calibration</i> operator (radiometric calibration to
+   &sigma;<sup>0</sup> / &gamma;<sup>0</sup> / &beta;<sup>0</sup>). Radiometric calibration scales DN values to
+   physical backscatter using the LUT shipped with the product; polarimetric calibration corrects
+   channel mixing in the scattering matrix. They address completely different distortions.
+   Use the standard <i>Calibration</i> op for radiometric calibration, always.</p>
+
+<hr>
+
+<h2>When SHOULD you run it?</h2>
+<p>Only when you have <b>evidence that the polsar data has not been polarimetrically calibrated by
+   the provider.</b> Concrete cases:</p>
+<ul>
+    <li>Airborne SAR research data such as <b>UAVSAR</b>, <b>AIRSAR</b>, <b>F-SAR</b>, <b>RAMSES</b>,
+        <b>E-SAR</b>, <b>Pi-SAR</b>, processed from raw signal data without on-orbit calibration.</li>
+    <li>Custom or experimental quad-pol products where the documentation explicitly states that
+        crosstalk / imbalance has not been corrected.</li>
+    <li>Validation studies where you want to re-derive the calibration parameters and compare them
+        against the provider's values.</li>
+</ul>
+
+<h2 style="color:#a00">When you SHOULD NOT run it</h2>
+<p>The following missions deliver polsar products that have already been
+   polarimetrically calibrated by the data provider. Running this operator on them will
+   over-correct and corrupt the data:</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+    <tr><th>Mission</th><th>Agency</th><th>Notes</th></tr>
+    <tr><td>Sentinel-1 (A/B/C)</td><td>ESA</td><td>All product levels</td></tr>
+    <tr><td>RADARSAT-2</td><td>CSA / MDA</td><td>All quad-pol products</td></tr>
+    <tr><td>RADARSAT Constellation Mission (RCM)</td><td>CSA</td><td>Compact-pol and dual-pol products</td></tr>
+    <tr><td>ALOS-1 PALSAR</td><td>JAXA</td><td>Level 1.1 and higher</td></tr>
+    <tr><td>ALOS-2 PALSAR-2</td><td>JAXA</td><td>All quad-pol modes</td></tr>
+    <tr><td>ALOS-4 PALSAR-3</td><td>JAXA</td><td>All polsar modes</td></tr>
+    <tr><td>TerraSAR-X / TanDEM-X</td><td>DLR</td><td>Quad-pol experimental modes</td></tr>
+    <tr><td>COSMO-SkyMed (1st/2nd gen)</td><td>ASI</td><td>Dual-pol products</td></tr>
+    <tr><td>SAOCOM-1A/1B</td><td>CONAE</td><td>Quad-pol</td></tr>
+    <tr><td>NISAR</td><td>NASA / ISRO</td><td>Compact-pol and quad-pol</td></tr>
+    <tr><td>BIOMASS</td><td>ESA</td><td>P-band quad-pol</td></tr>
+    <tr><td>RISAT-1A</td><td>ISRO</td><td>Quad-pol products</td></tr>
+</table>
+<p>If your data is from any of these missions, do not run this operator. The standard
+   <i>Calibration</i> op is sufficient.</p>
+
+<hr>
+
+<h2>Inputs</h2>
+<ul>
+    <li>Full quad-pol scattering matrix product (FULL): 8 bands &mdash; i/q components of S<sub>HH</sub>,
+        S<sub>HV</sub>, S<sub>VH</sub>, S<sub>VV</sub>.</li>
+</ul>
+
+<h2>Parameters</h2>
+<ul>
+    <li><b>Calibration method</b>:
+        <ul>
+            <li><i>Quegan</i>: closed-form first-iteration solution (Quegan 1994).</li>
+            <li><i>Ainsworth</i>: iterative refinement of Quegan (Ainsworth, Ferro-Famil &amp; Lee 2006). Default.</li>
+        </ul>
+    </li>
+    <li><b>Ainsworth Iterations</b>: number of refinement iterations (default 4). Convergence is typically
+        achieved in 3&ndash;5 iterations.</li>
+    <li><b>Stats Sub-sampling</b>: only every Nth pixel in row and column is used to estimate scene
+        statistics. 10 (default) gives 1 % of the scene &mdash; sufficient for distributed-target
+        statistics and 100&times; faster than full-scene sampling.</li>
+    <li><b>Save Distortion to Metadata</b>: stores the estimated f and &delta;<sub>1..4</sub> in the
+        target product's abstracted metadata under <i>Polarimetric_Calibration</i>.</li>
+</ul>
+
+<h2>Outputs</h2>
+<ul>
+    <li>Corrected scattering matrix in the same FULL band layout as the input.</li>
+    <li>(Optional) Distortion parameters in metadata: complex channel imbalance <i>f</i>
+        and crosstalk &delta;<sub>1..4</sub>.</li>
+</ul>
+
+<h2>Validation expectation</h2>
+<p>This implementation follows the published descriptions of Quegan (1994) and Ainsworth (2006).
+   Sign conventions and basis transformations differ between published implementations;
+   <b>users running quantitative polarimetric analyses should validate against PolSARpro or
+   the original published reference data (e.g. AIRSAR San Francisco distortion calibrations)
+   before adopting the results in production.</b></p>
+
+<h3>References</h3>
+<p>[1] Quegan, S., 1994. <i>A unified algorithm for phase and crosstalk calibration of polarimetric
+   data &mdash; theory and observations.</i> IEEE TGRS 32(1), 89&ndash;99.</p>
+<p>[2] Ainsworth, T.L., Ferro-Famil, L., Lee, J.S., 2006. <i>Orientation angle preserving a posteriori
+   polarimetric SAR calibration.</i> IEEE TGRS 44(4), 994&ndash;1003.</p>
+
+<hr>
+</body>
+</html>

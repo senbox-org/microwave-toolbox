@@ -15,18 +15,33 @@
 
 <p class="MsoNormal">
     Computes a configurable bank of general-purpose polarimetric scalar parameters
-    from a quad-polarimetric or compact-polarimetric SAR product. The operator
-    works on either the original complex scattering matrix or on the locally
-    averaged coherency / covariance matrix (a 3&times;3 or 4&times;4 Hermitian
-    matrix produced by spatial multilooking inside a sliding window).
+    and channel-algebra outputs from a quad-pol, dual-pol or compact-pol SAR product.
+    The operator works on either the original complex scattering matrix or on the
+    locally averaged coherency / covariance matrix produced by spatial multilooking
+    inside a sliding window.
 </p>
+
+<h4>Input modes (auto-detected)</h4>
+<ul>
+    <li><b>Intensity bands</b> &mdash; the source product carries named intensity bands
+        (<code>_HH</code>, <code>_HV</code>, <code>_VV</code>, <code>_VH</code>). Channel ratios
+        and indices (RFDI, CSI, VSI, BMI, ITI) are derived directly from those bands.</li>
+    <li><b>Matrix elements</b> &mdash; the source is a C2 / C3 / T3 / FULL covariance or coherency
+        matrix product produced by <i>Polarimetric Matrix Generation</i>. Diagonal elements give
+        the channel intensities; off-diagonal elements give the complex correlations used for
+        the Phase and Coherence outputs.</li>
+</ul>
+<p>For dual-pol C2 input the available channels depend on the polarisation pair encoded in the
+   product (HH+HV, VV+VH or HH+VV); outputs that need missing channels are rejected at validation.</p>
 
 <h4>Available outputs</h4>
 <ul>
     <li><b>Span</b> &mdash; total backscattered power, sum of |S<sub>HH</sub>|<sup>2</sup>,
-        2|S<sub>HV</sub>|<sup>2</sup>, |S<sub>VV</sub>|<sup>2</sup> for quad-pol.</li>
+        2|S<sub>HV</sub>|<sup>2</sup>, |S<sub>VV</sub>|<sup>2</sup> for quad-pol. Requires a
+        complex C3/T3/FULL input.</li>
     <li><b>Pedestal Height</b> &mdash; ratio of the smallest to the largest eigenvalue of
-        the coherency matrix; a measure of polarimetric noise / depolarisation floor.</li>
+        the coherency matrix; a measure of polarimetric noise / depolarisation floor.
+        Requires a complex C3/T3/FULL input.</li>
     <li><b>Radar Vegetation Index (RVI)</b> &mdash; ratio of cross-pol to total power, sensitive
         to volume scattering from canopies.</li>
     <li><b>Radar Forest Degradation Index (RFDI)</b> &mdash; (HH&minus;HV) / (HH+HV).</li>
@@ -34,27 +49,32 @@
         <b>Biomass Index (BMI)</b>, <b>Interaction Index (ITI)</b> &mdash; structural indices
         from Pope et al. (1994).</li>
     <li><b>Ratios</b>: HH/VV, HH/HV, VV/VH (linear power).</li>
+    <li><b>Complex Correlation</b> (matrix input only) &mdash; |c<sub>ij</sub>| / &radic;(c<sub>ii</sub>&middot;c<sub>jj</sub>)
+        between channel pairs in [0, 1]. Output bands: <code>Coh_HHVV</code>,
+        <code>Coh_HHHV</code>, <code>Coh_VVVH</code> as available per input mode.</li>
+    <li><b>Off-diagonal Phase</b> (matrix input only) &mdash; arg(c<sub>ij</sub>) in radians.
+        Output bands: <code>Phase_HHVV</code>, <code>Phase_HHHV</code>, <code>Phase_VVVH</code>
+        as available per input mode.</li>
 </ul>
 
-<h4>Inputs</h4>
+<h4>Notes on Phase and Coherence outputs</h4>
 <ul>
-    <li>Quad-pol (S<sub>HH</sub>, S<sub>HV</sub>, S<sub>VH</sub>, S<sub>VV</sub>) SLC product, or</li>
-    <li>Coherency T<sub>3</sub> / covariance C<sub>3</sub> matrix product (already produced by
-        <i>Polarimetric Matrix Generation</i>), or</li>
-    <li>Compact-pol (RH, RV) hybrid-mode product.</li>
+    <li>For C3 / T3 / FULL input these are the C3 lex-basis correlations &mdash; T3 input is
+        converted to C3 internally so the user always sees HH/HV/VV-named outputs regardless of
+        whether the matrix product was generated as T or C.</li>
+    <li>The C3 c<sub>22</sub> element stores 2|HV|<sup>2</sup>, so |HV| amplitudes and HV-paired
+        correlations are normalised by the &radic;2 basis factor before being written.</li>
+    <li>For C2 dual-pol input only one phase/coherence is meaningful (between the two channels
+        actually present); the corresponding Phase_/Coh_ band carries that pair.</li>
 </ul>
 
 <h4>Parameters</h4>
 <ul>
-    <li><b>Use Mean Matrix</b> &mdash; when <i>true</i>, parameters are computed on the
-        locally averaged coherency / covariance matrix (recommended). When <i>false</i>,
-        they are computed on the original single-look scattering matrix per pixel
-        (noisier output; only meaningful for fully developed point scatterers).</li>
-    <li><b>Window Size X / Y</b> &mdash; sliding window in range / azimuth used to compute the
-        mean matrix. Default 5&times;5. Use larger windows for noisier products at the
-        cost of resolution.</li>
-    <li><b>Output flags</b> &mdash; one boolean per output band (Span, Pedestal Height, RVI,
-        RFDI, CSI, VSI, BMI, ITI, HH/VV, HH/HV, VV/VH).</li>
+    <li><b>Use Mean Matrix</b> &mdash; when <i>true</i>, Span / Pedestal / RVI are computed on the
+        locally averaged coherency matrix (recommended). When <i>false</i>, they are computed on
+        the per-pixel single-look matrix (noisier).</li>
+    <li><b>Window Size X / Y</b> &mdash; sliding window for the mean matrix. Default 5&times;5.</li>
+    <li><b>Output flags</b> &mdash; one boolean per output band.</li>
 </ul>
 
 <h4>References</h4>
@@ -62,9 +82,12 @@
     <li>Pope, K. O., Rey-Benayas, J. M., Paris, J. F. (1994). <i>Radar remote sensing of forest
         and wetland ecosystems in the Central American tropics.</i> Remote Sensing of
         Environment 48(2), 205&ndash;219.</li>
+    <li>Mitchard, E. T. A., et al. (2012). <i>Mapping tropical forest biomass with radar and
+        spaceborne LiDAR in Lop&eacute; National Park, Gabon.</i> Carbon Balance and Management
+        7, 1.&nbsp;(RFDI definition.)</li>
     <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to
-        Applications.</i> CRC Press. (Chapters on coherency / covariance statistics and
-        polarimetric scalar descriptors.)</li>
+        Applications.</i> CRC Press. (Coherency / covariance statistics and polarimetric scalar
+        descriptors.)</li>
 </ol>
 
 </body>

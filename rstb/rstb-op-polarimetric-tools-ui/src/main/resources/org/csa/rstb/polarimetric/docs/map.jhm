@@ -21,4 +21,8 @@
     <mapID target="DPRSIOp" url="operators/DPRSIOp.html"/>
     <mapID target="DpDecompositionOp" url="operators/DpDecompositionOp.html"/>
     <mapID target="DpFactorizationOp" url="operators/DpFactorizationOp.html"/>
+    <mapID target="DualPolRatioIndicesOp" url="operators/DualPolRatioIndicesOp.html"/>
+    <mapID target="PolarimetricChangeDetectionOp" url="operators/PolarimetricChangeDetectionOp.html"/>
+    <mapID target="DualPolY3DecompositionOp" url="operators/DualPolY3DecompositionOp.html"/>
+    <mapID target="PolarimetricCalibrationOp" url="operators/PolarimetricCalibrationOp.html"/>
 </map>

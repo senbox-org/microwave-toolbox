@@ -190,6 +190,50 @@
                 <attr name="icon" stringvalue="rstbIcon"/>
                 <attr name="helpId" stringvalue="DpFactorizationOp"/>
             </file>
+            <file name="org-csa-rstb-polarimetric-gpf-DualPolRatioIndicesOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="DP Ratio Indices (RFDI/CR/Span)"/>
+                <attr name="operatorName" stringvalue="Dual-Pol-Ratio-Indices"/>
+                <attr name="dialogTitle" stringvalue="Dual-pol Ratio Indices (RFDI/CR/Span)"/>
+                <attr name="targetProductNameSuffix" stringvalue="_dpidx"/>
+                <attr name="ShortDescription" stringvalue="Dual-pol ratio-based indices: RFDI, Cross-Ratio, Span"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="DualPolRatioIndicesOp"/>
+            </file>
+            <file name="org-csa-rstb-polarimetric-gpf-PolarimetricChangeDetectionOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Polarimetric Change Detection (P-CCD)"/>
+                <attr name="operatorName" stringvalue="Polarimetric-Change-Detection"/>
+                <attr name="dialogTitle" stringvalue="Polarimetric Change Detection (P-CCD / GLRT)"/>
+                <attr name="targetProductNameSuffix" stringvalue="_pccd"/>
+                <attr name="ShortDescription" stringvalue="GLRT change detection between two polarimetric covariance matrices (Conradsen 2003)"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="PolarimetricChangeDetectionOp"/>
+            </file>
+            <file name="org-csa-rstb-polarimetric-gpf-DualPolY3DecompositionOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="DP Y3-DP Decomposition"/>
+                <attr name="operatorName" stringvalue="Dual-Pol-Y3-Decomposition"/>
+                <attr name="dialogTitle" stringvalue="Dual-pol Y3-DP / iDPSV Decomposition"/>
+                <attr name="targetProductNameSuffix" stringvalue="_y3dp"/>
+                <attr name="ShortDescription" stringvalue="Three-component dual-pol decomposition Ps/Pd/Pv (Mascolo &amp; Cloude 2022)"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="DualPolY3DecompositionOp"/>
+            </file>
+            <file name="org-csa-rstb-polarimetric-gpf-PolarimetricCalibrationOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Polarimetric Calibration"/>
+                <attr name="operatorName" stringvalue="Polarimetric-Calibration"/>
+                <attr name="dialogTitle" stringvalue="Polarimetric Calibration"/>
+                <attr name="targetProductNameSuffix" stringvalue="_polcal"/>
+                <attr name="ShortDescription" stringvalue="Crosstalk + channel imbalance correction."/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="PolarimetricCalibrationOp"/>
+            </file>
 
         </folder>
     </folder>
@@ -231,6 +275,14 @@
                         <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-DpFactorizationOp-Action.instance"/>
                         <attr name="position" intvalue="400"/>
                     </file>
+                    <file name="org-csa-rstb-polarimetric-gpf-DualPolRatioIndicesOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-DualPolRatioIndicesOp-Action.instance"/>
+                        <attr name="position" intvalue="500"/>
+                    </file>
+                    <file name="org-csa-rstb-polarimetric-gpf-DualPolY3DecompositionOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-DualPolY3DecompositionOp-Action.instance"/>
+                        <attr name="position" intvalue="600"/>
+                    </file>
                 </folder>
                 <folder name="Radar Vegetation Index">
                     <attr name="position" intvalue="95"/>
@@ -250,6 +302,14 @@
                 <file name="org-csa-rstb-polarimetric-gpf-PolarimetricMatricesOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-PolarimetricMatricesOp-Action.instance"/>
                     <attr name="position" intvalue="120"/>
+                </file>
+                <file name="org-csa-rstb-polarimetric-gpf-PolarimetricChangeDetectionOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-PolarimetricChangeDetectionOp-Action.instance"/>
+                    <attr name="position" intvalue="450"/>
+                </file>
+                <file name="org-csa-rstb-polarimetric-gpf-PolarimetricCalibrationOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-PolarimetricCalibrationOp-Action.instance"/>
+                    <attr name="position" intvalue="460"/>
                 </file>
                 <file name="org-csa-rstb-polarimetric-gpf-PolarimetricSpeckleFilterOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-PolarimetricSpeckleFilterOp-Action.instance"/>

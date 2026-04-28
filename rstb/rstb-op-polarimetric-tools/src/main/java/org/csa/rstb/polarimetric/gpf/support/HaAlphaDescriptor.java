@@ -86,4 +86,24 @@ public class HaAlphaDescriptor {
         }
         return 0;
     }
+
+    /**
+     * Compute 18-zone index for given entropy, alpha and anisotropy (Lee 1999 H/A/α 3D zoning).
+     * Each H/α zone is split by anisotropy threshold A=0.5: low-A → original index (1-9),
+     * high-A → original index + 9 (10-18).
+     *
+     * @param entropy                     The entropy H ∈ [0,1]
+     * @param alpha                       The alpha angle in degrees
+     * @param anisotropy                  The anisotropy A ∈ [0,1]
+     * @param useLeeHAlphaPlaneDefinition Use Lee's H-α plane definition if true, otherwise PolSARPro
+     * @return The zone index 1..18, or 0 if entropy/alpha are out of range
+     */
+    public static int getZoneIndex(final double entropy, final double alpha, final double anisotropy,
+                                   final boolean useLeeHAlphaPlaneDefinition) {
+        final int hAlphaZone = getZoneIndex(entropy, alpha, useLeeHAlphaPlaneDefinition);
+        if (hAlphaZone == 0) {
+            return 0;
+        }
+        return anisotropy >= A1 ? hAlphaZone + 9 : hAlphaZone;
+    }
 }
