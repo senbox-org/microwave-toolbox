@@ -17,6 +17,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.datamodel.quicklooks.Quicklook;
+import org.esa.snap.core.util.ImageUtils;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dataio.gdal.reader.plugins.GTiffDriverProductReaderPlugIn;
@@ -211,7 +212,7 @@ public class IceyeGRDProductReader extends SARReader {
     private TIFFImageMetadata getTiffMetadata(File inputFile) {
         TIFFImageMetadata iioMetadata = null;
 
-        try (ImageInputStream iis = ImageIO.createImageInputStream(inputFile)) {
+        try (ImageInputStream iis = ImageUtils.getImageInputStream(inputFile)) {
             Iterator<ImageReader> imageReaders = ImageIO.getImageReaders(iis);
             TIFFImageReader imageReader = null;
 
