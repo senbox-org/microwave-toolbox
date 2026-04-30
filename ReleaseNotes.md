@@ -1,5 +1,10 @@
 # Microwave Toolbox 13
 
+## Update 13.0.4
+* [SNAP-4139] Fix Create Stack band unit
+* [SNAP-3552] Load the values defined in the XML graph for BandSelectOp
+* Default to using Copernicus DEM
+
 ## Update 13.0.3
 * [SNAP-4151] Open Biomass products directly from zip file
 * [SNAP-4148] Terrain Flattening applies only to partial scene 
