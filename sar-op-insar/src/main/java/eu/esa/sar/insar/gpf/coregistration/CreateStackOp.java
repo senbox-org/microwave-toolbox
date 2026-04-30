@@ -545,7 +545,7 @@ public class CreateStackOp extends Operator {
                         bandList.add(band);
                     } else {
                         for (Band mstBand : masterBands) {
-                            if(bandUnit.equals(mstBand.getUnit())) {
+                            if(mstBand != null && bandUnit.equals(mstBand.getUnit())) {
                                 bandList.add(band);
                                 break;
                             }
