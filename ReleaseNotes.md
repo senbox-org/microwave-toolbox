@@ -2,6 +2,7 @@
 
 ## Update 13.0.4
 * [SNAP-4139] Fix Create Stack band unit
+* [SNAP-4162] Error opening PAZ SAR in SNAP 13
 * [SNAP-3552] Load the values defined in the XML graph for BandSelectOp
 * Default to using Copernicus DEM
 
