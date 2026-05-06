@@ -76,7 +76,7 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
     protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
         final String name = getBandFileNameFromImage(imgPath).toLowerCase();
         if ((name.endsWith("tif") || name.endsWith("tiff")) && !name.contains("_browse") && !name.contains(".qlk.")) {
-            final File file = new File(getBaseDir(), imgPath);
+            final File file = getBaseDir().toPath().resolve(imgPath).toFile();
             if (file.exists() && file.length() > 0) {
                 final ProductReader geoTiffReader = geoTiffPlugIn.createReaderInstance();
                 final Product bandProduct = geoTiffReader.readProductNodes(file, null);

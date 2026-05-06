@@ -22,6 +22,7 @@ import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -34,6 +35,7 @@ import org.jdom2.Element;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.DateFormat;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -150,7 +152,10 @@ public class K5GeoTiff implements K5Format {
                 }
             }
             if (dnFile != null) {
-                final Document xmlDoc = XMLSupport.LoadXML(dnFile.getAbsolutePath());
+                final Document xmlDoc;
+                try (final InputStream is = ProductUtils.getProductInputStream(dnFile)) {
+                    xmlDoc = XMLSupport.LoadXML(is);
+                }
                 final Element rootElement = xmlDoc.getRootElement();
 
                 // Add Original_Product_Metadata

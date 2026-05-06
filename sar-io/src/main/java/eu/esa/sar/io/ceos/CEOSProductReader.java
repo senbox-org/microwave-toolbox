@@ -22,9 +22,9 @@ import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
-import org.esa.snap.engine_utilities.util.ZipUtils;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -70,11 +70,7 @@ public abstract class CEOSProductReader extends SARReader {
     }
 
     protected VirtualDir createProductDir(final Path inputPath) {
-        if (ZipUtils.isZip(inputPath)) {
-            return VirtualDir.create(inputPath.toFile());
-        } else {
-            return VirtualDir.create(inputPath.getParent().toFile());
-        }
+        return ProductUtils.getProductVirtualDir(inputPath);
     }
 
     /**

@@ -53,7 +53,7 @@ public class CosmoSkymedGeoTiffReader implements CosmoSkymedReader.CosmoReader {
         File file = inputPath.toFile();
         File metadataFile = null;
         if(file.getName().endsWith(".tif")) {
-            metadataFile = new File(file.getParentFile(), file.getName().replace(".IMG.tif", ".attribs.xml"));
+            metadataFile = inputPath.getParent().resolve(file.getName().replace(".IMG.tif", ".attribs.xml")).toFile();
         } else if(file.getName().endsWith(".xml")) {
             metadataFile = file;
         }
