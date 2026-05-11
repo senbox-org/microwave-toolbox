@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.io.cosmo;
+package eu.esa.sar.iogdal.cosmo;
 
 import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProductValidator;
@@ -30,11 +30,9 @@ import java.io.File;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Test Product Reader.
- *
- * @author lveci
+ * Tests the GDAL-backed COSMO-SkyMed GeoTIFF reader.
  */
-public class TestCosmoSkymedGeotiffReader extends ReaderTest {
+public class TestCosmoSkymedGDALReader extends ReaderTest {
 
     public final static File inputSM_GeoTiff_1B_tif = new File(TestData.inputSAR + "Cosmo/STRIPMAP/HH_Level_1B_TIFF/CSG_SSAR1_DGM_B_0101_STR_012_HH_RD_F_20200921215026_20200921215032_1_F_09S_Z19_N00.IMG.tif");
     public final static File inputSM_GeoTiff_1B_xml = new File(TestData.inputSAR + "Cosmo/STRIPMAP/HH_Level_1B_TIFF/CSG_SSAR1_DGM_B_0101_STR_012_HH_RD_F_20200921215026_20200921215032_1_F_09S_Z19_N00.attribs.xml");
@@ -48,7 +46,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
     private final static String inputCosmo = SARTests.inputPathProperty + "SAR/Cosmo/";
     private final static File[] rootPathsCosmoSkymed = SARTests.loadFilePath(inputCosmo);
 
-    private String[] exceptionExemptions = {"not supported"};
+    private final String[] exceptionExemptions = {"not supported"};
 
     @Before
     public void setUp() {
@@ -61,8 +59,8 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
         assumeTrue(inputSC_GeoTiff_GEC_tif + " not found", inputSC_GeoTiff_GEC_tif.exists());
     }
 
-    public TestCosmoSkymedGeotiffReader() {
-        super(new CosmoSkymedReaderPlugIn());
+    public TestCosmoSkymedGDALReader() {
+        super(new CosmoSkymedGDALReaderPlugIn());
     }
 
     @Test
@@ -73,7 +71,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
         validator.validateBandData();
     }
 
@@ -85,7 +83,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
         validator.validateBandData();
     }
 
@@ -97,10 +95,9 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
         validator.validateBandData();
     }
-
 
     @Test
     @STTM("SNAP-2602")
@@ -110,7 +107,7 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
         validator.validateBandData();
     }
 
@@ -122,26 +119,24 @@ public class TestCosmoSkymedGeotiffReader extends ReaderTest {
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
         validator.validateBandData();
     }
 
     @Test
     public void testOpeningNG_GeoTiff_GEC_tif() throws Exception {
-        if(!inputNG_tif.exists())
+        if (!inputNG_tif.exists())
             return;
         Product prod = testReader(inputNG_tif.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
     }
 
     /**
      * Open all files in a folder recursively
-     *
-     * @throws Exception anything
      */
     @Test
     @STTM("SNAP-2602")

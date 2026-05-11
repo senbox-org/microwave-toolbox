@@ -189,7 +189,7 @@ public class StriXGRDProductDirectory extends XMLProductDirectory {
         return mode;
     }
 
-    protected void addImageFile(final String imgPath, final MetadataElement newRoot) {
+    protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
         final String name = getBandFileNameFromImage(imgPath);
         String prefix = "IMG";
         if(!productName.startsWith("PAR-"+pol)) {
@@ -224,7 +224,7 @@ public class StriXGRDProductDirectory extends XMLProductDirectory {
                     }
                 }
             } catch (Exception e) {
-                SystemUtils.LOG.severe(imgPath + " not found");
+                throw new IOException("Unable to read image file " + imgPath + ": " + e.getMessage(), e);
             }
         }
     }

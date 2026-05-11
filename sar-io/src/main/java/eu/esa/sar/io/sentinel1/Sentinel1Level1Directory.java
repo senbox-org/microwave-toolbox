@@ -231,7 +231,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         addRFIAbstractedMetadata(origProdRoot);
     }
 
-    private void addProductInfoJSON(final MetadataElement origProdRoot) {
+    private void addProductInfoJSON(final MetadataElement origProdRoot) throws IOException {
         if(productDir.exists("productInfo.json")) {
             try {
                 final File productInfoFile = productDir.getFile("productInfo.json");
@@ -243,7 +243,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     AbstractMetadataIO.AddXMLMetadata(JSONProductDirectory.jsonToXML("ProductInfo", json), origProdRoot);
                 }
             } catch(Exception e) {
-               //throw new IOException("Unable to read productInfo " + e.getMessage(), e);
+                throw new IOException("Unable to read productInfo " + e.getMessage(), e);
             }
         }
     }

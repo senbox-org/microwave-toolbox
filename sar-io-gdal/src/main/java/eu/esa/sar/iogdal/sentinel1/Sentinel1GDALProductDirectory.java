@@ -118,7 +118,7 @@ public class Sentinel1GDALProductDirectory extends XMLProductDirectory {
                     inStream.close();
                 }
             } catch (Exception e) {
-                SystemUtils.LOG.severe(imgPath +" not found");
+                throw new IOException("Unable to read image file " + imgPath + ": " + e.getMessage(), e);
             }
         }
     }
@@ -234,7 +234,7 @@ public class Sentinel1GDALProductDirectory extends XMLProductDirectory {
         addRFIAbstractedMetadata(origProdRoot);
     }
 
-    private void addProductInfoJSON(final MetadataElement origProdRoot) {
+    private void addProductInfoJSON(final MetadataElement origProdRoot) throws IOException {
         if(productDir.exists("productInfo.json")) {
             try {
                 final File productInfoFile = productDir.getFile("productInfo.json");
@@ -246,7 +246,7 @@ public class Sentinel1GDALProductDirectory extends XMLProductDirectory {
                     AbstractMetadataIO.AddXMLMetadata(JSONProductDirectory.jsonToXML("ProductInfo", json), origProdRoot);
                 }
             } catch(Exception e) {
-               //throw new IOException("Unable to read productInfo " + e.getMessage(), e);
+                throw new IOException("Unable to read productInfo " + e.getMessage(), e);
             }
         }
     }

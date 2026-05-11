@@ -675,7 +675,7 @@ public class Gaofen3ProductDirectory extends XMLProductDirectory  {
         }
     }
 
-    protected void addImageFile(final String imgPath, final MetadataElement newRoot) {
+    protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
         final String name = getBandFileNameFromImage(imgPath);
         if (name.endsWith("tiff")) {
             try {
@@ -701,7 +701,7 @@ public class Gaofen3ProductDirectory extends XMLProductDirectory  {
                     bandProduct = reader.readProductNodes(productDir.getFile(imgPath), null);
                 }
             } catch (Exception e) {
-                SystemUtils.LOG.severe(imgPath + " not found");
+                throw new IOException("Unable to read image file " + imgPath + ": " + e.getMessage(), e);
             }
         }
     }

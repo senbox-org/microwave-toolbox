@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.io.cosmo;
+package eu.esa.sar.iogdal.cosmo;
 
 import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.commons.io.XMLProductDirectory;
@@ -25,27 +25,33 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
+import org.esa.snap.core.dataop.downloadable.XMLSupport;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.StringUtils;
-import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
+import org.esa.snap.dataio.gdal.reader.plugins.GTiffDriverProductReaderPlugIn;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
+import org.jdom2.Document;
+import org.jdom2.Element;
 
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * This class represents a product directory.
+ * GDAL-backed product directory for COSMO-SkyMed GeoTIFF products. Uses the GDAL
+ * GTiff driver so BigTIFF (>4 GB) products are supported.
  */
-public class CosmoSkymedProductDirectory extends XMLProductDirectory {
+public class CosmoSkymedGDALProductDirectory extends XMLProductDirectory {
 
     private String productName = "CosmoSkymed";
     private String productType = "CosmoSkymed";
@@ -54,13 +60,11 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
 
     private final DateFormat standardDateFormat = ProductData.UTC.createDateFormat("yyyy-MM-dd_HH:mm:ss");
 
-    private static final GeoTiffProductReaderPlugIn geoTiffPlugIn = new GeoTiffProductReaderPlugIn();
+    private static final GTiffDriverProductReaderPlugIn gdalGTiffPlugIn = new GTiffDriverProductReaderPlugIn();
     private final List<Product> bandProducts = new ArrayList<>();
-    private final CosmoSkymedReader.CosmoReader reader;
 
-    public CosmoSkymedProductDirectory(final CosmoSkymedReader.CosmoReader reader, final File headerFile) {
+    public CosmoSkymedGDALProductDirectory(final File headerFile) {
         super(headerFile);
-        this.reader = reader;
     }
 
     @Override
@@ -78,8 +82,8 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
         if ((name.endsWith("tif") || name.endsWith("tiff")) && !name.contains("_browse") && !name.contains(".qlk.")) {
             final File file = getBaseDir().toPath().resolve(imgPath).toFile();
             if (file.exists() && file.length() > 0) {
-                final ProductReader geoTiffReader = geoTiffPlugIn.createReaderInstance();
-                final Product bandProduct = geoTiffReader.readProductNodes(file, null);
+                final ProductReader gdalReader = gdalGTiffPlugIn.createReaderInstance();
+                final Product bandProduct = gdalReader.readProductNodes(file, null);
                 bandProduct.setName(name);
                 bandProducts.add(bandProduct);
             }
@@ -88,7 +92,7 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
 
     @Override
     protected Dimension getProductDimensions(final MetadataElement newRoot) {
-        if(bandProducts.size() > 0) {
+        if (bandProducts.size() > 0) {
             final int sceneWidth = bandProducts.get(0).getSceneRasterWidth();
             final int sceneHeight = bandProducts.get(0).getSceneRasterHeight();
             final MetadataElement absRoot = newRoot.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
@@ -165,11 +169,10 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
     protected void addAbstractedMetadataHeader(final MetadataElement root) throws IOException {
 
         final String defStr = AbstractMetadata.NO_METADATA_STRING;
-        final int defInt = AbstractMetadata.NO_METADATA;
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
         final MetadataElement origProdRoot = AbstractMetadata.addOriginalProductMetadata(root);
 
-        reader.addDeliveryNote(origProdRoot, baseDir);
+        addDeliveryNote(origProdRoot, baseDir);
 
         final MetadataElement hdf5Attributes = origProdRoot.getElement("HDF5Attributes");
         // Handle both _Root_ (NetCDF reader) and _ROOT_ (GeoTIFF attribs.xml) element names
@@ -209,8 +212,6 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.algorithm, rootElem.getAttributeString("Focusing Algorithm ID"));
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.antenna_pointing, rootElem.getAttributeString("Look Side").toLowerCase());
 
-        //AbstractMetadata.setAttribute(absRoot, AbstractMetadata.satellite, rootElem.getAttributeString("Satellite ID", defStr));
-
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency,
                 getDouble(rootElem, "Radar Frequency") / Constants.oneMillion);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.geo_ref_system,
@@ -249,12 +250,6 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
         else
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ant_elev_corr_flag, 1);
 
-//        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_inc_angle,
-//                getDouble(rootElem, "Reference Incidence Angle"));
-//        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range,
-//                getDouble(rootElem, "Reference Slant Range"));
-//        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ref_slant_range_exp,
-//                getDouble(rootElem, "Reference Slant Range Exponent"));
         if (img != null) {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.rescaling_factor,
                     getDouble(img, "Rescaling Factor"));
@@ -287,6 +282,33 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
         addOrbitStateVectors(absRoot, rootElem);
     }
 
+    private static void addDeliveryNote(final MetadataElement origMeta, final File folder) {
+        try {
+            File dnFile = null;
+            final File[] files = folder.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    final String name = f.getName().toLowerCase();
+                    if (name.startsWith("dfdn") && name.endsWith("xml")) {
+                        dnFile = f;
+                        break;
+                    }
+                }
+            }
+            if (dnFile != null) {
+                final Document xmlDoc;
+                try (final InputStream is = ProductUtils.getProductInputStream(dnFile)) {
+                    xmlDoc = XMLSupport.LoadXML(is);
+                }
+                final Element rootElement = xmlDoc.getRootElement();
+
+                AbstractMetadataIO.AddXMLMetadata(rootElement, origMeta);
+            }
+        } catch (IOException e) {
+            SystemUtils.LOG.fine("Unable to read delivery note: " + e.getMessage());
+        }
+    }
+
     private static int getInt(MetadataElement elem, String tag) {
         return Integer.parseInt(elem.getAttribute(tag).getData().getElemString().trim());
     }
@@ -297,8 +319,8 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
 
     private static void convert(final MetadataElement rootElem) {
         MetadataElement[] elems = rootElem.getElements();
-        for(MetadataElement elem : elems) {
-            if(elem.containsAttribute("Name")) {
+        for (MetadataElement elem : elems) {
+            if (elem.containsAttribute("Name")) {
                 String name = elem.getAttributeString("Name");
                 MetadataAttribute attrib = elem.getAttribute("Attribute");
                 if (attrib != null) {
@@ -396,8 +418,6 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
     }
 
     private static void addGeocodingFromMetadata(final Product product, final MetadataElement rootElem) {
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
-
         try {
             String nearCoordStr = rootElem.getAttributeString("Scene Near Edge Geodetic Coordinates").trim();
             String farCoordStr = rootElem.getAttributeString("Scene Far Edge Geodetic Coordinates").trim();
@@ -405,17 +425,17 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
             float[] nearCoord = StringUtils.toFloatArray(nearCoordStr, " ");
             float[] farCoord = StringUtils.toFloatArray(farCoordStr, " ");
 
-            final int numRows = nearCoord.length/3;
+            final int numRows = nearCoord.length / 3;
             final int size = numRows * 2;
             float[] lats = new float[size];
             float[] lons = new float[size];
             int cnt = 0;
-            for(int i=0; i< nearCoord.length; i=i+3) {
+            for (int i = 0; i < nearCoord.length; i = i + 3) {
                 lats[cnt] = nearCoord[i];
-                lons[cnt] = nearCoord[i+1];
+                lons[cnt] = nearCoord[i + 1];
                 cnt++;
                 lats[cnt] = farCoord[i];
-                lons[cnt] = farCoord[i+1];
+                lons[cnt] = farCoord[i + 1];
                 cnt++;
             }
 
@@ -438,8 +458,8 @@ public class CosmoSkymedProductDirectory extends XMLProductDirectory {
         final float[] fineLatTiePoints = new float[gridWidth * gridHeight];
         ReaderUtils.createFineTiePointGrid(coarseGridWidth, coarseGridHeight, gridWidth, gridHeight, latCorners, fineLatTiePoints);
 
-        double subSamplingX = product.getSceneRasterWidth() / (double)(gridWidth - 1);
-        double subSamplingY = product.getSceneRasterHeight() / (double)(gridHeight - 1);
+        double subSamplingX = product.getSceneRasterWidth() / (double) (gridWidth - 1);
+        double subSamplingY = product.getSceneRasterHeight() / (double) (gridHeight - 1);
         if (subSamplingX == 0 || subSamplingY == 0)
             return;
 

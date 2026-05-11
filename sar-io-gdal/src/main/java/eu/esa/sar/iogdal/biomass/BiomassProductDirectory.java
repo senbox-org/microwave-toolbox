@@ -141,7 +141,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         return getRootFolder() + "measurement" + '/';
     }
 
-    protected void addImageFile(final String imgPath, final MetadataElement newRoot) {
+    protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
         final String name = getBandFileNameFromImage(imgPath);
         if ((name.endsWith("tiff"))) {
             try {
@@ -159,7 +159,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     }
                     // Use GDAL's virtual file system for zip files
                     String vsizipPath = "/vsizip/" + zipPath + "/" + entryPath;
-                    
+
                     boolean success = false;
                     try {
                         // Try streaming with VSI
@@ -168,7 +168,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                     } catch (Exception e) {
                         // Fallback if VSI fails (e.g. on Windows due to path validation in Java wrapper)
                     }
-                    
+
                     if (!success) {
                         // Extract to temp file
                         data.bandProduct = data.reader.readProductNodes(productDir.getFile(imgPath), null);
@@ -188,7 +188,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 }
 
             } catch (Exception e) {
-                SystemUtils.LOG.severe(imgPath +" failed to open" + e.getMessage());
+                throw new IOException(imgPath + " failed to open: " + e.getMessage(), e);
             }
         }
     }

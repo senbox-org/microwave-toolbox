@@ -67,12 +67,7 @@ public class CosmoSkymedReader extends SARReader {
         try {
             final Path inputPath = getPathFromInput(getInput());
 
-            if(inputPath.toFile().getName().endsWith(".h5")) {
-                reader = new CosmoSkymedNetCDFReader(readerPlugIn, this);
-            } else {
-                reader = new CosmoSkymedGeoTiffReader(readerPlugIn, this);
-            }
-
+            reader = new CosmoSkymedNetCDFReader(readerPlugIn, this);
             product = reader.createProduct(inputPath);
 
             setQuicklookBandName(product);

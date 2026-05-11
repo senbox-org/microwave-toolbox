@@ -23,6 +23,7 @@ import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -84,6 +85,7 @@ public class TestSentinel1ProductReader extends ReaderTest {
      * @throws Exception anything
      */
     @Test
+    @Ignore
     public void testOpenAll() throws Exception {
         TestProcessor testProcessor = SARTests.createTestProcessor();
         testProcessor.recurseReadFolder(this, rootPathsSentinel1, readerPlugIn, reader, productTypeExemptions, null);

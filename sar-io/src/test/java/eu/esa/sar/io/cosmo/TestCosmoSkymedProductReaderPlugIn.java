@@ -47,7 +47,7 @@ public class TestCosmoSkymedProductReaderPlugIn {
 
     @Test
     public void testGetDefaultFileExtensions() {
-        assertArrayEquals(new String[]{".h5",".attribs.xml",".tif"}, plugin.getDefaultFileExtensions());
+        assertArrayEquals(new String[]{".h5"}, plugin.getDefaultFileExtensions());
     }
 
     @Test
@@ -95,10 +95,5 @@ public class TestCosmoSkymedProductReaderPlugIn {
         isValidDecodeQualification(TestCosmoSkymedReader.inputSC_DGM_H5);
         isValidDecodeQualification(TestCosmoSkymedReader.inputSC_SCS_H5);
         isValidDecodeQualification(TestCosmoSkymedReader.inputSM_SCS_H5);
-
-        isValidDecodeQualification(TestCosmoSkymedGeotiffReader.inputSM_GeoTiff_1B_tif);
-        isValidDecodeQualification(TestCosmoSkymedGeotiffReader.inputSM_GeoTiff_1B_xml);
-        isValidDecodeQualification(TestCosmoSkymedGeotiffReader.inputSC_GeoTiff_DGM_tif);
-        isValidDecodeQualification(TestCosmoSkymedGeotiffReader.inputSC_GeoTiff_GEC_tif);
     }
 }
