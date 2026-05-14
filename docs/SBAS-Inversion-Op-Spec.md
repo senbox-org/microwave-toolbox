@@ -117,11 +117,20 @@ A single SNAP product:
 
 - A multi-temporal stack with bands grouped per interferogram. Required
   per pair `k`:
-  - Unwrapped phase band, `Unit.PHASE`. Naming convention:
-    `Unw_Phase_<masterDate>_<slaveDate>` (matches `SnaphuImportOp` output).
-  - Coherence band, `Unit.COHERENCE`, paired by suffix.
-- Acquisition timestamps recoverable from band metadata (slave/master MJD)
-  or, fallback, parsed from the date suffix in the band name.
+  - Unwrapped phase band, `Unit.PHASE` or `Unit.ABS_PHASE`. Naming
+    convention as emitted by `SnaphuImportOp`:
+    `Unw_Phase_ifg_<masterDate>_<slaveDate>` (and, when swath / pol
+    survive through SnaphuImport, the longer
+    `Unw_Phase_ifg_<swath>_<POL>_<masterDate>_<slaveDate>`). The
+    operator extracts the **last two** `ddMMMyyyy` tokens in the band
+    name as `(master, slave)`.
+  - Coherence band, `Unit.COHERENCE`. Naming convention as emitted by
+    `MultiMasterInSAROp`: `coh_<swath>_<POL>_<masterDate>_<slaveDate>`
+    (or simpler `coh_<masterDate>_<slaveDate>` for stripmap). Pairing
+    to the unwrapped-phase band is by the trailing date pair.
+- Acquisition timestamps recoverable from the `ddMMMyyyy` date tokens in
+  band names. Master/slave order is inferred chronologically; the
+  design matrix is built with master &lt; slave by construction.
 
 Optional:
 - Reference point parameters (range, azimuth, lat/lon) — phase at the

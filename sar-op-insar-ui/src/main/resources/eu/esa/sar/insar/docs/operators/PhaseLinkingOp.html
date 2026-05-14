@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Phase Linking</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Phase Linking (DS InSAR)<br></td>
+        <td class="header" align="right"><a
+                href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img
+                src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Phase Linking Operator</h3>
+
+<p>The <b>Phase Linking</b> operator performs Distributed-Scatterer (DS) InSAR
+    phase estimation over a coregistered SLC stack. For every output pixel it
+    selects a set of Statistically Homogeneous Pixels (SHPs), forms the
+    <i>N</i>&times;<i>N</i> complex sample covariance over that set, normalises it
+    to a coherence matrix <b>T</b>, and estimates the per-epoch phasor vector
+    that best explains all <i>N</i>(<i>N</i>&minus;1)/2 pairwise phases jointly.</p>
+
+<p>The output is a stack of <i>phase-linked</i> SLC bands &mdash; same
+    amplitude as the input, but with phase replaced by the optimal estimate.
+    The resulting stack is a drop-in input to the existing Interferogram /
+    Coherence / Multi-Reference&nbsp;InSAR operators; downstream pairs show
+    much higher coherence over distributed scatterers (vegetation, debris,
+    farmland) than the raw pairwise interferograms.</p>
+
+<h4>Input</h4>
+<ul>
+    <li>A coregistered SLC stack &mdash; output of <i>Back Geocoding</i> +
+        <i>Enhanced Spectral Diversity</i> for TOPS, or <i>Coregistration</i>
+        for Stripmap.</li>
+    <li>Burst-organised TOPS input is <b>not</b> accepted &mdash; run
+        <i>TOPSAR-Deburst</i> first.</li>
+</ul>
+
+<h4>Where this fits in the InSAR pipeline</h4>
+<pre>
+   TOPS                                  Stripmap
+   ─────────────                         ────────────────────
+   TOPSAR-Split                          Apply-Orbit-File
+   Apply-Orbit-File
+   Back-Geocoding                        Coregistration
+   Enhanced-Spectral-Diversity
+   TOPSAR-Deburst              ← required
+                              ↓
+   1. Phase Linking            (this operator)  →  _PL stack
+                              ↓
+   2. Interferogram  OR  Multi-Reference InSAR
+   3. TopoPhase-Removal (if not done by step 2)
+   4. Goldstein Phase Filtering
+   5. SnaphuExport → snaphu (external) → SnaphuImport
+   6. SBAS Inversion           →  velocity / displacement time series
+   7. Range-Doppler-Terrain-Correction  (optional, geocodes the result)
+</pre>
+<p>Phase Linking only modifies phase &mdash; amplitudes are preserved &mdash;
+    so the downstream graph is identical to a regular pairwise-InSAR graph.
+    Skip Phase Linking entirely if you only care about PS-style point
+    targets; the gain is over <i>distributed</i> scatterers (vegetation,
+    debris, soil) where pixel-wise speckle dominates.</p>
+
+<h4>Output</h4>
+<ul>
+    <li><code>i_pl_&lt;swath&gt;_&lt;POL&gt;_&lt;date&gt;</code> /
+        <code>q_pl_&lt;swath&gt;_&lt;POL&gt;_&lt;date&gt;</code> &mdash; one
+        complex pair per epoch with the phase-linked phase.</li>
+    <li><code>tempCoh</code> (optional, default on) &mdash; Pepe-Lanari
+        goodness-of-fit temporal coherence per pixel, range [0, 1].</li>
+    <li><code>numSHP</code> (optional, default off) &mdash; count of SHP
+        neighbours used per pixel.</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Window Azimuth</td><td>21</td>
+        <td>SHP search window height in pixels (forced odd).</td></tr>
+    <tr><td>Window Range</td><td>7</td>
+        <td>SHP search window width in pixels (forced odd).</td></tr>
+    <tr><td>SHP Test</td><td>KS</td>
+        <td>Two-sample amplitude test:
+            <b>KS</b> (Kolmogorov-Smirnov, default, SqueeSAR / FRInGE),
+            <b>AD</b> (Anderson-Darling),
+            <b>TLog</b> (Welch t-test on log-amplitude, MiaplPy fast mode).</td></tr>
+    <tr><td>SHP alpha</td><td>0.05</td>
+        <td>Significance level for the SHP test.</td></tr>
+    <tr><td>Minimum SHPs</td><td>20</td>
+        <td>Below this count the pixel is passed through unchanged.</td></tr>
+    <tr><td>Estimator</td><td>EVD</td>
+        <td><b>EVD</b>: dominant eigenvector of <b>T</b> (Ferretti SqueeSAR
+            2011). <b>EMI</b>: lower-bias variant via inverse iteration on
+            |<b>T</b>|<sup>&minus;1</sup>&nbsp;&odot;&nbsp;<b>T</b> (Ansari,
+            De Zan, Bamler 2018).</td></tr>
+    <tr><td>Reference Epoch</td><td>median epoch</td>
+        <td>ddMMMyyyy. Empty &rarr; chronological median.</td></tr>
+    <tr><td>Temp. Coherence Threshold</td><td>0.6</td>
+        <td>Pixels below this are masked out.</td></tr>
+</table>
+
+<h4>v1 Scope and Limitations</h4>
+<ul>
+    <li>Single-shot full-stack EVD/EMI. Recommended operating range is
+        <i>N</i>&nbsp;&le;&nbsp;~50 epochs. For longer stacks consider
+        subsampling, or wait for the v2 ministack / sequential mode.</li>
+    <li>No iterative MLE refinement (planned for v2).</li>
+    <li>TOPS bursts must be merged upstream (TOPSAR-Deburst).</li>
+</ul>
+
+<h4>References</h4>
+<ul>
+    <li>Ferretti, A. <i>et al.</i> (2011). A new algorithm for processing
+        interferometric data-stacks: SqueeSAR. <i>IEEE TGRS</i> 49(9),
+        3460-3470.</li>
+    <li>Ansari, H., De Zan, F., Bamler, R. (2018). Efficient phase estimation
+        for interferogram stacks. <i>IEEE TGRS</i> 56(7), 4109-4125.</li>
+    <li>Mirzaee, S., Amelung, F., Fattahi, H. (2023). Non-linear phase
+        linking using joined distributed and persistent scatterers.
+        <i>Computers &amp; Geosciences</i> 171.</li>
+</ul>
+
+<hr>
+</body>
+</html>

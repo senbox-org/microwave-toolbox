@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - SBAS Inversion</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; SBAS Inversion<br></td>
+        <td class="header" align="right"><a
+                href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img
+                src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>SBAS Inversion Operator</h3>
+
+<p>The <b>SBAS Inversion</b> operator inverts a stack of unwrapped
+    small-baseline interferograms for per-epoch phase, displacement, and a
+    weighted linear-velocity model, following Berardino, Fornaro, Lanari
+    &amp; Sansosti (IEEE TGRS 2002).</p>
+
+<p>Per pixel it builds the design matrix <i>A</i> of size <i>M</i>&times;
+    (<i>N</i>-1) from the network of pairs, drops equations whose
+    coherence is below the threshold, and solves the weighted normal
+    equations
+    <i>x</i> = (<i>A</i><sup>T</sup><i>W</i><i>A</i>)<sup>-1</sup>
+    <i>A</i><sup>T</sup><i>W</i>&phi;.
+    Tikhonov regularisation activates automatically when the matrix is
+    ill-conditioned. Per-epoch phase is then converted to LOS
+    displacement (<i>d</i> = &minus;&lambda;&nbsp;/&nbsp;4&pi;&nbsp;&middot;
+    &phi;) and fit to a linear-in-time model for velocity.</p>
+
+<h4>Input</h4>
+<ul>
+    <li>A multi-temporal stack containing, per pair <i>k</i>:
+        <ul>
+            <li>Unwrapped phase band, <code>Unit.PHASE</code> or
+                <code>Unit.ABS_PHASE</code>. Naming convention as emitted by
+                <i>Snaphu Import</i>:
+                <code>Unw_Phase_ifg_&lt;...&gt;_&lt;masterDate&gt;_&lt;slaveDate&gt;</code>.</li>
+            <li>Coherence band, <code>Unit.COHERENCE</code>, e.g.
+                <code>coh_&lt;swath&gt;_&lt;POL&gt;_&lt;masterDate&gt;_&lt;slaveDate&gt;</code>.</li>
+        </ul>
+    </li>
+    <li>Acquisition dates are extracted as the last two
+        <code>ddMMMyyyy</code> tokens in each band name.</li>
+</ul>
+
+<h4>Where this fits in the InSAR pipeline</h4>
+<pre>
+   TOPS                                  Stripmap
+   ─────────────                         ────────────────────
+   TOPSAR-Split                          Apply-Orbit-File
+   Apply-Orbit-File
+   Back-Geocoding                        Coregistration
+   Enhanced-Spectral-Diversity
+   TOPSAR-Deburst
+                              ↓
+   1. Phase Linking            (optional, DS only)
+   2. Interferogram  OR  Multi-Reference InSAR
+   3. TopoPhase-Removal (if not done by step 2)
+   4. Goldstein Phase Filtering
+   5. SnaphuExport → snaphu (external) → SnaphuImport
+                              ↓
+   6. SBAS Inversion           (this operator)  →  _SBAS product
+                              ↓
+   7. Range-Doppler-Terrain-Correction  (optional, geocodes the result)
+</pre>
+<p>SBAS Inversion expects the <code>Unw_Phase_ifg_*</code> naming emitted
+    by <i>Snaphu Import</i> and pairs each with the matching
+    <code>coh_*</code> band by trailing date pair. Phase Linking
+    (step 1) is optional &mdash; SBAS works on plain pairwise unwrapped
+    interferograms too.</p>
+
+<h4>Output</h4>
+<ul>
+    <li><code>phase_&lt;date&gt;</code> &mdash; per-epoch unwrapped phase
+        relative to the reference epoch (rad).</li>
+    <li><code>displacement_&lt;date&gt;</code> &mdash; LOS displacement (mm).</li>
+    <li><code>velocity</code> &mdash; weighted linear fit (mm/year).</li>
+    <li><code>velocity_uncertainty</code> &mdash; 1-sigma velocity (mm/year).</li>
+    <li><code>temporal_coherence</code> &mdash; residual-based quality, [0, 1].</li>
+    <li><code>residual_&lt;m&gt;_&lt;s&gt;</code> &mdash; per-pair residual
+        (optional).</li>
+    <li><code>closure_phase_rms</code> &mdash; RMS triplet closure phase
+        (optional).</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Reference Epoch</td><td>median epoch</td>
+        <td>ddMMMyyyy. Empty &rarr; chronological median.</td></tr>
+    <tr><td>Coherence Threshold</td><td>0.3</td>
+        <td>Equations with &gamma;&nbsp;&lt;&nbsp;this are dropped.</td></tr>
+    <tr><td>Coherence Looks</td><td>100</td>
+        <td>Independent looks used for the CRLB-style coherence weight
+            &sigma;<sup>2</sup> = (1&minus;&gamma;<sup>2</sup>)&nbsp;/&nbsp;
+            (2&nbsp;<i>L</i>&nbsp;&gamma;<sup>2</sup>).</td></tr>
+    <tr><td>Tikhonov Weight</td><td>1e-3</td>
+        <td>Scale relative to trace(<i>A</i><sup>T</sup><i>WA</i>) / (<i>N</i>-1).</td></tr>
+    <tr><td>Condition Threshold</td><td>1e6</td>
+        <td>Above this Tikhonov regularisation activates.</td></tr>
+    <tr><td>Output Velocity</td><td>on</td><td>Emits velocity + uncertainty bands.</td></tr>
+    <tr><td>Output Closure-Phase RMS</td><td>on</td>
+        <td>Per-pixel RMS of triplet closure (unwrap-error proxy).</td></tr>
+    <tr><td>Output Per-Pair Residuals</td><td>off</td>
+        <td>One residual band per pair.</td></tr>
+</table>
+
+<h4>References</h4>
+<ul>
+    <li>Berardino, P. <i>et al.</i> (2002). A new algorithm for surface
+        deformation monitoring based on small baseline differential SAR
+        interferograms. <i>IEEE TGRS</i> 40(11), 2375-2383.</li>
+    <li>Pepe, A. &amp; Lanari, R. (2006). On the extension of the minimum
+        cost flow algorithm for phase unwrapping of multitemporal
+        differential SAR interferograms. <i>IEEE TGRS</i> 44(9), 2374-2383.</li>
+    <li>Yunjun, Z. <i>et al.</i> (2019). Small baseline InSAR time series
+        analysis: Unwrapping error correction and noise reduction (MintPy).
+        <i>Computers &amp; Geosciences</i> 133.</li>
+</ul>
+
+<hr>
+</body>
+</html>

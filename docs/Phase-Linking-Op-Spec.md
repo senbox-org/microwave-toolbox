@@ -104,9 +104,16 @@ hooks in `PhaseEstimator` interface.
 Quality metric per pixel (Pepe & Lanari):
 
 ```
-gamma_T = (2 / (N(N-1))) * | sum_{i<j} exp(j (T_hat[i,j] - (phi_j - phi_i))) |
+gamma_T = (2 / (N(N-1))) * | sum_{i<j} exp(j (arg(T_hat[i,j]) - (phi_i - phi_j))) |
                                                                             (eq. 6)
 ```
+
+`arg(T_hat[i,j]) = atan2(Im(T_hat[i,j]), Re(T_hat[i,j]))`. The signal-flow
+convention is `T_hat[i,j] = E[s_i * conj(s_j)]`, so under a rank-1 model
+`arg(T_hat[i,j]) = phi_i - phi_j`; the residual zeroes when the model is
+correct. (Earlier drafts of this spec wrote `(phi_j - phi_i)` and dropped
+the `arg()`; both are corrected in the implementation in
+`phaselinking/TemporalCoherence.java`.)
 
 Range [0, 1]. Threshold (`tempCohMin`, default 0.6) decides which pixels
 are passed into downstream processing.
@@ -221,12 +228,25 @@ neighbourhood. Strategy:
 
 ## 10. Out of scope
 
-- Iterative / sequential phase linking (FRInGE sequential PL, Ansari
-  2017). Leave the `PhaseEstimator` interface extensible.
-- Persistent-scatterer detection — separate `PSCandidateOp` reusing the
-  amplitude-dispersion statistics already cached during SHP selection.
-- Adaptive multi-looking (NLSAR-AML, AMSTer). The window here is fixed.
-- Re-coregistration based on linked phase. The op assumes upstream
+- **Sequential / ministack phase linking (Dolphin / FRInGE style).**
+  Production pipelines split long stacks (`N > 100`) into overlapping
+  ministacks with compressed SLCs to keep numerical conditioning and
+  temporal decorrelation under control. v1 of `PhaseLinkingOp` is
+  single-shot full-stack; recommended operating range is `N ≤ ~50`.
+  v2 will add a ministack mode behind the same `PhaseEstimator`
+  interface.
+- **Iterative MLE / CRLB refinement (Ferretti SqueeSAR 2011 inner loop,
+  Ansari 2017).** Slightly better phase estimates at low coherence
+  for a 30 % cost increase. v2.
+- **TOPS burst-by-burst processing.** v1 rejects burst-organized TOPS
+  input (`InputProductValidator.isDebursted()` check); users must run
+  `TOPSAR-Deburst` first. v2 could add burst-wise SHP selection mirror-
+  ing the `InterferogramOp` per-burst pattern.
+- **Persistent-scatterer detection.** A separate `PSCandidateOp`
+  reusing the amplitude-dispersion statistics cached here is planned.
+- **Adaptive multi-looking (NLSAR-AML, AMSTer).** The SHP window here is
+  fixed.
+- **Re-coregistration based on linked phase.** The op assumes upstream
   `BackGeocodingOp` + `SpectralDiversityOp` are already converged.
 
 ## 11. References
