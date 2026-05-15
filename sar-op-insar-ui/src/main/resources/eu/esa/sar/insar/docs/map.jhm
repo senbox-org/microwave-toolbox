@@ -18,6 +18,8 @@
     <mapID target="StackSplitOp" url="operators/StackSplitOp.html"/>
 
     <mapID target="OffsetTrackingOp" url="operators/OffsetTrackingOp.html"/>
+    <mapID target="DemodulateOp" url="operators/DemodulateOp.html"/>
+    <mapID target="RemodulateOp" url="operators/RemodulateOp.html"/>
 
     <!-- InSAR -->
     <mapID target="GoldsteinFilterOp" url="operators/GoldsteinFilterOp.html"/>

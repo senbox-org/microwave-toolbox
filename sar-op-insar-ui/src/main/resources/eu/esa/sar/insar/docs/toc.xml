@@ -13,6 +13,8 @@
                     <tocitem text="Warp" target="WarpOp"/>
                 </tocitem>
                 <tocitem text="DEM Assisted Coregistration" target="DEMAssistedCoregistrationOp"/>
+                <tocitem text="Demodulate" target="DemodulateOp"/>
+                <tocitem text="Remodulate" target="RemodulateOp"/>
                 <tocitem text="Stack Tools">
                     <tocitem text="Create Stack" target="CreateStackOp"/>
                     <tocitem text="Stack Averaging" target="StackAveragingOp"/>

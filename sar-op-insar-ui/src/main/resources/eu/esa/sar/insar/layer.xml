@@ -182,6 +182,28 @@
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="DEMAssistedCoregistrationOp"/>
             </file>
+            <file name="eu-esa-sar-insar-gpf-Demodulate-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Demodulate"/>
+                <attr name="operatorName" stringvalue="Demodulate"/>
+                <attr name="dialogTitle" stringvalue="Demodulate"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Demod"/>
+                <attr name="ShortDescription" stringvalue="Demodulation of an SLC"/>
+                <attr name="helpId" stringvalue="DemodulateOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-insar-gpf-Remodulate-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Remodulate"/>
+                <attr name="operatorName" stringvalue="Remodulate"/>
+                <attr name="dialogTitle" stringvalue="Remodulate"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Remod"/>
+                <attr name="ShortDescription" stringvalue="Remodulation of an SLC"/>
+                <attr name="helpId" stringvalue="RemodulateOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
             <file name="eu-esa-sar-insar-gpf-coregistration-OffsetTrackingOp-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
@@ -237,6 +259,14 @@
                         <attr name="position" intvalue="200"/>
                     </file>
                 </folder>
+                <file name="eu-esa-sar-insar-gpf-Demodulate-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-Demodulate-Action.instance"/>
+                    <attr name="position" intvalue="280"/>
+                </file>
+                <file name="eu-esa-sar-insar-gpf-Remodulate-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-Remodulate-Action.instance"/>
+                    <attr name="position" intvalue="290"/>
+                </file>
                 <folder name="Stack Tools">
                     <attr name="position" intvalue="300"/>
                     <file name="eu-esa-sar-insar-gpf-coregistration-CreateStack-Action.shadow">
