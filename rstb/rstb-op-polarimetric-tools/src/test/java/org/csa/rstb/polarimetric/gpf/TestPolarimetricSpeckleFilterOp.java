@@ -20,10 +20,13 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -39,6 +42,31 @@ public class TestPolarimetricSpeckleFilterOp {
     }
 
     private final static OperatorSpi spi = new PolarimetricSpeckleFilterOp.Spi();
+
+    // Per-class cache of loaded source products to avoid repeated disk reads.
+    // PolarimetricSpeckleFilterOp does not mutate its source product (it produces a separate
+    // target product), so sharing a single read-only Product across tests is safe.
+    private final static Map<String, Product> PRODUCT_CACHE = new HashMap<>();
+
+    private static Product loadCached(final File inputFile) throws Exception {
+        final String key = inputFile.getAbsolutePath();
+        Product product = PRODUCT_CACHE.get(key);
+        if (product == null) {
+            product = TestUtils.readSourceProduct(inputFile);
+            PRODUCT_CACHE.put(key, product);
+        }
+        return product;
+    }
+
+    @AfterClass
+    public static void disposeCachedProducts() {
+        for (Product p : PRODUCT_CACHE.values()) {
+            if (p != null) {
+                p.dispose();
+            }
+        }
+        PRODUCT_CACHE.clear();
+    }
 
     @Test
     public void testSpiCreatesOperator() {
@@ -78,7 +106,7 @@ public class TestPolarimetricSpeckleFilterOp {
     private Product runFilter(final PolarimetricSpeckleFilterOp op,
                               final String filterName, final String path) throws Exception {
         final File inputFile = new File(path);
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        final Product sourceProduct = loadCached(inputFile);
 
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);

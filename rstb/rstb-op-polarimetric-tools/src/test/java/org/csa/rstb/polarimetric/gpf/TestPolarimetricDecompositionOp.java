@@ -23,12 +23,15 @@ import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -45,6 +48,31 @@ public class TestPolarimetricDecompositionOp {
     }
 
     private final static OperatorSpi spi = new PolarimetricDecompositionOp.Spi();
+
+    // Cache of source products, keyed by absolute path, to avoid re-reading the same product
+    // across many tests. Safe because PolarimetricDecompositionOp only reads from the source
+    // product (it constructs a new target product) and the helper does not mutate the source.
+    private static final Map<String, Product> PRODUCT_CACHE = new ConcurrentHashMap<>();
+
+    private static Product loadCached(final File file) throws Exception {
+        final String key = file.getAbsolutePath();
+        Product p = PRODUCT_CACHE.get(key);
+        if (p == null) {
+            p = TestUtils.readSourceProduct(file);
+            PRODUCT_CACHE.put(key, p);
+        }
+        return p;
+    }
+
+    @AfterClass
+    public static void disposeCachedProducts() {
+        for (Product p : PRODUCT_CACHE.values()) {
+            if (p != null) {
+                p.dispose();
+            }
+        }
+        PRODUCT_CACHE.clear();
+    }
 
     @Test
     public void testSpiCreatesOperator() {
@@ -107,7 +135,7 @@ public class TestPolarimetricDecompositionOp {
     private Product runDecomposition(final PolarimetricDecompositionOp op,
                                      final String decompositionName, final String path) throws Exception {
         final File inputFile = new File(path);
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        final Product sourceProduct = loadCached(inputFile);
 
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);
