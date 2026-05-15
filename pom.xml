@@ -99,7 +99,6 @@
         <module>sar-op-feature-extraction-ui</module>
         <module>sar-op-insar</module>
         <module>sar-op-insar-ui</module>
-        <module>sar-op-ocean-ui</module>
         <module>sar-op-sar-processing</module>
         <module>sar-op-sar-processing-ui</module>
         <module>sar-op-sentinel1</module>

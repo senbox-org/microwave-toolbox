@@ -19,5 +19,7 @@ eu.esa.sar.insar.gpf.HorizontalVerticalMotionOp$Spi
 eu.esa.sar.insar.gpf.IonosphericCorrectionOp$Spi
 eu.esa.sar.insar.gpf.InSAROverviewOp$Spi
 eu.esa.sar.insar.gpf.EmpiricalTropoCorrectionOp$Spi
+eu.esa.sar.insar.gpf.DemodulateOp$Spi
+eu.esa.sar.insar.gpf.RemodulateOp$Spi
 eu.esa.sar.insar.gpf.MultiInputStackAveragingOp$Spi
 eu.esa.sar.insar.gpf.HerraezPhaseUnwrapOp$Spi
