@@ -172,15 +172,25 @@ public class PhaseLinkingOp extends Operator {
         final Band imagBand;
         final String polarisation;
         final String subswath;
+        /** True if this epoch is the reference (master) of the coregistered stack. */
+        final boolean isReference;
+        /** 1-based index in the order of {@link StackUtils#getSecondaryProductNames}; -1 for the reference. */
+        final int secondaryIndex;
+        /** Element name in the Secondary_Metadata root for this secondary product; null for the reference. */
+        final String originalSecondaryProductName;
 
         Epoch(final String date, final Date dateParsed, final Band realBand, final Band imagBand,
-              final String polarisation, final String subswath) {
+              final String polarisation, final String subswath,
+              final boolean isReference, final int secondaryIndex, final String originalSecondaryProductName) {
             this.date = date;
             this.dateParsed = dateParsed;
             this.realBand = realBand;
             this.imagBand = imagBand;
             this.polarisation = polarisation;
             this.subswath = subswath;
+            this.isReference = isReference;
+            this.secondaryIndex = secondaryIndex;
+            this.originalSecondaryProductName = originalSecondaryProductName;
         }
     }
 
@@ -241,7 +251,7 @@ public class PhaseLinkingOp extends Operator {
         final String refDate = OperatorUtils.getAcquisitionDate(refRoot);
         final Date refDateParsed = dateFormat.parse(refDate);
         final String[] referenceBandNames = StackUtils.getReferenceBandNames(sourceProduct);
-        addEpochsFromBandList(referenceBandNames, refDate, refDateParsed);
+        addEpochsFromBandList(referenceBandNames, refDate, refDateParsed, true, -1, null);
 
         // Secondaries
         final String[] secondaryProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
@@ -249,15 +259,17 @@ public class PhaseLinkingOp extends Operator {
         if (secondaryRoot == null && secondaryProductNames.length > 0) {
             throw new OperatorException("PhaseLinkingOp: secondary metadata root missing in coregistered stack.");
         }
+        int secIdx = 0;
         for (String secondaryProductName : secondaryProductNames) {
             final MetadataElement secMeta = (secondaryRoot != null)
                     ? secondaryRoot.getElement(secondaryProductName)
                     : null;
             if (secMeta == null) continue;
+            secIdx++;
             final String date = OperatorUtils.getAcquisitionDate(secMeta);
             final Date dateParsed = dateFormat.parse(date);
             final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secondaryProductName);
-            addEpochsFromBandList(secBandNames, date, dateParsed);
+            addEpochsFromBandList(secBandNames, date, dateParsed, false, secIdx, secondaryProductName);
         }
 
         // Sort each polarisation's list chronologically
@@ -279,7 +291,9 @@ public class PhaseLinkingOp extends Operator {
         }
     }
 
-    private void addEpochsFromBandList(final String[] bandNames, final String date, final Date dateParsed) {
+    private void addEpochsFromBandList(final String[] bandNames, final String date, final Date dateParsed,
+                                       final boolean isReference, final int secondaryIndex,
+                                       final String originalSecondaryProductName) {
         for (String bandName : bandNames) {
             final Band band = sourceProduct.getBand(bandName);
             if (band == null) continue;
@@ -289,7 +303,8 @@ public class PhaseLinkingOp extends Operator {
             final String pol = inferPolarisation(bandName);
             final String swath = inferSubswath(bandName);
             stacksByPol.computeIfAbsent(pol, k -> new ArrayList<>())
-                    .add(new Epoch(date, dateParsed, band, imagBand, pol, swath));
+                    .add(new Epoch(date, dateParsed, band, imagBand, pol, swath,
+                            isReference, secondaryIndex, originalSecondaryProductName));
         }
     }
 
@@ -346,7 +361,7 @@ public class PhaseLinkingOp extends Operator {
                 "' not present in stack. Available:" + sb);
     }
 
-    private void createTargetProduct() {
+    private void createTargetProduct() throws Exception {
         targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
                 sourceProduct.getProductType(),
                 sourceProduct.getSceneRasterWidth(),
@@ -354,15 +369,22 @@ public class PhaseLinkingOp extends Operator {
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
+        // New ref/sec band names accumulated for the stack metadata so downstream operators
+        // (InterferogramOp, CoherenceOp, MultiMasterInSAROp) can resolve them via StackUtils.
+        final List<String> refBandNames = new ArrayList<>();
+        final Map<String, List<String>> secBandNamesByProduct = new HashMap<>();
+
         for (Map.Entry<String, List<Epoch>> entry : stacksByPol.entrySet()) {
             final String pol = entry.getKey();
             final List<Epoch> epochs = entry.getValue();
-            final List<String> targetBandNames = new ArrayList<>();
 
             for (Epoch e : epochs) {
                 final String swath = e.subswath.isEmpty() ? "" : '_' + e.subswath;
                 final String polTag = pol.isEmpty() ? "" : '_' + pol;
-                final String suffix = swath + polTag + '_' + e.date;
+                final String roleTag = e.isReference
+                        ? StackUtils.REF
+                        : StackUtils.SEC + e.secondaryIndex;
+                final String suffix = swath + polTag + roleTag + '_' + e.date;
 
                 final String iName = "i_" + PL_BAND_NAME_TAG + suffix;
                 final String qName = "q_" + PL_BAND_NAME_TAG + suffix;
@@ -384,8 +406,17 @@ public class PhaseLinkingOp extends Operator {
                 ReaderUtils.createVirtualIntensityBand(targetProduct, tgtI, tgtQ, virtualSuffix);
                 ReaderUtils.createVirtualPhaseBand(targetProduct, tgtI, tgtQ, virtualSuffix);
 
-                targetBandNames.add(iName);
-                targetBandNames.add(qName);
+                if (e.isReference) {
+                    refBandNames.add(iName);
+                    refBandNames.add(qName);
+                } else {
+                    secBandNamesByProduct
+                            .computeIfAbsent(e.originalSecondaryProductName, k -> new ArrayList<>())
+                            .add(iName);
+                    secBandNamesByProduct
+                            .get(e.originalSecondaryProductName)
+                            .add(qName);
+                }
             }
 
             if (outputTempCoherence) {
@@ -396,7 +427,6 @@ public class PhaseLinkingOp extends Operator {
                 b.setNoDataValueUsed(true);
                 b.setDescription("Phase-linking temporal (goodness-of-fit) coherence");
                 tempCohBandMap.put(pol, b);
-                targetBandNames.add(name);
             }
             if (outputShpCount) {
                 final String name = SHP_COUNT_BAND_NAME + (pol.isEmpty() ? "" : '_' + pol);
@@ -405,8 +435,18 @@ public class PhaseLinkingOp extends Operator {
                 b.setNoDataValueUsed(true);
                 b.setDescription("SHP count per pixel");
                 shpCountBandMap.put(pol, b);
-                targetBandNames.add(name);
             }
+        }
+
+        // Overwrite stale Reference_bands / Secondary_bands metadata (copied verbatim from source
+        // by copyProductNodes) with the new phase-linked band names.
+        if (!refBandNames.isEmpty()) {
+            StackUtils.saveReferenceProductBandNames(targetProduct,
+                    refBandNames.toArray(new String[0]));
+        }
+        for (Map.Entry<String, List<String>> me : secBandNamesByProduct.entrySet()) {
+            StackUtils.saveSecondaryProductBandNames(targetProduct, me.getKey(),
+                    me.getValue().toArray(new String[0]));
         }
     }
 
@@ -506,23 +546,31 @@ public class PhaseLinkingOp extends Operator {
 
             for (int x = x0; x < xN; x++) {
 
-                // Centre sample series
-                boolean valid = true;
+                // Centre sample series. Read every epoch (do NOT bail on the first noData) so
+                // pass-through can preserve valid samples at other epochs; the covariance is only
+                // usable when all epochs are valid.
+                int validEpochs = 0;
                 for (int k = 0; k < n; k++) {
                     final int idx = srcIndex[k].getIndex(x);
                     final double re = srcRealBufs[k].getElemDoubleAt(idx);
                     final double im = srcImagBufs[k].getElemDoubleAt(idx);
-                    if (re == noData && im == noData) {
-                        valid = false;
-                        break;
-                    }
                     centreSlcRe[k] = re;
                     centreSlcIm[k] = im;
-                    centreAmp[k] = Math.sqrt(re * re + im * im);
+                    if (re == noData && im == noData) {
+                        centreAmp[k] = 0.0;
+                    } else {
+                        centreAmp[k] = Math.sqrt(re * re + im * im);
+                        validEpochs++;
+                    }
                 }
-                if (!valid) {
-                    writeNoData(x, y, tgtRealTiles, tgtImagTiles, tgtIndex, tempCohTile, tempCohIndex,
-                            shpCountTile, shpCountIndex);
+                if (validEpochs < n) {
+                    // Any invalid epoch breaks the covariance assumption. Pass-through preserves
+                    // whatever the source held (noData stays noData, valid epochs stay valid) so
+                    // downstream Interferogram/Coherence sees the same data as the original stack.
+                    passThroughCentre(x, tgtRealTiles, tgtImagTiles, tgtIndex,
+                            centreSlcRe, centreSlcIm,
+                            tempCohTile, tempCohIndex, Float.NaN,
+                            shpCountTile, shpCountIndex, 0);
                     continue;
                 }
 
@@ -562,18 +610,11 @@ public class PhaseLinkingOp extends Operator {
                 for (int k = 0; k < n; k++) srcIndex[k].calculateStride(y);
 
                 if (shpCount < shpMin) {
-                    // Pass-through: copy original samples unchanged (no phase linking applied)
-                    for (int k = 0; k < n; k++) {
-                        final int tgtIdx = tgtIndex[k].getIndex(x);
-                        tgtRealTiles[k].getDataBuffer().setElemFloatAt(tgtIdx, (float) centreSlcRe[k]);
-                        tgtImagTiles[k].getDataBuffer().setElemFloatAt(tgtIdx, (float) centreSlcIm[k]);
-                    }
-                    if (tempCohTile != null) {
-                        tempCohTile.getDataBuffer().setElemFloatAt(tempCohIndex.getIndex(x), Float.NaN);
-                    }
-                    if (shpCountTile != null) {
-                        shpCountTile.getDataBuffer().setElemIntAt(shpCountIndex.getIndex(x), shpCount);
-                    }
+                    // Too few SHPs to form a reliable covariance: pass-through original samples.
+                    passThroughCentre(x, tgtRealTiles, tgtImagTiles, tgtIndex,
+                            centreSlcRe, centreSlcIm,
+                            tempCohTile, tempCohIndex, Float.NaN,
+                            shpCountTile, shpCountIndex, shpCount);
                     continue;
                 }
 
@@ -582,14 +623,13 @@ public class PhaseLinkingOp extends Operator {
                 final double gamma = TemporalCoherence.compute(n, tRe, tIm, phi);
 
                 if (gamma < tempCohMin) {
-                    writeNoData(x, y, tgtRealTiles, tgtImagTiles, tgtIndex,
-                            tempCohTile, tempCohIndex, shpCountTile, shpCountIndex);
-                    if (tempCohTile != null) {
-                        tempCohTile.getDataBuffer().setElemFloatAt(tempCohIndex.getIndex(x), (float) gamma);
-                    }
-                    if (shpCountTile != null) {
-                        shpCountTile.getDataBuffer().setElemIntAt(shpCountIndex.getIndex(x), shpCount);
-                    }
+                    // Phase-linking estimate unreliable. Pass-through original SLC samples so
+                    // downstream sees no worse than the input stack; the tempCoh band records
+                    // gamma as the quality signal users can mask on.
+                    passThroughCentre(x, tgtRealTiles, tgtImagTiles, tgtIndex,
+                            centreSlcRe, centreSlcIm,
+                            tempCohTile, tempCohIndex, (float) gamma,
+                            shpCountTile, shpCountIndex, shpCount);
                     continue;
                 }
 
@@ -612,20 +652,26 @@ public class PhaseLinkingOp extends Operator {
         }
     }
 
-    private void writeNoData(final int x, final int y,
-                             final Tile[] tgtRealTiles, final Tile[] tgtImagTiles, final TileIndex[] tgtIndex,
-                             final Tile tempCohTile, final TileIndex tempCohIndex,
-                             final Tile shpCountTile, final TileIndex shpCountIndex) {
+    /**
+     * Copies the original SLC sample series to the target (rather than zeroing) so phase linking
+     * never degrades the input stack: pixels we can't refine remain usable downstream. The
+     * diagnostic tempCoh / numSHP bands record the per-pixel quality so users can mask if desired.
+     */
+    private void passThroughCentre(final int x,
+                                   final Tile[] tgtRealTiles, final Tile[] tgtImagTiles, final TileIndex[] tgtIndex,
+                                   final double[] centreSlcRe, final double[] centreSlcIm,
+                                   final Tile tempCohTile, final TileIndex tempCohIndex, final float tempCohValue,
+                                   final Tile shpCountTile, final TileIndex shpCountIndex, final int shpCountValue) {
         for (int k = 0; k < n; k++) {
             final int tgtIdx = tgtIndex[k].getIndex(x);
-            tgtRealTiles[k].getDataBuffer().setElemFloatAt(tgtIdx, 0f);
-            tgtImagTiles[k].getDataBuffer().setElemFloatAt(tgtIdx, 0f);
+            tgtRealTiles[k].getDataBuffer().setElemFloatAt(tgtIdx, (float) centreSlcRe[k]);
+            tgtImagTiles[k].getDataBuffer().setElemFloatAt(tgtIdx, (float) centreSlcIm[k]);
         }
         if (tempCohTile != null) {
-            tempCohTile.getDataBuffer().setElemFloatAt(tempCohIndex.getIndex(x), Float.NaN);
+            tempCohTile.getDataBuffer().setElemFloatAt(tempCohIndex.getIndex(x), tempCohValue);
         }
         if (shpCountTile != null) {
-            shpCountTile.getDataBuffer().setElemIntAt(shpCountIndex.getIndex(x), 0);
+            shpCountTile.getDataBuffer().setElemIntAt(shpCountIndex.getIndex(x), shpCountValue);
         }
     }
 

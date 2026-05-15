@@ -247,6 +247,24 @@ public class InterferogramOp extends Operator {
             checkUserInput();
 
             constructSourceMetadata();
+
+            // Defense-in-depth: previously, if no band matched the ref/sec tags (e.g. PhaseLinking
+            // output prior to the tagging fix), both maps would silently stay empty and produce a
+            // target product with zero interferogram bands - a silent failure with no error. Now
+            // throw a clear message identifying the actual cause.
+            if (referenceMap.isEmpty() || secondaryMap.isEmpty()) {
+                final StringBuilder bandList = new StringBuilder();
+                for (String n : sourceProduct.getBandNames()) {
+                    if (bandList.length() > 0) bandList.append(", ");
+                    bandList.append(n);
+                }
+                throw new OperatorException("InterferogramOp: no " +
+                        (referenceMap.isEmpty() ? "reference" : "secondary") +
+                        " band pair found in source product. Bands must be a coregistered SLC stack " +
+                        "with '_ref'/'_sec' (or legacy '_mst'/'_slv') tags in their names. " +
+                        "Source bands: [" + bandList + "].");
+            }
+
             constructTargetMetadata();
 
             if (subtractTopographicPhase) {
