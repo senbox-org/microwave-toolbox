@@ -156,31 +156,19 @@ public class S1ETADCorrectionOp extends Operator {
 
             getResampling();
 
-        } catch (Throwable e) {
-            OperatorUtils.catchOperatorException(getId(), e);
-        }
-    }
-
-    /**
-     * Called by the GPF framework after {@link #initialize()} and before any {@link #computeTile} call.
-     * Network I/O (ETAD product search/download) and the subsequent heavy product load are deferred to
-     * this method so that the UI parameter dialog and Graph Builder validation do not block on network
-     * access. The corrector creation (and target product construction) is performed here because it
-     * depends on the loaded ETAD product.
-     */
-    @Override
-    public void doExecute(final ProgressMonitor pm) throws OperatorException {
-        try {
-            pm.beginTask("Loading ETAD product", 2);
+            // NOTE: ETAD download + corrector construction stay here because
+            // etadCorrector.createTargetProduct() depends on the loaded ETAD
+            // product, and GPF requires targetProduct to be assigned by the
+            // time initialize() returns (getTargetProduct() does not trigger
+            // doExecute()). The UI dialog will block during ETAD download —
+            // a limitation we accept until the corrector exposes a way to
+            // build a skeleton target product without the ETAD content.
             createETADUtils();
-            pm.worked(1);
             getETADCorrector();
             updateTargetProductMetadata();
-            pm.worked(1);
+
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
-        } finally {
-            pm.done();
         }
     }
 
