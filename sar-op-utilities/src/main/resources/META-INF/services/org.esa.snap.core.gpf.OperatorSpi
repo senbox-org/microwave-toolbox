@@ -5,5 +5,3 @@ eu.esa.sar.utilities.gpf.TileWriterOp$Spi
 eu.esa.sar.utilities.gpf.OversamplingOp$Spi
 eu.esa.sar.utilities.gpf.UndersamplingOp$Spi
 eu.esa.sar.utilities.gpf.SetNoDataValueOp$Spi
-eu.esa.sar.utilities.gpf.DemodulateOp$Spi
-eu.esa.sar.utilities.gpf.RemodulateOp$Spi

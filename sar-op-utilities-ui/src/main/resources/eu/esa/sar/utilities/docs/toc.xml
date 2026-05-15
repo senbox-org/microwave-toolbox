@@ -17,8 +17,6 @@
                     <tocitem text="Over Sample" target="OverSampleOp"/>
                     <tocitem text="Under Sample" target="UnderSampleOp"/>
                 </tocitem>
-                <tocitem text="Demodulate" target="DemodulateOp"/>
-                <tocitem text="Remodulate" target="RemodulateOp"/>
             </tocitem>
         </tocitem>
     </tocitem>

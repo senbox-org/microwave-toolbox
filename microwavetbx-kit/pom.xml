@@ -229,11 +229,6 @@
         </dependency>
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
-            <artifactId>sar-op-ocean-ui</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-op-sar-processing</artifactId>
             <version>${project.version}</version>
         </dependency>

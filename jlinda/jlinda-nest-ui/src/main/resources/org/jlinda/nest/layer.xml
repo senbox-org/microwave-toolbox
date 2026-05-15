@@ -186,10 +186,6 @@
             <attr name="operatorUIClass" stringvalue="org.jlinda.nest.gpf.ui.CrossResamplingOpUI"/>
             <attr name="operatorName" stringvalue="CrossResampling"/>
         </file>
-        <file name="org.jlinda.nest.gpf.ui.SimulateAmplitudeOpUI">
-            <attr name="operatorUIClass" stringvalue="org.jlinda.nest.gpf.ui.SimulateAmplitudeOpUI"/>
-            <attr name="operatorName" stringvalue="SimulateAmplitude"/>
-        </file>
         <file name="org.jlinda.nest.gpf.ui.SubtRefDemOpUI">
             <attr name="operatorUIClass" stringvalue="org.jlinda.nest.gpf.ui.SubtRefDemOpUI"/>
             <attr name="operatorName" stringvalue="TopoPhaseRemoval"/>

@@ -9,8 +9,6 @@
     <mapID target="BandSelectOp" url="operators/BandSelectOp.html"/>
     <mapID target="OverSampleOp" url="operators/OverSampleOp.html"/>
     <mapID target="UnderSampleOp" url="operators/UnderSampleOp.html"/>
-    <mapID target="DemodulateOp" url="operators/DemodulateOp.html"/>
-    <mapID target="RemodulateOp" url="operators/RemodulateOp.html"/>
     <mapID target="SetNoDataValueOp" url="operators/SetNoDataValueOp.html"/>
 
 </map>
