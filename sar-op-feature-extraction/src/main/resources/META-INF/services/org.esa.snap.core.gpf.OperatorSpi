@@ -13,4 +13,6 @@ eu.esa.sar.fex.gpf.SubGraphOp$Spi
 eu.esa.sar.fex.gpf.decisiontree.DecisionTreeOp$Spi
 eu.esa.sar.fex.gpf.changedetection.ReactivOp$Spi
 eu.esa.sar.fex.gpf.changedetection.RPCAOp$Spi
+eu.esa.sar.fex.gpf.vector.RasterizeOp$Spi
+eu.esa.sar.fex.gpf.vector.VectorAveragingOp$Spi
 

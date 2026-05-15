@@ -1,0 +1,52 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - RVoG 3-Stage Inversion</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>RVoG 3-Stage Inversion Operator</h3>
+
+<p>Cloude &amp; Papathanassiou 2003 three-stage inversion of PolInSAR
+coherence for forest height. Improves on the SinC-only
+<a href="RVoGForestHeightOp.html">RVoG Forest Height</a> by explicitly
+extracting the ground-only coherence point and using it to reduce ground
+bias in the volume coherence estimate.</p>
+
+<h4>Algorithm</h4>
+<ol>
+    <li><b>Stage 1.</b> Read three complex polarimetric coherences
+        &gamma;<sub>k</sub> = i<sub>k</sub> + j*q<sub>k</sub> (typically the
+        three outputs of <code>CoherenceOptimization</code> with
+        <code>outputInComplex=true</code>).</li>
+    <li><b>Stage 2 (line fit).</b> Fit a straight line through the three
+        coherence points in the complex plane (total least squares). The
+        line crosses the unit circle at two points; the one closer to the
+        lowest-magnitude observation is adopted as the ground coherence
+        &gamma;<sub>g</sub>.</li>
+    <li><b>Stage 3 (inversion).</b> Take the observation furthest from
+        &gamma;<sub>g</sub> as the volume-pure coherence &gamma;<sub>v</sub>;
+        SinC-invert |&gamma;<sub>v</sub>| for canopy height hv.</li>
+</ol>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Three pairs of (i<sub>k</sub>, q<sub>k</sub>) complex coherence bands.</li>
+    <li>Optional kz band or scene-constant kz.</li>
+</ul>
+
+<h4>Outputs</h4>
+<ul>
+    <li><code>forestHeight</code> [m].</li>
+    <li><code>ground_coh_mag</code> = |&gamma;<sub>g</sub>|.</li>
+    <li><code>volume_coh_mag</code> = |&gamma;<sub>v</sub>|.</li>
+</ul>
+
+<h4>References</h4>
+<ul>
+    <li>Cloude S. R., Papathanassiou K. P. (2003). DOI 10.1049/ip-rsn:20030449.</li>
+    <li>Cloude S. R. (2010). <i>Polarimetric SAR Interferometry.</i> IEEE
+        TGRS 48(8), 2957-2972 (3SI consolidation).</li>
+</ul>
+
+<h4>v3 upgrade path</h4>
+<p>Joint (hv, sigma_extinction) retrieval with Mobius-transform ground
+compensation. Tier 3 in the biomass roadmap.</p>
+<hr></body></html>

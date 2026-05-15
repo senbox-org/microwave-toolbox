@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - PolInSAR Coherence Optimisation</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; PolInSAR Coherence Optimisation<br></td>
+        <td class="header" align="right"><a
+                href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img
+                src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Coherence Optimisation Operator</h3>
+
+<p>Polarimetric SAR Interferometry (PolInSAR) coherence optimisation. For
+    a quad-pol coregistered master + <i>N</i>-slave stack the operator
+    recovers, per slave acquisition and per pixel, the three "optimum"
+    interferometric coherences spanning the polarimetric subspace.</p>
+
+<p><b>Algorithm</b> &mdash; per pixel, within a sliding window:</p>
+<ol>
+    <li>Estimate the Pauli-basis 3&times;3 coherency matrices
+        <b>T<sub>11</sub></b> (master), <b>T<sub>22</sub></b> (slave), and
+        the cross-Hermitian <b>T<sub>12</sub></b>.</li>
+    <li>Form
+        <b>V<sub>1</sub></b> = <b>T<sub>11</sub></b><sup>&minus;1</sup>
+        <b>T<sub>12</sub></b>
+        <b>T<sub>22</sub></b><sup>&minus;1</sup>
+        <b>T<sub>12</sub></b><sup>H</sup> and
+        <b>V<sub>2</sub></b> = <b>T<sub>22</sub></b><sup>&minus;1</sup>
+        <b>T<sub>12</sub></b><sup>H</sup>
+        <b>T<sub>11</sub></b><sup>&minus;1</sup>
+        <b>T<sub>12</sub></b>.</li>
+    <li>Solve the general complex eigenvalue problem for both
+        (Jama-based, using the standard 2<i>n</i>&times;2<i>n</i>
+        real-symmetric embedding).</li>
+    <li>For each pair of eigenvectors
+        (<b>w<sub>1</sub></b>, <b>w<sub>2</sub></b>) compute the optimum
+        coherence
+        &gamma;<sub>opt</sub> =
+        (<b>w<sub>1</sub></b><sup>H</sup> <b>T<sub>12</sub></b>
+        <b>w<sub>2</sub></b>) /
+        sqrt(<b>w<sub>1</sub></b><sup>H</sup> <b>T<sub>11</sub></b>
+        <b>w<sub>1</sub></b> &middot;
+        <b>w<sub>2</sub></b><sup>H</sup> <b>T<sub>22</sub></b>
+        <b>w<sub>2</sub></b>).</li>
+</ol>
+
+<p>Output bands: three coherence magnitudes (<code>coh_opt_1</code>,
+    <code>coh_opt_2</code>, <code>coh_opt_3</code>) or, when
+    <b>Output optimum coherence in complex</b> is enabled, three complex
+    pairs (<code>i_coh_opt_*</code> / <code>q_coh_opt_*</code>) with
+    virtual intensity and phase bands. Date suffix per slave.</p>
+
+<h4>Input</h4>
+<ul>
+    <li>Full-polarisation coregistered stack with HH, HV, VH, VV bands per
+        acquisition. Master / slave tags follow the SNAP coregistration
+        convention (<code>mst</code> / <code>slv</code>) with date
+        suffixes.</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Window Size</td><td>5</td>
+        <td>Side length of the square sliding window over which T11/T22/T12
+            are averaged. Must be odd in effect (the operator uses
+            <code>halfWindowSize = windowSize / 2</code>).</td></tr>
+    <tr><td>Output optimum coherence in complex</td><td>false</td>
+        <td>When true emits complex i/q pairs (plus virtual intensity +
+            phase bands); when false emits coherence magnitudes
+            (<code>|&gamma;|<sup>2</sup></code>) only.</td></tr>
+</table>
+
+<h4>Notes &amp; caveats</h4>
+<ul>
+    <li>The condition test <code>|det(T<sub>real-embedding</sub>)| &gt;
+        0.001</code> flags degenerate windows and writes 0 to all outputs.
+        Tune indirectly via <b>Window Size</b>.</li>
+    <li>Output coherence-magnitude bands are squared
+        (<code>|&gamma;|<sup>2</sup></code>) by convention, not
+        <code>|&gamma;|</code>.</li>
+    <li>Only quad-pol input is supported. Dual-pol stacks will throw
+        "Full polarisation coregistered stack is expected."</li>
+</ul>
+
+<h4>Reference</h4>
+<p>Cloude, S. R. and Papathanassiou, K. P. (1998). <i>Polarimetric SAR
+    interferometry.</i> IEEE Transactions on Geoscience and Remote Sensing,
+    36(5), 1551&ndash;1565. DOI: <a
+            href="https://doi.org/10.1109/36.718859">10.1109/36.718859</a>.</p>
+
+<hr>
+</body>
+</html>

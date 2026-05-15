@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Compact-Pol Classification</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Compact-Pol Classification Operator</h3>
+
+<p>Unsupervised H/&alpha; Wishart classification on a compact-polarimetry
+C2 covariance product. The compact-pol-aware
+<code>CP_HAlphaWishartC2</code> classifier replaces the standard
+<a href="PolarimetricClassificationOp.html">Polarimetric Classification</a>
+initial-clustering step with a Stokes-vector-based H/&alpha; computation
+appropriate for circular-hybrid acquisitions (RCH / LCH).</p>
+
+<h4>Algorithm</h4>
+<ol>
+    <li>Per pixel, compute the 2&times;2 mean covariance matrix C2 over a
+        sliding window.</li>
+    <li>Compute the compact-pol Stokes vector and the H/&alpha; pair
+        (Cloude, Goodenough &amp; Chen 2012 compact decomposition theory).</li>
+    <li>Assign initial cluster centres based on the standard 9-zone H/&alpha;
+        plane.</li>
+    <li>Iterate Wishart classification on the C2 matrices for up to
+        <code>maxIterations</code> sweeps.</li>
+</ol>
+
+<h4>Input</h4>
+<ul>
+    <li>Compact-pol C2 covariance product (LCH or RCH circular hybrid mode).</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li>Class index band (UINT8), one of 1-9 zones.</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Window Size X / Y</td><td>5</td><td>Covariance averaging window.</td></tr>
+    <tr><td>Max Iterations</td><td>3</td><td>Wishart re-clustering passes.</td></tr>
+</table>
+
+<h4>Reference</h4>
+<p>Cloude S. R., Goodenough D. G., Chen H. (2012). <i>Compact Decomposition
+Theory.</i> IEEE GRSL 9(1), 28-32.</p>
+
+<p>See also <a href="CompactPolSupervisedClassificationOp.html">Compact-Pol
+Supervised Classification</a> for a class-labelled variant.</p>
+<hr></body></html>

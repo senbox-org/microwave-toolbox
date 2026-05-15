@@ -1,0 +1,58 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - SAR Disturbance Detection</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>SAR Disturbance Detection Operator</h3>
+
+<p>Per-pixel forest-disturbance detection by CUSUM (cumulative-sum)
+change-point analysis on a multi-temporal SAR backscatter stack. Tuned to
+detect monotonic backscatter drops typical of deforestation / clear-cut /
+fire events.</p>
+
+<h4>Algorithm</h4>
+<ol>
+    <li>For each pixel, compute baseline mean and standard deviation from
+        the first <code>baselineLength</code> acquisitions.</li>
+    <li>For each subsequent acquisition, accumulate the one-sided CUSUM
+        statistic
+        <code>S(t) = max(0, S(t-1) + (&mu;<sub>0</sub> - x(t) - k * &sigma;<sub>0</sub>))</code>.</li>
+    <li>Flag disturbance the first time <code>S(t) &gt; h * &sigma;<sub>0</sub></code>.</li>
+</ol>
+
+<h4>Input</h4>
+<ul>
+    <li>A coregistered multi-temporal SAR stack with per-acquisition
+        cross-pol backscatter bands. Bands are discovered via
+        <code>StackUtils.getReferenceBandNames</code> +
+        <code>getSecondaryProductNames</code> and sorted chronologically.</li>
+</ul>
+
+<h4>Outputs</h4>
+<ul>
+    <li><code>disturbanceMask</code> UINT8: 1=disturbed, 0=undisturbed,
+        255=no-data.</li>
+    <li><code>changeIndex</code> INT16: zero-based acquisition index of
+        detected change (-1 if no change).</li>
+    <li><code>cusumMag</code> FLOAT32: CUSUM statistic at the detection
+        point (confidence proxy).</li>
+</ul>
+
+<h4>Parameter tuning</h4>
+<ul>
+    <li><b>baselineLength</b>: 12 (1 year of monthly S-1 IW).</li>
+    <li><b>cusumK</b> (slack): 0.5 &sigma;<sub>0</sub>.</li>
+    <li><b>cusumH</b> (threshold): 5-8 &sigma;<sub>0</sub> for ~1% false-alarm rate.</li>
+</ul>
+
+<h4>v2 upgrade path</h4>
+<p>Full BFAST (Verbesselt et al. 2010) — seasonal harmonic + trend +
+iterative breakpoint search. Tier 3 in the biomass roadmap.</p>
+
+<h4>References</h4>
+<ul>
+    <li>Page E. S. (1954). <i>Continuous Inspection Schemes.</i> Biometrika 41, 100-115.</li>
+    <li>Reiche J. et al. (2021). <i>Forest disturbance alerts for the Congo
+        Basin using Sentinel-1.</i> Environmental Research Letters 16, 024005
+        (the RADD operational reference).</li>
+</ul>
+<hr></body></html>

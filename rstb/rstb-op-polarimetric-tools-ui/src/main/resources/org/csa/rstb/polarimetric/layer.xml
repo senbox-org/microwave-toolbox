@@ -102,6 +102,17 @@
                 <attr name="icon" stringvalue="rstbIcon"/>
                 <attr name="helpId" stringvalue="CompactPolDecompositionOp"/>
             </file>
+            <file name="org.csa.rstb.polarimetric-gpf-CompactPolParameters-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="CP Parameters"/>
+                <attr name="operatorName" stringvalue="CP-Parameters"/>
+                <attr name="dialogTitle" stringvalue="Compact-Pol Parameters"/>
+                <attr name="targetProductNameSuffix" stringvalue="_pp"/>
+                <attr name="ShortDescription" stringvalue="Per-pixel compact-pol parameters (m-chi, m-delta, m-alpha, RVI, etc.)"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="CompactPolParametersOp"/>
+            </file>
             <file name="org-csa-rstb-polarimetric-gpf-FaradayRotationCorrectionOp-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
@@ -234,6 +245,28 @@
                 <attr name="icon" stringvalue="rstbIcon"/>
                 <attr name="helpId" stringvalue="PolarimetricCalibrationOp"/>
             </file>
+            <file name="org-csa-rstb-polarimetric-gpf-CoherenceOptimizationOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="PolInSAR Coherence Optimisation"/>
+                <attr name="operatorName" stringvalue="CoherenceOptimization"/>
+                <attr name="dialogTitle" stringvalue="PolInSAR Coherence Optimisation"/>
+                <attr name="targetProductNameSuffix" stringvalue="_cohopt"/>
+                <attr name="ShortDescription" stringvalue="Cloude &amp; Papathanassiou 1998 polarimetric coherence optimisation on quad-pol coregistered stacks."/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="CoherenceOptimizationOp"/>
+            </file>
+            <file name="org-csa-rstb-polarimetric-gpf-PartialTargetDetectionOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Partial Target Detection"/>
+                <attr name="operatorName" stringvalue="PartialTargetDetection"/>
+                <attr name="dialogTitle" stringvalue="Partial Target Detection (Marino 2012)"/>
+                <attr name="targetProductNameSuffix" stringvalue="_ptd"/>
+                <attr name="ShortDescription" stringvalue="Marino-Cloude-Woodhouse 2012 geometrical-perturbation-filter for fire-scar / partial-target detection on quad-pol or dual-pol SAR."/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+                <attr name="helpId" stringvalue="PartialTargetDetectionOp"/>
+            </file>
 
         </folder>
     </folder>
@@ -255,6 +288,10 @@
                     <file name="org.csa.rstb.polarimetric-gpf-CompactPolDecomposition-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/org.csa.rstb.polarimetric-gpf-CompactPolDecomposition-Action.instance"/>
                         <attr name="position" intvalue="400"/>
+                    </file>
+                    <file name="org.csa.rstb.polarimetric-gpf-CompactPolParameters-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org.csa.rstb.polarimetric-gpf-CompactPolParameters-Action.instance"/>
+                        <attr name="position" intvalue="500"/>
                     </file>
 				</folder>
                 <folder name="Dual Polarimetry">
@@ -335,6 +372,17 @@
                     <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-FaradayRotationCorrectionOp-Action.instance"/>
                     <attr name="position" intvalue="440"/>
                 </file>
+                <file name="org-csa-rstb-polarimetric-gpf-CoherenceOptimizationOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-CoherenceOptimizationOp-Action.instance"/>
+                    <attr name="position" intvalue="500"/>
+                </file>
+                <folder name="Target Detection">
+                    <attr name="position" intvalue="600"/>
+                    <file name="org-csa-rstb-polarimetric-gpf-PartialTargetDetectionOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-polarimetric-gpf-PartialTargetDetectionOp-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                </folder>
             </folder>
         </folder>
     </folder>

@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Forest / Non-Forest Mask</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Forest / Non-Forest Mask Operator</h3>
+
+<p>Rule-based binary forest mask from SAR backscatter. v1 cascade:</p>
+<ol>
+    <li>Cross-pol threshold (VH for S-1, HV for ALOS-2). Pixels below
+        threshold are non-forest.</li>
+    <li>Optional co-pol / cross-pol ratio test. Excludes urban / dry
+        bare-soil (high ratio) and persistent water (low both).</li>
+    <li>Optional temporal coefficient-of-variation test. Excludes
+        seasonal croplands (high CV) when annual CV band is supplied.</li>
+</ol>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Cross-pol backscatter band (VH for Sentinel-1, HV for ALOS-2).</li>
+    <li>Optional co-pol backscatter band (VV / HH).</li>
+    <li>Optional CV band (annual std / mean of multi-temporal stack).</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li><code>forestMask</code> UINT8 band: 1 = forest, 0 = non-forest, 255 = no-data.</li>
+</ul>
+
+<h4>Suggested thresholds</h4>
+<ul>
+    <li>Sentinel-1 IW: cross-pol &gt; -19 dB, ratio &lt; 12 dB, CV &lt; 0.5.</li>
+    <li>ALOS-2 PALSAR-2: cross-pol &gt; -16 dB, ratio &lt; 15 dB.</li>
+</ul>
+
+<p>Tune for local conditions and validate against ESA WorldCover (2021) or
+Hansen GFC.</p>
+
+<h4>v2 upgrade path</h4>
+<p>Replace the rule cascade with a Random Forest / SVM classifier on the
+same feature stack (Cartus 2020 Figure 7) once a training-data ingestion
+pipeline is wired in.</p>
+
+<h4>Reference</h4>
+<p>Cartus O., Santoro M. (2020). <i>Assessing Forest / Non-Forest
+Separability Using Sentinel-1 C-Band SAR.</i> Remote Sensing 12(11), 1899.
+<a href="https://doi.org/10.3390/rs12111899">DOI</a>.</p>
+<hr></body></html>

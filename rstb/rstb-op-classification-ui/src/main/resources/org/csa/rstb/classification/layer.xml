@@ -25,6 +25,28 @@
                 <attr name="helpId" stringvalue="SupervisedWishartClassificationOp"/>
                 <attr name="icon" stringvalue="rstbIcon"/>
             </file>
+            <file name="org-csa-rstb-classification-gpf-CompactPolClassificationOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Compact-Pol Classification (H/Alpha Wishart)"/>
+                <attr name="operatorName" stringvalue="CP-Classification"/>
+                <attr name="dialogTitle" stringvalue="Compact-Pol Classification"/>
+                <attr name="ShortDescription" stringvalue="Unsupervised H/Alpha Wishart classification on compact-pol products."/>
+                <attr name="targetProductNameSuffix" stringvalue="_Class"/>
+                <attr name="helpId" stringvalue="CompactPolClassificationOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-classification-gpf-CompactPolSupervisedClassificationOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Compact-Pol Supervised Classification"/>
+                <attr name="operatorName" stringvalue="CP-Supervised-Classification"/>
+                <attr name="dialogTitle" stringvalue="Compact-Pol Supervised Classification"/>
+                <attr name="ShortDescription" stringvalue="Supervised Wishart classification on compact-pol products."/>
+                <attr name="targetProductNameSuffix" stringvalue="_Class"/>
+                <attr name="helpId" stringvalue="CompactPolSupervisedClassificationOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
         </folder>
         <folder name="Wizards">
             <file name="org-csa-rstb-classification-wizards-PolSARWizard-Action.instance">
@@ -56,6 +78,14 @@
                     <file name="org-csa-rstb-classification-gpf-SupervisedWishartClassificationOp-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-classification-gpf-SupervisedWishartClassificationOp-Action.instance"/>
                         <attr name="position" intvalue="700"/>
+                    </file>
+                    <file name="org-csa-rstb-classification-gpf-CompactPolClassificationOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-classification-gpf-CompactPolClassificationOp-Action.instance"/>
+                        <attr name="position" intvalue="800"/>
+                    </file>
+                    <file name="org-csa-rstb-classification-gpf-CompactPolSupervisedClassificationOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-classification-gpf-CompactPolSupervisedClassificationOp-Action.instance"/>
+                        <attr name="position" intvalue="850"/>
                     </file>
                 </folder>
             </folder>

@@ -1,0 +1,14 @@
+org.csa.rstb.biomass.gpf.BIOMASAROp$Spi
+org.csa.rstb.biomass.gpf.BIOMASARLOp$Spi
+org.csa.rstb.biomass.gpf.HVIntensityAGBOp$Spi
+org.csa.rstb.biomass.gpf.ChaveAllometricOp$Spi
+org.csa.rstb.biomass.gpf.ForestNonForestMaskOp$Spi
+org.csa.rstb.biomass.gpf.AGBUncertaintyOp$Spi
+org.csa.rstb.biomass.gpf.SARDisturbanceDetectionOp$Spi
+org.csa.rstb.biomass.gpf.WCMSoilVegetationOp$Spi
+org.csa.rstb.biomass.gpf.treeheight.DualPolForestHeightEstimationOp$Spi
+org.csa.rstb.biomass.gpf.treeheight.DualPolPolarimetricCoherenceOp$Spi
+org.csa.rstb.biomass.gpf.treeheight.SinglePolCoherenceCompensationOp$Spi
+org.csa.rstb.biomass.gpf.treeheight.DualPolFlatEarthTopoPhaseRemovalOp$Spi
+org.csa.rstb.biomass.gpf.treeheight.RVoGForestHeightOp$Spi
+org.csa.rstb.biomass.gpf.treeheight.RVoG3StageInversionOp$Spi

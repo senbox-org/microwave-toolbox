@@ -1,0 +1,44 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - BIOMASAR</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>BIOMASAR Operator</h3>
+
+<p>Retrieves forest Growing Stock Volume (GSV) from a multi-temporal stack
+of C-band SAR backscatter images via the BIOMASAR algorithm (Santoro et al.,
+<i>Remote Sensing of Environment</i> 130, 39-49, 2013).</p>
+
+<p>For each pixel the operator:</p>
+<ol>
+    <li>Identifies dense-forest reference pixels in an adaptive window using
+        the Vegetation Continuous Fields (VCF) tree-cover band.</li>
+    <li>Identifies ground (un-vegetated) reference pixels by inverting the
+        VCF threshold.</li>
+    <li>Estimates per-image sigma0<sub>gr</sub> and sigma0<sub>df</sub>
+        statistics (mean, median, or mode) over the reference sets.</li>
+    <li>Inverts the Water Cloud Model variant of Santoro et al. for the
+        per-pixel GSV, combining the multi-temporal estimates with
+        sigma0-contrast weights.</li>
+</ol>
+
+<h4>Inputs</h4>
+<ul>
+    <li>A stack of coregistered C-band sigma0 (or gamma0) backscatter bands
+        (Envisat ASAR, ALOS-1 PALSAR-1 C-band, Sentinel-1).</li>
+    <li>A vegetation mask band.</li>
+    <li>A tree-cover percentage (VCF) band.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li>One GSV band per requested polarisation (m<sup>3</sup>/ha).</li>
+</ul>
+
+<h4>Reference</h4>
+<p>Santoro M., Cartus O., Mermoz S. et al. (2013). <i>Retrieval of growing
+stock volume in boreal forest using hyper-temporal series of Envisat ASAR
+ScanSAR backscatter measurements.</i> Remote Sensing of Environment 130,
+39-49. <a href="https://doi.org/10.1016/j.rse.2012.11.001">DOI</a>.</p>
+
+<p>See also <a href="BIOMASARLOp.html">BIOMASAR-L</a> for the L-band variant.</p>
+<hr></body></html>

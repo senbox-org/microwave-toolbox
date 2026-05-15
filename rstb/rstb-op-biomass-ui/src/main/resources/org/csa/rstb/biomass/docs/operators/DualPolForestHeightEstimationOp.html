@@ -1,0 +1,37 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Dual-Pol Forest Height (TanDEM-X)</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Dual-Pol Forest Height Estimation Operator</h3>
+
+<p>Forest canopy height retrieval from TanDEM-X bistatic dual-polarisation
+interferometric coherence. Implements the Chen et al. 2016 inversion: given
+a coherence band, a per-pixel vertical interferometric wavenumber kz, and
+optional ground-phase reference, solve for canopy height under the
+SinC-Random-Volume-over-Ground assumption.</p>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Dual-pol coregistered TanDEM-X CoSSC product after coherence and
+        flat-earth/topo-phase removal (use
+        <a href="DualPolFlatEarthTopoPhaseRemovalOp.html">Dual-Pol Flat-Earth
+        + Topo Phase Removal</a> upstream).</li>
+    <li>A ground_phase band (or interferogram phase).</li>
+    <li>kz / wavenumber band from interferometric geometry metadata.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li><code>forestHeight</code> band [m].</li>
+</ul>
+
+<h4>v1 limitations and v2 upgrade path</h4>
+<p>This is the dual-pol (TanDEM-X) variant. For quad-pol (ALOS-2 / BIOMASS)
+inputs prefer <a href="RVoGForestHeightOp.html">RVoG Forest Height</a> or the
+full <a href="RVoG3StageInversionOp.html">3-Stage Inversion</a>.</p>
+
+<h4>Reference</h4>
+<p>Chen H. et al. (2016). <i>Forest height inversion of TanDEM-X bistatic
+SAR data.</i> IEEE TGRS 54(3), 1571-1584. See also the in-source JavaDoc
+for parameter details.</p>
+<hr></body></html>

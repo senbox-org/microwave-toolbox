@@ -1,0 +1,91 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Partial Target Detection</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Partial Target Detection<br></td>
+        <td class="header" align="right"><a
+                href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img
+                src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Partial Target Detection Operator</h3>
+
+<p>Detects partial polarimetric targets &mdash; canonically fire scars or
+    burn scars, but also any target whose Pauli-basis scattering mechanism
+    is known &mdash; using the geometrical perturbation filter from Marino,
+    Cloude &amp; Woodhouse 2012.</p>
+
+<h4>Algorithm</h4>
+<ol>
+    <li>Estimate the target's feature partial scattering vector
+        <b>t</b><sub>target</sub> from a user-supplied training polygon
+        (supervised mode &mdash; the only validated path in this release).
+        For quad-pol the vector is 6-D
+        (C<sub>11</sub>, C<sub>22</sub>, C<sub>33</sub>,
+        C<sub>21</sub>, C<sub>31</sub>, C<sub>32</sub>);
+        for dual-pol it is 3-D
+        (C<sub>11</sub>, C<sub>22</sub>, C<sub>21</sub>).</li>
+    <li>Normalise to a unit scattering mechanism
+        <b>w</b> = <b>t</b><sub>target</sub> / ||<b>t</b><sub>target</sub>||.</li>
+    <li>Extend <b>w</b> to an orthonormal complex basis via Gram-Schmidt
+        with random complementary vectors. The matrix that maps this basis
+        back to the canonical axes is the <b>transformation matrix</b>
+        <b>U</b>; in the transformed frame the target appears as
+        (1, 0, 0, ...).</li>
+    <li>For each pixel: build the local covariance matrix <b>C</b> (mean
+        over a square window), convert to its feature partial scattering
+        vector <b>t&prime;</b>, and apply <b>U</b> to get
+        <b>t&prime;&middot;</b>.</li>
+    <li>Signal-to-Clutter Ratio
+        SCR = |t&prime;&middot;<sub>1</sub>|<sup>2</sup> /
+        &Sigma;<sub>i&gt;1</sub> |t&prime;&middot;<sub>i</sub>|<sup>2</sup>.</li>
+    <li>Detection mask
+        &gamma; = 1 / sqrt(1 + RedR / SCR), with RedR = SCR<sub>target</sub>
+        (1/threshold<sup>2</sup> &minus; 1). The mask is &gamma; when
+        &gamma; &geq; threshold, and 0 otherwise.</li>
+</ol>
+
+<h4>Input</h4>
+<ul>
+    <li>Quad-pol T3 / C3 covariance product, <i>or</i> dual-pol C2
+        covariance product (HH-HV / HH-VV / VH-VV / pre-computed C2).</li>
+    <li>One training polygon attached to the source product
+        (<i>Geometry</i> tool in SNAP). Place over a representative
+        fire-scar / partial-target patch.</li>
+    <li>TOPSAR burst-organised products are not supported; deburst first.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li>A single <code>detectionMask</code> band (Unit.COHERENCE, range
+        [0, 1]). 0 = below threshold (no detection); &gamma; &isin;
+        [threshold, 1] = detection strength.</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Threshold</td><td>0.98</td>
+        <td>Detection threshold on &gamma;. Higher = stricter.</td></tr>
+    <tr><td>Signal to Clutter Ratio (SCR)</td><td>50.0</td>
+        <td>Target SCR (sets RedR scaling). Range [2, 100].</td></tr>
+    <tr><td>Window Size</td><td>5</td>
+        <td>Square sliding-window side for covariance averaging.</td></tr>
+</table>
+
+<h4>Reference</h4>
+<p>Marino, A.; Cloude, S. R.; Woodhouse, I. H. (2012). <i>A Polarimetric
+    Target Detector Using the Huynen Fork.</i> IEEE Transactions on
+    Geoscience and Remote Sensing 50(10), 4039&ndash;4047. DOI:
+    <a href="https://doi.org/10.1109/TGRS.2012.2189454">10.1109/TGRS.2012.2189454</a>.</p>
+
+<hr>
+</body>
+</html>

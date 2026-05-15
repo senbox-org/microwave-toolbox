@@ -1,0 +1,69 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Herraez Phase Unwrapping</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Herraez Phase Unwrapping Operator</h3>
+
+<p>In-process 2D phase unwrapping using the quality-guided path-following
+algorithm of Herr&aacute;ez, Burton, Lalor &amp; Gdeisat (2002). Designed as
+an alternative to <a href="../../../eu.esa.snap.snaphu.help/operators/SnaphuUnwrappingOp.html">snaphu</a>
+for small-to-medium interferograms where launching a native helper is
+impractical (e.g. batch graphs, headless workflows, modest scene size).</p>
+
+<h4>Algorithm</h4>
+<ol>
+    <li><b>Reliability map.</b> Per pixel, compute the second-difference
+        reliability over 3&times;3 wrapped-phase neighbours (Herr&aacute;ez
+        eq. 2). High reliability = small local phase variation = likely
+        unambiguous unwrap.</li>
+    <li><b>Edge construction.</b> Each 4-connected pair becomes an edge
+        whose weight is the sum of its endpoints' reliabilities.</li>
+    <li><b>Sort &amp; merge.</b> Edges sorted descending by weight. Walk in
+        order; for each edge, union-find merges the two groups while
+        adjusting the slave group's wrapped-cycle offset so the cross-edge
+        phase difference is in (-&pi;, &pi;].</li>
+    <li><b>Output.</b> Per pixel the absolute unwrapped phase = wrapped
+        phase + 2&pi; &middot; cycleOffset.</li>
+</ol>
+
+<p>The scene-global single pass runs once in <code>initialize()</code> and
+the result is cached so each tile only reads it. This is well-suited to
+typical InSAR products up to ~5000&times;5000 px on a desktop. For larger
+scenes, prefer snaphu's MCF/MST solvers.</p>
+
+<h4>Input</h4>
+<ul>
+    <li>Wrapped interferometric phase band (radians, in [-&pi;,&pi;]).
+        Coherence band optional - if present, pixels with
+        <code>coh &lt; coherenceMin</code> are masked from unwrapping.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li><code>Unw_Phase_*</code> band - absolute unwrapped phase in radians.</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Coherence Min</td><td>0.2</td><td>Mask pixels with coherence
+        below this threshold (no-data in output).</td></tr>
+</table>
+
+<h4>References</h4>
+<ul>
+    <li>Herr&aacute;ez M. A., Burton D. R., Lalor M. J., Gdeisat M. A. (2002).
+        <i>Fast two-dimensional phase-unwrapping algorithm based on sorting
+        by reliability following a noncontinuous path.</i> Applied Optics
+        41(35), 7437-7444.</li>
+</ul>
+
+<h4>Choosing between Herraez and snaphu</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Use Herraez</th><th>Use snaphu</th></tr>
+    <tr><td>Small/medium scenes, no native helper, batch graphs</td>
+        <td>Large scenes, low coherence, dense fringes, residue-heavy
+            interferograms - snaphu's L<sup>p</sup>-norm MCF solver
+            handles these better.</td></tr>
+</table>
+<hr></body></html>

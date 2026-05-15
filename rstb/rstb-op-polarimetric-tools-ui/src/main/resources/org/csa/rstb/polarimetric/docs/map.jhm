@@ -7,6 +7,7 @@
 	<mapID target="CompactPolDataSimulationOp" url="operators/CompactPolDataSimulationOp.html"/>
     <mapID target="CompactPolDecompositionOp" url="operators/CompactPolDecompositionOp.html"/>
     <mapID target="CompactPolStokesParametersOp" url="operators/CompactPolStokesParametersOp.html"/>
+    <mapID target="CompactPolParametersOp" url="operators/CompactPolParametersOp.html"/>
     <mapID target="PolarimetricMatricesOp" url="operators/PolarimetricMatricesOp.html"/>
 	<mapID target="RVIOp" url="operators/RVIOp.html"/>
 	<mapID target="CPRVIOp" url="operators/CPRVIOp.html"/>
@@ -25,4 +26,6 @@
     <mapID target="PolarimetricChangeDetectionOp" url="operators/PolarimetricChangeDetectionOp.html"/>
     <mapID target="DualPolY3DecompositionOp" url="operators/DualPolY3DecompositionOp.html"/>
     <mapID target="PolarimetricCalibrationOp" url="operators/PolarimetricCalibrationOp.html"/>
+    <mapID target="CoherenceOptimizationOp" url="operators/CoherenceOptimizationOp.html"/>
+    <mapID target="PartialTargetDetectionOp" url="operators/PartialTargetDetectionOp.html"/>
 </map>

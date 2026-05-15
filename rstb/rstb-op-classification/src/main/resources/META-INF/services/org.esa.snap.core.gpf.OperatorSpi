@@ -1,2 +1,4 @@
 org.csa.rstb.classification.gpf.PolarimetricClassificationOp$Spi
 org.csa.rstb.classification.gpf.SupervisedWishartClassificationOp$Spi
+org.csa.rstb.classification.gpf.CompactPolClassificationOp$Spi
+org.csa.rstb.classification.gpf.CompactPolSupervisedClassificationOp$Spi

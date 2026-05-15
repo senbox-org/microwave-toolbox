@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Vector Averaging</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Vector Averaging (Zonal Statistics)<br></td>
+        <td class="header" align="right"><a
+                href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img
+                src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Vector Averaging Operator</h3>
+
+<p>Zonal-statistics reducer for raster + polygon overlay. For every
+    selected source band, computes one of <b>Mean</b>, <b>Min</b>,
+    <b>Max</b>, or <b>Count</b> over the pixels inside each polygon
+    vector, then writes the aggregate back to every pixel of that
+    polygon. Pixels outside every polygon are written as the source
+    band's no-data value.</p>
+
+<h4>Algorithm</h4>
+<p>Two-pass:</p>
+<ol>
+    <li>Tile-parallel aggregation builds a per-polygon running sum
+        (and count, for Mean) or running extremum (for Min / Max).
+        Polygon-containment is established via SNAP BandMaths
+        virtual-band expressions (see <i>Rasterize</i>).</li>
+    <li>Per-pixel write substitutes the aggregate.</li>
+</ol>
+
+<h4>Inputs</h4>
+<ul>
+    <li>A geocoded raster product (geocoding required for polygon
+        containment).</li>
+    <li>One or more polygon vector layers attached to the source
+        product.</li>
+    <li>One or more source bands to aggregate.</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Notes</th></tr>
+    <tr><td>Method</td>
+        <td>Mean | Max | Min | Count</td></tr>
+    <tr><td>Source bands</td>
+        <td>One target band per source band.</td></tr>
+    <tr><td>Polygon vectors</td>
+        <td>If empty, all polygon nodes on the source product are used.</td></tr>
+</table>
+
+<hr>
+</body>
+</html>

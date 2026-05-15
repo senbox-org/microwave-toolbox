@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<!DOCTYPE map
+        PUBLIC "-//Sun Microsystems Inc.//DTD JavaHelp Map Version 2.0//EN"
+        "http://java.sun.com/products/javahelp/map_2_0.dtd">
+
+<map version="2.0">
+    <mapID target="BIOMASAROp" url="operators/BIOMASAROp.html"/>
+    <mapID target="BIOMASARLOp" url="operators/BIOMASARLOp.html"/>
+    <mapID target="HVIntensityAGBOp" url="operators/HVIntensityAGBOp.html"/>
+    <mapID target="ChaveAllometricOp" url="operators/ChaveAllometricOp.html"/>
+    <mapID target="ForestNonForestMaskOp" url="operators/ForestNonForestMaskOp.html"/>
+    <mapID target="AGBUncertaintyOp" url="operators/AGBUncertaintyOp.html"/>
+    <mapID target="SARDisturbanceDetectionOp" url="operators/SARDisturbanceDetectionOp.html"/>
+    <mapID target="WCMSoilVegetationOp" url="operators/WCMSoilVegetationOp.html"/>
+    <mapID target="DualPolForestHeightEstimationOp" url="operators/DualPolForestHeightEstimationOp.html"/>
+    <mapID target="DualPolPolarimetricCoherenceOp" url="operators/DualPolPolarimetricCoherenceOp.html"/>
+    <mapID target="DualPolFlatEarthTopoPhaseRemovalOp" url="operators/DualPolFlatEarthTopoPhaseRemovalOp.html"/>
+    <mapID target="SinglePolCoherenceCompensationOp" url="operators/SinglePolCoherenceCompensationOp.html"/>
+    <mapID target="RVoGForestHeightOp" url="operators/RVoGForestHeightOp.html"/>
+    <mapID target="RVoG3StageInversionOp" url="operators/RVoG3StageInversionOp.html"/>
+</map>

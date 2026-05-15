@@ -19,3 +19,6 @@ org.csa.rstb.polarimetric.gpf.DualPolRatioIndicesOp$Spi
 org.csa.rstb.polarimetric.gpf.PolarimetricChangeDetectionOp$Spi
 org.csa.rstb.polarimetric.gpf.DualPolY3DecompositionOp$Spi
 org.csa.rstb.polarimetric.gpf.PolarimetricCalibrationOp$Spi
+org.csa.rstb.polarimetric.gpf.CoherenceOptimizationOp$Spi
+org.csa.rstb.polarimetric.gpf.CompactPolParametersOp$Spi
+org.csa.rstb.polarimetric.gpf.PartialTargetDetectionOp$Spi

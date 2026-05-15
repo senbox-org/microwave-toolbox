@@ -1,0 +1,44 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Chave Allometric AGB</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Chave Allometric AGB Operator</h3>
+
+<p>Stand-level Above-Ground Biomass from a canopy-height raster (e.g. from
+<a href="RVoGForestHeightOp.html">RVoG Forest Height</a>,
+<a href="DualPolForestHeightEstimationOp.html">Dual-Pol Forest Height</a>,
+TanDEM-X or GEDI L2A) via a height-AGB regression. Four preset regressions
+are available; users can also supply custom (a, b) coefficients.</p>
+
+<h4>Presets</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Preset</th><th>Formula</th><th>Use case</th></tr>
+<tr><td>Saatchi 2011</td><td>AGB = 2.0 * H<sup>1.5</sup></td><td>pantropical default</td></tr>
+<tr><td>Asner 2012</td><td>AGB = 0.91 * H<sup>2.04</sup></td><td>Amazon basin</td></tr>
+<tr><td>Chave 2014</td><td>AGB = 0.30 * &rho; * H<sup>2.0</sup></td><td>uses wood-density band</td></tr>
+<tr><td>Custom</td><td>AGB = a * H<sup>b</sup></td><td>local calibration</td></tr>
+</table>
+
+<h4>Per-tree formula (utility)</h4>
+<p>The static helper <code>chaveEq7AGB(DBH, H, &rho;)</code> evaluates
+Chave et al. 2014 Eq. 7:</p>
+<pre>AGB[kg] = 0.0673 * (&rho; * DBH<sup>2</sup> * H)<sup>0.976</sup></pre>
+<p>(For inventory / per-tree workflows; not exposed as a band-level GPF.)</p>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Canopy height band [m].</li>
+    <li>Optional wood density band [g/cm<sup>3</sup>] (used by Chave 2014 preset).</li>
+    <li>Optional forest mask band.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li><code>AGB</code> band, Mg/ha.</li>
+</ul>
+
+<h4>Reference</h4>
+<p>Chave J. et al. (2014). <i>Improved allometric models to estimate the
+aboveground biomass of tropical trees.</i> Global Change Biology 20(10),
+3177-3190. <a href="https://doi.org/10.1111/gcb.12629">DOI</a>.</p>
+<hr></body></html>

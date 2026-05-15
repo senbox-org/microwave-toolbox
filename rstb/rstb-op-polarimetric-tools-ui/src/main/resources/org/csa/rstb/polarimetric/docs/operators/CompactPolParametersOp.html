@@ -1,0 +1,46 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Compact-Pol Parameters</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Compact-Pol Parameters Operator</h3>
+
+<p>Per-pixel compact-polarimetry parameters derived from the C2 covariance
+matrix of a circular-hybrid (RCH / LCH) acquisition.</p>
+
+<h4>Available parameters</h4>
+<ul>
+    <li><b>Stokes intensity</b> (S0) and <b>Stokes</b> S1, S2, S3.</li>
+    <li><b>Degree of polarisation</b> m = sqrt(S1^2+S2^2+S3^2)/S0.</li>
+    <li><b>Circular polarisation ratio</b> &mu;C = (S0-S3)/(S0+S3).</li>
+    <li><b>m-chi</b>, <b>m-delta</b>, <b>m-alpha</b> hybrid decomposition
+        components.</li>
+    <li><b>Compact-pol H/&alpha;</b> (Cloude, Goodenough &amp; Chen 2012).</li>
+    <li><b>CP Radar Vegetation Index</b> (RVI<sub>CP</sub>).</li>
+</ul>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Compact-pol C2 covariance product (LCH or RCH circular hybrid).</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Window Size X / Y</td><td>5</td><td>Boxcar averaging window
+        applied to C2 before parameter extraction.</td></tr>
+    <tr><td>Selected Parameters</td><td>all</td><td>Subset of bands to
+        compute.</td></tr>
+</table>
+
+<h4>References</h4>
+<ul>
+    <li>Raney R. K. (2007). <i>Hybrid-Polarity SAR Architecture.</i>
+        IEEE TGRS 45(11), 3397-3404 — m-chi / m-delta framework.</li>
+    <li>Cloude S. R., Goodenough D. G., Chen H. (2012). <i>Compact
+        Decomposition Theory.</i> IEEE GRSL 9(1), 28-32.</li>
+    <li>Charbonneau F. J. <i>et al.</i> (2010). Compact-pol RVI.</li>
+</ul>
+
+<p>See also <a href="CompactPolStokesParametersOp.html">CP Stokes
+Parameters</a> for the standalone Stokes-vector bands.</p>
+<hr></body></html>

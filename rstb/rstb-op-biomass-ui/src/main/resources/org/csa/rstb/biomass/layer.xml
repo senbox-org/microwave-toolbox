@@ -1,0 +1,242 @@
+<filesystem>
+
+    <folder name="Actions">
+        <folder name="Operators">
+            <file name="org-csa-rstb-biomass-gpf-BIOMASAR-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="BIOMASAR (C-band GSV)"/>
+                <attr name="operatorName" stringvalue="BIOMASAR"/>
+                <attr name="dialogTitle" stringvalue="BIOMASAR"/>
+                <attr name="targetProductNameSuffix" stringvalue="_GSV"/>
+                <attr name="ShortDescription" stringvalue="Santoro et al. multi-temporal Growing Stock Volume from C-band backscatter"/>
+                <attr name="helpId" stringvalue="BIOMASAROp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-BIOMASARL-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="BIOMASAR-L (L-band GSV)"/>
+                <attr name="operatorName" stringvalue="BIOMASAR-L"/>
+                <attr name="dialogTitle" stringvalue="BIOMASAR-L"/>
+                <attr name="targetProductNameSuffix" stringvalue="_GSV"/>
+                <attr name="ShortDescription" stringvalue="L-band PALSAR variant of BIOMASAR (Santoro et al. 2013)"/>
+                <attr name="helpId" stringvalue="BIOMASARLOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-HVIntensityAGB-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="HV-Intensity AGB Fit"/>
+                <attr name="operatorName" stringvalue="HV-Intensity-AGB-Fit"/>
+                <attr name="dialogTitle" stringvalue="HV-Intensity AGB Fit"/>
+                <attr name="targetProductNameSuffix" stringvalue="_AGB"/>
+                <attr name="ShortDescription" stringvalue="Empirical AGB from L-band HV (Mitchard 2009 / Saatchi 2011)"/>
+                <attr name="helpId" stringvalue="HVIntensityAGBOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-ChaveAllometric-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Chave Allometric AGB"/>
+                <attr name="operatorName" stringvalue="Chave-Allometric-AGB"/>
+                <attr name="dialogTitle" stringvalue="Chave Allometric AGB"/>
+                <attr name="targetProductNameSuffix" stringvalue="_AGB"/>
+                <attr name="ShortDescription" stringvalue="Stand-level AGB from canopy height (Chave 2014 / Saatchi / Asner presets)"/>
+                <attr name="helpId" stringvalue="ChaveAllometricOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-ForestNonForestMask-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Forest / Non-Forest Mask"/>
+                <attr name="operatorName" stringvalue="Forest-NonForest-Mask"/>
+                <attr name="dialogTitle" stringvalue="Forest / Non-Forest Mask"/>
+                <attr name="targetProductNameSuffix" stringvalue="_FNF"/>
+                <attr name="ShortDescription" stringvalue="Rule-based forest mask from SAR backscatter (Cartus 2020 v1)"/>
+                <attr name="helpId" stringvalue="ForestNonForestMaskOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-AGBUncertainty-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="AGB Uncertainty"/>
+                <attr name="operatorName" stringvalue="AGB-Uncertainty"/>
+                <attr name="dialogTitle" stringvalue="AGB Uncertainty"/>
+                <attr name="targetProductNameSuffix" stringvalue="_UNC"/>
+                <attr name="ShortDescription" stringvalue="Analytic error-budget propagation for AGB (IPCC Tier-1)"/>
+                <attr name="helpId" stringvalue="AGBUncertaintyOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-SARDisturbanceDetection-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="SAR Disturbance Detection"/>
+                <attr name="operatorName" stringvalue="SAR-Disturbance-Detection"/>
+                <attr name="dialogTitle" stringvalue="SAR Disturbance Detection"/>
+                <attr name="targetProductNameSuffix" stringvalue="_DIST"/>
+                <attr name="ShortDescription" stringvalue="CUSUM-based forest disturbance detection from SAR time series"/>
+                <attr name="helpId" stringvalue="SARDisturbanceDetectionOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-WCM-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Water Cloud Model Decoupling"/>
+                <attr name="operatorName" stringvalue="WCM-Soil-Vegetation-Decoupling"/>
+                <attr name="dialogTitle" stringvalue="Water Cloud Model Decoupling"/>
+                <attr name="targetProductNameSuffix" stringvalue="_WCM"/>
+                <attr name="ShortDescription" stringvalue="Attema-Ulaby Water Cloud Model soil/vegetation backscatter decoupling"/>
+                <attr name="helpId" stringvalue="WCMSoilVegetationOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-DualPolForestHeight-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Dual-Pol Forest Height (TanDEM-X)"/>
+                <attr name="operatorName" stringvalue="DualPolForestHeightEstimation"/>
+                <attr name="dialogTitle" stringvalue="Dual-Pol Forest Height"/>
+                <attr name="targetProductNameSuffix" stringvalue="_FH"/>
+                <attr name="ShortDescription" stringvalue="TanDEM-X dual-pol PolInSAR forest height (Chen et al. 2016)"/>
+                <attr name="helpId" stringvalue="DualPolForestHeightEstimationOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-DualPolPolarimetricCoherence-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Dual-Pol Polarimetric Coherence"/>
+                <attr name="operatorName" stringvalue="DualPolPolarimetricCoherence"/>
+                <attr name="dialogTitle" stringvalue="Dual-Pol Polarimetric Coherence"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Coh"/>
+                <attr name="ShortDescription" stringvalue="Dual-pol polarimetric coherence with SNR compensation"/>
+                <attr name="helpId" stringvalue="DualPolPolarimetricCoherenceOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-DualPolFlatEarthTopoPhase-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Dual-Pol Flat-Earth + Topo Phase Removal"/>
+                <attr name="operatorName" stringvalue="DualPolFlatEarthTopoPhaseRemoval"/>
+                <attr name="dialogTitle" stringvalue="Dual-Pol Flat-Earth + Topo Phase Removal"/>
+                <attr name="targetProductNameSuffix" stringvalue="_FlatTopo"/>
+                <attr name="ShortDescription" stringvalue="Flat-earth + topographic phase removal for dual-pol PolInSAR"/>
+                <attr name="helpId" stringvalue="DualPolFlatEarthTopoPhaseRemovalOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-SinglePolCoherenceCompensation-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Single-Pol Coherence Compensation"/>
+                <attr name="operatorName" stringvalue="SinglePolCoherenceCompensation"/>
+                <attr name="dialogTitle" stringvalue="Single-Pol Coherence Compensation"/>
+                <attr name="targetProductNameSuffix" stringvalue="_CohC"/>
+                <attr name="ShortDescription" stringvalue="Single-pol coherence SNR / system-gain compensation"/>
+                <attr name="helpId" stringvalue="SinglePolCoherenceCompensationOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-RVoGForestHeight-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="RVoG Forest Height (SinC)"/>
+                <attr name="operatorName" stringvalue="RVoG-Forest-Height"/>
+                <attr name="dialogTitle" stringvalue="RVoG Forest Height"/>
+                <attr name="targetProductNameSuffix" stringvalue="_FH"/>
+                <attr name="ShortDescription" stringvalue="Random-Volume-over-Ground forest height (Cloude &amp; Papathanassiou 2003, SinC simplification)"/>
+                <attr name="helpId" stringvalue="RVoGForestHeightOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+            <file name="org-csa-rstb-biomass-gpf-RVoG3SI-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="RVoG 3-Stage Inversion (Forest Height)"/>
+                <attr name="operatorName" stringvalue="RVoG-3SI-Forest-Height"/>
+                <attr name="dialogTitle" stringvalue="RVoG 3-Stage Inversion"/>
+                <attr name="targetProductNameSuffix" stringvalue="_3SI"/>
+                <attr name="ShortDescription" stringvalue="3-Stage Inversion PolInSAR forest height (Cloude 2010)"/>
+                <attr name="helpId" stringvalue="RVoG3StageInversionOp"/>
+                <attr name="icon" stringvalue="rstbIcon"/>
+            </file>
+        </folder>
+    </folder>
+
+    <folder name="Menu">
+        <folder name="Radar">
+            <folder name="Biomass">
+                <attr name="position" intvalue="600"/>
+
+                <folder name="AGB Retrieval">
+                    <attr name="position" intvalue="100"/>
+                    <file name="org-csa-rstb-biomass-gpf-BIOMASAR-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-BIOMASAR-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-BIOMASARL-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-BIOMASARL-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-HVIntensityAGB-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-HVIntensityAGB-Action.instance"/>
+                        <attr name="position" intvalue="300"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-ChaveAllometric-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-ChaveAllometric-Action.instance"/>
+                        <attr name="position" intvalue="400"/>
+                    </file>
+                </folder>
+
+                <folder name="Forest Height">
+                    <attr name="position" intvalue="200"/>
+                    <file name="org-csa-rstb-biomass-gpf-DualPolForestHeight-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolForestHeight-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-RVoGForestHeight-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-RVoGForestHeight-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-RVoG3SI-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-RVoG3SI-Action.instance"/>
+                        <attr name="position" intvalue="300"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-DualPolPolarimetricCoherence-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolPolarimetricCoherence-Action.instance"/>
+                        <attr name="position" intvalue="400"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-DualPolFlatEarthTopoPhase-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolFlatEarthTopoPhase-Action.instance"/>
+                        <attr name="position" intvalue="500"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-SinglePolCoherenceCompensation-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-SinglePolCoherenceCompensation-Action.instance"/>
+                        <attr name="position" intvalue="600"/>
+                    </file>
+                </folder>
+
+                <folder name="Forest Mask &amp; Disturbance">
+                    <attr name="position" intvalue="300"/>
+                    <file name="org-csa-rstb-biomass-gpf-ForestNonForestMask-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-ForestNonForestMask-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-SARDisturbanceDetection-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-SARDisturbanceDetection-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
+                    </file>
+                </folder>
+
+                <folder name="Corrections &amp; QA">
+                    <attr name="position" intvalue="400"/>
+                    <file name="org-csa-rstb-biomass-gpf-WCM-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-WCM-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="org-csa-rstb-biomass-gpf-AGBUncertainty-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-AGBUncertainty-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
+                    </file>
+                </folder>
+            </folder>
+        </folder>
+    </folder>
+
+</filesystem>

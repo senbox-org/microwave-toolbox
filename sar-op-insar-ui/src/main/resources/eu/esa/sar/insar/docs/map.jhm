@@ -21,6 +21,7 @@
 
     <!-- InSAR -->
     <mapID target="GoldsteinFilterOp" url="operators/GoldsteinFilterOp.html"/>
+    <mapID target="HerraezPhaseUnwrapOp" url="operators/HerraezPhaseUnwrapOp.html"/>
     <mapID target="PhaseToElevationOp" url="operators/PhaseToElevationOp.html"/>
     <mapID target="PhaseToDisplacementOp" url="operators/PhaseToDisplacementOp.html"/>
     <mapID target="IntegerInterferogramOp" url="operators/IntegerInterferogramOp.html"/>
@@ -31,5 +32,6 @@
     <mapID target="IonosphericCorrectionOp" url="operators/IonosphericCorrectionOp.html"/>
     <mapID target="EmpiricalTropoCorrectionOp" url="operators/EmpiricalTropoCorrectionOp.html"/>
     <mapID target="MultiReference" url="operators/MultiReference.html"/>
+    <mapID target="MultiInputStackAveragingOp" url="operators/MultiInputStackAveragingOp.html"/>
 
 </map>

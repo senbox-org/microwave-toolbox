@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Compact-Pol Supervised Classification</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Compact-Pol Supervised Classification Operator</h3>
+
+<p>Supervised Wishart classification for compact-pol products. Reads
+class-labelled C2 cluster centres from a Java properties training-data file
+and assigns each pixel to the nearest cluster by Wishart distance, then
+maps the cluster index to a class index.</p>
+
+<h4>Training-data format (Java properties)</h4>
+<pre>
+number_of_clusters = N
+cluster0           = ClassName_0
+cluster0_C11       = ...
+cluster0_C12_real  = ...
+cluster0_C12_imag  = ...
+cluster0_C22       = ...
+cluster1           = ClassName_1
+...
+</pre>
+<p>Multiple clusters can share a class prefix (e.g. <code>Forest_0</code>,
+<code>Forest_1</code>) and are merged at output.</p>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Compact-pol C2 covariance product.</li>
+    <li>A properties file with labelled cluster centres.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li><code>supervised_wishart_class</code> UINT8 band, one entry per
+        derived class.</li>
+</ul>
+
+<h4>Reference</h4>
+<p>Lee J.-S., Pottier E. (2009). <i>Polarimetric Radar Imaging: From Basics
+to Applications</i> (CRC Press, supervised Wishart classifier chapter).
+Compact-pol specialisation: Cloude, Goodenough &amp; Chen 2012, IEEE GRSL.</p>
+<hr></body></html>

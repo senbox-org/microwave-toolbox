@@ -1,0 +1,31 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - BIOMASAR-L</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>BIOMASAR-L Operator</h3>
+
+<p>L-band (ALOS PALSAR / PALSAR-2 / ALOS-4) variant of the BIOMASAR
+multi-temporal Growing Stock Volume retrieval. Implemented as a thin preset
+that forwards parameters to the underlying <a href="BIOMASAROp.html">BIOMASAR</a>
+operator with L-band-tuned defaults.</p>
+
+<h4>L-band defaults (vs. C-band)</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>BIOMASAR (C-band)</th><th>BIOMASAR-L</th></tr>
+    <tr><td>Cross-pol channel</td><td>any</td><td>HV only (volume scattering)</td></tr>
+    <tr><td>sigma0 range</td><td>-10 .. -8 dB</td><td>-20 .. -8 dB</td></tr>
+    <tr><td>V<sub>DF</sub> (dense forest GSV)</td><td>~250 m<sup>3</sup>/ha</td><td>~400 m<sup>3</sup>/ha</td></tr>
+    <tr><td>Min sigma0 contrast</td><td>0.5 dB</td><td>0.8 dB</td></tr>
+    <tr><td>Buffer zone width</td><td>0.5 dB</td><td>1.0 dB</td></tr>
+</table>
+
+<h4>Why L-band?</h4>
+<p>L-band radar saturates higher than C-band in dense canopies (~400 m<sup>3</sup>/ha
+vs. ~150 m<sup>3</sup>/ha), so BIOMASAR-L is preferred for boreal / tropical
+dense forests. CCI Biomass v5 and JAXA's K&amp;C Initiative both use
+BIOMASAR-L operationally.</p>
+
+<h4>Reference</h4>
+<p>Santoro M. et al. (2013). DOI 10.1016/j.rse.2012.11.001. CCI Biomass
+ATBD v5.0 (ESA Climate Change Initiative).</p>
+<hr></body></html>

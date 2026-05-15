@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Single-Pol Coherence Compensation</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Single-Pol Coherence Compensation Operator</h3>
+
+<p>Compensates single-polarisation interferometric coherence for SNR and
+system-gain biases. Used as a preprocessing step before
+<a href="RVoGForestHeightOp.html">RVoG Forest Height</a> or
+<a href="DualPolForestHeightEstimationOp.html">Dual-Pol Forest Height</a>
+when only one polarimetric channel is available.</p>
+
+<h4>Inputs</h4>
+<ul>
+    <li>A coregistered single-pol SLC pair (master + slave).</li>
+    <li>Optional NESZ / noise floor metadata (Sentinel-1 CoSSC supplies these).</li>
+</ul>
+
+<h4>Outputs</h4>
+<ul>
+    <li>SNR-compensated coherence band.</li>
+</ul>
+
+<h4>Notes</h4>
+<p>Uses Sentinel-1 metadata where available (NESZ noise vectors, IW slice
+parameters). Reverts to a fixed-noise default when the metadata is absent.
+The companion <a href="DualPolPolarimetricCoherenceOp.html">Dual-Pol
+Polarimetric Coherence</a> handles the dual-pol variant.</p>
+<hr></body></html>

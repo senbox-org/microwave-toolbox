@@ -1,0 +1,48 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - AGB Uncertainty</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>AGB Uncertainty Operator</h3>
+
+<p>Analytic error-budget propagation for AGB maps. Combines four uncorrelated
+error sources in quadrature to produce a per-pixel 1-sigma standard error
+plus a configurable-z confidence-interval half-width.</p>
+
+<h4>Error sources</h4>
+<pre>
+sigma_AGB / AGB = sqrt( (sensitivity_perDb * sigma_radio_dB)^2
+                      + (regression_RMSE / AGB)^2
+                      + sigma_allometric_rel^2
+                      + sigma_spatial_rel^2 )
+</pre>
+
+<h4>Inputs</h4>
+<ul>
+    <li>An AGB band [Mg/ha].</li>
+    <li>Optional radiometric SE band [dB] (residual speckle stddev).</li>
+</ul>
+
+<h4>Parameters</h4>
+<ul>
+    <li><b>sensitivityPerDb</b>: regression sensitivity. For
+        AGB = a*exp(b*&sigma;<sup>0</sup><sub>dB</sub>), set to
+        b * 10 / ln(10) &asymp; 0.23 for the Mitchard 2009 model.</li>
+    <li><b>regressionRMSE</b>: RMSE of the upstream AGB regression (Mg/ha).</li>
+    <li><b>allometricRelative</b>: relative uncertainty of the allometric
+        conversion (typ. 0.10-0.20).</li>
+    <li><b>spatialRelative</b>: relative sampling / multi-look uncertainty
+        (typ. 0.05-0.15).</li>
+    <li><b>ciZ</b>: z-multiplier for the CI band (1.645 = 90 %, 1.96 = 95 %).</li>
+</ul>
+
+<h4>Outputs</h4>
+<ul>
+    <li><code>AGB_SE</code> [Mg/ha], 1-sigma standard error.</li>
+    <li><code>AGB_CI</code> [Mg/ha], CI half-width = ciZ * SE.</li>
+</ul>
+
+<h4>Reference</h4>
+<p>IPCC Tier-1 forest biomass uncertainty methodology, Scientific Data 13,
+107 (2024). <a href="https://doi.org/10.1038/s41597-024-03930-9">DOI</a>.
+Compatible with CCI Biomass v5 uncertainty layers.</p>
+<hr></body></html>

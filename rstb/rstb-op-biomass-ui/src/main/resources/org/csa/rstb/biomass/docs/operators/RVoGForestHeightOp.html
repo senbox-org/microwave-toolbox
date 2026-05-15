@@ -1,0 +1,40 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - RVoG Forest Height</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>RVoG Forest Height Operator</h3>
+
+<p>Random-Volume-over-Ground (RVoG) PolInSAR forest height retrieval from
+a single complex coherence band. v1 uses the zero-extinction SinC
+simplification:</p>
+<pre>|gamma_v(hv)| = |sinc(kz * hv / (2 * pi))|</pre>
+<p>Inverted numerically (bisection) on the principal branch
+(0, 2 * pi / kz) for the canopy height hv.</p>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Coherence magnitude band (e.g. <code>coh_opt_1</code> from
+        <code>CoherenceOptimization</code>, or any pairwise coherence).
+        Treated as the volume coherence after ground compensation.</li>
+    <li>Vertical interferometric wavenumber kz — per-pixel band or
+        scene-constant parameter.</li>
+</ul>
+
+<h4>Outputs</h4>
+<ul>
+    <li><code>forestHeight</code> band [m]. Pixels where |gamma| is below
+        <code>minCoh</code> or above <code>maxCoh</code> are masked to no-data.</li>
+</ul>
+
+<h4>v2 upgrade path</h4>
+<p>For full ground-coherence extraction + joint (hv, sigma_extinction)
+retrieval, use <a href="RVoG3StageInversionOp.html">RVoG 3-Stage
+Inversion</a>. That operator builds on the same SinC kernel exposed by this
+one (<code>invertHeightSinC(gamma, kz)</code>).</p>
+
+<h4>Reference</h4>
+<p>Cloude S. R., Papathanassiou K. P. (2003). <i>Three-stage inversion
+process for deriving forest structure from polarimetric SAR
+interferometry.</i> IEE Proceedings - RSN 150(3), 125-134.
+<a href="https://doi.org/10.1049/ip-rsn:20030449">DOI</a>.</p>
+<hr></body></html>

@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Water Cloud Model Decoupling</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Water Cloud Model Decoupling Operator</h3>
+
+<p>Attema-Ulaby Water Cloud Model: separates the observed SAR backscatter
+into a vegetation contribution and a (two-way) attenuated soil contribution,
+yielding a per-pixel vegetation water content V [kg/m<sup>2</sup>].</p>
+
+<h4>Model</h4>
+<pre>
+sigma0_obs    = sigma0_veg + tau^2 * sigma0_soil
+sigma0_veg    = A * V * cos(theta) * (1 - tau^2)
+tau^2         = exp(-2 * B * V / cos(theta))
+</pre>
+
+<h4>Inversion</h4>
+<p>Bisection on V &gt; 0 such that the forward model matches the observed
+sigma0. Out-of-bracket pixels (snow, urban, water) are written as no-data.</p>
+
+<h4>Literature parameter values</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Band / pol</th><th>A</th><th>B</th><th>Reference</th></tr>
+<tr><td>C-band VV</td><td>0.0012</td><td>0.091</td><td>Bindlish &amp; Barros 2001</td></tr>
+<tr><td>C-band VH</td><td>0.0014</td><td>0.084</td><td>Bindlish &amp; Barros 2001</td></tr>
+<tr><td>L-band HV</td><td>0.0026</td><td>0.025</td><td>Fassoni-Andrade 2020</td></tr>
+</table>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Observed backscatter band (linear or dB).</li>
+    <li>Optional bare-soil backscatter band (linear) — typically from an
+        upstream Oh / Dubois / IEM model in <code>rstb-op-soil-moisture</code>.</li>
+    <li>Optional per-pixel incidence-angle band (otherwise TPG or constant).</li>
+</ul>
+
+<h4>Outputs</h4>
+<ul>
+    <li><code>vegWaterContent</code> [kg/m<sup>2</sup>]</li>
+    <li><code>vegBackscatter</code> [linear]</li>
+    <li><code>soilBackscatterAttenuated</code> [linear]</li>
+</ul>
+
+<h4>Reference</h4>
+<p>Attema E. P. W., Ulaby F. T. (1978). <i>Vegetation Modeled as a Water
+Cloud.</i> Radio Science 13(2), 357-364.
+<a href="https://doi.org/10.1029/RS013i002p00357">DOI</a>.</p>
+<hr></body></html>

@@ -101,6 +101,28 @@
                 <attr name="helpId" stringvalue="RPCAOp"/>
                 <attr name="icon" stringvalue="esaIcon"/>
             </file>
+            <file name="eu-esa-sar-fex-gpf-vector-Rasterize-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Rasterize"/>
+                <attr name="operatorName" stringvalue="Rasterize"/>
+                <attr name="dialogTitle" stringvalue="Rasterize Vector"/>
+                <attr name="targetProductNameSuffix" stringvalue="_rst"/>
+                <attr name="ShortDescription" stringvalue="Convert polygon vectors to attribute raster bands."/>
+                <attr name="helpId" stringvalue="RasterizeOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-fex-gpf-vector-VectorAveraging-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Vector Averaging"/>
+                <attr name="operatorName" stringvalue="VectorAveraging"/>
+                <attr name="dialogTitle" stringvalue="Vector Averaging (Zonal Statistics)"/>
+                <attr name="targetProductNameSuffix" stringvalue="_zonal"/>
+                <attr name="ShortDescription" stringvalue="Replace band values with mean/min/max/count of pixels inside each polygon."/>
+                <attr name="helpId" stringvalue="VectorAveragingOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
         </folder>
     </folder>
 
@@ -157,6 +179,17 @@
                 <file name="eu-esa-sar-fex-gpf-RPCAOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-RPCAOp-Action.instance"/>
                     <attr name="position" intvalue="520"/>
+                </file>
+            </folder>
+            <folder name="Vector">
+                <attr name="position" intvalue="600"/>
+                <file name="eu-esa-sar-fex-gpf-vector-Rasterize-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-vector-Rasterize-Action.instance"/>
+                    <attr name="position" intvalue="100"/>
+                </file>
+                <file name="eu-esa-sar-fex-gpf-vector-VectorAveraging-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-fex-gpf-vector-VectorAveraging-Action.instance"/>
+                    <attr name="position" intvalue="200"/>
                 </file>
             </folder>
         </folder>

@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - HV-Intensity AGB Fit</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>HV-Intensity AGB Fit Operator</h3>
+
+<p>Empirical Above-Ground Biomass retrieval from a single HV cross-polarisation
+backscatter band. Three model families are supported:</p>
+
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Model</th><th>Formula</th><th>Reference</th></tr>
+<tr><td>Mitchard 2009 exponential</td><td>AGB = a * (1 - exp(-b * &sigma;<sup>0</sup>))</td><td>Mitchard et al. 2009</td></tr>
+<tr><td>Saatchi 2011 power law</td><td>AGB = a * &sigma;<sup>0</sup><sup>b</sup></td><td>Saatchi et al. 2011</td></tr>
+<tr><td>Decibel exponential</td><td>AGB = exp(a + b * &sigma;<sup>0</sup><sub>dB</sub>)</td><td>generic regional fit</td></tr>
+</table>
+
+<h4>Inputs</h4>
+<ul>
+    <li>One HV-pol backscatter band (linear or dB; see <code>inputIsDb</code>).</li>
+    <li>Optional forest mask: pixels not in forest are written as no-data.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li><code>AGB</code> band, Mg/ha. Pixels with HV below the floor or AGB
+        above the saturation clip are masked to no-data (-1).</li>
+</ul>
+
+<h4>Recommended starting coefficients</h4>
+<ul>
+    <li><i>Mitchard 2009 Cameroon savanna L-band HV:</i> a = 31.6, b = 0.069.</li>
+    <li><i>Pantropical L-band HV log-log (Saatchi 2011):</i> a = 30, b = 0.5.</li>
+</ul>
+
+<p>Coefficients are region-specific; recalibrate against local field plots
+(via the <a href="ChaveAllometricOp.html">Chave Allometric</a> operator)
+before operational use.</p>
+
+<h4>Reference</h4>
+<p>Mitchard E. T. A. et al. (2009). <i>Measuring biomass changes due to
+woody encroachment and deforestation / degradation in a forest-savanna
+boundary region of central Africa using multi-temporal L-band radar
+backscatter.</i> Remote Sensing of Environment 113(7), 1453-1461.
+<a href="https://doi.org/10.1016/j.rse.2009.03.001">DOI</a>.</p>
+<hr></body></html>
