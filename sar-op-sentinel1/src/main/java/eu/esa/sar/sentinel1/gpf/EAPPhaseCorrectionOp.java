@@ -114,14 +114,25 @@ public final class EAPPhaseCorrectionOp extends Operator {
 
             getSourceMetadata();
 
-            retrieveAuxCalFile();
-
-            readAuxCalFile();
-
             createTargetProduct();
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        try {
+            pm.beginTask("Loading AUX_CAL", 2);
+            retrieveAuxCalFile();
+            pm.worked(1);
+            readAuxCalFile();
+            pm.worked(1);
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
         }
     }
 

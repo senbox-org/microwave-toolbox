@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.orbits.gpf;
 
+import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.orbits.io.OrbitFile;
 import eu.esa.sar.orbits.io.delft.DelftOrbitFile;
 import eu.esa.sar.orbits.io.doris.DorisOrbitFile;
@@ -188,6 +189,20 @@ public final class ApplyOrbitFileOp extends Operator {
 
             createTargetProduct();
 
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    /**
+     * Called by the GPF framework after {@link #initialize()} and before any {@link #computeTile} call.
+     * Network I/O (orbit-file download) is deferred to this method so that the UI parameter dialog
+     * and Graph Builder validation do not block on network access.
+     */
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        try {
+            pm.beginTask("Downloading orbit file", 1);
             if (!productUpdated) {
                 try {
                     updateOrbits();
@@ -200,9 +215,11 @@ public final class ApplyOrbitFileOp extends Operator {
                     }
                 }
             }
-
+            pm.worked(1);
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
         }
     }
 

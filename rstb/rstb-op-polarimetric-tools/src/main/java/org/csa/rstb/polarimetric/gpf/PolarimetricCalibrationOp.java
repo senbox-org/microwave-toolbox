@@ -150,13 +150,24 @@ public final class PolarimetricCalibrationOp extends Operator implements QuadPol
             }
             srcBandList = PolBandUtils.getSourceBands(sourceProduct, sourceProductType);
 
-            estimateDistortion();
-            computeInverseDistortion();
-
             createTargetProduct();
-            updateTargetProductMetadata();
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        try {
+            pm.beginTask("Estimating polarimetric distortion", 1);
+            estimateDistortion();
+            computeInverseDistortion();
+            updateTargetProductMetadata();
+            pm.worked(1);
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
         }
     }
 
