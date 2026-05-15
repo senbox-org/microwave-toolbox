@@ -166,11 +166,9 @@ public class S1ETADCorrectionOp extends Operator {
             createETADUtils();
             getETADCorrector();
             updateTargetProductMetadata();
-            pm.worked(1);
+
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
-        } finally {
-            pm.done();
         }
     }
 
