@@ -22,10 +22,13 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -45,6 +48,33 @@ public class TestCalibrationCSK extends ProcessorTest {
     private final static File inputCSK_DGM = new File(TestData.inputSAR
             + "Cosmo/STRIPMAP/HH_Level_1B_hdf5/CSG_SSAR1_DGM_B_0101_STR_012_HH_RD_F_20200921215026_20200921215032_1_F_09S_Z19_N00.h5");
 
+    /**
+     * Per-class product cache. Read-only tests reuse a single loaded copy
+     * of the HDF5 (the load is expensive). The band-rename regression test
+     * intentionally bypasses this cache — see {@link #testCSK_bandsWithCounterSuffix_polFilterShouldNotDropAll}.
+     */
+    private static final Map<String, Product> PRODUCT_CACHE = new ConcurrentHashMap<>();
+
+    private static Product loadCached(final File file) throws Exception {
+        final String key = file.getAbsolutePath();
+        Product p = PRODUCT_CACHE.get(key);
+        if (p == null) {
+            p = TestUtils.readSourceProduct(file);
+            PRODUCT_CACHE.put(key, p);
+        }
+        return p;
+    }
+
+    @AfterClass
+    public static void disposeCachedProducts() {
+        for (Product p : PRODUCT_CACHE.values()) {
+            if (p != null) {
+                p.dispose();
+            }
+        }
+        PRODUCT_CACHE.clear();
+    }
+
     @Before
     public void setUp() {
         assumeTrue(inputCSK_SCS + " not found", inputCSK_SCS.exists());
@@ -54,28 +84,26 @@ public class TestCalibrationCSK extends ProcessorTest {
     @Test
     @STTM("SNAP-4161")
     public void testCSK_noPolarizationSelected() throws Exception {
-        try (Product srcProduct = TestUtils.readSourceProduct(inputCSK_SCS)) {
-            final CalibrationOp op = (CalibrationOp) spi.createOperator();
-            op.setSourceProduct(srcProduct);
+        final Product srcProduct = loadCached(inputCSK_SCS);
+        final CalibrationOp op = (CalibrationOp) spi.createOperator();
+        op.setSourceProduct(srcProduct);
 
-            final Product tgt = op.getTargetProduct();
-            assertNotNull(tgt);
-            assertTrue(tgt.getNumBands() > 0);
-        }
+        final Product tgt = op.getTargetProduct();
+        assertNotNull(tgt);
+        assertTrue(tgt.getNumBands() > 0);
     }
 
     @Test
     @STTM("SNAP-4161")
     public void testCSK_withPolarizationSelected() throws Exception {
-        try (Product srcProduct = TestUtils.readSourceProduct(inputCSK_SCS)) {
-            final CalibrationOp op = (CalibrationOp) spi.createOperator();
-            op.setSourceProduct(srcProduct);
-            op.setParameter("selectedPolarisations", new String[]{"HH"});
+        final Product srcProduct = loadCached(inputCSK_SCS);
+        final CalibrationOp op = (CalibrationOp) spi.createOperator();
+        op.setSourceProduct(srcProduct);
+        op.setParameter("selectedPolarisations", new String[]{"HH"});
 
-            final Product tgt = op.getTargetProduct();
-            assertNotNull(tgt);
-            assertTrue("target empty when pol=HH selected on CSK", tgt.getNumBands() > 0);
-        }
+        final Product tgt = op.getTargetProduct();
+        assertNotNull(tgt);
+        assertTrue("target empty when pol=HH selected on CSK", tgt.getNumBands() > 0);
     }
 
     /**
@@ -84,6 +112,11 @@ public class TestCalibrationCSK extends ProcessorTest {
      * substring-after-last-underscore pol extraction returned "1", which never matched
      * the user's selected polarisation — so every band was filtered out and the target
      * product came back empty. The pol filter must fall back to abstracted metadata.
+     *
+     * <p>This test MUTATES band names via {@code b.setName(...)}, so it MUST NOT use the
+     * shared {@link #PRODUCT_CACHE}. It reads its own fresh copy and disposes it via
+     * try-with-resources. If you cache here, the renamed bands leak into other tests
+     * and they fail in confusing ways.</p>
      */
     @Test
     @STTM("SNAP-4161")
