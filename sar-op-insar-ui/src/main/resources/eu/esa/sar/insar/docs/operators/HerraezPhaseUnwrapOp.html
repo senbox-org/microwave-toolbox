@@ -33,22 +33,67 @@ scenes, prefer snaphu's MCF/MST solvers.</p>
 
 <h4>Input</h4>
 <ul>
-    <li>Wrapped interferometric phase band (radians, in [-&pi;,&pi;]).
-        Coherence band optional - if present, pixels with
-        <code>coh &lt; coherenceMin</code> are masked from unwrapping.</li>
+    <li>Every wrapped interferometric phase band in the source product
+        (unit = <code>phase</code> or <code>abs_phase</code>, radians in
+        [-&pi;,&pi;]) is unwrapped. No band selector is required.</li>
+    <li>Each phase band is auto-paired with a coherence band by matching
+        the master/slave name suffix. If a match is found and
+        <code>Coherence Min &gt; 0</code>, pixels below the threshold are
+        masked from unwrapping. If no coherence band is found, the phase
+        band is unwrapped without coherence masking.</li>
 </ul>
 
 <h4>Output</h4>
 <ul>
-    <li><code>Unw_Phase_*</code> band - absolute unwrapped phase in radians.</li>
+    <li>One <code>Unw_Phase_*</code> band per input phase band - absolute
+        unwrapped phase in radians (unit = <code>abs_phase</code>).</li>
 </ul>
 
 <h4>Parameters</h4>
 <table border="1" cellpadding="3" cellspacing="0">
     <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
-    <tr><td>Coherence Min</td><td>0.2</td><td>Mask pixels with coherence
-        below this threshold (no-data in output).</td></tr>
+    <tr><td>Minimum Coherence</td><td>0.0</td><td>Hard-mask pixels with
+        coherence below this threshold (no-data in output). Ignored when no
+        matching coherence band is found. Leave at 0 and rely on coherence
+        weighting (below) instead — hard masking can isolate regions and
+        cause patchy 2π offsets.</td></tr>
+    <tr><td>Connectivity</td><td>8</td><td>Edge connectivity for the
+        union-find: 4 = N/E/S/W only, 8 = also include diagonals.</td></tr>
+    <tr><td>Coherence-weighted reliability</td><td>true</td><td>Weight edge
+        reliability by coherence: <code>R = avg_coh / (D_a + D_b + eps)</code>.
+        Makes the union-find walk along high-coherence corridors first,
+        substantially reducing 2π patches in noisy scenes. Ignored when no
+        matching coherence band is found.</td></tr>
+    <tr><td>Cycle-skip correction</td><td>true</td><td>Post-unwrap correction
+        that snaps each pixel to the nearest integer 2π cycle relative to a
+        local median. Specifically fixes the "patchy" Herraez artefact where
+        a locally-correct group sits at the wrong cycle relative to its
+        neighbours. Runs as an iterative multi-pass (3 → 5 → 9 → 15 → 25 →
+        41 → 71 → max), each pass cleaning patches up to its half-window
+        radius and feeding the next. Only moves pixels by integer multiples
+        of 2π, so real signal is preserved exactly.</td></tr>
+    <tr><td>Cycle-skip max window</td><td>21</td><td>Maximum window size
+        (odd integer) for the multi-pass cycle-skip ladder. Pick the largest
+        patch width you expect in the scene — 21 handles typical InSAR
+        patches up to ~40 px wide; 41–71 for very noisy scenes; 101 for
+        large-scale residual offsets. Cost grows ~quadratically in window
+        size, so don't over-specify.</td></tr>
+    <tr><td>Median filter size</td><td>0</td><td>Optional post-unwrap median
+        filter kernel size (0 = off, 3, 5, or 7). Cosmetic noise reduction
+        applied after the cycle-skip correction. Smooths sub-cycle noise
+        but slightly blurs real fringes; leave off unless visualisation
+        requires it.</td></tr>
 </table>
+
+<h4>Recommended preprocessing</h4>
+<ul>
+    <li>Apply a Goldstein phase filter to the wrapped interferogram first.
+        It boosts SNR without altering fringe phase, and is the standard
+        complement to any quality-guided unwrapper.</li>
+    <li>Make sure your input product has a matching coherence band
+        (interferogram + coherence in the same product), so the coherence
+        weighting and cycle-skip steps have something to work with.</li>
+</ul>
 
 <h4>References</h4>
 <ul>

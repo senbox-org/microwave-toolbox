@@ -161,79 +161,81 @@
 
     <folder name="Menu">
         <folder name="Radar">
-            <folder name="Biomass">
-                <attr name="position" intvalue="600"/>
+            <folder name="SAR Applications">
+                <folder name="Biomass">
+                    <attr name="position" intvalue="600"/>
 
-                <folder name="AGB Retrieval">
-                    <attr name="position" intvalue="100"/>
-                    <file name="org-csa-rstb-biomass-gpf-BIOMASAR-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-BIOMASAR-Action.instance"/>
+                    <folder name="AGB Retrieval">
                         <attr name="position" intvalue="100"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-BIOMASARL-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-BIOMASARL-Action.instance"/>
+                        <file name="org-csa-rstb-biomass-gpf-BIOMASAR-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-BIOMASAR-Action.instance"/>
+                            <attr name="position" intvalue="100"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-BIOMASARL-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-BIOMASARL-Action.instance"/>
+                            <attr name="position" intvalue="200"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-HVIntensityAGB-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-HVIntensityAGB-Action.instance"/>
+                            <attr name="position" intvalue="300"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-ChaveAllometric-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-ChaveAllometric-Action.instance"/>
+                            <attr name="position" intvalue="400"/>
+                        </file>
+                    </folder>
+
+                    <folder name="Forest Height">
                         <attr name="position" intvalue="200"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-HVIntensityAGB-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-HVIntensityAGB-Action.instance"/>
+                        <file name="org-csa-rstb-biomass-gpf-DualPolForestHeight-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolForestHeight-Action.instance"/>
+                            <attr name="position" intvalue="100"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-RVoGForestHeight-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-RVoGForestHeight-Action.instance"/>
+                            <attr name="position" intvalue="200"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-RVoG3SI-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-RVoG3SI-Action.instance"/>
+                            <attr name="position" intvalue="300"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-DualPolPolarimetricCoherence-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolPolarimetricCoherence-Action.instance"/>
+                            <attr name="position" intvalue="400"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-DualPolFlatEarthTopoPhase-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolFlatEarthTopoPhase-Action.instance"/>
+                            <attr name="position" intvalue="500"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-SinglePolCoherenceCompensation-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-SinglePolCoherenceCompensation-Action.instance"/>
+                            <attr name="position" intvalue="600"/>
+                        </file>
+                    </folder>
+
+                    <folder name="Forest Mask &amp; Disturbance">
                         <attr name="position" intvalue="300"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-ChaveAllometric-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-ChaveAllometric-Action.instance"/>
+                        <file name="org-csa-rstb-biomass-gpf-ForestNonForestMask-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-ForestNonForestMask-Action.instance"/>
+                            <attr name="position" intvalue="100"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-SARDisturbanceDetection-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-SARDisturbanceDetection-Action.instance"/>
+                            <attr name="position" intvalue="200"/>
+                        </file>
+                    </folder>
+
+                    <folder name="Corrections &amp; QA">
                         <attr name="position" intvalue="400"/>
-                    </file>
-                </folder>
-
-                <folder name="Forest Height">
-                    <attr name="position" intvalue="200"/>
-                    <file name="org-csa-rstb-biomass-gpf-DualPolForestHeight-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolForestHeight-Action.instance"/>
-                        <attr name="position" intvalue="100"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-RVoGForestHeight-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-RVoGForestHeight-Action.instance"/>
-                        <attr name="position" intvalue="200"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-RVoG3SI-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-RVoG3SI-Action.instance"/>
-                        <attr name="position" intvalue="300"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-DualPolPolarimetricCoherence-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolPolarimetricCoherence-Action.instance"/>
-                        <attr name="position" intvalue="400"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-DualPolFlatEarthTopoPhase-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-DualPolFlatEarthTopoPhase-Action.instance"/>
-                        <attr name="position" intvalue="500"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-SinglePolCoherenceCompensation-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-SinglePolCoherenceCompensation-Action.instance"/>
-                        <attr name="position" intvalue="600"/>
-                    </file>
-                </folder>
-
-                <folder name="Forest Mask &amp; Disturbance">
-                    <attr name="position" intvalue="300"/>
-                    <file name="org-csa-rstb-biomass-gpf-ForestNonForestMask-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-ForestNonForestMask-Action.instance"/>
-                        <attr name="position" intvalue="100"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-SARDisturbanceDetection-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-SARDisturbanceDetection-Action.instance"/>
-                        <attr name="position" intvalue="200"/>
-                    </file>
-                </folder>
-
-                <folder name="Corrections &amp; QA">
-                    <attr name="position" intvalue="400"/>
-                    <file name="org-csa-rstb-biomass-gpf-WCM-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-WCM-Action.instance"/>
-                        <attr name="position" intvalue="100"/>
-                    </file>
-                    <file name="org-csa-rstb-biomass-gpf-AGBUncertainty-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-AGBUncertainty-Action.instance"/>
-                        <attr name="position" intvalue="200"/>
-                    </file>
+                        <file name="org-csa-rstb-biomass-gpf-WCM-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-WCM-Action.instance"/>
+                            <attr name="position" intvalue="100"/>
+                        </file>
+                        <file name="org-csa-rstb-biomass-gpf-AGBUncertainty-Action.shadow">
+                            <attr name="originalFile" stringvalue="Actions/Operators/org-csa-rstb-biomass-gpf-AGBUncertainty-Action.instance"/>
+                            <attr name="position" intvalue="200"/>
+                        </file>
+                    </folder>
                 </folder>
             </folder>
         </folder>

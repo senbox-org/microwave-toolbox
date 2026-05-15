@@ -144,12 +144,23 @@ public class ALOSDeskewingOp extends Operator {
 
             createTargetProduct();
 
-            computeShift();
-
             updateTargetProductMetadata();
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        try {
+            pm.beginTask("Computing deskew shift", 1);
+            computeShift();
+            pm.worked(1);
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
         }
     }
 
