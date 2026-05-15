@@ -22,3 +22,4 @@ org.csa.rstb.polarimetric.gpf.PolarimetricCalibrationOp$Spi
 org.csa.rstb.polarimetric.gpf.CoherenceOptimizationOp$Spi
 org.csa.rstb.polarimetric.gpf.CompactPolParametersOp$Spi
 org.csa.rstb.polarimetric.gpf.PartialTargetDetectionOp$Spi
+org.csa.rstb.polarimetric.gpf.CompactPolNonCircularityCorrectionOp$Spi

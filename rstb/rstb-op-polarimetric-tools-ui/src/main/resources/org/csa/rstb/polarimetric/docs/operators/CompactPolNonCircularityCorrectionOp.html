@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - CP Non-Circularity Correction</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<h3>Compact-Pol Non-Circularity Correction Operator</h3>
+
+<p>Compensates the residual H/V transmit phase imbalance &delta; on a compact-pol
+(LCH/RCH) acquisition. Real-hardware compact-pol radars do not transmit a perfectly
+circular wave; the small phase imbalance between the H and V transmit chains makes
+the actual transmit polarization slightly <i>elliptical</i>. If ignored, this bias
+propagates into every downstream Stokes-vector / m-&chi; / m-&delta; / H-&alpha; /
+CP-RVI / CP-decomposition product. The effect is most visible on low-backscatter
+targets where the bias dominates the signal (sea ice, calm water, dark vegetation).</p>
+
+<p>RCM CP SLC products carry a per-acquisition calibrated &delta;. CEOS-ARD CP
+products have this correction already baked in - SNAP-on-Level-1 does not.</p>
+
+<h4>Algorithm</h4>
+<p>The correction is a phase rotation applied to the C2 covariance cross-term:</p>
+<pre>
+C12_corrected = C12_observed &middot; exp(j&middot;&delta;)
+              = (C12_real cos &delta; - C12_imag sin &delta;)
+              + j(C12_real sin &delta; + C12_imag cos &delta;)
+</pre>
+<p>Intensities C11, C22 are invariant and pass through unchanged.</p>
+
+<h4>Input</h4>
+<ul>
+    <li>Compact-pol C2 covariance product (output of
+        <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a> in C2 mode
+        on an LCH/RCH SLC). Raw LCH/RCH SLC input is rejected with a guidance
+        message - build C2 first.</li>
+</ul>
+
+<h4>Output</h4>
+<ul>
+    <li>Same C2 product with corrected <code>C12_real</code> /
+        <code>C12_imag</code> bands. <code>transmit_phase_imbalance_deg</code>
+        recorded in abstracted metadata.</li>
+</ul>
+
+<h4>Parameters</h4>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Transmit Phase Imbalance (deg)</td><td>0.0</td>
+        <td>Scene-constant &delta; in degrees. Typical RCM values are a few
+            degrees. Default 0 is a no-op so this operator is safe to leave in
+            a graph for non-RCM CP data.</td></tr>
+</table>
+
+<h4>Recommended graph placement</h4>
+<pre>
+RCM CP SLC
+  &rarr; Polarimetric-Matrices (C2)
+       &rarr; CP-Non-Circularity-Correction         &laquo;-- here
+            &rarr; CP-Decomposition / CP-Stokes-Parameters / CP-Parameters /
+               CP-Radar-Vegetation-Index / CP-Classification
+</pre>
+
+<h4>v2 upgrade path</h4>
+<p>Future versions will auto-read &delta; from RCM product metadata (calibration
+LUT in the manifest) so the operator becomes parameter-free on RCM input while
+keeping the manual override for other CP sensors.</p>
+
+<h4>References</h4>
+<ul>
+    <li>Touzi R., Charbonneau F. (2014). <i>Requirements on the calibration of
+        Hybrid-Compact SAR.</i> IGARSS 2014.</li>
+    <li>Geldsetzer T., Arkett M., Charbonneau F. et al. RCM CP calibration
+        publications (DRDC / CCMEO).</li>
+</ul>
+<hr></body></html>

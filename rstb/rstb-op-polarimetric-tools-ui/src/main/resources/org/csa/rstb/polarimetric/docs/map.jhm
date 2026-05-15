@@ -8,6 +8,7 @@
     <mapID target="CompactPolDecompositionOp" url="operators/CompactPolDecompositionOp.html"/>
     <mapID target="CompactPolStokesParametersOp" url="operators/CompactPolStokesParametersOp.html"/>
     <mapID target="CompactPolParametersOp" url="operators/CompactPolParametersOp.html"/>
+    <mapID target="CompactPolNonCircularityCorrectionOp" url="operators/CompactPolNonCircularityCorrectionOp.html"/>
     <mapID target="PolarimetricMatricesOp" url="operators/PolarimetricMatricesOp.html"/>
 	<mapID target="RVIOp" url="operators/RVIOp.html"/>
 	<mapID target="CPRVIOp" url="operators/CPRVIOp.html"/>
