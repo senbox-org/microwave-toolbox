@@ -239,12 +239,23 @@ public class CoherenceOp extends Operator {
                 }
             }
 
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        try {
+            pm.beginTask("Loading DEM", 1);
             if (isComplex && subtractTopographicPhase) {
                 defineDEM();
             }
-
+            pm.worked(1);
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
         }
     }
 

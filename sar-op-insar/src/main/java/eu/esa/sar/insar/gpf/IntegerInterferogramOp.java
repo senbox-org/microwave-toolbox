@@ -99,16 +99,32 @@ public class IntegerInterferogramOp extends Operator {
 
             getMetadata();
 
-            getHOA();
-
-            computeOptimalHOA();
-
             getSourceBands();
 
             createTargetProduct();
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    /**
+     * Performs heavy initialization work (height-of-ambiguity baseline computation)
+     * after {@link #initialize()} and before any {@link #computeTileStack} call.
+     * This avoids freezing the GUI when the operator is constructed by the parameter
+     * dialog or Graph Builder during graph validation.
+     */
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        try {
+            pm.beginTask("Computing height of ambiguity", 1);
+            getHOA();
+            computeOptimalHOA();
+            pm.worked(1);
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
         }
     }
 

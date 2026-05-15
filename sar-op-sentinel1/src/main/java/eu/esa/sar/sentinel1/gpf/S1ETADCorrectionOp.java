@@ -154,12 +154,17 @@ public class S1ETADCorrectionOp extends Operator {
 
             getSourceProductMetadata();
 
-            createETADUtils();
-
             getResampling();
 
+            // NOTE: ETAD download + corrector construction stay here because
+            // etadCorrector.createTargetProduct() depends on the loaded ETAD
+            // product, and GPF requires targetProduct to be assigned by the
+            // time initialize() returns (getTargetProduct() does not trigger
+            // doExecute()). The UI dialog will block during ETAD download —
+            // a limitation we accept until the corrector exposes a way to
+            // build a skeleton target product without the ETAD content.
+            createETADUtils();
             getETADCorrector();
-
             updateTargetProductMetadata();
 
         } catch (Throwable e) {

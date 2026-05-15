@@ -25,6 +25,7 @@ import eu.esa.sar.sar.gpf.geometric.TerrainFlatteningOp;
 import eu.esa.sar.sentinel1.gpf.TOPSARDeburstOp;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.*;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,6 +35,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assume.assumeTrue;
 
@@ -46,6 +49,28 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
 
     private File S1_SLC = S1_SLC_Surat;
     private String csvFile = Surat_CSV;
+
+    private static final Map<String, Product> PRODUCT_CACHE = new ConcurrentHashMap<>();
+
+    private static Product loadCached(File file) throws Exception {
+        String key = file.getAbsolutePath();
+        Product p = PRODUCT_CACHE.get(key);
+        if (p == null) {
+            p = ProductIO.readProduct(file);
+            PRODUCT_CACHE.put(key, p);
+        }
+        return p;
+    }
+
+    @AfterClass
+    public static void disposeCache() {
+        for (Product p : PRODUCT_CACHE.values()) {
+            if (p != null) {
+                p.dispose();
+            }
+        }
+        PRODUCT_CACHE.clear();
+    }
 
     public CRValidationSuratSLCTest() {
         super("Surat/SLC");
@@ -62,7 +87,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     public void testGeolocationErrors_SLC() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Product srcProduct = loadCached(S1_SLC);
         Assert.assertNotNull(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
@@ -76,7 +101,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     public void testGeolocationErrors_SLC_TC() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Product srcProduct = loadCached(S1_SLC);
         Assert.assertNotNull(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
@@ -95,7 +120,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     public void testGeolocationErrors_SLC_Orbit() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Product srcProduct = loadCached(S1_SLC);
         Assert.assertNotNull(srcProduct);
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
@@ -112,7 +137,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     public void testGeolocationErrors_SLC_Orbit_TC_Cop30() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Product srcProduct = loadCached(S1_SLC);
         Assert.assertNotNull(srcProduct);
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
@@ -134,7 +159,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     public void testGeolocationErrors_SLC_Orbit_TC_SRTM() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Product srcProduct = loadCached(S1_SLC);
         Assert.assertNotNull(srcProduct);
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
@@ -156,7 +181,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     public void testGeolocationErrors_SLC_Orbit_TF_TC_Cop30() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Product srcProduct = loadCached(S1_SLC);
         Assert.assertNotNull(srcProduct);
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
@@ -188,7 +213,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     public void testGeolocationErrors_SLC_Orbit_ML_TC() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_SLC);
+        Product srcProduct = loadCached(S1_SLC);
         Assert.assertNotNull(srcProduct);
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
@@ -213,7 +238,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
     public void testGeolocationErrors_SLC_NRB() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_SLC_NRB_Surat);
+        Product srcProduct = loadCached(S1_SLC_NRB_Surat);
         Assert.assertNotNull(srcProduct);
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
