@@ -1,6 +1,7 @@
 The SNAP Microwave Toolbox
 ======================
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20284489.svg)](https://doi.org/10.5281/zenodo.20284489)
 [![Build Status](https://travis-ci.org/senbox-org/s1tbx.svg?branch=master)](https://travis-ci.org/senbox-org/s1tbx) 
 [![Coverity Scan Status](https://scan.coverity.com/projects/7248/badge.svg)](https://scan.coverity.com/projects/senbox-org-s1tbx)
 
