@@ -2,8 +2,8 @@ The SNAP Microwave Toolbox
 ======================
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20284489.svg)](https://doi.org/10.5281/zenodo.20284489)
-[![Build Status](https://travis-ci.org/senbox-org/s1tbx.svg?branch=master)](https://travis-ci.org/senbox-org/s1tbx) 
-[![Coverity Scan Status](https://scan.coverity.com/projects/7248/badge.svg)](https://scan.coverity.com/projects/senbox-org-s1tbx)
+[![Build Status](https://gitlab.com/senbox-org/microwave-toolbox/badges/master/pipeline.svg](https://gitlab.com/senbox-org/microwave-toolbox/) 
+[![Coverity Scan Status](https://gitlab.com/senbox-org/microwave-toolbox/badges/master/coverage.svg)](https://gitlab.com/senbox-org/microwave-toolbox/)
 
 The project page of SNAP and the sentinel toolboxes can be found at http://step.esa.int. There you will find a tutorial about the usage of the application, a forum where you can ask questions and lots of other interesting things.
 
