@@ -38,7 +38,7 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestTerrainFlatteningOp extends ProcessorTest {
 
-    private final static File inputFile1 = TestData.inputASAR_WSM;
+    private final static File inputFile1 = TestData.inputERS_IMP;
     private final static File inputFile2 = TestData.inputASAR_IMS;
     private final static File inputFile3 = TestData.inputASAR_APM;
     private final static File inputFile4 = TestData.inputASAR_APM;
@@ -82,12 +82,12 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
     private final static OperatorSpi spi = new TerrainFlatteningOp.Spi();
 
     /**
-     * Processes a WSM product and compares it to processed product known to be correct
+     * Processes a IMP product and compares it to processed product known to be correct
      *
      * @throws Exception general exception
      */
     @Test
-    public void testProcessWSM() throws Exception {
+    public void testProcessIMP() throws Exception {
         final Product sourceProduct = loadCached(inputFile1);
 
         final CalibrationOp calOp = new CalibrationOp();
@@ -103,12 +103,12 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{0.25501156f, 0.4083111f, 0.077441886f, 0.033438772f};
+        final float[] expected = new float[]{0.14750221f, 0.15169495f, 0.12196117f, 0.15185618f};
         TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), 200, 200, expected);
     }
 
     @Test
-    public void testProcessWSM_SimulatedImage() throws Exception {
+    public void testProcess_SimulatedImage() throws Exception {
         final Product sourceProduct = loadCached(inputFile1);
 
         final CalibrationOp calOp = new CalibrationOp();
@@ -125,12 +125,12 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{3.4626217f, 3.0603075f, 5.648326f, 14.364504f};
+        final float[] expected = new float[]{2.685696f, 2.6963534f, 2.7251422f, 2.6842563f};
         TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
     }
 
     @Test
-    public void testProcessWSM_SigmaNaught() throws Exception {
+    public void testProcess_SigmaNaught() throws Exception {
         final Product sourceProduct = loadCached(inputFile1);
 
         final CalibrationOp calOp = new CalibrationOp();
@@ -147,7 +147,7 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{0.20973432f, 0.3375942f, 0.070349924f, 0.031625833f};
+        final float[] expected = new float[]{0.13404073f, 0.13784982f, 0.110829115f, 0.13799441f};
         TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
     }
 

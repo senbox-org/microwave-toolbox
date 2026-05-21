@@ -74,7 +74,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     final JCheckBox saveSimulatedUnwrappedPhaseCheckBox = new JCheckBox("Simulated Unwrapped Phase");
 
     private Boolean nodataValueAtSea = true;
-    private Boolean outputFlattened = true;
+    private Boolean outputFlattened = false;
     private Boolean saveDEM = false;
     private Boolean saveLatLon = false;
     private Boolean saveIncidenceAngleFromEllipsoid = false;

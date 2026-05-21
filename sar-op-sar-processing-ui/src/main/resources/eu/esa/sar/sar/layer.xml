@@ -42,7 +42,7 @@
                 <attr name="displayName" stringvalue="Geocoded SLC Terrain Correction"/>
                 <attr name="operatorName" stringvalue="GSLC-Terrain-Correction"/>
                 <attr name="dialogTitle" stringvalue="GSLC Terrain Correction"/>
-                <attr name="targetProductNameSuffix" stringvalue="_TC"/>
+                <attr name="targetProductNameSuffix" stringvalue="_GSLC"/>
                 <attr name="ShortDescription" stringvalue="GSLC Terrain Correction"/>
                 <attr name="helpId" stringvalue="GSLCGeocodingOp"/>
                 <attr name="icon" stringvalue="esaIcon"/>
