@@ -21,6 +21,7 @@ import eu.esa.sar.commons.OrbitStateVectors;
 import eu.esa.sar.commons.SARGeocoding;
 import eu.esa.sar.commons.SARUtils;
 import eu.esa.sar.commons.Sentinel1Utils;
+import eu.esa.sar.commons.SolidEarthTide;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.dem.ElevationModel;
@@ -137,8 +138,20 @@ public class GSLCGeocodingOp extends Operator {
     @Parameter(description = "The coordinate reference system in well known text format", defaultValue = "WGS84(DD)")
     private String mapProjection = "WGS84(DD)";
 
-    @Parameter(description = "Force the image grid to be aligned with a specific point", defaultValue = "false")
-    private boolean alignToStandardGrid = false;
+    /**
+     * Snap the output grid origin to a multiple of the pixel size from
+     * {@link #standardGridOriginX}/{@link #standardGridOriginY}. The default is {@code true}
+     * so that any two GSLCs produced from overlapping scenes land on the same global lat/lon
+     * grid (subsets of the same Z² lattice), which means their pixel positions for the same
+     * ground point differ only by an integer offset — exactly what
+     * {@code CreateStackOp.computeTargetSecondaryCoordinateOffsets_Geocoded()} relies on.
+     * Set to {@code false} only if you intentionally want each scene's grid to start at its
+     * own footprint corner (incompatible with stacking).
+     */
+    @Parameter(description = "Snap the output grid origin to a multiple of the pixel size " +
+            "from standardGridOrigin. Required for two GSLCs to share a common pixel grid.",
+            defaultValue = "true", label = "Align to standard grid")
+    private boolean alignToStandardGrid = true;
 
     @Parameter(description = "x-coordinate of the standard grid's origin point", defaultValue = "0")
     private double standardGridOriginX = 0;
@@ -167,14 +180,78 @@ public class GSLCGeocodingOp extends Operator {
     @Parameter(defaultValue = "false", label = "Save layover shadow mask")
     private boolean saveLayoverShadowMask = false;
 
-    @Parameter(defaultValue = "true", label = "Output flattened complex data")
-    private boolean outputFlattened = true;
+    /**
+     * When {@code true}, the geometric carrier {@code exp(-j·4π·R(P_terrain)/λ)} is removed
+     * from each output complex pixel, leaving only the local scattering coefficient σ(P).
+     * That looks tidy, but it also <em>destroys</em> the InSAR signal: for a master/slave
+     * pair, both legs collapse to σ(P) and their conjugate product is identically real —
+     * no fringes. The default is therefore {@code false}, which keeps the natural SLC
+     * carrier so that downstream {@code master · conj(slave)} carries the differential
+     * phase {@code -j·4π·(R_M − R_S)/λ} (the flat-Earth + topographic + deformation +
+     * atmospheric signal). Set {@code true} only for non-InSAR use cases (e.g. amplitude
+     * analysis where you want a phase-clean complex band).
+     */
+    @Parameter(defaultValue = "false", label = "Output phase-flattened complex data",
+            description = "If true, removes the SLC geometric carrier (4π·R/λ) so each " +
+                    "complex pixel holds only the local scattering coefficient. This makes " +
+                    "the GSLC unusable for InSAR — the (R_master − R_slave) phase difference " +
+                    "is zeroed out. Leave false (default) for InSAR pipelines.")
+    private boolean outputFlattened = false;
 
     @Parameter(defaultValue = "false", label = "Save simulated phase")
     private boolean saveSimulatedPhase = false;
 
     @Parameter(defaultValue = "false", label = "Save simulated unwrapped phase")
     private boolean saveSimulatedUnwrappedPhase = false;
+
+    /**
+     * Constant slant-range pixel offset added to this product's geometric solution.
+     * Intended for InSAR slave geocoding: when a master and slave SLC have a residual
+     * misregistration (clock-bias / processor-time delta / orbit residual) beyond what
+     * orbit + DEM alone can predict, run cross-correlation between the two slant-range
+     * SLCs, take the median (slave − master) GCP offset, and pass that value here.
+     * The geometric model then samples each ground point at {@code geomRangeIndex +
+     * rangeOffsetPixels} of the source SLC, so the slave aligns with the master at the
+     * sub-pixel level. Default 0.0 (no offset).
+     */
+    @Parameter(defaultValue = "0.0",
+            label = "Slant-range offset (pixels)",
+            description = "Constant offset (in slant-range pixels) added to the geometric " +
+                    "sampling position. Used to apply a cross-correlation-derived (master − " +
+                    "slave) bias when geocoding a slave for InSAR.")
+    private double rangeOffsetPixels = 0.0;
+
+    /**
+     * Constant azimuth pixel offset added to this product's geometric solution. See
+     * {@link #rangeOffsetPixels} for usage — these two parameters work as a pair to
+     * apply a scalar (Δrange, Δazimuth) coregistration bias estimated from cross-
+     * correlation. Default 0.0 (no offset).
+     */
+    @Parameter(defaultValue = "0.0",
+            label = "Azimuth offset (pixels)",
+            description = "Constant offset (in azimuth pixels) added to the geometric " +
+                    "sampling position. Pairs with rangeOffsetPixels for scalar-bias " +
+                    "coregistration of an InSAR slave.")
+    private double azimuthOffsetPixels = 0.0;
+
+    @Parameter(defaultValue = "false",
+            label = "Apply Solid Earth Tide correction",
+            description = "Apply solid Earth tide displacement to the target geometry " +
+                    "before slant-range computation (~10 cm peak; required for displacement-grade InSAR).")
+    private boolean applySolidEarthTide = false;
+
+    @Parameter(defaultValue = "false",
+            label = "Apply tropospheric correction",
+            description = "Apply the Saastamoinen dry tropospheric path delay to the slant range " +
+                    "before phase computation. Uses a standard atmosphere model (no real-time meteo).")
+    private boolean applyTroposphericCorrection = false;
+
+    @Parameter(defaultValue = "false",
+            label = "Apply ionospheric correction",
+            description = "Apply an ionospheric path delay correction (mandatory for L-band " +
+                    "displacement InSAR — e.g. NISAR, ALOS-2/4). The current implementation logs " +
+                    "a warning; a full TEC/split-spectrum integration is pending.")
+    private boolean applyIonosphericCorrection = false;
 
     private MetadataElement absRoot = null;
     private ElevationModel dem = null;
@@ -198,7 +275,25 @@ public class GSLCGeocodingOp extends Operator {
     private double firstLineUTC = 0.0; // in days
     private double lastLineUTC = 0.0; // in days
     private double lineTimeInterval = 0.0; // in days
+    private double lineTimeIntervalSec = 0.0; // in seconds (= lineTimeInterval × 86400)
+    private double sceneMidTimeMjdUtc = 0.0; // scene midpoint UTC MJD, used by SET
     private double nearEdgeSlantRange = 0.0; // in m
+
+    /**
+     * Residual Doppler centroid (Hz) for every source range column, evaluated once at
+     * scene-start time from the metadata's Doppler_Centroid_Coefficients polynomial.
+     * Used by the SM-path resampler to deramp the azimuth carrier
+     * {@code exp(+j·2π·f_dc(r)·(eta − eta_ref))} before sinc interpolation and re-apply
+     * it after — without this, sub-pixel resampling of an SLC with non-zero residual
+     * Doppler centroid (Envisat ASAR: 100–500 Hz) introduces an α-dependent phase error
+     * that destroys coherence at scene scale. Reference: ISCE3 geocodeSlc.cpp carrier
+     * deramp/reramp; Yague-Martinez 2016 §III.
+     * <p>
+     * {@code null} when there are no Doppler coefficients in the metadata, in which case
+     * the resampler skips the azimuth deramp (back to the previous behaviour, which is
+     * fine for products with near-zero {@code f_dc} such as Capella SM).
+     */
+    private double[] fdcPerSourceColumn = null;
 
     private CoordinateReferenceSystem targetCRS;
     private double delLat = 0.0;
@@ -226,7 +321,174 @@ public class GSLCGeocodingOp extends Operator {
     private static final String PRODUCT_SUFFIX = "_GSLC";
     private static final double lightSpeedInMetersPerSecond = 299792458.0;
 
+    /** Layover/shadow mask bit codes (§1e). Multiple bits may combine. */
+    static final int MASK_LAYOVER   = 1 << 0; // 1
+    static final int MASK_SHADOW    = 1 << 1; // 2
+    static final int MASK_NO_SOURCE = 1 << 2; // 4 — target pixel had no usable source/DEM
+    /** Local-incidence threshold (degrees) below which the pixel is flagged as layover. */
+    static final double LAYOVER_INC_THRESHOLD_DEG = 5.0;
+    /** Local-incidence threshold (degrees) above which the pixel is flagged as shadow. */
+    static final double SHADOW_INC_THRESHOLD_DEG  = 85.0;
+
     private final List<ComplexPair> complexPairs = new ArrayList<>();
+
+    /**
+     * Multiply (iIn + j*qIn) by exp(+j*phi), given precomputed cos and sin of phi.
+     * Used by the SM path to flatten the source-side range carrier during resampling
+     * and by the TOPS path to apply post-resample range-carrier flattening.
+     */
+    static void multiplyByExpJPhi(final double iIn, final double qIn,
+                                  final double cosPhi, final double sinPhi,
+                                  final double[] out2) {
+        out2[0] = iIn * cosPhi - qIn * sinPhi;
+        out2[1] = qIn * cosPhi + iIn * sinPhi;
+    }
+
+    /**
+     * Multiply (iIn + j*qIn) by exp(-j*phi), given precomputed cos and sin of phi.
+     * Inverse of {@link #multiplyByExpJPhi}. Used to restore the original SLC range
+     * carrier when {@code outputFlattened=false}.
+     */
+    static void multiplyByExpMinusJPhi(final double iIn, final double qIn,
+                                       final double cosPhi, final double sinPhi,
+                                       final double[] out2) {
+        out2[0] = iIn * cosPhi + qIn * sinPhi;
+        out2[1] = qIn * cosPhi - iIn * sinPhi;
+    }
+
+    /**
+     * Pre-flatten the range carrier on a deramped source tile in place (§1b).
+     * <p>
+     * For each pixel (yy, xx) in {@code rect}, this multiplies (derampedI[yy][xx],
+     * derampedQ[yy][xx]) by exp(+j * 4 pi R / lambda), where R is the slant range
+     * at the absolute source range pixel (rect.x + xx).
+     * <p>
+     * Removing the rapidly-varying range carrier before sinc interpolation prevents
+     * sub-pixel amplitude cancellation between adjacent samples whose phases differ
+     * by tens of cycles for short-wavelength SAR (e.g. ~83 cycles per pixel for
+     * Sentinel-1 C-band at 2.3 m range spacing). The SM path already does this
+     * inside {@link GSLCResamplingRaster}; this helper is the TOPS-path equivalent.
+     *
+     * @param derampedI         in-place real part of the deramped tile.
+     * @param derampedQ         in-place imag part of the deramped tile.
+     * @param rect              source rectangle whose top-left is the (0,0) of the tile arrays.
+     * @param rangeSpacing      pixel spacing in range (m).
+     * @param wavelength        radar wavelength (m).
+     * @param nearEdgeSlantRange slant range at near-range edge of source image (m).
+     * @param nearRangeOnLeft   whether range increases with column index in the source.
+     * @param sourceImageWidth  width of the full source image (used to mirror x when nearRangeOnLeft=false).
+     */
+    static void preFlattenRangeCarrier(final double[][] derampedI, final double[][] derampedQ,
+                                       final Rectangle rect, final double rangeSpacing,
+                                       final double wavelength, final double nearEdgeSlantRange,
+                                       final boolean nearRangeOnLeft, final int sourceImageWidth) {
+        final int bh = rect.height;
+        final int bw = rect.width;
+        final double phaseStep = 4.0 * Math.PI * rangeSpacing / wavelength;
+        final double sign = nearRangeOnLeft ? 1.0 : -1.0;
+        final double cosStep = FastMath.cos(sign * phaseStep);
+        final double sinStep = FastMath.sin(sign * phaseStep);
+
+        // Phase at first column (xx=0) of the tile:
+        //   absX  = rect.x
+        //   srcPx = nearRangeOnLeft ? absX : (sourceImageWidth - 1 - absX)
+        //   phi0  = 4 pi * (nearEdgeSlantRange + srcPx * rangeSpacing) / wavelength
+        // Subsequent columns increment by `sign * phaseStep`.
+        final int absX0 = rect.x;
+        final int srcPx0 = nearRangeOnLeft ? absX0 : (sourceImageWidth - 1 - absX0);
+        final double phi0 = 4.0 * Math.PI * (nearEdgeSlantRange + srcPx0 * rangeSpacing) / wavelength;
+
+        // Pre-compute the column-major phasor table once (same for all rows).
+        final double[] cosCol = new double[bw];
+        final double[] sinCol = new double[bw];
+        double cosCur = FastMath.cos(phi0);
+        double sinCur = FastMath.sin(phi0);
+        for (int xx = 0; xx < bw; xx++) {
+            cosCol[xx] = cosCur;
+            sinCol[xx] = sinCur;
+            final double cNext = cosCur * cosStep - sinCur * sinStep;
+            final double sNext = sinCur * cosStep + cosCur * sinStep;
+            cosCur = cNext;
+            sinCur = sNext;
+        }
+
+        for (int yy = 0; yy < bh; yy++) {
+            final double[] rowI = derampedI[yy];
+            final double[] rowQ = derampedQ[yy];
+            for (int xx = 0; xx < bw; xx++) {
+                final double iVal = rowI[xx];
+                final double qVal = rowQ[xx];
+                final double c = cosCol[xx];
+                final double s = sinCol[xx];
+                rowI[xx] = iVal * c - qVal * s;
+                rowQ[xx] = qVal * c + iVal * s;
+            }
+        }
+    }
+
+    /**
+     * Evaluate the analytical TOPS deramp+demod phase at a fractional source position
+     * (§1c). Inputs: the SubSwath, burst index, and fractional source pixel coords.
+     * <p>
+     * The phase model is (per ESA S1 IPF / DerampDemod literature):
+     * <pre>
+     *   phi(x, y) = -pi * kt(x) * (ta(y) - tr(x))^2  -  2 pi * fdc(x) * ta(y)
+     * </pre>
+     * where {@code ta = (y - firstLineInBurst) * azimuthTimeInterval}, and
+     * {@code kt, tr, fdc} are the (per-burst) Doppler rate, reference time, and
+     * Doppler centroid arrays sampled at integer range columns; these are
+     * linearly interpolated at fractional x.
+     * <p>
+     * Computing the phase analytically at the resampled position is more accurate
+     * than bisinc-interpolating the wrapped phase grid: the grid wraps modulo 2pi
+     * across many cycles per pixel at burst edges, where the unwrapped quadratic
+     * can grow to hundreds of radians.
+     */
+    /**
+     * Classify a pixel as layover ({@link #MASK_LAYOVER}), shadow
+     * ({@link #MASK_SHADOW}), or valid (0) from its local incidence angle.
+     * Local incidence < {@value #LAYOVER_INC_THRESHOLD_DEG} deg means the
+     * surface slopes toward the sensor more steeply than the radar look angle
+     * — classic layover. Local incidence > {@value #SHADOW_INC_THRESHOLD_DEG}
+     * deg means the slope is hidden from the sensor — radar shadow. A
+     * non-valid incidence angle ({@link SARGeocoding#NonValidIncidenceAngle})
+     * is treated as {@link #MASK_NO_SOURCE}.
+     */
+    static int classifyLayoverShadow(final double localIncidenceDeg) {
+        if (Double.isNaN(localIncidenceDeg)
+                || localIncidenceDeg == SARGeocoding.NonValidIncidenceAngle) {
+            return MASK_NO_SOURCE;
+        }
+        int mask = 0;
+        if (localIncidenceDeg < LAYOVER_INC_THRESHOLD_DEG) mask |= MASK_LAYOVER;
+        if (localIncidenceDeg > SHADOW_INC_THRESHOLD_DEG)  mask |= MASK_SHADOW;
+        return mask;
+    }
+
+    static double computeDerampDemodPhaseAt(final Sentinel1Utils.SubSwathInfo[] subSwath,
+                                            final int subSwathIndex, final int burstIndex,
+                                            final double xFrac, final double yFrac) {
+        final int s = subSwathIndex - 1;
+        final Sentinel1Utils.SubSwathInfo ss = subSwath[s];
+        final int firstLineInBurst = burstIndex * ss.linesPerBurst;
+        final double ta = (yFrac - firstLineInBurst) * ss.azimuthTimeInterval;
+
+        final int n = ss.numOfSamples;
+        final int x0 = (int) Math.floor(xFrac);
+        final int x0c = Math.max(0, Math.min(n - 1, x0));
+        final int x1c = Math.max(0, Math.min(n - 1, x0 + 1));
+        final double fx = xFrac - x0;
+
+        final double kt = ss.dopplerRate[burstIndex][x0c]
+                + fx * (ss.dopplerRate[burstIndex][x1c] - ss.dopplerRate[burstIndex][x0c]);
+        final double tr = ss.referenceTime[burstIndex][x0c]
+                + fx * (ss.referenceTime[burstIndex][x1c] - ss.referenceTime[burstIndex][x0c]);
+        final double fdc = ss.dopplerCentroid[burstIndex][x0c]
+                + fx * (ss.dopplerCentroid[burstIndex][x1c] - ss.dopplerCentroid[burstIndex][x0c]);
+
+        final double dt = ta - tr;
+        return -Math.PI * kt * dt * dt - Constants.TWO_PI * fdc * ta;
+    }
 
     private static class ComplexPair {
         Band srcI;
@@ -280,6 +542,21 @@ public class GSLCGeocodingOp extends Operator {
 
             margin = getMargin();
 
+            if (applySolidEarthTide) {
+                SystemUtils.LOG.info("GSLC: applySolidEarthTide=true — IERS 2010 step-1 body " +
+                        "tide displacement (Sun + Moon, degree-2 Love numbers) will be applied " +
+                        "to each geocoded ground point before slant-range computation.");
+            }
+            if (applyIonosphericCorrection) {
+                SystemUtils.LOG.warning("GSLC: applyIonosphericCorrection=true but the " +
+                        "ionospheric model is currently a stub — no TEC delay is being applied. " +
+                        "Split-spectrum / GIM TEC integration is pending.");
+            }
+            if (applyTroposphericCorrection) {
+                SystemUtils.LOG.info("GSLC: applyTroposphericCorrection=true — using Saastamoinen " +
+                        "dry zenith delay (no real-time meteorology).");
+            }
+
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
@@ -332,6 +609,8 @@ public class GSLCGeocodingOp extends Operator {
         firstLineUTC = AbstractMetadata.parseUTC(absRoot.getAttributeString(AbstractMetadata.first_line_time)).getMJD(); // in days
         lastLineUTC = AbstractMetadata.parseUTC(absRoot.getAttributeString(AbstractMetadata.last_line_time)).getMJD(); // in days
         lineTimeInterval = (lastLineUTC - firstLineUTC) / (sourceImageHeight - 1); // in days
+        lineTimeIntervalSec = lineTimeInterval * Constants.secondsInDay;
+        sceneMidTimeMjdUtc = 0.5 * (firstLineUTC + lastLineUTC); // for SET (sub-second accuracy is enough)
         if (lineTimeInterval == 0.0) {
             throw new OperatorException("Invalid input for Line Time Interval: " + lineTimeInterval);
         }
@@ -357,6 +636,96 @@ public class GSLCGeocodingOp extends Operator {
 
         incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
         nearRangeOnLeft = SARGeocoding.isNearRangeOnLeft(incidenceAngle, sourceImageWidth);
+
+        // Apply scalar coregistration bias (typically a cross-correlation-derived
+        // slave-vs-master residual) by shifting the metadata references that the
+        // geometric model bases its rangeIndex / azimuthIndex on. For a positive
+        // offset O, the geometric pixel for any ground point becomes
+        // {@code originalIndex + O}, i.e. the operator samples the source SLC at a
+        // higher pixel column / row by that constant amount.
+        if (rangeOffsetPixels != 0.0) {
+            final double rangeShift = rangeOffsetPixels * rangeSpacing;
+            nearEdgeSlantRange -= rangeShift;
+            SystemUtils.LOG.info(String.format(
+                    "GSLC: rangeOffsetPixels=%+.6f → nearEdgeSlantRange shifted by %+.4f m",
+                    rangeOffsetPixels, -rangeShift));
+        }
+        if (azimuthOffsetPixels != 0.0) {
+            final double azShiftDays = azimuthOffsetPixels * lineTimeInterval;
+            firstLineUTC -= azShiftDays;
+            lastLineUTC  -= azShiftDays;
+            sceneMidTimeMjdUtc = 0.5 * (firstLineUTC + lastLineUTC);
+            SystemUtils.LOG.info(String.format(
+                    "GSLC: azimuthOffsetPixels=%+.6f → firstLineUTC shifted by %+.4f s",
+                    azimuthOffsetPixels, -azShiftDays * 86400.0));
+        }
+
+        // Build the residual Doppler centroid profile f_dc(r) per source range column.
+        // For sub-pixel SLC resampling to preserve phase, the azimuth carrier
+        // exp(+j·2π·f_dc(r)·(eta − eta_ref)) must be deramped before the sinc kernel
+        // and re-applied at the target position; otherwise the kernel sees a
+        // band-shifted signal and produces α-dependent phase errors that destroy
+        // coherence at scene scale (this is the canonical "subset OK / full scene
+        // noise" failure on Envisat ASAR). See research note in
+        // sources/research_opera_isce3_gslc.md.
+        fdcPerSourceColumn = buildFdcPerSourceColumn();
+    }
+
+    /**
+     * Evaluate the residual Doppler centroid (Hz) at every source range column from
+     * the metadata's {@code Doppler_Centroid_Coefficients} polynomial. Returns
+     * {@code null} if the metadata has no Doppler coefficients — the resampler
+     * then skips the azimuth deramp entirely.
+     */
+    private double[] buildFdcPerSourceColumn() {
+        final AbstractMetadata.DopplerCentroidCoefficientList[] dopList;
+        try {
+            dopList = AbstractMetadata.getDopplerCentroidCoefficients(absRoot);
+        } catch (Throwable t) {
+            SystemUtils.LOG.warning("GSLC: could not read Doppler_Centroid_Coefficients (" +
+                    t.getMessage() + ") — azimuth deramp disabled.");
+            return null;
+        }
+        if (dopList == null || dopList.length == 0 || dopList[0].coefficients == null
+                || dopList[0].coefficients.length == 0) {
+            SystemUtils.LOG.info("GSLC: no Doppler_Centroid_Coefficients in metadata — " +
+                    "azimuth deramp disabled (assuming zero residual f_dc).");
+            return null;
+        }
+        // Use the first entry (scene-start). For Envisat ASAR IMS this is the only
+        // entry; for products with multiple entries the time-variation along azimuth
+        // is small enough (< 1 Hz typically) that one entry is sufficient.
+        final AbstractMetadata.DopplerCentroidCoefficientList dop = dopList[0];
+        final double[] coeffs = dop.coefficients;
+        // SNAP stores slant_range_time in NANOSECONDS (see DemodulateOp:306 — the canonical
+        // reference for stripmap Doppler polynomial evaluation: `* Constants.oneBillionth`).
+        // The polynomial coefficients are in Hz / s^j, so the polynomial argument must
+        // be the (slant-range-time − reference) difference in SECONDS.
+        final double refSrt = dop.slant_range_time * Constants.oneBillionth; // ns → s
+        final double twoOverC = 2.0 / lightSpeedInMetersPerSecond;
+
+        final double[] fdc = new double[sourceImageWidth];
+        double maxAbsFdc = 0.0;
+        for (int col = 0; col < sourceImageWidth; col++) {
+            final int srcCol = nearRangeOnLeft ? col : (sourceImageWidth - 1 - col);
+            final double slantRange = nearEdgeSlantRange + srcCol * rangeSpacing;
+            final double srt = slantRange * twoOverC; // two-way slant-range time, seconds
+            final double dt = srt - refSrt;
+            double f = 0.0;
+            double dtPow = 1.0;
+            for (final double c : coeffs) {
+                f += c * dtPow;
+                dtPow *= dt;
+            }
+            fdc[col] = f;
+            if (Math.abs(f) > maxAbsFdc) maxAbsFdc = Math.abs(f);
+        }
+        SystemUtils.LOG.info(String.format(
+                "GSLC: residual Doppler centroid built from %d coefficient(s); " +
+                        "|f_dc| range across swath = %.2f Hz (max). " +
+                        "Azimuth deramp will be applied during SM resampling.",
+                coeffs.length, maxAbsFdc));
+        return fdc;
     }
 
     private void initTOPSData() throws Exception {
@@ -405,41 +774,7 @@ public class GSLCGeocodingOp extends Operator {
 
     private void createTargetProduct() {
         try {
-            if (pixelSpacingInMeter <= 0.0 && pixelSpacingInDegree <= 0) {
-                pixelSpacingInMeter = Math.max(SARGeocoding.getAzimuthPixelSpacing(sourceProduct),
-                        SARGeocoding.getRangePixelSpacing(sourceProduct));
-                pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
-
-                // Apply oversampling percent
-                double multiplier = 1.0;
-                if (oversamplingPercent > 0.0 && oversamplingPercent < 100.0) {
-                    multiplier = 1.0 - (oversamplingPercent / 100.0);
-                }
-
-                pixelSpacingInMeter *= multiplier;
-                pixelSpacingInDegree *= multiplier;
-            }
-            if (pixelSpacingInMeter <= 0.0) {
-                pixelSpacingInMeter = SARGeocoding.getPixelSpacingInMeter(pixelSpacingInDegree);
-            }
-            if (pixelSpacingInDegree <= 0) {
-                pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
-            }
-            delLat = pixelSpacingInDegree;
-            delLon = pixelSpacingInDegree;
-
-            final CRSGeoCodingHandler crsHandler = new CRSGeoCodingHandler(sourceProduct, mapProjection,
-                    pixelSpacingInDegree, pixelSpacingInMeter,
-                    alignToStandardGrid, standardGridOriginX, standardGridOriginY);
-
-            targetCRS = crsHandler.getTargetCRS();
-
-            targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
-                    sourceProduct.getProductType(), crsHandler.getTargetWidth(), crsHandler.getTargetHeight());
-            targetProduct.setSceneGeoCoding(crsHandler.getCrsGeoCoding());
-
-            targetImageWidth = targetProduct.getSceneRasterWidth();
-            targetImageHeight = targetProduct.getSceneRasterHeight();
+            initTargetGridFromSource();
 
             addSelectedBands();
 
@@ -464,6 +799,60 @@ public class GSLCGeocodingOp extends Operator {
         } catch (Exception e) {
             throw new OperatorException(e);
         }
+    }
+
+    /**
+     * Build the output grid (CRS, origin, pixel size, dimensions) from this product's footprint
+     * via {@link CRSGeoCodingHandler}. Used when no reference product is supplied.
+     */
+    private void initTargetGridFromSource() throws Exception {
+        if (pixelSpacingInMeter <= 0.0 && pixelSpacingInDegree <= 0) {
+            // Use the SLC's native slant-range spacing (a sensor/mode constant) rather
+            // than the incidence-corrected ground-range projection. Two scenes of the
+            // same area acquired from slightly different orbital positions have slightly
+            // different incidence angles at their respective scene centres, which makes
+            // SARGeocoding.getRangePixelSpacing() return slightly different values —
+            // breaking lattice alignment between master and slave GSLCs. The slant-range
+            // spacing in the abstracted metadata is constant for every scene from the
+            // same sensor/beam, so it gives every GSLC the same pixel size by
+            // construction. (The output ends up slightly oversampled compared to the
+            // old ground-range default — e.g. ~7.8 m vs ~20 m for ASAR IMS — but that
+            // is the price of guaranteed lattice alignment for InSAR stacking.)
+            final double azimuthSpacing = SARGeocoding.getAzimuthPixelSpacing(sourceProduct);
+            final double rangeSpacingNative = AbstractMetadata.getAttributeDouble(absRoot,
+                    AbstractMetadata.range_spacing);
+            pixelSpacingInMeter = Math.max(azimuthSpacing, rangeSpacingNative);
+            pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
+
+            double multiplier = 1.0;
+            if (oversamplingPercent > 0.0 && oversamplingPercent < 100.0) {
+                multiplier = 1.0 - (oversamplingPercent / 100.0);
+            }
+
+            pixelSpacingInMeter *= multiplier;
+            pixelSpacingInDegree *= multiplier;
+        }
+        if (pixelSpacingInMeter <= 0.0) {
+            pixelSpacingInMeter = SARGeocoding.getPixelSpacingInMeter(pixelSpacingInDegree);
+        }
+        if (pixelSpacingInDegree <= 0) {
+            pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
+        }
+        delLat = pixelSpacingInDegree;
+        delLon = pixelSpacingInDegree;
+
+        final CRSGeoCodingHandler crsHandler = new CRSGeoCodingHandler(sourceProduct, mapProjection,
+                pixelSpacingInDegree, pixelSpacingInMeter,
+                alignToStandardGrid, standardGridOriginX, standardGridOriginY);
+
+        targetCRS = crsHandler.getTargetCRS();
+
+        targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
+                sourceProduct.getProductType(), crsHandler.getTargetWidth(), crsHandler.getTargetHeight());
+        targetProduct.setSceneGeoCoding(crsHandler.getCrsGeoCoding());
+
+        targetImageWidth = targetProduct.getSceneRasterWidth();
+        targetImageHeight = targetProduct.getSceneRasterHeight();
     }
 
     private void computeSensorPositionsAndVelocities() {
@@ -602,6 +991,27 @@ public class GSLCGeocodingOp extends Operator {
             AbstractMetadata.setAttribute(absTgt, AbstractMetadata.range_spacing, pixelSpacingInMeter);
             AbstractMetadata.setAttribute(absTgt, AbstractMetadata.azimuth_spacing, pixelSpacingInMeter);
         }
+
+        // Stamp the source SLC's file path so downstream operators (notably CreateStackOp)
+        // can reload the slant-range master when it needs to cross-correlate against a raw
+        // slave SLC to estimate the GSLC coregistration bias. Without this, the auto-bias
+        // path can't run because the master is only available as a geocoded product.
+        final File srcFile = sourceProduct.getFileLocation();
+        if (srcFile != null) {
+            AbstractMetadata.addAbstractedAttribute(absTgt, "gslc_source_slc_path",
+                    ProductData.TYPE_ASCII, "path",
+                    "File path of the source SLC this GSLC was geocoded from");
+            AbstractMetadata.setAttribute(absTgt, "gslc_source_slc_path", srcFile.getAbsolutePath());
+        }
+        // Stamp whether the output is phase-flattened (topographic + ellipsoidal phase
+        // removed) so CreateStackOp can match this state when auto-building a slave GSLC
+        // from a raw SLC. Without this stamp, mixing flattened/non-flattened bands in the
+        // stack produces a meaningless phase difference (noise interferogram).
+        AbstractMetadata.addAbstractedAttribute(absTgt, "gslc_output_flattened",
+                ProductData.TYPE_ASCII, "flag",
+                "true if topographic + ellipsoidal phase has been subtracted from the GSLC carrier");
+        AbstractMetadata.setAttribute(absTgt, "gslc_output_flattened",
+                outputFlattened ? "true" : "false");
     }
 
     @Override
@@ -636,14 +1046,7 @@ public class GSLCGeocodingOp extends Operator {
                     nodataValueAtSea, localDEM);
 
             if (!valid && nodataValueAtSea) {
-                for (Band targetBand : targetTiles.keySet()) {
-                    ProductData data = targetTiles.get(targetBand).getRawSamples();
-                    double nodatavalue = targetBand.getNoDataValue();
-                    final int length = data.getNumElems();
-                    for (int i = 0; i < length; ++i) {
-                        data.setElemDoubleAt(i, nodatavalue);
-                    }
-                }
+                fillTilesAsNoSource(targetTiles);
                 return;
             }
 
@@ -659,11 +1062,7 @@ public class GSLCGeocodingOp extends Operator {
             }
 
             if (sourceRectangle == null) {
-                 for (Tile t : targetTiles.values()) {
-                     ProductData data = t.getRawSamples();
-                     final double noData = t.getRasterDataNode().getNoDataValue();
-                     for(int i = 0; i < data.getNumElems(); i++) data.setElemDoubleAt(i, noData);
-                 }
+                 fillTilesAsNoSource(targetTiles);
                  return;
             }
 
@@ -687,7 +1086,9 @@ public class GSLCGeocodingOp extends Operator {
                 Tile srcTileQ = getSourceTile(pair.srcQ, sourceRectangle);
                 
                 ActivePair ap = new ActivePair();
-                ap.raster = new GSLCResamplingRaster(srcTileI, srcTileQ, rangeSpacing, wavelength, nearEdgeSlantRange, sourceImageWidth, sourceImageHeight, nearRangeOnLeft);
+                ap.raster = new GSLCResamplingRaster(srcTileI, srcTileQ, rangeSpacing, wavelength,
+                        nearEdgeSlantRange, sourceImageWidth, sourceImageHeight, nearRangeOnLeft,
+                        fdcPerSourceColumn, lineTimeIntervalSec);
                 ap.bufI = processI ? targetTiles.get(pair.tgtI).getRawSamples() : null;
                 ap.bufQ = processQ ? targetTiles.get(pair.tgtQ).getRawSamples() : null;
                 ap.noDataI = pair.tgtI.getNoDataValue();
@@ -757,7 +1158,7 @@ public class GSLCGeocodingOp extends Operator {
                         if (localIncidenceAngleBuffer != null) localIncidenceAngleBuffer.setElemDoubleAt(idx, noDataLocalInc);
                         if (projectedLocalIncidenceAngleBuffer != null) projectedLocalIncidenceAngleBuffer.setElemDoubleAt(idx, noDataProjInc);
                         if (incidenceAngleFromEllipsoidBuffer != null) incidenceAngleFromEllipsoidBuffer.setElemDoubleAt(idx, noDataEllipInc);
-                        if (layoverShadowMaskBuffer != null) layoverShadowMaskBuffer.setElemIntAt(idx, 0);
+                        if (layoverShadowMaskBuffer != null) layoverShadowMaskBuffer.setElemIntAt(idx, MASK_NO_SOURCE);
                         continue;
                     }
 
@@ -774,12 +1175,27 @@ public class GSLCGeocodingOp extends Operator {
                     final double cosPhi = FastMath.cos(phase);
                     final double sinPhi = FastMath.sin(phase);
 
+                    // Azimuth reramp phase at the target position. The resampler removed
+                    // the azimuth carrier {@code exp(+j·2π·f_dc(r)·eta·dt)} from every
+                    // sample so the sinc kernel operates on a baseband signal; here we
+                    // re-apply that carrier at the target's fractional (rangeIndex,
+                    // azimuthIndex) so the output matches the OPERA-CSLC / NISAR-GSLC
+                    // convention (azimuth carrier preserved, only the topographic /
+                    // range carrier flattened when outputFlattened=true).
+                    double cosAzTgt = 1.0, sinAzTgt = 0.0;
+                    if (fdcPerSourceColumn != null) {
+                        final double fdcTgt = interpFdcAt(rangeIndex);
+                        final double phiAzTgt = 2.0 * Math.PI * fdcTgt * azimuthIndex * lineTimeIntervalSec;
+                        cosAzTgt = FastMath.cos(phiAzTgt);
+                        sinAzTgt = FastMath.sin(phiAzTgt);
+                    }
+
                     for (ActivePair ap : activePairs) {
                         ap.raster.setSlantRangeAtCenter(slantRange, rangeIndex);
-                        
+
                         ap.raster.setReturnReal(true);
                         double iFlat = imgResampling.resample(ap.raster, resamplingIndex);
-                        
+
                         ap.raster.setReturnReal(false);
                         double qFlat = imgResampling.resample(ap.raster, resamplingIndex);
 
@@ -787,13 +1203,31 @@ public class GSLCGeocodingOp extends Operator {
                              if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, ap.noDataI);
                              if (ap.bufQ != null) ap.bufQ.setElemDoubleAt(idx, ap.noDataQ);
                         } else {
+                             // Azimuth reramp (applied for both outputFlattened modes — the
+                             // natural SLC azimuth carrier is restored regardless of whether
+                             // the range carrier is being flattened or restored).
+                             // (iFlat + j·qFlat) · exp(+j·phiAzTgt)
+                             if (fdcPerSourceColumn != null) {
+                                  final double iAz = iFlat * cosAzTgt - qFlat * sinAzTgt;
+                                  final double qAz = qFlat * cosAzTgt + iFlat * sinAzTgt;
+                                  iFlat = iAz;
+                                  qFlat = qAz;
+                             }
+
                              double iFinal, qFinal;
                              if (outputFlattened) {
                                   iFinal = iFlat;
                                   qFinal = qFlat;
                              } else {
-                                  iFinal = iFlat * cosPhi - qFlat * sinPhi;
-                                  qFinal = qFlat * cosPhi + iFlat * sinPhi;
+                                  // The resampler already applied exp(+j*phi) to the source
+                                  // (see GSLCResamplingRaster.getSamples). To recover the
+                                  // original SLC convention we must multiply by exp(-j*phi),
+                                  // i.e. the inverse — not exp(+j*phi) again, which doubles
+                                  // the carrier (issue §1a).
+                                  final double[] restored = new double[2];
+                                  multiplyByExpMinusJPhi(iFlat, qFlat, cosPhi, sinPhi, restored);
+                                  iFinal = restored[0];
+                                  qFinal = restored[1];
                              }
                              if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, iFinal);
                              if (ap.bufQ != null) ap.bufQ.setElemDoubleAt(idx, qFinal);
@@ -814,14 +1248,22 @@ public class GSLCGeocodingOp extends Operator {
                     if (latBuffer != null) latBuffer.setElemDoubleAt(idx, geoPos.lat);
                     if (lonBuffer != null) lonBuffer.setElemDoubleAt(idx, geoPos.lon);
 
-                    if (localIncidenceAngleBuffer != null || projectedLocalIncidenceAngleBuffer != null) {
+                    // Local incidence is needed for the layover/shadow mask too,
+                    // so compute it whenever any of those bands is requested.
+                    final boolean needLocalInc = localIncidenceAngleBuffer != null
+                            || projectedLocalIncidenceAngleBuffer != null
+                            || layoverShadowMaskBuffer != null;
+                    double localIncDeg = SARGeocoding.NonValidIncidenceAngle;
+                    if (needLocalInc) {
                         final double[] localIncidenceAngles = {SARGeocoding.NonValidIncidenceAngle, SARGeocoding.NonValidIncidenceAngle};
-                         final LocalGeometry localGeometry = new LocalGeometry(
+                        final LocalGeometry localGeometry = new LocalGeometry(
                                 x, y, tileGeoRef, posData.earthPoint, posData.sensorPos);
-                        
+
                         SARGeocoding.computeLocalIncidenceAngle(
-                                localGeometry, demNoDataValue, saveLocalIncidenceAngle, saveProjectedLocalIncidenceAngle,
-                                false, x0, y0, x, y, localDEM, localIncidenceAngles);
+                                localGeometry, demNoDataValue, true /*saveLocalIncidenceAngle*/,
+                                saveProjectedLocalIncidenceAngle, false, x0, y0, x, y,
+                                localDEM, localIncidenceAngles);
+                        localIncDeg = localIncidenceAngles[0];
 
                         if (localIncidenceAngleBuffer != null) {
                             localIncidenceAngleBuffer.setElemDoubleAt(idx, localIncidenceAngles[0]);
@@ -834,9 +1276,9 @@ public class GSLCGeocodingOp extends Operator {
                     if (incidenceAngleFromEllipsoidBuffer != null && incidenceAngle != null) {
                         incidenceAngleFromEllipsoidBuffer.setElemDoubleAt(idx, incidenceAngle.getPixelDouble(posData.rangeIndex, posData.azimuthIndex));
                     }
-                    
+
                     if (layoverShadowMaskBuffer != null) {
-                        layoverShadowMaskBuffer.setElemIntAt(idx, 0); 
+                        layoverShadowMaskBuffer.setElemIntAt(idx, classifyLayoverShadow(localIncDeg));
                     }
                 }
             }
@@ -890,6 +1332,17 @@ public class GSLCGeocodingOp extends Operator {
 
                 tileGeoRef.getGeoPos(x, y, geoPos);
                 GeoUtils.geo2xyzWGS84(geoPos.lat, geoPos.lon, alt, earthPoint);
+
+                // §4 SET (TOPS path): apply body-tide displacement to the ground
+                // point so both rangeIndex and slant-range phase reflect the actual
+                // position the radar imaged on this acquisition.
+                if (applySolidEarthTide) {
+                    final double[] dEcef = SolidEarthTide.computeEcefDisplacement(
+                            sceneMidTimeMjdUtc, geoPos.lat, geoPos.lon, alt);
+                    earthPoint.x += dEcef[0];
+                    earthPoint.y += dEcef[1];
+                    earthPoint.z += dEcef[2];
+                }
 
                 // Find zero-Doppler time using orbit state vector bisection (not pre-computed array).
                 // For TOPS burst products, the pre-computed array uses lineTimeInterval that includes
@@ -945,6 +1398,14 @@ public class GSLCGeocodingOp extends Operator {
                 // Validate within burst valid region
                 if (!isValidBurstSample(burst, azimuthIndex, rangeIndex, ss)) continue;
                 if (!isValidCell(rangeIndex, azimuthIndex)) continue;
+
+                // §4 troposphere: same convention as the SM path — apply the
+                // Saastamoinen dry path delay to the slant range used for the
+                // OUTPUT phase only, after rangeIndex is fixed.
+                if (applyTroposphericCorrection) {
+                    slantRange += SARGeocoding.computeAtmosphericPathDelay(
+                            earthPoint, sensorPos, geoPos.lat, alt);
+                }
 
                 azimuthIndices[idx] = azimuthIndex;
                 rangeIndices[idx] = rangeIndex;
@@ -1024,10 +1485,16 @@ public class GSLCGeocodingOp extends Operator {
                 final double[][] derampedQ = new double[bh][bw];
                 performDerampDemod(srcTileI, srcTileQ, clampedRect, derampDemodPhase, derampedI, derampedQ);
 
-                // Create resampling rasters from deramped arrays
+                // §1b: pre-flatten the range carrier on the deramped tile before
+                // resampling so that sinc interpolation operates on a slowly-
+                // varying signal phase rather than tens of carrier cycles per
+                // range pixel.
+                preFlattenRangeCarrier(derampedI, derampedQ, clampedRect, rangeSpacing,
+                        wavelength, nearEdgeSlantRange, nearRangeOnLeft, sourceImageWidth);
+
+                // Create resampling rasters from deramped+pre-flattened arrays.
                 final ArrayResamplingRaster rasterI = new ArrayResamplingRaster(derampedI, bw, bh);
                 final ArrayResamplingRaster rasterQ = new ArrayResamplingRaster(derampedQ, bw, bh);
-                final ArrayResamplingRaster rasterPhase = new ArrayResamplingRaster(derampDemodPhase, bw, bh);
 
                 // Resample each target pixel belonging to this burst
                 for (int idx = 0; idx < numPixels; idx++) {
@@ -1048,22 +1515,29 @@ public class GSLCGeocodingOp extends Operator {
                         continue;
                     }
 
-                    // Interpolate the deramp phase at the resampled position and reramp
-                    final double sampPhase = imgResampling.resample(rasterPhase, resamplingIndex);
+                    // §1c: reramp using the deramp+demod phase evaluated analytically
+                    // at the fractional source position (not bisinc-interpolated from
+                    // the phase grid, which has burst-edge bias from the modulo-2pi
+                    // wraps).
+                    final double sampPhase = computeDerampDemodPhaseAt(
+                            subSwath, subSwathIndex, burstIndex,
+                            rangeIndices[idx], azimuthIndices[idx]);
                     final double cosReramp = FastMath.cos(sampPhase);
                     final double sinReramp = FastMath.sin(sampPhase);
                     double convergentI = sampI * cosReramp + sampQ * sinReramp;
                     double convergentQ = -sampI * sinReramp + sampQ * cosReramp;
 
-                    // Apply range phase flattening
-                    if (outputFlattened) {
+                    // The data is now in the "flattened" (carrier-removed) domain
+                    // because of the §1b pre-flatten step. If the user wants the
+                    // original SLC convention back, multiply by exp(-j * 4 pi R / lambda).
+                    if (!outputFlattened) {
                         final double rangePhase = phaseConstant * slantRanges[idx];
                         final double cosPhi = FastMath.cos(rangePhase);
                         final double sinPhi = FastMath.sin(rangePhase);
-                        final double iFinal = convergentI * cosPhi - convergentQ * sinPhi;
-                        final double qFinal = convergentQ * cosPhi + convergentI * sinPhi;
-                        convergentI = iFinal;
-                        convergentQ = qFinal;
+                        final double[] restored = new double[2];
+                        multiplyByExpMinusJPhi(convergentI, convergentQ, cosPhi, sinPhi, restored);
+                        convergentI = restored[0];
+                        convergentQ = restored[1];
                     }
 
                     if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, convergentI);
@@ -1082,10 +1556,27 @@ public class GSLCGeocodingOp extends Operator {
     }
 
     private void fillAllNoData(Map<Band, Tile> targetTiles) {
-        for (Tile t : targetTiles.values()) {
-            ProductData data = t.getRawSamples();
-            final double noData = t.getRasterDataNode().getNoDataValue();
-            for (int i = 0; i < data.getNumElems(); i++) data.setElemDoubleAt(i, noData);
+        fillTilesAsNoSource(targetTiles);
+    }
+
+    /**
+     * Bail-out fill for tiles when no source data is available. Writes each
+     * band's no-data value, except for the {@code layoverShadowMask} band which
+     * gets {@link #MASK_NO_SOURCE} so downstream consumers see the audit trail.
+     */
+    private void fillTilesAsNoSource(Map<Band, Tile> targetTiles) {
+        for (Map.Entry<Band, Tile> e : targetTiles.entrySet()) {
+            final Band b = e.getKey();
+            final Tile t = e.getValue();
+            final ProductData data = t.getRawSamples();
+            if ("layoverShadowMask".equals(b.getName())) {
+                final int n = data.getNumElems();
+                for (int i = 0; i < n; i++) data.setElemIntAt(i, MASK_NO_SOURCE);
+            } else {
+                final double noData = b.getNoDataValue();
+                final int n = data.getNumElems();
+                for (int i = 0; i < n; i++) data.setElemDoubleAt(i, noData);
+            }
         }
     }
 
@@ -1312,8 +1803,38 @@ public class GSLCGeocodingOp extends Operator {
         return x >= margin && x < sourceImageWidth - margin && y >= margin && y < sourceImageHeight - margin;
     }
 
+    /**
+     * Linearly interpolate the residual Doppler centroid at a fractional source range
+     * column. The two bracketing integer columns must be within
+     * {@code [0, sourceImageWidth)}; out-of-range x clamps to the nearest valid edge.
+     * Returns 0.0 if no Doppler profile is available — the caller treats this as
+     * "no azimuth carrier to re-apply".
+     */
+    private double interpFdcAt(double xFrac) {
+        if (fdcPerSourceColumn == null) return 0.0;
+        if (xFrac <= 0.0) return fdcPerSourceColumn[0];
+        if (xFrac >= sourceImageWidth - 1) return fdcPerSourceColumn[sourceImageWidth - 1];
+        final int x0 = (int) Math.floor(xFrac);
+        final double f = xFrac - x0;
+        return fdcPerSourceColumn[x0] * (1.0 - f) + fdcPerSourceColumn[x0 + 1] * f;
+    }
+
     private boolean getPosition(final double lat, final double lon, final double alt, final PositionData data) {
         GeoUtils.geo2xyzWGS84(lat, lon, alt, data.earthPoint);
+
+        // §4 SET: displace the geocoded ground point by the IERS 2010 step-1
+        // body-tide displacement at the scene's mid-time. This shifts BOTH the
+        // computed slant range AND the source rangeIndex consistently — the
+        // pixel the radar actually saw on this acquisition was displaced from
+        // its un-tided lat/lon by ~cm. Differential SET between paired
+        // acquisitions (typically a few mm) is the InSAR-relevant residual.
+        if (applySolidEarthTide) {
+            final double[] dEcef = SolidEarthTide.computeEcefDisplacement(
+                    sceneMidTimeMjdUtc, lat, lon, alt);
+            data.earthPoint.x += dEcef[0];
+            data.earthPoint.y += dEcef[1];
+            data.earthPoint.z += dEcef[2];
+        }
 
         double zeroDopplerTime = SARGeocoding.getEarthPointZeroDopplerTime(firstLineUTC,
                 lineTimeInterval, wavelength, data.earthPoint, orbit.sensorPosition, orbit.sensorVelocity);
@@ -1350,6 +1871,18 @@ public class GSLCGeocodingOp extends Operator {
         }
 
         data.azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
+
+        // §4 troposphere: apply a one-way Saastamoinen dry zenith path delay
+        // to the slant range used for the OUTPUT phase. The source rangeIndex
+        // is left untouched (the SLC was sampled in apparent-range; correcting
+        // it would shift the resampling lookup by ~1 pixel and degrade fidelity).
+        // This affects the carrier-phase term only, which is the InSAR-relevant
+        // quantity.
+        if (applyTroposphericCorrection) {
+            final double tropoDelay = SARGeocoding.computeAtmosphericPathDelay(
+                    data.earthPoint, data.sensorPos, lat, alt);
+            data.slantRange += tropoDelay;
+        }
         return true;
     }
 
@@ -1374,19 +1907,31 @@ public class GSLCGeocodingOp extends Operator {
         private final boolean nearRangeOnLeft;
         private double centerSlantRange;
         private double centerRangeIndex;
-        
+
+        /**
+         * Residual Doppler centroid per source range column (Hz), or {@code null} if
+         * the metadata had none. When non-null, the resampler subtracts
+         * {@code 2π·f_dc(x_j)·y_i·lineTimeIntervalSec} from each sample's
+         * deramp phase, bringing the azimuth signal to baseband before sinc interpolation.
+         */
+        private final double[] fdcPerSourceColumn;
+        private final double lineTimeIntervalSec;
+
         private final double phaseStep;
         private final double sign;
-        
+
         // Cache fields
         private double lastRangeIndex = -1.0;
         private double[][] cachedI;
         private double[][] cachedQ;
         private boolean lastAllValid;
 
-        public GSLCResamplingRaster(Tile sourceTileI, Tile sourceTileQ, 
-                                    double rangeSpacing, double wavelength, 
-                                    double nearEdgeSlantRange, int sourceWidth, int sourceHeight, boolean nearRangeOnLeft) {
+        public GSLCResamplingRaster(Tile sourceTileI, Tile sourceTileQ,
+                                    double rangeSpacing, double wavelength,
+                                    double nearEdgeSlantRange, int sourceWidth, int sourceHeight,
+                                    boolean nearRangeOnLeft,
+                                    double[] fdcPerSourceColumn,
+                                    double lineTimeIntervalSec) {
             this.sourceTileI = sourceTileI;
             this.sourceTileQ = sourceTileQ;
             this.rangeSpacing = rangeSpacing;
@@ -1396,7 +1941,9 @@ public class GSLCGeocodingOp extends Operator {
             this.sourceWidth = sourceWidth;
             this.sourceHeight = sourceHeight;
             this.nearRangeOnLeft = nearRangeOnLeft;
-            
+            this.fdcPerSourceColumn = fdcPerSourceColumn;
+            this.lineTimeIntervalSec = lineTimeIntervalSec;
+
             this.phaseStep = 4.0 * Math.PI * rangeSpacing / wavelength;
             this.sign = nearRangeOnLeft ? 1.0 : -1.0;
         }
@@ -1459,6 +2006,15 @@ public class GSLCGeocodingOp extends Operator {
             final int ryMin = rect.y;
             final int ryMax = rect.y + rect.height - 1;
 
+            // Per-sample deramp model (Yague-Martinez 2016 §III, ISCE3 geocodeSlc):
+            //   SLC(eta, r) = a(eta,r) · exp(-j·4π·R(r)/λ) · exp(+j·2π·f_dc(r)·eta·dt)
+            // To deramp to baseband for sinc:
+            //   multiply by exp(+j·4π·R(r)/λ)  (range, already in code as +phi_range)
+            //   multiply by exp(-j·2π·f_dc(r)·eta·dt)  (azimuth, NEW)
+            // Combined phase added per sample: phi = phi_range − phi_az,
+            // where phi_az = 2π·f_dc(x_j)·y_i·dt.
+            final boolean derampAz = (fdcPerSourceColumn != null);
+            final double azPhaseScale = 2.0 * Math.PI * lineTimeIntervalSec;
             for (int i = 0; i < y.length; i++) {
                 final int yi = y[i];
                 final boolean yInBounds = (yi >= ryMin && yi <= ryMax);
@@ -1484,8 +2040,23 @@ public class GSLCGeocodingOp extends Operator {
                             cachedI[i][j] = noDataValue;
                             cachedQ[i][j] = noDataValue;
                             allValid = false;
+                        } else if (derampAz && xj >= 0 && xj < fdcPerSourceColumn.length) {
+                            // Combine range deramp (incremental phi_range tracked in
+                            // cosPhiCur/sinPhiCur) with per-sample azimuth deramp.
+                            //   total = phi_range − phi_az
+                            //   exp(+j·total) = exp(+j·phi_range) · exp(−j·phi_az)
+                            final double phiAz = azPhaseScale * fdcPerSourceColumn[xj] * yi;
+                            final double cosAz = FastMath.cos(phiAz);
+                            final double sinAz = FastMath.sin(phiAz);
+                            // R = exp(+j·phi_range): (cosR, sinR) = (cosPhiCur, sinPhiCur)
+                            // A = exp(−j·phi_az):    (cosAz, -sinAz)
+                            // R·A = (cosR·cosAz + sinR·sinAz) + j(sinR·cosAz − cosR·sinAz)
+                            final double cosT = cosPhiCur * cosAz + sinPhiCur * sinAz;
+                            final double sinT = sinPhiCur * cosAz - cosPhiCur * sinAz;
+                            cachedI[i][j] = iVal * cosT - qVal * sinT;
+                            cachedQ[i][j] = qVal * cosT + iVal * sinT;
                         } else {
-                            // (I + jQ) * e^{+j*phi} = (I*cos - Q*sin) + j(Q*cos + I*sin)
+                            // (I + jQ) * e^{+j*phi_range} = (I*cos - Q*sin) + j(Q*cos + I*sin)
                             cachedI[i][j] = iVal * cosPhiCur - qVal * sinPhiCur;
                             cachedQ[i][j] = qVal * cosPhiCur + iVal * sinPhiCur;
                         }

@@ -94,7 +94,8 @@ public class CreateStackOpUI extends BaseOperatorUI {
         if (referenceProduct != null) {
             referenceProductLabel.setText(referenceProduct.getName());
         }
-        if(referenceProduct != null && InputProductValidator.isMapProjected(referenceProduct)) {
+        if(referenceProduct != null && InputProductValidator.isMapProjected(referenceProduct)
+                && !isGSLCProduct(referenceProduct)) {
             initialOffsetMethod.setSelectedItem(CreateStackOp.INITIAL_OFFSET_GEOLOCATION);
             if(paramMap.get("resamplingType").equals("NONE")) {
                 resamplingType.setSelectedItem(ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME);
@@ -104,6 +105,32 @@ public class CreateStackOpUI extends BaseOperatorUI {
         }
 
         extent.setSelectedItem(paramMap.get("extent"));
+    }
+
+    /**
+     * A GSLC (Geocoded SLC) is map-projected but carries the SLC carrier phase, so it
+     * must be handled by the orbit-based / no-resampling InSAR path — not by the
+     * geolocation-GCP + BISINC resampling path used for terrain-corrected amplitude stacks.
+     */
+    private static boolean isGSLCProduct(final Product product) {
+        if (product == null) return false;
+        if (product.getName() != null && product.getName().endsWith("_GSLC")) return true;
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(product);
+        if (abs != null && abs.getAttribute("gslc_source_slc_path") != null) return true;
+        // Final fallback: any map-projected product that still carries a complex (i/q) band
+        // pair is a GSLC for our purposes — the user may have written it with an arbitrary
+        // filename suffix (e.g. "_TC") that loses the natural _GSLC suffix, and subset can
+        // strip the gslc_source_slc_path stamp.
+        boolean hasReal = false;
+        boolean hasImag = false;
+        for (final Band b : product.getBands()) {
+            final String u = b.getUnit();
+            if (u == null) continue;
+            if (u.equals(Unit.REAL)) hasReal = true;
+            else if (u.equals(Unit.IMAGINARY)) hasImag = true;
+            if (hasReal && hasImag) return true;
+        }
+        return false;
     }
 
     private static List<Integer> getSelectedIndices(final String[] allBandNames,
@@ -154,6 +181,14 @@ public class CreateStackOpUI extends BaseOperatorUI {
         paramMap.put("initialOffsetMethod", initialOffsetMethod.getSelectedItem());
 
         paramMap.put("extent", extent.getSelectedItem());
+
+        // No UI control exposes this parameter (auto-coregister is a power-user toggle
+        // useful only to tests). Default it to TRUE so GSLC + raw-SLC workflows in the
+        // GUI auto-promote the SLC slaves to the master's grid. Tests that want to skip
+        // the heavy work set it directly via setParameter(...).
+        if (!paramMap.containsKey("autoCoregisterGSLC")) {
+            paramMap.put("autoCoregisterGSLC", Boolean.TRUE);
+        }
     }
 
     private JComponent createPanel() {

@@ -3,6 +3,8 @@ package eu.esa.sar.sar.gpf.geometric;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -12,7 +14,9 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 public class GSLCGeocodingOpTest extends ProcessorTest {
@@ -95,5 +99,53 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
             Band qBand = targetProduct.getBand("q_HH");
             assertNotNull("Imaginary band (q_HH) not found", qBand);
         }
+    }
+
+    /**
+     * Two GSLCs of the same scene, run with default parameters, must land on a grid
+     * compatible with InSAR stacking: same pixel size, and the pixel corner offsets between
+     * them are integer multiples of the pixel size in both axes (so master pixel
+     * {@code (i,j)} maps to slave pixel {@code (i+dx, j+dy)} for integer {@code dx,dy}).
+     * That's the property {@code alignToStandardGrid=true} (default) guarantees, and it's
+     * what CreateStack relies on instead of a user-supplied reference product.
+     */
+    @Test
+    public void testTwoGSLCs_AutoAlignedByStandardGrid() throws Exception {
+        try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile2)) {
+            final Product g1 = runDefaultGslc(sourceProduct);
+            final Product g2 = runDefaultGslc(sourceProduct);
+
+            assertEquals("same pixel-X size",
+                    g1.getSceneGeoCoding().getGeoPos(new PixelPos(1.5, 0.5), null).lon
+                            - g1.getSceneGeoCoding().getGeoPos(new PixelPos(0.5, 0.5), null).lon,
+                    g2.getSceneGeoCoding().getGeoPos(new PixelPos(1.5, 0.5), null).lon
+                            - g2.getSceneGeoCoding().getGeoPos(new PixelPos(0.5, 0.5), null).lon,
+                    1e-12);
+
+            // For the same ground point, the difference between the two grids' pixel
+            // positions must be an integer in both axes — that's the property that lets
+            // CreateStack do an exact integer-pixel mapping with no resampling.
+            final GeoPos anchor = g1.getSceneGeoCoding().getGeoPos(new PixelPos(10.5, 15.5), null);
+            final PixelPos g1pp = new PixelPos();
+            final PixelPos g2pp = new PixelPos();
+            g1.getSceneGeoCoding().getPixelPos(anchor, g1pp);
+            g2.getSceneGeoCoding().getPixelPos(anchor, g2pp);
+            final double diffX = g2pp.x - g1pp.x;
+            final double diffY = g2pp.y - g1pp.y;
+            final double fracX = diffX - Math.round(diffX);
+            final double fracY = diffY - Math.round(diffY);
+            assertTrue("offset between the two GSLC grids must be integer pixels " +
+                    "(got fracX=" + fracX + ", fracY=" + fracY + ")",
+                    Math.abs(fracX) < 1e-6 && Math.abs(fracY) < 1e-6);
+        }
+    }
+
+    private static Product runDefaultGslc(final Product source) {
+        final GSLCGeocodingOp op = (GSLCGeocodingOp) spi.createOperator();
+        op.setSourceProduct(source);
+        op.setParameter("demName", "SRTM 3Sec");
+        op.setParameter("imgResamplingMethod", "BILINEAR_INTERPOLATION");
+        op.setParameter("nodataValueAtSea", false);
+        return op.getTargetProduct();
     }
 }
