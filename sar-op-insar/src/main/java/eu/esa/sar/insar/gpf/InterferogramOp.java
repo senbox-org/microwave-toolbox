@@ -107,6 +107,21 @@ public class InterferogramOp extends Operator {
             label = "Coherence Range Window Size")
     private int cohWinRg = 10;
 
+    @Parameter(description = "Coherence estimation window size in metres. When > 0, " +
+            "overrides cohWinAz/cohWinRg at initialization by converting from the pixel " +
+            "spacing of the (geocoded) inputs. Recommended for GSLC inputs so the multilook " +
+            "support is set in physical units regardless of map-grid pixel size.",
+            defaultValue = "0",
+            label = "Coherence Window (m)")
+    private double cohWinSizeMeters = 0.0;
+
+    @Parameter(description = "Read-only status flag set at initialization when the operator " +
+            "auto-detects GSLC inputs (is_terrain_corrected=1) and bypasses flat-Earth / " +
+            "topographic phase subtraction. Visible to make the bypass auditable.",
+            defaultValue = "false",
+            label = "GSLC mode auto-detected")
+    private boolean gslcModeAutoDetected = false;
+
     @Parameter(description = "Use ground square pixel", defaultValue = "true", label = "Square Pixel")
     private Boolean squarePixel = true;
 
@@ -234,9 +249,12 @@ public class InterferogramOp extends Operator {
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
             if (absRoot != null && absRoot.getAttributeInt(AbstractMetadata.is_terrain_corrected, 0) == 1) {
                 isGSLCProduct = true;
+                gslcModeAutoDetected = true;
+                resolveCoherenceWindowFromMeters();
                 initializeGSLC();
                 return;
             }
+            resolveCoherenceWindowFromMeters();
 
             if(absRoot.containsAttribute("multireference_split")){
                 refRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElementAt(0);
@@ -286,6 +304,29 @@ public class InterferogramOp extends Operator {
      * the complex conjugate multiplication of primary and secondary, with no flat-earth or
      * topographic phase subtraction needed.
      */
+    /**
+     * Convert {@link #cohWinSizeMeters} (if > 0) into pixel-based
+     * {@link #cohWinAz}/{@link #cohWinRg} using the source product's pixel spacing.
+     * Recommended for geocoded inputs so the multilook support stays at a fixed
+     * physical scale regardless of map-grid pixel size.
+     */
+    private void resolveCoherenceWindowFromMeters() throws Exception {
+        if (cohWinSizeMeters <= 0.0) return;
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        if (abs == null) return;
+        final double rgSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.range_spacing);
+        final double azSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.azimuth_spacing);
+        if (rgSpacing > 0.0) {
+            cohWinRg = Math.max(3, (int) Math.round(cohWinSizeMeters / rgSpacing));
+        }
+        if (azSpacing > 0.0) {
+            cohWinAz = Math.max(3, (int) Math.round(cohWinSizeMeters / azSpacing));
+        }
+        SystemUtils.LOG.info(String.format(
+                "InterferogramOp: cohWinSizeMeters=%.1f m -> cohWinAz=%d, cohWinRg=%d (pixel spacing az=%.2f m, rg=%.2f m)",
+                cohWinSizeMeters, cohWinAz, cohWinRg, azSpacing, rgSpacing));
+    }
+
     private void initializeGSLC() throws Exception {
         sourceImageWidth = sourceProduct.getSceneRasterWidth();
         sourceImageHeight = sourceProduct.getSceneRasterHeight();
@@ -345,14 +386,18 @@ public class InterferogramOp extends Operator {
             final String iBandName = "i_" + productTag + tag;
             gslcTargetI[p] = targetProduct.addBand(iBandName, ProductData.TYPE_FLOAT32);
             gslcTargetI[p].setUnit(Unit.REAL);
+            gslcTargetI[p].setNoDataValueUsed(true);
+            gslcTargetI[p].setNoDataValue(0);
 
             final String qBandName = "q_" + productTag + tag;
             gslcTargetQ[p] = targetProduct.addBand(qBandName, ProductData.TYPE_FLOAT32);
             gslcTargetQ[p].setUnit(Unit.IMAGINARY);
+            gslcTargetQ[p].setNoDataValueUsed(true);
+            gslcTargetQ[p].setNoDataValue(0);
 
             if (CREATE_VIRTUAL_BAND) {
                 ReaderUtils.createVirtualIntensityBand(targetProduct, gslcTargetI[p], gslcTargetQ[p], '_' + productTag + tag);
-                Band phaseBand = ReaderUtils.createVirtualPhaseBand(targetProduct, gslcTargetI[p], gslcTargetQ[p], '_' + productTag + tag);
+                Band phaseBand = createGuardedPhaseBand(targetProduct, gslcTargetI[p], gslcTargetQ[p], '_' + productTag + tag);
                 targetProduct.setQuicklookBandName(phaseBand.getName());
             }
 
@@ -364,6 +409,42 @@ public class InterferogramOp extends Operator {
                 gslcTargetCoh[p].setNoDataValue(0);
             }
         }
+    }
+
+    /**
+     * Create the virtual "Phase" band with no-data handled BEFORE the {@code atan2}
+     * computation, not after. Replaces {@link ReaderUtils#createVirtualPhaseBand}, whose
+     * naive expression {@code atan2(q, i)} relies on the fact that {@code atan2(0, 0) = 0}
+     * to encode no-data — but floating-point + signed-zero quirks mean some no-data
+     * pixels end up at {@code ±π} instead of {@code 0}, so a downstream {@code phase == 0}
+     * no-data check both over- and under-masks. By guarding the input we guarantee the
+     * no-data sentinel is exactly the no-data value and nothing else.
+     * <p>
+     * The output bands of {@link InterferogramOp} write {@code 0} into both i_ifg and
+     * q_ifg at no-data pixels (because they're zeroed via no-data propagation upstream),
+     * so we detect no-data as {@code i_ifg == 0 && q_ifg == 0}.
+     */
+    private static Band createGuardedPhaseBand(final Product product, final Band iBand, final Band qBand,
+                                               final String countStr) {
+        // Expression: if both i and q are exactly zero (= no-data), output 0 directly;
+        // otherwise compute atan2(q, i). This way the no-data sentinel (= 0) is only
+        // written for actual no-data, not for valid pixels where the data happens to
+        // land on a ±π branch due to signed-zero quirks of atan2.
+        final String expr = "(" + iBand.getName() + " == 0 && " + qBand.getName() + " == 0) ? 0 : " +
+                "atan2(" + qBand.getName() + ", " + iBand.getName() + ")";
+        final org.esa.snap.core.datamodel.VirtualBand virt = new org.esa.snap.core.datamodel.VirtualBand(
+                "Phase" + countStr,
+                ProductData.TYPE_FLOAT32,
+                iBand.getRasterWidth(),
+                iBand.getRasterHeight(),
+                expr);
+        virt.setUnit(Unit.PHASE);
+        virt.setDescription("Phase from complex data (no-data guarded)");
+        virt.setNoDataValueUsed(true);
+        virt.setNoDataValue(0);
+        virt.setOwner(product);
+        product.addBand(virt);
+        return virt;
     }
 
     /**
@@ -871,12 +952,16 @@ public class InterferogramOp extends Operator {
             final Band iBand = targetProduct.addBand(targetBandName_I, ProductData.TYPE_FLOAT32);
             container.addBand(Unit.REAL, iBand.getName());
             iBand.setUnit(Unit.REAL);
+            iBand.setNoDataValueUsed(true);
+            iBand.setNoDataValue(0);
             targetBandNames.add(iBand.getName());
 
             final String targetBandName_Q = "q_" + productTag + tag;
             final Band qBand = targetProduct.addBand(targetBandName_Q, ProductData.TYPE_FLOAT32);
             container.addBand(Unit.IMAGINARY, qBand.getName());
             qBand.setUnit(Unit.IMAGINARY);
+            qBand.setNoDataValueUsed(true);
+            qBand.setNoDataValue(0);
             targetBandNames.add(qBand.getName());
 
             if (CREATE_VIRTUAL_BAND) {
@@ -884,11 +969,9 @@ public class InterferogramOp extends Operator {
                 ReaderUtils.createVirtualIntensityBand(targetProduct,
                         targetProduct.getBand(targetBandName_I), targetProduct.getBand(targetBandName_Q), countStr);
 
-                Band phaseBand = ReaderUtils.createVirtualPhaseBand(targetProduct,
+                Band phaseBand = createGuardedPhaseBand(targetProduct,
                         targetProduct.getBand(targetBandName_I), targetProduct.getBand(targetBandName_Q), countStr);
-
                 targetProduct.setQuicklookBandName(phaseBand.getName());
-                phaseBand.setNoDataValueUsed(true);
                 targetBandNames.add(phaseBand.getName());
             }
 

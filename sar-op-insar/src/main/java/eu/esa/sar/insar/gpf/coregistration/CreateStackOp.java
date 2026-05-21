@@ -121,6 +121,33 @@ public class CreateStackOp extends Operator {
             label = "Initial Offset Method")
     private String initialOffsetMethod = INITIAL_OFFSET_ORBIT;
 
+    /**
+     * When {@code true}, GSLC inputs trigger automatic cross-correlation-based bias
+     * estimation and slave re-geocoding so the resulting stack is sub-pixel coregistered
+     * without any user intervention. This is what makes the GUI's builtin
+     * "Create Stack" graph produce coherent interferograms — but it's heavy
+     * (reloads source SLCs from disk, runs CC, re-runs GSLC on each slave with bias).
+     * Default {@code true} (user-facing convenience). Tests that don't need the bias
+     * correction should set it to {@code false} to avoid the heavy work.
+     */
+    @Parameter(defaultValue = "true",
+            description = "Auto-estimate cross-correlation bias and re-geocode GSLC slaves " +
+                    "when the input stack contains geocoded products.",
+            label = "Auto-coregister GSLC slaves")
+    private boolean autoCoregisterGSLC = true;
+
+    /**
+     * If true, skip the (slow) cross-correlation pass against the master SLC and rely on
+     * geometric coregistration only (bias=0). With master and slave on the same grid
+     * (locked via {@link #applyMasterGridLockParams}), bias=0 still produces fringes —
+     * possibly with a sub-pixel residual ramp, but correlation pattern visible. Useful
+     * for fast iteration on full-resolution stacks where CC takes minutes.
+     */
+    @Parameter(defaultValue = "false",
+            description = "Skip the cross-correlation refinement step; use pure geometric coregistration. Faster but less accurate.",
+            label = "Skip GSLC bias estimation (geometric only)")
+    private boolean skipBiasEstimation = false;
+
     private final Map<Band, Band> sourceRasterMap = new HashMap<>(10);
     private final Map<Product, int[]> secondaryOffsetMap = new HashMap<>(10);
 
@@ -128,6 +155,118 @@ public class CreateStackOp extends Operator {
     private boolean isResampling = false;
 
     private static final String PRODUCT_SUFFIX = "_Stack";
+
+    /**
+     * State that {@link #maybeAutoGeocodeAgainstReference} parks for later: the master
+     * SLC reloaded from {@code gslc_source_slc_path}, plus a queue of jobs describing
+     * each slave that needs bias estimation + GSLC rebuild. Populated in
+     * {@link #initialize()}; consumed in {@link #doExecute(ProgressMonitor)}.
+     */
+    private Product reloadedMasterSlcForBias = null;
+    private final java.util.List<PendingBiasJob> pendingBiasJobs = new java.util.ArrayList<>();
+    private volatile boolean biasJobsRan = false;
+
+    /**
+     * Thread-local set to {@code true} while inside {@link #estimateSlcBias}. The nested
+     * CreateStackOp that runs there must NEVER auto-coregister — otherwise we get
+     * infinite recursion if reload-master-SLC returns the GSLC itself. The initialize()
+     * safety net checks this flag before promoting {@code autoCoregisterGSLC=true}.
+     */
+    private static final ThreadLocal<Boolean> INSIDE_BIAS_ESTIMATION = ThreadLocal.withInitial(() -> false);
+
+    /**
+     * SNAP desktop installs {@code SnapAppGPFOperatorExecutor} as GPF's executor; its
+     * constructor calls {@code WindowManager.getMainWindow()}, which is fatal off the EDT.
+     * When CreateStack chains in-memory operators (the placeholder GSLC), every JAI tile
+     * fetch triggers {@code GPF.executeOperator} on a worker thread and hits the EDT check.
+     * We swap in a passthrough executor for the lifetime of this op instance and restore
+     * the original in {@link #dispose}.
+     */
+    private static final Object GPF_EXECUTOR_LOCK = new Object();
+    private static volatile Object savedGpfExecutor = null;
+    private static volatile int executorSwapRefcount = 0;
+    private boolean ownsExecutorSwap = false;
+
+    /** One slave that needs bias-driven GSLC rebuild during {@code doExecute}. */
+    private static final class PendingBiasJob {
+        final int slaveIdx;          // index into sourceProduct[]
+        final Product slaveSlc;      // slant-range SLC to use as the GSLC source
+        final boolean disposeSlaveSlcAfter;  // true if slaveSlc was reloaded from disk
+        final Product placeholderSlaveGslc;  // bias=0 GSLC built during initialize
+        PendingBiasJob(final int slaveIdx, final Product slaveSlc,
+                       final boolean disposeAfter, final Product placeholder) {
+            this.slaveIdx = slaveIdx;
+            this.slaveSlc = slaveSlc;
+            this.disposeSlaveSlcAfter = disposeAfter;
+            this.placeholderSlaveGslc = placeholder;
+        }
+    }
+
+    /**
+     * Replace GPF's progress-monitored operator executor with a passthrough one for the
+     * duration of this operator's lifecycle. Reference-counted so nested CreateStacks
+     * share the same swap. Saved value is restored in {@link #dispose}.
+     */
+    private void installPassthroughGpfExecutor() {
+        synchronized (GPF_EXECUTOR_LOCK) {
+            if (executorSwapRefcount == 0) {
+                try {
+                    final org.esa.snap.core.gpf.GPF gpf = org.esa.snap.core.gpf.GPF.getDefaultInstance();
+                    final java.lang.reflect.Field field =
+                            org.esa.snap.core.gpf.GPF.class.getDeclaredField("operatorExecutor");
+                    field.setAccessible(true);
+                    savedGpfExecutor = field.get(gpf);
+                    final Class<?> ifaceClass = Class.forName(
+                            "org.esa.snap.core.gpf.ProgressMonitoredOperatorExecutor");
+                    final Object passthrough = java.lang.reflect.Proxy.newProxyInstance(
+                            ifaceClass.getClassLoader(),
+                            new Class<?>[]{ifaceClass},
+                            (proxy, method, args) -> {
+                                if ("execute".equals(method.getName()) && args != null && args.length == 1) {
+                                    ((org.esa.snap.core.gpf.Operator) args[0])
+                                            .execute(com.bc.ceres.core.ProgressMonitor.NULL);
+                                }
+                                return null;
+                            });
+                    field.set(gpf, passthrough);
+                    SystemUtils.LOG.fine("CreateStack: installed passthrough GPF executor " +
+                            "(saved=" + (savedGpfExecutor == null ? "null" : savedGpfExecutor.getClass().getName()) + ")");
+                } catch (Throwable t) {
+                    SystemUtils.LOG.warning("CreateStack: failed to install passthrough GPF executor: " +
+                            t.getMessage() + " — nested operator chains may crash on the EDT.");
+                    return;
+                }
+            }
+            executorSwapRefcount++;
+            ownsExecutorSwap = true;
+        }
+    }
+
+    private void restoreGpfExecutor() {
+        synchronized (GPF_EXECUTOR_LOCK) {
+            if (!ownsExecutorSwap) return;
+            ownsExecutorSwap = false;
+            executorSwapRefcount--;
+            if (executorSwapRefcount == 0 && savedGpfExecutor != null) {
+                try {
+                    final java.lang.reflect.Field field =
+                            org.esa.snap.core.gpf.GPF.class.getDeclaredField("operatorExecutor");
+                    field.setAccessible(true);
+                    field.set(org.esa.snap.core.gpf.GPF.getDefaultInstance(), savedGpfExecutor);
+                    SystemUtils.LOG.fine("CreateStack: restored GPF executor");
+                } catch (Throwable t) {
+                    SystemUtils.LOG.warning("CreateStack: failed to restore GPF executor: " + t.getMessage());
+                }
+                savedGpfExecutor = null;
+            }
+        }
+    }
+
+    @Override
+    public void dispose() {
+        restoreGpfExecutor();
+        super.dispose();
+    }
 
     @Override
     public void initialize() throws OperatorException {
@@ -140,6 +279,33 @@ public class CreateStackOp extends Operator {
             if (sourceProduct.length < 2) {
                 throw new OperatorException("Please select at least two source products");
             }
+
+            // Safety net: if the UI / paramMap left autoCoregisterGSLC=false but the user
+            // actually fed mixed-geometry inputs (master GSLC + raw SLC slaves), auto-enable
+            // it so the workflow doesn't dead-end on the geometry-mixing throw below. Skip
+            // when running inside estimateSlcBias's nested CreateStack — that path
+            // explicitly opts out of auto-coregister and must stay opted out to avoid
+            // recursion.
+            if (!autoCoregisterGSLC && anySourceIsGeocoded() && !allSourcesAreGeocoded()
+                    && !INSIDE_BIAS_ESTIMATION.get()) {
+                SystemUtils.LOG.warning("CreateStack: mixed geocoded + slant-range inputs detected — " +
+                        "auto-enabling GSLC coregistration.");
+                autoCoregisterGSLC = true;
+            }
+
+            // We're about to chain GSLC-Terrain-Correction (and possibly Cross-Correlation)
+            // inside our pipeline. Swap GPF's executor to a non-EDT passthrough so JAI
+            // tile reads from those chained operators don't crash on the SnapApp executor's
+            // getMainFrame() call (which requires EDT and can't be reached from JAI workers).
+            if (autoCoregisterGSLC && anySourceIsGeocoded()) {
+                installPassthroughGpfExecutor();
+            }
+
+            // If the user passed a geocoded reference (e.g. a master GSLC) alongside raw SLCs,
+            // auto-promote those SLCs onto the reference's grid by invoking GSLC-Terrain-Correction
+            // here. The user then only has to run GSLCGeocoding once (on the master) — the slave
+            // geocoding-and-alignment is folded into the stack creation.
+            maybeAutoGeocodeAgainstReference();
 
             for (final Product prod : sourceProduct) {
                 final InputProductValidator validator = new InputProductValidator(prod);
@@ -335,7 +501,21 @@ public class CreateStackOp extends Operator {
                     computeTargetSecondaryCoordinateOffsets_GCP();
                 }
                 if (initialOffsetMethod.equals(INITIAL_OFFSET_ORBIT)) {
-                    computeTargetSecondaryCoordinateOffsets_Orbits();
+                    // The ORBIT method uses Orbit.lp2xyz which interprets (line, pixel) as
+                    // (azimuth-time, slant-range). For geocoded products (e.g. GSLC), line/pixel
+                    // are map coordinates — feeding (W/2, H/2) into the SLC orbit math returns
+                    // garbage XYZ and a garbage pixel offset. Route those to a geocoding-based
+                    // offset instead. Mixing geometries in one stack is rejected.
+                    if (anySourceIsGeocoded()) {
+                        if (!allSourcesAreGeocoded()) {
+                            throw new OperatorException(
+                                "CreateStack cannot mix geocoded (is_terrain_corrected=1) and " +
+                                "slant-range SLC products in the same stack — they are in different geometries.");
+                        }
+                        computeTargetSecondaryCoordinateOffsets_Geocoded();
+                    } else {
+                        computeTargetSecondaryCoordinateOffsets_Orbits();
+                    }
                 }
             }
 
@@ -346,6 +526,168 @@ public class CreateStackOp extends Operator {
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    /**
+     * Lazy fallback for execution paths (notably the SNAP desktop / interactive open
+     * flow) where the framework never calls {@link #doExecute(ProgressMonitor)} before
+     * pulling tiles. Without this, the placeholder GSLCs (bias=0) would stay in the
+     * stack and the interferogram comes out as noise. Called from {@link #computeTile}
+     * on every tile; the work runs once.
+     */
+    private synchronized void ensureBiasJobsRan() throws OperatorException {
+        if (biasJobsRan) return;
+        if (pendingBiasJobs.isEmpty()) {
+            biasJobsRan = true;
+            return;
+        }
+        SystemUtils.LOG.info("CreateStack: doExecute was not called by the framework; " +
+                "running " + pendingBiasJobs.size() + " bias job(s) lazily from computeTile.");
+        doExecute(ProgressMonitor.NULL);
+    }
+
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        if (pendingBiasJobs.isEmpty()) {
+            // Nothing to do — either no GSLC inputs or autoCoregisterGSLC=false.
+            pm.beginTask("CreateStack", 1);
+            pm.worked(1);
+            pm.done();
+            biasJobsRan = true;
+            return;
+        }
+
+        pm.beginTask("Auto-coregistering " + pendingBiasJobs.size() + " GSLC slave(s)",
+                pendingBiasJobs.size() * 3);
+        try {
+            for (final PendingBiasJob job : pendingBiasJobs) {
+                final Product p = sourceProduct[job.slaveIdx];
+
+                // Step 1 — cross-correlate master vs. slave SLCs.
+                pm.setSubTaskName("Cross-correlating '" + job.slaveSlc.getName() + "'");
+                double dRangePixels = 0.0;
+                double dAzimuthPixels = 0.0;
+                if (skipBiasEstimation) {
+                    SystemUtils.LOG.info("CreateStack: skipBiasEstimation=true — using bias=0 " +
+                            "for slave '" + job.slaveSlc.getName() + "' (geometric coregistration only).");
+                    pm.worked(1);
+                } else if (reloadedMasterSlcForBias != null) {
+                    try {
+                        final double[] bias = estimateSlcBias(reloadedMasterSlcForBias, job.slaveSlc,
+                                com.bc.ceres.core.SubProgressMonitor.create(pm, 1));
+                        dRangePixels = bias[0];
+                        dAzimuthPixels = bias[1];
+                        SystemUtils.LOG.info(String.format(
+                                "CreateStack: bias for slave '%s' — Δrange=%+.4f px, Δazimuth=%+.4f px",
+                                job.slaveSlc.getName(), dRangePixels, dAzimuthPixels));
+                    } catch (Throwable t) {
+                        SystemUtils.LOG.warning("CreateStack: bias estimation failed for '" +
+                                job.slaveSlc.getName() + "': " + t.getMessage() +
+                                " — keeping placeholder (zero bias).");
+                    }
+                } else {
+                    pm.worked(1);
+                }
+
+                if (pm.isCanceled()) throw new OperatorException("Cancelled by user.");
+
+                // Step 2 — rebuild the slave GSLC with the bias applied.
+                if (dRangePixels != 0.0 || dAzimuthPixels != 0.0) {
+                    pm.setSubTaskName("Re-geocoding '" + job.slaveSlc.getName() + "' with bias");
+                    try {
+                        final java.util.Map<String, Object> params = new HashMap<>();
+                        params.put("outputFlattened", readMasterFlattenedState(referenceProduct));
+                        params.put("alignToStandardGrid", true);
+                        params.put("standardGridOriginX", 0.0);
+                        params.put("standardGridOriginY", 0.0);
+                        params.put("rangeOffsetPixels", dRangePixels);
+                        params.put("azimuthOffsetPixels", dAzimuthPixels);
+                        applyMasterGridLockParams(params, referenceProduct);
+                        final Product corrected = createOperatorTargetProduct(
+                                "GSLC-Terrain-Correction", params, job.slaveSlc);
+
+                        // Step 3 — swap source band references so computeTile reads from
+                        // the corrected GSLC instead of the placeholder.
+                        swapSlaveBands(job.placeholderSlaveGslc, corrected);
+                        sourceProduct[job.slaveIdx] = corrected;
+                        job.placeholderSlaveGslc.dispose();
+                    } catch (Throwable t) {
+                        SystemUtils.LOG.warning("CreateStack: failed to rebuild GSLC for '" +
+                                job.slaveSlc.getName() + "' with bias: " + t.getMessage() +
+                                " — keeping placeholder.");
+                    }
+                }
+                pm.worked(2);
+
+                if (job.disposeSlaveSlcAfter) {
+                    job.slaveSlc.dispose();
+                }
+            }
+
+            if (reloadedMasterSlcForBias != null) {
+                reloadedMasterSlcForBias.dispose();
+                reloadedMasterSlcForBias = null;
+            }
+            pendingBiasJobs.clear();
+            biasJobsRan = true;
+        } finally {
+            pm.done();
+        }
+    }
+
+    /**
+     * After rebuilding a slave's GSLC with the correct bias, update every entry in
+     * {@link #sourceRasterMap} that pointed at the placeholder's bands to point at
+     * the same-named band of the new (bias-corrected) product. The target bands in
+     * {@code targetProduct} stay put; only their source-band mapping moves.
+     */
+    private void swapSlaveBands(final Product oldProduct, final Product newProduct) {
+        final java.util.Map<Band, Band> updates = new HashMap<>();
+        for (final java.util.Map.Entry<Band, Band> entry : sourceRasterMap.entrySet()) {
+            final Band sourceBand = entry.getValue();
+            if (sourceBand.getProduct() == oldProduct) {
+                final Band newBand = newProduct.getBand(sourceBand.getName());
+                if (newBand != null) {
+                    updates.put(entry.getKey(), newBand);
+                }
+            }
+        }
+        sourceRasterMap.putAll(updates);
+        // Recompute the integer offset for the corrected product against the master target
+        // grid. The bias correction can shift the slave's projected footprint slightly,
+        // so the placeholder's offset is not guaranteed to match the corrected one.
+        // Without recomputing, computeTile gets a null offset and throws NPE on offset[0].
+        try {
+            final GeoCoding tgtGC = targetProduct.getSceneGeoCoding();
+            if (tgtGC != null && newProduct.getSceneGeoCoding() != null) {
+                final int tw = targetProduct.getSceneRasterWidth();
+                final int th = targetProduct.getSceneRasterHeight();
+                final PixelPos refAnchorPP = new PixelPos(tw / 2.0, th / 2.0);
+                final GeoPos anchorGP = new GeoPos();
+                tgtGC.getGeoPos(refAnchorPP, anchorGP);
+                final PixelPos secPP = new PixelPos();
+                newProduct.getSceneGeoCoding().getPixelPos(anchorGP, secPP);
+                if (secPP.isValid()) {
+                    final int offsetX = (int) Math.floor(secPP.x - refAnchorPP.x + 0.5);
+                    final int offsetY = (int) Math.floor(secPP.y - refAnchorPP.y + 0.5);
+                    secondaryOffsetMap.put(newProduct, new int[]{offsetX, offsetY});
+                    secondaryOffsetMap.remove(oldProduct);
+                    return;
+                }
+            }
+        } catch (Throwable t) {
+            SystemUtils.LOG.warning("CreateStack: offset recompute failed for bias-corrected slave (" +
+                    t.getMessage() + "); falling back to placeholder's offset.");
+        }
+        // Fallback: carry placeholder's offset (same grid in nearly all cases, so close
+        // enough to ship).
+        final int[] offset = secondaryOffsetMap.get(oldProduct);
+        if (offset != null) {
+            secondaryOffsetMap.put(newProduct, offset);
+        } else {
+            SystemUtils.LOG.warning("CreateStack: no offset found for placeholder '" +
+                    oldProduct.getName() + "'; downstream tile reads may fail.");
         }
     }
 
@@ -887,6 +1229,551 @@ public class CreateStackOp extends Operator {
         }
     }
 
+    /**
+     * If the stack contains at least one geocoded product (e.g. a master GSLC) alongside raw
+     * slant-range SLCs, auto-promote each SLC by invoking {@code GSLC-Terrain-Correction} on
+     * it. The replacement happens in-place on {@code sourceProduct[]} so the rest of
+     * {@link #initialize()} sees a homogeneous stack of geocoded products.
+     * <p>
+     * Grid alignment between master and the auto-geocoded slaves is enforced by
+     * {@link #applyMasterGridLockParams}, which extracts master's CRS + pixel size and
+     * passes them to the slave's GSLC build. Both products then snap to the same world
+     * grid; {@link #computeTargetSecondaryCoordinateOffsets_Geocoded()} resolves the
+     * integer-pixel offset between them.
+     * <p>
+     * The slave inherits master's {@code outputFlattened} state (read via
+     * {@link #readMasterFlattenedState}) so the interferogram phase remains coherent
+     * regardless of whether master is phase-flattened or not.
+     * <p>
+     * This pass runs from {@link #initialize()}; pixel data is not computed here. For
+     * each slave that needs auto-coregistration, the input is replaced with a
+     * <em>placeholder</em> GSLC built with {@code bias=0} (the operator's
+     * own initialize() sets up the target schema only) and a {@link PendingBiasJob}
+     * is queued to run the heavy cross-correlation in
+     * {@link #doExecute(ProgressMonitor)}.
+     */
+    private void maybeAutoGeocodeAgainstReference() throws OperatorException {
+        if (!autoCoregisterGSLC) return;
+
+        // Find the first geocoded product (presumed master GSLC).
+        Product masterGslc = null;
+        int masterIdx = -1;
+        for (int i = 0; i < sourceProduct.length; i++) {
+            if (isGeocoded(sourceProduct[i])) {
+                masterGslc = sourceProduct[i];
+                masterIdx = i;
+                break;
+            }
+        }
+        if (masterGslc == null) return;
+
+        // The master must be complex (carrier-preserving) for InSAR. A regular Range-Doppler
+        // Terrain-Corrected product (RangeDopplerGeocodingOp output) is amplitude-only and
+        // can't be used as InSAR master. Detect by looking for at least one i/q band.
+        boolean masterIsComplex = false;
+        for (final Band b : masterGslc.getBands()) {
+            final String u = b.getUnit();
+            if (u != null && (u.equals(Unit.REAL) || u.equals(Unit.IMAGINARY))) {
+                masterIsComplex = true;
+                break;
+            }
+        }
+        if (!masterIsComplex) {
+            // No complex bands → almost certainly amplitude-only Range-Doppler TC, not GSLC.
+            // Skip auto-coregister silently rather than throw — the user may legitimately be
+            // stacking amplitude products. Downstream geometry-mixing throw will guide them
+            // if the slaves don't match.
+            SystemUtils.LOG.warning("CreateStack: master '" + masterGslc.getName() + "' is map-projected " +
+                    "but has no complex i/q bands; skipping GSLC auto-coregister (this looks like " +
+                    "an amplitude-only TC product, not a GSLC).");
+            return;
+        }
+
+        // If the master GSLC carries a stamp pointing back to its source SLC on disk,
+        // load it once for the (later) cross-correlation pass. ProductIO.readProduct
+        // opens the file lazily — no pixels are read here.
+        reloadedMasterSlcForBias = tryReloadMasterSlc(masterGslc);
+        if (reloadedMasterSlcForBias == null) {
+            SystemUtils.LOG.warning("CreateStack: could not reload master SLC for bias estimation. " +
+                    "Slaves will be auto-geocoded without bias correction (pure geometric coregistration).");
+        } else {
+            SystemUtils.LOG.info("CreateStack: master SLC reloaded from '" +
+                    reloadedMasterSlcForBias.getFileLocation() +
+                    "' — will auto-estimate per-slave bias during doExecute.");
+        }
+
+        for (int i = 0; i < sourceProduct.length; i++) {
+            if (i == masterIdx) continue;
+            final Product p = sourceProduct[i];
+
+            // Resolve the slave's slant-range SLC source.
+            final Product slaveSlc;
+            final boolean slaveIsGslc = isGeocoded(p);
+            if (slaveIsGslc) {
+                slaveSlc = tryReloadSlcFromStamp(p);
+                if (slaveSlc == null) {
+                    SystemUtils.LOG.warning("CreateStack: slave '" + p.getName() + "' is a GSLC but " +
+                            "its source SLC path is missing/unreadable — cannot estimate bias, " +
+                            "stack alignment will be sub-pixel-off.");
+                    continue;
+                }
+            } else {
+                slaveSlc = p;
+            }
+
+            // Build a placeholder GSLC with bias=0. This invokes only the operator's
+            // initialize() (sets up the target product schema, allocates bands) — no
+            // pixels are computed. It gives CreateStack's downstream init code a
+            // concrete product with the correct band layout so the target stack
+            // schema can be built. We'll swap it for the bias-corrected GSLC during
+            // doExecute and update sourceRasterMap accordingly.
+            // CRITICAL: lock the slave grid to the master's pixel size + CRS so the
+            // integer-pixel offsets in computeTargetSecondaryCoordinateOffsets_Geocoded
+            // are exactly correct. Without this, the slave geocodes to its own natural
+            // pixel size which may be sub-pixel different from the master's, producing
+            // a fractional drift across the scene that destroys interferogram coherence.
+            final Product placeholder;
+            try {
+                final java.util.Map<String, Object> params = new HashMap<>();
+                params.put("outputFlattened", readMasterFlattenedState(masterGslc));
+                params.put("alignToStandardGrid", true);
+                params.put("standardGridOriginX", 0.0);
+                params.put("standardGridOriginY", 0.0);
+                params.put("rangeOffsetPixels", 0.0);
+                params.put("azimuthOffsetPixels", 0.0);
+                applyMasterGridLockParams(params, masterGslc);
+                placeholder = createOperatorTargetProduct("GSLC-Terrain-Correction", params, slaveSlc);
+            } catch (Throwable t) {
+                throw new OperatorException(
+                        "Auto-geocoding placeholder build failed for '" + p.getName() +
+                                "': " + t.getMessage(), t);
+            }
+            sourceProduct[i] = placeholder;
+            pendingBiasJobs.add(new PendingBiasJob(i, slaveSlc, slaveIsGslc, placeholder));
+        }
+    }
+
+    /** Same as {@link #tryReloadMasterSlc} but used for slave GSLCs in the GUI workflow. */
+    private static Product tryReloadSlcFromStamp(final Product gslcProduct) {
+        return tryReloadMasterSlc(gslcProduct);
+    }
+
+    /**
+     * Try to reload the master SLC from the file path stamped into the master GSLC's
+     * metadata by {@code GSLCGeocodingOp}. Returns null if the stamp is missing, the
+     * path is unreadable, or the load fails — in which case the caller falls back to
+     * no-bias auto-geocoding.
+     */
+    private static Product tryReloadMasterSlc(final Product masterGslc) {
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(masterGslc);
+        // Path 1 — explicit stamp from GSLCGeocodingOp.
+        if (abs != null) {
+            final String pathStr = abs.getAttributeString("gslc_source_slc_path", null);
+            if (pathStr != null && !pathStr.isEmpty() &&
+                    !pathStr.equals(AbstractMetadata.NO_METADATA_STRING)) {
+                final java.io.File f = new java.io.File(pathStr);
+                if (f.isFile()) {
+                    try {
+                        return org.esa.snap.core.dataio.ProductIO.readProduct(f);
+                    } catch (java.io.IOException e) {
+                        SystemUtils.LOG.warning("CreateStack: failed to reload master SLC from '" + pathStr +
+                                "': " + e.getMessage());
+                    }
+                }
+            }
+        }
+        // Path 2 — name-based fallback. Useful when the master is a SUBSET of a GSLC
+        // (subset strips the gslc_source_slc_path stamp) but the source SLC still sits
+        // next to the GSLC on disk. Only consider candidates whose name has had the
+        // _GSLC suffix stripped (a GSLC-named file is never the source SLC), and never
+        // return the master's own file path.
+        final java.io.File loc = masterGslc.getFileLocation();
+        if (loc != null && loc.getParentFile() != null) {
+            String baseName = loc.getName();
+            // Strip trailing .dim
+            final int dot = baseName.lastIndexOf('.');
+            if (dot > 0) baseName = baseName.substring(0, dot);
+            final java.util.List<String> candidates = new java.util.ArrayList<>();
+            for (final String stripped : stripSubsetAndGslcSuffix(baseName)) {
+                candidates.add(stripped + ".dim");
+                candidates.add(stripped + ".N1"); // Envisat native
+                candidates.add(stripped); // directory-style product
+            }
+            final String masterAbsPath = loc.getAbsolutePath();
+            for (final String cand : candidates) {
+                final java.io.File f = new java.io.File(loc.getParentFile(), cand);
+                if (!f.exists()) continue;
+                if (f.getAbsolutePath().equalsIgnoreCase(masterAbsPath)) {
+                    // Sanity: candidate is the master itself → not a valid SLC
+                    continue;
+                }
+                try {
+                    SystemUtils.LOG.info("CreateStack: name-based fallback located source SLC '" +
+                            f.getAbsolutePath() + "' for master '" + masterGslc.getName() + "'.");
+                    return org.esa.snap.core.dataio.ProductIO.readProduct(f);
+                } catch (java.io.IOException e) {
+                    SystemUtils.LOG.warning("CreateStack: failed to read SLC candidate '" +
+                            f.getAbsolutePath() + "': " + e.getMessage());
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Produce SLC candidate names from a GSLC's base name. Requires the input to have a
+     * {@code _GSLC} suffix; only returns names with that suffix stripped (so we can
+     * never return the input itself, and never return another GSLC file).
+     */
+    private static java.util.List<String> stripSubsetAndGslcSuffix(final String baseName) {
+        final java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        String cur = baseName;
+        // Optionally strip "subset_N_of_" prefix
+        final java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("^subset(_\\d+)?_of_").matcher(cur);
+        if (m.find()) {
+            cur = cur.substring(m.end());
+        }
+        // REQUIRE _GSLC suffix on the (possibly subset-stripped) name; strip it
+        if (cur.length() >= 5 && cur.regionMatches(true, cur.length() - 5, "_GSLC", 0, 5)) {
+            out.add(cur.substring(0, cur.length() - 5));
+        }
+        // Also try: directly strip _GSLC without stripping subset prefix (handles cases
+        // where someone subsetted post-rename so the subset prefix isn't at position 0)
+        if (baseName.length() >= 5 && baseName.regionMatches(true, baseName.length() - 5, "_GSLC", 0, 5)) {
+            final String s = baseName.substring(0, baseName.length() - 5);
+            if (!s.equals(baseName)) out.add(s);
+        }
+        return new java.util.ArrayList<>(out);
+    }
+
+    /**
+     * Read the {@code gslc_output_flattened} metadata stamp from the master GSLC and
+     * return its boolean value. The slave GSLC must be built with the SAME flattening
+     * state — mixing flattened/non-flattened bands in the stack produces a meaningless
+     * interferometric phase (noise). Defaults to {@code false} if the stamp is missing
+     * (e.g. master was built by an older operator version).
+     */
+    private static boolean readMasterFlattenedState(final Product masterGslc) {
+        if (masterGslc == null) return false;
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(masterGslc);
+        if (abs == null) return false;
+        final String s = abs.getAttributeString("gslc_output_flattened", null);
+        if (s == null) return false;
+        return Boolean.parseBoolean(s);
+    }
+
+    private static void applyMasterGridLockParams(final java.util.Map<String, Object> params,
+                                                  final Product masterGslc) {
+        if (masterGslc == null) return;
+        final org.esa.snap.core.datamodel.GeoCoding gc = masterGslc.getSceneGeoCoding();
+        if (gc == null) return;
+        try {
+            // Master CRS — written as WKT so GSLCGeocodingOp can re-parse it
+            if (gc instanceof org.esa.snap.core.datamodel.CrsGeoCoding) {
+                final org.opengis.referencing.crs.CoordinateReferenceSystem crs =
+                        ((org.esa.snap.core.datamodel.CrsGeoCoding) gc).getMapCRS();
+                if (crs != null) {
+                    params.put("mapProjection", crs.toWKT());
+                }
+            }
+            // Pixel size — probe master geocoding at (W/2, H/2) vs (W/2+1, H/2+1).
+            // For a CRS in degrees this gives degrees-per-pixel; for a metres CRS, metres.
+            final org.esa.snap.core.datamodel.GeoPos g0 = new org.esa.snap.core.datamodel.GeoPos();
+            final org.esa.snap.core.datamodel.GeoPos g1 = new org.esa.snap.core.datamodel.GeoPos();
+            final double cx = masterGslc.getSceneRasterWidth() / 2.0;
+            final double cy = masterGslc.getSceneRasterHeight() / 2.0;
+            gc.getGeoPos(new org.esa.snap.core.datamodel.PixelPos(cx, cy), g0);
+            gc.getGeoPos(new org.esa.snap.core.datamodel.PixelPos(cx + 1, cy + 1), g1);
+            final double dLon = Math.abs(g1.lon - g0.lon);
+            final double dLat = Math.abs(g1.lat - g0.lat);
+            final double pixelSizeDeg = Math.max(dLon, dLat);
+            if (pixelSizeDeg > 0 && Double.isFinite(pixelSizeDeg)) {
+                params.put("pixelSpacingInDegree", pixelSizeDeg);
+                // Convert to metres for the metre-based param as a safety net (some paths
+                // in GSLCGeocodingOp read pixelSpacingInMeter regardless).
+                final double latRad = Math.toRadians(g0.lat);
+                final double mPerDeg = 111320.0 * Math.cos(latRad);
+                final double pixelSizeM = pixelSizeDeg * mPerDeg;
+                if (pixelSizeM > 0 && Double.isFinite(pixelSizeM)) {
+                    params.put("pixelSpacingInMeter", pixelSizeM);
+                }
+                SystemUtils.LOG.info("CreateStack: locking slave grid to master — " +
+                        "pixelSpacingInDegree=" + pixelSizeDeg + " (≈" + pixelSizeM + " m at lat " + g0.lat + ")");
+            }
+        } catch (Throwable t) {
+            SystemUtils.LOG.warning("CreateStack: master grid-lock setup failed (slave will use its own grid): "
+                    + t.getMessage());
+        }
+    }
+
+    private static Product createOperatorTargetProduct(final String alias,
+                                                       final java.util.Map<String, Object> params,
+                                                       final Product... sources) {
+        final org.esa.snap.core.gpf.OperatorSpi spi =
+                org.esa.snap.core.gpf.GPF.getDefaultInstance()
+                        .getOperatorSpiRegistry().getOperatorSpi(alias);
+        if (spi == null) {
+            throw new OperatorException("OperatorSpi not found for alias '" + alias + "'");
+        }
+        final org.esa.snap.core.gpf.Operator op = spi.createOperator();
+        if (sources.length == 1) {
+            op.setSourceProduct(sources[0]);
+        } else {
+            op.setSourceProducts(sources);
+        }
+        if (params != null) {
+            for (final java.util.Map.Entry<String, Object> e : params.entrySet()) {
+                op.setParameter(e.getKey(), e.getValue());
+            }
+        }
+        return op.getTargetProduct();
+    }
+
+    /**
+     * Render a 20-cell Unicode progress bar for a 0-100 percentage. Used in
+     * {@code pm.setTaskName(...)} during long sub-tasks so the dialog label visually
+     * advances even when the JProgressBar widget can't tick (its 1-unit resolution at
+     * graph-node level can't show sub-unit progress).
+     */
+    /**
+     * Pick a representative band of a product to use as a validity probe in
+     * {@link #computeTile}. Prefer a complex i/q band (Unit.REAL); fall back to any band.
+     * Returns null if the product has no bands. All bands of a SAR product typically
+     * share the same valid-pixel footprint, so any single band works as a probe.
+     */
+    private static final java.util.Map<Product, Band> VALIDITY_PROBE_CACHE = new java.util.WeakHashMap<>();
+
+    private static Band validityProbeBand(final Product product) {
+        if (product == null) return null;
+        synchronized (VALIDITY_PROBE_CACHE) {
+            Band cached = VALIDITY_PROBE_CACHE.get(product);
+            if (cached != null) return cached;
+            for (final Band b : product.getBands()) {
+                final String u = b.getUnit();
+                if (u != null && (u.equals(Unit.REAL) || u.equals(Unit.INTENSITY))) {
+                    VALIDITY_PROBE_CACHE.put(product, b);
+                    return b;
+                }
+            }
+            if (product.getNumBands() > 0) {
+                final Band first = product.getBandAt(0);
+                VALIDITY_PROBE_CACHE.put(product, first);
+                return first;
+            }
+            return null;
+        }
+    }
+
+
+    private static double[] estimateSlcBias(final Product masterSlc, final Product slaveSlc,
+                                            final ProgressMonitor pm)
+            throws Exception {
+        INSIDE_BIAS_ESTIMATION.set(true);
+        try {
+            return estimateSlcBiasInner(masterSlc, slaveSlc, pm);
+        } finally {
+            INSIDE_BIAS_ESTIMATION.set(false);
+        }
+    }
+
+    private static double[] estimateSlcBiasInner(final Product masterSlc, final Product slaveSlc,
+                                                 final ProgressMonitor pm)
+            throws Exception {
+        final long t0 = System.currentTimeMillis();
+        SystemUtils.LOG.fine("CreateStack: estimating bias for slave '" + slaveSlc.getName() +
+                "' against master '" + masterSlc.getName() + "'");
+        // Instantiate operators directly rather than via GPF.createProduct() — the SNAP
+        // desktop registers a SnapAppGPFOperatorExecutor that touches the EDT during
+        // createProduct, which deadlocks/throws when called from doExecute's worker thread.
+        // Direct instantiation skips that wrapper.
+        final CreateStackOp stackOp = new CreateStackOp();
+        stackOp.setSourceProducts(masterSlc, slaveSlc);
+        stackOp.setParameter("extent", MASTER_EXTENT);
+        stackOp.setParameter("initialOffsetMethod", INITIAL_OFFSET_ORBIT);
+        stackOp.setParameter("resamplingType", "NONE");
+        stackOp.setParameter("autoCoregisterGSLC", false); // nested stack is SLC-on-SLC; nothing to coregister
+        final Product stack = stackOp.getTargetProduct();
+
+        final CrossCorrelationOp ccOp = new CrossCorrelationOp();
+        ccOp.setSourceProduct(stack);
+        ccOp.setParameter("numGCPtoGenerate", 200);
+        ccOp.setParameter("coarseRegistrationWindowWidth", "64");
+        ccOp.setParameter("coarseRegistrationWindowHeight", "64");
+        ccOp.setParameter("applyFineRegistration", true);
+        ccOp.setParameter("inSAROptimized", true);
+        ccOp.setParameter("coherenceThreshold", 0.6);
+        final Product cc = ccOp.getTargetProduct();
+
+        Band masterBand = null;
+        Band slaveBand  = null;
+        for (final Band b : cc.getBands()) {
+            if (b.getUnit() != null && b.getUnit().equals(Unit.REAL)) {
+                if (masterBand == null) masterBand = b;
+                else if (slaveBand == null) { slaveBand = b; break; }
+            }
+        }
+        if (masterBand == null || slaveBand == null) {
+            throw new OperatorException("Cross-Correlation output is missing master or slave band.");
+        }
+
+        // Force the matching loops to run by reading the slave band — GCPs are populated
+        // as a side effect of computeTile.
+        final int w = slaveBand.getRasterWidth();
+        final int h = slaveBand.getRasterHeight();
+        final int step = 256;
+        final int nSteps = (h + step - 1) / step;
+        // Drive CC's GCP selection by reading the slave band. We DON'T open our own
+        // status-bar progress monitor here — CrossCorrelationOp already registers its own
+        // ("Cross Correlating <slave>... N%") via StatusProgressMonitor. We still tick
+        // the caller's pm so the GraphBuilder dialog's progress bar advances.
+        pm.beginTask("Cross-correlating " + slaveSlc.getName(), nSteps);
+        try {
+            final float[] row = new float[w];
+            for (int y = 0; y < h; y += step) {
+                if (pm.isCanceled()) {
+                    throw new OperatorException("Cancelled by user during cross-correlation.");
+                }
+                slaveBand.readPixels(0, y, w, 1, row, com.bc.ceres.core.ProgressMonitor.NULL);
+                pm.worked(1);
+            }
+        } finally {
+            pm.done();
+        }
+        SystemUtils.LOG.fine("CreateStack: bias CC scan complete in " +
+                (System.currentTimeMillis() - t0) / 1000 + "s.");
+
+        final ProductNodeGroup<org.esa.snap.core.datamodel.Placemark> mGcp =
+                GCPManager.instance().getGcpGroup(masterBand);
+        final ProductNodeGroup<org.esa.snap.core.datamodel.Placemark> sGcp =
+                GCPManager.instance().getGcpGroup(slaveBand);
+        final java.util.List<Double> dxs = new java.util.ArrayList<>();
+        final java.util.List<Double> dys = new java.util.ArrayList<>();
+        for (final org.esa.snap.core.datamodel.Placemark mp
+                : mGcp.toArray(new org.esa.snap.core.datamodel.Placemark[0])) {
+            final org.esa.snap.core.datamodel.Placemark sp = sGcp.get(mp.getName());
+            if (sp == null) continue;
+            dxs.add((double) (sp.getPixelPos().x - mp.getPixelPos().x));
+            dys.add((double) (sp.getPixelPos().y - mp.getPixelPos().y));
+        }
+        if (dxs.isEmpty()) {
+            throw new OperatorException("Cross-Correlation matched no GCPs between master and slave.");
+        }
+        java.util.Collections.sort(dxs);
+        java.util.Collections.sort(dys);
+        final int n = dxs.size();
+        final double medDx = (n % 2 == 0) ? 0.5 * (dxs.get(n / 2 - 1) + dxs.get(n / 2)) : dxs.get(n / 2);
+        final double medDy = (n % 2 == 0) ? 0.5 * (dys.get(n / 2 - 1) + dys.get(n / 2)) : dys.get(n / 2);
+        return new double[]{medDx, medDy};
+    }
+
+    /**
+     * Whether a product is in a geocoded (map-projected) frame rather than slant-range SLC.
+     * The orbit-based offset method ({@link #computeTargetSecondaryCoordinateOffsets_Orbits()})
+     * assumes slant-range geometry; for geocoded products we must use scene geocoding instead.
+     */
+    static boolean isGeocoded(final Product p) {
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(p);
+        if (absRoot != null && absRoot.getAttributeInt(AbstractMetadata.is_terrain_corrected, 0) == 1) {
+            return true;
+        }
+        // Fallback: products with a CrsGeoCoding are map-projected even if the flag is unset
+        // (e.g. Reproject output that didn't go through a SAR-aware operator).
+        return p.getSceneGeoCoding() instanceof org.esa.snap.core.datamodel.CrsGeoCoding;
+    }
+
+    private boolean anySourceIsGeocoded() {
+        for (final Product p : sourceProduct) {
+            if (isGeocoded(p)) return true;
+        }
+        return false;
+    }
+
+    private boolean allSourcesAreGeocoded() {
+        for (final Product p : sourceProduct) {
+            if (!isGeocoded(p)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Geocoding-based pixel-offset computation for map-projected products (GSLC, RD-TC, etc.).
+     * <p>
+     * Picks an anchor {@code (lat, lon)} at the reference scene centre, then asks each secondary
+     * product's geocoding "what pixel corresponds to this lat/lon?". The integer offset is
+     * {@code (secondaryPixel - referencePixel)} at that anchor — same convention as the
+     * orbit-based method, so {@link #computeTile} reads the correct slave pixel without any
+     * change to its logic. Per-band offsets are written to the existing {@code Orbit_Offsets}
+     * metadata element for traceability.
+     * <p>
+     * Caveat: this is an integer-pixel offset, valid exactly at the anchor and across the full
+     * scene only when both grids share the same pixel size and parallel axes (e.g. master GSLC
+     * with reference-locked slave GSLC, or two GSLCs of the same CRS and pixel spacing). For
+     * other cases use {@code resamplingType != NONE} so the slave is resampled into the
+     * reference grid.
+     */
+    private void computeTargetSecondaryCoordinateOffsets_Geocoded() throws Exception {
+        final GeoCoding targGeoCoding = targetProduct.getSceneGeoCoding();
+        if (targGeoCoding == null) {
+            throw new OperatorException("Target product has no scene geocoding; cannot compute geocoded offset.");
+        }
+        final int tw = targetProduct.getSceneRasterWidth();
+        final int th = targetProduct.getSceneRasterHeight();
+
+        final PixelPos refAnchorPP = new PixelPos(tw / 2.0, th / 2.0);
+        final GeoPos anchorGP = new GeoPos();
+        targGeoCoding.getGeoPos(refAnchorPP, anchorGP);
+        if (!anchorGP.isValid()) {
+            throw new OperatorException(
+                    "Could not derive a valid lat/lon at the reference centre " + refAnchorPP +
+                    " — geocoding of '" + referenceProduct.getName() + "' is broken.");
+        }
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+        MetadataElement orbitOffsets = absRoot.getElement("Orbit_Offsets");
+        if (orbitOffsets == null) {
+            orbitOffsets = new MetadataElement("Orbit_Offsets");
+            absRoot.addElement(orbitOffsets);
+        }
+
+        final PixelPos secPP = new PixelPos();
+        for (final Product secProd : sourceProduct) {
+            if (secProd == referenceProduct) {
+                secondaryOffsetMap.put(secProd, new int[]{0, 0});
+                continue;
+            }
+            final GeoCoding secGeoCoding = secProd.getSceneGeoCoding();
+            if (secGeoCoding == null) {
+                throw new OperatorException(
+                        "Secondary product '" + secProd.getName() + "' has no scene geocoding.");
+            }
+            secGeoCoding.getPixelPos(anchorGP, secPP);
+            if (!secPP.isValid()) {
+                throw new OperatorException(
+                        "Secondary '" + secProd.getName() + "' does not overlap the reference centre " +
+                                anchorGP + ". Cannot determine geocoded pixel offset.");
+            }
+            final int offsetX = (int) Math.floor(secPP.x - refAnchorPP.x + 0.5);
+            final int offsetY = (int) Math.floor(secPP.y - refAnchorPP.y + 0.5);
+            SystemUtils.LOG.fine("CreateStack: geocoded offset for '" + secProd.getName() +
+                    "' = (" + offsetX + ", " + offsetY + ") px " +
+                    "(sub-pixel residual=" + (secPP.x - refAnchorPP.x - offsetX) + ", " +
+                    (secPP.y - refAnchorPP.y - offsetY) + ")");
+
+            final String timeStamp = StackUtils.createBandTimeStamp(secProd).substring(1);
+            for (String bandName : targetProduct.getBandNames()) {
+                final String[] parts = bandName.split("_");
+                if (parts.length > 0 && parts[parts.length - 1].equals(timeStamp)) {
+                    final MetadataElement bandElem = new MetadataElement(
+                            "init_offsets" + StackUtils.getBandSuffix(bandName));
+                    bandElem.setAttributeInt("init_offset_X", offsetX);
+                    bandElem.setAttributeInt("init_offset_Y", offsetY);
+                    orbitOffsets.addElement(bandElem);
+                }
+            }
+            addOffset(secProd, offsetX, offsetY);
+        }
+    }
+
     private static boolean pixelPosValid(final GeoCoding geoCoding, final GeoPos geoPos, final PixelPos pixelPos,
                                          final int width, final int height) {
         geoCoding.getPixelPos(geoPos, pixelPos);
@@ -904,6 +1791,7 @@ public class CreateStackOp extends Operator {
 
     @Override
     public void computeTile(final Band targetBand, final Tile targetTile, final ProgressMonitor pm) throws OperatorException {
+        ensureBiasJobsRan();
         try {
             final Band sourceRaster = sourceRasterMap.get(targetBand);
             final Product srcProduct = sourceRaster.getProduct();
@@ -931,6 +1819,86 @@ public class CreateStackOp extends Operator {
                 final Tile srcTile = getSourceTile(sourceRaster, srcRectangle);
                 final ProductData srcData = srcTile.getDataBuffer();
 
+                // Mutual no-data: target is no-data if EITHER master or slave is no-data
+                // at the corresponding pixel. We always validate BOTH sides (the source
+                // band IS the probe for its own side; we additionally read the other side's
+                // probe band). Validity is "not NaN, not equal to the band's no-data value,
+                // and not zero" — zero is treated as no-data because SAR i/q outside the
+                // acquisition footprint is written as 0 by GSLCGeocodingOp regardless of
+                // the band's declared no-data value.
+                final Band masterProbe = validityProbeBand(referenceProduct);
+                final Band slaveProbeBand;
+                final int[] slaveOffset;
+                final boolean targetIsMasterBand = (srcProduct == referenceProduct);
+                if (targetIsMasterBand) {
+                    Product foundSlave = null;
+                    for (final Product p : sourceProduct) {
+                        if (p != referenceProduct) { foundSlave = p; break; }
+                    }
+                    slaveProbeBand = validityProbeBand(foundSlave);
+                    slaveOffset = foundSlave != null ? secondaryOffsetMap.get(foundSlave) : null;
+                } else {
+                    slaveProbeBand = validityProbeBand(srcProduct);
+                    slaveOffset = offset;
+                }
+
+                // Use the source band itself to probe its own side; use the OTHER product's
+                // probe to probe the other side. This avoids the buggy "skip probe when
+                // it equals sourceRaster" path that previously left whole rows mis-flagged.
+                final Band ownSideProbe = sourceRaster;
+                final int[] ownSideOffset = offset; // sourceRaster lives in srcProduct's coords
+                final double ownNoData = ownSideProbe.getNoDataValue();
+                final boolean ownUsesNoData = ownSideProbe.isNoDataValueUsed();
+
+                final Band otherSideProbe = targetIsMasterBand ? slaveProbeBand : masterProbe;
+                final int[] otherSideOffset = targetIsMasterBand ? slaveOffset : new int[]{0, 0};
+                final double otherNoData = otherSideProbe != null ? otherSideProbe.getNoDataValue() : Double.NaN;
+                final boolean otherUsesNoData = otherSideProbe != null && otherSideProbe.isNoDataValueUsed();
+
+                Tile otherProbeTile = null;
+                ProductData otherProbeData = null;
+                TileIndex otherProbeIndex = null;
+                int otherProbeW = 0, otherProbeH = 0;
+                boolean otherTileEntirelyOOB = false;
+                if (otherSideProbe != null && otherSideOffset != null) {
+                    otherProbeW = otherSideProbe.getRasterWidth();
+                    otherProbeH = otherSideProbe.getRasterHeight();
+                    // Does the requested target tile (shifted by the other-side offset)
+                    // intersect the other product's raster at all?
+                    final int otx0 = tx0 + otherSideOffset[0];
+                    final int oty0 = ty0 + otherSideOffset[1];
+                    if (otx0 + tw <= 0 || otx0 >= otherProbeW ||
+                            oty0 + th <= 0 || oty0 >= otherProbeH) {
+                        // Entire target tile is outside the other product's footprint —
+                        // every pixel here must be no-data.
+                        otherTileEntirelyOOB = true;
+                    } else {
+                        final int osx0 = Math.min(Math.max(0, otx0), otherProbeW - 1);
+                        final int osy0 = Math.min(Math.max(0, oty0), otherProbeH - 1);
+                        final int osw = Math.min(osx0 + tw - 1, otherProbeW - 1) - osx0 + 1;
+                        final int osh = Math.min(osy0 + th - 1, otherProbeH - 1) - osy0 + 1;
+                        if (osw > 0 && osh > 0) {
+                            otherProbeTile = getSourceTile(otherSideProbe, new Rectangle(osx0, osy0, osw, osh));
+                            otherProbeData = otherProbeTile.getDataBuffer();
+                            otherProbeIndex = new TileIndex(otherProbeTile);
+                        } else {
+                            otherTileEntirelyOOB = true;
+                        }
+                    }
+                }
+                // Fast path: entire output tile is no-data because the other product
+                // doesn't overlap it at all.
+                if (otherTileEntirelyOOB) {
+                    final TileIndex trgIdxFast = new TileIndex(targetTile);
+                    for (int ty = ty0; ty < maxY; ++ty) {
+                        final int trgOffset = trgIdxFast.calculateStride(ty);
+                        for (int tx = tx0; tx < maxX; ++tx) {
+                            trgData.setElemDoubleAt(tx - trgOffset, noDataValue);
+                        }
+                    }
+                    return;
+                }
+
                 final TileIndex trgIndex = new TileIndex(targetTile);
                 final TileIndex srcIndex = new TileIndex(srcTile);
 
@@ -942,9 +1910,24 @@ public class CreateStackOp extends Operator {
                 }
 
                 for (int ty = ty0; ty < maxY; ++ty) {
-                    final int sy = ty + offset[1];
+                    final int sy = ty + ownSideOffset[1];
                     final int trgOffset = trgIndex.calculateStride(ty);
-                    if (sy < 0 || sy >= srcImageHeight) {
+
+                    // Other-side row setup
+                    int otherRowStride = 0;
+                    boolean otherRowAvail = false;
+                    if (otherProbeData != null) {
+                        final int oy = ty + otherSideOffset[1];
+                        if (oy >= 0 && oy < otherProbeH) {
+                            otherRowStride = otherProbeIndex.calculateStride(oy);
+                            otherRowAvail = true;
+                        }
+                    }
+                    // If the other-side probe row is out-of-bounds, the entire output row
+                    // is no-data (other side has no coverage here).
+                    final boolean otherRowOOB = (otherProbeData != null) && !otherRowAvail;
+
+                    if (sy < 0 || sy >= srcImageHeight || otherRowOOB) {
                         for (int tx = tx0; tx < maxX; ++tx) {
                             trgData.setElemDoubleAt(tx - trgOffset, noDataValue);
                         }
@@ -952,15 +1935,36 @@ public class CreateStackOp extends Operator {
                     }
                     final int srcOffset = srcIndex.calculateStride(sy);
                     for (int tx = tx0; tx < maxX; ++tx) {
-                        final int sx = tx + offset[0];
-
+                        final int sx = tx + ownSideOffset[0];
                         if (sx < 0 || sx >= srcImageWidth) {
                             trgData.setElemDoubleAt(tx - trgOffset, noDataValue);
+                            continue;
+                        }
+
+                        // Validate own side via source pixel
+                        final double ownVal = srcData.getElemDoubleAt(sx - srcOffset);
+                        final boolean ownNoDataHere = Double.isNaN(ownVal) || ownVal == 0.0 ||
+                                (ownUsesNoData && ownVal == ownNoData);
+
+                        // Validate other side via other-side probe
+                        boolean otherNoDataHere = false;
+                        if (otherProbeData != null && otherRowAvail) {
+                            final int ox = tx + otherSideOffset[0];
+                            if (ox < 0 || ox >= otherProbeW) {
+                                otherNoDataHere = true;
+                            } else {
+                                final double ov = otherProbeData.getElemDoubleAt(ox - otherRowStride);
+                                otherNoDataHere = Double.isNaN(ov) || ov == 0.0 ||
+                                        (otherUsesNoData && ov == otherNoData);
+                            }
+                        }
+
+                        if (ownNoDataHere || otherNoDataHere) {
+                            trgData.setElemDoubleAt(tx - trgOffset, noDataValue);
+                        } else if (isInt) {
+                            trgData.setElemIntAt(tx - trgOffset, srcData.getElemIntAt(sx - srcOffset));
                         } else {
-                            if (isInt)
-                                trgData.setElemIntAt(tx - trgOffset, srcData.getElemIntAt(sx - srcOffset));
-                            else
-                                trgData.setElemDoubleAt(tx - trgOffset, srcData.getElemDoubleAt(sx - srcOffset));
+                            trgData.setElemDoubleAt(tx - trgOffset, ownVal);
                         }
                     }
                 }
