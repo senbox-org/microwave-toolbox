@@ -34,6 +34,7 @@
                         <tocitem text="ICEYE COG" target="importIceyeCOGProduct"/>
                         <tocitem text="JERS-1" target="ImportJERSCeos"/>
                         <tocitem text="Kompsat-5" target="ImportKompsat5"/>
+                        <tocitem text="NISAR" target="ImportNisar"/>
                         <tocitem text="Paz" target="ImportPaz"/>
                         <tocitem text="QPS SAR" target="importQPSSAR"/>
                         <tocitem text="RISAT-1" target="ImportRISAT"/>

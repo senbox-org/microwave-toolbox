@@ -246,14 +246,6 @@ public abstract class NisarSubReader implements CacheDataProvider {
         return groupSwaths.findGroup("frequencyB");
     }
 
-    protected Group[] getPolarizationGroups(final Group group) {
-        List<Group> polGroups = new ArrayList<>();
-        final Group groupHH = group.findGroup("HH");
-        polGroups.add(groupHH);
-
-        return polGroups.toArray(new Group[0]);
-    }
-
     protected abstract Variable[] getRasterVariables(final Group group);
 
     protected String getProductType(Group groupID) throws Exception {
@@ -426,8 +418,17 @@ public abstract class NisarSubReader implements CacheDataProvider {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, endTime);
         }
 
-        // Set ACQUISITION_MODE
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE, "Stripmap");
+        // Set ACQUISITION_MODE — try the HDF5 metadata first, fall back to "Stripmap"
+        // which is the most common NISAR mode. NISAR also flies "Sweep SAR" / "DBF" for
+        // wider-swath modes; identification/radarMode (or listOfRadarModes for stack
+        // products) reports it explicitly when populated.
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.ACQUISITION_MODE,
+                resolveAcquisitionMode(identification));
+
+        // Populate per-band polarisation list (mds1..mds4_tx_rx_polar). We don't know
+        // ahead of time which polarisations are present in a given product, so probe
+        // the frequencyA / frequencyB groups under the SAR group.
+        populatePolarisations(absRoot, sar);
 
         // Set sample type based on product type
         if(productType.equals("RSLC") || productType.equals("GSLC")) {
@@ -465,6 +466,80 @@ public abstract class NisarSubReader implements CacheDataProvider {
         // Add orbit state vectors
         addOrbitStateVectors(absRoot);
 
+    }
+
+    /**
+     * Resolve {@code ACQUISITION_MODE} by probing common NISAR metadata locations.
+     * Falls back to "Stripmap" — the science-quality baseline mode.
+     */
+    private static String resolveAcquisitionMode(final MetadataElement identification) {
+        if (identification == null) return "Stripmap";
+        for (final String elemName : new String[]{"radarMode", "imagingMode", "diagnosticModeFlag"}) {
+            final MetadataElement elem = identification.getElement(elemName);
+            if (elem == null) continue;
+            for (final String attrName : new String[]{elemName, "value"}) {
+                final String value = elem.getAttributeString(attrName, "");
+                if (value != null && !value.isEmpty()) {
+                    // Normalise common spellings.
+                    final String upper = value.toUpperCase();
+                    if (upper.contains("STRIPMAP")) return "Stripmap";
+                    if (upper.contains("SWEEP") || upper.contains("DBF")) return "Sweep SAR";
+                    if (upper.contains("QUASI")) return "Quasi Quad-Pol";
+                    return value;
+                }
+            }
+        }
+        return "Stripmap";
+    }
+
+    /**
+     * Set {@code mds1_tx_rx_polar} … {@code mds4_tx_rx_polar} on the abstracted-metadata
+     * root by scanning the polarisation subgroups present under each frequency. NISAR
+     * supports HH / HV / VH / VV in any combination per frequency.
+     */
+    private void populatePolarisations(final MetadataElement absRoot, final MetadataElement sar) {
+        final java.util.LinkedHashSet<String> pols = new java.util.LinkedHashSet<>();
+        try {
+            final MetadataElement productTypeElem = sar.getElement(productType);
+            if (productTypeElem != null) {
+                // Two layouts: RSLC uses /swaths/frequencyX/<POL>; geocoded products use
+                // /grids/frequencyX/<POL>. Look under both, ignoring missing branches.
+                for (final String container : new String[]{"swaths", "grids"}) {
+                    final MetadataElement containerElem = productTypeElem.getElement(container);
+                    if (containerElem == null) continue;
+                    for (final String freq : new String[]{"frequencyA", "frequencyB"}) {
+                        final MetadataElement freqElem = containerElem.getElement(freq);
+                        if (freqElem == null) continue;
+                        for (final MetadataElement child : freqElem.getElements()) {
+                            final String name = child.getName();
+                            if (isPolName(name)) {
+                                pols.add(name.toUpperCase());
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            SystemUtils.LOG.fine("NISAR: failed to probe polarisations: " + e.getMessage());
+        }
+
+        int idx = 1;
+        for (final String pol : pols) {
+            switch (idx) {
+                case 1: AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds1_tx_rx_polar, pol); break;
+                case 2: AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds2_tx_rx_polar, pol); break;
+                case 3: AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds3_tx_rx_polar, pol); break;
+                case 4: AbstractMetadata.setAttribute(absRoot, AbstractMetadata.mds4_tx_rx_polar, pol); break;
+                default: /* no-op: NISAR has at most 4 polarisations */
+            }
+            idx++;
+        }
+    }
+
+    private static boolean isPolName(final String name) {
+        if (name == null || name.length() != 2) return false;
+        final String n = name.toUpperCase();
+        return n.equals("HH") || n.equals("HV") || n.equals("VH") || n.equals("VV");
     }
 
     private void addSARParameters(final MetadataElement absRoot, final MetadataElement sar) {
@@ -1290,60 +1365,64 @@ public abstract class NisarSubReader implements CacheDataProvider {
             }
 
         } catch (Exception e) {
-            SystemUtils.LOG.severe("Error reading NISAR orbit state vectors: " + e.getMessage());
-            e.printStackTrace();
+            SystemUtils.LOG.log(java.util.logging.Level.SEVERE,
+                    "Error reading NISAR orbit state vectors: " + e.getMessage(), e);
         }
     }
 
     protected void addDopplerMetadata() {
         try {
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+            final MetadataElement dopplerCentroidCoefficientsElem =
+                    absRoot.getElement(AbstractMetadata.dop_coefficients);
+            final ProductData.UTC firstLineTime = absRoot.getAttributeUTC(
+                    AbstractMetadata.first_line_time, AbstractMetadata.NO_METADATA_UTC);
+            final double slantRangeToFirstPixel = absRoot.getAttributeDouble(
+                    AbstractMetadata.slant_range_to_first_pixel, 0.0);
+            final double srtRefNs = (slantRangeToFirstPixel > 0.0)
+                    ? (2.0 * slantRangeToFirstPixel / 299792458.0) * 1.0e9
+                    : 0.0;
 
-            final MetadataElement dopplerCentroidCoefficientsElem = absRoot.getElement(AbstractMetadata.dop_coefficients);
-            final MetadataElement dopplerListElem = new MetadataElement(AbstractMetadata.dop_coef_list + ".1");
-            dopplerCentroidCoefficientsElem.addElement(dopplerListElem);
-
-            final ProductData.UTC utcTime = absRoot.getAttributeUTC(AbstractMetadata.first_line_time,
-                    AbstractMetadata.NO_METADATA_UTC);
-
-            dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, utcTime);
-
-            AbstractMetadata.addAbstractedAttribute(dopplerListElem, AbstractMetadata.slant_range_time,
-                    ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
-            AbstractMetadata.setAttribute(dopplerListElem, AbstractMetadata.slant_range_time, 0.0);
-
-            // Try to read Doppler centroid values from the HDF5 processing parameters
-            String sarBand = netcdfFile.findGroup("/science/LSAR") != null ? "LSAR" : "SSAR";
-            String paramPath = "/science/" + sarBand + "/" + productType + "/metadata/processingInformation/parameters";
-            Group paramsGroup = netcdfFile.findGroup(paramPath);
+            // Try to read Doppler centroid values from the HDF5 processing parameters.
+            // The 2-D dopplerCentroid variable is (azimuth_time, slant_range). For
+            // long acquisitions the Doppler varies in azimuth, so emit one
+            // dop_coef_list.N per time sample (azimuth-time-varying Doppler) instead
+            // of collapsing to a single row.
+            final String sarBand = netcdfFile.findGroup("/science/LSAR") != null ? "LSAR" : "SSAR";
+            final String paramPath = "/science/" + sarBand + "/" + productType +
+                    "/metadata/processingInformation/parameters";
+            final Group paramsGroup = netcdfFile.findGroup(paramPath);
 
             boolean coeffsAdded = false;
             if (paramsGroup != null) {
-                // Try frequencyA or frequencyB under parameters
                 Group freqParams = paramsGroup.findGroup("frequencyA");
                 if (freqParams == null) freqParams = paramsGroup.findGroup("frequencyB");
 
                 if (freqParams != null) {
-                    Variable dopCentroid = freqParams.findVariable("dopplerCentroid");
+                    final Variable dopCentroid = freqParams.findVariable("dopplerCentroid");
                     if (dopCentroid != null) {
-                        // dopplerCentroid is (time, range) - use first row as coefficients
-                        double[] allValues = (double[]) dopCentroid.read().getStorage();
-                        int numRange = dopCentroid.getDimension(1).getLength();
-                        for (int i = 0; i < numRange; i++) {
-                            final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + '.' + (i + 1));
-                            dopplerListElem.addElement(coefElem);
-                            AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.dop_coef,
-                                    ProductData.TYPE_FLOAT64, "", "Doppler Centroid Coefficient");
-                            AbstractMetadata.setAttribute(coefElem, AbstractMetadata.dop_coef, allValues[i]);
-                        }
-                        coeffsAdded = true;
+                        coeffsAdded = addDopplerCoefficientsPerAzimuthTime(
+                                dopCentroid, paramsGroup, freqParams,
+                                dopplerCentroidCoefficientsElem, firstLineTime, srtRefNs);
                     }
                 }
             }
 
-            // If no coefficients found, add a default zero coefficient
+            // Fall back to a single zero-Doppler entry when the HDF5 doesn't carry the
+            // dopplerCentroid LUT (e.g. derived products like GUNW).
             if (!coeffsAdded) {
-                final MetadataElement coefElem = new MetadataElement(AbstractMetadata.coefficient + ".1");
+                final MetadataElement dopplerListElem =
+                        new MetadataElement(AbstractMetadata.dop_coef_list + ".1");
+                dopplerCentroidCoefficientsElem.addElement(dopplerListElem);
+                dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, firstLineTime);
+                AbstractMetadata.addAbstractedAttribute(dopplerListElem,
+                        AbstractMetadata.slant_range_time,
+                        ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
+                AbstractMetadata.setAttribute(dopplerListElem,
+                        AbstractMetadata.slant_range_time, srtRefNs);
+
+                final MetadataElement coefElem =
+                        new MetadataElement(AbstractMetadata.coefficient + ".1");
                 dopplerListElem.addElement(coefElem);
                 AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.dop_coef,
                         ProductData.TYPE_FLOAT64, "", "Doppler Centroid Coefficient");
@@ -1352,6 +1431,84 @@ public abstract class NisarSubReader implements CacheDataProvider {
         } catch (Exception e) {
             SystemUtils.LOG.warning("Error reading Doppler metadata: " + e.getMessage());
         }
+    }
+
+    /**
+     * Read a (time × range) {@code dopplerCentroid} LUT and emit one
+     * {@code dop_coef_list.N} entry per azimuth-time sample. Returns {@code true} if
+     * at least one entry was added.
+     */
+    private boolean addDopplerCoefficientsPerAzimuthTime(
+            final Variable dopCentroid, final Group paramsGroup, final Group freqParams,
+            final MetadataElement dopplerCentroidCoefficientsElem,
+            final ProductData.UTC firstLineTime, final double srtRefNs) throws IOException {
+
+        final int[] shape = dopCentroid.getShape();
+        if (shape.length < 2) return false;
+        final int numTime = shape[0];
+        final int numRange = shape[1];
+
+        final double[] allValues = (double[]) dopCentroid.read().get1DJavaArray(DataType.DOUBLE);
+
+        // Azimuth time axis: look for a parallel "zeroDopplerTime" / "azimuthTime"
+        // variable next to dopplerCentroid. If not present, distribute samples evenly
+        // across the acquisition.
+        double[] azTimesSec = null;
+        ProductData.UTC epoch = null;
+        for (final String name : new String[]{"zeroDopplerTime", "azimuthTime", "time"}) {
+            final Variable v = freqParams.findVariable(name);
+            if (v == null) continue;
+            try {
+                azTimesSec = (double[]) v.read().get1DJavaArray(DataType.DOUBLE);
+                final Attribute units = v.findAttribute("units");
+                if (units != null) {
+                    final String us = units.getStringValue();
+                    if (us != null && us.startsWith("seconds since ")) {
+                        epoch = parseNisarTimeString(us.substring("seconds since ".length()).trim());
+                    }
+                }
+                break;
+            } catch (Exception e) {
+                SystemUtils.LOG.fine("NISAR Doppler: unable to read azimuth-time axis '" + name + "': "
+                        + e.getMessage());
+            }
+        }
+
+        for (int t = 0; t < numTime; t++) {
+            final MetadataElement dopplerListElem =
+                    new MetadataElement(AbstractMetadata.dop_coef_list + '.' + (t + 1));
+            dopplerCentroidCoefficientsElem.addElement(dopplerListElem);
+
+            final ProductData.UTC tUtc = sampleAzimuthTime(epoch, azTimesSec, t, firstLineTime);
+            dopplerListElem.setAttributeUTC(AbstractMetadata.dop_coef_time, tUtc);
+
+            AbstractMetadata.addAbstractedAttribute(dopplerListElem,
+                    AbstractMetadata.slant_range_time,
+                    ProductData.TYPE_FLOAT64, "ns", "Slant Range Time");
+            AbstractMetadata.setAttribute(dopplerListElem,
+                    AbstractMetadata.slant_range_time, srtRefNs);
+
+            final int rowBase = t * numRange;
+            for (int r = 0; r < numRange; r++) {
+                final MetadataElement coefElem =
+                        new MetadataElement(AbstractMetadata.coefficient + '.' + (r + 1));
+                dopplerListElem.addElement(coefElem);
+                AbstractMetadata.addAbstractedAttribute(coefElem, AbstractMetadata.dop_coef,
+                        ProductData.TYPE_FLOAT64, "", "Doppler Centroid Coefficient");
+                AbstractMetadata.setAttribute(coefElem, AbstractMetadata.dop_coef,
+                        allValues[rowBase + r]);
+            }
+        }
+        return numTime > 0;
+    }
+
+    private static ProductData.UTC sampleAzimuthTime(final ProductData.UTC epoch,
+                                                     final double[] azTimesSec, final int idx,
+                                                     final ProductData.UTC fallback) {
+        if (epoch != null && azTimesSec != null && idx < azTimesSec.length) {
+            return new ProductData.UTC(epoch.getMJD() + azTimesSec[idx] / 86400.0);
+        }
+        return fallback;
     }
 
     /**

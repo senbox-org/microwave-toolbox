@@ -37,13 +37,28 @@ public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
     private final static String[] FORMAT_FILE_EXTENSIONS = new String[]{".xml", ".zip"};
     private final static String PLUGIN_DESCRIPTION = "BIOMASS Products";      /*I18N*/
 
-    private final static String PRODUCT_PREFIX = "BIO_S";
+    /**
+     * Recognised filename prefixes for BIOMASS product directories / entry-point XML files.
+     * <ul>
+     *     <li>{@code BIO_S}  — Level-1 SAR products (SCS, DGM, STA).</li>
+     *     <li>{@code BIO_FP} — Level-2 geophysical products (FH, FD, GN, AGB).</li>
+     * </ul>
+     */
+    private final static String[] PRODUCT_PREFIXES = {"BIO_S", "BIO_FP"};
     final static String PRODUCT_EXT = ".XML";
 
     private final static Class[] VALID_INPUT_TYPES = new Class[]{Path.class, File.class, String.class};
 
     private final static String ANNOTATION = "annotation";
     private final static String MEASUREMENT = "measurement";
+
+    /** Returns true when {@code filename} starts with any of the known BIOMASS prefixes. */
+    private static boolean hasBiomassPrefix(final String filenameLower) {
+        for (final String prefix : PRODUCT_PREFIXES) {
+            if (filenameLower.startsWith(prefix.toLowerCase())) return true;
+        }
+        return false;
+    }
 
     /**
      * Checks whether the given object is an acceptable input for this product reader and if so, the method checks if it
@@ -55,29 +70,31 @@ public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
     @Override
     public DecodeQualification getDecodeQualification(final Object input) {
         Path path = ReaderUtils.getPathFromInput(input);
-        if (path != null) {
-            if(Files.isDirectory(path)) {
-                File[] files = path.toFile().listFiles();
-                if(files == null) {
-                    return DecodeQualification.UNABLE;
+        if (path == null) return DecodeQualification.UNABLE;
+
+        if (Files.isDirectory(path)) {
+            final File[] files = path.toFile().listFiles();
+            if (files == null) return DecodeQualification.UNABLE;
+            for (final File file : files) {
+                final String filename = file.getName().toLowerCase();
+                if (hasBiomassPrefix(filename) && filename.endsWith(PRODUCT_EXT.toLowerCase())) {
+                    return DecodeQualification.INTENDED;
                 }
-                for(File file : files) {
-                    final String filename = file.getName().toLowerCase();
-                    if (filename.startsWith(PRODUCT_PREFIX.toLowerCase()) && filename.endsWith(PRODUCT_EXT.toLowerCase())) {
+            }
+            return DecodeQualification.UNABLE;
+        }
+
+        if (path.getFileName() != null) {
+            final String filename = path.getFileName().toString().toLowerCase();
+            if (hasBiomassPrefix(filename) && filename.endsWith(PRODUCT_EXT.toLowerCase())) {
+                return DecodeQualification.INTENDED;
+            }
+            if (filename.endsWith(".zip") && hasBiomassPrefix(filename)) {
+                // Check each candidate prefix in the zip's entries.
+                for (final String prefix : PRODUCT_PREFIXES) {
+                    if (ZipUtils.findInZip(path.toFile(), prefix.toLowerCase(), PRODUCT_EXT.toLowerCase())) {
                         return DecodeQualification.INTENDED;
                     }
-                }
-                return DecodeQualification.UNABLE;
-            }
-
-            if(path.getFileName() != null) {
-                final String filename = path.getFileName().toString().toLowerCase();
-                if (filename.startsWith(PRODUCT_PREFIX.toLowerCase()) && filename.endsWith(PRODUCT_EXT.toLowerCase())) {
-                    return DecodeQualification.INTENDED;
-                }
-                if (filename.endsWith(".zip") && filename.startsWith(PRODUCT_PREFIX.toLowerCase()) &&
-                        ZipUtils.findInZip(path.toFile(), PRODUCT_PREFIX.toLowerCase(), PRODUCT_EXT.toLowerCase())) {
-                    return DecodeQualification.INTENDED;
                 }
             }
         }
@@ -158,6 +175,6 @@ public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
 
     @Override
     public String[] getProductMetadataFilePrefixes() {
-        return new String[] {PRODUCT_PREFIX};
+        return PRODUCT_PREFIXES.clone();
     }
 }

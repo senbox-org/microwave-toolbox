@@ -13,3 +13,4 @@ eu.esa.sar.calibration.gpf.calibrators.StriXCalibrator
 eu.esa.sar.calibration.gpf.calibrators.TerraSARXCalibrator
 eu.esa.sar.calibration.gpf.calibrators.CapellaCalibrator
 eu.esa.sar.calibration.gpf.calibrators.BiomassCalibrator
+eu.esa.sar.calibration.gpf.calibrators.NisarCalibrator
