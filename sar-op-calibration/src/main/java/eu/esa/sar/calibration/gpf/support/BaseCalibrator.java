@@ -83,8 +83,7 @@ public class BaseCalibrator {
 
         String[] selectedPols = selectedPolarisations;
         if (selectedPols == null || selectedPols.length == 0) {
-            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-            selectedPols = Sentinel1Utils.getProductPolarizations(absRoot);
+            selectedPols = Sentinel1Utils.getProductPolarizations(this.absRoot);
         }
 
         for (String pol : selectedPols) {

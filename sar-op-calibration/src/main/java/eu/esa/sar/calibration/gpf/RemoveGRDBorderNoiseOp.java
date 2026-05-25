@@ -80,7 +80,7 @@ public final class RemoveGRDBorderNoiseOp extends Operator {
     private int sourceImageHeight = 0;
     private double version = 0.0f;
     private double scalingFactor = 0.0;
-    private Double noDataValue = 0.0;
+    private double noDataValue = 0.0;
     private String coPolarization = null;
     private Sentinel1Utils.NoiseVector noiseVector = null;
 
@@ -89,11 +89,11 @@ public final class RemoveGRDBorderNoiseOp extends Operator {
     private boolean thermalNoiseCorrectionPerformed = false;
 
     private boolean useBorderDetection = true;
-    private boolean borderDetected = false;
-    private int topBorder = 0;
-    private int bottomBorder = 0;
-    private int leftBorder = 0;
-    private int rightBorder = 0;
+    private volatile boolean borderDetected = false;
+    private volatile int topBorder = 0;
+    private volatile int bottomBorder = 0;
+    private volatile int leftBorder = 0;
+    private volatile int rightBorder = 0;
 
     /**
      * Default constructor. The graph processing framework
@@ -277,10 +277,10 @@ public final class RemoveGRDBorderNoiseOp extends Operator {
 
         for (int i = 0; i < noiseVector.pixels.length; i++) {
             if (x < noiseVector.pixels[i]) {
-                return i - 1;
+                return Math.max(0, i - 1);
             }
         }
-        return noiseVector.pixels.length - 2;
+        return Math.max(0, noiseVector.pixels.length - 2);
     }
 
     /**
@@ -527,7 +527,7 @@ public final class RemoveGRDBorderNoiseOp extends Operator {
 
                     if (testPixel) {
                         coPolDataValue = coPolData.getElemDoubleAt(srcIdx);
-                        if (noDataValue.equals(coPolDataValue)) {
+                        if (Double.isNaN(coPolDataValue) || coPolDataValue == noDataValue) {
                             continue;
                         }
 

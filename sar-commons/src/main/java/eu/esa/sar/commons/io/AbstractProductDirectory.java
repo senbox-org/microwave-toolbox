@@ -291,11 +291,10 @@ public abstract class AbstractProductDirectory {
                 int dotIndex = path.lastIndexOf('.');
                 return dotIndex < sepIndex;
             } else {
-                final ZipFile productZip = new ZipFile(baseDir, ZipFile.OPEN_READ);
-
-                final Optional result = productZip.stream()
-                        .filter(ze -> ze.isDirectory()).filter(ze -> ze.getName().equals(path)).findFirst();
-                return result.isPresent();
+                try (ZipFile productZip = new ZipFile(baseDir, ZipFile.OPEN_READ)) {
+                    return productZip.stream()
+                            .anyMatch(ze -> ze.isDirectory() && ze.getName().equals(path));
+                }
             }
         } else {
             return productDir.getFile(path).isDirectory();

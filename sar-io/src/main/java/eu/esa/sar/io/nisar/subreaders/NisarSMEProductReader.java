@@ -97,11 +97,17 @@ public class NisarSMEProductReader extends NisarSubReader {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, "DETECTED");
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines, product.getSceneRasterHeight());
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line, product.getSceneRasterWidth());
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency, 1270.0);
 
-        // SME2 is a geophysical (soil moisture) product, not a SAR measurement. Mark it
-        // as already-calibrated so downstream radiometric operators reject it cleanly
-        // rather than try to apply a sigma-naught correction to volumetric water content.
+        // SME2 is a Level-3 geophysical (soil moisture) product derived from SAR
+        // observations, NOT a SAR measurement itself. Crucially we do NOT set
+        // radar_frequency — InputProductValidator.isSARProduct() returns true iff
+        // radar_frequency is set, so leaving it unset correctly classifies SME2 as
+        // a non-SAR product. The downstream consequences:
+        //   * MetadataValidator skips validateSAR() (no PRF / spacing / orbit checks).
+        //   * Radiometric operators that gate on isSARProduct() refuse to touch it.
+        //   * Coregistration / interferometry / Doppler operators likewise bail out.
+        // abs_calibration_flag=1 belt-and-suspenders the "don't calibrate me" signal
+        // for operators that look at that flag without the isSARProduct() check.
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.abs_calibration_flag, 1);
 
         // Parse start/end times from filename (e.g. ...20190829T180759_20190829T180809...).

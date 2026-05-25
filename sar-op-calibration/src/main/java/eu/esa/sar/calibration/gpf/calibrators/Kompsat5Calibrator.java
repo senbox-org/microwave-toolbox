@@ -400,7 +400,7 @@ public class Kompsat5Calibrator extends BaseCalibrator implements Calibrator {
         final ProductData tgtData = targetTile.getDataBuffer();
         final TileIndex srcIndex = new TileIndex(sourceRaster1);
         final TileIndex tgtIndex = new TileIndex(targetTile);
-        final Double noDataValue = targetBand.getNoDataValue();
+        final double noDataValue = targetBand.getNoDataValue();
 
         double sigma, dn, i, q, phaseTerm = 0.0;
         int srcIdx, tgtIdx;
@@ -520,7 +520,7 @@ public class Kompsat5Calibrator extends BaseCalibrator implements Calibrator {
         final ProductData tgtData = targetTile.getDataBuffer();
         final TileIndex srcIndex = new TileIndex(sourceRaster1);
         final TileIndex tgtIndex = new TileIndex(targetTile);
-        final Double noDataValue = targetBand.getNoDataValue();
+        final double noDataValue = targetBand.getNoDataValue();
 
         double sigma;
         for (int y = y0; y < maxY; ++y) {
@@ -536,7 +536,7 @@ public class Kompsat5Calibrator extends BaseCalibrator implements Calibrator {
                 } else {
 
                     final double dn2Mean = getMeanDN2(x, y, srcData1, srcData2, gimBandData, srcIndex, srcBandUnit, noDataValue);
-                    if(noDataValue.equals(dn2Mean)) {
+                    if(Double.isNaN(dn2Mean) || dn2Mean == noDataValue) {
                         tgtData.setElemDoubleAt(tgtIdx, noDataValue);
                         continue;
                     }
@@ -598,7 +598,7 @@ public class Kompsat5Calibrator extends BaseCalibrator implements Calibrator {
         for (int yy = yMin; yy <= yMax; ++yy) {
             srcIndex.calculateStride(yy);
             for (int xx = xMin; xx <= xMax; ++xx) {
-                final int srcIdx = srcIndex.getIndex(x);
+                final int srcIdx = srcIndex.getIndex(xx);
                 if (srcBandUnit == Unit.UnitType.AMPLITUDE) {
                     dn = srcData1.getElemDoubleAt(srcIdx);
                     dn2 = dn * dn;

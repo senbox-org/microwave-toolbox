@@ -274,7 +274,7 @@ public class Risat1Calibrator extends BaseCalibrator implements Calibrator {
             final double satelliteHeight, final double sceneToEarthCentre, final double localIncidenceAngle,
             final String bandName, final String bandPolar, final Unit.UnitType bandUnit, int[] subSwathIndex) {
 
-        final String pol = bandName.substring(bandName.lastIndexOf("_"));
+        final String pol = bandName.substring(bandName.lastIndexOf("_") + 1);
         final double Ks = calibrationFactor.get(pol);
 
         double sigma = 0.0;

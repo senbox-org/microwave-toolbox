@@ -31,6 +31,7 @@ import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
+import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
 
 import java.awt.*;
@@ -353,7 +354,7 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
                 srcData2 = sourceRaster2.getDataBuffer();
             }
 
-            final Double noDataValue = sourceBand1.getNoDataValue();
+            final double noDataValue = sourceBand1.getNoDataValue();
             final Unit.UnitType tgtBandUnit = Unit.getUnitType(targetBand);
             final Unit.UnitType srcBandUnit = Unit.getUnitType(sourceBand1);
 
@@ -403,7 +404,7 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
 
                     dn = srcData1.getElemDoubleAt(srcIdx);
 
-                    if (dn == noDataValue) {
+                    if (Double.isNaN(dn) || dn == noDataValue) {
                         tgtData.setElemDoubleAt(trgIndex.getIndex(x), noDataValue);
                         continue;
                     }
@@ -454,8 +455,7 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
                 }
             }
         } catch (Throwable e) {
-            e.printStackTrace();
-            //OperatorUtils.catchOperatorException(getId(), e);
+            OperatorUtils.catchOperatorException(calibrationOp.getId(), e);
         } finally {
             pm.done();
         }

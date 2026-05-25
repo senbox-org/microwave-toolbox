@@ -13,8 +13,11 @@ public class TiePointInterpolator {
     private final float[] tiePoints;
     private final int rasterWidth;
 
-    private double[][] quadraticInterpCoeffs = null; // 2 order quadratic polynomial coefficients
-    private double[] biquadraticInterpCoeffs = null; // 2 order biquadratic polynomial coefficients
+    // volatile: getPixelDouble reads these outside the synchronized init methods.
+    // Without volatile, a thread that observes a non-null reference could still
+    // see stale inner-array contents written before publication.
+    private volatile double[][] quadraticInterpCoeffs = null; // 2 order quadratic polynomial coefficients
+    private volatile double[] biquadraticInterpCoeffs = null; // 2 order biquadratic polynomial coefficients
 
     public enum InterpMode {BILINEAR, QUADRATIC, BIQUADRATIC}
 
