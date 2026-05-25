@@ -44,17 +44,22 @@ public class TestGaborFilter {
     }
 
     @Test
-    public void testCreateGaborFilterIsNormalizedToUnitSum() {
+    public void testCreateGaborFilterIsDcFreeAndUnitL2() {
         final double[][] filter = GaborFilter.createGarborFilter(4.0, 0.6, 1.0, 2.0, 0.3);
         double sum = 0.0;
+        double l2 = 0.0;
         for (double[] row : filter) {
             for (double v : row) {
                 sum += v;
+                l2 += v * v;
             }
         }
-        // The filter divides every element by the raw sum, so normalised sum is 1.
-        assertEquals("Gabor filter is normalised so its sum should be 1.0",
-                1.0, sum, 1e-9);
+        // A correct Gabor kernel is band-pass: DC-free (sum == 0) and unit L2 norm.
+        // The previous implementation divided by the raw sum (≈0) and produced
+        // wildly inflated coefficients; the corrected kernel subtracts the mean
+        // and L2-normalizes.
+        assertEquals("Gabor filter should be DC-free (sum ≈ 0)", 0.0, sum, 1e-9);
+        assertEquals("Gabor filter should have unit L2 norm", 1.0, l2, 1e-9);
     }
 
     @Test

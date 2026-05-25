@@ -154,10 +154,12 @@ public class OilSpillClusteringOp extends Operator {
             final ProductData trgData = targetTile.getDataBuffer();
             //System.out.println("tx0 = " + tx0 + ", ty0 = " + ty0 + ", tw = " + tw + ", th = " + th);
 
+            final int rasterW = targetBand.getRasterWidth();
+            final int rasterH = targetBand.getRasterHeight();
             final int x0 = Math.max(tx0 - minClusterSizeInPixels, 0);
             final int y0 = Math.max(ty0 - minClusterSizeInPixels, 0);
-            final int w = Math.min(tw + 2 * minClusterSizeInPixels, targetBand.getRasterWidth());
-            final int h = Math.min(th + 2 * minClusterSizeInPixels, targetBand.getRasterHeight());
+            final int w = Math.min(tx0 + tw + minClusterSizeInPixels, rasterW) - x0;
+            final int h = Math.min(ty0 + th + minClusterSizeInPixels, rasterH) - y0;
             final Rectangle sourceTileRectangle = new Rectangle(x0, y0, w, h);
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 

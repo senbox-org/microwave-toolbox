@@ -134,7 +134,7 @@ public class AdaptiveThresholdingOp extends Operator {
 
             halfTargetWindowSize = targetWindowSize / 2;
             halfGuardWindowSize = guardWindowSize / 2;
-            halfBackgroundWindowSize = (backgroundWindowSize - 1) / 2;
+            halfBackgroundWindowSize = backgroundWindowSize / 2;
 
             targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
                     sourceProduct.getProductType(),
@@ -455,6 +455,9 @@ public class AdaptiveThresholdingOp extends Operator {
                 }
             }
         }
+        if (numValues == 0) {
+            return Double.POSITIVE_INFINITY;
+        }
         final double mean = sum / numValues;
 
         // Compute the standard deviation value for pixels in the background window.
@@ -481,6 +484,9 @@ public class AdaptiveThresholdingOp extends Operator {
                 sum += val;
                 ++numPixels;
             }
+        }
+        if (numPixels == 0) {
+            return Double.POSITIVE_INFINITY;
         }
         final double mean = sum / numPixels;
 
@@ -553,7 +559,7 @@ public class AdaptiveThresholdingOp extends Operator {
         double x = -0.70711 * ((2.30753 + t * 0.27061) / (1.0 + t * (0.99229 + t * 0.04481)) - t);
         for (int j = 0; j < 2; j++) {
             final double err = erfc(x) - pp;
-            x += err / (1.12837916709551257 * FastMath.exp(-Math.sqrt(x)) - x * err);
+            x += err / (1.12837916709551257 * FastMath.exp(-x * x) - x * err);
         }
         return (p < 1.0 ? x : -x);
     }

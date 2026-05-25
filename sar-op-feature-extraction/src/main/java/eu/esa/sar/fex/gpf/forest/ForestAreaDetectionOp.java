@@ -353,8 +353,9 @@ public class ForestAreaDetectionOp extends Operator {
         final TileIndex tileIndex = new TileIndex(sourceTile);
 
         int numSamples = 0;
-        final int maxy = Math.min(y0 + h, sourceTile.getMaxY() - 1);
-        final int maxx = Math.min(x0 + w, sourceTile.getMaxX() - 1);
+        // Tile.getMaxY()/getMaxX() are inclusive; the loop bound below is exclusive.
+        final int maxy = Math.min(y0 + h, sourceTile.getMaxY() + 1);
+        final int maxx = Math.min(x0 + w, sourceTile.getMaxX() + 1);
 
         switch (bandUnit) {
             case Unit.AMPLITUDE:
@@ -385,13 +386,13 @@ public class ForestAreaDetectionOp extends Operator {
 
             case Unit.AMPLITUDE_DB:
 
+                // amp_dB = 20*log10(amp) => intensity = amp^2 = 10^(v/10).
                 for (int y = y0; y < maxy; y++) {
                     tileIndex.calculateStride(y);
                     for (int x = x0; x < maxx; x++) {
                         final double v = srcData.getElemDoubleAt(tileIndex.getIndex(x));
                         if (v != noDataValue) {
-                            double vv = FastMath.pow(10.0, v / 10.0);
-                            samples[numSamples++] = vv * vv;
+                            samples[numSamples++] = FastMath.pow(10.0, v / 10.0);
                         }
                     }
                 }
