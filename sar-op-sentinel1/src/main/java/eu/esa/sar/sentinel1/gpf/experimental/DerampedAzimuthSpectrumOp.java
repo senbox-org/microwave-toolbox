@@ -26,6 +26,7 @@ import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.core.gpf.Tile;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
@@ -128,7 +129,7 @@ public final class DerampedAzimuthSpectrumOp extends Operator {
             createTargetProduct();
 
         } catch (Throwable e) {
-            throw new OperatorException(e.getMessage());
+            OperatorUtils.catchOperatorException(getId(), e);
         }
     }
 
@@ -146,6 +147,9 @@ public final class DerampedAzimuthSpectrumOp extends Operator {
                 sourceImageWidth,
                 sourceImageHeight);
 
+        // Bring over geocoding, tie-point grids, and metadata so downstream operators don't lose them.
+        ProductUtils.copyProductNodes(sourceProduct, targetProduct);
+
         final Band azSpecBand = new Band(
                 "azSpec",
                 ProductData.TYPE_FLOAT32,
@@ -153,6 +157,8 @@ public final class DerampedAzimuthSpectrumOp extends Operator {
                 sourceImageHeight);
 
         azSpecBand.setUnit(Unit.INTENSITY);
+        azSpecBand.setNoDataValue(Double.NaN);
+        azSpecBand.setNoDataValueUsed(true);
         targetProduct.addBand(azSpecBand);
 
         if (outputDerampPhase) {
@@ -163,6 +169,8 @@ public final class DerampedAzimuthSpectrumOp extends Operator {
                     sourceImageHeight);
 
             derampPhaseBand.setUnit("radian");
+            derampPhaseBand.setNoDataValue(Double.NaN);
+            derampPhaseBand.setNoDataValueUsed(true);
             targetProduct.addBand(derampPhaseBand);
         }
 
@@ -174,6 +182,8 @@ public final class DerampedAzimuthSpectrumOp extends Operator {
                     sourceImageHeight);
 
             demodPhaseBand.setUnit("radian");
+            demodPhaseBand.setNoDataValue(Double.NaN);
+            demodPhaseBand.setNoDataValueUsed(true);
             targetProduct.addBand(demodPhaseBand);
         }
 
@@ -200,9 +210,12 @@ public final class DerampedAzimuthSpectrumOp extends Operator {
             final int y0 = targetRectangle.y;
             final int w = targetRectangle.width;
             final int h = targetRectangle.height;
-            System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 
             final int burstIndex = y0 / subSwath[subSwathIndex - 1].linesPerBurst;
+            if (burstIndex < 0 || burstIndex >= subSwath[subSwathIndex - 1].numOfBursts) {
+                // Tile lies outside the burst grid; skip (rather than indexing into burst arrays out-of-range).
+                return;
+            }
 
             final double[][] derampDemodPhase = computeDerampDemodPhase(
                     subSwathIndex, burstIndex, targetRectangle, targetTileMap);

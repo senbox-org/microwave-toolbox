@@ -81,7 +81,7 @@ public final class TOPSARDeburstOp extends Operator {
     private Sentinel1Utils su = null;
     private Sentinel1Utils.SubSwathInfo[] subSwath = null;
 
-    private static int numOfBoundaryPoints = 6;
+    private static final int numOfBoundaryPoints = 6;
     private static final String PRODUCT_SUFFIX = "_Deb";
 
     /**
@@ -287,8 +287,13 @@ public final class TOPSARDeburstOp extends Operator {
             }
         }
 
+        // Not calling ProductUtils.copyProductNodes: the deburst target has different scene dimensions than the source,
+        // so source TPGs would have stale pixel positions. New TPGs are built below by createTiePointGrids().
         ProductUtils.copyMetadata(sourceProduct, targetProduct);
         ProductUtils.copyFlagCodings(sourceProduct, targetProduct);
+        ProductUtils.copyIndexCodings(sourceProduct, targetProduct);
+        ProductUtils.copyMasks(sourceProduct, targetProduct);
+        ProductUtils.copyVectorData(sourceProduct, targetProduct);
         ProductUtils.copyQuicklookBandName(sourceProduct, targetProduct);
         targetProduct.setStartTime(new ProductData.UTC(targetFirstLineTime/Constants.secondsInDay));
         targetProduct.setEndTime(new ProductData.UTC(targetLastLineTime/Constants.secondsInDay));
@@ -432,15 +437,19 @@ public final class TOPSARDeburstOp extends Operator {
         TiePointGrid latGrid = targetProduct.getTiePointGrid(OperatorUtils.TPG_LATITUDE);
         TiePointGrid lonGrid = targetProduct.getTiePointGrid(OperatorUtils.TPG_LONGITUDE);
 
+        // Valid pixel coordinates are [0, targetWidth-1] x [0, targetHeight-1]; passing targetWidth/targetHeight
+        // extrapolates beyond the grid.
+        final int lastCol = targetWidth - 1;
+        final int lastRow = targetHeight - 1;
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.first_near_lat, latGrid.getPixelFloat(0, 0));
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.first_near_long, lonGrid.getPixelFloat(0, 0));
-        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.first_far_lat, latGrid.getPixelFloat(targetWidth, 0));
-        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.first_far_long, lonGrid.getPixelFloat(targetWidth, 0));
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.first_far_lat, latGrid.getPixelFloat(lastCol, 0));
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.first_far_long, lonGrid.getPixelFloat(lastCol, 0));
 
-        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.last_near_lat, latGrid.getPixelFloat(0, targetHeight));
-        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.last_near_long, lonGrid.getPixelFloat(0, targetHeight));
-        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.last_far_lat, latGrid.getPixelFloat(targetWidth, targetHeight));
-        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.last_far_long, lonGrid.getPixelFloat(targetWidth, targetHeight));
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.last_near_lat, latGrid.getPixelFloat(0, lastRow));
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.last_near_long, lonGrid.getPixelFloat(0, lastRow));
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.last_far_lat, latGrid.getPixelFloat(lastCol, lastRow));
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.last_far_long, lonGrid.getPixelFloat(lastCol, lastRow));
 
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.slant_range_to_first_pixel,
                 targetSlantRangeTimeToFirstPixel * Constants.lightSpeed);
@@ -1231,91 +1240,6 @@ public final class TOPSARDeburstOp extends Operator {
             }
         }
         return burstInfo.swath0;
-    }
-
-    private double getSubSwathNoise(final int tx, final double targetLineTime,
-                                    final Sentinel1Utils.SubSwathInfo sw, final String pol) {
-
-        final Sentinel1Utils.NoiseVector[] vectorList = sw.noise.get(pol);
-
-        final int sx = getSampleIndexInSourceProduct(tx, sw);
-        final int sy = (int) ((targetLineTime - vectorList[0].timeMJD*Constants.secondsInDay) / targetLineTimeInterval);
-
-        int l0 = -1, l1 = -1;
-        int vectorIdx0 = -1, vectorIdxInc = 0;
-        if (sy < vectorList[0].line) {
-
-            l0 = vectorList[0].line;
-            l1 = l0;
-            vectorIdx0 = 0;
-
-        } else if (sy >= vectorList[vectorList.length - 1].line) {
-
-            l0 = vectorList[vectorList.length - 1].line;
-            l1 = l0;
-            vectorIdx0 = vectorList.length - 1;
-
-        } else {
-            vectorIdxInc = 1;
-            int max = vectorList.length - 1;
-            for (int i = 0; i < max; i++) {
-                if (sy >= vectorList[i].line && sy < vectorList[i + 1].line) {
-                    l0 = vectorList[i].line;
-                    l1 = vectorList[i + 1].line;
-                    vectorIdx0 = i;
-                    break;
-                }
-            }
-        }
-
-        final int[] pixels = vectorList[vectorIdx0].pixels;
-        int p0 = -1, p1 = -1;
-        int pixelIdx0 = -1, pixelIdxInc = 0;
-        if (sx < pixels[0]) {
-
-            p0 = pixels[0];
-            p1 = p0;
-            pixelIdx0 = 0;
-
-        } else if (sx >= pixels[pixels.length - 1]) {
-
-            p0 = pixels[pixels.length - 1];
-            p1 = p0;
-            pixelIdx0 = pixels.length - 1;
-
-        } else {
-
-            pixelIdxInc = 1;
-            int max = pixels.length - 1;
-            for (int i = 0; i < max; i++) {
-                if (sx >= pixels[i] && sx < pixels[i + 1]) {
-                    p0 = pixels[i];
-                    p1 = pixels[i + 1];
-                    pixelIdx0 = i;
-                    break;
-                }
-            }
-        }
-
-        final float[] noiseLUT0 = vectorList[vectorIdx0].noiseLUT;
-        final float[] noiseLUT1 = vectorList[vectorIdx0 + vectorIdxInc].noiseLUT;
-        double dx;
-        if (p0 == p1) {
-            dx = 0;
-        } else {
-            dx = (sx - p0) / (p1 - p0);
-        }
-
-        double dy;
-        if (l0 == l1) {
-            dy = 0;
-        } else {
-            dy = (sy - l0) / (l1 - l0);
-        }
-
-        return Maths.interpolationBiLinear(noiseLUT0[pixelIdx0], noiseLUT0[pixelIdx0 + pixelIdxInc],
-                noiseLUT1[pixelIdx0], noiseLUT1[pixelIdx0 + pixelIdxInc],
-                dx, dy);
     }
 
     private static class BurstInfo {

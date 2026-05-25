@@ -518,6 +518,13 @@ public class SpectralDiversityOp extends Operator {
                                           band.getRasterHeight());
 
                     targetBand.setUnit(band.getUnit());
+                    if (band.isNoDataValueUsed()) {
+                        targetBand.setNoDataValue(band.getNoDataValue());
+                        targetBand.setNoDataValueUsed(true);
+                    } else {
+                        targetBand.setNoDataValue(Double.NaN);
+                        targetBand.setNoDataValueUsed(true);
+                    }
                     targetProduct.addBand(targetBand);
                 }
 
@@ -1994,7 +2001,9 @@ public class SpectralDiversityOp extends Operator {
         // Check optimization criterion
         if (optObjective.equalsIgnoreCase(OPT_CRITERION_MAX_REAL)) {  // maximize real part
             findMinArgument = false;
-            initialBestValue = Double.MIN_VALUE;  // will be overwritten in the first comparison
+            // Negative-infinity sentinel: any real value (including all-negative candidates) compares greater.
+            // Previously Double.MIN_VALUE (~4.9e-324, positive) caused bestIndex to stay -1 when every candidate had negative real.
+            initialBestValue = Double.NEGATIVE_INFINITY;
         } else if (optObjective.equalsIgnoreCase(OPT_CRITERION_MIN_ARG)) {  // minimize phase
             findMinArgument = true;
             initialBestValue = Double.MAX_VALUE;  // will be overwritten in the first comparison
@@ -2053,6 +2062,11 @@ public class SpectralDiversityOp extends Operator {
                         SystemUtils.LOG.finer(currentValue + " is the new maximum");
                     }
                 }
+            }
+
+            if (bestIndex < 0) {
+                throw new OperatorException("Periodogram search found no candidate better than the initial sentinel; " +
+                        "check ESD phase / weight / spectralSeparation inputs.");
             }
 
             // Check if the tolerance is met

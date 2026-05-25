@@ -142,16 +142,17 @@ public class DoubleDifferenceInterferogramOp extends Operator {
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
+        // NaN as no-data: 0.0 is a legitimate phase (wrapped near zero) and a legitimate (though degenerate) coherence value.
         ddiBand = new Band("DDIPhase", ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
         ddiBand.setUnit("radian");
-        ddiBand.setNoDataValue(0.0);
+        ddiBand.setNoDataValue(Double.NaN);
         ddiBand.setNoDataValueUsed(true);
         targetProduct.addBand(ddiBand);
 
         if (outputCoherence) {
             cohBand = new Band("coherence", ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
             cohBand.setUnit(Unit.COHERENCE);
-            cohBand.setNoDataValue(0.0);
+            cohBand.setNoDataValue(Double.NaN);
             cohBand.setNoDataValueUsed(true);
             targetProduct.addBand(cohBand);
         }
@@ -196,43 +197,54 @@ public class DoubleDifferenceInterferogramOp extends Operator {
 
             final double[][] ddiPhase = computeDDIPhase(overlapInBurstOneRectangle, overlapInBurstTwoRectangle);
 
-            double[][] data = new double[h][w];
             final int x0DDI = overlapInBurstOneRectangle.x;
             final int y0DDI = overlapInBurstOneRectangle.y;
             final int xMaxDDI = x0DDI + overlapInBurstOneRectangle.width;
             final int yMaxDDI = y0DDI + overlapInBurstOneRectangle.height;
+
+            final double[][] phaseData = newNaNArray(h, w);
             for (int y = y0DDI; y < yMaxDDI; ++y) {
                 final int r = y - y0;
                 final int rr = y - y0DDI;
                 for (int x = x0DDI; x < xMaxDDI; ++x) {
                     final int c = x - x0;
                     final int cc = x - x0DDI;
-                    data[r][c] = ddiPhase[rr][cc];
+                    phaseData[r][c] = ddiPhase[rr][cc];
                 }
             }
 
-            saveData(data, ddiBand, targetTileMap, targetRectangle);
+            saveData(phaseData, ddiBand, targetTileMap, targetRectangle);
 
             if (outputCoherence) {
                 final double[][] coh = computeCoherence(
                         overlapInBurstOneRectangle, refBandI, refBandQ, secBandI, secBandQ, cohWin);
 
+                // Fresh array so pixels outside the DDI overlap remain no-data (NaN), not leftover phase from the previous band.
+                final double[][] cohData = newNaNArray(h, w);
                 for (int y = y0DDI; y < yMaxDDI; ++y) {
                     final int r = y - y0;
                     final int rr = y - y0DDI;
                     for (int x = x0DDI; x < xMaxDDI; ++x) {
                         final int c = x - x0;
                         final int cc = x - x0DDI;
-                        data[r][c] = coh[rr][cc];
+                        cohData[r][c] = coh[rr][cc];
                     }
                 }
 
-                saveData(data, cohBand, targetTileMap, targetRectangle);
+                saveData(cohData, cohBand, targetTileMap, targetRectangle);
             }
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
+    }
+
+    private static double[][] newNaNArray(final int h, final int w) {
+        final double[][] arr = new double[h][w];
+        for (int r = 0; r < h; r++) {
+            java.util.Arrays.fill(arr[r], Double.NaN);
+        }
+        return arr;
     }
 
     private void saveData(final double[][] data, final Band tgtBand, Map<Band, Tile> targetTileMap,
@@ -535,19 +547,6 @@ public class DoubleDifferenceInterferogramOp extends Operator {
         }
         return coherence;
     }
-
-    private static class AzimuthShiftData {
-        int overlapIndex;
-        int blockIndex;
-        double shift;
-
-        public AzimuthShiftData(final int overlapIndex, final int blockIndex, final double shift) {
-            this.overlapIndex = overlapIndex;
-            this.blockIndex = blockIndex;
-            this.shift = shift;
-        }
-    }
-
 
     /**
      * The SPI is used to register this operator in the graph processing framework

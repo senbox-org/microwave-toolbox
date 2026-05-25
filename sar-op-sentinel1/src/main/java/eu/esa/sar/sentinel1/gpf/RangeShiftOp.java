@@ -209,6 +209,13 @@ public class RangeShiftOp extends Operator {
                         band.getRasterHeight());
 
                 targetBand.setUnit(band.getUnit());
+                if (band.isNoDataValueUsed()) {
+                    targetBand.setNoDataValue(band.getNoDataValue());
+                    targetBand.setNoDataValueUsed(true);
+                } else {
+                    targetBand.setNoDataValue(Double.NaN);
+                    targetBand.setNoDataValueUsed(true);
+                }
                 targetProduct.addBand(targetBand);
             }
 
@@ -283,10 +290,12 @@ public class RangeShiftOp extends Operator {
             final Tile secTileQ = getSourceTile(secondaryBandQ, targetRectangle);
             final Tile tgtTileI = targetTileMap.get(targetBandI);
             final Tile tgtTileQ = targetTileMap.get(targetBandQ);
-            final float[] secArrayI = (float[]) secTileI.getDataBuffer().getElems();
-            final float[] secArrayQ = (float[]) secTileQ.getDataBuffer().getElems();
-            final float[] tgtArrayI = (float[]) tgtTileI.getDataBuffer().getElems();
-            final float[] tgtArrayQ = (float[]) tgtTileQ.getDataBuffer().getElems();
+            // Source SLC may be INT16 (raw S1 SLC) or FLOAT32 (post-deramp). Convert to float regardless.
+            final float[] secArrayI = toFloatArray(secTileI.getDataBuffer().getElems());
+            final float[] secArrayQ = toFloatArray(secTileQ.getDataBuffer().getElems());
+            // Target buffer may also be INT16 (when target band kept source dtype); write via ProductData accessor.
+            final ProductData tgtBufI = tgtTileI.getDataBuffer();
+            final ProductData tgtBufQ = tgtTileQ.getDataBuffer();
 
             /*
             //========== test data generation
@@ -343,8 +352,8 @@ public class RangeShiftOp extends Operator {
                 row_fft.complexInverse(line, true);
 
                 for (int c = 0; c < w; c++) {
-                    tgtArrayI[rw + c] = (float)line[2 * c];
-                    tgtArrayQ[rw + c] = (float)line[2 * c + 1];
+                    tgtBufI.setElemFloatAt(rw + c, (float) line[2 * c]);
+                    tgtBufQ.setElemFloatAt(rw + c, (float) line[2 * c + 1]);
                 }
             }
 
@@ -353,6 +362,30 @@ public class RangeShiftOp extends Operator {
         } finally {
             pm.done();
         }
+    }
+
+    private static float[] toFloatArray(final Object buffer) {
+        if (buffer instanceof float[]) {
+            return (float[]) buffer;
+        }
+        if (buffer instanceof short[]) {
+            final short[] src = (short[]) buffer;
+            final float[] out = new float[src.length];
+            for (int i = 0; i < src.length; i++) {
+                out[i] = src[i];
+            }
+            return out;
+        }
+        if (buffer instanceof int[]) {
+            final int[] src = (int[]) buffer;
+            final float[] out = new float[src.length];
+            for (int i = 0; i < src.length; i++) {
+                out[i] = src[i];
+            }
+            return out;
+        }
+        throw new OperatorException("Unsupported source band data type: " +
+                (buffer == null ? "null" : buffer.getClass().getName()));
     }
 
     /**

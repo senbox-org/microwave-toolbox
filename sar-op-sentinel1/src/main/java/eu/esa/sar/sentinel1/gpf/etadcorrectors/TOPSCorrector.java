@@ -380,6 +380,10 @@ import java.util.Map;
     private void computePartialTileForOption2(final int mBurstIndex,
                                               final int x0, final int y0, final int w, final int h,
                                               final Map<Band, Tile> targetTileMap, final Operator op) {
+        // Option 2 (InSAR phase output) intentionally has no per-tile work here:
+        //  - i/q source bands are pass-through (added via copyBand(copySourceImage=true) in createTargetProductForOption2).
+        //  - ETAD corrections are surfaced as tie-point grids via saveBurstDataAsTiePointGrid().
+        // If any non-pass-through, non-TPG band is added to option 2 in the future, fill that computation here.
     }
 
     private void computePartialTileForOption1(final int subSwathIndex, final int mBurstIndex,
