@@ -132,7 +132,9 @@ public class CoarseRegistration {
         double colShift = gcpTolerance + 1;
         int numIter = 0;
 
-        while (Math.abs(rowShift) >= gcpTolerance || Math.abs(colShift) >= gcpTolerance) {
+        final double convergenceEpsilon = 1.0e-6;
+        while (Math.abs(rowShift) > gcpTolerance + convergenceEpsilon
+                || Math.abs(colShift) > gcpTolerance + convergenceEpsilon) {
 
             if (numIter >= maxIteration) {
                 return false;

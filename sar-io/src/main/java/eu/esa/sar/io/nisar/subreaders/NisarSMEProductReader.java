@@ -97,45 +97,41 @@ public class NisarSMEProductReader extends NisarSubReader {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SAMPLE_TYPE, "DETECTED");
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_output_lines, product.getSceneRasterHeight());
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.num_samples_per_line, product.getSceneRasterWidth());
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency, 1270.0);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval, 1.0);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.pulse_repetition_frequency, 1.0);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_spacing, 1.0);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, 1.0);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.range_looks, 1);
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_looks, 1);
 
-        // Parse start/end times from filename (e.g. ...20190829T180759_20190829T180809...)
+        // SME2 is a Level-3 geophysical (soil moisture) product derived from SAR
+        // observations, NOT a SAR measurement itself. Crucially we do NOT set
+        // radar_frequency — InputProductValidator.isSARProduct() returns true iff
+        // radar_frequency is set, so leaving it unset correctly classifies SME2 as
+        // a non-SAR product. The downstream consequences:
+        //   * MetadataValidator skips validateSAR() (no PRF / spacing / orbit checks).
+        //   * Radiometric operators that gate on isSARProduct() refuse to touch it.
+        //   * Coregistration / interferometry / Doppler operators likewise bail out.
+        // abs_calibration_flag=1 belt-and-suspenders the "don't calibrate me" signal
+        // for operators that look at that flag without the isSARProduct() check.
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.abs_calibration_flag, 1);
+
+        // Parse start/end times from filename (e.g. ...20190829T180759_20190829T180809...).
         try {
-            String name = product.getName();
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile(
+            final String name = product.getName();
+            final java.util.regex.Matcher m = java.util.regex.Pattern.compile(
                     "(\\d{8}T\\d{6})_(\\d{8}T\\d{6})").matcher(name);
             if (m.find()) {
-                java.text.DateFormat fmt = ProductData.UTC.createDateFormat("yyyyMMdd HHmmss");
-                ProductData.UTC startTime = ProductData.UTC.parse(m.group(1).replace("T", " "), fmt);
-                ProductData.UTC endTime = ProductData.UTC.parse(m.group(2).replace("T", " "), fmt);
+                final java.text.DateFormat fmt = ProductData.UTC.createDateFormat("yyyyMMdd HHmmss");
+                final ProductData.UTC startTime = ProductData.UTC.parse(m.group(1).replace("T", " "), fmt);
+                final ProductData.UTC endTime = ProductData.UTC.parse(m.group(2).replace("T", " "), fmt);
                 product.setStartTime(startTime);
                 product.setEndTime(endTime);
                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, startTime);
                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, endTime);
-                AbstractMetadata.setAttribute(absRoot, AbstractMetadata.STATE_VECTOR_TIME, startTime);
             }
         } catch (Exception e) {
             org.esa.snap.core.util.SystemUtils.LOG.warning("Failed to parse SME2 times: " + e.getMessage());
         }
-
-        // Add a dummy orbit state vector to pass validation
-        final MetadataElement orbitVectorListElem = absRoot.getElement(AbstractMetadata.orbit_state_vectors);
-        final MetadataElement orbitVectorElem = new MetadataElement(AbstractMetadata.orbit_vector + "1");
-        orbitVectorElem.setAttributeUTC(AbstractMetadata.orbit_vector_time,
-                absRoot.getAttributeUTC(AbstractMetadata.first_line_time, AbstractMetadata.NO_METADATA_UTC));
-        orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_pos, 1.0);
-        orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_pos, 1.0);
-        orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_pos, 1.0);
-        orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_x_vel, 1.0);
-        orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_y_vel, 1.0);
-        orbitVectorElem.setAttributeDouble(AbstractMetadata.orbit_vector_z_vel, 1.0);
-        orbitVectorListElem.addElement(orbitVectorElem);
+        // Deliberately NOT populating orbit_state_vectors or PRF / spacing fields with
+        // synthetic placeholders — earlier versions wrote (1,1,1) position vectors and
+        // PRF=1.0 to "pass validation", but those fake values silently corrupt any
+        // operator that tries to use orbit interpolation. A missing orbit is honest;
+        // a fake orbit is a footgun.
     }
 
     @Override

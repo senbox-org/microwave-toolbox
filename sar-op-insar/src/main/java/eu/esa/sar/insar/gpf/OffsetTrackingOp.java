@@ -157,8 +157,8 @@ public class OffsetTrackingOp extends Operator {
     private double rangeSpacing = 0.0;
     private double azimuthSpacing = 0.0;
     private double maxOffset = 0.0;
-    private boolean velocityAvailable = false;
-    private VelocityData velocityData = null;
+    private volatile boolean velocityAvailable = false;
+    private volatile VelocityData velocityData = null;
     private Resampling selectedResampling = null;
     private MetadataElement refAbsRoot = null;
 
@@ -946,7 +946,7 @@ public class OffsetTrackingOp extends Operator {
         int k = 0;
         for (int i = 0; i < numGCPsPerAzLine; i++) {
             for (int j = 0; j < numGCPsPerRgLine; j++) {
-                if (velocityData.secGCPx[i][j] != invalidIndex && velocityData.secGCPx[i][j] != invalidIndex) {
+                if (velocityData.secGCPx[i][j] != invalidIndex && velocityData.secGCPy[i][j] != invalidIndex) {
                     final MetadataElement gcpElem = new MetadataElement("GCP" + k);
                     warpDataElem.addElement(gcpElem);
 
@@ -993,7 +993,7 @@ public class OffsetTrackingOp extends Operator {
         int c = collection.size();
         for (int i = 0; i < numGCPsPerAzLine; i++) {
             for (int j = 0; j < numGCPsPerRgLine; j++) {
-                if (velocityData.secGCPx[i][j] != invalidIndex && velocityData.secGCPx[i][j] != invalidIndex) {
+                if (velocityData.secGCPx[i][j] != invalidIndex && velocityData.secGCPy[i][j] != invalidIndex) {
 
                     final String name = "post_" + c;
 

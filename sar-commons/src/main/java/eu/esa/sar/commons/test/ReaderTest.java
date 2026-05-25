@@ -41,6 +41,8 @@ public class ReaderTest extends ProcessorTest {
         this.reader = readerPlugIn.createReaderInstance();
     }
 
+    // close() must be invoked by subclass tests (e.g. via their own @After hook);
+    // JUnit is not on the main classpath here.
     protected void close() throws IOException {
         for (Product product : productsToDispose) {
             if (product != null) {

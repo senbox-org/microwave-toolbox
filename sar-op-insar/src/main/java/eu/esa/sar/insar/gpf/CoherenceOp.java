@@ -729,7 +729,11 @@ public class CoherenceOp extends Operator {
             sum2 += m * m;
             sum3 += s * s;
         }
-        return (float) (Math.abs(sum1) / Math.sqrt(sum2 * sum3));
+        final double denom = sum2 * sum3;
+        if (denom <= 0.0) {
+            return 0.0f;
+        }
+        return (float) (Math.abs(sum1) / Math.sqrt(denom));
     }
 
     private void computeTileForNormalProduct(

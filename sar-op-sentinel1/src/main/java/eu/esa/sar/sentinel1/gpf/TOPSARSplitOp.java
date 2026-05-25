@@ -239,12 +239,16 @@ public final class TOPSARSplitOp extends Operator {
         ProductData destBuffer = targetTile.getRawSamples();
         Rectangle rectangle = targetTile.getRectangle();
         try {
-            subsetBuilder.readBandRasterData(targetBand,
-                    rectangle.x,
-                    rectangle.y,
-                    rectangle.width,
-                    rectangle.height,
-                    destBuffer, pm);
+            // ProductSubsetBuilder.readBandRasterData is not thread-safe — it shares reader state internally.
+            // Serialize access from concurrent JAI tile threads.
+            synchronized (subsetBuilder) {
+                subsetBuilder.readBandRasterData(targetBand,
+                        rectangle.x,
+                        rectangle.y,
+                        rectangle.width,
+                        rectangle.height,
+                        destBuffer, pm);
+            }
             targetTile.setRawSamples(destBuffer);
         } catch (IOException e) {
             throw new OperatorException(e);

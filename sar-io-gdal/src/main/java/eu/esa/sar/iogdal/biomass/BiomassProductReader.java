@@ -17,6 +17,7 @@ package eu.esa.sar.iogdal.biomass;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARProductReaderPlugIn;
+import eu.esa.sar.commons.io.XMLProductDirectory;
 import eu.esa.sar.commons.io.SARReader;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
@@ -31,12 +32,17 @@ import java.nio.file.Path;
 
 
 /**
- * The product reader for BIOMASS products.
+ * The product reader for BIOMASS products. Routes to the appropriate product-directory
+ * class based on the file prefix:
+ * <ul>
+ *     <li>{@code BIO_S} → L1 (SCS, DGM, STA) via {@link BiomassProductDirectory}</li>
+ *     <li>{@code BIO_FP} → L2 (FH, FD, GN, AGB) via {@link BiomassL2ProductDirectory}</li>
+ * </ul>
  */
 public class BiomassProductReader extends SARReader {
 
-    private BiomassProductDirectory dataDir;
-    private SARProductReaderPlugIn readerPlugIn;
+    private XMLProductDirectory dataDir;
+    private final SARProductReaderPlugIn readerPlugIn;
 
     /**
      * Constructs a new abstract product reader.
@@ -79,7 +85,15 @@ public class BiomassProductReader extends SARReader {
 
             File metadataFile = inputPath.toFile();
 
-            dataDir = new BiomassProductDirectory(metadataFile);
+            // Route to the correct directory class based on the product prefix.
+            // BIO_FP = Level 2 geophysical (Forest Height / Disturbance / Ground Notch / AGB);
+            // BIO_S  = Level 1 SAR (SCS, DGM, STA).
+            final String fname = metadataFile.getName().toLowerCase();
+            if (fname.startsWith("bio_fp_")) {
+                dataDir = new BiomassL2ProductDirectory(metadataFile);
+            } else {
+                dataDir = new BiomassProductDirectory(metadataFile);
+            }
             dataDir.readProductDirectory();
             final Product product = dataDir.createProduct();
 
@@ -105,22 +119,35 @@ public class BiomassProductReader extends SARReader {
 
     private File getQuicklookFile() {
         try {
-            if (dataDir.exists(dataDir.getRootFolder() + "preview/quick-look.png")) {
-                return dataDir.getFile(dataDir.getRootFolder() + "preview/quick-look.png");
+            // Try common quicklook filenames in preview/ — L1 uses "quick-look.png", L2 uses *_ql.png.
+            final String[] candidates = { "quick-look.png" };
+            for (final String name : candidates) {
+                final String path = dataDir.getRootFolder() + "preview/" + name;
+                if (dataDir.exists(path)) {
+                    return dataDir.getFile(path);
+                }
             }
         } catch (IOException e) {
-            SystemUtils.LOG.severe("Unable to load quicklook " + dataDir.getProductName());
+            SystemUtils.LOG.severe("Unable to load BIOMASS quicklook: " + e.getMessage());
         }
         return null;
     }
 
     /**
-     * {@inheritDoc}
+     * BIOMASS bands are wired directly to GDAL-backed source images in the directory
+     * class ({@link BiomassProductDirectory#addBands}), so JAI tile reads come from the
+     * source-image path and never enter this method. Anyone calling
+     * {@code band.readRasterData()} on a band that lacks a wired source image is asking
+     * for uninitialised data — fail loudly instead.
      */
     @Override
     protected void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
                                           int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
                                           int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
                                           ProgressMonitor pm) {
+        throw new UnsupportedOperationException(
+                "BiomassProductReader.readBandRasterDataImpl was invoked for band '" + destBand.getName() +
+                "'. BIOMASS bands should be read via their wired source image; this code path indicates a " +
+                "configuration problem (missing setSourceImage in the directory's addBands).");
     }
 }

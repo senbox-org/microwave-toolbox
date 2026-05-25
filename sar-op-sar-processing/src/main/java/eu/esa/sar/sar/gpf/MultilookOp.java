@@ -166,8 +166,11 @@ public final class MultilookOp extends Operator {
 
         final int x0 = tx0 * nRgLooks;
         final int y0 = ty0 * nAzLooks;
-        final int w = tw * nRgLooks;
-        final int h = th * nAzLooks;
+        // Clamp the source rectangle so it never extends past the source raster bounds
+        // (the target dimensions are computed by integer division, so a partial tail
+        // of source pixels may remain unaccounted for).
+        final int w = Math.min(tw * nRgLooks, sourceProduct.getSceneRasterWidth() - x0);
+        final int h = Math.min(th * nAzLooks, sourceProduct.getSceneRasterHeight() - y0);
         final Rectangle sourceTileRectangle = new Rectangle(x0, y0, w, h);
 
         //System.out.println(targetBand.getName()+ " tx0 = " + tx0 + ", ty0 = " + ty0 + ", tw = " + tw + ", th = " + th);
@@ -205,6 +208,7 @@ public final class MultilookOp extends Operator {
             final Unit.UnitType bandUnit = Unit.getUnitType(sourceBand1);
             final boolean isdB = bandUnit == Unit.UnitType.INTENSITY_DB || bandUnit == Unit.UnitType.AMPLITUDE_DB;
             final boolean isComplex = outputIntensity && (bandUnit == Unit.UnitType.REAL || bandUnit == Unit.UnitType.IMAGINARY);
+            final boolean isAmplitude = bandUnit == Unit.UnitType.AMPLITUDE;
 
             double meanValue;
             final int maxy = ty0 + th;
@@ -234,7 +238,7 @@ public final class MultilookOp extends Operator {
                     trgIndex.calculateStride(ty);
                     for (int tx = tx0; tx < maxx; tx++) {
                         meanValue = getMeanValue(
-                                tx, ty, srcData1, srcData2, srcIndex, nRgLooks, nAzLooks, isdB, isComplex, isPolsar);
+                                tx, ty, srcData1, srcData2, srcIndex, nRgLooks, nAzLooks, isdB, isComplex, isPolsar, isAmplitude);
                         trgData.setElemDoubleAt(trgIndex.getIndex(tx), meanValue);
                     }
                 }
@@ -406,7 +410,8 @@ public final class MultilookOp extends Operator {
                                        final ProductData srcData1, final ProductData srcData2,
                                        final TileIndex srcIndex,
                                        final int nRgLooks, final int nAzLooks,
-                                       final boolean isdB, final boolean isComplex, final boolean isPolsar) {
+                                       final boolean isdB, final boolean isComplex, final boolean isPolsar,
+                                       final boolean isAmplitude) {
 
         final int xStart = tx * nRgLooks;
         final int yStart = ty * nAzLooks;
@@ -437,6 +442,18 @@ public final class MultilookOp extends Operator {
                     meanValue += i * i + q * q;
                 }
             }
+        } else if (isAmplitude) {
+            // Multilook amplitude as sqrt(mean(amp^2)): averaging power preserves the
+            // unbiased estimate of mean intensity; taking sqrt converts back to amplitude.
+            // Averaging amplitudes directly is biased low for speckle-distributed data.
+            for (int y = yStart; y < yEnd; y++) {
+                offset = srcIndex.calculateStride(y);
+                for (int x = xStart; x < xEnd; x++) {
+                    final double a = srcData1.getElemDoubleAt(x - offset);
+                    meanValue += a * a;
+                }
+            }
+            return Math.sqrt(meanValue / (nRgLooks * nAzLooks));
         } else {
             for (int y = yStart; y < yEnd; y++) {
                 offset = srcIndex.calculateStride(y);

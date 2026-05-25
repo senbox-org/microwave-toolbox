@@ -87,8 +87,8 @@ public class ReactivOp extends Operator {
     private String[] selectedPolarisations;
     private String[] prodAcqDateArray = null;
     private int numOfProducts = 0;
-    private double threshold = 0.0;
-    private boolean thresholdComputed = false; // threshold for Value normalization
+    private volatile double threshold = 0.0;
+    private volatile boolean thresholdComputed = false; // threshold for Value normalization
     private MetadataElement absRoot = null;
 
     private static double noDataValue = 0.0;
@@ -440,7 +440,8 @@ public class ReactivOp extends Operator {
         status.beginTask("Computing Value normalization threshold... ", tileRectangles.length);
         final ThreadExecutor executor = new ThreadExecutor();
 
-        double[] sumSum2 = new double[2];
+        final double[] sumSum2 = new double[2];
+        final long[] sampleCount = new long[1];
         try {
             for (final Rectangle rectangle : tileRectangles) {
                 final ThreadRunnable worker = new ThreadRunnable() {
@@ -455,6 +456,7 @@ public class ReactivOp extends Operator {
 
                         final double[][] sumMax = new double[h][w];
                         final double[][] max = new double[h][w];
+                        final boolean[][] invalid = new boolean[h][w];
                         for (String date : prodAcqDateArray) {
 
                             final HashMap<String, ProductData> dataBuffersPol = new HashMap<>();
@@ -487,9 +489,13 @@ public class ReactivOp extends Operator {
                                     final int srcIdx = srcIndex.getIndex(x);
                                     final int xx = x - x0;
 
+                                    if (invalid[yy][xx]) {
+                                        continue;
+                                    }
+
                                     final double vMax = getMaxValue(srcIdx, dataBuffersPol, noDataValuePol);
                                     if (vMax == -9999) {
-                                        sumMax[yy][xx] = -1.0;
+                                        invalid[yy][xx] = true;
                                         continue;
                                     }
 
@@ -501,22 +507,28 @@ public class ReactivOp extends Operator {
                             }
                         }
 
+                        double localSum = 0.0;
+                        double localSum2 = 0.0;
+                        long localCount = 0L;
                         for (int y = y0; y < maxY; ++y) {
                             final int yy = y - y0;
                             for (int x = x0; x < maxX; ++x) {
                                 final int xx = x - x0;
-                                if (sumMax[yy][xx] == -1.0) {
+                                if (invalid[yy][xx]) {
                                     continue;
                                 }
 
                                 final double meanOfMax = sumMax[yy][xx] / numOfProducts;
                                 final double value = 0.4 * (max[yy][xx] + meanOfMax);
-                                final double value2 = value * value;
-                                synchronized (sumSum2) {
-                                    sumSum2[0] += value;
-                                    sumSum2[1] += value2;
-                                }
+                                localSum += value;
+                                localSum2 += value * value;
+                                localCount++;
                             }
+                        }
+                        synchronized (sumSum2) {
+                            sumSum2[0] += localSum;
+                            sumSum2[1] += localSum2;
+                            sampleCount[0] += localCount;
                         }
                     }
                 };
@@ -530,9 +542,14 @@ public class ReactivOp extends Operator {
             status.done();
         }
 
-        final double mean = sumSum2[0] / (sourceImageWidth * sourceImageHeight);
-        final double std = Math.sqrt(sumSum2[1] / (sourceImageWidth * sourceImageHeight) - mean * mean);
-        threshold = mean + std;
+        final long n = sampleCount[0];
+        if (n > 0) {
+            final double mean = sumSum2[0] / n;
+            final double variance = Math.max(0.0, sumSum2[1] / n - mean * mean);
+            threshold = mean + Math.sqrt(variance);
+        } else {
+            threshold = 0.0;
+        }
 
         thresholdComputed = true;
     }
@@ -540,7 +557,8 @@ public class ReactivOp extends Operator {
     private double getMaxValue(final int srcIdx, final HashMap<String, ProductData> dataBuffersPol,
                                final HashMap<String, Double> noDataValuePol) {
 
-        double vMax = Double.MIN_VALUE;
+        double vMax = -Double.MAX_VALUE;
+        boolean anyValid = false;
         for (String pol : selectedPolarisations) {
             final ProductData dataBuffer = dataBuffersPol.get(pol);
             if (dataBuffer == null) {
@@ -551,11 +569,12 @@ public class ReactivOp extends Operator {
             if (v == noDataValuePol.get(pol)) {
                 return -9999;
             }
+            anyValid = true;
             if (v > vMax) {
                 vMax = v;
             }
         }
-        return vMax;
+        return anyValid ? vMax : -9999;
     }
 
     private void updateSumAndSum2(final int srcIdx, final HashMap<String, ProductData> dataBuffersPol,
@@ -578,16 +597,20 @@ public class ReactivOp extends Operator {
                                                  final HashMap<String, double[][]> sumPol,
                                                  final HashMap<String, double[][]> sum2Pol) {
 
-        double maxVC = Double.MIN_VALUE;
+        double maxVC = -Double.MAX_VALUE;
         for (String pol : selectedPolarisations) {
             final double meanPol = sumPol.get(pol)[yy][xx] / numOfProducts;
-            final double stdPol = Math.sqrt(sum2Pol.get(pol)[yy][xx] / numOfProducts - meanPol * meanPol);
+            if (meanPol == 0.0) {
+                continue;
+            }
+            final double variance = Math.max(0.0, sum2Pol.get(pol)[yy][xx] / numOfProducts - meanPol * meanPol);
+            final double stdPol = Math.sqrt(variance);
             final double varCoefPol = stdPol / meanPol;
             if (varCoefPol > maxVC) {
                 maxVC = varCoefPol;
             }
         }
-        return maxVC;
+        return maxVC == -Double.MAX_VALUE ? 0.0 : maxVC;
     }
 
 

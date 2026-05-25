@@ -27,16 +27,8 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
     private final static File inputFile2 = TestData.inputCapella_StripmapSLC;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         op = new GSLCGeocodingOp();
-        try {
-            // If any of the file does not exist: the test will be ignored
-            assumeTrue(inputFile1 + " not found", inputFile1.exists());
-            assumeTrue(inputFile2 + " not found", inputFile2.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
     }
 
     @Test
@@ -51,6 +43,7 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
 
     @Test
     public void testProcessS1Stripmap() throws Exception {
+        assumeTrue(inputFile1 + " not found", inputFile1.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
 
             final GSLCGeocodingOp op = (GSLCGeocodingOp) spi.createOperator();
@@ -80,6 +73,7 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
 
     @Test
     public void testProcessCapellaStripmap() throws Exception {
+        assumeTrue(inputFile2 + " not found", inputFile2.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile2)) {
 
             final GSLCGeocodingOp op = (GSLCGeocodingOp) spi.createOperator();
@@ -111,6 +105,7 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
      */
     @Test
     public void testTwoGSLCs_AutoAlignedByStandardGrid() throws Exception {
+        assumeTrue(inputFile2 + " not found", inputFile2.exists());
         try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile2)) {
             final Product g1 = runDefaultGslc(sourceProduct);
             final Product g2 = runDefaultGslc(sourceProduct);

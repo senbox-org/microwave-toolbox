@@ -130,15 +130,22 @@ public class ImageIOFile {
     }
 
     public static ImageReader getIIOReader(final File inputFile) throws IOException {
+        // We only need the reader, not the stream — the caller will open its own stream
+        // and call reader.setInput(...). Close the probing stream so it doesn't leak
+        // when reader selection fails (or even when it succeeds).
         final ImageInputStream stream = ImageIO.createImageInputStream(inputFile);
         if (stream == null)
             throw new IOException("Unable to open " + inputFile.toString());
 
-        final Iterator<ImageReader> imageReaders = ImageIO.getImageReaders(stream);
-        if (!imageReaders.hasNext())
-            throw new IOException("No ImageIO reader found for " + inputFile.toString());
+        try {
+            final Iterator<ImageReader> imageReaders = ImageIO.getImageReaders(stream);
+            if (!imageReaders.hasNext())
+                throw new IOException("No ImageIO reader found for " + inputFile.toString());
 
-        return imageReaders.next();
+            return imageReaders.next();
+        } finally {
+            try { stream.close(); } catch (IOException ignored) { }
+        }
     }
 
     public ImageReader getReader() throws IOException {

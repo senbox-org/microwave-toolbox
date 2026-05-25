@@ -167,7 +167,7 @@ public class InterferogramOp extends Operator {
 
     // flat_earth_polynomial container
     private final Map<String, DoubleMatrix> flatEarthPolyMap = new HashMap<>();
-    private boolean flatEarthEstimated = false;
+    private volatile boolean flatEarthEstimated = false;
 
     // source
     private final Map<String, CplxContainer> referenceMap = new HashMap<>();
@@ -1688,7 +1688,9 @@ public class InterferogramOp extends Operator {
 
                     final float r = (float) dataReal.get(yy, xx);
                     final float i = (float) dataImag.get(yy, xx);
-                    if (r == 0.0f) {
+                    // Only treat a pixel as no-data when BOTH components are zero; a
+                    // valid interferogram pixel can have r==0 (phase ±π/2) with i!=0.
+                    if (r == 0.0f && i == 0.0f) {
                         samplesReal.setElemFloatAt(tgtIdx, (float) refNoDataValue);
                         samplesImag.setElemFloatAt(tgtIdx, (float) refNoDataValue);
                     } else {
@@ -2142,7 +2144,7 @@ public class InterferogramOp extends Operator {
 
             for (int x = x0; x < xMax; ++x) {
                 final int refPhaseIdx = refPhaseIndex.getIndex(x);
-                final int refHeightIdx = refPhaseIndex.getIndex(x);
+                final int refHeightIdx = refHeightIndex.getIndex(x);
                 final int secPhaseIdx = secPhaseIndex.getIndex(x);
                 final int secHeightIdx = secHeightIndex.getIndex(x);
                 final int secGradientIdx = secGradientIndex.getIndex(x);

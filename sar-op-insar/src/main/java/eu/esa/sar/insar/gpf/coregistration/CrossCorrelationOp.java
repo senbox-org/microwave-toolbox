@@ -51,6 +51,7 @@ import java.awt.*;
 import java.awt.image.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Image co-registration is fundamental for Interferometry SAR (InSAR) imaging and its applications, such as
@@ -166,13 +167,13 @@ public class CrossCorrelationOp extends Operator {
 
     private final Map<Band, Band> sourceRasterMap = new HashMap<>();
     private final Map<Band, Band> complexSrcMap = new HashMap<>();
-    private final Map<Band, Boolean> gcpsComputedMap = new HashMap<>();
+    private final Map<Band, Boolean> gcpsComputedMap = new ConcurrentHashMap<>();
     final Map<Band, Band> bandsToCoregister = new HashMap<>();
 
     private Band primarySlaveBand = null;    // the secondary band to process
     private boolean collocatedStack = false;
 
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private CorrelationWindow fineWin;
 
     /**
@@ -948,7 +949,11 @@ public class CrossCorrelationOp extends Operator {
             double colShift = gcpTolerance + 1;
             int numIter = 0;
 
-            while (Math.abs(rowShift) >= gcpTolerance || Math.abs(colShift) >= gcpTolerance) {
+            // The achievable shift quantum is 1/upsamplingFactor; allow that as slack
+            // so a peak at exactly the tolerance is accepted rather than rejected.
+            final double convergenceEpsilon = 1.0e-6;
+            while (Math.abs(rowShift) > gcpTolerance + convergenceEpsilon
+                    || Math.abs(colShift) > gcpTolerance + convergenceEpsilon) {
 
                 if (numIter >= maxIteration) {
                     return false;

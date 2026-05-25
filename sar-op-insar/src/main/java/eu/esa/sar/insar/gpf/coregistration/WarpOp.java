@@ -131,7 +131,7 @@ public class WarpOp extends Operator {
 
     private Band masterBand;
     private boolean complexCoregistration;
-    private boolean warpDataAvailable;
+    private volatile boolean warpDataAvailable;
 
     public static final String NEAREST_NEIGHBOR = "Nearest-neighbor interpolation";
     public static final String BILINEAR = "Bilinear interpolation";
@@ -428,7 +428,16 @@ public class WarpOp extends Operator {
             final ProductData.UTC[] times = StackUtils.getProductTimes(sourceProduct);
             targetProduct.setStartTime(times[1]);
 
+            // Use the slave's own line_time_interval, not the target metadata's, which
+            // carries the master's PRI after coregistration onto the master grid.
+            final MetadataElement secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct);
             double lineTimeInterval = absTgt.getAttributeDouble(AbstractMetadata.line_time_interval);
+            if (secondaryRoot != null) {
+                final MetadataElement slaveAbs = secondaryRoot.getElement(slaveNames[0]);
+                if (slaveAbs != null && slaveAbs.containsAttribute(AbstractMetadata.line_time_interval)) {
+                    lineTimeInterval = slaveAbs.getAttributeDouble(AbstractMetadata.line_time_interval);
+                }
+            }
             int height = sourceProduct.getSceneRasterHeight();
             ProductData.UTC endTime = new ProductData.UTC(times[1].getMJD() + (lineTimeInterval * height) / Constants.secondsInDay);
             targetProduct.setEndTime(endTime);
@@ -585,7 +594,6 @@ public class WarpOp extends Operator {
         }
 
         // for all secondary bands or band pairs compute a warp
-        final int slaveMetaCnt = 0;
         final Band[] sourceBands = sourceProduct.getBands();
 
         if (inSAROptimized) {
@@ -639,7 +647,13 @@ public class WarpOp extends Operator {
                             heightArray[j] = height;
                         }
 
-                        final MetadataElement slaveRoot = StackUtils.findSecondaryMetadataRoot(targetProduct).getElementAt(slaveMetaCnt);
+                        // Find the secondary metadata element that owns this slave band,
+                        // rather than always taking element 0. With more than one slave,
+                        // element 0 is the wrong orbit/geometry for slaves >= 1.
+                        final MetadataElement slaveRoot = findSecondaryRootForBand(srcBand);
+                        if (slaveRoot == null) {
+                            throw new OperatorException("Could not find secondary metadata for band " + srcBand.getName());
+                        }
                         final SLCImage slaveMeta = new SLCImage(slaveRoot, targetProduct);
                         final Orbit slaveOrbit = new Orbit(slaveRoot, ORBIT_INTERP_DEGREE);
                         cpm.setDemNoDataValue(demNoDataValue);
@@ -728,6 +742,21 @@ public class WarpOp extends Operator {
         writeWarpDataToMetadata();
 
         warpDataAvailable = true;
+    }
+
+    private MetadataElement findSecondaryRootForBand(final Band band) {
+        final MetadataElement secondaryRoot = StackUtils.findSecondaryMetadataRoot(targetProduct);
+        if (secondaryRoot == null) {
+            return null;
+        }
+        final String[] secProductNames = StackUtils.getSecondaryProductNames(targetProduct);
+        for (String secProductName : secProductNames) {
+            if (StackUtils.isSecondaryBand(band.getName(), targetProduct, secProductName)) {
+                return secondaryRoot.getElement(secProductName);
+            }
+        }
+        // Fallback to first secondary if direct match fails (single-slave stacks)
+        return secondaryRoot.getElementAt(0);
     }
 
     private void writeWarpDataToMetadata() {

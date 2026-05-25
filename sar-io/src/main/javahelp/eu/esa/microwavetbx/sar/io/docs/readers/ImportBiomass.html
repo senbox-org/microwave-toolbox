@@ -18,21 +18,126 @@
 <p class="MsoNormal"><b>Frequency Band:</b> P-band (435&nbsp;MHz, 6&nbsp;MHz bandwidth) &mdash; first space-borne P-band SAR.</p>
 <p class="MsoNormal"><b>Acquisition Modes:</b> Stripmap; Tomography; PolInSAR. Five-year nominal mission, with
 two interferometric / tomographic phases interleaved with mono-static stripmap mapping.</p>
-<p class="MsoNormal"><b>Product Types:</b></p>
-<ul>
-    <li>L1A SCS (Single-Look Slant-range Complex)</li>
-    <li>L1B DGM (Detected Ground Multi-look)</li>
-    <li>L1C SCS_RFI &mdash; SLC with RFI suppression applied</li>
-    <li>L2A AGB &mdash; Above-Ground Biomass map</li>
-    <li>L2A FH &mdash; Forest Height</li>
-    <li>L2A FD &mdash; Forest Disturbance</li>
-</ul>
 <p class="MsoNormal"><b>Polarizations:</b> Quad-pol (HH, HV, VH, VV).</p>
 
-<p class="MsoNormal"><b>Notes:</b> This reader is the GeoTIFF / GDAL-backed variant used for BIOMASS
-products distributed in geocoded GeoTIFF form. Native L1 SCS products in the official
-ESA EOF / NetCDF format are also handled by SNAP via the BIOMASS L2 reader; see the
-"BIOMASS L2 Reader Spec" document in the toolbox docs directory for the file-layout details.</p>
+<h4>Supported Product Types</h4>
+
+<p class="MsoNormal">The reader auto-detects the product type from the filename prefix
+(<code>BIO_S</code>&nbsp;= Level&nbsp;1, <code>BIO_FP</code>&nbsp;= Level&nbsp;2) and routes to the
+appropriate parser. Both directory layouts and ZIP archives are accepted.</p>
+
+<table border="1" cellpadding="5">
+    <tr>
+        <th>Family</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Bands</th>
+    </tr>
+    <tr>
+        <td rowspan="3">Level 1 (SAR)</td>
+        <td>L1A SCS</td>
+        <td>Single-Look Slant-range Complex</td>
+        <td>Amplitude + Phase per pol; virtual <code>i</code>, <code>q</code>, <code>Intensity</code></td>
+    </tr>
+    <tr>
+        <td>L1B DGM</td>
+        <td>Detected Ground Multi-look</td>
+        <td>Amplitude + virtual Intensity per pol</td>
+    </tr>
+    <tr>
+        <td>L1C STA</td>
+        <td>Stack-coregistered SLC (interferometric/tomographic)</td>
+        <td>Amplitude + Phase + virtual i/q/Intensity per pol per scene</td>
+    </tr>
+    <tr>
+        <td rowspan="3">Level 2a (per-stack)</td>
+        <td>FP_FH__L2A</td>
+        <td>Forest Height</td>
+        <td><code>Forest_Height</code>, <code>Forest_Height_Quality</code></td>
+    </tr>
+    <tr>
+        <td>FP_FD__L2A</td>
+        <td>Forest Disturbance</td>
+        <td><code>Forest_Disturbance</code>, <code>Probability_of_Change</code>, <code>Computed_Forest_Mask</code></td>
+    </tr>
+    <tr>
+        <td>FP_GN__L2A</td>
+        <td>Ground Notch</td>
+        <td><code>Ground_Notch_HH</code>, <code>Ground_Notch_VH</code>, <code>Ground_Notch_VV</code></td>
+    </tr>
+    <tr>
+        <td rowspan="3">Level 2b (DGG-tile)</td>
+        <td>FP_FH__L2B</td>
+        <td>Forest Height (cycle-aggregated)</td>
+        <td>Same as L2a FH</td>
+    </tr>
+    <tr>
+        <td>FP_FD__L2B</td>
+        <td>Forest Disturbance (cycle-aggregated)</td>
+        <td>Same as L2a FD</td>
+    </tr>
+    <tr>
+        <td>FP_AGB_L2B</td>
+        <td>Above-Ground Biomass</td>
+        <td><code>AGB</code>, <code>AGB_Std_Dev</code></td>
+    </tr>
+</table>
+
+<h4>Level 1 vs Level 2 &mdash; What the reader does differently</h4>
+
+<table border="1" cellpadding="5">
+    <tr>
+        <th>Aspect</th>
+        <th>Level 1</th>
+        <th>Level 2</th>
+    </tr>
+    <tr>
+        <td>Geocoding</td>
+        <td>Tie-point grid from <code>annotation/*.nc</code> NetCDF LUT</td>
+        <td><code>CrsGeoCoding</code> direct from each Cloud-Optimised GeoTIFF</td>
+    </tr>
+    <tr>
+        <td>SAR metadata (orbit, SRGR, Doppler, PRF)</td>
+        <td>Populated</td>
+        <td>Not applicable &mdash; skipped</td>
+    </tr>
+    <tr>
+        <td>Aux annotations (calibration / noise / RFI)</td>
+        <td>Read from <code>annotation/calibration/</code>, <code>annotation/noise/</code>, <code>annotation/rfi/</code>
+            when present</td>
+        <td>Not applicable</td>
+    </tr>
+    <tr>
+        <td>Radiometric calibration</td>
+        <td>Applicable via the <i>Radiometric Calibration</i> operator (BIOMASS profile)</td>
+        <td>Rejected with a clear error &mdash; L2 values are already geophysical units</td>
+    </tr>
+</table>
+
+<h4>RFI Annotation Handling</h4>
+
+<p class="MsoNormal">P-band (435&nbsp;MHz) is heavily contaminated by terrestrial radio-frequency
+interference. BIOMASS L1 products carry RFI detection / suppression metadata as XML files
+in the <code>annotation/rfi/</code> sub-folder. The reader loads every such file under an
+<code>rfi</code> element in the original metadata so downstream operators can inspect which
+pulses / bursts were affected and which suppression method was applied.</p>
+
+<p class="MsoNormal">Similarly, radiometric-calibration auxiliary LUTs from
+<code>annotation/calibration/</code> are loaded under <code>calibration</code>, and noise
+(NESZ) tables from <code>annotation/noise/</code> are loaded under <code>noise</code>. All
+three are optional &mdash; older products and the simpler DGM type may not carry them, in
+which case the corresponding metadata element is simply absent.</p>
+
+<h4>Notes</h4>
+
+<p class="MsoNormal">This is the GeoTIFF / GDAL-backed reader for BIOMASS products that
+ship as COG bundles with an XML main product header. Plain ZIP archives are also
+supported &mdash; the reader opens images via GDAL's <code>/vsizip/</code> virtual
+filesystem when possible and falls back to temporary extraction otherwise.</p>
+
+<p class="MsoNormal">See the <i>BIOMASS L2 Reader Spec</i> document
+(<code>docs/BIOMASS-L2-Reader-Spec.md</code>) in the toolbox repository for the file-layout
+details and the current implementation status of each L2 phase.</p>
 
 <p class="MsoNormal"><b>Further Information:</b></p>
 <a href="https://earth.esa.int/eogateway/missions/biomass">https://earth.esa.int/eogateway/missions/biomass</a><br>

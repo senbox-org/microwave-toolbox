@@ -25,7 +25,6 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -42,16 +41,8 @@ public class TestSARSimulationOp extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If the file does not exist: the test will be ignored
-            assumeTrue(inputFile + " not found", inputFile.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // testProcessing/testExternalDEM/testLayoverShadow gate themselves on inputFile;
+    // the testProcessAll* methods scan their own roots and skip via TestProcessor.
 
     private final static OperatorSpi spi = new SARSimulationOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
@@ -68,6 +59,7 @@ public class TestSARSimulationOp extends ProcessorTest {
      */
     @Test
     public void testProcessing() throws Exception {
+        assumeTrue(inputFile + " not found", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final SARSimulationOp op = (SARSimulationOp) spi.createOperator();
@@ -104,6 +96,7 @@ public class TestSARSimulationOp extends ProcessorTest {
     @Test
     @STTM("SNAP-2528")
     public void testExternalDEM_missingFile_throwsDescriptiveError() throws Exception {
+        assumeTrue(inputFile + " not found", inputFile.exists());
         try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final SARSimulationOp op = (SARSimulationOp) spi.createOperator();
@@ -129,6 +122,7 @@ public class TestSARSimulationOp extends ProcessorTest {
 
     @Test
     public void testLayoverShadow() throws Exception {
+        assumeTrue(inputFile + " not found", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final SARSimulationOp op = (SARSimulationOp) spi.createOperator();

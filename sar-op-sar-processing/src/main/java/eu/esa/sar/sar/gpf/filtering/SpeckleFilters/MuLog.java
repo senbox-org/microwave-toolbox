@@ -81,6 +81,7 @@ public class MuLog implements SpeckleFilter {
             final Rectangle effectiveSourceRect = sourceRect.intersection(imageRect);
 
             final Tile sourceTile = operator.getSourceTile(sourceBand, effectiveSourceRect);
+            final double noDataValue = sourceBand.getNoDataValue();
             final ProductData srcData = sourceTile.getDataBuffer();
 
             final int sw = effectiveSourceRect.width;
@@ -96,17 +97,29 @@ public class MuLog implements SpeckleFilter {
             final TileIndex srcIndex = new TileIndex(sourceTile);
 
             // Sequential initialization to be safe with TileIndex
+            // Track which samples are invalid (no-data / NaN / non-positive) so the ADMM
+            // loop does not propagate Math.log(<=0)=NaN through every NLM kernel.
+            final boolean[] invalid = new boolean[len];
             for (int y = 0; y < sh; y++) {
                 final int sy = effectiveSourceRect.y + y;
                 srcIndex.calculateStride(sy);
                 for (int x = 0; x < sw; x++) {
                     final int sx = effectiveSourceRect.x + x;
                     final float val = srcData.getElemFloatAt(srcIndex.getIndex(sx));
-                    // Log transform: y = ln(I + eps)
-                    final float logVal = (float) Math.log(val + 1e-10);
-                    y_full[y * sw + x] = logVal;
-                    u_full[y * sw + x] = logVal;
-                    w_full[y * sw + x] = 0.0f;
+                    final int k = y * sw + x;
+                    if (Float.isNaN(val) || val == noDataValue || val <= 0.0f) {
+                        invalid[k] = true;
+                        // Seed log-domain arrays at 0 so ADMM neighbors don't see a NaN.
+                        y_full[k] = 0.0f;
+                        u_full[k] = 0.0f;
+                        w_full[k] = 0.0f;
+                    } else {
+                        // Log transform: y = ln(I + eps)
+                        final float logVal = (float) Math.log(val + 1e-10);
+                        y_full[k] = logVal;
+                        u_full[k] = logVal;
+                        w_full[k] = 0.0f;
+                    }
                 }
             }
 
@@ -153,8 +166,14 @@ public class MuLog implements SpeckleFilter {
                     final int sy = y + offsetY;
                     final int sx = x + offsetX;
 
-                    final float u_val = u_full[sy * sw + sx];
-                    final float res = (float) Math.exp(u_val);
+                    final int k = sy * sw + sx;
+                    final float res;
+                    if (invalid[k]) {
+                        res = (float) noDataValue;
+                    } else {
+                        final float u_val = u_full[k];
+                        res = (float) Math.exp(u_val);
+                    }
 
                     tgtData.setElemFloatAt(tgtIndex.getIndex(tx), res);
                 }

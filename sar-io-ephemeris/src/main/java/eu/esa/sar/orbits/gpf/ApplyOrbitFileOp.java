@@ -17,6 +17,8 @@ package eu.esa.sar.orbits.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.orbits.io.OrbitFile;
+import eu.esa.sar.orbits.io.biomass.BiomassInProductOrbitFile;
+import eu.esa.sar.orbits.io.biomass.BiomassPODOrbitFile;
 import eu.esa.sar.orbits.io.delft.DelftOrbitFile;
 import eu.esa.sar.orbits.io.doris.DorisOrbitFile;
 import eu.esa.sar.orbits.io.k5.K5OrbitFile;
@@ -91,7 +93,9 @@ public final class ApplyOrbitFileOp extends Operator {
             DorisOrbitFile.DORIS_POR + " (ENVISAT)", DorisOrbitFile.DORIS_VOR + " (ENVISAT)" + " (Auto Download)",
             DelftOrbitFile.DELFT_PRECISE + " (ENVISAT, ERS1&2)" + " (Auto Download)",
             PrareOrbitFile.PRARE_PRECISE + " (ERS1&2)" + " (Auto Download)",
-            K5OrbitFile.PRECISE },
+            K5OrbitFile.PRECISE,
+            BiomassInProductOrbitFile.IN_PRODUCT + " (BIOMASS)",
+            BiomassPODOrbitFile.PRECISE + " (Auto Download)"},
             defaultValue = SentinelPODOrbitFile.PRECISE + " (Auto Download)", label = "Orbit State Vectors")
     private String orbitType = null;
 
@@ -150,6 +154,8 @@ public final class ApplyOrbitFileOp extends Operator {
                     orbitType = SentinelPODOrbitFile.PRECISE;
                 } else if (mission.startsWith("Kompsat5")) {
                     orbitType = K5OrbitFile.PRECISE;
+                } else if (mission.equals("BIOMASS")) {
+                    orbitType = BiomassInProductOrbitFile.IN_PRODUCT;
                 } else {
                     throw new OperatorException("Please select an orbit file type");
                 }
@@ -171,6 +177,10 @@ public final class ApplyOrbitFileOp extends Operator {
                 if (!orbitType.startsWith(K5OrbitFile.PRECISE)) {
                     orbitType = K5OrbitFile.PRECISE;
                 }
+            } else if (mission.equals("BIOMASS")) {
+                if (!orbitType.startsWith("Biomass")) {
+                    orbitType = BiomassInProductOrbitFile.IN_PRODUCT;
+                }
             } else {
                 throw new OperatorException(orbitType + " is not suitable for a " + mission + " product");
             }
@@ -185,6 +195,10 @@ public final class ApplyOrbitFileOp extends Operator {
                 orbitProvider = new SentinelPODOrbitFile(absRoot, polyDegree);
             } else if (orbitType.contains("Kompsat5")) {
                 orbitProvider = new K5OrbitFile(absRoot, polyDegree);
+            } else if (orbitType.startsWith(BiomassInProductOrbitFile.IN_PRODUCT)) {
+                orbitProvider = new BiomassInProductOrbitFile(absRoot, polyDegree);
+            } else if (orbitType.startsWith(BiomassPODOrbitFile.PRECISE)) {
+                orbitProvider = new BiomassPODOrbitFile(absRoot, polyDegree);
             }
 
             createTargetProduct();
@@ -280,6 +294,14 @@ public final class ApplyOrbitFileOp extends Operator {
             if(!tryAnotherType) {
                 throw e;
             }
+        }
+
+        if (orbitProvider.isOrbitAlreadyApplied(absRoot)) {
+            SystemUtils.LOG.info("Orbit already applied (source matches " +
+                    absRoot.getAttributeString(AbstractMetadata.VECTOR_SOURCE, "in-product") +
+                    "); skipping state-vector rewrite.");
+            productUpdated = true;
+            return;
         }
 
         updateOrbitStateVectors();

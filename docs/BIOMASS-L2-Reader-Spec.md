@@ -1,10 +1,23 @@
 # BIOMASS Level 2 Reader Specification
 
-**Version:** 1.0
-**Date:** 2026-04-03
-**Status:** Draft — awaiting open access to L2 products (expected summer 2026)
+**Version:** 1.1
+**Date:** 2026-05-21
+**Status:** Phase 1 implemented — see *Implementation Status* below. Phases 2/3 await access to real L2 sample data (expected summer 2026).
 **Module:** `sar-io-gdal`
 **Package:** `eu.esa.sar.iogdal.biomass`
+
+---
+
+## Implementation Status
+
+| Phase | Description | Status | Code location |
+|-------|-------------|--------|---------------|
+| 1 | Plugin extension (recognise `BIO_FP_` prefix), reader routing (L1 vs L2), scaffold `BiomassL2ProductDirectory` with COG band loading and CRS-from-COG geocoding | ✅ Done (this branch) | `BiomassProductReaderPlugIn`, `BiomassProductReader`, `BiomassL2ProductDirectory` |
+| 2 | Annotation XML metadata (raster dims, pixel spacing, processing parameters); annotation NetCDF LUTs as tie-point grids | ⏸ Awaiting L2 sample | `BiomassL2ProductDirectory.addAbstractedMetadataHeader` (TODOs in place) |
+| 3 | L2b annotation COGs as additional bands (FNF mask, heatmap, acquisition-ID) | ⏸ Awaiting L2b sample | `BiomassL2ProductDirectory.addBands` |
+| 4 | End-to-end SNAP Desktop verification, cross-validation against MAAP reference values | ⏸ Awaiting L2 sample | `TestBiomassProductReader` |
+
+`BiomassCalibrator` rejects L2 products with a clear error message — see § 8.4.
 
 ---
 
@@ -385,7 +398,11 @@ Same pattern as L1: look for `preview/*_ql.png`.
 
 ### 8.4 No Calibration for L2
 
-L2 products are fully processed geophysical parameters. The `BiomassCalibrator` should not be invoked. The reader must not set `abs_calibration_flag` or create calibration-related metadata.
+L2 products are fully processed geophysical parameters. The `BiomassCalibrator` is hard-guarded against L2: at the top of its `initialize` it checks the product type and throws an `OperatorException` if the type starts with `FP_`:
+
+> *BIOMASS Level-2 product 'FP_FH__L2A' contains derived geophysical quantities (forest height / biomass / change probability) — radiometric calibration is not applicable. Apply calibration to the corresponding Level-1 SCS / DGM product instead.*
+
+The L2 reader sets `abs_calibration_flag = 1` on the abstracted metadata so that any downstream operator that uses this flag as a "calibration not needed" signal treats L2 correctly.
 
 ### 8.5 Menu Registration
 
@@ -447,25 +464,34 @@ Test data availability:
 
 ## 11. Implementation Phases
 
-### Phase 1: Plugin Extension (Can start now)
-- Extend `BiomassProductReaderPlugIn` to detect `BIO_FP_` prefix
-- Add routing logic in `BiomassProductReader` to select L1 vs L2 directory class
-- Scaffold `BiomassL2ProductDirectory` class
+### Phase 1: Plugin Extension — ✅ DONE
+- ✅ Extend `BiomassProductReaderPlugIn` to detect `BIO_FP_` prefix
+  → see `BiomassProductReaderPlugIn.PRODUCT_PREFIXES` + `hasBiomassPrefix(...)`
+- ✅ Add routing logic in `BiomassProductReader` to select L1 vs L2 directory class
+  → see `BiomassProductReader.readProductNodesImpl` (lower-case prefix check)
+- ✅ Scaffold `BiomassL2ProductDirectory` class
+  → discovers COGs in `measurement/`, loads via `GTiffDriverProductReaderPlugIn`,
+  maps filename suffixes to band names via `L2_BAND_MAP`, derives `CrsGeoCoding`
+  from each COG's geotransform, exposes basic MPH metadata.
+- ✅ `BiomassCalibrator` guard against L2 products (see § 8.4)
+- ✅ Plugin-level tests for `BIO_FP_…` filename detection
+  → `TestBiomassProductReaderPlugIn.getValidPrimaryMetadataFileNames()`
 
 ### Phase 2: L2a Reader (When L2a products become available)
-- Implement MPH metadata parsing
-- Implement COG band loading for FH, FD, GN products
-- Implement CrsGeoCoding from GeoTIFF geotransform
-- Implement annotation LUT reading (NetCDF)
-- Write tests with real L2a products
+- Implement MPH metadata parsing  → *partial; basic identifier/productType/swath done; processing-level / data-take / RFI summary pending*
+- Implement COG band loading for FH, FD, GN products  → ✅ done in Phase 1 scaffold
+- Implement CrsGeoCoding from GeoTIFF geotransform  → ✅ done in Phase 1 scaffold
+- Implement annotation LUT reading (NetCDF)  → ⏸ pending; place-holder `addTiePointGrids` is a no-op
+- Read `annotation/*_annot.xml` for raster dims, pixel spacing, processing params → ⏸ pending; currently dims are inferred from band 0
+- Write tests with real L2a products  → ⏸ pending
 
 ### Phase 3: L2b Reader (When L2b products become available)
-- Extend for L2b naming convention differences
-- Handle L2b annotation COGs (FNF, heatmap, acquisition ID)
-- Handle AGB product type
-- Write tests with real L2b products
+- Extend for L2b naming convention differences  → ⏸ pending verification against real L2b sample
+- Handle L2b annotation COGs (FNF, heatmap, acquisition ID)  → ⏸ pending
+- Handle AGB product type  → ✅ basic loader done in Phase 1 scaffold (`agb`, `agb_std_dev`)
+- Write tests with real L2b products  → ⏸ pending
 
 ### Phase 4: Validation
-- End-to-end testing in SNAP Desktop
-- Verify geocoding accuracy against known locations
-- Cross-validate L2 values against reference datasets
+- End-to-end testing in SNAP Desktop  → ⏸ pending
+- Verify geocoding accuracy against known locations  → ⏸ pending
+- Cross-validate L2 values against reference datasets  → ⏸ pending

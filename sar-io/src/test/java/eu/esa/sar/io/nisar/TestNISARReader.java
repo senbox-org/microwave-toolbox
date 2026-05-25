@@ -51,8 +51,6 @@ public class TestNISARReader extends ReaderTest {
     public final static String inputNISAR = SARTests.inputPathProperty + "SAR/NISAR/";
     public final static File[] rootPathNISAR = SARTests.loadFilePath(inputNISAR);
 
-    private final String[] exceptionExemptions = {"not supported"};
-
     @Before
     public void setUp() {
         // If the file does not exist: the test will be ignored

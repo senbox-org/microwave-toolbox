@@ -119,6 +119,44 @@
                     </archive>
                 </configuration>
             </plugin>
+            <!--
+                TestTerrainFlatteningOp is isolated into its own surefire fork
+                because of an unresolved state leak in snap-engine: when
+                TestRangeDopplerOp or TestSARSimulationOp run earlier in the
+                same JVM, the subsequent TerrainFlattening pixel output drifts
+                by ~0.016 absolute (5-13%). Output is bit-identical across
+                runs, so it's deterministic JVM-state contamination, not
+                flakiness. The default-test execution excludes this class;
+                the terrain-flattening-isolated execution runs only this
+                class with reuseForks=false so it gets a fresh JVM.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/TestTerrainFlatteningOp.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>terrain-flattening-isolated</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <reuseForks>false</reuseForks>
+                            <includes>
+                                <include>**/TestTerrainFlatteningOp.java</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

@@ -45,19 +45,33 @@ public class GaborFilter {
 
         double[][] out = new double[2 * xmax + 1][2 * ymax + 1];
 
+        // A Gabor kernel is a band-pass filter; its raw sum is near zero by construction.
+        // Subtract the mean so the kernel is exactly DC-free, then normalize by L2 norm
+        // so the filter response is comparable across (lambda, sigma, theta) choices.
         double sum = 0;
+        final int count = (2 * xmax + 1) * (2 * ymax + 1);
         for (int x = -xmax; x <= xmax; x++) {
             for (int y = -ymax; y <= ymax; y++) {
                 double x_theta = x * FastMath.cos(theta) + y * FastMath.sin(theta);
                 double y_theta = -x * FastMath.sin(theta) + y * FastMath.cos(theta);
                 out[x + xmax][y + ymax] = FastMath.exp(-(FastMath.pow(x_theta, 2) + FastMath.pow(gamma, 2) * FastMath.pow(y_theta, 2)) / (2 * FastMath.pow(sigma, 2))) * FastMath.cos(2 * Constants.PI * x_theta / lambda + psi);
                 sum += out[x + xmax][y + ymax];
-                //out[x+xmax][y+ymax]= 1/(2*Math.PI*sigma_x *sigma_y) * Math.exp(-0.5*(Math.pow(x_theta,2)/Math.pow(sigma_x,2)+(Math.pow(y_theta,2)/(Math.pow(sigma_y,2)))*Math.cos(2*Math.PI/lambda*x_theta+psi);
             }
         }
-        for (int x = -xmax; x <= xmax; x++) {
-            for (int y = -ymax; y <= ymax; y++) {
-                out[x + xmax][y + ymax] /= sum;
+        final double mean = sum / count;
+        double l2 = 0;
+        for (int x = 0; x < 2 * xmax + 1; x++) {
+            for (int y = 0; y < 2 * ymax + 1; y++) {
+                out[x][y] -= mean;
+                l2 += out[x][y] * out[x][y];
+            }
+        }
+        final double norm = Math.sqrt(l2);
+        if (norm > 0) {
+            for (int x = 0; x < 2 * xmax + 1; x++) {
+                for (int y = 0; y < 2 * ymax + 1; y++) {
+                    out[x][y] /= norm;
+                }
             }
         }
         return out;
@@ -69,7 +83,7 @@ public class GaborFilter {
         int ymax = (int) Math.floor(filter[0].length / 2.0);
         int[][] out = new int[in.length][in[0].length];
         for (int x = 0; x < in.length; x++) {
-            for (int y = 0; y < in.length; y++) {
+            for (int y = 0; y < in[0].length; y++) {
                 double sum = 0;
                 for (int xf = -xmax; xf <= xmax; xf++) {
                     for (int yf = -ymax; yf <= ymax; yf++) {

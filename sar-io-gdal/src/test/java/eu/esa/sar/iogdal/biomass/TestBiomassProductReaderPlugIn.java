@@ -49,7 +49,13 @@ public class TestBiomassProductReaderPlugIn extends AbstractProductReaderPlugInG
 
     @Override
     protected String[] getValidPrimaryMetadataFileNames() {
-        return new String[] {"bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnqp.xml"};
+        return new String[] {
+                "bio_s1_dgm__1s_20170101t060309_20170101t060330_i_g03_m03_c03_t010_f001_01_d0nnqp.xml",
+                // L2 prefix (BIO_FP) — Forest Height, Forest Disturbance, AGB
+                "bio_fp_fh__l2a_20260101t120000_20260101t120030_i_g01_m01_c____t010_f001_01_d0abcd.xml",
+                "bio_fp_fd__l2a_20260101t120000_20260101t120030_i_g01_m01_c____t010_f001_01_d0abcd.xml",
+                "bio_fp_agb_l2b_i_g01_tn05w060_b100_01_d0abcd.xml"
+        };
     }
 
     @Override

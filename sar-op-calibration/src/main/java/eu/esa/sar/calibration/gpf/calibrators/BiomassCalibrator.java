@@ -95,6 +95,21 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
+            // BIOMASS Level-2 products (FH, FD, GN, AGB) are already-derived geophysical
+            // quantities — height, biomass density, change probability, etc. They are NOT
+            // SAR measurements and applying radiometric calibration to them is meaningless.
+            // The L2 reader sets a productType starting with "FP_" per the BIOMASS PFD;
+            // reject those here before we try to look up calibration constants that don't
+            // exist on this product.
+            final String productType = absRoot.getAttributeString(AbstractMetadata.PRODUCT_TYPE, "");
+            if (productType != null && productType.toUpperCase().startsWith("FP_")) {
+                throw new OperatorException(
+                        "BIOMASS Level-2 product '" + productType + "' contains derived geophysical " +
+                        "quantities (forest height / biomass / change probability) — radiometric " +
+                        "calibration is not applicable. Apply calibration to the corresponding " +
+                        "Level-1 SCS / DGM product instead.");
+            }
+
             getSampleType();
 
             doRetroCalibration = absRoot.getAttribute(AbstractMetadata.abs_calibration_flag).getData().getElemBoolean();

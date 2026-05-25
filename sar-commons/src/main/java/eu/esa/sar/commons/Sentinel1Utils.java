@@ -210,6 +210,9 @@ public final class Sentinel1Utils {
             for (String bandName : sourceBandNames) {
                 if (bandName.contains(acquisitionMode)) {
                     final int idx = bandName.indexOf(acquisitionMode);
+                    if (idx + 3 > bandName.length()) {
+                        continue; // no subswath suffix character after the mode prefix
+                    }
                     final String subSwathName = bandName.substring(idx, idx + 3);
                     if (!subSwathNameList.contains(subSwathName)) {
                         subSwathNameList.add(subSwathName);

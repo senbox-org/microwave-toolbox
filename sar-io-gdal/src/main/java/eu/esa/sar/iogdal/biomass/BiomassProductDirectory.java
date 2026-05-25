@@ -185,6 +185,11 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
                 if (data.bandProduct != null) {
                     bandProductMap.put(name.endsWith("phase.tiff") ? PHASE : ABS, data);
+                } else {
+                    // Both /vsizip and temp-extract paths failed to yield a product.
+                    // Without this warning, the user gets a Product with no bands and no clue.
+                    SystemUtils.LOG.warning("BIOMASS: failed to load measurement file '" + imgPath +
+                            "' — band will be missing from the product.");
                 }
 
             } catch (Exception e) {
@@ -211,7 +216,17 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             if (isSLC()) {
                 ReaderData absReaderData = bandProductMap.get(ABS);
                 ReaderData phaseReaderData = bandProductMap.get(PHASE);
-                if(absReaderData.bandProduct.getNumBands() <= cnt) {
+                if (absReaderData == null || phaseReaderData == null) {
+                    SystemUtils.LOG.warning("BIOMASS: SLC product missing ABS or PHASE source; " +
+                            "skipping band for '" + bandMetaName + "'.");
+                    continue;
+                }
+                if (absReaderData.bandProduct.getNumBands() <= cnt ||
+                        phaseReaderData.bandProduct.getNumBands() <= cnt) {
+                    SystemUtils.LOG.warning("BIOMASS: ABS / PHASE band counts disagree at index " + cnt +
+                            " (abs=" + absReaderData.bandProduct.getNumBands() +
+                            ", phase=" + phaseReaderData.bandProduct.getNumBands() +
+                            "); skipping '" + bandMetaName + "'.");
                     continue;
                 }
                 Band absBand = absReaderData.bandProduct.getBandAt(cnt);
@@ -261,44 +276,41 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     }
 
     public static Band createVirtualIBand(final Product product, final Band newAbsBand, final Band newPhaseBand, final String suffix) {
-        final String absBandName = newAbsBand.getName();
-        final String phaseBandName = newPhaseBand.getName();
-        final double nodatavalue = newAbsBand.getNoDataValue();
-        final String expression = absBandName +" == " + nodatavalue +" ? " + nodatavalue +" : " + absBandName + " * cos(" + phaseBandName +")";
-
-        final VirtualBand virtBand = new VirtualBand("i" + suffix,
-                ProductData.TYPE_FLOAT32,
-                newAbsBand.getRasterWidth(),
-                newAbsBand.getRasterHeight(),
-                expression);
-        virtBand.setUnit(Unit.REAL);
-        virtBand.setDescription("Real from complex data");
-        virtBand.setNoDataValueUsed(true);
-        virtBand.setNoDataValue(nodatavalue);
-
-        if (newAbsBand.getGeoCoding() != product.getSceneGeoCoding()) {
-            virtBand.setGeoCoding(newAbsBand.getGeoCoding());
-        }
-
-        product.addBand(virtBand);
-        return virtBand;
+        return createVirtualComplexComponent(product, newAbsBand, newPhaseBand, suffix, true);
     }
 
     public static Band createVirtualQBand(final Product product, final Band newAbsBand, final Band newPhaseBand, final String suffix) {
+        return createVirtualComplexComponent(product, newAbsBand, newPhaseBand, suffix, false);
+    }
+
+    /**
+     * Build a virtual {@code i} or {@code q} band from the amplitude/phase pair. The
+     * expression guards on both the amplitude AND phase no-data values so a valid
+     * amplitude paired with a no-data phase (or vice versa) still yields no-data,
+     * not a numerically-valid-but-meaningless complex value.
+     */
+    private static Band createVirtualComplexComponent(final Product product, final Band newAbsBand,
+                                                      final Band newPhaseBand, final String suffix,
+                                                      final boolean realPart) {
         final String absBandName = newAbsBand.getName();
         final String phaseBandName = newPhaseBand.getName();
-        final double nodatavalue = newAbsBand.getNoDataValue();
-        final String expression = absBandName +" == " + nodatavalue +" ? " + nodatavalue +" : " + absBandName + " * sin(" + phaseBandName +")";
+        final double absNoData = newAbsBand.getNoDataValue();
+        final double phaseNoData = newPhaseBand.getNoDataValue();
+        final String trig = realPart ? "cos" : "sin";
+        final String expression =
+                "(" + absBandName + " == " + absNoData + " || " + phaseBandName + " == " + phaseNoData + ")" +
+                " ? " + absNoData + " : " + absBandName + " * " + trig + "(" + phaseBandName + ")";
 
-        final VirtualBand virtBand = new VirtualBand("q" + suffix,
+        final String name = (realPart ? "i" : "q") + suffix;
+        final VirtualBand virtBand = new VirtualBand(name,
                 ProductData.TYPE_FLOAT32,
                 newAbsBand.getRasterWidth(),
                 newAbsBand.getRasterHeight(),
                 expression);
-        virtBand.setUnit(Unit.IMAGINARY);
-        virtBand.setDescription("Imaginary from complex data");
+        virtBand.setUnit(realPart ? Unit.REAL : Unit.IMAGINARY);
+        virtBand.setDescription((realPart ? "Real" : "Imaginary") + " from complex data");
         virtBand.setNoDataValueUsed(true);
-        virtBand.setNoDataValue(nodatavalue);
+        virtBand.setNoDataValue(absNoData);
 
         if (newAbsBand.getGeoCoding() != product.getSceneGeoCoding()) {
             virtBand.setGeoCoding(newAbsBand.getGeoCoding());
@@ -470,7 +482,89 @@ public class BiomassProductDirectory extends XMLProductDirectory {
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
 
+        // Sidecar auxiliary annotation files. These are present in some L1 product layouts
+        // (per the BIOMASS L1 PFD) and are crucial for downstream consumers — RFI in
+        // particular, because P-band is heavily contaminated by terrestrial RFI and the
+        // suppression flags drive what pixels are usable. Each method silently no-ops if
+        // its folder doesn't exist; that's the right behaviour for older/simpler products.
+        addCalibrationAuxAnnotation(origProdRoot);
+        addNoiseAuxAnnotation(origProdRoot);
+        addRFIAuxAnnotation(origProdRoot);
+
         cleanMetadata(origProdRoot);
+    }
+
+    /** Read radiometric-calibration LUT XML files from {@code annotation/calibration/}
+     *  (and the {@code annotation_*} variants) and attach them under {@code calibration}. */
+    private void addCalibrationAuxAnnotation(final MetadataElement origProdRoot) throws IOException {
+        addAuxAnnotationFolder(origProdRoot, "calibration", "calibration");
+    }
+
+    /** Read noise (NESZ) annotation XML files from {@code annotation/noise/} and attach
+     *  them under {@code noise}. */
+    private void addNoiseAuxAnnotation(final MetadataElement origProdRoot) throws IOException {
+        addAuxAnnotationFolder(origProdRoot, "noise", "noise");
+    }
+
+    /** Read RFI detection / suppression annotation XML files from {@code annotation/rfi/}
+     *  and attach them under {@code rfi}. P-band only — silently absent on most other
+     *  missions. */
+    private void addRFIAuxAnnotation(final MetadataElement origProdRoot) throws IOException {
+        addAuxAnnotationFolder(origProdRoot, "rfi", "rfi");
+    }
+
+    /**
+     * Generic auxiliary-annotation loader: scans every plausible annotation folder layout
+     * (the active {@code annotationName} plus {@code annotation_coregistered}) for a
+     * named subfolder, reads every XML file there, and dumps each one as a nested
+     * {@link MetadataElement} under {@code origProdRoot/<containerName>}. Mirrors the
+     * pattern used by the Sentinel-1 reader.
+     *
+     * @param origProdRoot   original-metadata root
+     * @param subFolder      subfolder under each annotation root (e.g. {@code "calibration"})
+     * @param containerName  element name to use under {@code origProdRoot}
+     */
+    private void addAuxAnnotationFolder(final MetadataElement origProdRoot,
+                                        final String subFolder, final String containerName) throws IOException {
+        // Candidate paths in priority order. Any/all may exist; we merge into one container.
+        final java.util.LinkedHashSet<String> candidates = new java.util.LinkedHashSet<>();
+        if (annotationName != null) {
+            candidates.add(getRootFolder() + annotationName + '/' + subFolder);
+        }
+        candidates.add(getRootFolder() + "annotation/" + subFolder);
+        candidates.add(getRootFolder() + "annotation_primary/" + subFolder);
+        candidates.add(getRootFolder() + "annotation_coregistered/" + subFolder);
+
+        MetadataElement container = null;
+        for (final String folder : candidates) {
+            if (!exists(folder)) continue;
+            final String[] filenames = listFiles(folder);
+            if (filenames == null || filenames.length == 0) continue;
+
+            if (container == null) {
+                container = origProdRoot.getElement(containerName);
+                if (container == null) {
+                    container = new MetadataElement(containerName);
+                    origProdRoot.addElement(container);
+                }
+            }
+
+            for (final String metadataFile : filenames) {
+                if (!metadataFile.toLowerCase().endsWith(".xml")) continue;
+                final String elemName = container.containsElement(metadataFile)
+                        ? metadataFile + '_' + System.identityHashCode(metadataFile) : metadataFile;
+                try (final InputStream is = getInputStream(folder + '/' + metadataFile)) {
+                    final Document xmlDoc = XMLSupport.LoadXML(is);
+                    final Element rootElement = xmlDoc.getRootElement();
+                    final MetadataElement nameElem = new MetadataElement(elemName);
+                    container.addElement(nameElem);
+                    AbstractMetadataIO.AddXMLMetadata(rootElement, nameElem);
+                } catch (Exception e) {
+                    SystemUtils.LOG.warning("BIOMASS: failed to parse " + containerName +
+                            " annotation '" + folder + '/' + metadataFile + "': " + e.getMessage());
+                }
+            }
+        }
     }
 
     private void cleanMetadata(final MetadataElement root) {
@@ -665,11 +759,9 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                 }
             }
 
-            //heightSum += getBandTerrainHeight(prodElem);
-
-            //addCalibrationAbstractedMetadata(origProdRoot);
-            //addNoiseAbstractedMetadata(origProdRoot);
-            //addRFIAbstractedMetadata(origProdRoot);
+            // Aux annotation extraction (calibration / noise / RFI) is done once per
+            // product in addAbstractedMetadataHeader, not per polarisation — see
+            // addCalibrationAuxAnnotation / addNoiseAuxAnnotation / addRFIAuxAnnotation.
         }
         return commonMetadataAvailable;
     }
@@ -704,11 +796,15 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     private void readOrbitStateVectors(final MetadataElement absRoot) throws IOException {
 
         String navFolder = getRootFolder() + annotationName + "/navigation";
-        if(!exists(navFolder)) {
+        if (!exists(navFolder)) {
             navFolder = getRootFolder() + "annotation_coregistered/navigation";
-            if(!exists(navFolder)) {
-                navFolder = getRootFolder() + "annotation/navigation";
+            if (!exists(navFolder)) {
+                navFolder = getRootFolder() + "annotation_primary/navigation";
             }
+        }
+        if (!exists(navFolder)) {
+            // Nothing to read; product had no navigation/ directory in any expected layout.
+            return;
         }
 
         final String[] filenames = listFiles(navFolder);

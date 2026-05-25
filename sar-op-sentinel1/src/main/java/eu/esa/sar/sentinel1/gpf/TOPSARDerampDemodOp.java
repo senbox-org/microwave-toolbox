@@ -90,7 +90,6 @@ public final class TOPSARDerampDemodOp extends Operator {
 
             su = new Sentinel1Utils(sourceProduct);
             subSwath = su.getSubSwath();
-            subSwath = su.getSubSwath();
             su.computeDopplerRate();
             su.computeReferenceTime();
 
@@ -150,9 +149,16 @@ public final class TOPSARDerampDemodOp extends Operator {
             final Band targetBand = new Band(bandName, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
             targetBand.setUnit(srcBand.getUnit());
             targetBand.setDescription(srcBand.getDescription());
+            // Preserve source no-data; if absent, use NaN so deramped output's invalid pixels are recognizable downstream.
+            if (srcBand.isNoDataValueUsed()) {
+                targetBand.setNoDataValue(srcBand.getNoDataValue());
+            } else {
+                targetBand.setNoDataValue(Double.NaN);
+            }
+            targetBand.setNoDataValueUsed(true);
             targetProduct.addBand(targetBand);
 
-            if (targetBand.getUnit().equals(Unit.IMAGINARY)) {
+            if (targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
                 int idx = targetProduct.getBandIndex(targetBand.getName());
                 ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx - 1), targetBand, "");
             }
@@ -162,6 +168,8 @@ public final class TOPSARDerampDemodOp extends Operator {
             final Band phaseBand = new Band("derampDemodPhase", ProductData.TYPE_FLOAT32,
                     sourceImageWidth, sourceImageHeight);
             phaseBand.setUnit("radian");
+            phaseBand.setNoDataValue(Double.NaN);
+            phaseBand.setNoDataValueUsed(true);
             targetProduct.addBand(phaseBand);
         }
     }
@@ -240,11 +248,14 @@ public final class TOPSARDerampDemodOp extends Operator {
         for(String polarization : su.getPolarizations()) {
             final Band bandI = getBand(sourceProduct, "i_", swathIndexStr, polarization);
             final Band bandQ = getBand(sourceProduct, "q_", swathIndexStr, polarization);
+            if (bandI == null || bandQ == null) {
+                continue;
+            }
             final Tile tileI = getSourceTile(bandI, targetRectangle);
             final Tile tileQ = getSourceTile(bandQ, targetRectangle);
 
             if (tileI == null || tileQ == null) {
-                return;
+                continue;
             }
 
             final double[][] derampDemodI = new double[targetRectangle.height][targetRectangle.width];
@@ -298,7 +309,8 @@ public final class TOPSARDerampDemodOp extends Operator {
             final Band bandQ = getBand(targetProduct, "q_", swathIndexStr, polarization);
 
             if (bandI == null || bandQ == null) {
-                throw new OperatorException("Unable to find target band " + bandI.getName() +" or "+ bandQ.getName());
+                throw new OperatorException("Unable to find target band i_/q_ for swath " + swathIndexStr +
+                        " polarization " + polarization);
             }
 
             final Tile tgtTileI = targetTileMap.get(bandI);

@@ -645,12 +645,12 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
             double dn, dn2, i, q;
             int srcIdx, tgtIdx;
+            final double[] lut = new double[w]; // reused across rows in this tile
             for (int y = y0; y < maxY; ++y) {
                 srcIndex.calculateStride(y);
                 tgtIndex.calculateStride(y);
                 final int sy = y + subsetOffsetY;
 
-                double[] lut = new double[w];
                 if (absoluteCalibrationPerformed) {
                     final int calVecIdx = calInfo.getCalibrationVectorIndex(sy);
                     final Sentinel1Utils.CalibrationVector vec0 = calInfo.getCalibrationVector(calVecIdx);
@@ -695,7 +695,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                         throw new OperatorException("Unhandled unit");
                     }
 
-                    if(dn2 == srcNoDataValue) {
+                    if(Double.isNaN(dn2) || dn2 == srcNoDataValue) {
                         tgtData.setElemDoubleAt(tgtIdx, srcNoDataValue);
                         continue;
                     }

@@ -29,7 +29,6 @@ import org.esa.snap.engine_utilities.util.Maths;
 
 import java.awt.*;
 import java.text.DateFormat;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
 
@@ -45,6 +44,8 @@ import java.util.StringTokenizer;
     double groundRangeSpacing = 0.0;
     private SRGRCoefficientList[] srgrConvParams = null;
     private GRSRCoefficientList[] grsrConvParams = null;
+    /** First-swath ID used when looking up instrument timing calibration (IW1 / EW1 / S1..S6). */
+    private String firstSwathID = "IW1";
 
 
     /**
@@ -72,6 +73,21 @@ import java.util.StringTokenizer;
             lastLineTime = absRoot.getAttributeUTC(AbstractMetadata.last_line_time).getMJD() * Constants.secondsInDay;
             lineTimeInterval = (lastLineTime - firstLineTime) / (sourceImageHeight - 1);
             groundRangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
+
+            // Derive the first-swath ID from acquisition mode (IW1 for IW GRD, EW1 for EW GRD, SWATH attr for SM)
+            // instead of hardcoding "IW1" — that silently mis-calibrated EW GRD products.
+            final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE, "IW");
+            if ("EW".equalsIgnoreCase(acquisitionMode)) {
+                firstSwathID = "EW1";
+            } else if ("IW".equalsIgnoreCase(acquisitionMode)) {
+                firstSwathID = "IW1";
+            } else {
+                // SM: use SWATH attribute (e.g. "S1".."S6")
+                final String swath = absRoot.getAttributeString(AbstractMetadata.SWATH, null);
+                if (swath != null && !swath.isEmpty()) {
+                    firstSwathID = swath;
+                }
+            }
 
             final MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(sourceProduct);
             final MetadataElement annotationElem = origProdRoot.getElement("annotation");
@@ -169,12 +185,12 @@ import java.util.StringTokenizer;
 
         double azimuthTimeCalibration = 0.0;
         if (!sumOfAzimuthCorrections) {
-            azimuthTimeCalibration = getInstrumentAzimuthTimeCalibration("IW1");
+            azimuthTimeCalibration = getInstrumentAzimuthTimeCalibration(firstSwathID);
         }
 
         double rangeTimeCalibration = 0.0;
         if (!sumOfRangeCorrections) {
-            rangeTimeCalibration = getInstrumentRangeTimeCalibration("IW1");
+            rangeTimeCalibration = getInstrumentRangeTimeCalibration(firstSwathID);
         }
 
         for (int y = y0; y < y0 + h; ++y) {

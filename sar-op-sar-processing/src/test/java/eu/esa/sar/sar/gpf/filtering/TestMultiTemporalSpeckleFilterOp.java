@@ -23,7 +23,6 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -41,16 +40,8 @@ public class TestMultiTemporalSpeckleFilterOp extends ProcessorTest {
 
     private final static File inputFile = TestData.inputStackIMS;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If the file does not exist: the test will be ignored
-            assumeTrue(inputFile + " not found", inputFile.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // SPI/metadata tests don't need the input file; data-dependent tests are
+    // gated inside process(...) below.
 
     private final static OperatorSpi spi = new MultiTemporalSpeckleFilterOp.Spi();
 
@@ -129,6 +120,7 @@ public class TestMultiTemporalSpeckleFilterOp extends ProcessorTest {
      */
     public void process(final File inputFile, final String filter, final float[] expected) throws Exception {
 
+        assumeTrue("Input file " + inputFile + " does not exist - skipping", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final MultiTemporalSpeckleFilterOp op = (MultiTemporalSpeckleFilterOp) spi.createOperator();

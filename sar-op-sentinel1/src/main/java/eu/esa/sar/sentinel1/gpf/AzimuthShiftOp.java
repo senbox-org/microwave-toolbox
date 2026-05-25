@@ -178,6 +178,13 @@ public class AzimuthShiftOp extends Operator {
                         band.getRasterHeight());
 
                 targetBand.setUnit(band.getUnit());
+                if (band.isNoDataValueUsed()) {
+                    targetBand.setNoDataValue(band.getNoDataValue());
+                    targetBand.setNoDataValueUsed(true);
+                } else {
+                    targetBand.setNoDataValue(Double.NaN);
+                    targetBand.setNoDataValueUsed(true);
+                }
                 targetProduct.addBand(targetBand);
             }
 
@@ -499,17 +506,21 @@ public class AzimuthShiftOp extends Operator {
 
     private double computeSpectralSeparation () {
 
-        final double tCycle =
-                subSwath[subSwathIndex - 1].linesPerBurst * subSwath[subSwathIndex - 1].azimuthTimeInterval;
-
+        // Burst cycle time is the burst length minus the overlap, not the full burst length.
+        // Matches SpectralDiversityOp.computeSpectralSeparation (line ~1504).
         double sumSpectralSeparation = 0.0;
+        long sampleCount = 0;
         for (int b = 0; b < subSwath[subSwathIndex - 1].numOfBursts; b++) {
+            final int overlapIdx = Math.min(b, subSwath[subSwathIndex - 1].numOfBursts - 2);
+            final int numOverlappedLines = overlapIdx >= 0 ? computeBurstOverlapSize(overlapIdx) : 0;
+            final double tCycle = (subSwath[subSwathIndex - 1].linesPerBurst - numOverlappedLines)
+                    * subSwath[subSwathIndex - 1].azimuthTimeInterval;
             for (int p = 0; p < subSwath[subSwathIndex - 1].samplesPerBurst; p++) {
                 sumSpectralSeparation += subSwath[subSwathIndex - 1].dopplerRate[b][p] * tCycle;
+                sampleCount++;
             }
         }
-        return sumSpectralSeparation / (subSwath[subSwathIndex - 1].numOfBursts *
-                subSwath[subSwathIndex - 1].samplesPerBurst);
+        return sampleCount == 0 ? 0.0 : sumSpectralSeparation / sampleCount;
     }
 
     private void getOverlappedRectangles(final int overlapIndex,

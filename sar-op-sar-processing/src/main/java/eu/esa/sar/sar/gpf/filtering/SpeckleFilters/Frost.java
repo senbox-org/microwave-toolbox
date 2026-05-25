@@ -197,6 +197,9 @@ public class Frost implements SpeckleFilter {
                 totalWeight += weight;
             }
         }
+        if (totalWeight <= 0.0) {
+            return noDataValue;
+        }
         return sum / totalWeight;
     }
 }

@@ -58,6 +58,15 @@
                 <attr name="helpId" stringvalue="importCapella"/>
                 <attr name="ShortDescription" stringvalue="Open Capella data product."/>
             </file>
+            <file name="eu-esa-sar-io-importNisar.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
+                <attr name="displayName" stringvalue="NISAR"/>
+                <attr name="formatName" stringvalue="NISAR"/>
+                <attr name="useAllFileFilter" boolvalue="true"/>
+                <attr name="helpId" stringvalue="ImportNisar"/>
+                <attr name="ShortDescription" stringvalue="Open NISAR (NASA-ISRO SAR) data product."/>
+            </file>
             <file name="eu-esa-sar-io-importCosmoSkymed.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
@@ -289,6 +298,10 @@
                     <file name="eu-esa-sar-io-importCapella.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-io-importCapella.instance"/>
                         <attr name="position" intvalue="280"/>
+                    </file>
+                    <file name="eu-esa-sar-io-importNisar.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-io-importNisar.instance"/>
+                        <attr name="position" intvalue="290"/>
                     </file>
                     <file name="eu-esa-sar-io-importCosmoSkymed.shadow">
                         <attr name="originalFile" stringvalue="Actions/Readers/eu-esa-sar-io-importCosmoSkymed.instance"/>

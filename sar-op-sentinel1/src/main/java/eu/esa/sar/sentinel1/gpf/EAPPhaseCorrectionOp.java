@@ -268,8 +268,15 @@ public final class EAPPhaseCorrectionOp extends Operator {
 
     private File findAuxCalFile(final double time, final int year) {
 
-        final String prefix;
-        prefix = "S1A_AUX_CAL_";
+        // Derive the platform prefix from the mission (S1A/S1B/S1C/S1D) instead of hardcoding S1A.
+        final String mission = absRoot != null
+                ? absRoot.getAttributeString(AbstractMetadata.MISSION, "SENTINEL-1A")
+                : "SENTINEL-1A";
+        // mission strings look like "SENTINEL-1A" → "S1A"
+        final String platform = mission.startsWith("SENTINEL-1") && mission.length() >= 11
+                ? "S1" + Character.toUpperCase(mission.charAt(10))
+                : "S1A";
+        final String prefix = platform + "_AUX_CAL_";
         final File localFolder = SystemUtils.getAuxDataPath().resolve("AuxCal").resolve("S1").toFile();
         final File auxCalFileFolder = new File(localFolder, String.valueOf(year));
 
@@ -304,8 +311,8 @@ public final class EAPPhaseCorrectionOp extends Operator {
 
     private ProductData.UTC getValidityStartFromFilenameUTC(String filename) throws ParseException {
 
-        if (filename.substring(12,13).equals("V")) {
-
+        // Expected AUX_CAL name shape: S1?_AUX_CAL_VyyyyMMddTHHmmss_... — the 'V' marker is at index 12.
+        if (filename.length() >= 28 && filename.charAt(12) == 'V') {
             String val = extractTimeFromFilename(filename, 13);
             return ProductData.UTC.parse(val, dateFormat);
         }
@@ -327,28 +334,43 @@ public final class EAPPhaseCorrectionOp extends Operator {
         archive.getContentFiles();
     }
 
-    private void readAuxCalFile() throws Exception {
+    private void readAuxCalFile() throws OperatorException {
 
         try {
             final DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
             final DocumentBuilder documentBuilder = documentFactory.newDocumentBuilder();
 
             final Document doc;
-            if(auxCalFile.getName().toLowerCase().endsWith(".zip")) {
-                final ZipFile productZip = new ZipFile(auxCalFile, ZipFile.OPEN_READ);
-                final Enumeration<? extends ZipEntry> entries = productZip.entries();
-                final ZipEntry folderEntry = entries.nextElement();
-                final ZipEntry zipEntry = productZip.getEntry(folderEntry.getName()+"data/s1a-aux-cal.xml");
-
-                InputStream is = productZip.getInputStream(zipEntry);
-                doc = documentBuilder.parse(is);
+            if (auxCalFile.getName().toLowerCase().endsWith(".zip")) {
+                // try-with-resources closes both the ZipFile and the InputStream even on parse failure.
+                try (ZipFile productZip = new ZipFile(auxCalFile, ZipFile.OPEN_READ)) {
+                    final Enumeration<? extends ZipEntry> entries = productZip.entries();
+                    if (!entries.hasMoreElements()) {
+                        throw new OperatorException("AUX_CAL zip '" + auxCalFile + "' is empty.");
+                    }
+                    final ZipEntry folderEntry = entries.nextElement();
+                    // Mission-specific XML name: s1a/s1b/s1c/s1d-aux-cal.xml
+                    final String mission = absRoot != null
+                            ? absRoot.getAttributeString(AbstractMetadata.MISSION, "SENTINEL-1A")
+                            : "SENTINEL-1A";
+                    final char missionChar = mission.startsWith("SENTINEL-1") && mission.length() >= 11
+                            ? Character.toLowerCase(mission.charAt(10)) : 'a';
+                    final String xmlEntryName = folderEntry.getName() + "data/s1" + missionChar + "-aux-cal.xml";
+                    final ZipEntry zipEntry = productZip.getEntry(xmlEntryName);
+                    if (zipEntry == null) {
+                        throw new OperatorException("AUX_CAL zip '" + auxCalFile +
+                                "' does not contain entry '" + xmlEntryName + "'.");
+                    }
+                    try (InputStream is = productZip.getInputStream(zipEntry)) {
+                        doc = documentBuilder.parse(is);
+                    }
+                }
             } else {
                 doc = documentBuilder.parse(auxCalFile);
             }
 
             if (doc == null) {
-                System.out.println("EAPPhaseCorrection: failed to create Document for AUX_CAL file");
-                return;
+                throw new OperatorException("EAPPhaseCorrection: failed to create Document for AUX_CAL file " + auxCalFile);
             }
 
             doc.getDocumentElement().normalize();
@@ -368,14 +390,12 @@ public final class EAPPhaseCorrectionOp extends Operator {
                 childNode = childNode.getNextSibling();
             }
 
-        } catch (IOException e) {
-            System.out.println("EAPPhaseCorrection: IOException " + e.getMessage());
-        } catch (ParserConfigurationException e) {
-            System.out.println("EAPPhaseCorrection: ParserConfigurationException " + e.getMessage());
-        } catch (SAXException e) {
-            System.out.println("EAPPhaseCorrection: SAXException " + e.getMessage());
+        } catch (OperatorException e) {
+            throw e;
         } catch (Exception e) {
-            System.out.println("EAPPhaseCorrection: Exception " + e.getMessage());
+            // Previously these errors were swallowed via System.out.println, leaving
+            // swathPolToEAPVector empty and causing later NPEs in computeEAP.
+            throw new OperatorException("Failed to read AUX_CAL file '" + auxCalFile + "': " + e.getMessage(), e);
         }
     }
 
@@ -438,7 +458,7 @@ public final class EAPPhaseCorrectionOp extends Operator {
                 if (attrNode == null) {
                     attrNode = attr.item(j);
                 } else {
-                    System.out.println("EAPPhaseCorrection: more than one " + attrName + " in " + node.getNodeName());
+                    SystemUtils.LOG.warning("EAPPhaseCorrection: more than one " + attrName + " in " + node.getNodeName());
                 }
             }
         }
@@ -545,11 +565,19 @@ public final class EAPPhaseCorrectionOp extends Operator {
         final String key = subSwath[subSwathIndex - 1].subSwathName + "_" + polarization;
         final EAPVector eapVector = swathPolToEAPVector.get(key);
 
+        if (eapVector == null) {
+            throw new OperatorException("No AUX_CAL EAP vector found for " + key +
+                    " — check AUX_CAL availability for this mission/swath.");
+        }
+        if (tgtBandUnit != Unit.UnitType.REAL && tgtBandUnit != Unit.UnitType.IMAGINARY) {
+            throw new OperatorException("EAPPhaseCorrection target band " + targetBand.getName() +
+                    " has unsupported unit '" + targetBand.getUnit() + "'; expected real or imaginary.");
+        }
+
+        final double noDataValue = targetBand.getNoDataValue();
         final int yMax = y0 + h;
         final int xMax = x0 + w;
-        int srcIdx;
         final double[] eap = new double[2];
-        double val = targetBand.getNoDataValue();
         for (int y = y0; y < yMax; y++) {
             srcIndex.calculateStride(y);
             trgIndex.calculateStride(y);
@@ -558,19 +586,18 @@ public final class EAPPhaseCorrectionOp extends Operator {
 
                 final double slantRangeTime = su.getSlantRangeTime(x, subSwathIndex) * 2.0; // 1-way to 2-way
                 final double elevationAngle = computeElevationAngle(subSwathIndex, burstIndex, slantRangeTime);
+                final double val;
                 if (elevationAngle == -1.0) {
-                    continue;
-                }
-
-                computeEAP(elevationAngle, rollSteeringAngle, eapVector, eap);
-
-                srcIdx = srcIndex.getIndex(x);
-                if (tgtBandUnit == Unit.UnitType.REAL) {
-                    val = (srcDataI.getElemDoubleAt(srcIdx)*eap[0] + srcDataQ.getElemDoubleAt(srcIdx)*eap[1])
-                            / Math.sqrt(eap[0]*eap[0] + eap[1]*eap[1]);
-                } else if (tgtBandUnit == Unit.UnitType.IMAGINARY) {
-                    val = (srcDataQ.getElemDoubleAt(srcIdx)*eap[0] - srcDataI.getElemDoubleAt(srcIdx)*eap[1])
-                            / Math.sqrt(eap[0]*eap[0] + eap[1]*eap[1]);
+                    val = noDataValue;
+                } else {
+                    computeEAP(elevationAngle, rollSteeringAngle, eapVector, eap);
+                    final int srcIdx = srcIndex.getIndex(x);
+                    final double norm = Math.sqrt(eap[0]*eap[0] + eap[1]*eap[1]);
+                    if (tgtBandUnit == Unit.UnitType.REAL) {
+                        val = (srcDataI.getElemDoubleAt(srcIdx)*eap[0] + srcDataQ.getElemDoubleAt(srcIdx)*eap[1]) / norm;
+                    } else {
+                        val = (srcDataQ.getElemDoubleAt(srcIdx)*eap[0] - srcDataI.getElemDoubleAt(srcIdx)*eap[1]) / norm;
+                    }
                 }
                 tgtData.setElemDoubleAt(trgIndex.getIndex(x), val);
             }
@@ -645,8 +672,14 @@ public final class EAPPhaseCorrectionOp extends Operator {
     private void computeEAP(final double elevationAngle, final double rollSteeringAngle,
                             final EAPVector eapVector, final double[] eap) {
 
-        final int i0 = (int)((elevationAngle - rollSteeringAngle) / eapVector.elevationAngleIncrement +
+        int i0 = (int)((elevationAngle - rollSteeringAngle) / eapVector.elevationAngleIncrement +
                 (eapVector.count - 1) /2.0);
+
+        // Clamp so i0 and i0+1 are valid indices; out-of-range elevation should not crash here
+        // (callers already gate on elevationAngle != -1.0, but the tabulated grid is narrower than the
+        // slant-range-time interval and can place i0 just outside).
+        if (i0 < 0) i0 = 0;
+        if (i0 > eapVector.eapI.length - 2) i0 = eapVector.eapI.length - 2;
 
         final double elevationAngle0 = (i0 - (eapVector.count - 1) /2.0)*eapVector.elevationAngleIncrement +
                 rollSteeringAngle;
