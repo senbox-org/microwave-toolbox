@@ -591,11 +591,16 @@ public final class TerrainFlatteningOp extends Operator {
 
             final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
             final double[][] height = new double[rows][cols];
+            // Reuse one GeoPos across rows*cols iterations instead of allocating per-pixel.
+            // BaseElevationModel.getElevation mutates geoPos.lon (wraps > 180), so setLocation
+            // must be called every iteration — it's two field writes vs an allocation + GC.
+            final GeoPos geoPos = new GeoPos();
             for (int i = 0; i < rows; ++i) {
                 final double lat = latMax - i * demResolution;
                 for (int j = 0; j < cols; ++j) {
                     final double lon = lonMin + j * demResolution;
-                    double alt = dem.getElevation(new GeoPos(lat, lon));
+                    geoPos.setLocation(lat, lon);
+                    double alt = dem.getElevation(geoPos);
                     if ((Double.isNaN(alt) || alt == demNoDataValue) && !nodataValueAtSea) { // get corrected elevation for 0
                         alt = egm.getEGM(lat, lon);
                     }

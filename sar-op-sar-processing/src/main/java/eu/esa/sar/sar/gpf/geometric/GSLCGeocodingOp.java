@@ -50,6 +50,7 @@ import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.esa.snap.engine_utilities.gpf.TileGeoreferencing;
+import org.esa.snap.engine_utilities.gpf.TileIndex;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 import java.awt.*;
@@ -1671,12 +1672,20 @@ public class GSLCGeocodingOp extends Operator {
         final int xMax = x0 + rectangle.width;
         final int yMax = y0 + rectangle.height;
 
+        // ProductData + TileIndex instead of per-pixel Tile.getSampleDouble: this is called
+        // once per source-tile rectangle during resampling, so the inner-loop count is
+        // (rectWidth × rectHeight × 2 bands) — typically tens of millions per tile.
+        final ProductData dataI = tileI.getDataBuffer();
+        final ProductData dataQ = tileQ.getDataBuffer();
+        final TileIndex idx = new TileIndex(tileI);
         for (int y = y0; y < yMax; y++) {
+            idx.calculateStride(y);
             final int yy = y - y0;
             for (int x = x0; x < xMax; x++) {
                 final int xx = x - x0;
-                final double valueI = tileI.getSampleDouble(x, y);
-                final double valueQ = tileQ.getSampleDouble(x, y);
+                final int srcIdx = idx.getIndex(x);
+                final double valueI = dataI.getElemDoubleAt(srcIdx);
+                final double valueQ = dataQ.getElemDoubleAt(srcIdx);
                 final double cosPhase = FastMath.cos(derampDemodPhase[yy][xx]);
                 final double sinPhase = FastMath.sin(derampDemodPhase[yy][xx]);
                 derampedI[yy][xx] = valueI * cosPhase - valueQ * sinPhase;
@@ -2015,9 +2024,20 @@ public class GSLCGeocodingOp extends Operator {
             // where phi_az = 2π·f_dc(x_j)·y_i·dt.
             final boolean derampAz = (fdcPerSourceColumn != null);
             final double azPhaseScale = 2.0 * Math.PI * lineTimeIntervalSec;
+
+            // Resampling.Raster hot path: called once per output pixel during sinc
+            // interpolation, each call reads kernelSize² samples. Switch from per-pixel
+            // Tile.getSampleDouble (sample-model lookup + virtual dispatch per sample) to
+            // ProductData buffer + TileIndex stride math — ~5-10× faster per kernel.
+            final ProductData srcDataI = sourceTileI.getDataBuffer();
+            final ProductData srcDataQ = sourceTileQ.getDataBuffer();
+            final TileIndex srcIndex = new TileIndex(sourceTileI);
             for (int i = 0; i < y.length; i++) {
                 final int yi = y[i];
                 final boolean yInBounds = (yi >= ryMin && yi <= ryMax);
+                if (yInBounds) {
+                    srcIndex.calculateStride(yi);
+                }
 
                 // Compute phase for the first x sample in this row
                 double deltaX0 = (x[0] - centerRangeIndex) * sign;
@@ -2033,8 +2053,9 @@ public class GSLCGeocodingOp extends Operator {
                         cachedQ[i][j] = noDataValue;
                         allValid = false;
                     } else {
-                        final double iVal = sourceTileI.getSampleDouble(xj, yi);
-                        final double qVal = sourceTileQ.getSampleDouble(xj, yi);
+                        final int srcIdx = srcIndex.getIndex(xj);
+                        final double iVal = srcDataI.getElemDoubleAt(srcIdx);
+                        final double qVal = srcDataQ.getElemDoubleAt(srcIdx);
 
                         if (iVal == noDataValue || qVal == noDataValue) {
                             cachedI[i][j] = noDataValue;
