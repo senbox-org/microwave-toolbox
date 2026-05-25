@@ -28,7 +28,6 @@ import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -46,16 +45,10 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If any of the file does not exist: the test will be ignored
-            assumeTrue("Input file" + inputFile + " does not exist - Skipping test", inputFile.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // The synthetic-product tests in this class build their own input via
+    // createTestProduct(...) and do not depend on inputFile being present.
+    // Only the testProcessing() and testProcessAll*() integration tests need
+    // real product data; they gate themselves with assumeTrue at the top.
 
     private final OperatorSpi spi = new SpeckleFilterOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
@@ -321,11 +314,15 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
         band.readPixels(0, 0, 7, 7, floatValues, ProgressMonitor.NULL);
 
         // compare with expected outputs
+        // The previous baseline had a subtly different averaged local noise variance:
+        // Arrays.sort used `numSubArea - 1` as the (EXCLUSIVE) upper bound, so the
+        // last entry was never sorted in and could appear among the "5 smallest" by
+        // accident. Fixing the sort range slightly changes a handful of output pixels.
         final float[] expectedValues = {
                 117.125f, 115.6f, 108.98584f, 115.59759f, 111.30918f, 67.772064f, 77.42791f,
-                120.4f, 115.62569f, 107.23333f, 99.46982f, 102.80414f, 83.69684f, 79.332756f,
+                120.4f, 115.62569f, 107.23333f, 99.06635f, 102.80414f, 83.69684f, 79.332756f,
                 117.458336f, 115.96667f, 106.94328f, 122.64238f, 95.61863f, 80.35871f, 83.98103f,
-                118.21429f, 116.314285f, 108.13215f, 115.28595f, 97.82989f, 76.39517f, 85.19781f,
+                118.21429f, 118.61355f, 108.13215f, 115.28595f, 97.82989f, 76.00735f, 85.19781f,
                 118.5f, 116.052475f, 105.69444f, 118.22289f, 103.49728f, 76.28018f, 81.13954f,
                 120.008255f, 114.69612f, 106.46667f, 106.02027f, 98.75016f, 78.02842f, 85.9f,
                 121.4375f, 119.85731f, 107.083336f, 106.53835f, 97.693275f, 88.09068f, 83.8125f
@@ -416,6 +413,7 @@ public class SpeckleFilterOperatorTest extends ProcessorTest {
      */
     @Test
     public void testProcessing() throws Exception {
+        assumeTrue("Input file " + inputFile + " does not exist - skipping", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final SpeckleFilterOp op = (SpeckleFilterOp) spi.createOperator();

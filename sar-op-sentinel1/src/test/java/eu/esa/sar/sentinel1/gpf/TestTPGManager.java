@@ -127,13 +127,15 @@ public class TestTPGManager {
     }
 
     @Test
-    public void testRemoveAllTPGsDoesNotClearBurstArrays() {
+    public void testRemoveAllTPGsClearsBothMaps() {
         TPGManager.instance().setBurstIndexArray("IW1_VV", new int[] { 1, 2 });
         TPGManager.instance().setTPG("layer_b0", 2, 2, new float[4]);
 
         TPGManager.instance().removeAllTPGs();
 
-        // removeAllTPGs only clears the TPG map, not burst arrays — pin that contract.
-        assertNotNull(TPGManager.instance().getBurstIndexArray("IW1_VV"));
+        // removeAllTPGs() is the "wipe between runs" hook used by BackGeocodingOp; it must clear
+        // both maps or stale burst indices from a previous run leak into the next one.
+        assertNull(TPGManager.instance().getTPG("layer_b0"));
+        assertNull(TPGManager.instance().getBurstIndexArray("IW1_VV"));
     }
 }

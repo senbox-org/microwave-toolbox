@@ -420,24 +420,29 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
                 status.done();
                 executor.complete();
 
+                // Workers that threw exceptions skip the azShiftArray.add(...) — iterate over what's actually present
+                // rather than indexing 0..numShifts.
                 // todo The following simple average should be replaced by weighted average using coherence as weight
                 final double[] averagedAzShiftArray = new double[numOverlaps];
+                final int[] perOverlapCount = new int[numOverlaps];
                 double totalOffset = 0.0;
-                for (int i = 0; i < numOverlaps; i++) {
-                    double sumAzOffset = 0.0;
-                    for (int j = 0; j < numShifts; j++) {
-                        if (azShiftArray.get(j).overlapIndex == i) {
-                            sumAzOffset += azShiftArray.get(j).shift;
-                        }
+                int totalCount = 0;
+                for (AzimuthShiftData d : azShiftArray) {
+                    if (d.overlapIndex >= 0 && d.overlapIndex < numOverlaps) {
+                        averagedAzShiftArray[d.overlapIndex] += d.shift;
+                        perOverlapCount[d.overlapIndex]++;
+                        totalOffset += d.shift;
+                        totalCount++;
                     }
-                    averagedAzShiftArray[i] = sumAzOffset / numBlocksPerOverlap;
-                    totalOffset += sumAzOffset;
-
+                }
+                for (int i = 0; i < numOverlaps; i++) {
+                    averagedAzShiftArray[i] = perOverlapCount[i] == 0
+                            ? 0.0 : averagedAzShiftArray[i] / perOverlapCount[i];
                     SystemUtils.LOG.fine(
                             "AzimuthShiftOp: overlap area = " + i + ", azimuth offset = " + averagedAzShiftArray[i]);
                 }
 
-                final double azOffset = -totalOffset / numShifts;
+                final double azOffset = totalCount == 0 ? 0.0 : -totalOffset / totalCount;
                 SystemUtils.LOG.fine("AzimuthShiftOp: Overall azimuth shift = " + azOffset);
 
                 if (targetOffsetMap.get(key) == null) {
@@ -469,17 +474,21 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
 
     private double computeSpectralSeparation () {
 
-        final double tCycle =
-                subSwath[subSwathIndex - 1].linesPerBurst * subSwath[subSwathIndex - 1].azimuthTimeInterval;
-
+        // Burst cycle time is the burst length minus the overlap, not the full burst length.
+        // Matches SpectralDiversityOp.computeSpectralSeparation.
         double sumSpectralSeparation = 0.0;
+        long sampleCount = 0;
         for (int b = 0; b < subSwath[subSwathIndex - 1].numOfBursts; b++) {
+            final int overlapIdx = Math.min(b, subSwath[subSwathIndex - 1].numOfBursts - 2);
+            final int numOverlappedLines = overlapIdx >= 0 ? computeBurstOverlapSize(overlapIdx) : 0;
+            final double tCycle = (subSwath[subSwathIndex - 1].linesPerBurst - numOverlappedLines)
+                    * subSwath[subSwathIndex - 1].azimuthTimeInterval;
             for (int p = 0; p < subSwath[subSwathIndex - 1].samplesPerBurst; p++) {
                 sumSpectralSeparation += subSwath[subSwathIndex - 1].dopplerRate[b][p] * tCycle;
+                sampleCount++;
             }
         }
-        return sumSpectralSeparation / (subSwath[subSwathIndex - 1].numOfBursts *
-                subSwath[subSwathIndex - 1].samplesPerBurst);
+        return sampleCount == 0 ? 0.0 : sumSpectralSeparation / sampleCount;
     }
 
     private void getOverlappedRectangles(final int overlapIndex,

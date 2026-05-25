@@ -153,11 +153,27 @@ public interface SpeckleFilter {
      * @param noDataValue    Place holder for no data value.
      * @return mean The mean value.
      */
+    /**
+     * NaN-safe equality with the band's no-data sentinel. A bare `v == noDataValue` /
+     * `v != noDataValue` returns the wrong answer when the sentinel itself is NaN
+     * (NaN != NaN), letting NaN pixels leak into accumulators and silently corrupting
+     * mean/variance/ENL.
+     */
+    default boolean isNoData(final double v, final double noDataValue) {
+        if (Double.isNaN(v)) {
+            return true;
+        }
+        return Double.compare(v, noDataValue) == 0;
+    }
+
     default double getMeanValue(final double[] neighborValues, final int numSamples, final double noDataValue) {
 
+        if (numSamples <= 0) {
+            return noDataValue;
+        }
         double mean = 0.0;
         for (double v : neighborValues) {
-            if (v != noDataValue) {
+            if (!isNoData(v, noDataValue)) {
                 mean += v;
             }
         }
@@ -183,7 +199,7 @@ public interface SpeckleFilter {
         if (numSamples > 1) {
 
             for (double v : neighborValues) {
-                if (v != noDataValue) {
+                if (!isNoData(v, noDataValue)) {
                     final double diff = v - mean;
                     var += diff * diff;
                 }
@@ -228,7 +244,7 @@ public interface SpeckleFilter {
 
                     final double i = srcData1.getElemDoubleAt(idx);
                     final double q = srcData2.getElemDoubleAt(idx);
-                    if (i != noDataValue && q != noDataValue) {
+                    if (!isNoData(i, noDataValue) && !isNoData(q, noDataValue)) {
                         double v = i * i + q * q;
                         sum += v;
                         sum2 += v * v;
@@ -237,11 +253,14 @@ public interface SpeckleFilter {
                 }
             }
 
-            if (sum != 0.0 && sum2 > 0.0) {
+            if (numSamples > 0 && sum > 0.0 && sum2 > 0.0) {
                 final double m = sum / numSamples;
                 final double m2 = sum2 / numSamples;
                 final double mm = m * m;
-                enl = mm / (m2 - mm);
+                final double denom = m2 - mm;
+                if (denom > 0.0) {
+                    enl = mm / denom;
+                }
             }
 
         } else if (bandUnit != null && bandUnit == Unit.UnitType.INTENSITY) {
@@ -252,7 +271,7 @@ public interface SpeckleFilter {
                     final int idx = srcIndex.getIndex(x);
 
                     final double v = srcData1.getElemDoubleAt(idx);
-                    if (v != noDataValue) {
+                    if (!isNoData(v, noDataValue)) {
                         sum += v;
                         sum2 += v * v;
                         numSamples++;
@@ -260,11 +279,14 @@ public interface SpeckleFilter {
                 }
             }
 
-            if (sum != 0.0 && sum2 > 0.0) {
+            if (numSamples > 0 && sum > 0.0 && sum2 > 0.0) {
                 final double m = sum / numSamples;
                 final double m2 = sum2 / numSamples;
                 final double mm = m * m;
-                enl = mm / (m2 - mm);
+                final double denom = m2 - mm;
+                if (denom > 0.0) {
+                    enl = mm / denom;
+                }
             }
 
         } else {
@@ -275,7 +297,7 @@ public interface SpeckleFilter {
                     final int idx = srcIndex.getIndex(x);
 
                     final double v = srcData1.getElemDoubleAt(idx);
-                    if (v != noDataValue) {
+                    if (!isNoData(v, noDataValue)) {
                         final double v2 = v * v;
                         sum2 += v2;
                         sum4 += v2 * v2;
@@ -284,11 +306,14 @@ public interface SpeckleFilter {
                 }
             }
 
-            if (sum2 > 0.0 && sum4 > 0.0) {
+            if (numSamples > 0 && sum2 > 0.0 && sum4 > 0.0) {
                 final double m2 = sum2 / numSamples;
                 final double m4 = sum4 / numSamples;
                 final double m2m2 = m2 * m2;
-                enl = m2m2 / (m4 - m2m2);
+                final double denom = m4 - m2m2;
+                if (denom > 0.0) {
+                    enl = m2m2 / denom;
+                }
             }
         }
 
@@ -348,7 +373,7 @@ public interface SpeckleFilter {
                         final int idx = srcIndex.getIndex(xi);
                         final double I = srcData1.getElemDoubleAt(idx);
                         final double Q = srcData2.getElemDoubleAt(idx);
-                        if (I != noDataValue && Q != noDataValue) {
+                        if (!isNoData(I, noDataValue) && !isNoData(Q, noDataValue)) {
                             neighborPixelValues[j][i] = I * I + Q * Q;
                             numSamples++;
                         } else {
@@ -377,8 +402,10 @@ public interface SpeckleFilter {
                     } else {
                         final int idx = srcIndex.getIndex(xi);
                         neighborPixelValues[j][i] = srcData1.getElemDoubleAt(idx);
-                        if (neighborPixelValues[j][i] != noDataValue) {
+                        if (!isNoData(neighborPixelValues[j][i], noDataValue)) {
                             numSamples++;
+                        } else {
+                            neighborPixelValues[j][i] = noDataValue;
                         }
                     }
                 }

@@ -404,8 +404,8 @@ public class ALOSDeskewingOp extends Operator {
                 lon -= 360.0;
             }
 
-            final Double alt = dem.getElevation(new GeoPos(lat, lon));
-            if (alt.equals(demNoDataValue)) {
+            final double alt = dem.getElevation(new GeoPos(lat, lon));
+            if (Double.isNaN(alt) || alt == demNoDataValue) {
                 continue;
             }
 
@@ -579,7 +579,7 @@ public class ALOSDeskewingOp extends Operator {
         final double rz = rM[0][2] * x + rM[1][2] * y + rM[2][2] * z;
 
         final double re = GeoUtils.WGS84.a;
-        final double rp = re - re / GeoUtils.WGS84.b;
+        final double rp = GeoUtils.WGS84.b;
         final double re2 = re * re;
         final double rp2 = rp * rp;
         final double a = (rx * rx + ry * ry) / re2 + rz * rz / rp2;
@@ -679,10 +679,13 @@ public class ALOSDeskewingOp extends Operator {
      */
     private static double computeEarthRadius(final GeoPos geoPos) {
 
-        final double lat = geoPos.lat;
+        // geoPos.lat is in degrees; FastMath.sin/cos take radians.
+        final double latRad = geoPos.lat * Math.PI / 180.0;
         final double re = Constants.semiMajorAxis;
         final double rp = Constants.semiMinorAxis;
-        return (re * rp) / Math.sqrt(rp * rp * FastMath.cos(lat) * FastMath.cos(lat) + re * re * FastMath.sin(lat) * FastMath.sin(lat));
+        final double cosLat = FastMath.cos(latRad);
+        final double sinLat = FastMath.sin(latRad);
+        return (re * rp) / Math.sqrt(rp * rp * cosLat * cosLat + re * re * sinLat * sinLat);
     }
 
     public static class stateVector {

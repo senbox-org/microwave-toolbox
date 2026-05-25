@@ -153,13 +153,13 @@ public final class SARSimulationOp extends Operator {
     public final static String layoverShadowMaskBandName = "layover_shadow_mask";
 
     private MetadataElement absRoot = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private GeoCoding targetGeoCoding = null;
 
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
     private boolean srgrFlag = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
 
     private double rangeSpacing = 0.0;
     private double firstLineUTC = 0.0; // in days
@@ -633,7 +633,7 @@ public final class SARSimulationOp extends Operator {
 
                 final double[][] tileDEM = new double[nLat + 1][nLon + 1];
                 final double[][] neighbourDEM = new double[3][3];
-                Double alt;
+                double alt;
 
                 if (saveLayoverShadowMask) {
                     slrs = new double[nLon];
@@ -664,7 +664,7 @@ public final class SARSimulationOp extends Operator {
                         } else {
                             geoPos.setLocation(lat, lon);
                             alt = dem.getElevation(geoPos);
-                            if (alt.equals(demNoDataValue))
+                            if (Double.isNaN(alt) || alt == demNoDataValue)
                                 continue;
                         }
                         tileDEM[i][j] = alt;
@@ -793,9 +793,9 @@ public final class SARSimulationOp extends Operator {
 
                     for (int x = xmin; x < xmax; x++) {
                         final int xx = x - xmin;
-                        Double alt = localDEM[yy + 1][xx + 1];
+                        double alt = localDEM[yy + 1][xx + 1];
 
-                        if (alt.equals(demNoDataValue))
+                        if (Double.isNaN(alt) || alt == demNoDataValue)
                             continue;
 
                         tileGeoRef.getGeoPos(x, y, geoPos);

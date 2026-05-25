@@ -125,14 +125,14 @@ public final class TerrainFlatteningOp extends Operator {
     private boolean applyAPDCorrection = false;
 
     private Product newSourceProduct = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private FileElevationModel fileElevationModel = null;
     private TiePointGrid incidenceAngleTPG = null;
 
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
     private boolean srgrFlag = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
     private boolean isGRD = false;
     private boolean isPolSar = false;
 
@@ -595,9 +595,9 @@ public final class TerrainFlatteningOp extends Operator {
                 final double lat = latMax - i * demResolution;
                 for (int j = 0; j < cols; ++j) {
                     final double lon = lonMin + j * demResolution;
-                    Double alt = dem.getElevation(new GeoPos(lat, lon));
-                    if (alt.equals(demNoDataValue) && !nodataValueAtSea) { // get corrected elevation for 0
-                        alt = (double) egm.getEGM(lat, lon);
+                    double alt = dem.getElevation(new GeoPos(lat, lon));
+                    if ((Double.isNaN(alt) || alt == demNoDataValue) && !nodataValueAtSea) { // get corrected elevation for 0
+                        alt = egm.getEGM(lat, lon);
                     }
                     height[i][j] = alt;
                 }
@@ -633,8 +633,8 @@ public final class TerrainFlatteningOp extends Operator {
                     final double lon = lonMin + j * delta;
                     final double jRatio = j * ratio;
                     selectedResampling.computeCornerBasedIndex(jRatio, iRatio, cols, rows, resamplingIndex);
-                    final Double alt00 = selectedResampling.resample(resamplingRaster, resamplingIndex);
-                    if (Double.isNaN(alt00) || alt00.equals(demNoDataValue))
+                    final double alt00 = selectedResampling.resample(resamplingRaster, resamplingIndex);
+                    if (Double.isNaN(alt00) || alt00 == demNoDataValue)
                         continue;
 
                     posData.earthPoint = geo2xyzWGS84.getXYZ(lon, alt00);
@@ -938,6 +938,11 @@ public final class TerrainFlatteningOp extends Operator {
                                 }
                                 v = sourceData.getElemDoubleAt(srcIdx);
                                 targetData.setElemDoubleAt(tgtIdx, v / simVal);
+                            } else {
+                                // Foreshortening/layover region — simulated area is too small
+                                // for a reliable gamma0; write noDataValue rather than leaving
+                                // the float default 0.0 that downstream would mistake for valid.
+                                targetData.setElemDoubleAt(tgtIdx, noDataValue);
                             }
                         } else {
                             targetData.setElemDoubleAt(tgtIdx, noDataValue);
@@ -998,6 +1003,9 @@ public final class TerrainFlatteningOp extends Operator {
                                 simVal /= aBeta;
                                 v = sourceData.getElemDoubleAt(srcIdx);
                                 targetData.setElemDoubleAt(tgtIdx, v / simVal);
+                            } else {
+                                // Foreshortening/layover — write noData (see twin block above).
+                                targetData.setElemDoubleAt(tgtIdx, noDataValue);
                             }
                         } else {
                             targetData.setElemDoubleAt(tgtIdx, noDataValue);

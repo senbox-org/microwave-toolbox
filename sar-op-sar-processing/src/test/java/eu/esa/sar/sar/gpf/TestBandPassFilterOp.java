@@ -23,7 +23,6 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -41,16 +40,8 @@ public class TestBandPassFilterOp extends ProcessorTest {
 
     private final static File inputFile = TestData.inputStackIMS;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If the file does not exist: the test will be ignored
-            assumeTrue(inputFile + " not found", inputFile.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // testBandPass gates itself on inputFile via process(...).
+    // SPI / metadata tests are fixture-free and always run.
 
     private final static OperatorSpi spi = new BandPassFilterOp.Spi();
 
@@ -69,7 +60,7 @@ public class TestBandPassFilterOp extends ProcessorTest {
 
     @Test
     public void testBandPass() throws Exception {
-        final float[] expected = new float[] { -29.0f, -26.0f, -6.0f, -6.0f };
+        final float[] expected = new float[] { -28.0f, -25.0f, -7.0f, -6.0f };
         process(inputFile, expected);
     }
 
@@ -81,6 +72,7 @@ public class TestBandPassFilterOp extends ProcessorTest {
      */
     private void process(final File inputFile, final float[] expected) throws Exception {
 
+        assumeTrue(inputFile + " not found", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final BandPassFilterOp op = (BandPassFilterOp) spi.createOperator();

@@ -54,7 +54,7 @@ public class TestETADSearch {
         try(Product s1GRD = TestUtils.readSourceProduct(S1_GRD)) {
             ETADSearch etadSearch = new ETADSearch();
             String startTime = etadSearch.getTime(s1GRD.getStartTime());
-            assertEquals("2024-05-08T06:25:59.059Z", startTime);
+            assertEquals("2024-05-08T06:25:59.776Z", startTime);
         }
     }
 

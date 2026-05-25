@@ -188,6 +188,9 @@ public class GammaMap implements SpeckleFilter {
                 final double alpha = (1 + cu2) / (ci * ci - cu2);
                 final double b = alpha - enl - 1;
                 final double d = mean * mean * b * b + 4 * alpha * enl * mean * cp;
+                if (d < 0.0) {
+                    return cp;
+                }
                 return (b * mean + Math.sqrt(d)) / (2 * alpha);
             }
         }

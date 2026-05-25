@@ -254,7 +254,7 @@ public class GSLCGeocodingOp extends Operator {
     private boolean applyIonosphericCorrection = false;
 
     private MetadataElement absRoot = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private Band elevationBand = null;
     private Band simulatedPhaseBand = null;
     private Band simulatedUnwrappedPhaseBand = null;
@@ -262,7 +262,7 @@ public class GSLCGeocodingOp extends Operator {
     private GeoCoding targetGeoCoding = null;
 
     private boolean srgrFlag = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
 
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
@@ -1745,8 +1745,8 @@ public class GSLCGeocodingOp extends Operator {
 
                 tileGeoRef.getGeoPos(x, y, geoPos);
 
-                final Double alt = localDEM[y - y0 + 1][x - x0 + 1];
-                if (!alt.equals(demNoDataValue)) {
+                final double alt = localDEM[y - y0 + 1][x - x0 + 1];
+                if (!Double.isNaN(alt) && alt != demNoDataValue) {
                     if (getPosition(geoPos.lat, geoPos.lon, alt, posData)) {
                         if (xMax < posData.rangeIndex) {
                             xMax = (int) Math.ceil(posData.rangeIndex);

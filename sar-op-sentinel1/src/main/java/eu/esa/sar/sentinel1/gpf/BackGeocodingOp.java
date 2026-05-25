@@ -51,10 +51,7 @@ import org.esa.snap.engine_utilities.gpf.*;
 import org.jlinda.core.delaunay.TriangleInterpolator;
 
 import java.awt.*;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.text.DateFormat;
 import java.util.*;
 import java.util.List;
@@ -181,13 +178,6 @@ public final class BackGeocodingOp extends Operator {
                     continue;
                 secondaryDataList.add(new SecondaryData(product));
             }
-
-            /*
-            outputToFile("c:\\output\\mSensorPosition.dat", mSU.getOrbit().sensorPosition);
-            outputToFile("c:\\output\\mSensorVelocity.dat", mSU.getOrbit().sensorVelocity);
-            outputToFile("c:\\output\\sSensorPosition.dat", sSU.getOrbit().sensorPosition);
-            outputToFile("c:\\output\\sSensorVelocity.dat", sSU.getOrbit().sensorVelocity);
-            */
 
             final String[] mSubSwathNames = mSU.getSubSwathNames();
             final String[] mPolarizations = mSU.getPolarizations();
@@ -395,8 +385,11 @@ public final class BackGeocodingOp extends Operator {
                 targetProduct.removeTiePointGrid(tgtTPG);
             }
 
-            tpgMst.setName(tpgMst.getName() + refSuffix);
-            targetProduct.addTiePointGrid(tpgMst.cloneTiePointGrid());
+            // Clone first, then rename the clone — mutating the source's TPG name in place corrupted
+            // the input product and made the operator non-idempotent (suffix was appended on every rerun).
+            final TiePointGrid clone = tpgMst.cloneTiePointGrid();
+            clone.setName(tpgName + refSuffix);
+            targetProduct.addTiePointGrid(clone);
         }
     }
 
@@ -404,8 +397,7 @@ public final class BackGeocodingOp extends Operator {
 
         for (String tpgName : tgtSlvTPGList) {
             final TiePointGrid tpg = TPGManager.instance().getTPG(tpgName);
-            final TiePointGrid tpgSaved = TPGManager.instance().getTPG(tpgName);
-            if (tpgSaved == null) {
+            if (tpg == null) {
                 continue;
             }
 
@@ -415,7 +407,7 @@ public final class BackGeocodingOp extends Operator {
                 targetProduct.removeTiePointGrid(oldTPG);
             }
             targetProduct.addTiePointGrid(new TiePointGrid(tpgName, tpg.getGridWidth(), tpg.getGridHeight(),
-                    0, 0, 1, 1, tpgSaved.getTiePoints()));
+                    0, 0, 1, 1, tpg.getTiePoints()));
         }
     }
 
@@ -817,25 +809,6 @@ public final class BackGeocodingOp extends Operator {
 
     //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    private static void outputToFile(final String filePath, double[][] fbuf) throws IOException {
-
-        try{
-            FileOutputStream fos = new FileOutputStream(filePath);
-            DataOutputStream dos = new DataOutputStream(fos);
-
-            for (double[] aFbuf : fbuf) {
-                for (int j = 0; j < fbuf[0].length; j++) {
-                    dos.writeDouble(aFbuf[j]);
-                }
-            }
-            //dos.flush();
-            dos.close();
-            fos.close();
-        }catch(Exception e){
-            e.printStackTrace();
-        }
-    }
-
     /**
      * Check source product validity.
      */
@@ -891,6 +864,12 @@ public final class BackGeocodingOp extends Operator {
 
                 targetBand.setUnit(srcBand.getUnit());
                 targetBand.setDescription(srcBand.getDescription());
+                if (srcBand.isNoDataValueUsed()) {
+                    targetBand.setNoDataValue(srcBand.getNoDataValue());
+                } else {
+                    targetBand.setNoDataValue(noDataValue);
+                }
+                targetBand.setNoDataValueUsed(true);
                 targetProduct.addBand(targetBand);
 
             } else {
@@ -916,6 +895,8 @@ public final class BackGeocodingOp extends Operator {
                     referenceBandHeight);
 
             refPhaseBand.setUnit("radian");
+            refPhaseBand.setNoDataValue(Double.NaN);
+            refPhaseBand.setNoDataValueUsed(true);
             targetProduct.addBand(refPhaseBand);
         }
 
@@ -938,10 +919,10 @@ public final class BackGeocodingOp extends Operator {
 
                 targetBand.setUnit(srcBand.getUnit());
                 targetBand.setDescription(srcBand.getDescription());
-                if (maskOutAreaWithoutElevation) {
-                    targetBand.setNoDataValueUsed(true);
-                    targetBand.setNoDataValue(noDataValue);
-                }
+                // performInterpolation writes `noDataValue` for invalid positions regardless of maskOutAreaWithoutElevation,
+                // so the no-data flag must always be set or downstream operators treat the sentinel as real data.
+                targetBand.setNoDataValueUsed(true);
+                targetBand.setNoDataValue(noDataValue);
                 targetProduct.addBand(targetBand);
                 targetBandToSecondaryBandMap.put(targetBand, srcBand);
 
@@ -963,6 +944,8 @@ public final class BackGeocodingOp extends Operator {
                         referenceBandHeight);
 
                 azOffsetBand.setUnit("Index");
+                azOffsetBand.setNoDataValue(Double.NaN);
+                azOffsetBand.setNoDataValueUsed(true);
                 targetProduct.addBand(azOffsetBand);
 
                 final Band rgOffsetBand = new Band(
@@ -972,6 +955,8 @@ public final class BackGeocodingOp extends Operator {
                         referenceBandHeight);
 
                 rgOffsetBand.setUnit("Index");
+                rgOffsetBand.setNoDataValue(Double.NaN);
+                rgOffsetBand.setNoDataValueUsed(true);
                 targetProduct.addBand(rgOffsetBand);
             }
 
@@ -983,6 +968,8 @@ public final class BackGeocodingOp extends Operator {
                         referenceBandHeight);
 
                 secPhaseBand.setUnit("radian");
+                secPhaseBand.setNoDataValue(Double.NaN);
+                secPhaseBand.setNoDataValueUsed(true);
                 targetProduct.addBand(secPhaseBand);
             }
             ++i;
@@ -999,6 +986,8 @@ public final class BackGeocodingOp extends Operator {
                     referenceBandHeight);
 
             elevBand.setUnit(Unit.METERS);
+            elevBand.setNoDataValue(demNoDataValue);
+            elevBand.setNoDataValueUsed(true);
             targetProduct.addBand(elevBand);
         }
     }
@@ -1131,7 +1120,8 @@ public final class BackGeocodingOp extends Operator {
                 demSamplingLon = demSamplingLat;
             }
         } catch (Throwable t) {
-            SystemUtils.LOG.severe("Unable to get elevation model: " + t.getMessage());
+            // Do NOT flag the DEM as available — downstream callers dereference `dem` and would NPE silently.
+            throw new OperatorException("Unable to load elevation model '" + demName + "': " + t.getMessage(), t);
         }
         isElevationModelAvailable = true;
     }
@@ -1205,7 +1195,9 @@ public final class BackGeocodingOp extends Operator {
             burstOffsetComputed = true;
 
         } catch (Throwable t) {
-            t.printStackTrace();
+            // Previously swallowed via printStackTrace(); that left burstOffsetComputed=false and the next
+            // invocation re-ran the same broken computation. Surface as an OperatorException instead.
+            throw new OperatorException("computeBurstOffset failed: " + t.getMessage(), t);
         }
     }
 
@@ -1807,7 +1799,8 @@ public final class BackGeocodingOp extends Operator {
             final Band qBand = getTargetBand("q_", refSuffix, polarization);
 
             if (iBand == null || qBand == null) {
-                throw new OperatorException("Unable to find " + iBand.getName() +" or "+ qBand.getName());
+                throw new OperatorException("Unable to find reference target band i_/q_ with suffix '" + refSuffix +
+                        "' for polarization " + polarization);
             }
 
             final Tile tgtTileI = targetTileMap.get(iBand);
@@ -1862,7 +1855,8 @@ public final class BackGeocodingOp extends Operator {
             final Band qBand = getTargetBand("q_", secondaryData.secSuffix, polarization);
 
             if (iBand == null || qBand == null) {
-                throw new OperatorException("Unable to find " + iBand.getName() +" or "+ qBand.getName());
+                throw new OperatorException("Unable to find secondary target band i_/q_ with suffix '" +
+                        secondaryData.secSuffix + "' for polarization " + polarization);
             }
 
             final Tile tgtTileI = targetTileMap.get(iBand);

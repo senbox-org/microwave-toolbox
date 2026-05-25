@@ -54,7 +54,13 @@ import java.util.List;
  */
 public class ArcDataIntegration {
 
-    public static boolean referenceNodeIsLast = false;
+    /**
+     * Whether the reference node is the highest-valued node in `arcs` (true) or the lowest (false).
+     *
+     * Public-static for backwards compatibility with existing tests; production code does not write this.
+     * Volatile so changes by one thread are visible to others (e.g. parallel test runs that flip the flag).
+     */
+    public static volatile boolean referenceNodeIsLast = false;
 
     /**
      * Integrates arc data to node data using weighted least squares (L2 norm).

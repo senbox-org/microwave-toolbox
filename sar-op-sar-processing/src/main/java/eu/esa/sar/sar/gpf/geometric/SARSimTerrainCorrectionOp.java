@@ -195,13 +195,13 @@ public class SARSimTerrainCorrectionOp extends Operator {
 
     private ProductNodeGroup<Placemark> masterGCPGroup = null;
     private MetadataElement absRoot = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private String demResamplingMethod;
 
     private boolean srgrFlag = false;
     private boolean saveLayoverShadowMask = false;
     private boolean saveIncidenceAngleFromEllipsoid = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
     private boolean usePreCalibrationOp = false;
     private boolean warpDataAvailable = false;
     private boolean fileOutput = false;
@@ -961,7 +961,9 @@ public class SARSimTerrainCorrectionOp extends Operator {
         final RangeDopplerGeocodingOp.TileData[] trgTiles = trgTileList.toArray(new RangeDopplerGeocodingOp.TileData[0]);
         final TileGeoreferencing tileGeoRef = new TileGeoreferencing(targetProduct, x0 - 1, y0 - 1, w + 2, h + 2);
 
-        int diffLat = Math.abs(latitude.getPixelInt(0, 0) - latitude.getPixelInt(0, targetImageHeight));
+        // Last valid row is targetImageHeight - 1, not targetImageHeight. Use max(1, abs)
+        // so small scenes (<1°) don't get diffLat == 0 and skip the latitude boundary check.
+        int diffLat = Math.max(1, Math.abs(latitude.getPixelInt(0, 0) - latitude.getPixelInt(0, targetImageHeight - 1)));
 
         try {
             final double[][] localDEM = new double[h + 2][w + 2];
@@ -982,9 +984,9 @@ public class SARSimTerrainCorrectionOp extends Operator {
 
                     final int index = trgTiles[0].targetTile.getDataBufferIndex(x, y);
 
-                    final Double alt = localDEM[yy][x - x0 + 1];
+                    final double alt = localDEM[yy][x - x0 + 1];
 
-                    if (!useAvgSceneHeight && alt.equals(demNoDataValue)) {
+                    if (!useAvgSceneHeight && (Double.isNaN(alt) || alt == demNoDataValue)) {
                         if (saveDEM) {
                             demBuffer.setElemDoubleAt(index, demNoDataValue);
                         }
