@@ -13,7 +13,6 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -30,16 +29,8 @@ public class TestUpdateGeoRef extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If the file does not exist: the test will be ignored
-            assumeTrue(inputFile + " not found", inputFile.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // testProcessing gates itself on inputFile;
+    // testProcessAllALOS scans its own roots and skips via TestProcessor.
 
     private final static OperatorSpi spi = new UpdateGeoRefOp.Spi();
 
@@ -53,6 +44,7 @@ public class TestUpdateGeoRef extends ProcessorTest {
     @Test
     @STTM("SNAP-3719")
     public void testProcessing() throws Exception {
+        assumeTrue(inputFile + " not found", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final UpdateGeoRefOp op = (UpdateGeoRefOp) spi.createOperator();

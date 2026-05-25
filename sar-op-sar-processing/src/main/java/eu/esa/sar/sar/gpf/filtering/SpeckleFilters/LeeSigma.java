@@ -463,9 +463,14 @@ public class LeeSigma implements SpeckleFilter {
         final int sh = sourceRectangle.height;
         final int maxY = sy0 + sh;
         final int maxX = sx0 + sw;
-        final int z98Index = (int) (sw * sh * 0.98) - 1;
+        // Clamp to [0, sw*sh - 1] so 1×1 / 2×2 partial-edge tiles can't underflow to -1.
+        final int total = sw * sh;
+        if (total <= 0) {
+            return noDataValue;
+        }
+        final int z98Index = Math.max(0, Math.min(total - 1, (int) (total * 0.98) - 1));
 
-        double[] pixelValues = new double[sw * sh];
+        double[] pixelValues = new double[total];
         int k = 0;
         for (int y = sy0; y < maxY; y++) {
             srcIndex.calculateStride(y);

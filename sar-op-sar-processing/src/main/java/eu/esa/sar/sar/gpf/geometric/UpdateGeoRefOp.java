@@ -100,7 +100,7 @@ public final class UpdateGeoRefOp extends Operator {
     boolean orbitMethod = false;
 
     private MetadataElement absRoot = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private GeoCoding sourceGeoCoding = null;
     private SLCImage meta = null;
     private Orbit jOrbit = null;
@@ -109,7 +109,7 @@ public final class UpdateGeoRefOp extends Operator {
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
     private boolean srgrFlag = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
     private boolean nearRangeOnLeft = true;
 
     private double demNoDataValue = 0; // no data value for DEM
@@ -127,7 +127,7 @@ public final class UpdateGeoRefOp extends Operator {
     private OrbitStateVector[] orbitStateVectors = null;
     private AbstractMetadata.SRGRCoefficientList[] srgrConvParams = null;
 
-    private static Double noDataValue = -999.0;
+    private static final double noDataValue = -999.0;
     public static String LATITUDE_BAND_NAME = "lat_band";
     public static String LONGITUDE_BAND_NAME = "lon_band";
 
@@ -436,7 +436,7 @@ public final class UpdateGeoRefOp extends Operator {
                 final int nLon = (int) ((lonMax - lonMin) / delLon) + 1;
 
                 final double[][] tileDEM = new double[nLat + 1][nLon + 1];
-                Double alt;
+                double alt;
 
                 for (int i = 0; i < nLat; i++) {
                     final double lat = latMin + i * delLat;
@@ -447,7 +447,7 @@ public final class UpdateGeoRefOp extends Operator {
                         }
                         geoPos.setLocation(lat, lon);
                         alt = dem.getElevation(geoPos);
-                        if (alt.equals(demNoDataValue)) {
+                        if (Double.isNaN(alt) || alt == demNoDataValue) {
                             continue;
                         }
 
@@ -485,9 +485,9 @@ public final class UpdateGeoRefOp extends Operator {
 
                     for (int x = x0; x < xmax; x++) {
                         final int xx = x - x0;
-                        Double alt = localDEM[yy + 1][xx + 1];
+                        double alt = localDEM[yy + 1][xx + 1];
 
-                        if (alt.equals(demNoDataValue)) {
+                        if (Double.isNaN(alt) || alt == demNoDataValue) {
                             continue;
                         }
 
@@ -534,13 +534,13 @@ public final class UpdateGeoRefOp extends Operator {
                     final int xx = x - x0;
                     final int index = trgIndex.getIndex(x);
 
-                    if (noDataValue.equals(latArray[yy][xx])) {
+                    if (latArray[yy][xx] == noDataValue) {
                         latData.setElemDoubleAt(index, fillHole(xx, yy, latArray));
                     } else {
                         latData.setElemDoubleAt(index, latArray[yy][xx]);
                     }
 
-                    if (noDataValue.equals(lonArray[yy][xx])) {
+                    if (lonArray[yy][xx] == noDataValue) {
                         lonData.setElemDoubleAt(index, fillHole(xx, yy, lonArray));
                     } else {
                         lonData.setElemDoubleAt(index, lonArray[yy][xx]);

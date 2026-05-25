@@ -228,6 +228,12 @@ public class IDAN implements SpeckleFilter {
             }
         }
 
+        if (k == 0) {
+            // Entire 3x3 is no-data — there is no valid seed; signal upstream by
+            // returning the band's no-data sentinel so divisions in region growing
+            // are skipped (callers must check before dividing by seed).
+            return noDataValue;
+        }
         Arrays.sort(validSamples, 0, k);
 
         return validSamples[k / 2];
@@ -250,6 +256,12 @@ public class IDAN implements SpeckleFilter {
     private Pix[] getIDANPixels(final int xc, final int yc, final int sx0, final int sy0, final int sw, final int sh,
                                 final double[][] srcTileIntensity, final double noDataValue,
                                 final double seed) {
+
+        // If the 3x3 around (xc,yc) was all no-data, regionGrowing's relative test
+        // `(v - seed) / seed` is undefined; return the single-pixel fallback.
+        if (Double.compare(seed, noDataValue) == 0 || seed == 0.0) {
+            return new Pix[]{new Pix(xc, yc)};
+        }
 
         // 1st run of region growing with IDAN50 threshold and initial seed, qualified pixel goes to anPixelList,
         // non-qualified pixel goes to "background pixels" list

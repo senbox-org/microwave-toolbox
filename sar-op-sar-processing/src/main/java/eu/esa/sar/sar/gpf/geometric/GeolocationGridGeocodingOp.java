@@ -345,8 +345,12 @@ public final class GeolocationGridGeocodingOp extends Operator {
 
         try {
             final ProductData trgData = targetTile.getDataBuffer();
-            final int srcMaxRange = sourceImageWidth - 1;
-            final int srcMaxAzimuth = sourceImageHeight - 1;
+            // Exclusive upper bounds: the previous values (sourceImageWidth - 1 /
+            // sourceImageHeight - 1) combined with `>=` rejected the entire last
+            // column / row of the source as out-of-range, producing a 1-pixel
+            // black strip on the far edge of every geocoded product.
+            final int srcMaxRange = sourceImageWidth;
+            final int srcMaxAzimuth = sourceImageHeight;
             final GeoPos geoPos = new GeoPos();
             final PixelPos pixPos = new PixelPos();
             for (int y = y0; y < y0 + h; y++) {

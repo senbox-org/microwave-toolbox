@@ -359,7 +359,8 @@ public class RefinedLee implements SpeckleFilter {
         final double meanY = getMeanValue(pixels, pixels.length, noDataValue);
         final double varY = getVarianceValue(pixels, pixels.length, meanY, noDataValue);
         if (varY == 0.0) {
-            return 0.0;
+            // Constant region: return the local mean, not a black hole.
+            return meanY;
         }
         final double sigmaV = getLocalNoiseVarianceValue(neighborPixelValues, noDataValue);
         double varX = (varY - meanY * meanY * sigmaV) / (1 + sigmaV);
@@ -414,7 +415,8 @@ public class RefinedLee implements SpeckleFilter {
         if (numSubArea < 1) {
             return 0.0;
         }
-        Arrays.sort(subAreaVariances, 0, numSubArea - 1);
+        // Arrays.sort toIndex is EXCLUSIVE; pass numSubArea so the last entry is sorted in.
+        Arrays.sort(subAreaVariances, 0, numSubArea);
         final int numSubAreaForAvg = Math.min(5, numSubArea);
         double avg = 0.0;
         for (int n = 0; n < numSubAreaForAvg; n++) {

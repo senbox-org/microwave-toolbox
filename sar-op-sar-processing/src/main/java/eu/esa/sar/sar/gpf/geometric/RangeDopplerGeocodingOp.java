@@ -223,13 +223,13 @@ public class RangeDopplerGeocodingOp extends Operator {
     private File externalAuxFile = null;
 
     private MetadataElement absRoot = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private Band elevationBand = null;
     private double demNoDataValue = 0.0f; // no data value for DEM
     private GeoCoding targetGeoCoding = null;
 
     private boolean srgrFlag = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
     private boolean usePreCalibrationOp = false;
 
     private int sourceImageWidth = 0;
@@ -263,8 +263,8 @@ public class RangeDopplerGeocodingOp extends Operator {
 
     boolean useAvgSceneHeight = false;
     private Calibrator calibrator = null;
-    private boolean orthoDataProduced = false;  // check if any ortho data is actually produced
-    private boolean processingStarted = false;
+    private volatile boolean orthoDataProduced = false;  // check if any ortho data is actually produced
+    private volatile boolean processingStarted = false;
     private boolean isPolsar = false;
 
     private boolean nearRangeOnLeft = true; // temp fix for descending Radarsat2
@@ -999,17 +999,24 @@ public class RangeDopplerGeocodingOp extends Operator {
 
             final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
 
-            final GeoPos posFirst = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0,0), null);
-            final GeoPos posLast = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0,targetImageHeight), null);
-            int diffLat = (int)Math.abs(posFirst.lat - posLast.lat);
+            final GeoPos posFirst = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0, 0), null);
+            // Use targetImageHeight - 1 (the last valid row), not targetImageHeight (one past).
+            final GeoPos posLast = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0, targetImageHeight - 1), null);
+            // Ceil instead of truncate so small scenes (<1°) get diffLat >= 1 and the boundary
+            // check in isValidCell sees a non-zero latitude span.
+            int diffLat = (int) Math.ceil(Math.abs(posFirst.lat - posLast.lat));
+            if (diffLat < 1) {
+                diffLat = 1;
+            }
 
             for (int y = y0; y < maxY; y++) {
                 final int yy = y - y0 + 1;
                 for (int x = x0; x < maxX; x++) {
                     final int index = tgtTiles[0].targetTile.getDataBufferIndex(x, y);
 
-                    Double alt = localDEM[yy][x - x0 + 1];
-                    if (alt.equals(demNoDataValue) && !useAvgSceneHeight) {
+                    double alt = localDEM[yy][x - x0 + 1];
+                    final boolean altIsNoData = Double.isNaN(alt) || alt == demNoDataValue;
+                    if (altIsNoData && !useAvgSceneHeight) {
                         if (nodataValueAtSea) {
                             saveNoDataValueToTarget(index, tgtTiles, demBuffer);
                             continue;
@@ -1023,8 +1030,8 @@ public class RangeDopplerGeocodingOp extends Operator {
                         lon -= 360.0;
                     }
 
-                    if (alt.equals(demNoDataValue) && !nodataValueAtSea) { // get corrected elevation for 0
-                        alt = (double) egm.getEGM(lat, lon);
+                    if (altIsNoData && !nodataValueAtSea) { // get corrected elevation for 0
+                        alt = egm.getEGM(lat, lon);
                     }
 
                     if (!getPosition(lat, lon, alt, posData)) {
@@ -1190,8 +1197,8 @@ public class RangeDopplerGeocodingOp extends Operator {
 
                             for (int x = x0; x < xMax; ++x) {
                                 final int xx = x - x0;
-                                Double alt = localDEM[yy + 1][xx + 1];
-                                if (alt.equals(demNoDataValue))
+                                double alt = localDEM[yy + 1][xx + 1];
+                                if (Double.isNaN(alt) || alt == demNoDataValue)
                                     continue;
 
                                 tileGeoRef.getGeoPos(x, y, geoPos);
@@ -1438,8 +1445,8 @@ public class RangeDopplerGeocodingOp extends Operator {
 
                 tileGeoRef.getGeoPos(new PixelPos(x, y), geoPos);
 
-                final Double alt = localDEM[y - y0 + 1][x - x0 + 1];
-                if (alt.equals(demNoDataValue)) {
+                final double alt = localDEM[y - y0 + 1][x - x0 + 1];
+                if (Double.isNaN(alt) || alt == demNoDataValue) {
                     continue;
                 }
 
@@ -1730,7 +1737,7 @@ public class RangeDopplerGeocodingOp extends Operator {
 
                     final int index = sourceTileI.getDataBufferIndex(x[j], y[i]);
                     double v = dataBufferI.getElemDoubleAt(index);
-                    if (tileData.noDataValue != 0 && (v == tileData.noDataValue)) {
+                    if (Double.isNaN(v) || v == tileData.noDataValue) {
                         samples[i][j] = tileData.noDataValue;
                         allValid = false;
                         continue;
@@ -1741,7 +1748,7 @@ public class RangeDopplerGeocodingOp extends Operator {
                     if (tileData.computeIntensity) {
 
                         final double vq = dataBufferQ.getElemDoubleAt(index);
-                        if (tileData.noDataValue != 0 && vq == tileData.noDataValue) {
+                        if (Double.isNaN(vq) || vq == tileData.noDataValue) {
                             samples[i][j] = tileData.noDataValue;
                             allValid = false;
                             continue;

@@ -33,7 +33,6 @@ import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -53,19 +52,8 @@ public class TestRangeDopplerOp extends ProcessorTest {
     private final static File inputFile3 = TestData.inputASAR_IMS;
     private final static File inputFile4 = TestData.inputASAR_APM;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If any of the file does not exist: the test will be ignored
-            assumeTrue(inputFile1 + " not found", inputFile1.exists());
-            assumeTrue(inputFile2 + " not found", inputFile2.exists());
-            assumeTrue(inputFile3 + " not found", inputFile3.exists());
-            assumeTrue(inputFile4 + " not found", inputFile4.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // Per-test methods gate themselves on the specific inputFile they use;
+    // testProcessAll* scan their own roots and skip via TestProcessor.
 
     private final static OperatorSpi spi = new RangeDopplerGeocodingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
@@ -82,6 +70,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessWSM() throws Exception {
+        assumeTrue(inputFile1 + " not found", inputFile1.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
 
             final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
@@ -111,6 +100,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
 
     @Test
     public void testGetLocalDEM() throws Exception {
+        assumeTrue(inputFile2 + " not found", inputFile2.exists());
 
         final ProductReader reader = ProductIO.getProductReaderForInput(inputFile2);
         try(final Product sourceProduct = reader.readProductNodes(inputFile2, null)) {
@@ -142,6 +132,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessIMS() throws Exception {
+        assumeTrue(inputFile3 + " not found", inputFile3.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile3)) {
 
             final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
@@ -175,6 +166,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessAPM() throws Exception {
+        assumeTrue(inputFile4 + " not found", inputFile4.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile4)) {
 
             final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();

@@ -147,7 +147,7 @@ public class SpeckleFilterOp extends Operator {
      *
      * @param s The filter name.
      */
-    public void SetFilter(String s) {
+    public void setFilter(String s) {
 
         if (s.equals(BOXCAR_SPECKLE_FILTER) ||
                 s.equals(MEDIAN_SPECKLE_FILTER) ||
@@ -164,6 +164,12 @@ public class SpeckleFilterOp extends Operator {
         } else {
             throw new OperatorException(s + " is an invalid filter name.");
         }
+    }
+
+    /** @deprecated use {@link #setFilter(String)} (camelCase). */
+    @Deprecated
+    public void SetFilter(String s) {
+        setFilter(s);
     }
 
     /**

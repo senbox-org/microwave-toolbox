@@ -135,6 +135,15 @@ public class TestSpeckleFilter {
         assertEquals(0.0, var, 1e-12);
     }
 
+    @Test
+    public void testGetMeanValueWithZeroSamplesReturnsNoData() {
+        // When the neighborhood is entirely no-data the implementation must return
+        // the no-data placeholder, not NaN (which would be the result of mean/=0).
+        final double[] values = { -9999.0, -9999.0, -9999.0 };
+        final double mean = FILTER.getMeanValue(values, /*numSamples*/ 0, /*noData*/ -9999.0);
+        assertEquals(-9999.0, mean, 0.0);
+    }
+
     // ---------- computeMMSEWeight ----------
 
     @Test
