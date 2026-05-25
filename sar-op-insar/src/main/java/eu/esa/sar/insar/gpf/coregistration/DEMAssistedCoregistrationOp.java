@@ -104,8 +104,8 @@ public final class DEMAssistedCoregistrationOp extends Operator {
     private Product[] secondaryProducts;
     private Metadata refMetadata = new Metadata();
     private Metadata[] secMetadatas;
-    private ElevationModel dem = null;
-    private boolean isElevationModelAvailable = false;
+    private volatile ElevationModel dem = null;
+    private volatile boolean isElevationModelAvailable = false;
     private double demNoDataValue = 0; // no data value for DEM
     private double noDataValue = 0.0;
     private GeoCoding targetGeoCoding = null;

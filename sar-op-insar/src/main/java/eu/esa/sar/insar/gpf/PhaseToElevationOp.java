@@ -448,8 +448,15 @@ public final class PhaseToElevationOp extends Operator {
         c = -b;
         d = numSeeds;
 
-        refHeight = (a * f - c * e) / (a * d - c * b);
-        refPhase = (e * d - b * f) / (a * d - c * b);
+        final double denom = a * d - c * b;
+        if (numSeeds == 0 || denom == 0.0 || Double.isNaN(denom) || Double.isInfinite(denom)) {
+            throw new OperatorException("PhaseToElevation: cannot solve for reference height/phase. "
+                    + "No valid seeds (numSeeds=" + numSeeds + ") or degenerate geometry "
+                    + "(all seeds share the same flat-Earth angle).");
+        }
+
+        refHeight = (a * f - c * e) / denom;
+        refPhase = (e * d - b * f) / denom;
 
         refHeightPhaseComputed = true;
     }
@@ -543,8 +550,11 @@ public final class PhaseToElevationOp extends Operator {
         }
 
         public int compareTo(SeedRecord record) {
-            double slopeCmp = slope - record.slope;
-            return (slopeCmp < 0 ? -1 : +1);
+            // Use Double.compare to honour the Comparator contract (returns 0 for equal,
+            // handles NaN/-0.0/+0.0 deterministically). The previous implementation
+            // returned +1 for equal slopes, which makes Collections.sort throw
+            // "Comparison method violates its general contract" on TimSort.
+            return Double.compare(slope, record.slope);
         }
     }
 

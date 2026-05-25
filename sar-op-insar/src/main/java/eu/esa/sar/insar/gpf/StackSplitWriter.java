@@ -144,15 +144,18 @@ public class StackSplitWriter extends Operator {
 
         // update band name
         for(Band trgBand : subsetInfo.subsetProduct.getBands()) {
-            final String newBandName = StackUtils.getBandNameWithoutDate(trgBand.getName());
-            subsetInfo.newBandNamingMap.put(newBandName, trgBand.getName());
+            // Capture the original name BEFORE the rename — afterwards trgBand.getName()
+            // returns newBandName and the expression rewrite below would be a no-op.
+            final String oldBandName = trgBand.getName();
+            final String newBandName = StackUtils.getBandNameWithoutDate(oldBandName);
+            subsetInfo.newBandNamingMap.put(newBandName, oldBandName);
             trgBand.setName(newBandName);
 
             // update virtual band expressions
             for(Band vBand : subsetInfo.subsetProduct.getBands()) {
                 if(vBand instanceof VirtualBand) {
                     final VirtualBand virtBand = (VirtualBand)vBand;
-                    String expression = virtBand.getExpression().replaceAll(trgBand.getName(), newBandName);
+                    final String expression = virtBand.getExpression().replace(oldBandName, newBandName);
                     virtBand.setExpression(expression);
                 }
             }

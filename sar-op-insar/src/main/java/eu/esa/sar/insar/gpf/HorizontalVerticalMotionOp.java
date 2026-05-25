@@ -258,11 +258,31 @@ public class HorizontalVerticalMotionOp extends Operator {
             return;
         }
 
-        final Rectangle rectangle = new Rectangle(refPixelX - 5, refPixelY - 5, 10, 10);
+        final int rasterWidth = unwrappedPhaseDsc.getRasterWidth();
+        final int rasterHeight = unwrappedPhaseDsc.getRasterHeight();
+        if (refPixelX <= 0 && refPixelY <= 0) {
+            throw new OperatorException("Reference pixel (X,Y) must be set to a valid in-scene location; "
+                    + "the default (0,0) reads the scene corner, which is typically no-data. "
+                    + "Set Reference X / Reference Y to a stable point on coherent ground.");
+        }
+        if (refPixelX < 0 || refPixelX >= rasterWidth || refPixelY < 0 || refPixelY >= rasterHeight) {
+            throw new OperatorException("Reference pixel (" + refPixelX + "," + refPixelY + ") is outside the scene "
+                    + rasterWidth + "x" + rasterHeight + ".");
+        }
+        // Clamp the requested window to the raster so we don't request negative coordinates.
+        final int x0 = Math.max(0, refPixelX - 5);
+        final int y0 = Math.max(0, refPixelY - 5);
+        final int w = Math.min(refPixelX + 5, rasterWidth - 1) - x0 + 1;
+        final int h = Math.min(refPixelY + 5, rasterHeight - 1) - y0 + 1;
+        final Rectangle rectangle = new Rectangle(x0, y0, w, h);
         final Tile unwrappedPhaseTileDsc = getSourceTile(unwrappedPhaseDsc, rectangle);
         final Tile unwrappedPhaseTileAsc = getSourceTile(unwrappedPhaseAsc, rectangle);
         refOffsetDsc = unwrappedPhaseTileDsc.getSampleDouble(refPixelX, refPixelY);
         refOffsetAsc = unwrappedPhaseTileAsc.getSampleDouble(refPixelX, refPixelY);
+        if (Double.isNaN(refOffsetDsc) || Double.isNaN(refOffsetAsc)) {
+            throw new OperatorException("Reference pixel (" + refPixelX + "," + refPixelY + ") sampled to NaN; "
+                    + "pick a pixel where both ascending and descending unwrapped phases are valid.");
+        }
 
         areRefOffsetsAvailable = true;
     }

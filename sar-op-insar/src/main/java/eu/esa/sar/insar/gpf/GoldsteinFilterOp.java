@@ -91,7 +91,6 @@ public class GoldsteinFilterOp extends Operator {
     private int halfFFTSize;
     private int windowSize;
     private int halfWindowSize;
-    private double noDataValue = 0;
     private Band cohBand = null;
     private final Map<Band, Band> targetIQPair = new HashMap<>();
 
@@ -280,7 +279,10 @@ public class GoldsteinFilterOp extends Operator {
                 final ProductData iBandData = iBandRaster.getDataBuffer();
                 final ProductData qBandData = qBandRaster.getDataBuffer();
                 final TileIndex srcIndex = new TileIndex(iBandRaster);
-                noDataValue = iBand.getNoDataValue();
+                // Capture locally so concurrent tiles for other band pairs cannot mutate
+                // an instance field underneath this one.
+                final double noDataValue = iBand.getNoDataValue();
+                final double qNoDataValue = qBand.getNoDataValue();
 
                 // perform filtering with a sliding window
                 final boolean[][] mask = new boolean[FFTSize][FFTSize];
@@ -302,19 +304,18 @@ public class GoldsteinFilterOp extends Operator {
                 for (int y = sy0; y <= syMax; y += stepSize) {
                     for (int x = sx0; x <= sxMax; x += stepSize) {
 
-                        getComplexImagettes(x, y, iBandData, qBandData, srcIndex, I, Q, mask);
+                        getComplexImagettes(x, y, iBandData, qBandData, srcIndex, I, Q, mask, noDataValue, qNoDataValue);
 
-                        // check for no data value
+                        // check for no data value — block is all-noData iff no sample is valid
                         boolean allNoData = true;
-                        for (double[] aI : I) {
+                        outer:
+                        for (boolean[] row : mask) {
                             for (int c = 0; c < colMax; ++c) {
-                                if (aI[c] != noDataValue) {
+                                if (row[c]) {
                                     allNoData = false;
-                                    break;
+                                    break outer;
                                 }
                             }
-                            if (!allNoData)
-                                break;
                         }
                         if (allNoData) {
                             continue;
@@ -407,7 +408,8 @@ public class GoldsteinFilterOp extends Operator {
                                      final ProductData iBandData, final ProductData qBandData,
                                      final TileIndex srcIndex,
                                      final double[][] I, final double[][] Q,
-                                     final boolean[][] mask) {
+                                     final boolean[][] mask,
+                                     final double iNoDataValue, final double qNoDataValue) {
         int index;
         final int maxY = y + FFTSize;
         final int maxX = x + FFTSize;
@@ -416,9 +418,12 @@ public class GoldsteinFilterOp extends Operator {
             final int yidx = yy - y;
             for (int xx = x; xx < maxX; xx++) {
                 index = srcIndex.getIndex(xx);
-                I[yidx][xx - x] = iBandData.getElemDoubleAt(index);
-                Q[yidx][xx - x] = qBandData.getElemDoubleAt(index);
-                mask[yidx][xx - x] = I[yidx][xx - x] != noDataValue;
+                final double iVal = iBandData.getElemDoubleAt(index);
+                final double qVal = qBandData.getElemDoubleAt(index);
+                I[yidx][xx - x] = iVal;
+                Q[yidx][xx - x] = qVal;
+                // Mask a sample as valid only if BOTH I and Q are valid.
+                mask[yidx][xx - x] = iVal != iNoDataValue && qVal != qNoDataValue;
             }
         }
     }
@@ -509,12 +514,14 @@ public class GoldsteinFilterOp extends Operator {
         return a;
     }
 
-    private void getFilteredPowerSpectrum(
+    private static void getFilteredPowerSpectrum(
             final double[][] pwrSpec, final double[][] fltSpec, final double alpha, final int halfWindowSize) {
 
         final int rowMax = pwrSpec.length;
         final int colMax = pwrSpec[0].length;
 
+        // pwrSpec is computed from FFT output, where no-data has already been zeroed
+        // by the input-mask path. Treat exactly-zero spectrum bins as empty.
         for (int r = 0; r < rowMax; r++) {
             final int jMin = Math.max(0, r - halfWindowSize);
             final int jMax = Math.min(rowMax - 1, r + halfWindowSize);
@@ -525,7 +532,7 @@ public class GoldsteinFilterOp extends Operator {
                 final int iMax = Math.min(colMax - 1, c + halfWindowSize);
                 for (int j = jMin; j <= jMax; j++) {
                     for (int i = iMin; i <= iMax; i++) {
-                        if(pwrSpec[j][i] != noDataValue) {
+                        if (pwrSpec[j][i] != 0.0) {
                             sum += pwrSpec[j][i];
                             k++;
                         }

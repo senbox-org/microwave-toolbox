@@ -35,6 +35,7 @@ import org.esa.snap.engine_utilities.gpf.StackUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 
 @OperatorMetadata(alias = "MultiMasterStackGenerator",
         category = "Radar/Interferometric/Products",
@@ -107,7 +108,11 @@ public class MultiMasterOp extends Operator{
         HashMap<Integer, ArrayList<Band>> date_bandpairs = new HashMap<Integer, ArrayList<Band>>();
         HashMap<Integer, MetadataElement> date_metadatapairs = new HashMap<Integer, MetadataElement>();
         ArrayList<Integer> dates = new ArrayList<Integer>();
-        String referenceDate = referenceAbstractedMetadata.getAttributeString("PROC_TIME").split(" ")[0];
+        // Use acquisition time (first_line_time) so the reference sorts chronologically
+        // alongside the secondaries, which are also keyed by first_line_time below.
+        // Using PROC_TIME (when the product was processed) misplaces the reference in
+        // the sorted date list and breaks adjacent-pair iteration.
+        String referenceDate = referenceAbstractedMetadata.getAttributeString("first_line_time").split(" ")[0];
         int referenceDateInt = strDatetoInt(referenceDate);
         ArrayList<Band> refBands = new ArrayList<Band>();
         for(Band b: bands){
@@ -137,7 +142,8 @@ public class MultiMasterOp extends Operator{
 
         final int worked = 100 / (dates.size() - 1);
         final Product [] toOpenInSnap = new Product[dates.size() - 1];
-        ArrayList<String> writtenProductPaths = new ArrayList<>();
+        // Worker threads append concurrently; use a synchronized list.
+        final List<String> writtenProductPaths = Collections.synchronizedList(new ArrayList<>());
 
         for (int x = 0; x < dates.size() - 1; x++){
             int dateRef = dates.get(x);

@@ -329,8 +329,22 @@ public class IntegerInterferogramOp extends Operator {
                     final double sec2IfgI = sec2DataBufferI.getElemDoubleAt(srcIdx);
                     final double sec2IfgQ = sec2DataBufferQ.getElemDoubleAt(srcIdx);
 
-                    ifgDataBufferI.setElemFloatAt(tgtIdx, (float)(qOpt1*sec1IfgI + qOpt2*sec2IfgI));
-                    ifgDataBufferQ.setElemFloatAt(tgtIdx, (float)(qOpt1*sec1IfgQ + qOpt2*sec2IfgQ));
+                    // Integer-power phase combination: arg(ifg^q) = q * arg(ifg).
+                    // Output a unit-magnitude complex with phase q1*phi1 + q2*phi2,
+                    // which is the standard integer-interferogram formulation
+                    // (Massonnet & Feigl 1998). A linear combination of complex
+                    // amplitudes (q1*ifg1 + q2*ifg2) is mathematically different
+                    // and does NOT produce the integer-combined phase.
+                    if ((sec1IfgI == 0.0 && sec1IfgQ == 0.0) || (sec2IfgI == 0.0 && sec2IfgQ == 0.0)) {
+                        ifgDataBufferI.setElemFloatAt(tgtIdx, 0.0f);
+                        ifgDataBufferQ.setElemFloatAt(tgtIdx, 0.0f);
+                    } else {
+                        final double phi1 = Math.atan2(sec1IfgQ, sec1IfgI);
+                        final double phi2 = Math.atan2(sec2IfgQ, sec2IfgI);
+                        final double combinedPhase = qOpt1 * phi1 + qOpt2 * phi2;
+                        ifgDataBufferI.setElemFloatAt(tgtIdx, (float) Math.cos(combinedPhase));
+                        ifgDataBufferQ.setElemFloatAt(tgtIdx, (float) Math.sin(combinedPhase));
+                    }
                 }
             }
 

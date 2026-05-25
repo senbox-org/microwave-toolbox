@@ -36,6 +36,7 @@ import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import java.awt.*;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.text.DateFormat;
@@ -78,7 +79,7 @@ public class StampsExportOp extends Operator {
     private final HashMap<Band, WriterInfo> tgtBandToInfoMap = new HashMap<>();
     private ProjectedDEM projectedDEM;
     private WriterInfo projectedDEMInfo;
-    private boolean projectedDEMWritten = false;
+    private volatile boolean projectedDEMWritten = false;
     private WriterInfo latInfo;
     private WriterInfo lonInfo;
     private TiePointGrid latGrid = null;
@@ -323,7 +324,7 @@ public class StampsExportOp extends Operator {
         String secondaryDate = info.targetBandName.substring(info.targetBandName.indexOf('_')+1, info.targetBandName.indexOf('.'));
 
         // find correct reference secondary pair
-        int refIndex = 0, secIndex = 0;
+        int refIndex = -1, secIndex = -1;
         for(int i=0; i < stackOverview.length; ++i) {
             double refMJD = stackOverview[i].getMasterSlave()[0].getMasterMetadata().getMjd();
             final String refDate = dateFormat.format(new ProductData.UTC(refMJD).getAsDate());
@@ -342,6 +343,11 @@ public class StampsExportOp extends Operator {
                 break;
             }
         }
+        if (refIndex < 0 || secIndex < 0) {
+            throw new IOException("StampsExportOp could not match reference/secondary pair "
+                    + referenceDate + "/" + secondaryDate + " against the stack overview. "
+                    + "Baseline file would default to a zero self-pair and silently corrupt downstream StaMPS processing.");
+        }
 
         final double bh0 = stackOverview[refIndex].getMasterSlave()[secIndex].getHorizontalBaseline(firstLine, refPixel, height);
         final double bhN = stackOverview[refIndex].getMasterSlave()[secIndex].getHorizontalBaseline(lastLine, refPixel, height);
@@ -358,22 +364,20 @@ public class StampsExportOp extends Operator {
 
         final File outputBaselineFile =
                 targetFolder.toPath().resolve(info.folderName).resolve(baselineFilename).toFile();
-        final String oldEOL = System.getProperty("line.separator");
-        System.setProperty("line.separator", "\n");
-        final FileOutputStream out = new FileOutputStream(outputBaselineFile);
-        try (final PrintStream p = new PrintStream(out)) {
+        // Write LF line endings explicitly with print()+"\n" rather than mutating the
+        // JVM-global "line.separator" property, which would race with other graph operators.
+        try (final OutputStream raw = new FileOutputStream(outputBaselineFile);
+             final PrintStream p = new PrintStream(raw, false, "UTF-8")) {
 
-            p.println("initial_baseline(TCN)" + ":\t" + "0.0000000" + '\t' + bhm + '\t' + bvm + '\t' + "m   m   m");
-            p.println("initial_baseline_rate" + ":\t" + "0.0000000" + '\t' + bhr + '\t' + bvr + '\t' + "m/s   m/s   m/s");
-            p.println("precision_baseline(TCN)" + ":\t" + "0.0000000        0.0000000        0.0000000   m   m   m");
-            p.println("precision_baseline_rate" + ":\t" + "0.0000000        0.0000000        0.0000000   m/s m/s m/s");
-            p.println("unwrap_phase_constant" + ":\t" + "0.00000     radians");
+            p.print("initial_baseline(TCN)" + ":\t" + "0.0000000" + '\t' + bhm + '\t' + bvm + '\t' + "m   m   m\n");
+            p.print("initial_baseline_rate" + ":\t" + "0.0000000" + '\t' + bhr + '\t' + bvr + '\t' + "m/s   m/s   m/s\n");
+            p.print("precision_baseline(TCN)" + ":\t" + "0.0000000        0.0000000        0.0000000   m   m   m\n");
+            p.print("precision_baseline_rate" + ":\t" + "0.0000000        0.0000000        0.0000000   m/s m/s m/s\n");
+            p.print("unwrap_phase_constant" + ":\t" + "0.00000     radians\n");
 
             p.flush();
         } catch (Exception e) {
             throw new IOException("StampsExportOp unable to write baseline file " + e.getMessage());
-        } finally {
-            System.setProperty("line.separator", oldEOL);
         }
     }
 

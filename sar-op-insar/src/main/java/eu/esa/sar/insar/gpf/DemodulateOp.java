@@ -471,9 +471,12 @@ public class DemodulateOp extends Operator {
             // Use coefficients corresponding to last estimate
             System.arraycopy(dopplerCoefficients[numberOfDopplerEstimates - 1], 0, dopplerCoefficientsToUse, 0, MAX_NR_DOPPLER_COEFFICIENTS);
         } else {
-            // Use interpolated coefficients
+            // Use interpolated coefficients from the bracket [t[i], t[i+1]] that
+            // actually contains azimuthTime, then break — without the upper-bound
+            // check and break, the loop overwrote with extrapolations from every
+            // later segment.
             for (int i = 0; i < numberOfDopplerEstimates - 1; i++) {
-                if (azimuthTime > dopplerCoefficientsTimes[i]) {
+                if (azimuthTime > dopplerCoefficientsTimes[i] && azimuthTime <= dopplerCoefficientsTimes[i + 1]) {
                     for (int j = 0; j < MAX_NR_DOPPLER_COEFFICIENTS; j++) {
                         final double dopplerCoefficient1 = dopplerCoefficients[i][j];
                         final double dopplerCoefficient2 = dopplerCoefficients[i + 1][j];
@@ -481,6 +484,7 @@ public class DemodulateOp extends Operator {
                                 / (dopplerCoefficientsTimes[i + 1] - dopplerCoefficientsTimes[i]);
                         dopplerCoefficientsToUse[j] = dopplerCoefficient1 + slope * (azimuthTime - dopplerCoefficientsTimes[i]);
                     }
+                    break;
                 }
             }
         }

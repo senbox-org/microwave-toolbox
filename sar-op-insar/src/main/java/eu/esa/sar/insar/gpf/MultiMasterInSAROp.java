@@ -935,8 +935,12 @@ public class MultiMasterInSAROp extends Operator {
                         intensitySum1 += intensity1[y_r][x + c];
                     }
                 }
-                coherence[y][x] = Math.sqrt((ifgPhasorSumI * ifgPhasorSumI + ifgPhasorSumQ * ifgPhasorSumQ)
-                                                    / (intensitySum0 * intensitySum1));
+                final double denom = intensitySum0 * intensitySum1;
+                if (denom > 0.0) {
+                    coherence[y][x] = Math.sqrt((ifgPhasorSumI * ifgPhasorSumI + ifgPhasorSumQ * ifgPhasorSumQ) / denom);
+                } else {
+                    coherence[y][x] = 0.0;
+                }
             }
         }
 

@@ -19,41 +19,35 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Placemark;
 import org.esa.snap.core.datamodel.ProductNodeGroup;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Temporary solution to removing band GCPs from product.
  */
 public class GCPManager {
 
-    private static GCPManager _instance = null;
+    // Holder-idiom singleton: thread-safe lazy initialization without explicit locking.
+    private static final class Holder {
+        static final GCPManager INSTANCE = new GCPManager();
+    }
 
-    private final Map<String, ProductNodeGroup<Placemark>> bandGCPGroup = new HashMap<>();
+    private final Map<String, ProductNodeGroup<Placemark>> bandGCPGroup = new ConcurrentHashMap<>();
 
     private GCPManager() {
-
     }
 
     private String createKey(final Band band) {
-        return band.getProduct().getName() +'_'+band.getName();
+        return band.getProduct().getName() + '_' + band.getName();
     }
 
     public static GCPManager instance() {
-        if(_instance == null) {
-            _instance = new GCPManager();
-        }
-        return _instance;
+        return Holder.INSTANCE;
     }
 
     public ProductNodeGroup<Placemark> getGcpGroup(final Band band) {
-        ProductNodeGroup<Placemark> gcpGroup = bandGCPGroup.get(createKey(band));
-        if(gcpGroup == null) {
-            gcpGroup = new ProductNodeGroup<>(band.getProduct(),
-                    "ground_control_points", true);
-            bandGCPGroup.put(createKey(band), gcpGroup);
-        }
-        return gcpGroup;
+        return bandGCPGroup.computeIfAbsent(createKey(band),
+                key -> new ProductNodeGroup<>(band.getProduct(), "ground_control_points", true));
     }
 
     public void removeAllGcpGroups() {
