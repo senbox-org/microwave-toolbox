@@ -259,14 +259,6 @@
                         <attr name="position" intvalue="200"/>
                     </file>
                 </folder>
-                <file name="eu-esa-sar-insar-gpf-Demodulate-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-Demodulate-Action.instance"/>
-                    <attr name="position" intvalue="280"/>
-                </file>
-                <file name="eu-esa-sar-insar-gpf-Remodulate-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-Remodulate-Action.instance"/>
-                    <attr name="position" intvalue="290"/>
-                </file>
                 <folder name="Stack Tools">
                     <attr name="position" intvalue="300"/>
                     <file name="eu-esa-sar-insar-gpf-coregistration-CreateStack-Action.shadow">
@@ -340,6 +332,17 @@
                     <file name="eu-esa-sar-insar-gpf-StampsExport-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-StampsExport-Action.instance"/>
                         <attr name="position" intvalue="100"/>
+                    </file>
+                </folder>
+                <folder name="Utilities">
+                    <attr name="position" intvalue="500"/>
+                    <file name="eu-esa-sar-insar-gpf-Demodulate-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-Demodulate-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="eu-esa-sar-insar-gpf-Remodulate-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-Remodulate-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
                     </file>
                 </folder>
             </folder>
