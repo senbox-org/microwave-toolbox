@@ -17,7 +17,6 @@ package eu.esa.sar.orbits.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.orbits.io.OrbitFile;
-import eu.esa.sar.orbits.io.biomass.BiomassInProductOrbitFile;
 import eu.esa.sar.orbits.io.biomass.BiomassPODOrbitFile;
 import eu.esa.sar.orbits.io.delft.DelftOrbitFile;
 import eu.esa.sar.orbits.io.doris.DorisOrbitFile;
@@ -94,7 +93,6 @@ public final class ApplyOrbitFileOp extends Operator {
             DelftOrbitFile.DELFT_PRECISE + " (ENVISAT, ERS1&2)" + " (Auto Download)",
             PrareOrbitFile.PRARE_PRECISE + " (ERS1&2)" + " (Auto Download)",
             K5OrbitFile.PRECISE,
-            BiomassInProductOrbitFile.IN_PRODUCT + " (BIOMASS)",
             BiomassPODOrbitFile.PRECISE + " (Auto Download)"},
             defaultValue = SentinelPODOrbitFile.PRECISE + " (Auto Download)", label = "Orbit State Vectors")
     private String orbitType = null;
@@ -145,6 +143,20 @@ public final class ApplyOrbitFileOp extends Operator {
 
             getSourceMetadata();
 
+            // BIOMASS orbits ship inside the L1 annotation and are populated into
+            // AbstractMetadata.orbit_state_vectors by BiomassProductDirectory at read time.
+            // There is no external precise/restituted ephemeris service for BIOMASS yet
+            // (when one becomes available, route it through BiomassPODOrbitFile below).
+            // Until then, running ApplyOrbitFileOp on a BIOMASS product is a no-op:
+            // pass the source through unchanged.
+            if (mission.equals("BIOMASS")) {
+                SystemUtils.LOG.info("BIOMASS orbits are sourced from the product annotation by the reader; "
+                        + "ApplyOrbitFileOp has nothing to apply. Passing source through.");
+                createTargetProduct();
+                productUpdated = true;
+                return;
+            }
+
             if (orbitType == null) {
                 if (mission.equals("ENVISAT")) {
                     orbitType = DorisOrbitFile.DORIS_VOR;
@@ -154,8 +166,6 @@ public final class ApplyOrbitFileOp extends Operator {
                     orbitType = SentinelPODOrbitFile.PRECISE;
                 } else if (mission.startsWith("Kompsat5")) {
                     orbitType = K5OrbitFile.PRECISE;
-                } else if (mission.equals("BIOMASS")) {
-                    orbitType = BiomassInProductOrbitFile.IN_PRODUCT;
                 } else {
                     throw new OperatorException("Please select an orbit file type");
                 }
@@ -177,10 +187,6 @@ public final class ApplyOrbitFileOp extends Operator {
                 if (!orbitType.startsWith(K5OrbitFile.PRECISE)) {
                     orbitType = K5OrbitFile.PRECISE;
                 }
-            } else if (mission.equals("BIOMASS")) {
-                if (!orbitType.startsWith("Biomass")) {
-                    orbitType = BiomassInProductOrbitFile.IN_PRODUCT;
-                }
             } else {
                 throw new OperatorException(orbitType + " is not suitable for a " + mission + " product");
             }
@@ -195,8 +201,6 @@ public final class ApplyOrbitFileOp extends Operator {
                 orbitProvider = new SentinelPODOrbitFile(absRoot, polyDegree);
             } else if (orbitType.contains("Kompsat5")) {
                 orbitProvider = new K5OrbitFile(absRoot, polyDegree);
-            } else if (orbitType.startsWith(BiomassInProductOrbitFile.IN_PRODUCT)) {
-                orbitProvider = new BiomassInProductOrbitFile(absRoot, polyDegree);
             } else if (orbitType.startsWith(BiomassPODOrbitFile.PRECISE)) {
                 orbitProvider = new BiomassPODOrbitFile(absRoot, polyDegree);
             }
