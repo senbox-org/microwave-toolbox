@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.orbits.gpf.ui.orbits;
 
-import eu.esa.sar.orbits.io.biomass.BiomassInProductOrbitFile;
 import eu.esa.sar.orbits.io.biomass.BiomassPODOrbitFile;
 import eu.esa.sar.orbits.io.delft.DelftOrbitFile;
 import eu.esa.sar.orbits.io.doris.DorisOrbitFile;
@@ -52,7 +51,6 @@ public class ApplyOrbitFileOpUI extends BaseOperatorUI {
             DorisOrbitFile.DORIS_VOR + " (ENVISAT)" + " (Auto Download)",
             DelftOrbitFile.DELFT_PRECISE + " (ENVISAT, ERS1&2)" + " (Auto Download)",
             PrareOrbitFile.PRARE_PRECISE + " (ERS1&2)" + " (Auto Download)",
-            BiomassInProductOrbitFile.IN_PRODUCT + " (BIOMASS)",
             BiomassPODOrbitFile.PRECISE + " (BIOMASS)" + " (Auto Download)",
             //K5OrbitFile.PRECISE
     };
@@ -101,8 +99,13 @@ public class ApplyOrbitFileOpUI extends BaseOperatorUI {
                 populateOrbitTypes("Sentinel");
                 setSelectedOrbitType(SentinelPODOrbitFile.PRECISE);
             } else if (mission.equals("BIOMASS")) {
+                // BIOMASS orbits ship inside the L1 annotation (read into AbstractMetadata
+                // by BiomassProductDirectory). ApplyOrbitFileOp.initialize() short-circuits
+                // for BIOMASS and just passes the product through; only an external precise
+                // ephemeris (BiomassPODOrbitFile, when a service becomes available) would
+                // have anything to apply.
                 populateOrbitTypes("BIOMASS");
-                setSelectedOrbitType(BiomassInProductOrbitFile.IN_PRODUCT);
+                setSelectedOrbitType(BiomassPODOrbitFile.PRECISE);
             }
 //            } else if (mission.startsWith("Kompsat5")) {
 //                populateOrbitTypes("Kompsat5");

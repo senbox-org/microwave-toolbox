@@ -506,7 +506,8 @@ public final class UpdateGeoRefOp extends Operator {
                             double[] latlon = jOrbit.lp2ell(new Point(x + 0.5, y + 0.5), meta);
                             lat = latlon[0] * Constants.RTOD;
                             lon = latlon[1] * Constants.RTOD;
-                            alt = dem.getElevation(new GeoPos(lat, lon));
+                            geoPos.setLocation(lat, lon);
+                            alt = dem.getElevation(geoPos);
                         }
 
                         if (!getPosition(lat, lon, alt, x0, y0, w, h, posData)) {

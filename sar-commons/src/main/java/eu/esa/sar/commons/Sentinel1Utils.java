@@ -739,7 +739,8 @@ public final class Sentinel1Utils {
             for (int x = x0; x < xMax; x++) {
                 final int xx = x - x0;
                 final double kt = subSwath[s].dopplerRate[sBurstIndex][x];
-                final double deramp = -Constants.PI * kt * FastMath.pow(ta - subSwath[s].referenceTime[sBurstIndex][x], 2);
+                final double dt = ta - subSwath[s].referenceTime[sBurstIndex][x];
+                final double deramp = -Constants.PI * kt * dt * dt;
                 final double demod = -Constants.TWO_PI * subSwath[s].dopplerCentroid[sBurstIndex][x] * ta;
                 phase[yy][xx] = deramp + demod;
             }
@@ -768,7 +769,8 @@ public final class Sentinel1Utils {
             for (int x = x0; x < xMax; x++) {
                 final int xx = x - x0;
                 final double kt = subSwath[s].dopplerRate[burstIndex][x];
-                phase[yy][xx] = -Constants.PI * kt * FastMath.pow(ta - subSwath[s].referenceTime[burstIndex][x], 2);
+                final double dt = ta - subSwath[s].referenceTime[burstIndex][x];
+                phase[yy][xx] = -Constants.PI * kt * dt * dt;
             }
         }
 

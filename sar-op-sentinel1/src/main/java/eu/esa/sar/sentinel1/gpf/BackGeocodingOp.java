@@ -1133,12 +1133,15 @@ public final class BackGeocodingOp extends Operator {
             final int h = mSubSwath[subSwathIndex - 1].latitude.length;
             final int w = mSubSwath[subSwathIndex - 1].latitude[0].length;
             final PosVector earthPoint = new PosVector();
+            // Reuse one GeoPos across the h*w tiepoint grid sweep — avoids ~h*w heap allocations.
+            final GeoPos demGeoPos = new GeoPos();
             for (int i = 0; i < h; i++) {
                 for (int j = 0; j < w; j++) {
                     final double lat = mSubSwath[subSwathIndex - 1].latitude[i][j];
                     final double lon = mSubSwath[subSwathIndex - 1].longitude[i][j];
-                    final Double alt = dem.getElevation(new GeoPos(lat, lon));
-                    if (alt.equals(demNoDataValue)) {
+                    demGeoPos.setLocation(lat, lon);
+                    final double alt = dem.getElevation(demGeoPos);
+                    if (Double.isNaN(alt) || alt == demNoDataValue) {
                         continue;
                     }
                     GeoUtils.geo2xyzWGS84(lat, lon, alt, earthPoint);
@@ -1542,18 +1545,20 @@ public final class BackGeocodingOp extends Operator {
                     tileWindow, rgAzRatio, 1, 1, invalidIndex, 0);
 
             boolean allElementsAreNull = true;
-            Double alt;
+            // Reuse one GeoPos for the entire w*h DEM sweep instead of allocating per pixel.
+            final GeoPos demGeoPos = new GeoPos();
             for(int yy = 0; yy < h; yy++) {
                 for (int xx = 0; xx < w; xx++) {
                     if (rgArray[yy][xx] == invalidIndex || azArray[yy][xx] == invalidIndex) {
                         secondaryPixelPos[yy][xx] = null;
                     } else {
                         if (maskOutAreaWithoutElevation || elevation != null) {
-                            alt = dem.getElevation(new GeoPos(latArray[yy][xx], lonArray[yy][xx]));
+                            demGeoPos.setLocation(latArray[yy][xx], lonArray[yy][xx]);
+                            final double alt = dem.getElevation(demGeoPos);
                             if(elevation != null) {
                                 elevation[yy][xx] = alt;
                             }
-                            if (!alt.equals(demNoDataValue)) {
+                            if (!Double.isNaN(alt) && alt != demNoDataValue) {
                                 secondaryPixelPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
                                 allElementsAreNull = false;
                             } else {

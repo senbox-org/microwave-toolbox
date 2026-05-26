@@ -609,13 +609,13 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
         final double rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing);
         final double farRangeKm = nearRangeKm + rangeSpacing * product.getSceneRasterWidth() / 1000.0;
 
-        final double incidenceNear = (a0 + a1 * nearRangeKm + a2 * FastMath.pow(nearRangeKm, 2.0) +
-                a3 * FastMath.pow(nearRangeKm, 3.0) + a4 * FastMath.pow(nearRangeKm, 4.0) +
-                a5 * FastMath.pow(nearRangeKm, 5.0)) * Constants.RTOD;
+        // Horner's method for polynomial evaluation — eliminates 4 FastMath.pow calls per
+        // call site. a0 + r·(a1 + r·(a2 + r·(a3 + r·(a4 + r·a5)))).
+        final double incidenceNear = (a0 + nearRangeKm * (a1 + nearRangeKm * (a2 + nearRangeKm
+                * (a3 + nearRangeKm * (a4 + nearRangeKm * a5))))) * Constants.RTOD;
 
-        final double incidenceFar = (a0 + a1 * farRangeKm + a2 * FastMath.pow(farRangeKm, 2.0) +
-                a3 * FastMath.pow(farRangeKm, 3.0) + a4 * FastMath.pow(farRangeKm, 4.0) +
-                a5 * FastMath.pow(farRangeKm, 5.0)) * Constants.RTOD;
+        final double incidenceFar = (a0 + farRangeKm * (a1 + farRangeKm * (a2 + farRangeKm
+                * (a3 + farRangeKm * (a4 + farRangeKm * a5))))) * Constants.RTOD;
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_near, incidenceNear);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.incidence_far, incidenceFar);
@@ -689,11 +689,12 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
                 int k = 0;
                 for (int j = destRect.y; j < gridHeight; j++) {
                     for (int i = destRect.x; i < gridWidth; i++) {
-                        angles[k] = (float) ((a0 + a1 * rangeDist[k] / 1000.0 +
-                                a2 * FastMath.pow(rangeDist[k] / 1000.0, 2.0) +
-                                a3 * FastMath.pow(rangeDist[k] / 1000.0, 3.0) +
-                                a4 * FastMath.pow(rangeDist[k] / 1000.0, 4.0) +
-                                a5 * FastMath.pow(rangeDist[k] / 1000.0, 5.0)) * Constants.RTOD);
+                        // Horner's method, computing rkm = rangeDist/1000 once per pixel
+                        // instead of five times. Eliminates 4 FastMath.pow per pixel inside
+                        // this per-tile-pixel grid sweep.
+                        final double rkm = rangeDist[k] / 1000.0;
+                        angles[k] = (float) ((a0 + rkm * (a1 + rkm * (a2 + rkm
+                                * (a3 + rkm * (a4 + rkm * a5))))) * Constants.RTOD);
                         k++;
                     }
                 }

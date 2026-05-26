@@ -396,15 +396,18 @@ public class ALOSDeskewingOp extends Operator {
         final float demNoDataValue = dem.getDescriptor().getNoDataValue();
 
         GeoPos geoPos = new GeoPos();
+        final PixelPos pixelPos = new PixelPos();
         for (int y = 0; y < sourceImageHeight; y++) {
-            sourceProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0.5f, y + 0.5f), geoPos);
+            pixelPos.setLocation(0.5f, y + 0.5f);
+            sourceProduct.getSceneGeoCoding().getGeoPos(pixelPos, geoPos);
             final double lat = geoPos.lat;
             double lon = geoPos.lon;
             if (lon >= 180.0) {
                 lon -= 360.0;
             }
+            geoPos.lon = lon; // hand the wrapped lon to dem.getElevation via the same object
 
-            final double alt = dem.getElevation(new GeoPos(lat, lon));
+            final double alt = dem.getElevation(geoPos);
             if (Double.isNaN(alt) || alt == demNoDataValue) {
                 continue;
             }

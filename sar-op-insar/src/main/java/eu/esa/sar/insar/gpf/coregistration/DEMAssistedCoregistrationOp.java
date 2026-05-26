@@ -617,7 +617,9 @@ public final class DEMAssistedCoregistrationOp extends Operator {
             boolean allElementsAreNull = true;
             final PixelPos[][] secondaryPixelPos = new PixelPos[h][w];
 
-            Double alt;
+            // Reuse one GeoPos across all w*h DEM lookups (otherwise this allocates a new
+            // GeoPos per pixel on every coregistration tile).
+            final GeoPos demGeoPos = new GeoPos();
             for(int yy = 0; yy < h; yy++) {
                 for (int xx = 0; xx < w; xx++) {
                     if (rgArray[yy][xx] == invalidIndex || azArray[yy][xx] == invalidIndex ||
@@ -626,8 +628,11 @@ public final class DEMAssistedCoregistrationOp extends Operator {
                         secondaryPixelPos[yy][xx] = null;
                     } else {
                         if (maskOutAreaWithoutElevation) {
-                            alt = dem.getElevation(new GeoPos(latArray[yy][xx], lonArray[yy][xx]));
-                            if (!alt.equals(demNoDataValue)) {
+                            demGeoPos.setLocation(latArray[yy][xx], lonArray[yy][xx]);
+                            final double alt = dem.getElevation(demGeoPos);
+                            // Replaced Double.equals (boxed) with primitive comparison + NaN guard;
+                            // NaN-as-no-data was previously letting masked pixels through.
+                            if (!Double.isNaN(alt) && alt != demNoDataValue) {
                                 secondaryPixelPos[yy][xx] = new PixelPos(rgArray[yy][xx], azArray[yy][xx]);
                                 allElementsAreNull = false;
                             } else {

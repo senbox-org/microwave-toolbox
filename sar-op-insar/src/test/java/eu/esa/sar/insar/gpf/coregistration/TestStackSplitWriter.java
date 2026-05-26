@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.insar.gpf;
+package eu.esa.sar.insar.gpf.coregistration;
 
 import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.junit.Test;
