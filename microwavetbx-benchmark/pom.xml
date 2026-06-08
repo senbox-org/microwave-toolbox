@@ -33,7 +33,7 @@
 
     <properties>
         <!-- Benchmarks read large SAR products; override the parent pom's 4 GB cap. -->
-        <surefire.jvm.args>-enableassertions -Xms2048M -Xmx22024M -Dfile.encoding=UTF-8 --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/sun.awt.shell=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.base/java.security=ALL-UNNAMED --add-exports java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED</surefire.jvm.args>
+        <surefire.jvm.args>-enableassertions -Xms2048M -Xmx18024M -Dfile.encoding=UTF-8 --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/sun.awt.shell=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.base/java.security=ALL-UNNAMED --add-exports java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED</surefire.jvm.args>
     </properties>
 
     <dependencies>

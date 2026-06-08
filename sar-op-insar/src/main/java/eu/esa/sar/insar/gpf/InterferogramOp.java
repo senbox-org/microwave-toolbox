@@ -439,7 +439,7 @@ public class InterferogramOp extends Operator {
                 iBand.getRasterHeight(),
                 expr);
         virt.setUnit(Unit.PHASE);
-        virt.setDescription("Phase from complex data (no-data guarded)");
+        virt.setDescription("Phase from complex data");
         virt.setNoDataValueUsed(true);
         virt.setNoDataValue(0);
         virt.setOwner(product);
