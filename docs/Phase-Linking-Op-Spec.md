@@ -61,6 +61,27 @@ T_hat[i, j] = C_hat[i, j] / sqrt(C_hat[i, i] * C_hat[j, j])                (eq. 
 |T_hat[i,j]| is the per-pair coherence; arg(T_hat[i,j]) is the per-pair
 ifg phase, both already multilooked over the SHP set.
 
+#### 2.2.1 Coherence-magnitude bias correction (optional)
+
+The sample coherence magnitude is positively biased, badly so at low
+coherence / few looks (`E[|gamma_hat|^2] ~ gamma^2 + (1-gamma^2)/L`). When
+`coherenceBiasCorrection` is enabled, each off-diagonal magnitude is debiased
+with the first-order magnitude-squared-coherence correction (subtract the
+`1/L` noise floor and rescale, `L = N_shp`):
+
+```
+|gamma|^2_corrected = max(0, (L * |T_hat[i,j]|^2 - 1) / (L - 1))            (eq. 2b)
+```
+
+The phase `arg(T_hat)` is preserved; only magnitudes shrink toward their
+unbiased value. **Default off.** It is beneficial for EVD (it down-weights
+noisy low-coherence pairs) but can degrade EMI at low coherence / few looks,
+since EMI inverts the magnitude matrix and the correction adds variance
+there. Note also that this per-element shrinkage is not guaranteed to
+preserve PSD (the estimators only need a Hermitian matrix); a PSD-preserving,
+variance-controlled debias (regularized/tapered shrinkage, e.g. TABASCO) is
+future work.
+
 ### 2.3 Phase estimation
 
 Two estimator choices, parameterized by `estimator`:
@@ -83,16 +104,28 @@ O(N^3) — for typical N=30..200 stacks this is fine.
 #### 2.3.2 EMI (Eigenvalue-based Maximum-likelihood-estimator of
        Interferometric phase)
 
-Ansari, De Zan, Bamler 2018. Better unbiasedness than EVD when coherence
-is low; same complexity. Solve the smallest eigenvalue of:
+Ansari, De Zan, Bamler 2018. Better unbiasedness and lower variance than
+EVD when coherence is low; same complexity. The estimate is the eigenvector
+of the **smallest** eigenvalue of the Hermitian matrix
 
 ```
-(|T_hat| .^ -1)  ⊙  T_hat                                                  (eq. 5)
+M = Gamma^{-1}  ⊙  T_hat ,     Gamma = |T_hat|                              (eq. 5)
 ```
 
-(elementwise inverse-magnitude weighted matrix) and read the phase from
-its eigenvector. Implementation: form the weighted matrix, call the same
-Hermitian solver as EVD.
+where `Gamma^{-1}` is the (real, symmetric) **matrix inverse** of the
+coherence-magnitude matrix and `⊙` is the elementwise (Hadamard) product
+with the complex coherence `T_hat`. The inverse-magnitude weighting
+down-weights low-coherence (long-baseline) pairs — exactly where EVD's
+equal weighting of noisy phases hurts — which is the source of EMI's
+advantage. Implementation: invert `Gamma` (pseudo-inverse via the Hermitian
+solver if near-singular), form `M`, and read the phase from the
+smallest-eigenvalue eigenvector returned by the same solver as EVD.
+
+(Note: `Gamma^{-1}` is the matrix inverse, **not** the elementwise
+reciprocal `|T_hat| .^ -1`; an earlier draft of this spec and the first
+implementation used the latter, which does not recover the phase for any
+non-rank-1 coherence matrix. Both are corrected in
+`phaselinking/EMIEstimator.java`.)
 
 #### 2.3.3 (Optional, future) CRLB-MLE / sequential PL
 
@@ -104,24 +137,46 @@ hooks in `PhaseEstimator` interface.
 Quality metric per pixel (Pepe & Lanari):
 
 ```
-gamma_T = (2 / (N(N-1))) * | sum_{i<j} exp(j (T_hat[i,j] - (phi_j - phi_i))) |
+gamma_T = (2 / (N(N-1))) * | sum_{i<j} exp(j (arg(T_hat[i,j]) - (phi_i - phi_j))) |
                                                                             (eq. 6)
 ```
+
+`arg(T_hat[i,j]) = atan2(Im(T_hat[i,j]), Re(T_hat[i,j]))`. The signal-flow
+convention is `T_hat[i,j] = E[s_i * conj(s_j)]`, so under a rank-1 model
+`arg(T_hat[i,j]) = phi_i - phi_j`; the residual zeroes when the model is
+correct. (Earlier drafts of this spec wrote `(phi_j - phi_i)` and dropped
+the `arg()`; both are corrected in the implementation in
+`phaselinking/TemporalCoherence.java`.)
 
 Range [0, 1]. Threshold (`tempCohMin`, default 0.6) decides which pixels
 are passed into downstream processing.
 
 ### 2.5 Output
 
-For each non-reference acquisition `n`, write back into the SLC stack a
-"linked" complex sample whose amplitude is the original |s_n(p)| and whose
-phase is the estimated `phi_n(p)`:
+For each acquisition `n` (including the reference), write back into the SLC
+stack a "linked" complex sample whose amplitude is the original `|s_n(p)|`
+and whose phase is the estimated `phi_n(p)`:
 
 ```
 s_n_linked(p) = |s_n(p)| * exp(j * phi_n(p))                                (eq. 7)
 ```
 
-Reference acquisition is left unchanged.
+The phase-linking solution is defined only up to a global phase (the
+estimator eigenvector has an arbitrary global rotation); the operator fixes
+that gauge by setting the reference epoch as the **zero-phase datum**,
+`phi_ref(p) = 0`. The reference band is therefore written as a real-valued
+sample `|s_ref(p)| * exp(j·0)` — its original absolute SLC phase (the
+arbitrary per-pixel propagation/topographic phase) is discarded, not
+preserved. This is the single-reference convention used by dolphin /
+MiaplPy / FRInGE.
+
+Choosing the datum this way is downstream-invariant: every consumer
+(`InterferogramOp` / `CoherenceOp` / `MultiMasterInSAROp` /
+`SBASInversionOp`, plus SNAPHU/StaMPS export and phase-to-height) uses only
+relative phases `arg(s_i · conj(s_j))`, in which the global datum cancels.
+A linked pixel and a pass-through pixel (which keeps the *original* complex
+sample at every epoch, reference included) therefore both yield correct
+interferograms for every pair.
 
 This makes the output a **drop-in replacement** for the input stack: any
 existing `InterferogramOp` / `CoherenceOp` / `MultiMasterInSAROp` /
@@ -145,8 +200,9 @@ A coregistered SLC stack product (output of TOPS `BackGeocodingOp` +
 | `shpAlpha` | double | 0.05 | KS/AD significance level |
 | `shpMin` | int | 20 | min SHPs to attempt phase linking |
 | `estimator` | "EVD"/"EMI" | "EVD" | |
-| `referenceEpochDate` | string | first epoch | |
+| `referenceEpochDate` | string | median epoch | empty => median chronological epoch (matches SBASInversionOp; well-conditioned phase datum) |
 | `tempCohMin` | double | 0.6 | mask output below this |
+| `coherenceBiasCorrection` | boolean | false | debias sample coherence magnitude (eq. 2b); aids EVD, can hurt EMI |
 | `outputTempCoherence` | boolean | true | extra band |
 | `outputShpCount` | boolean | false | diagnostic band |
 | `chunkSize` | int | 256 | tile-side hint; balanced against window padding |
@@ -221,12 +277,25 @@ neighbourhood. Strategy:
 
 ## 10. Out of scope
 
-- Iterative / sequential phase linking (FRInGE sequential PL, Ansari
-  2017). Leave the `PhaseEstimator` interface extensible.
-- Persistent-scatterer detection — separate `PSCandidateOp` reusing the
-  amplitude-dispersion statistics already cached during SHP selection.
-- Adaptive multi-looking (NLSAR-AML, AMSTer). The window here is fixed.
-- Re-coregistration based on linked phase. The op assumes upstream
+- **Sequential / ministack phase linking (Dolphin / FRInGE style).**
+  Production pipelines split long stacks (`N > 100`) into overlapping
+  ministacks with compressed SLCs to keep numerical conditioning and
+  temporal decorrelation under control. v1 of `PhaseLinkingOp` is
+  single-shot full-stack; recommended operating range is `N ≤ ~50`.
+  v2 will add a ministack mode behind the same `PhaseEstimator`
+  interface.
+- **Iterative MLE / CRLB refinement (Ferretti SqueeSAR 2011 inner loop,
+  Ansari 2017).** Slightly better phase estimates at low coherence
+  for a 30 % cost increase. v2.
+- **TOPS burst-by-burst processing.** v1 rejects burst-organized TOPS
+  input (`InputProductValidator.isDebursted()` check); users must run
+  `TOPSAR-Deburst` first. v2 could add burst-wise SHP selection mirror-
+  ing the `InterferogramOp` per-burst pattern.
+- **Persistent-scatterer detection.** A separate `PSCandidateOp`
+  reusing the amplitude-dispersion statistics cached here is planned.
+- **Adaptive multi-looking (NLSAR-AML, AMSTer).** The SHP window here is
+  fixed.
+- **Re-coregistration based on linked phase.** The op assumes upstream
   `BackGeocodingOp` + `SpectralDiversityOp` are already converged.
 
 ## 11. References

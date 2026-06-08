@@ -21,3 +21,5 @@ eu.esa.sar.insar.gpf.InSAROverviewOp$Spi
 eu.esa.sar.insar.gpf.EmpiricalTropoCorrectionOp$Spi
 eu.esa.sar.insar.gpf.utilities.DemodulateOp$Spi
 eu.esa.sar.insar.gpf.utilities.RemodulateOp$Spi
+eu.esa.sar.insar.gpf.PhaseLinkingOp$Spi
+eu.esa.sar.insar.gpf.SBASInversionOp$Spi

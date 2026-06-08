@@ -33,5 +33,7 @@
     <mapID target="IonosphericCorrectionOp" url="operators/IonosphericCorrectionOp.html"/>
     <mapID target="EmpiricalTropoCorrectionOp" url="operators/EmpiricalTropoCorrectionOp.html"/>
     <mapID target="MultiReference" url="operators/MultiReference.html"/>
+    <mapID target="PhaseLinkingOp" url="operators/PhaseLinkingOp.html"/>
+    <mapID target="SBASInversionOp" url="operators/SBASInversionOp.html"/>
 
 </map>
