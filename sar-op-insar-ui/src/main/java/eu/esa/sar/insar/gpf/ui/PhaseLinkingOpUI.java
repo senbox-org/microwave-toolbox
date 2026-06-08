@@ -46,6 +46,7 @@ public class PhaseLinkingOpUI extends BaseOperatorUI {
     private final JComboBox<String> estimator = new JComboBox<>(new String[]{"EVD", "EMI"});
     private final JTextField referenceEpochDate = new JTextField("");
     private final JTextField tempCohMin = new JTextField("");
+    private final JCheckBox coherenceBiasCorrection = new JCheckBox("Coherence Magnitude Bias Correction");
     private final JCheckBox outputTempCoherence = new JCheckBox("Output Temporal Coherence");
     private final JCheckBox outputShpCount = new JCheckBox("Output SHP Count");
 
@@ -70,6 +71,7 @@ public class PhaseLinkingOpUI extends BaseOperatorUI {
         final Object refDate = paramMap.get("referenceEpochDate");
         referenceEpochDate.setText(refDate == null ? "" : refDate.toString());
         setDoubleField(tempCohMin, "tempCohMin", 0.6);
+        setBoolCheck(coherenceBiasCorrection, "coherenceBiasCorrection", false);
         setBoolCheck(outputTempCoherence, "outputTempCoherence", true);
         setBoolCheck(outputShpCount, "outputShpCount", false);
     }
@@ -110,6 +112,7 @@ public class PhaseLinkingOpUI extends BaseOperatorUI {
         paramMap.put("estimator", estimator.getSelectedItem());
         paramMap.put("referenceEpochDate", referenceEpochDate.getText().trim());
         paramMap.put("tempCohMin", Double.parseDouble(tempCohMin.getText().trim()));
+        paramMap.put("coherenceBiasCorrection", coherenceBiasCorrection.isSelected());
         paramMap.put("outputTempCoherence", outputTempCoherence.isSelected());
         paramMap.put("outputShpCount", outputShpCount.isSelected());
     }
@@ -138,6 +141,10 @@ public class PhaseLinkingOpUI extends BaseOperatorUI {
         DialogUtils.addComponent(contentPane, gbc, "Reference Epoch (ddMMMyyyy):", referenceEpochDate);
         gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, "Temp. Coherence Threshold:", tempCohMin);
+        gbc.gridy++;
+        gbc.gridx = 1;
+        contentPane.add(coherenceBiasCorrection, gbc);
+        gbc.gridx = 0;
 
         gbc.gridy++;
         addSectionHeader(contentPane, gbc, "Diagnostics");

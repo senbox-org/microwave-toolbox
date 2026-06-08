@@ -18,6 +18,7 @@ package eu.esa.sar.insar.gpf.phaselinking;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TestCovarianceMatrix {
 
@@ -69,6 +70,48 @@ public class TestCovarianceMatrix {
             for (int j = 0; j < n; j++) {
                 assertEquals("Re symmetry " + i + "," + j, tRe[i][j], tRe[j][i], 1.0e-12);
                 assertEquals("Im skew " + i + "," + j, tIm[i][j], -tIm[j][i], 1.0e-12);
+            }
+        }
+    }
+
+    @Test
+    public void bias_correction_applies_msc_formula_and_preserves_phase() {
+        final int n = 4;
+        final int L = 12;
+        final CovarianceMatrix C = new CovarianceMatrix(n);
+        final java.util.Random rng = new java.util.Random(5);
+        for (int s = 0; s < L; s++) {
+            final double[] sR = new double[n];
+            final double[] sI = new double[n];
+            for (int k = 0; k < n; k++) {
+                sR[k] = rng.nextGaussian();
+                sI[k] = rng.nextGaussian();
+            }
+            C.accumulate(sR, sI);
+        }
+        final double[][] rawRe = new double[n][n];
+        final double[][] rawIm = new double[n][n];
+        C.finalizeT(L, rawRe, rawIm, false);
+        final double[][] corRe = new double[n][n];
+        final double[][] corIm = new double[n][n];
+        C.finalizeT(L, corRe, corIm, true);
+
+        for (int i = 0; i < n; i++) {
+            assertEquals("diagonal stays 1", 1.0, corRe[i][i], 1.0e-12);
+            assertEquals(0.0, corIm[i][i], 1.0e-12);
+            for (int j = i + 1; j < n; j++) {
+                final double mRaw = Math.hypot(rawRe[i][j], rawIm[i][j]);
+                final double expected = Math.sqrt(Math.max(0.0, (L * mRaw * mRaw - 1.0) / (L - 1.0)));
+                final double mCor = Math.hypot(corRe[i][j], corIm[i][j]);
+                assertEquals("MSC-corrected magnitude (" + i + "," + j + ")", expected, mCor, 1.0e-9);
+                assertTrue("correction must not increase magnitude", mCor <= mRaw + 1.0e-12);
+                if (mCor > 1.0e-6) {
+                    assertEquals("phase preserved (" + i + "," + j + ")",
+                            Math.atan2(rawIm[i][j], rawRe[i][j]),
+                            Math.atan2(corIm[i][j], corRe[i][j]), 1.0e-9);
+                }
+                assertEquals("Hermitian Re", corRe[i][j], corRe[j][i], 1.0e-12);
+                assertEquals("Hermitian Im", corIm[i][j], -corIm[j][i], 1.0e-12);
             }
         }
     }

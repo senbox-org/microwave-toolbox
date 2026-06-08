@@ -38,6 +38,7 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
@@ -139,6 +140,13 @@ public class PhaseLinkingOp extends Operator {
             label = "Temporal Coherence Threshold")
     private double tempCohMin = 0.6;
 
+    @Parameter(description = "Remove the positive bias of the sample coherence magnitude " +
+            "(first-order number-of-looks correction). Recommended with the EVD estimator; " +
+            "may degrade EMI at low coherence.",
+            defaultValue = "false",
+            label = "Coherence Magnitude Bias Correction")
+    private boolean coherenceBiasCorrection = false;
+
     @Parameter(description = "Emit temporal coherence diagnostic band",
             defaultValue = "true",
             label = "Output Temporal Coherence")
@@ -164,6 +172,8 @@ public class PhaseLinkingOp extends Operator {
     private int sourceImageHeight;
     private int n;
     private int refIndex;
+    /** Minimum SHP count to phase-link a pixel: max(shpMin, n) so the N x N covariance is full rank. */
+    private int minCovarianceSamples;
 
     private static class Epoch {
         final String date;
@@ -216,6 +226,15 @@ public class PhaseLinkingOp extends Operator {
 
             collectEpochs();
             resolveReferenceEpoch();
+
+            // A pixel can only be phase-linked from a full-rank N x N covariance, which needs at
+            // least n SHP samples; never accept fewer than that even if the user set shpMin lower.
+            minCovarianceSamples = Math.max(shpMin, n);
+            if (shpMin < n) {
+                SystemUtils.LOG.info("PhaseLinkingOp: shpMin (" + shpMin + ") is below the stack size ("
+                        + n + "); raising the per-pixel minimum to " + n
+                        + " so the sample covariance stays full rank.");
+            }
 
             if ((windowAzimuth & 1) == 0) windowAzimuth += 1;
             if ((windowRange & 1) == 0) windowRange += 1;
@@ -592,7 +611,14 @@ public class PhaseLinkingOp extends Operator {
                             final int idx = srcIndex[k].getIndex(xx);
                             final double re = srcRealBufs[k].getElemDoubleAt(idx);
                             final double im = srcImagBufs[k].getElemDoubleAt(idx);
-                            if (re == 0.0 && im == 0.0) { candValid = false; break; }
+                            // Reject genuine noData (consistent with the centre check above) and
+                            // zero-extended border pixels (BorderExtender.BORDER_ZERO fills 0). When
+                            // noData == 0 both clauses coincide; when noData != 0 we still need the
+                            // explicit 0 test to drop out-of-scene window samples at scene edges.
+                            if ((re == noData && im == noData) || (re == 0.0 && im == 0.0)) {
+                                candValid = false;
+                                break;
+                            }
                             slcRe[k] = re;
                             slcIm[k] = im;
                             candAmp[k] = Math.sqrt(re * re + im * im);
@@ -609,8 +635,15 @@ public class PhaseLinkingOp extends Operator {
                 // Re-set stride to current y (we walked yy above)
                 for (int k = 0; k < n; k++) srcIndex[k].calculateStride(y);
 
-                if (shpCount < shpMin) {
-                    // Too few SHPs to form a reliable covariance: pass-through original samples.
+                if (shpCount < minCovarianceSamples) {
+                    // Not enough SHPs to form a usable covariance: pass-through original samples.
+                    // Two reasons fold into minCovarianceSamples = max(shpMin, n):
+                    //   * fewer than shpMin SHPs -> the estimate is statistically unreliable; and
+                    //   * fewer than n SHPs -> the N x N sample covariance is rank-deficient
+                    //     (rank <= shpCount < n), so it is singular. EVD would still return a
+                    //     dominant eigenvector but EMI inverts |T_hat| and would amplify noise from
+                    //     the null space. A full-rank covariance needs shpCount >= n (well-
+                    //     conditioned typically wants >= ~2n); below that we do not phase-link.
                     passThroughCentre(x, tgtRealTiles, tgtImagTiles, tgtIndex,
                             centreSlcRe, centreSlcIm,
                             tempCohTile, tempCohIndex, Float.NaN,
@@ -618,7 +651,7 @@ public class PhaseLinkingOp extends Operator {
                     continue;
                 }
 
-                C.finalizeT(shpCount, tRe, tIm);
+                C.finalizeT(shpCount, tRe, tIm, coherenceBiasCorrection);
                 phaseEstimator.estimate(n, tRe, tIm, refIndex, phi);
                 final double gamma = TemporalCoherence.compute(n, tRe, tIm, phi);
 
@@ -633,7 +666,13 @@ public class PhaseLinkingOp extends Operator {
                     continue;
                 }
 
-                // Write linked samples: amplitude from original SLC, phase from estimator
+                // Write linked samples: amplitude from original SLC, phase from estimator.
+                // The reference epoch has phi[refIndex] == 0, so it is written as a real-valued
+                // sample |s_ref|: the operator fixes the estimator's arbitrary global phase by
+                // making the reference the zero-phase datum (single-reference convention, as in
+                // dolphin / MiaplPy / FRInGE). Its original absolute SLC phase is intentionally
+                // discarded; this is downstream-invariant because Interferogram/Coherence/SBAS use
+                // only relative phases arg(s_i conj(s_j)), in which the datum cancels.
                 for (int k = 0; k < n; k++) {
                     final double amp = centreAmp[k];
                     final double cs = Math.cos(phi[k]);

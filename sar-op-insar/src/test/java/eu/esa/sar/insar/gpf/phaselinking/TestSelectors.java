@@ -85,6 +85,25 @@ public class TestSelectors {
     }
 
     @Test
+    public void ad_accepts_same_distribution_majority_of_the_time() {
+        // Calibration: with the proper Scholz-Stephens standardisation the two-sample AD test at
+        // alpha=0.05 must accept ~95% of same-distribution pairs (not over-reject).
+        final int n = 30;
+        final int trials = 400;
+        int accept = 0;
+        final Random rng = new Random(46);
+        final ADSelector ad = new ADSelector(0.05, n);
+        for (int t = 0; t < trials; t++) {
+            final double[] centre = rayleighSeries(rng, 1.0, n);
+            final double[] candidate = rayleighSeries(rng, 1.0, n);
+            ad.prepareCentre(centre);
+            if (ad.accept(centre, candidate)) accept++;
+        }
+        assertTrue("AD H0 acceptance rate too low (over-rejecting): " + accept + "/" + trials,
+                accept >= (int) (0.88 * trials));
+    }
+
+    @Test
     public void ad_rejects_clearly_different_distributions() {
         final int n = 30;
         final int trials = 200;

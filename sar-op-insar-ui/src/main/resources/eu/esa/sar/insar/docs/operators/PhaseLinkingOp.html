@@ -91,16 +91,29 @@
     <tr><td>SHP alpha</td><td>0.05</td>
         <td>Significance level for the SHP test.</td></tr>
     <tr><td>Minimum SHPs</td><td>20</td>
-        <td>Below this count the pixel is passed through unchanged.</td></tr>
+        <td>Below this count the pixel is passed through unchanged. The
+            effective minimum is raised to the stack size <i>N</i> when
+            smaller, so the <i>N</i>&times;<i>N</i> covariance stays full rank
+            (a rank-deficient covariance cannot be phase-linked, especially by
+            EMI, which inverts it).</td></tr>
     <tr><td>Estimator</td><td>EVD</td>
         <td><b>EVD</b>: dominant eigenvector of <b>T</b> (Ferretti SqueeSAR
-            2011). <b>EMI</b>: lower-bias variant via inverse iteration on
-            |<b>T</b>|<sup>&minus;1</sup>&nbsp;&odot;&nbsp;<b>T</b> (Ansari,
+            2011). <b>EMI</b>: lower-bias variant &mdash; smallest-eigenvalue
+            eigenvector of <b>&Gamma;</b><sup>&minus;1</sup>&nbsp;&odot;&nbsp;<b>T</b>,
+            where <b>&Gamma;</b>&nbsp;=&nbsp;|<b>T</b>| and
+            <b>&Gamma;</b><sup>&minus;1</sup> is its matrix inverse (Ansari,
             De Zan, Bamler 2018).</td></tr>
     <tr><td>Reference Epoch</td><td>median epoch</td>
-        <td>ddMMMyyyy. Empty &rarr; chronological median.</td></tr>
+        <td>ddMMMyyyy. Empty &rarr; chronological median. The reference epoch
+            is the zero-phase datum; its band is written real-valued (only
+            relative phases matter downstream).</td></tr>
     <tr><td>Temp. Coherence Threshold</td><td>0.6</td>
         <td>Pixels below this are masked out.</td></tr>
+    <tr><td>Coherence Magnitude Bias Correction</td><td>off</td>
+        <td>Removes the positive bias of the sample coherence magnitude
+            (first-order number-of-looks correction). Beneficial with the
+            <b>EVD</b> estimator; may degrade <b>EMI</b> at low coherence, so
+            it is off by default.</td></tr>
 </table>
 
 <h4>v1 Scope and Limitations</h4>

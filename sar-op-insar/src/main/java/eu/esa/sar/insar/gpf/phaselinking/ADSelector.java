@@ -18,43 +18,82 @@ package eu.esa.sar.insar.gpf.phaselinking;
 import java.util.Arrays;
 
 /**
- * Two-sample Anderson-Darling SHP test (Scholz &amp; Stephens 1987).
+ * Two-sample Anderson-Darling SHP test (Scholz &amp; Stephens, JASA 1987,
+ * "K-Sample Anderson-Darling Tests"); the same statistic implemented by
+ * {@code scipy.stats.anderson_ksamp} and used by FRInGE.
  *
- *   A_kn^2 = (1 / N) * sum_i (M_i * (N - M_i) - i * (N - i))^2
- *                          / (i * (N - i))
+ * For k=2 samples the rank statistic (no-ties form, eq. 6) is
  *
- * with the standardised statistic
+ *   A2_akN = ((N-1) / N^2) * (1/nA + 1/nB) * sum_{j=1..N-1}
+ *               (N * M_Aj - j * nA)^2 / (j * (N - j))
  *
- *   T_kn = (A_kn^2 - (k-1)) / sigma
+ * where {@code M_Aj} is the number of sample-A observations among the j
+ * smallest pooled values. It is standardised to the {@code T_m} (m=k-1=1)
+ * distribution by its exact mean (k-1) and variance (eqs. 3-5):
  *
- * For k=2 samples of equal size n the asymptotic critical values are
+ *   T = (A2_akN - (k-1)) / sigma_N
  *
- *   alpha   T_kn
- *   0.10    1.933
- *   0.05    2.492
- *   0.025   3.070
- *   0.01    3.857
+ * and the null (same distribution) is rejected when {@code T > criticalT}.
+ * The m=1 upper-tail percentage points (Table 1 / scipy's b0+b1+b2 fit) are
  *
- * (FRInGE uses these defaults.) We hand-roll the equal-sample-size
- * specialisation since both arrays are length N in the phase-linking
- * call site.
+ *   alpha   T
+ *   0.10    1.226
+ *   0.05    1.961
+ *   0.025   2.718
+ *   0.01    3.752
+ *
+ * sigma_N and the rank-sum prefactor depend only on the sample sizes, which
+ * are fixed (both arrays are the stack length N) for every phase-linking
+ * call, so they are precomputed once in the constructor.
  */
 public final class ADSelector implements SHPSelector {
 
     private final double criticalT;
+    /** (N-1)/N^2 * (1/nA + 1/nB), the prefactor on the rank sum; nA = nB = n, N = 2n. */
+    private final double normFactor;
+    /** Standard deviation of A2_akN under H0 (Scholz-Stephens variance, k=2). */
+    private final double sigma;
+
     private double[] sortedCentre;
-    private final int n;
 
     public ADSelector(final double alpha, final int n) {
-        this.n = n;
         this.criticalT = criticalValue(alpha);
+
+        final int nA = n, nB = n;
+        final int N = nA + nB;
+        this.normFactor = (N - 1.0) / ((double) N * N) * (1.0 / nA + 1.0 / nB);
+        this.sigma = (N > 3) ? standardDeviation(N, nA, nB) : 1.0;
     }
 
+    /** m = k-1 = 1 upper-tail percentage points of the Scholz-Stephens T_m distribution. */
     private static double criticalValue(final double alpha) {
-        if (alpha >= 0.10) return 1.933;
-        if (alpha >= 0.05) return 2.492;
-        if (alpha >= 0.025) return 3.070;
-        return 3.857; // alpha = 0.01 or stricter
+        if (alpha >= 0.10) return 1.226;
+        if (alpha >= 0.05) return 1.961;
+        if (alpha >= 0.025) return 2.718;
+        return 3.752; // alpha = 0.01 or stricter
+    }
+
+    /** sqrt of the H0 variance of A2_akN (Scholz-Stephens 1987, eqs. 3-5), specialised to k=2. */
+    private static double standardDeviation(final int N, final int nA, final int nB) {
+        final int k = 2;
+        final double H = 1.0 / nA + 1.0 / nB;
+        double h = 0.0;
+        for (int j = 1; j < N; j++) {
+            h += 1.0 / j;
+        }
+        double g = 0.0;
+        for (int i = 1; i <= N - 2; i++) {
+            for (int j = i + 1; j <= N - 1; j++) {
+                g += 1.0 / ((double) (N - i) * j);
+            }
+        }
+        final double a = (4 * g - 6) * (k - 1) + (10 - 6 * g) * H;
+        final double b = (2 * g - 4) * k * k + 8 * h * k + (2 * g - 14 * h - 4) * H - 8 * h + 4 * g - 6;
+        final double c = (6 * h + 2 * g - 2) * k * k + (4 * h - 4 * g + 6) * k + (2 * h - 6) * H + 4 * h;
+        final double d = (2 * h + 6) * k * k - 4 * h * k;
+        final double var = (a * Math.pow(N, 3) + b * (double) N * N + c * N + d)
+                / ((N - 1.0) * (N - 2.0) * (N - 3.0));
+        return (var > 0.0) ? Math.sqrt(var) : 1.0;
     }
 
     @Override
@@ -70,8 +109,6 @@ public final class ADSelector implements SHPSelector {
     public boolean accept(final double[] centre, final double[] candidate) {
         if (sortedCentre == null) prepareCentre(centre);
 
-        // Pool both samples, sort, then for each pooled rank i compute
-        // M_i = number of "centre" observations with value <= pooled[i].
         final double[] a = sortedCentre;
         final double[] b = new double[candidate.length];
         System.arraycopy(candidate, 0, b, 0, candidate.length);
@@ -81,41 +118,26 @@ public final class ADSelector implements SHPSelector {
         final int nB = b.length;
         final int N = nA + nB;
 
-        // Merge into pooled in ascending order, keeping a "from-A" flag
-        final double[] pooled = new double[N];
-        final boolean[] fromA = new boolean[N];
+        // Merge-walk the pooled sample, accumulating the rank sum
+        //   S = sum_{j=1..N-1} (N * M_Aj - j * nA)^2 / (j * (N - j))
+        // where M_Aj = #{A observations among the j smallest pooled values}.
         int ia = 0, ib = 0;
-        for (int k = 0; k < N; k++) {
+        int M = 0;        // cumulative A-count
+        double S = 0.0;
+        for (int j = 1; j < N; j++) {   // pooled positions 1..N-1
             if (ia < nA && (ib >= nB || a[ia] <= b[ib])) {
-                pooled[k] = a[ia];
-                fromA[k] = true;
+                M++;
                 ia++;
             } else {
-                pooled[k] = b[ib];
-                fromA[k] = false;
                 ib++;
             }
+            final double num = (double) N * M - (double) j * nA;
+            final double den = (double) j * (N - j);
+            S += (num * num) / den;
         }
 
-        // A_kn^2 = (1/N) sum_{i=1..N-1} (M_i * N - i * nA)^2 / (i * (N - i))   (Scholz-Stephens eq. for k=2)
-        double sum = 0.0;
-        int M = 0; // count of A-observations <= pooled[i] (cumulative)
-        for (int i = 0; i < N - 1; i++) {
-            if (fromA[i]) M++;
-            final double iPlus1 = i + 1.0;
-            final double num = M * (double) N - iPlus1 * nA;
-            final double den = iPlus1 * (N - iPlus1);
-            if (den > 0.0) {
-                sum += (num * num) / den;
-            }
-        }
-        final double Akn2 = sum / N;
-
-        // Standardise: sigma_n^2 for k=2 equal-sized samples (Scholz-Stephens 1987 table)
-        // approx sigma^2 = (1/3)*(N-1)*(N+1) - 0.* (... omitted: dominated by ~N for n>=20)
-        // Use the closed-form normal approximation (k-1 = 1, sigma_n -> sqrt((N-1)*g)),
-        // simplified to the well-known: T = A - 1 for large N.
-        final double T = Akn2 - 1.0;
+        final double A2akN = normFactor * S;
+        final double T = (A2akN - 1.0) / sigma;   // m = k-1 = 1
 
         return T <= criticalT;
     }

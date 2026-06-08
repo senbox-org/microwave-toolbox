@@ -18,130 +18,66 @@ package eu.esa.sar.insar.gpf.phaselinking;
 /**
  * EMI phase estimator (Ansari, De Zan, Bamler, IEEE TGRS 56(7) 2018).
  *
- * Lower bias than EVD at low coherence; same O(N^3) cost.
+ * Lower bias and variance than EVD at low coherence; same O(N^3) cost.
  *
- * Solve the smallest-eigenvalue eigenvector of the weighted matrix
+ * The EMI estimate is the eigenvector of the SMALLEST eigenvalue of
  *
- *   W = |T_hat|^{-1} (elementwise Hadamard product) T_hat
+ *   M = Gamma^{-1} (Hadamard product) T_hat ,   Gamma = |T_hat|
  *
- * where |T_hat| is the matrix of moduli of T_hat. W is not Hermitian, so
- * we solve it via inverse-power iteration on T_hat itself: start from a
- * random unit vector v, set v &lt;- T_hat^{-1} (|T_hat| .* v_prev), normalise.
+ * where {@code Gamma^{-1}} is the (real, symmetric) MATRIX inverse of the
+ * coherence-magnitude matrix and the Hadamard product is taken with the
+ * complex sample coherence T_hat. M is Hermitian, so its eigen-pairs come
+ * straight from {@link HermitianEigSolver#decompose} (eigenvalues descending,
+ * so the EMI eigenvector is the last column). The inverse-magnitude weighting
+ * down-weights low-coherence (long-baseline) pairs, which is exactly where
+ * EVD's equal weighting of noisy phases hurts.
  *
- * This recovers the same fixed-point as the smallest-eigenvalue eigenvector
- * of W (Ansari 2018, eqs. 22-25). T_hat^{-1} is computed once via the
- * Hermitian eigen-decomposition (positive-(semi-)definite pseudo-inverse).
+ * Gamma is positive-(semi-)definite; near-singular cases (e.g. a degenerate
+ * rank-1 T_hat) fall back to a pseudo-inverse via the eigen-floor.
  */
 public final class EMIEstimator implements PhaseEstimator {
 
-    private static final int MAX_ITER = 30;
-    private static final double TOL = 1.0e-8;
     private static final double EIG_FLOOR = 1.0e-9;
 
     @Override
     public void estimate(final int n, final double[][] tRe, final double[][] tIm,
                          final int refIdx, final double[] phi) {
 
-        // Invert T_hat (pseudo-inverse via Hermitian eigendecomp).
-        final double[][] invRe = new double[n][n];
-        final double[][] invIm = new double[n][n];
-        HermitianEigSolver.invert(n, tRe, tIm, invRe, invIm, EIG_FLOOR);
-
-        // Precompute |T_hat|
-        final double[][] absT = new double[n][n];
+        // Gamma = |T_hat| (real, symmetric, unit diagonal).
+        final double[][] gammaRe = new double[n][n];
+        final double[][] gammaIm = new double[n][n];   // identically zero (Gamma is real)
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
-                absT[i][j] = Math.sqrt(tRe[i][j] * tRe[i][j] + tIm[i][j] * tIm[i][j]);
+                gammaRe[i][j] = Math.sqrt(tRe[i][j] * tRe[i][j] + tIm[i][j] * tIm[i][j]);
             }
         }
 
-        // Initial guess: dominant EVD eigenvector to get a warm start.
-        final double[] vr = new double[n];
-        final double[] vi = new double[n];
-        {
-            final double[][] evr = new double[n][n];
-            final double[][] evi = new double[n][n];
-            final double[] lambda = new double[n];
-            HermitianEigSolver.decompose(n, tRe, tIm, evr, evi, lambda);
-            for (int k = 0; k < n; k++) {
-                vr[k] = evr[k][0];
-                vi[k] = evi[k][0];
+        // Gamma^{-1} (real, symmetric; pseudo-inverse if near-singular).
+        final double[][] invRe = new double[n][n];
+        final double[][] invIm = new double[n][n];
+        HermitianEigSolver.invert(n, gammaRe, gammaIm, invRe, invIm, EIG_FLOOR);
+
+        // M = Gamma^{-1} (Hadamard) T_hat. Gamma^{-1} is real, so M_ij = invRe_ij * T_hat_ij.
+        final double[][] mRe = new double[n][n];
+        final double[][] mIm = new double[n][n];
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                mRe[i][j] = invRe[i][j] * tRe[i][j];
+                mIm[i][j] = invRe[i][j] * tIm[i][j];
             }
         }
 
-        final double[] wr = new double[n];
-        final double[] wi = new double[n];
+        // Smallest-eigenvalue eigenvector of the Hermitian M (last column, since
+        // HermitianEigSolver returns eigenvalues in descending order).
+        final double[][] vr = new double[n][n];
+        final double[][] vi = new double[n][n];
+        final double[] lambda = new double[n];
+        HermitianEigSolver.decompose(n, mRe, mIm, vr, vi, lambda);
+        final int c = n - 1;
 
-        for (int iter = 0; iter < MAX_ITER; iter++) {
-
-            // y_i = sum_j |T|_ij * v_j   (real-weight scaling of complex v)
-            final double[] yr = new double[n];
-            final double[] yi = new double[n];
-            for (int i = 0; i < n; i++) {
-                double accR = 0.0, accI = 0.0;
-                for (int j = 0; j < n; j++) {
-                    accR += absT[i][j] * vr[j];
-                    accI += absT[i][j] * vi[j];
-                }
-                yr[i] = accR;
-                yi[i] = accI;
-            }
-
-            // w = T_hat^{-1} * y   (complex matrix-vector)
-            for (int i = 0; i < n; i++) {
-                double accR = 0.0, accI = 0.0;
-                for (int j = 0; j < n; j++) {
-                    // (invRe + i invIm)(yr + i yi)
-                    accR += invRe[i][j] * yr[j] - invIm[i][j] * yi[j];
-                    accI += invRe[i][j] * yi[j] + invIm[i][j] * yr[j];
-                }
-                wr[i] = accR;
-                wi[i] = accI;
-            }
-
-            // Normalise w to unit length
-            double norm2 = 0.0;
-            for (int i = 0; i < n; i++) {
-                norm2 += wr[i] * wr[i] + wi[i] * wi[i];
-            }
-            final double invNorm = (norm2 > 0.0) ? 1.0 / Math.sqrt(norm2) : 1.0;
-            for (int i = 0; i < n; i++) {
-                wr[i] *= invNorm;
-                wi[i] *= invNorm;
-            }
-
-            // Phase-align to v to compare convergence (the eigenvector is defined up to a global phase).
-            double dotR = 0.0, dotI = 0.0;
-            for (int i = 0; i < n; i++) {
-                dotR += vr[i] * wr[i] + vi[i] * wi[i];
-                dotI += vr[i] * wi[i] - vi[i] * wr[i];
-            }
-            final double dotNorm = Math.sqrt(dotR * dotR + dotI * dotI);
-            final double pr = (dotNorm > 0.0) ? dotR / dotNorm : 1.0;
-            final double pi = (dotNorm > 0.0) ? -dotI / dotNorm : 0.0;
-            for (int i = 0; i < n; i++) {
-                final double r = wr[i] * pr - wi[i] * pi;
-                final double im = wr[i] * pi + wi[i] * pr;
-                wr[i] = r;
-                wi[i] = im;
-            }
-
-            double diff = 0.0;
-            for (int i = 0; i < n; i++) {
-                final double dr = wr[i] - vr[i];
-                final double di = wi[i] - vi[i];
-                diff += dr * dr + di * di;
-            }
-
-            System.arraycopy(wr, 0, vr, 0, n);
-            System.arraycopy(wi, 0, vi, 0, n);
-
-            if (diff < TOL) break;
-        }
-
-        final double refArg = Math.atan2(vi[refIdx], vr[refIdx]);
+        final double refArg = Math.atan2(vi[refIdx][c], vr[refIdx][c]);
         for (int k = 0; k < n; k++) {
-            phi[k] = Math.atan2(vi[k], vr[k]) - refArg;
+            phi[k] = Math.atan2(vi[k][c], vr[k][c]) - refArg;
         }
         phi[refIdx] = 0.0;
     }

@@ -82,6 +82,33 @@ public final class CovarianceMatrix {
      * @param tIm      n x n output imaginary part of T_hat (Hermitian)
      */
     public void finalizeT(final int nSamples, final double[][] tRe, final double[][] tIm) {
+        finalizeT(nSamples, tRe, tIm, false);
+    }
+
+    /**
+     * As {@link #finalizeT(int, double[][], double[][])} but optionally removes the positive bias of
+     * the sample coherence magnitude. The sample coherence |T_hat_ij| from L looks is biased high
+     * (E[|gamma_hat|^2] ~ gamma^2 + (1-gamma^2)/L; the bias is severe at low coherence / few looks).
+     * The first-order magnitude-squared-coherence correction subtracts the 1/L noise floor and
+     * rescales:
+     *
+     *   |gamma|^2_corrected = max(0, (L * |gamma_hat|^2 - 1) / (L - 1))
+     *
+     * which is first-order unbiased for gamma^2. Only the off-diagonal magnitudes are shrunk; the
+     * phase arg(T_hat) (which carries the interferometric signal) is preserved, and the diagonal
+     * stays 1.
+     *
+     * Caveats: (1) per-element magnitude shrinkage is not guaranteed to preserve positive-
+     * semidefiniteness - the estimators only require a Hermitian matrix, so this is acceptable, but
+     * PSD-preserving debiasing needs a regularized/tapered approach. (2) The correction is
+     * beneficial for EVD (it down-weights noisy low-coherence pairs) but can DEGRADE EMI at low
+     * coherence / few looks, because EMI inverts the magnitude matrix and the correction adds
+     * estimation variance there. Recommended with the EVD estimator.
+     *
+     * @param biasCorrect apply the magnitude bias correction when true
+     */
+    public void finalizeT(final int nSamples, final double[][] tRe, final double[][] tIm,
+                          final boolean biasCorrect) {
         final double inv = 1.0 / nSamples;
         // diagonal magnitudes for normalisation
         final double[] diag = new double[n];
@@ -90,18 +117,30 @@ public final class CovarianceMatrix {
             tRe[i][i] = 1.0;
             tIm[i][i] = 0.0;
         }
+        final boolean correct = biasCorrect && nSamples > 1;
+        final double L = nSamples;
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
                 final double dij = diag[i] * diag[j];
+                double re, im;
                 if (dij <= 0.0) {
-                    tRe[i][j] = 0.0;
-                    tIm[i][j] = 0.0;
+                    re = 0.0;
+                    im = 0.0;
                 } else {
-                    tRe[i][j] = (cRe[i][j] * inv) / dij;
-                    tIm[i][j] = (cIm[i][j] * inv) / dij;
+                    re = (cRe[i][j] * inv) / dij;
+                    im = (cIm[i][j] * inv) / dij;
+                    if (correct) {
+                        final double m2 = re * re + im * im;
+                        final double m2c = (L * m2 - 1.0) / (L - 1.0);
+                        final double scale = (m2 > 0.0 && m2c > 0.0) ? Math.sqrt(m2c / m2) : 0.0;
+                        re *= scale;
+                        im *= scale;
+                    }
                 }
-                tRe[j][i] = tRe[i][j];
-                tIm[j][i] = -tIm[i][j];
+                tRe[i][j] = re;
+                tIm[i][j] = im;
+                tRe[j][i] = re;
+                tIm[j][i] = -im;
             }
         }
     }
