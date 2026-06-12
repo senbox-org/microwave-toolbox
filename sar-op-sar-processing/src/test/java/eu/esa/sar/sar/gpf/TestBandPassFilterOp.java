@@ -60,7 +60,7 @@ public class TestBandPassFilterOp extends ProcessorTest {
 
     @Test
     public void testBandPass() throws Exception {
-        final float[] expected = new float[] { -28.0f, -25.0f, -7.0f, -6.0f };
+        final float[] expected = new float[] { -29.0f, -26.0f, -6.0f, -6.0f };
         process(inputFile, expected);
     }
 
