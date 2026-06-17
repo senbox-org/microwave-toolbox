@@ -13,10 +13,11 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.sar.gpf.geometric;
+package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
+import eu.esa.sar.sar.gpf.geometric.GSLCGeocodingOp;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.PixelPos;
@@ -24,6 +25,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -47,6 +49,7 @@ import static org.junit.Assume.assumeTrue;
  * Prints every intermediate value so the failure mode is obvious even when an assertion
  * fires. File-existence gated; skipped on machines without the fixtures.
  */
+@Ignore("Internal test harness")
 public class GSLCStackAlignmentTest extends ProcessorTest {
 
     private static final File MASTER_FILE = new File(

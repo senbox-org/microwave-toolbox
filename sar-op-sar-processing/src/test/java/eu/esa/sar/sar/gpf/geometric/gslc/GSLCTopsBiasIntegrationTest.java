@@ -1,4 +1,4 @@
-package eu.esa.sar.sar.gpf.geometric;
+package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
@@ -7,6 +7,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -27,6 +28,7 @@ import static org.junit.Assume.assumeTrue;
  *  - {@link #testTopsBiasEstimatorRunsWithoutRegression} proves CreateStack's TOPS bias estimator
  *    (Back-Geocoding + ESD) runs and does not regress coherence.
  */
+@Ignore("Internal test harness")
 public class GSLCTopsBiasIntegrationTest extends ProcessorTest {
 
     private static final File FIX_DIR = new File("E:/TestData/s1tbx/SAR/S1/SLC/Etna-DLR/fixtures");

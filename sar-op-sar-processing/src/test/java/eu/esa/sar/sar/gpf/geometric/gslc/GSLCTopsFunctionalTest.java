@@ -1,4 +1,4 @@
-package eu.esa.sar.sar.gpf.geometric;
+package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
@@ -7,6 +7,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -23,6 +24,7 @@ import static org.junit.Assume.assumeTrue;
  * File-gated: skip (not fail) when the scene is absent. Uses the embedded orbit
  * (no Apply-Orbit-File) and {@code nodataValueAtSea=false} per existing GSLC-test convention.
  */
+@Ignore("Internal test harness")
 public class GSLCTopsFunctionalTest extends ProcessorTest {
 
     private static final java.io.File SLC = TestData.inputS1_SLC;

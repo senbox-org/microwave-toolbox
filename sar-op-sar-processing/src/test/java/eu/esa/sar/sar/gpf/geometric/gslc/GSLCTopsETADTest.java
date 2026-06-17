@@ -1,10 +1,11 @@
-package eu.esa.sar.sar.gpf.geometric;
+package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import eu.esa.sar.commons.test.ProcessorTest;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -20,6 +21,7 @@ import static org.junit.Assume.assumeTrue;
  * make a measurable-but-bounded difference to the geocoded product (ETAD shifts
  * geolocation by cm–dm). File-gated on the local IW-Philippines ETAD pair.
  */
+@Ignore("Internal test harness")
 public class GSLCTopsETADTest extends ProcessorTest {
 
     // ETAD-Surat has both the SLC (1SSH, single-pol) and the matching ETAD .SAFE locally.

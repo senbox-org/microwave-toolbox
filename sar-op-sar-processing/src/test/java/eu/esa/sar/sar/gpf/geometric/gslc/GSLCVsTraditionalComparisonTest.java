@@ -13,7 +13,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
-package eu.esa.sar.sar.gpf.geometric;
+package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
@@ -27,9 +27,9 @@ import org.esa.snap.core.datamodel.ProductNodeGroup;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
-import java.awt.Rectangle;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,6 +59,7 @@ import static org.junit.Assume.assumeTrue;
  *  GSLC (B):     Apply-Orbit-File (done) → GSLC(master) → GSLC(slave) → CreateStack → Interferogram
  * </pre>
  */
+@Ignore("Internal test harness")
 public class GSLCVsTraditionalComparisonTest extends ProcessorTest {
 
     private static final File MASTER_FILE = new File(

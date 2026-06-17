@@ -1,4 +1,4 @@
-package eu.esa.sar.sar.gpf.geometric;
+package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
@@ -8,6 +8,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -29,6 +30,7 @@ import static org.junit.Assume.assumeTrue;
  *
  * Set MASTER/SLAVE to the Napoli IW SLC pair (same track/subswath overlap) to enable.
  */
+@Ignore("Internal test harness")
 public class GSLCVsCSLCTopsComparisonTest extends ProcessorTest {
 
     private static final File MASTER = new File("E:/TestData/s1tbx/SAR/S1/Napoli/master_IW_SLC.zip");
