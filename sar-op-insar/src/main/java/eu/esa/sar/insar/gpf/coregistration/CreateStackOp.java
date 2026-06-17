@@ -1571,10 +1571,101 @@ public class CreateStackOp extends Operator {
             throws Exception {
         INSIDE_BIAS_ESTIMATION.set(true);
         try {
+            // TOPS pairs cannot use the stripmap nested-CreateStack + Cross-Correlation path
+            // (cross-correlation on raw TOPS SLCs is invalid, and the nested CreateStack refuses
+            // TOPS). Use Back-Geocoding + ESD to get the (range, azimuth) residual instead.
+            if (isTopsSlc(masterSlc) && isTopsSlc(slaveSlc)) {
+                return estimateTopsBias(masterSlc, slaveSlc, pm);
+            }
             return estimateSlcBiasInner(masterSlc, slaveSlc, pm);
         } finally {
             INSIDE_BIAS_ESTIMATION.set(false);
         }
+    }
+
+    private static boolean isTopsSlc(final Product p) {
+        try {
+            final InputProductValidator v = new InputProductValidator(p);
+            return v.isTOPSARProduct() && !v.isDebursted();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
+     * TOPS-grade (range, azimuth) residual via SNAP's TOPS coregistration: Back-Geocoding to a
+     * coregistered burst stack, then Enhanced-Spectral-Diversity (estimate only, no resampled
+     * output) whose {@code Overall_Range_Azimuth_Shift} is the residual to feed GSLC's scalar
+     * offset parameters. Invoked through the SPI registry (Back-Geocoding/ESD live in
+     * sar-op-sentinel1, which depends on this module, so they can't be imported directly).
+     * Falls back to zero bias (warned) when ESD cannot run (e.g. a single burst — no overlaps).
+     */
+    private static double[] estimateTopsBias(final Product masterSlc, final Product slaveSlc,
+                                             final ProgressMonitor pm) {
+        try {
+            final java.util.Map<String, Object> bgParams = new HashMap<>();
+            bgParams.put("demName", "Copernicus 30m Global DEM");
+            bgParams.put("resamplingType", "BISINC_5_POINT_INTERPOLATION");
+            final Product stack = createOperatorTargetProduct(
+                    "Back-Geocoding", bgParams, masterSlc, slaveSlc);
+
+            // ESD estimates the residual in doExecute() (SpectralDiversityOp's doNotWriteTargetBands
+            // branch), which getTargetProduct() alone does NOT trigger. Instantiate the operator and
+            // call execute() so the Overall_Range_Azimuth_Shift metadata is populated.
+            final org.esa.snap.core.gpf.OperatorSpi esdSpi =
+                    org.esa.snap.core.gpf.GPF.getDefaultInstance()
+                            .getOperatorSpiRegistry().getOperatorSpi("Enhanced-Spectral-Diversity");
+            if (esdSpi == null) {
+                throw new OperatorException("OperatorSpi not found for 'Enhanced-Spectral-Diversity'");
+            }
+            final org.esa.snap.core.gpf.Operator esdOp = esdSpi.createOperator();
+            esdOp.setSourceProduct(stack);
+            esdOp.setParameter("doNotWriteTargetBands", true);
+            esdOp.execute(com.bc.ceres.core.ProgressMonitor.NULL);
+            final Product esd = esdOp.getTargetProduct();
+
+            final double[] off = esdShiftToGslcOffset(readEsdOverallShift(esd));
+            SystemUtils.LOG.info(String.format(
+                    "CreateStack TOPS bias for slave '%s' — Δrange=%+.4f px, Δazimuth=%+.4f px (ESD)",
+                    slaveSlc.getName(), off[0], off[1]));
+            return off;
+        } catch (Throwable t) {
+            SystemUtils.LOG.warning("CreateStack: TOPS bias estimation failed for '" +
+                    slaveSlc.getName() + "': " + t.getMessage() +
+                    " — using zero bias (geometric coregistration only).");
+            return new double[]{0.0, 0.0};
+        }
+    }
+
+    /**
+     * Read the ESD overall (range, azimuth) residual in pixels from an
+     * Enhanced-Spectral-Diversity output's abstracted metadata:
+     * {@code "ESD Measurement" -> <first pair> -> "Overall_Range_Azimuth_Shift" -> <first subswath>}
+     * attributes {@code rangeShift} / {@code azimuthShift}. Throws if the element is absent.
+     */
+    static double[] readEsdOverallShift(final Product esd) {
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(esd);
+        final MetadataElement esdElem = abs == null ? null : abs.getElement("ESD Measurement");
+        if (esdElem == null || esdElem.getNumElements() == 0) {
+            throw new OperatorException("ESD output has no 'ESD Measurement' metadata.");
+        }
+        final MetadataElement pair = esdElem.getElementAt(0);
+        final MetadataElement overall = pair.getElement("Overall_Range_Azimuth_Shift");
+        if (overall == null || overall.getNumElements() == 0) {
+            throw new OperatorException("ESD output has no 'Overall_Range_Azimuth_Shift' metadata.");
+        }
+        final MetadataElement sw = overall.getElementAt(0);
+        return new double[]{ sw.getAttributeDouble("rangeShift", 0.0),
+                             sw.getAttributeDouble("azimuthShift", 0.0) };
+    }
+
+    /**
+     * Map an ESD (range, azimuth) residual to GSLC rangeOffsetPixels/azimuthOffsetPixels.
+     * First increment: identity. Centralised so the sign is changed in one place if the
+     * integration coherence A/B shows the bias reduces (rather than improves) coherence.
+     */
+    static double[] esdShiftToGslcOffset(final double[] esdRgAz) {
+        return new double[]{ esdRgAz[0], esdRgAz[1] };
     }
 
     private static double[] estimateSlcBiasInner(final Product masterSlc, final Product slaveSlc,

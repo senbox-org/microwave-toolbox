@@ -93,6 +93,13 @@
             <artifactId>sar-io-gdal</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-op-sentinel1</artifactId>
+            <version>${microwavetbx.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

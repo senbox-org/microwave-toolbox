@@ -746,6 +746,17 @@ public class GSLCGeocodingOp extends Operator {
         SystemUtils.LOG.info("GSLC: TOPS mode enabled for " + subSwathNames[0] +
                 ", bursts=" + subSwath[0].numOfBursts +
                 ", linesPerBurst=" + subSwath[0].linesPerBurst);
+
+        // Range offset reaches the TOPS path via nearEdgeSlantRange (shifted in getMetadata).
+        // The azimuth offset must be applied here: the TOPS azimuth index comes from burst
+        // times, not firstLineUTC, so shift the burst times by azimuthOffsetPixels.
+        if (azimuthOffsetPixels != 0.0) {
+            applyAzimuthOffsetToBurstTimes(subSwath[subSwathIndex - 1], azimuthOffsetPixels);
+            SystemUtils.LOG.info(String.format(
+                    "GSLC TOPS: azimuthOffsetPixels=%+.6f applied to burst times (%.4f s)",
+                    azimuthOffsetPixels,
+                    azimuthOffsetPixels * subSwath[subSwathIndex - 1].azimuthTimeInterval));
+        }
     }
 
     private synchronized void getElevationModel() throws Exception {
@@ -1584,7 +1595,26 @@ public class GSLCGeocodingOp extends Operator {
     /**
      * Determine which burst a pixel belongs to using valid line times and midpoint overlap rule.
      */
-    private static int selectBurst(double zeroDopplerTimeSec, Sentinel1Utils.SubSwathInfo ss) {
+    /**
+     * Apply a scalar azimuth coregistration offset to a TOPS subswath's burst-time references.
+     * The TOPS azimuth index is derived from burst times (not firstLineUTC), so a positive
+     * {@code azimuthOffsetPixels} must subtract {@code az * azimuthTimeInterval} seconds from each
+     * burst's line-time references; the orbit->burst->lineWithinBurst mapping then samples the
+     * source SLC at {@code originalRow + azimuthOffsetPixels} (matching the stripmap convention
+     * in the firstLineUTC-shift block).
+     */
+    static void applyAzimuthOffsetToBurstTimes(final Sentinel1Utils.SubSwathInfo ss,
+                                               final double azimuthOffsetPixels) {
+        if (azimuthOffsetPixels == 0.0) return;
+        final double azShiftSec = azimuthOffsetPixels * ss.azimuthTimeInterval;
+        for (int i = 0; i < ss.numOfBursts; i++) {
+            if (ss.burstFirstLineTime != null)      ss.burstFirstLineTime[i]      -= azShiftSec;
+            if (ss.burstFirstValidLineTime != null) ss.burstFirstValidLineTime[i] -= azShiftSec;
+            if (ss.burstLastValidLineTime != null)  ss.burstLastValidLineTime[i]  -= azShiftSec;
+        }
+    }
+
+    static int selectBurst(double zeroDopplerTimeSec, Sentinel1Utils.SubSwathInfo ss) {
         int firstBurst = -1;
         int secondBurst = -1;
 
@@ -1613,7 +1643,7 @@ public class GSLCGeocodingOp extends Operator {
     /**
      * Check if a source pixel falls within the valid sample region of its burst.
      */
-    private static boolean isValidBurstSample(int burstIndex, double azimuthIndex, double rangeIndex,
+    static boolean isValidBurstSample(int burstIndex, double azimuthIndex, double rangeIndex,
                                                Sentinel1Utils.SubSwathInfo ss) {
         final int lineInBurst = (int) Math.round(azimuthIndex) - burstIndex * ss.linesPerBurst;
         if (lineInBurst < 0 || lineInBurst >= ss.linesPerBurst) return false;
