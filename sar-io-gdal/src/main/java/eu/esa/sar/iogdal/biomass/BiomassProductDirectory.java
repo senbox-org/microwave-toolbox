@@ -50,6 +50,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -68,7 +69,12 @@ public class BiomassProductDirectory extends XMLProductDirectory {
     private static final GTiffDriverProductReaderPlugIn readerPlugin = new GTiffDriverProductReaderPlugIn();
     private final Map<String, ReaderData> bandProductMap = new TreeMap<>();
 
-    private final transient Map<String, String> imgBandMetadataMap = new TreeMap<>();
+    // LinkedHashMap (not TreeMap): bands are assigned to source-image planes positionally by
+    // iteration order, so that order must match the GeoTIFF band order. The product's declared
+    // polarisation order (insertion order here) matches the measurement band order; an
+    // alphabetical sort only coincidentally agreed and would silently mislabel polarisations
+    // for any non-alphabetical acquisition order.
+    private final transient Map<String, String> imgBandMetadataMap = new LinkedHashMap<>();
     private String productName = "";
     private String productType = "";
     private String annotationName = "";
@@ -174,13 +180,15 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                         data.bandProduct = data.reader.readProductNodes(productDir.getFile(imgPath), null);
                     }
                 } else {
-                    final InputStream inStream = getInputStream(imgPath);
-                    if (inStream.available() > 0) {
-                        data.bandProduct = data.reader.readProductNodes(productDir.getFile(imgPath), null);
-                    } else {
-                        inStream.close();
+                    // Don't gate on InputStream.available(): it is allowed to return 0 for a
+                    // perfectly valid file, which would silently drop the band (and the stream
+                    // was leaked on the success path). Check the file directly instead.
+                    final File imgFile = productDir.getFile(imgPath);
+                    if (imgFile == null || !imgFile.exists() || imgFile.length() <= 0) {
+                        SystemUtils.LOG.warning("BIOMASS: measurement file missing or empty, skipping: " + imgPath);
                         return;
                     }
+                    data.bandProduct = data.reader.readProductNodes(imgFile, null);
                 }
 
                 if (data.bandProduct != null) {
@@ -259,6 +267,17 @@ public class BiomassProductDirectory extends XMLProductDirectory {
             } else {
 
                 ReaderData absReaderData = bandProductMap.get(ABS);
+                if (absReaderData == null) {
+                    SystemUtils.LOG.warning("BIOMASS: DGM product missing ABS source; " +
+                            "skipping band for '" + bandMetaName + "'.");
+                    continue;
+                }
+                if (absReaderData.bandProduct.getNumBands() <= cnt) {
+                    SystemUtils.LOG.warning("BIOMASS: ABS band count (" +
+                            absReaderData.bandProduct.getNumBands() + ") is fewer than the number of " +
+                            "polarisation metadata entries; skipping '" + bandMetaName + "' at index " + cnt + ".");
+                    continue;
+                }
                 Band absBand = absReaderData.bandProduct.getBandAt(cnt);
                 bandName = "Amplitude" + '_' + suffix;
                 final Band newAbsBand = new Band(bandName, absBand.getDataType(), width, height);
@@ -1205,11 +1224,7 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                             }
                             final TiePointGrid tpg = new TiePointGrid(name,
                                     gridWidth, gridHeight, 0.5f, 0.5f, subSamplingX, subSamplingY, floatData);
-                            if(name.equalsIgnoreCase("height")) {
-                                tpg.setUnit(Unit.METERS);
-                            } else {
-                                tpg.setUnit(Unit.DEGREES);
-                            }
+                            tpg.setUnit(getTiePointGridUnit(name));
                             product.addTiePointGrid(tpg);
                         }
                     } catch (Exception e) {
@@ -1223,6 +1238,26 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
         
         addSlantRangeTimeTPG(product);
+    }
+
+    /**
+     * Pick the right unit for a LUT-derived tie-point grid by (already-normalised) name.
+     * Geometry grids are angles ({@code deg}); {@code height} is metres; the radiometric
+     * ({@code sigmaNought}, {@code gammaNought}, {@code betaNought}) and noise
+     * ({@code denoising*} / NESZ) grids are linear backscatter values, not angles — tagging
+     * those as "deg" was misleading.
+     */
+    private static String getTiePointGridUnit(final String name) {
+        final String n = name.toLowerCase();
+        if (n.equals("height")) {
+            return Unit.METERS;
+        }
+        if (n.contains("sigma") || n.contains("gamma") || n.contains("beta")
+                || n.contains("denoising") || n.contains("noise")) {
+            return Unit.INTENSITY;
+        }
+        // incidence / elevation / terrain-slope and other geometry grids are angles
+        return Unit.DEGREES;
     }
 
     private void addSlantRangeTimeTPG(final Product product) {

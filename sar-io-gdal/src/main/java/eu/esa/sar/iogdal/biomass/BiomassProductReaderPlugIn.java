@@ -47,6 +47,15 @@ public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
     private final static String[] PRODUCT_PREFIXES = {"BIO_S", "BIO_FP"};
     final static String PRODUCT_EXT = ".XML";
 
+    /**
+     * Opt-in switch for the EXPERIMENTAL BioPAL-prototype reader. Off by default so recognition of
+     * official products (and non-BIOMASS data) is never affected. Set {@code -Dbiomass.biopal.reader=true}
+     * to let this plug-in claim BioPAL output as {@link DecodeQualification#SUITABLE}.
+     * See {@link BiomassBioPALProductDirectory}.
+     */
+    static final String BIOPAL_READER_PROPERTY = "biomass.biopal.reader";
+    private static final int BIOPAL_SCAN_MAX_DEPTH = 4;
+
     private final static Class[] VALID_INPUT_TYPES = new Class[]{Path.class, File.class, String.class};
 
     private final static String ANNOTATION = "annotation";
@@ -69,9 +78,23 @@ public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
      */
     @Override
     public DecodeQualification getDecodeQualification(final Object input) {
-        Path path = ReaderUtils.getPathFromInput(input);
+        final Path path = ReaderUtils.getPathFromInput(input);
         if (path == null) return DecodeQualification.UNABLE;
 
+        final DecodeQualification official = getOfficialQualification(path);
+        if (official == DecodeQualification.INTENDED) {
+            return official;
+        }
+        // Experimental, opt-in only: BioPAL prototype output. SUITABLE (not INTENDED) so any
+        // genuinely-intended reader still wins. Gated by a system property so the default build
+        // behaves exactly as before.
+        if (Boolean.getBoolean(BIOPAL_READER_PROPERTY) && looksLikeBioPAL(path)) {
+            return DecodeQualification.SUITABLE;
+        }
+        return official;
+    }
+
+    private DecodeQualification getOfficialQualification(final Path path) {
         if (Files.isDirectory(path)) {
             final File[] files = path.toFile().listFiles();
             if (files == null) return DecodeQualification.UNABLE;
@@ -100,6 +123,32 @@ public class BiomassProductReaderPlugIn implements SARProductReaderPlugIn {
         }
 
         return DecodeQualification.UNABLE;
+    }
+
+    /** True when the input is, or contains, a BioPAL product GeoTIFF (AGB/FH/FD). Bounded scan. */
+    private static boolean looksLikeBioPAL(final Path path) {
+        final File f = path.toFile();
+        if (f.isFile()) {
+            return BiomassBioPALProductDirectory.classify(f.getName()) != null;
+        }
+        return f.isDirectory() && containsBioPALProduct(f, 0);
+    }
+
+    private static boolean containsBioPALProduct(final File dir, final int depth) {
+        if (depth > BIOPAL_SCAN_MAX_DEPTH) return false;
+        final File[] files = dir.listFiles();
+        if (files == null) return false;
+        for (final File f : files) {
+            if (f.isFile() && BiomassBioPALProductDirectory.classify(f.getName()) != null) {
+                return true;
+            }
+        }
+        for (final File f : files) {
+            if (f.isDirectory() && containsBioPALProduct(f, depth + 1)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

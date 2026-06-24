@@ -24,6 +24,7 @@ import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.Tile;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
@@ -142,6 +143,19 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
             if (!pol.isEmpty() && calFactor != AbstractMetadata.NO_METADATA) {
                 calibrationConstants.put(pol, calFactor);
             }
+        }
+
+        // BIOMASS L1 products normally carry per-pixel sigmaNought / gammaNought LUTs in the
+        // annotation NetCDF (exposed as tie-point grids by the reader). If they are absent we
+        // silently fall back to the scalar per-polarization absolute calibration constant, and
+        // without an incidence-angle grid Gamma0/Beta0 collapse to Sigma0. Warn once so the
+        // user understands why the radiometry may look off, rather than failing silently.
+        if (sigma0TPG == null && gamma0TPG == null) {
+            SystemUtils.LOG.warning("BIOMASS calibration: no sigmaNought/gammaNought LUT found in the product; " +
+                    "falling back to per-polarization absolute calibration constants" +
+                    (incidenceAngleTPG == null
+                            ? " with no incidence-angle correction (Beta0/Gamma0 will equal Sigma0)."
+                            : " (Gamma0 = K/cos(theta), Beta0 = K/sin(theta))."));
         }
     }
 
@@ -353,7 +367,11 @@ public final class BiomassCalibrator extends BaseCalibrator implements Calibrato
                 }
             }
         } catch (Throwable e) {
-            e.printStackTrace();
+            // Propagate as an OperatorException instead of swallowing it. A swallowed
+            // failure here leaves the target tile zero/partially filled while the operator
+            // still reports success, producing silently-corrupt calibration output that
+            // surfaces as artifacts in downstream operators (e.g. Terrain-Flattening).
+            OperatorUtils.catchOperatorException(calibrationOp.getId(), e);
         } finally {
             pm.done();
         }

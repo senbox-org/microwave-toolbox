@@ -75,22 +75,35 @@ public class BiomassProductReader extends SARReader {
     @Override
     protected Product readProductNodesImpl() throws IOException {
         try {
-            Path inputPath = getPathFromInput(getInput());
-            if(Files.isDirectory(inputPath)) {
-                inputPath = readerPlugIn.findMetadataFile(inputPath.toAbsolutePath()).toPath();
-            }
-            if(!Files.exists(inputPath)) {
-                throw new IOException(inputPath + " not found");
-            }
+            final Path inputPath = getPathFromInput(getInput());
+            final boolean biopalEnabled = Boolean.getBoolean(BiomassProductReaderPlugIn.BIOPAL_READER_PROPERTY);
 
-            File metadataFile = inputPath.toFile();
+            final File metadataFile;
+            if (Files.isDirectory(inputPath)) {
+                final File found = readerPlugIn.findMetadataFile(inputPath.toAbsolutePath());
+                if (found != null) {
+                    metadataFile = found;
+                } else if (biopalEnabled) {
+                    // BioPAL output has no ESA header; the directory itself is the entry point.
+                    metadataFile = inputPath.toFile();
+                } else {
+                    throw new IOException("No BIOMASS product metadata file found in " + inputPath);
+                }
+            } else {
+                if (!Files.exists(inputPath)) {
+                    throw new IOException(inputPath + " not found");
+                }
+                metadataFile = inputPath.toFile();
+            }
 
             // Route to the correct directory class based on the product prefix.
             // BIO_FP = Level 2 geophysical (Forest Height / Disturbance / Ground Notch / AGB);
-            // BIO_S  = Level 1 SAR (SCS, DGM, STA).
+            // BIO_S  = Level 1 SAR (SCS, DGM, STA); anything else (only when opted in) = BioPAL.
             final String fname = metadataFile.getName().toLowerCase();
             if (fname.startsWith("bio_fp_")) {
                 dataDir = new BiomassL2ProductDirectory(metadataFile);
+            } else if (biopalEnabled && !fname.startsWith("bio_s")) {
+                dataDir = new BiomassBioPALProductDirectory(metadataFile);
             } else {
                 dataDir = new BiomassProductDirectory(metadataFile);
             }
@@ -119,12 +132,38 @@ public class BiomassProductReader extends SARReader {
 
     private File getQuicklookFile() {
         try {
-            // Try common quicklook filenames in preview/ — L1 uses "quick-look.png", L2 uses *_ql.png.
-            final String[] candidates = { "quick-look.png" };
-            for (final String name : candidates) {
-                final String path = dataDir.getRootFolder() + "preview/" + name;
-                if (dataDir.exists(path)) {
-                    return dataDir.getFile(path);
+            final String previewFolder = dataDir.getRootFolder() + "preview/";
+
+            // L1 ships a single fixed-name quicklook.
+            final String l1 = previewFolder + "quick-look.png";
+            if (dataDir.exists(l1)) {
+                return dataDir.getFile(l1);
+            }
+
+            // L2 ships per-layer quicklooks named *_<layer>_ql.png. Prefer the primary
+            // geophysical layer over the secondary quality / mask / probability overlays.
+            String[] files = null;
+            try {
+                files = dataDir.listFiles(previewFolder);
+            } catch (IOException ignore) {
+                // no preview/ folder in this layout
+            }
+            if (files != null) {
+                String fallback = null;
+                for (final String name : files) {
+                    final String lower = name.toLowerCase();
+                    if (!lower.endsWith("_ql.png")) {
+                        continue;
+                    }
+                    if (fallback == null) {
+                        fallback = name;
+                    }
+                    if (!lower.contains("quality") && !lower.contains("cfm") && !lower.contains("probability")) {
+                        return dataDir.getFile(previewFolder + name);
+                    }
+                }
+                if (fallback != null) {
+                    return dataDir.getFile(previewFolder + fallback);
                 }
             }
         } catch (IOException e) {
