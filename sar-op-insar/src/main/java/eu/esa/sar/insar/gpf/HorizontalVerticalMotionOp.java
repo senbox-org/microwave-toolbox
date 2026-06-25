@@ -260,11 +260,6 @@ public class HorizontalVerticalMotionOp extends Operator {
 
         final int rasterWidth = unwrappedPhaseDsc.getRasterWidth();
         final int rasterHeight = unwrappedPhaseDsc.getRasterHeight();
-        if (refPixelX <= 0 && refPixelY <= 0) {
-            throw new OperatorException("Reference pixel (X,Y) must be set to a valid in-scene location; "
-                    + "the default (0,0) reads the scene corner, which is typically no-data. "
-                    + "Set Reference X / Reference Y to a stable point on coherent ground.");
-        }
         if (refPixelX < 0 || refPixelX >= rasterWidth || refPixelY < 0 || refPixelY >= rasterHeight) {
             throw new OperatorException("Reference pixel (" + refPixelX + "," + refPixelY + ") is outside the scene "
                     + rasterWidth + "x" + rasterHeight + ".");
