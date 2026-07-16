@@ -1207,6 +1207,18 @@ public class BiomassProductDirectory extends XMLProductDirectory {
                                 product.addTiePointGrid(lonGrid);
                             }
                         } else {
+                            // Neutralise the product no-data fill (-9999) before this grid becomes a
+                            // TiePointGrid or is averaged for avg_scene_height. A TiePointGrid has no
+                            // concept of no-data, so raw fill blended by bilinear interpolation yields
+                            // physically-impossible values along the swath boundary: NEGATIVE
+                            // backscatter for the radiometric LUTs (sigma/gamma/beta/NESZ) and corrupt
+                            // incidence / elevation / terrain-slope angles, which feed the
+                            // K/sin(theta), K/cos(theta) calibration fallback and geometric correction.
+                            // The reference PFD v1.6.1 Sec.4.3.2 processor masks the fill before
+                            // interpolating; we do the same. lat/lon are built in their own branch
+                            // above and are intentionally left untouched (see TestBiomassLutNoData).
+                            floatData = fillNoDataNodes(floatData, gridWidth, gridHeight, NoDataValue);
+
                             if(name.equalsIgnoreCase("incidenceangle")) {
                                 name = OperatorUtils.TPG_INCIDENT_ANGLE;
                             } else if(name.equalsIgnoreCase("elevationangle")) {
@@ -1258,6 +1270,72 @@ public class BiomassProductDirectory extends XMLProductDirectory {
         }
         // incidence / elevation / terrain-slope and other geometry grids are angles
         return Unit.DEGREES;
+    }
+
+    /**
+     * Replace no-data nodes ({@code value == noDataValue}) in a sub-sampled LUT with the mean of
+     * their valid 4-connected neighbours, iterating (nearest-valid diffusion) until no fillable
+     * no-data node remains. A {@link TiePointGrid} has no notion of no-data, so leaving the raw
+     * {@code -9999} fill in place lets bilinear interpolation blend it into neighbouring pixels
+     * and produce negative backscatter along the swath boundary. Returns a sanitised copy; the
+     * input array is not modified. If the LUT contains no fill (the common case) the clone is
+     * returned unchanged; if the whole grid is fill it is returned as-is.
+     *
+     * @param src          row-major tie-point data of length {@code w*h}
+     * @param w            grid width  (fastest-varying / column index)
+     * @param h            grid height (row index)
+     * @param noDataValue  the fill value to replace
+     * @return a copy with fill nodes replaced by valid-neighbour means
+     */
+    static float[] fillNoDataNodes(final float[] src, final int w, final int h, final double noDataValue) {
+        final float noData = (float) noDataValue;
+        final float[] out = src.clone();
+
+        boolean anyFill = false;
+        for (float v : out) {
+            if (v == noData) {
+                anyFill = true;
+                break;
+            }
+        }
+        if (!anyFill) {
+            return out;
+        }
+
+        final int[] dx = {-1, 1, 0, 0};
+        final int[] dy = {0, 0, -1, 1};
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            final float[] prev = out.clone();
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    final int idx = y * w + x;
+                    if (prev[idx] != noData) {
+                        continue;
+                    }
+                    double sum = 0.0;
+                    int cnt = 0;
+                    for (int k = 0; k < 4; k++) {
+                        final int nx = x + dx[k];
+                        final int ny = y + dy[k];
+                        if (nx < 0 || nx >= w || ny < 0 || ny >= h) {
+                            continue;
+                        }
+                        final float nv = prev[ny * w + nx];
+                        if (nv != noData) {
+                            sum += nv;
+                            ++cnt;
+                        }
+                    }
+                    if (cnt > 0) {
+                        out[idx] = (float) (sum / cnt);
+                        changed = true;
+                    }
+                }
+            }
+        }
+        return out;
     }
 
     private void addSlantRangeTimeTPG(final Product product) {
