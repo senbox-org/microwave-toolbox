@@ -25,7 +25,7 @@ import static org.junit.Assume.assumeTrue;
 public class TestComputeDerampDemodPhaseOp {
 
     private final static String inputPath =
-            "P:\\s1tbx\\s1tbx\\Data\\testData\\input\\S1A_IW_SLC__1SDV_20140821T165547_20140821T165614_002041_001FC1_8601_split_orb.dim";
+            TestData.inputSAR + "InSAR/S1A_IW_SLC__1SDV_20140821T165547_20140821T165614_002041_001FC1_8601_split_orb.dim";
 
     public final static File inputParameterFile = new File(TestData.inputSAR+"InSAR"+File.separator+"pp_m20140809_s20140821_s1a-slc-vv_SS1_with_comments.xml");
 

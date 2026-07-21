@@ -17,6 +17,7 @@ package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.GCPManager;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Placemark;
@@ -59,9 +60,9 @@ import static org.junit.Assume.assumeTrue;
 public class GSLCDiagnosticTest extends ProcessorTest {
 
     private static final File MASTER_FILE = new File(
-            "E:/out/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099_Orb.dim");
+            TestData.inputSAR + "ASAR/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099_Orb.dim");
     private static final File SLAVE_FILE  = new File(
-            "E:/out/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013_Orb.dim");
+            TestData.inputSAR + "ASAR/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013_Orb.dim");
 
     /** geoRegion box for the subset diagnostic (~8 km × 8 km, mid-scene). */
     private static final double CENTRE_LAT = 29.13;

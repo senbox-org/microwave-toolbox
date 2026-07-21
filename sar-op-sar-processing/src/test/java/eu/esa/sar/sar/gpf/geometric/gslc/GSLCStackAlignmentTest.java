@@ -16,6 +16,7 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
 import eu.esa.sar.sar.gpf.geometric.GSLCGeocodingOp;
 import org.esa.snap.core.datamodel.GeoPos;
@@ -53,9 +54,9 @@ import static org.junit.Assume.assumeTrue;
 public class GSLCStackAlignmentTest extends ProcessorTest {
 
     private static final File MASTER_FILE = new File(
-            "E:/out/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099_Orb.dim");
+            TestData.inputSAR + "ASAR/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099_Orb.dim");
     private static final File SLAVE_FILE  = new File(
-            "E:/out/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013_Orb.dim");
+            TestData.inputSAR + "ASAR/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013_Orb.dim");
 
     private static final OperatorSpi GSLC_SPI = new GSLCGeocodingOp.Spi();
     private static final OperatorSpi STACK_SPI = new CreateStackOp.Spi();

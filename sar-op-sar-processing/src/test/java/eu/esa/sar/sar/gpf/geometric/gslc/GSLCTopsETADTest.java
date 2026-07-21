@@ -1,6 +1,7 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
@@ -26,7 +27,7 @@ public class GSLCTopsETADTest extends ProcessorTest {
 
     // ETAD-Surat has both the SLC (1SSH, single-pol) and the matching ETAD .SAFE locally.
     private static final File ETAD_DIR =
-            new File("E:/TestData/s1tbx/SAR/S1_ETAD/ETAD/ETAD-Surat");
+            new File(TestData.inputSAR + "S1_ETAD/ETAD/ETAD-Surat");
 
     private static File find(String contains) {
         final File[] fs = ETAD_DIR.listFiles();
