@@ -2,6 +2,7 @@ package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
@@ -12,6 +13,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,8 +24,8 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Layer 4: side-by-side GSLC vs traditional (radar-geometry CSLC) InSAR on an S1 IW TOPS pair.
  * File-gated on a Napoli/Campi Flegrei pair — SKIPPED until that data is provided. Emits mean
- * coherence + a coherence histogram for each pipeline and writes both interferograms to E:/out
- * for fringe inspection. The coherence-ratio assertion is a low measure-not-gate floor, mirroring
+ * coherence + a coherence histogram for each pipeline and writes both interferograms to a temp
+ * folder for fringe inspection. The coherence-ratio assertion is a low measure-not-gate floor, mirroring
  * the ENVISAT ASAR comparison test — the goal is to quantify the gap, not block on it.
  *
  * This harness is the reusable core for the follow-on Approach-3 standalone validation tool.
@@ -33,8 +35,8 @@ import static org.junit.Assume.assumeTrue;
 @Ignore("Internal test harness")
 public class GSLCVsCSLCTopsComparisonTest extends ProcessorTest {
 
-    private static final File MASTER = new File("E:/TestData/s1tbx/SAR/S1/Napoli/master_IW_SLC.zip");
-    private static final File SLAVE  = new File("E:/TestData/s1tbx/SAR/S1/Napoli/slave_IW_SLC.zip");
+    private static final File MASTER = new File(TestData.inputSAR + "S1/Napoli/master_IW_SLC.zip");
+    private static final File SLAVE  = new File(TestData.inputSAR + "S1/Napoli/slave_IW_SLC.zip");
     private static final String SUBSWATH = "IW1";
     private static final String POL = "VV";
     private static final int FIRST_BURST = 1, LAST_BURST = 3;
@@ -166,7 +168,7 @@ public class GSLCVsCSLCTopsComparisonTest extends ProcessorTest {
     }
 
     private static void writeOut(Product p, String name) throws Exception {
-        final File dir = new File("E:/out");
+        final File dir = Files.createTempDirectory("gslc-tops-out").toFile();
         if (dir.isDirectory() || dir.mkdirs()) {
             final File out = new File(dir, name + ".dim");
             ProductIO.writeProduct(p, out, "BEAM-DIMAP", false, ProgressMonitor.NULL);

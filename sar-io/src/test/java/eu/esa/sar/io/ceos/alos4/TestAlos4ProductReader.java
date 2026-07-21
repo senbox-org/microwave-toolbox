@@ -37,7 +37,7 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestAlos4ProductReader extends ReaderTest {
 
-    private final static File slc = new File("E:\\EO\\ALOS4\\ALOS40182900250502UWDPRD0107_1.1__-\\ALOS40182900250502UWDPRD0107_1.1__-\\VOL-ALOS40182900250502UWDPRD0107-1.1__-");
+    private final static File slc = new File(TestData.inputSAR + "ALOS4/ALOS40182900250502UWDPRD0107_1.1__-/ALOS40182900250502UWDPRD0107_1.1__-/VOL-ALOS40182900250502UWDPRD0107-1.1__-");
 
     private String[] exceptionExemptions = {"geocoding is null", "not supported"};
 
