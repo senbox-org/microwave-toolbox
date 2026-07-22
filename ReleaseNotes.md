@@ -11,6 +11,7 @@
 * GeoCoded SLC
 * InSAR Phase Linking
 * Jupyter Notebook SAR tutorials
+* “File Name” field is missing in the “New Project” dialog on macOS
 
 
 # Microwave Toolbox 13
