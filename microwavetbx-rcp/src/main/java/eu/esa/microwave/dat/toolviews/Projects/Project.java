@@ -111,7 +111,7 @@ public class Project extends Observable {
     }
 
     public void CreateNewProject() {
-        File file = Dialogs.requestFileForOpen("Create Project", false, projectFileFilter, LAST_PROJECT_DIR_KEY);
+        File file = Dialogs.requestFileForSave("Create Project", false, projectFileFilter, ".xml", "NewProject", null, LAST_PROJECT_DIR_KEY);
 
         if (file != null) {
             showProjectsView();
