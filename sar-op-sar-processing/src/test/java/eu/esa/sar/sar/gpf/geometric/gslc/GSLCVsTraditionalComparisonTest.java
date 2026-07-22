@@ -17,6 +17,7 @@ package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.GCPManager;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Band;
@@ -63,9 +64,9 @@ import static org.junit.Assume.assumeTrue;
 public class GSLCVsTraditionalComparisonTest extends ProcessorTest {
 
     private static final File MASTER_FILE = new File(
-            "E:/out/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099_Orb.dim");
+            TestData.inputSAR + "ASAR/ASA_IMS_1PNUPA20031203_061259_000000162022_00120_09192_0099_Orb.dim");
     private static final File SLAVE_FILE  = new File(
-            "E:/out/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013_Orb.dim");
+            TestData.inputSAR + "ASAR/ASA_IMS_1PXPDE20040211_061300_000000142024_00120_10194_0013_Orb.dim");
 
     /**
      * Minimum coherence-ratio (best gslc / traditional) the test asserts. Set low because
@@ -167,7 +168,7 @@ public class GSLCVsTraditionalComparisonTest extends ProcessorTest {
                     flat, coh, fqi[0], fqi[1], 0.5 * (fqi[0] + fqi[1]), ms / 1000.0);
 
             // Write to disk for visual inspection
-            final File outDir = new File("E:/out");
+            final File outDir = createTmpFolder("gslc-out");
             if (outDir.isDirectory() || outDir.mkdirs()) {
                 final File out = new File(outDir, "gslc_ifg_" + tag + "_flat" + flat + ".dim");
                 ProductIO.writeProduct(ifg, out, "BEAM-DIMAP", false, ProgressMonitor.NULL);
@@ -340,7 +341,7 @@ public class GSLCVsTraditionalComparisonTest extends ProcessorTest {
 
             // Visualization: write the best GSLC interferogram + the traditional one to
             // disk so they can be opened in SNAP and the fringes inspected visually.
-            final File outDir = new File("E:/out");
+            final File outDir = createTmpFolder("gslc-out");
             if (outDir.isDirectory() || outDir.mkdirs()) {
                 final File gslcOut = new File(outDir, "gslc_ifg_" + tag + ".dim");
                 final File tradOut = new File(outDir, "trad_ifg_" + tag + ".dim");

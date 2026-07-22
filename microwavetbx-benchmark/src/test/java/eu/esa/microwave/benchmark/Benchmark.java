@@ -62,7 +62,8 @@ public abstract class Benchmark {
 
     /** Results directory. Override with -Dbenchmark.results.dir=... */
     private static final File RESULTS_DIR =
-            new File(System.getProperty("benchmark.results.dir", "E:\\benchmark"));
+            new File(System.getProperty("benchmark.results.dir",
+                    new File(System.getProperty("java.io.tmpdir"), "microwavetbx-benchmark").getPath()));
     private static final File HISTORY_FILE = new File(RESULTS_DIR, "benchmark_history.jsonl");
     private static final File LATEST_FILE = new File(RESULTS_DIR, "benchmark_latest.json");
 

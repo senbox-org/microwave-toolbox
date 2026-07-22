@@ -17,6 +17,7 @@ package eu.esa.sar.iogdal.alos4;
 
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Assert;
@@ -34,7 +35,7 @@ import static org.junit.Assume.assumeTrue;
  */
 public class TestAlos4GeotiffProductReader extends ReaderTest {
 
-    private final static File grd = new File("E:\\EO\\ALOS4\\ALOS40182900250502UWDPRD0107_2.1GU-\\ALOS40182900250502UWDPRD0107_2.1GU-\\summary-ALOS40182900250502UWDPRD0107-2.1GU-.txt");
+    private final static File grd = new File(TestData.inputSAR + "ALOS4/ALOS40182900250502UWDPRD0107_2.1GU-/ALOS40182900250502UWDPRD0107_2.1GU-/summary-ALOS40182900250502UWDPRD0107-2.1GU-.txt");
 
     @Before
     public void setUp() {

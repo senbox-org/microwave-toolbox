@@ -2,6 +2,7 @@ package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
@@ -31,7 +32,7 @@ import static org.junit.Assume.assumeTrue;
 @Ignore("Internal test harness")
 public class GSLCTopsBiasIntegrationTest extends ProcessorTest {
 
-    private static final File FIX_DIR = new File("E:/TestData/s1tbx/SAR/S1/SLC/Etna-DLR/fixtures");
+    private static final File FIX_DIR = new File(TestData.inputSAR + "S1/SLC/Etna-DLR/fixtures");
     private static final File FIXTURE_MASTER = new File(FIX_DIR, "etna_master.dim");
     private static final File FIXTURE_SLAVE = new File(FIX_DIR, "etna_slave.dim");
 
