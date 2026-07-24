@@ -107,7 +107,10 @@ public class Sentinel1ProductReader extends SARReader {
                 dataDir = new Sentinel1Level0Directory(inputPath.toFile());
             }
             if (dataDir == null) {
+                // Throws for a malformed product; if it doesn't, the level could not be
+                // determined - fail cleanly instead of NPEing on dataDir below.
                 Sentinel1ProductReaderPlugIn.validateInput(inputPath);
+                throw new IOException("Unable to determine Sentinel-1 product level for " + inputPath);
             }
             dataDir.readProductDirectory();
             final Product product = dataDir.createProduct();
@@ -275,6 +278,10 @@ public class Sentinel1ProductReader extends SARReader {
     }
 
     private void registerCacheBands(final Product product) throws IOException {
+        if (!GeoTiffCacheSupport.USE_PRODUCT_CACHE) {
+            // Cache disabled - skip the per-band registration and scene-dim probing.
+            return;
+        }
         if (dataDir instanceof Sentinel1Level2Directory) {
             return;
         }
