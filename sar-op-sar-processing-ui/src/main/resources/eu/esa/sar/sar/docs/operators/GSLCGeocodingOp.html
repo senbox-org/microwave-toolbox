@@ -53,9 +53,10 @@
         subsequent resampling process more accurate as it deals with a signal with lower fringe frequencies.
         The flattened complex value <i>C'</i> is computed as:
         <br>
-        <i>C' = C * exp(-j * &phi;<sub>sim</sub>)</i>
+        <i>C' = C * exp(+j * &phi;<sub>sim</sub>)</i>
         <br>
-        where <i>C</i> is the original complex value and <i>&phi;<sub>sim</sub></i> is the simulated phase:
+        where <i>C</i> is the original complex value and <i>&phi;<sub>sim</sub></i> is the simulated phase
+        (the SLC carrier is <i>exp(-j &middot; &phi;<sub>sim</sub>)</i>, so multiplying by <i>exp(+j &middot; &phi;<sub>sim</sub>)</i> cancels it):
         <br>
         <i>&phi;<sub>sim</sub> = 4&pi; * R / &lambda;</i>
         <br>
@@ -71,11 +72,11 @@
         simulated phase is re-introduced to the resampled complex signal. This restores the absolute phase relative
         to the new map geometry. The final complex value <i>C<sub>geo</sub></i> is:
         <br>
-        <i>C<sub>geo</sub> = C'<sub>resampled</sub> * exp(+j * &phi;<sub>sim</sub>)</i>
+        <i>C<sub>geo</sub> = C'<sub>resampled</sub> * exp(-j * &phi;<sub>sim</sub>)</i>
         <br>
         This restored-phase output is what InSAR requires &mdash; the
-        <i>master &middot; conj(slave)</i> product then carries the differential phase
-        <i>(4&pi;/&lambda;)(R<sub>M</sub> &minus; R<sub>S</sub>)</i>.
+        <i>master &middot; conj(slave)</i> product then carries the differential-range phase
+        <i>exp(&minus;j &middot; 4&pi;(R<sub>M</sub> &minus; R<sub>S</sub>)/&lambda;)</i>.
     </li>
 </ol>
 <p>
@@ -480,8 +481,8 @@
 <p style="margin-left: 40px;"><i>&phi;<sub>sim</sub> = 4&pi; R / &lambda;</i></p>
 <p>By default (<i>Output phase-flattened complex data</i> = <b>false</b>), the simulated phase is restored
     after resampling, so the output complex band carries the natural SLC carrier. This is what InSAR needs:
-    a master/slave pair's conjugate product then yields the differential phase
-    <i>(4&pi;/&lambda;)(R<sub>master</sub> &minus; R<sub>slave</sub>)</i>.</p>
+    a master/slave pair's conjugate product then yields the differential-range phase
+    <i>exp(&minus;j &middot; 4&pi;(R<sub>master</sub> &minus; R<sub>slave</sub>)/&lambda;)</i>.</p>
 <p>When the parameter is set to <b>true</b>, the simulated phase is <i>not</i> restored &mdash; the output
     holds only the local scattering coefficient. That is useful for non-InSAR analysis (e.g. coherent
     magnitude statistics, PolSAR decomposition on a single date) but produces a noise interferogram if such
