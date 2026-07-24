@@ -47,7 +47,7 @@ import java.util.Map;
 public class GeoTiffCacheSupport implements CacheDataProvider {
 
     public static boolean USE_PRODUCT_CACHE =
-            Boolean.parseBoolean(System.getProperty("sar.geotiff.useProductCache", "true"));
+            Boolean.parseBoolean(System.getProperty("sar.geotiff.useProductCache", "false"));
 
     private static final int DEFAULT_TILE_DIM = 512;
 
@@ -110,10 +110,22 @@ public class GeoTiffCacheSupport implements CacheDataProvider {
 
             final int sceneWidth = img.getSceneWidth();
             final int sceneHeight = img.getSceneHeight();
-            final int tileWidth = computeTileDim(img, true, sceneWidth);
-            final int tileHeight = computeTileDim(img, false, sceneHeight);
+
+            int nativeTileWidth;
+            int nativeTileHeight;
+            try {
+                final ImageReader reader = img.getReader();
+                nativeTileWidth = reader.getTileWidth(0);
+                nativeTileHeight = reader.getTileHeight(0);
+            } catch (Exception e) {
+                // Unknown geometry: assume striped (full-width) so we don't re-decode
+                // strips per horizontal tile.
+                nativeTileWidth = sceneWidth;
+                nativeTileHeight = DEFAULT_TILE_DIM;
+            }
+            final int[] tileDims = computeCacheTileDims(nativeTileWidth, nativeTileHeight, sceneWidth, sceneHeight);
             rawSources.put(rawKey, new RawSource(img, effectiveSampleOffset,
-                    sceneWidth, sceneHeight, tileWidth, tileHeight));
+                    sceneWidth, sceneHeight, tileDims[0], tileDims[1]));
         }
         bandEntries.put(bandName, new BandEntry(rawKey, decoder));
     }
@@ -216,15 +228,30 @@ public class GeoTiffCacheSupport implements CacheDataProvider {
         return new DataBuffer(targetData, offsets, shapes);
     }
 
-    private static int computeTileDim(ImageIOFile img, boolean width, int sceneDim) {
-        try {
-            final ImageReader reader = img.getReader();
-            final int nativeDim = width ? reader.getTileWidth(0) : reader.getTileHeight(0);
-            if (nativeDim > 1 && nativeDim <= DEFAULT_TILE_DIM) {
-                return nativeDim;
-            }
-        } catch (Exception ignored) {
-            // fall through to default
+    /**
+     * Choose cache tile dimensions from the reader's native tile geometry.
+     *
+     * A native tile that spans (or exceeds) the full scene width means the image is
+     * strip/row organized - as Sentinel-1 IW SLC measurement TIFFs are (RowsPerStrip=1,
+     * no TileWidth). For those, any region read must decode full-width strips, so a
+     * narrow (e.g. 512-wide) cache tile throws away most of each decoded strip and forces
+     * the same strips to be re-decoded once per horizontal tile (~40x read amplification
+     * on S1 SLC). Caching full-width tiles retains the decoded strip band instead.
+     *
+     * For genuinely tiled images, honor reasonable native tiles and cap oversized ones at
+     * the default.
+     */
+    static int[] computeCacheTileDims(int nativeTileWidth, int nativeTileHeight,
+                                      int sceneWidth, int sceneHeight) {
+        final boolean striped = nativeTileWidth >= sceneWidth;
+        final int tileWidth = striped ? sceneWidth : fitTileDim(nativeTileWidth, sceneWidth);
+        final int tileHeight = fitTileDim(nativeTileHeight, sceneHeight);
+        return new int[]{tileWidth, tileHeight};
+    }
+
+    private static int fitTileDim(int nativeDim, int sceneDim) {
+        if (nativeDim > 1 && nativeDim <= DEFAULT_TILE_DIM) {
+            return nativeDim;
         }
         return Math.min(DEFAULT_TILE_DIM, sceneDim);
     }
