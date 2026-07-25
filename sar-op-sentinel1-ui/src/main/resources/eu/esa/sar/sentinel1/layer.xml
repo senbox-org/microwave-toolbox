@@ -260,42 +260,43 @@
             </folder>
             <folder name="Sentinel-1 TOPS">
                 <attr name="position" intvalue="700"/>
-                <file name="eu-esa-sar-sentinel1-gpf-Sentinel1SLCtoGRD-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-Sentinel1SLCtoGRD-Action.instance"/>
-                    <attr name="position" intvalue="100"/>
-                </file>
-                <file name="eu-esa-sar-sentinel1-gpf-SliceAssemblyOp-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-SliceAssemblyOp-Action.instance"/>
-                    <attr name="position" intvalue="200"/>
-                </file>
                 <file name="eu-esa-sar-sentinel1-gpf-TOPSARSplitOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-TOPSARSplitOp-Action.instance"/>
-                    <attr name="position" intvalue="300"/>
+                    <attr name="position" intvalue="100"/>
                 </file>
                 <file name="eu-esa-sar-sentinel1-gpf-TOPSARDeburstOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-TOPSARDeburstOp-Action.instance"/>
-                    <attr name="position" intvalue="400"/>
+                    <attr name="position" intvalue="200"/>
                 </file>
                 <file name="eu-esa-sar-gpf-TOPSARMergeOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-TOPSARMergeOp-Action.instance"/>
-                    <attr name="position" intvalue="500"/>
-                </file>
-                <file name="eu-esa-sar-sentinel1-gpf-EAPPhaseCorrectionOp-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-EAPPhaseCorrectionOp-Action.instance"/>
-                    <attr name="position" intvalue="800"/>
-                </file>
-                <file name="eu-esa-sar-sentinel1-gpf-TOPSARDerampDemodOp-Action.shadow">
-                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-TOPSARDerampDemodOp-Action.instance"/>
-                    <attr name="position" intvalue="610"/>
+                    <attr name="position" intvalue="300"/>
                 </file>
                 <file name="eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-S1ETADCorrectionOp-Action.instance"/>
-                    <attr name="position" intvalue="810"/>
+                    <attr name="position" intvalue="400"/>
+                </file>
+                <file name="eu-esa-sar-sentinel1-gpf-Sentinel1SLCtoGRD-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-Sentinel1SLCtoGRD-Action.instance"/>
+                    <attr name="position" intvalue="500"/>
+                </file>
+                <file name="eu-esa-sar-sentinel1-gpf-SliceAssemblyOp-Action.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-SliceAssemblyOp-Action.instance"/>
+                    <attr name="position" intvalue="600"/>
                 </file>
                 <folder name="Utilities">
+                    <attr name="position" intvalue="1000"/>
+                    <file name="eu-esa-sar-sentinel1-gpf-TOPSARDerampDemodOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-TOPSARDerampDemodOp-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
                     <file name="eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-ETADDeburstOp-Action.instance"/>
-                        <attr name="position" intvalue="2300"/>
+                        <attr name="position" intvalue="200"/>
+                    </file>
+                    <file name="eu-esa-sar-sentinel1-gpf-EAPPhaseCorrectionOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sentinel1-gpf-EAPPhaseCorrectionOp-Action.instance"/>
+                        <attr name="position" intvalue="300"/>
                     </file>
                 </folder>
             </folder>
