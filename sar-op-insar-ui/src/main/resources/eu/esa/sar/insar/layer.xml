@@ -342,18 +342,18 @@
                         <attr name="position" intvalue="795"/>
                     </file>
                 </folder>
-                <folder name="Filtering">
-                    <attr name="position" intvalue="200"/>
-                    <file name="eu-esa-sar-insar-gpf-GoldsteinPhaseFiltering-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-GoldsteinPhaseFiltering-Action.instance"/>
-                        <attr name="position" intvalue="300"/>
-                    </file>
-                </folder>
                 <folder name="Phase Linking">
-                    <attr name="position" intvalue="350"/>
+                    <attr name="position" intvalue="200"/>
                     <file name="eu-esa-sar-insar-gpf-PhaseLinking-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-PhaseLinking-Action.instance"/>
                         <attr name="position" intvalue="100"/>
+                    </file>
+                </folder>
+                <folder name="Filtering">
+                    <attr name="position" intvalue="300"/>
+                    <file name="eu-esa-sar-insar-gpf-GoldsteinPhaseFiltering-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-GoldsteinPhaseFiltering-Action.instance"/>
+                        <attr name="position" intvalue="300"/>
                     </file>
                 </folder>
                 <folder name="PSI\SBAS">

@@ -153,7 +153,7 @@
                     </file>
                 </folder>
                 <folder name="Filtering">
-                    <attr name="position" intvalue="200"/>
+                    <attr name="position" intvalue="350"/>
                     <folder name="Spectral Filtering">
                         <attr name="position" intvalue="100"/>
                         <file name="org-jlinda-nest-gpf-RangeFilterOp-Action.shadow">
