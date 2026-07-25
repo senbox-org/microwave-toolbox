@@ -57,7 +57,7 @@
       <warpPolynomialOrder>2</warpPolynomialOrder>
       <interpolationMethod>Cubic convolution (6 points)</interpolationMethod>
       <demRefinement>false</demRefinement>
-      <demName>SRTM 3Sec</demName>
+      <demName>Copernicus 30m Global DEM</demName>
       <excludeMaster>false</excludeMaster>
       <openResidualsFile>false</openResidualsFile>
     </parameters>

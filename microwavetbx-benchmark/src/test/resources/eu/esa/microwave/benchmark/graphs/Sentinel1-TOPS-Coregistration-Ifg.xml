@@ -61,7 +61,7 @@
       <sourceProduct.1 refid="Apply-Orbit-File(2)"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-      <demName>SRTM 3Sec</demName>
+      <demName>Copernicus 30m Global DEM</demName>
       <demResamplingMethod>BILINEAR_INTERPOLATION</demResamplingMethod>
       <externalDEMFile/>
       <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
@@ -86,7 +86,7 @@
       <cohWinAz>2</cohWinAz>
       <cohWinRg>10</cohWinRg>
       <subtractTopographicPhase>true</subtractTopographicPhase>
-      <demName>SRTM 3Sec</demName>
+      <demName>Copernicus 30m Global DEM</demName>
       <externalDEMFile/>
       <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
       <externalDEMApplyEGM/>
