@@ -1,3 +1,43 @@
+# Microwave Toolbox 15
+
+## 15.0.0
+* GSLC InSAR: TOPS azimuth (deramp) carrier is no longer restored by default — the carrier is
+  acquisition-specific and does not cancel between two acquisitions (~tens of spurious fringes per
+  burst on a cross-platform pair, e.g. S1A+S1D). New parameter `outputAzimuthCarrier` (default
+  false) restores the old behaviour; the state is stamped in metadata (`gslc_azimuth_carrier`) and
+  CreateStack builds auto-geocoded secondaries to match the reference's convention.
+* CreateStack: geocoded secondaries with a non-zero integer grid offset were silently stacked
+  UNSHIFTED — the offset was computed and recorded but a source-image pass-through bypassed the
+  code that applies it, destroying interferometric coherence (56 m misregistration on a real pair).
+  The pass-through is now revoked whenever a shift is needed, the compatibility tolerance gating it
+  is pixel-relative for geocoded products (was ~8 pixels), and a lattice-alignment check rejects
+  complex stacks whose grids differ by a fractional pixel. Note: geocoded amplitude stacks now also
+  get the shift applied (previously silently misaligned by up to ~8 px).
+* GSLC: auto-derived output pixel spacing is quantised to a 1 mm grid so products from different
+  platforms (S1A annotates 13.98908 m, S1D 13.98910 m for the same mode) land on one shared
+  lattice. GSLCs produced by earlier versions are NOT co-lattice with new ones — re-generate all
+  legs of a stack together, or pass the reference's exact pixel spacing explicitly.
+* CreateStack: bias-corrected slave GSLCs replacing a placeholder could keep reading the
+  placeholder's pixels through a stale source-image pass-through; the swap now clears it. Bias
+  rebuilds are skipped below 0.05 px (ESD residuals on synchronized S1 pairs are millipixels).
+* GSLC Interferogram (GSLC mode): coherence is now estimated on the flat-earth/topo-derotated
+  product (was biased low by fringe cancellation inside the window); interferogram band names
+  include both dates; TOPS outputs fill elevation/latitude/longitude bands (were empty);
+  simulatedUnwrappedPhase is float64 (float32 quantisation was ~16 rad at C-band phase magnitudes).
+* GSLC: rectangular (non-square) output cells via optional `pixelSpacingInMeterY` /
+  `pixelSpacingInDegreeY` (north/latitude step; the existing parameters become the east step).
+  Lets the geocoded SLC approach the source's anisotropic native resolution — e.g. S1 IW
+  ~3.4 m ground range × ~14 m azimuth suggests ~3.4 × 7.5 m cells (the north step must be
+  somewhat finer than native azimuth because the radar axes are rotated from the map axes by
+  the heading; precedent: OPERA CSLC-S1 ships 5 × 10 m UTM). CreateStack's grid-lock and the
+  lattice guard are per-axis, and the lock now reads the exact affine grid step instead of
+  differencing geo positions (removes a harmless ~1e-10 lattice imprecision for all cases).
+* GSLC Interferogram: new `subtractResidualRamp` option — robustly estimates and removes the
+  smooth residual phase ramp of cross-acquisition GSLC interferometry (annotation-vs-data deramp
+  mismatch, ~1 fringe per 80 px on an S1A+S1D pair) as a low-order polynomial fitted to block-wise
+  fringe gradients. Off by default: like any ramp removal it would also absorb a genuine
+  scene-wide linear deformation gradient.
+
 # Microwave Toolbox 14
 
 ## 14.0.0

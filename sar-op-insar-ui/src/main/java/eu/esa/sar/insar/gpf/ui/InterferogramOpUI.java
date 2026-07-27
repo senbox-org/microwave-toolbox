@@ -45,6 +45,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
 
     private final JCheckBox subtractFlatEarthPhaseCheckBox = new JCheckBox("Subtract Flat-Earth Phase");
     private final JCheckBox subtractTopographicPhaseCheckBox = new JCheckBox("Subtract Topographic Phase");
+    private final JCheckBox subtractResidualRampCheckBox = new JCheckBox("Subtract Residual Ramp (GSLC)");
     private final JCheckBox includeCoherenceCheckBox = new JCheckBox("Output Coherence");
     private final JCheckBox squarePixelCheckBox = new JCheckBox("Square Pixel");
     private final JCheckBox independentWindowSizeCheckBox = new JCheckBox("Independent Window Sizes");
@@ -77,6 +78,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
     private Boolean outputLatLon = false;
 
     private Boolean subtractTopographicPhase = false;
+    private Boolean subtractResidualRamp = false;
     private static final String[] demValueSet = DEMFactory.getDEMNameList();
     //    private final JTextField orbitDegree = new JTextField("");
     private final JComboBox<String> demName = new JComboBox<>(demValueSet);
@@ -162,6 +164,11 @@ public class InterferogramOpUI extends BaseOperatorUI {
                 outputElevationCheckBox.setEnabled(subtractTopographicPhase);
                 outputLatLonCheckBox.setEnabled(subtractTopographicPhase);
                 outputTopoPhaseCheckBox.setEnabled(subtractTopographicPhase);
+            }
+        });
+        subtractResidualRampCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                subtractResidualRamp = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -251,6 +258,12 @@ public class InterferogramOpUI extends BaseOperatorUI {
         if (paramVal != null) {
             subtractTopographicPhase = paramVal;
             subtractTopographicPhaseCheckBox.setSelected(subtractTopographicPhase);
+        }
+
+        paramVal = (Boolean) paramMap.get("subtractResidualRamp");
+        if (paramVal != null) {
+            subtractResidualRamp = paramVal;
+            subtractResidualRampCheckBox.setSelected(subtractResidualRamp);
         }
 
         paramVal = (Boolean) paramMap.get("outputTopoPhase");
@@ -356,6 +369,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
         }
 
         paramMap.put("subtractTopographicPhase", subtractTopographicPhase);
+        paramMap.put("subtractResidualRamp", subtractResidualRamp);
         if (subtractTopographicPhase) {
 //          paramMap.put("orbitDegree", Integer.parseInt(orbitDegree.getText()));
             final String properDEMName = (DEMFactory.getProperDEMName((String) demName.getSelectedItem()));
@@ -422,6 +436,12 @@ public class InterferogramOpUI extends BaseOperatorUI {
         contentPane.add(topoPanel, gbc);
 
         topoPanel.add(subtractTopographicPhaseCheckBox, gbc3);
+        gbc3.gridy++;
+        topoPanel.add(subtractResidualRampCheckBox, gbc3);
+        subtractResidualRampCheckBox.setToolTipText(
+                "GSLC stacks only: estimate and remove the smooth residual phase ramp of " +
+                "cross-acquisition GSLC interferometry (~1 fringe per 80 px). Off by default — " +
+                "like any ramp removal it also absorbs a genuine scene-wide linear gradient.");
 
         //gbc.gridy++;
         //DialogUtils.addComponent(topoPanel, gbc3, "Orbit Interpolation Degree:", orbitDegree);

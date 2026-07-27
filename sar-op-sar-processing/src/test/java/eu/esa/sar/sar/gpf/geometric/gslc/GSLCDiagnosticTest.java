@@ -452,9 +452,6 @@ public class GSLCDiagnosticTest extends ProcessorTest {
         params.put("demName", "Copernicus 30m Global DEM");
         params.put("imgResamplingMethod", resampler);
         params.put("outputFlattened", false);
-        params.put("alignToStandardGrid", true);
-        params.put("standardGridOriginX", 0.0);
-        params.put("standardGridOriginY", 0.0);
         params.put("nodataValueAtSea", false);
         params.put("rangeOffsetPixels", rangeOffsetPx);
         params.put("azimuthOffsetPixels", azimuthOffsetPx);
