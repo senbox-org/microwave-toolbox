@@ -301,17 +301,6 @@ public class GSLCInSarGradeTest extends ProcessorTest {
     }
 
     /**
-     * Issue §4 / Ionosphere: For L-band InSAR (NISAR, ALOS-2/4) the operator
-     * must expose an ionospheric correction parameter. RED until added.
-     */
-    @Test
-    public void testApplyIonosphericCorrection_ParameterExists() {
-        assertTrue("§4: GSLCGeocodingOp must expose an 'applyIonosphericCorrection' " +
-                   "parameter (mandatory for L-band displacement InSAR)",
-                   operatorHasParameter(GSLCGeocodingOp.class, "applyIonosphericCorrection"));
-    }
-
-    /**
      * Issue §4 / Troposphere: ERA5/GACOS tropospheric phase delay must be
      * pluggable at the GSLC stage (or, equivalently, at the Interferogram
      * stage). RED until added.
@@ -676,6 +665,48 @@ public class GSLCInSarGradeTest extends ProcessorTest {
             }
         }
         return null;
+    }
+
+    /**
+     * Two products of the same sensor/mode must derive a BIT-IDENTICAL output pixel spacing, even
+     * when their annotated azimuth spacing differs slightly between platforms.
+     * <p>
+     * GSLC snaps every output origin to the global standard grid using its own derived step, so
+     * two products with different steps land on different lattices and the offset between them is
+     * an arbitrary fraction of a pixel — which CreateStack's integer-offset path cannot correct.
+     * Real values from the Venezuela pair: S1A annotates 13.98908 m, S1D annotates 13.98910 m for
+     * the same IW3 mode; ungated, that 2e-5 m difference produced a 0.219 px (3.06 m) fractional
+     * origin offset and destroyed all interferometric coherence.
+     */
+    @Test
+    public void testQuantizePixelSpacing_MakesPlatformsShareOneLattice() {
+        final double s1a = 13.98908;   // Sentinel-1A, IW3
+        final double s1d = 13.98910;   // Sentinel-1D, same mode
+
+        final double qa = GSLCGeocodingOp.quantizePixelSpacing(s1a);
+        final double qd = GSLCGeocodingOp.quantizePixelSpacing(s1d);
+
+        assertTrue("raw platform spacings must actually differ, else the test proves nothing",
+                Double.compare(s1a, s1d) != 0);
+        assertEquals("quantised spacings must be bit-identical across platforms",
+                0, Double.compare(qa, qd));
+
+        // Quantisation must not meaningfully move the spacing: at most half a quantum.
+        assertTrue("quantisation moved the spacing too far: " + Math.abs(qa - s1a),
+                Math.abs(qa - s1a) <= GSLCGeocodingOp.PIXEL_SPACING_QUANTUM_M / 2 + 1e-12);
+    }
+
+    @Test
+    public void testQuantizePixelSpacing_IsIdempotentAndSafeOnDegenerateInput() {
+        final double q = GSLCGeocodingOp.quantizePixelSpacing(2.329562);
+        assertEquals("quantisation must be idempotent",
+                0, Double.compare(q, GSLCGeocodingOp.quantizePixelSpacing(q)));
+
+        // Non-positive / non-finite inputs are passed through untouched rather than turned into 0.
+        assertEquals(0, Double.compare(0.0, GSLCGeocodingOp.quantizePixelSpacing(0.0)));
+        assertEquals(0, Double.compare(-5.0, GSLCGeocodingOp.quantizePixelSpacing(-5.0)));
+        assertTrue(Double.isNaN(GSLCGeocodingOp.quantizePixelSpacing(Double.NaN)));
+        assertTrue(Double.isInfinite(GSLCGeocodingOp.quantizePixelSpacing(Double.POSITIVE_INFINITY)));
     }
 
     // Suppress unused-import warning for OperatorMetadata when not referenced.

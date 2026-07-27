@@ -76,8 +76,8 @@ public class GSLCStackAlignmentTest extends ProcessorTest {
             printSlcInfo("master SLC", masterSLC);
             printSlcInfo("slave  SLC", slaveSLC);
 
-            // --- Run GSLCGeocoding with the current defaults (outputFlattened=false,
-            //     alignToStandardGrid=true). --------------------------------------------
+            // --- Run GSLCGeocoding with the current defaults (outputFlattened=false;
+            //     standard-grid alignment is always on). ------------------------------
             final Product masterGSLC = runDefaultGslc(masterSLC, "master");
             final Product slaveGSLC  = runDefaultGslc(slaveSLC,  "slave");
 
@@ -213,9 +213,6 @@ public class GSLCStackAlignmentTest extends ProcessorTest {
         // Defaults that the InSAR pipeline depends on — set explicitly so the test
         // documents the requirement and survives any future default flips.
         op.setParameter("outputFlattened", false);
-        op.setParameter("alignToStandardGrid", true);
-        op.setParameter("standardGridOriginX", 0.0);
-        op.setParameter("standardGridOriginY", 0.0);
         final Product target = op.getTargetProduct();
         assertNotNull(label + " GSLC must not be null", target);
         return target;

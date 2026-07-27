@@ -462,7 +462,8 @@ public class CreateStackOp extends Operator {
                             targetBand.setValidPixelExpression(srcBand.getValidPixelExpression().replace(srcBand.getName(), targetBand.getName()));
                         }
 
-                        if (!isResampling && extent.equals(MASTER_EXTENT) && srcProduct.isCompatibleProduct(targetProduct, 1.0e-3f)) {
+                        if (!isResampling && extent.equals(MASTER_EXTENT)
+                                && srcProduct.isCompatibleProduct(targetProduct, passThroughEps(srcProduct))) {
                             targetBand.setSourceImage(srcBand.getSourceImage());
                         }
 
@@ -518,6 +519,10 @@ public class CreateStackOp extends Operator {
                     }
                 }
             }
+
+            // The offsets are only known now, AFTER the target bands were created — so any
+            // pass-through wiring set up during band creation has to be re-examined here.
+            revokePassThroughForShiftedSecondaries();
 
             // set non-elevation areas to no data value for the reference bands using the secondary bands
             if (!extent.equals(MAX_EXTENT)) {
@@ -592,15 +597,25 @@ public class CreateStackOp extends Operator {
 
                 if (pm.isCanceled()) throw new OperatorException("Cancelled by user.");
 
-                // Step 2 — rebuild the slave GSLC with the bias applied.
+                // Step 2 — rebuild the slave GSLC with the bias applied. Skip when the
+                // estimated bias is below the estimator's own noise floor: rebuilding for a
+                // few-millipixel correction buys nothing and drags in the placeholder-swap
+                // machinery (a whole second geocoding pass) for free.
+                if (Math.abs(dRangePixels) < MIN_BIAS_PIXELS && Math.abs(dAzimuthPixels) < MIN_BIAS_PIXELS
+                        && (dRangePixels != 0.0 || dAzimuthPixels != 0.0)) {
+                    SystemUtils.LOG.info(String.format(
+                            "CreateStack: bias for '%s' (Δrg=%+.4f, Δaz=%+.4f px) is below %.2f px — " +
+                                    "keeping the unbiased geocoding.",
+                            job.slaveSlc.getName(), dRangePixels, dAzimuthPixels, MIN_BIAS_PIXELS));
+                    dRangePixels = 0.0;
+                    dAzimuthPixels = 0.0;
+                }
                 if (dRangePixels != 0.0 || dAzimuthPixels != 0.0) {
                     pm.setSubTaskName("Re-geocoding '" + job.slaveSlc.getName() + "' with bias");
                     try {
                         final java.util.Map<String, Object> params = new HashMap<>();
                         params.put("outputFlattened", readMasterFlattenedState(referenceProduct));
-                        params.put("alignToStandardGrid", true);
-                        params.put("standardGridOriginX", 0.0);
-                        params.put("standardGridOriginY", 0.0);
+                        params.put("outputAzimuthCarrier", readMasterAzimuthCarrierState(referenceProduct));
                         params.put("rangeOffsetPixels", dRangePixels);
                         params.put("azimuthOffsetPixels", dAzimuthPixels);
                         applyMasterGridLockParams(params, referenceProduct);
@@ -654,6 +669,19 @@ public class CreateStackOp extends Operator {
             }
         }
         sourceRasterMap.putAll(updates);
+
+        // A target band that was wired straight to the OLD product's image (the creation-time
+        // pass-through) would keep reading the placeholder forever — the bias-corrected product
+        // would be computed and then silently never used. Clear such wiring so the band goes
+        // through computeTile, which reads from the re-keyed sourceRasterMap.
+        for (final Band targetBand : updates.keySet()) {
+            if (targetBand.isSourceImageSet()) {
+                targetBand.setSourceImage(null);
+                SystemUtils.LOG.info("CreateStack: cleared stale source-image pass-through on '" +
+                        targetBand.getName() + "' after slave swap.");
+            }
+        }
+
         // Recompute the integer offset for the corrected product against the master target
         // grid. The bias correction can shift the slave's projected footprint slightly,
         // so the placeholder's offset is not guaranteed to match the corrected one.
@@ -1336,9 +1364,7 @@ public class CreateStackOp extends Operator {
             try {
                 final java.util.Map<String, Object> params = new HashMap<>();
                 params.put("outputFlattened", readMasterFlattenedState(masterGslc));
-                params.put("alignToStandardGrid", true);
-                params.put("standardGridOriginX", 0.0);
-                params.put("standardGridOriginY", 0.0);
+                params.put("outputAzimuthCarrier", readMasterAzimuthCarrierState(masterGslc));
                 params.put("rangeOffsetPixels", 0.0);
                 params.put("azimuthOffsetPixels", 0.0);
                 applyMasterGridLockParams(params, masterGslc);
@@ -1463,6 +1489,22 @@ public class CreateStackOp extends Operator {
         return Boolean.parseBoolean(s);
     }
 
+    /**
+     * Whether the master GSLC carries the native TOPS azimuth carrier. An auto-built slave must
+     * match this convention — a stack mixing carrier-restored and carrier-free legs contains an
+     * uncancelled per-burst quadratic azimuth phase (~tens of fringes per burst on a
+     * cross-platform pair). A missing stamp means a legacy product, which was always built with
+     * the carrier restored — hence {@code true}, not {@code false}, as the fallback.
+     */
+    private static boolean readMasterAzimuthCarrierState(final Product masterGslc) {
+        if (masterGslc == null) return true;
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(masterGslc);
+        if (abs == null) return true;
+        final String s = abs.getAttributeString("gslc_azimuth_carrier", null);
+        if (s == null) return true;
+        return Boolean.parseBoolean(s);
+    }
+
     private static void applyMasterGridLockParams(final java.util.Map<String, Object> params,
                                                   final Product masterGslc) {
         if (masterGslc == null) return;
@@ -1485,21 +1527,46 @@ public class CreateStackOp extends Operator {
             final double cy = masterGslc.getSceneRasterHeight() / 2.0;
             gc.getGeoPos(new org.esa.snap.core.datamodel.PixelPos(cx, cy), g0);
             gc.getGeoPos(new org.esa.snap.core.datamodel.PixelPos(cx + 1, cy + 1), g1);
-            final double dLon = Math.abs(g1.lon - g0.lon);
-            final double dLat = Math.abs(g1.lat - g0.lat);
-            final double pixelSizeDeg = Math.max(dLon, dLat);
-            if (pixelSizeDeg > 0 && Double.isFinite(pixelSizeDeg)) {
-                params.put("pixelSpacingInDegree", pixelSizeDeg);
-                // Convert to metres for the metre-based param as a safety net (some paths
+            // X and Y are locked SEPARATELY: a rectangular master (pixelSpacingInDegreeY set)
+            // must produce a rectangular slave on the identical lattice — collapsing to a single
+            // spacing here would put the slave on a different grid and fail the lattice guard.
+            //
+            // The step is taken from the affine image-to-map transform when available: it holds
+            // the EXACT grid step as stored doubles. Deriving it by differencing geo positions
+            // loses ~1e-10 relative to subtraction cancellation (ulp of a ~68 deg coordinate on a
+            // ~1e-4 deg step), which puts the slave on a microscopically different lattice —
+            // below the alignment guard's threshold, but avoidably imprecise.
+            double dLon = Double.NaN, dLat = Double.NaN;
+            if (gc instanceof org.esa.snap.core.datamodel.CrsGeoCoding) {
+                final org.opengis.referencing.operation.MathTransform i2m =
+                        ((org.esa.snap.core.datamodel.CrsGeoCoding) gc).getImageToMapTransform();
+                if (i2m instanceof java.awt.geom.AffineTransform) {
+                    final java.awt.geom.AffineTransform at = (java.awt.geom.AffineTransform) i2m;
+                    dLon = Math.abs(at.getScaleX());
+                    dLat = Math.abs(at.getScaleY());
+                }
+            }
+            if (!(dLon > 0) || !(dLat > 0)) {
+                dLon = Math.abs(g1.lon - g0.lon);
+                dLat = Math.abs(g1.lat - g0.lat);
+            }
+            if (dLon > 0 && Double.isFinite(dLon) && dLat > 0 && Double.isFinite(dLat)) {
+                params.put("pixelSpacingInDegree", dLon);
+                params.put("pixelSpacingInDegreeY", dLat);
+                // Convert to metres for the metre-based params as a safety net (some paths
                 // in GSLCGeocodingOp read pixelSpacingInMeter regardless).
                 final double latRad = Math.toRadians(g0.lat);
-                final double mPerDeg = 111320.0 * Math.cos(latRad);
-                final double pixelSizeM = pixelSizeDeg * mPerDeg;
-                if (pixelSizeM > 0 && Double.isFinite(pixelSizeM)) {
-                    params.put("pixelSpacingInMeter", pixelSizeM);
+                final double pixelSizeMX = dLon * 111320.0 * Math.cos(latRad);
+                final double pixelSizeMY = dLat * 111320.0;
+                if (pixelSizeMX > 0 && Double.isFinite(pixelSizeMX)) {
+                    params.put("pixelSpacingInMeter", pixelSizeMX);
+                }
+                if (pixelSizeMY > 0 && Double.isFinite(pixelSizeMY)) {
+                    params.put("pixelSpacingInMeterY", pixelSizeMY);
                 }
                 SystemUtils.LOG.info("CreateStack: locking slave grid to master — " +
-                        "pixelSpacingInDegree=" + pixelSizeDeg + " (≈" + pixelSizeM + " m at lat " + g0.lat + ")");
+                        "pixelSpacingInDegree=" + dLon + " x " + dLat +
+                        " (≈" + pixelSizeMX + " x " + pixelSizeMY + " m at lat " + g0.lat + ")");
             }
         } catch (Throwable t) {
             SystemUtils.LOG.warning("CreateStack: master grid-lock setup failed (slave will use its own grid): "
@@ -1803,6 +1870,120 @@ public class CreateStackOp extends Operator {
      * other cases use {@code resamplingType != NONE} so the slave is resampled into the
      * reference grid.
      */
+    /**
+     * Largest sub-pixel residual, in pixels, tolerated between two geocoded products before their
+     * grids are considered incompatible. Correctly co-latticed products give exactly 0.
+     */
+    static final double MAX_GEOCODED_SUBPIXEL_RESIDUAL = 0.01;
+
+    /**
+     * Smallest estimated coregistration bias (pixels) worth rebuilding a slave GSLC for.
+     * ESD residuals on well-synchronized S1 pairs are a few millipixels (measured +0.004/−0.039 px
+     * on a 7-day S1A/S1D pair); rebuilding the geocoding for those is pure cost.
+     */
+    static final double MIN_BIAS_PIXELS = 0.05;
+
+    /**
+     * Confirm that a secondary really does share the reference's lattice, i.e. that a single
+     * <em>integer</em> pixel offset maps one onto the other everywhere — not just at the anchor
+     * the offset was measured at.
+     * <p>
+     * The geocoded stacking path applies one integer offset per secondary. That is only valid if
+     * the two grids have the same pixel size <em>and</em> origins separated by a whole number of
+     * pixels. Products geocoded independently can violate both: GSLC snaps each output origin to
+     * the global grid using its own derived step, so a minutely different step puts the two on
+     * different lattices and leaves an arbitrary fractional offset. Measured on a real S1A/S1D
+     * pair that residual was 0.219 px (3.06 m), which silently destroyed all interferometric
+     * coherence while leaving amplitude and geolocation looking correct.
+     * <p>
+     * Checking four spread anchors rather than one catches a pixel-size mismatch too: if the
+     * steps differ, the residual varies across the scene instead of staying constant.
+     * <p>
+     * Complex (i/q) stacks throw, because sub-pixel misalignment there is fatal to the phase.
+     * Detected-amplitude stacks only warn — the same misalignment merely blurs slightly.
+     */
+    private void verifyGeocodedLatticeAlignment(final Product secProd, final GeoCoding secGeoCoding,
+                                                final GeoCoding targGeoCoding, final int tw, final int th,
+                                                final int offsetX, final int offsetY) {
+        final double[][] anchors = {
+                {tw * 0.25, th * 0.25}, {tw * 0.75, th * 0.25},
+                {tw * 0.25, th * 0.75}, {tw * 0.75, th * 0.75}};
+
+        final GeoPos gp = new GeoPos();
+        final PixelPos refPP = new PixelPos();
+        final PixelPos secPP2 = new PixelPos();
+        double worst = 0.0, worstX = 0.0, worstY = 0.0;
+        for (final double[] a : anchors) {
+            refPP.setLocation(a[0], a[1]);
+            targGeoCoding.getGeoPos(refPP, gp);
+            if (!gp.isValid()) continue;
+            secGeoCoding.getPixelPos(gp, secPP2);
+            if (!secPP2.isValid()) continue;
+            final double rx = secPP2.x - refPP.x - offsetX;
+            final double ry = secPP2.y - refPP.y - offsetY;
+            final double r = Math.max(Math.abs(rx), Math.abs(ry));
+            if (r > worst) {
+                worst = r;
+                worstX = rx;
+                worstY = ry;
+            }
+        }
+        if (worst <= MAX_GEOCODED_SUBPIXEL_RESIDUAL) {
+            return;
+        }
+
+        final String detail = String.format(
+                "Geocoded stacking requires the secondary to sit on the reference's exact pixel "
+                        + "lattice, but '%s' is off by (%.4f, %.4f) px — a whole-pixel offset cannot "
+                        + "align them.%nThis happens when two products are geocoded independently: each "
+                        + "snaps its origin to the global grid using its own derived pixel size, and even "
+                        + "a ~1e-10 degree difference (typical between Sentinel-1 platforms) puts them on "
+                        + "different lattices.%nFix: geocode only the reference and let CreateStack "
+                        + "promote the secondary from its SLC (it locks the grid automatically), or re-run "
+                        + "GSLC-Terrain-Correction on the secondary passing the reference's exact "
+                        + "pixelSpacingInDegree.",
+                secProd.getName(), worstX, worstY);
+
+        if (hasComplexBands(secProd) || hasComplexBands(referenceProduct)) {
+            throw new OperatorException(detail);
+        }
+        SystemUtils.LOG.warning("CreateStack: " + detail);
+    }
+
+    /**
+     * Tolerance (degrees) for the corner-coordinate compatibility test that gates the
+     * source-image pass-through. The historical constant 1.0e-3 deg is ~8 pixels for a
+     * geocoded SAR product (~1.26e-4 deg/px) — wide enough to declare two products
+     * "compatible" while they are offset by several whole pixels, which is exactly the
+     * defect that silently destroyed GSLC interferometry. For geocoded inputs the
+     * tolerance is therefore a quarter of a pixel, derived from the actual grid; radar
+     * geometry products keep the historical value.
+     */
+    private float passThroughEps(final Product srcProduct) {
+        if (!isGeocoded(srcProduct)) {
+            return 1.0e-3f;
+        }
+        final GeoCoding gc = targetProduct.getSceneGeoCoding();
+        if (gc == null) {
+            return 1.0e-3f;
+        }
+        final GeoPos g0 = gc.getGeoPos(new PixelPos(0.5f, 0.5f), null);
+        final GeoPos g1 = gc.getGeoPos(new PixelPos(1.5f, 1.5f), null);
+        final double pixDeg = Math.max(Math.abs(g1.getLon() - g0.getLon()), Math.abs(g1.getLat() - g0.getLat()));
+        return (pixDeg > 0 && Double.isFinite(pixDeg)) ? (float) (0.25 * pixDeg) : 1.0e-3f;
+    }
+
+    private static boolean hasComplexBands(final Product product) {
+        if (product == null) return false;
+        for (final Band b : product.getBands()) {
+            final String u = b.getUnit();
+            if (u != null && (u.contains(Unit.REAL) || u.contains(Unit.IMAGINARY))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void computeTargetSecondaryCoordinateOffsets_Geocoded() throws Exception {
         final GeoCoding targGeoCoding = targetProduct.getSceneGeoCoding();
         if (targGeoCoding == null) {
@@ -1850,6 +2031,8 @@ public class CreateStackOp extends Operator {
                     "(sub-pixel residual=" + (secPP.x - refAnchorPP.x - offsetX) + ", " +
                     (secPP.y - refAnchorPP.y - offsetY) + ")");
 
+            verifyGeocodedLatticeAlignment(secProd, secGeoCoding, targGeoCoding, tw, th, offsetX, offsetY);
+
             final String timeStamp = StackUtils.createBandTimeStamp(secProd).substring(1);
             for (String bandName : targetProduct.getBandNames()) {
                 final String[] parts = bandName.split("_");
@@ -1874,6 +2057,48 @@ public class CreateStackOp extends Operator {
 
     private static void getPixelPos(final double lat, final double lon, final GeoCoding srcGeoCoding, final PixelPos pixelPos) {
         srcGeoCoding.getPixelPos(new GeoPos(lat, lon), pixelPos);
+    }
+
+    /**
+     * Undo the "wire the target band straight to the source image" shortcut for any secondary that
+     * actually needs a non-zero integer pixel shift.
+     * <p>
+     * When {@code resamplingType=NONE} and {@code extent=Master}, band creation wires a secondary's
+     * target band directly to the secondary's own source image whenever
+     * {@link Product#isCompatibleProduct} says the two products match. That bypasses
+     * {@link #computeTile}, which is the only place the integer offset in
+     * {@code secondaryOffsetMap} is ever applied — so the shift is silently dropped and the
+     * secondary is stacked unshifted.
+     * <p>
+     * The compatibility test compares corner lat/lon with a tolerance of <b>1.0e-3 degrees</b>.
+     * For a geocoded SAR product with ~1.26e-4 deg pixels that is nearly <b>8 pixels</b>, so two
+     * GSLCs of the same area essentially always pass it — while being offset by a few pixels.
+     * On a real Sentinel-1 pair this left a (-4, +2) px = 56 m x 28 m misregistration (~16 range
+     * resolution cells), which destroys interferometric coherence completely while leaving
+     * amplitude and geolocation looking correct.
+     * <p>
+     * Offsets are only computed after the bands exist, so this runs afterwards and clears the
+     * source image again for the affected bands, forcing them back through {@code computeTile}.
+     */
+    private void revokePassThroughForShiftedSecondaries() {
+        for (final Map.Entry<Band, Band> entry : sourceRasterMap.entrySet()) {
+            final Band targetBand = entry.getKey();
+            final Product srcProduct = entry.getValue().getProduct();
+            if (srcProduct == referenceProduct) {
+                continue;
+            }
+            final int[] off = secondaryOffsetMap.get(srcProduct);
+            if (off == null || (off[0] == 0 && off[1] == 0)) {
+                continue;
+            }
+            if (targetBand.isSourceImageSet()) {
+                targetBand.setSourceImage(null);
+                SystemUtils.LOG.info(String.format(
+                        "CreateStack: '%s' needs a (%+d, %+d) px shift — dropping the direct "
+                                + "source-image pass-through so the offset is actually applied.",
+                        targetBand.getName(), off[0], off[1]));
+            }
+        }
     }
 
     private void addOffset(final Product secProd, final int offsetX, final int offsetY) {

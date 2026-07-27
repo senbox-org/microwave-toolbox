@@ -43,7 +43,7 @@
     </li>
     <li>
         <b>Slant Range Calculation:</b> The precise distance (slant range) from the sensor to the ground point is
-        calculated. Optional corrections for Solid Earth Tide, tropospheric path delay, and ionospheric path delay
+        calculated. Optional corrections for Solid Earth Tide and tropospheric path delay
         may be applied at this step.
     </li>
     <li>
@@ -156,20 +156,6 @@
         <td>WGS84(DD)</td>
     </tr>
     <tr>
-        <td><b>Align to Standard Grid</b></td>
-        <td>Snap the output grid origin to a multiple of the pixel size, anchored at
-            <i>Standard Grid Origin (X, Y)</i>. <b>Required when stacking multiple GSLCs</b> &mdash; with this
-            flag on, two GSLCs of overlapping scenes share the same global lat/lon lattice so that the same ground
-            point lands at the same fractional pixel (modulo an integer offset) in each grid. Disable only if you
-            intentionally want each scene's grid to start at its own footprint corner (incompatible with stacking).</td>
-        <td>true</td>
-    </tr>
-    <tr>
-        <td><b>Standard Grid Origin X / Y</b></td>
-        <td>The coordinates of the standard grid's origin point (used when <i>Align to Standard Grid</i> is on).</td>
-        <td>0, 0</td>
-    </tr>
-    <tr>
         <td><b>Mask out areas with no elevation</b></td>
         <td>Mask areas without elevation data (e.g., sea). This can speed up processing.</td>
         <td>true</td>
@@ -260,13 +246,6 @@
         <td>Apply the Saastamoinen dry tropospheric path delay to the slant range before phase computation. Uses
             a standard-atmosphere model (no real-time meteorology). Useful for displacement-grade InSAR; not
             sufficient for atmospheric-noise-dominated scenes (use ERA5 or InSAR-specific atmospheric models for that).</td>
-        <td>false</td>
-    </tr>
-    <tr>
-        <td><b>Apply ionospheric correction</b></td>
-        <td>Apply an ionospheric path delay correction. Required for L-band displacement InSAR (NISAR,
-            ALOS-2/4). The current implementation is a stub that logs a warning &mdash; a full TEC /
-            split-spectrum integration is pending. Has no effect at C-band or X-band.</td>
         <td>false</td>
     </tr>
 </table>

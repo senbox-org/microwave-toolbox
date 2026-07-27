@@ -100,7 +100,7 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
      * compatible with InSAR stacking: same pixel size, and the pixel corner offsets between
      * them are integer multiples of the pixel size in both axes (so master pixel
      * {@code (i,j)} maps to slave pixel {@code (i+dx, j+dy)} for integer {@code dx,dy}).
-     * That's the property {@code alignToStandardGrid=true} (default) guarantees, and it's
+     * That's the property the always-on standard-grid alignment guarantees, and it's
      * what CreateStack relies on instead of a user-supplied reference product.
      */
     @Test

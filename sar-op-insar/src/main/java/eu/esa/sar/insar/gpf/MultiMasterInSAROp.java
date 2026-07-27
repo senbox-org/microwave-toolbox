@@ -21,6 +21,8 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.dataop.resamp.ResamplingFactory;
+import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -96,6 +98,21 @@ public class MultiMasterInSAROp extends Operator {
             label = "Coherence range window size")
     private int cohWindowRg = 10;
 
+    @Parameter(defaultValue = "true", label = "Add elevation band",
+            description = "Add an elevation band (from a DEM) automatically when the input stack does not " +
+                    "already contain one. The elevation band is required to remove the reference/topographic " +
+                    "phase, so the operator cannot run without it. Leave this on to avoid having to run the " +
+                    "Add Elevation Band operator beforehand.")
+    private boolean addElevation = true;
+
+    @Parameter(description = "The digital elevation model used when 'Add elevation band' adds a missing band.",
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
+
+    @Parameter(defaultValue = ResamplingFactory.BILINEAR_INTERPOLATION_NAME, label = "DEM Resampling Method",
+            description = "Resampling method used when reading the DEM.")
+    private String demResamplingMethod = ResamplingFactory.BILINEAR_INTERPOLATION_NAME;
+
     // Metadata maps
     private SLCImage slcImageReference;
     private Orbit orbitReference;
@@ -161,6 +178,12 @@ public class MultiMasterInSAROp extends Operator {
         try {
             checkSourceProductValidity();
 
+            // The reference/topographic phase removal needs an elevation band. Add one up front
+            // (default) so users don't have to run Add Elevation Band separately and hit an error.
+            if (addElevation && !hasElevationBand(sourceProduct)) {
+                sourceProduct = addElevationBand(sourceProduct);
+            }
+
             polarisations = OperatorUtils.getPolarisations(sourceProduct);
             if (polarisations.length == 0) {
                 polarisations = new String[]{""};
@@ -187,6 +210,23 @@ public class MultiMasterInSAROp extends Operator {
         final InputProductValidator validator = new InputProductValidator(sourceProduct);
         validator.checkIfSARProduct();
         validator.checkIfCoregisteredStack();
+    }
+
+    private static boolean hasElevationBand(final Product product) {
+        for (String bandName : product.getBandNames()) {
+            if (bandName.startsWith(DEM_BAND_NAME_PREFIX)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Product addElevationBand(final Product product) {
+        final Map<String, Object> params = new HashMap<>();
+        params.put("demName", demName);
+        params.put("demResamplingMethod", demResamplingMethod);
+        params.put("elevationBandName", DEM_BAND_NAME_PREFIX);
+        return GPF.createProduct("AddElevation", params, product);
     }
 
     /**
@@ -319,8 +359,9 @@ public class MultiMasterInSAROp extends Operator {
             }
         }
         if (elevationBandName == null) {
-            throw new OperatorException("Elevation band is missing in input product. Please add elevation band " +
-                    "using the Add Elevation Band function.");
+            throw new OperatorException("Elevation band is missing in the input product. It is required to remove " +
+                    "the reference/topographic phase. Enable 'Add elevation band' (on by default) to add it " +
+                    "automatically, or add it beforehand with the Add Elevation Band operator.");
         }
 
         // Create band for incidence angle

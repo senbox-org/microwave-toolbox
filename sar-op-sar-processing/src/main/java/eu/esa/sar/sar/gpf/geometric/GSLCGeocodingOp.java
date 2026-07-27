@@ -127,11 +127,29 @@ public class GSLCGeocodingOp extends Operator {
             })
     private String imgResamplingMethod = ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME;
 
-    @Parameter(description = "The pixel spacing in meters", defaultValue = "0", label = "Pixel Spacing (m)")
+    @Parameter(description = "The pixel spacing in meters. With a north (Y) spacing also set, " +
+            "this is the east/longitude (X) spacing of a rectangular cell.",
+            defaultValue = "0", label = "Pixel Spacing (m)")
     private double pixelSpacingInMeter = 0;
 
-    @Parameter(description = "The pixel spacing in degrees", defaultValue = "0", label = "Pixel Spacing (deg)")
+    @Parameter(description = "The pixel spacing in degrees. With a north (Y) spacing also set, " +
+            "this is the east/longitude (X) spacing of a rectangular cell.",
+            defaultValue = "0", label = "Pixel Spacing (deg)")
     private double pixelSpacingInDegree = 0;
+
+    @Parameter(description = "Optional north/latitude (Y) pixel spacing in meters for a " +
+            "RECTANGULAR output cell. Leave 0 for square cells. Rectangular cells preserve the " +
+            "SLC's anisotropic native resolution (S1 IW: ~3.4 m ground range x ~14 m azimuth) " +
+            "without oversampling one axis; because the radar axes are rotated by the heading " +
+            "from the map axes, the Nyquist-adequate north step is somewhat finer than native " +
+            "azimuth (S1 IW: ~7-8 m rather than 14 m).",
+            defaultValue = "0", label = "Pixel Spacing North (m)")
+    private double pixelSpacingInMeterY = 0;
+
+    @Parameter(description = "Optional north/latitude (Y) pixel spacing in degrees for a " +
+            "rectangular output cell. Leave 0 for square cells.",
+            defaultValue = "0", label = "Pixel Spacing North (deg)")
+    private double pixelSpacingInDegreeY = 0;
 
     @Parameter(description = "The pixel spacing oversampling percentage (0-100%)", defaultValue = "0.0", label = "Oversampling (%)")
     private double oversamplingPercent = 0.0;
@@ -139,26 +157,11 @@ public class GSLCGeocodingOp extends Operator {
     @Parameter(description = "The coordinate reference system in well known text format", defaultValue = "WGS84(DD)")
     private String mapProjection = "WGS84(DD)";
 
-    /**
-     * Snap the output grid origin to a multiple of the pixel size from
-     * {@link #standardGridOriginX}/{@link #standardGridOriginY}. The default is {@code true}
-     * so that any two GSLCs produced from overlapping scenes land on the same global lat/lon
-     * grid (subsets of the same Z² lattice), which means their pixel positions for the same
-     * ground point differ only by an integer offset — exactly what
-     * {@code CreateStackOp.computeTargetSecondaryCoordinateOffsets_Geocoded()} relies on.
-     * Set to {@code false} only if you intentionally want each scene's grid to start at its
-     * own footprint corner (incompatible with stacking).
-     */
-    @Parameter(description = "Snap the output grid origin to a multiple of the pixel size " +
-            "from standardGridOrigin. Required for two GSLCs to share a common pixel grid.",
-            defaultValue = "true", label = "Align to standard grid")
-    private boolean alignToStandardGrid = true;
-
-    @Parameter(description = "x-coordinate of the standard grid's origin point", defaultValue = "0")
-    private double standardGridOriginX = 0;
-
-    @Parameter(description = "y-coordinate of the standard grid's origin point", defaultValue = "0")
-    private double standardGridOriginY = 0;
+    // GSLC output is always snapped to a global standard grid (origin 0,0): any two GSLCs of
+    // overlapping scenes then land on the same lat/lon lattice, so the same ground point sits at
+    // the same fractional pixel (modulo an integer offset) — the property CreateStack's geocoded
+    // coregistration relies on. This is always on and not user-configurable (disabling it would
+    // silently break stacking), so it is not exposed as a parameter.
 
     @Parameter(defaultValue = "true", label = "Mask out areas with no elevation", description = "Mask the sea with no data value (faster)")
     protected boolean nodataValueAtSea = true;
@@ -192,12 +195,20 @@ public class GSLCGeocodingOp extends Operator {
      * atmospheric signal). Set {@code true} only for non-InSAR use cases (e.g. amplitude
      * analysis where you want a phase-clean complex band).
      */
-    @Parameter(defaultValue = "false", label = "Output phase-flattened complex data",
+    @Parameter(defaultValue = "false", label = "Output phase-flattened complex data (not for InSAR)",
             description = "If true, removes the SLC geometric carrier (4π·R/λ) so each " +
                     "complex pixel holds only the local scattering coefficient. This makes " +
                     "the GSLC unusable for InSAR — the (R_master − R_slave) phase difference " +
                     "is zeroed out. Leave false (default) for InSAR pipelines.")
     private boolean outputFlattened = false;
+
+    @Parameter(description = "Restore the native TOPS azimuth (deramp) carrier in the output. " +
+            "The carrier is acquisition-specific (burst timing, FM rate) and does NOT cancel " +
+            "between two acquisitions, so restoring it corrupts cross-acquisition interferometry " +
+            "(tens of spurious fringes per burst for a cross-platform pair). Leave false " +
+            "(carrier-free output, as OPERA CSLC) for InSAR.",
+            defaultValue = "false", label = "Restore TOPS azimuth carrier")
+    private boolean outputAzimuthCarrier = false;
 
     @Parameter(defaultValue = "false", label = "Save simulated phase")
     private boolean saveSimulatedPhase = false;
@@ -246,13 +257,6 @@ public class GSLCGeocodingOp extends Operator {
             description = "Apply the Saastamoinen dry tropospheric path delay to the slant range " +
                     "before phase computation. Uses a standard atmosphere model (no real-time meteo).")
     private boolean applyTroposphericCorrection = false;
-
-    @Parameter(defaultValue = "false",
-            label = "Apply ionospheric correction",
-            description = "Apply an ionospheric path delay correction (mandatory for L-band " +
-                    "displacement InSAR — e.g. NISAR, ALOS-2/4). The current implementation logs " +
-                    "a warning; a full TEC/split-spectrum integration is pending.")
-    private boolean applyIonosphericCorrection = false;
 
     private MetadataElement absRoot = null;
     private volatile ElevationModel dem = null;
@@ -314,6 +318,17 @@ public class GSLCGeocodingOp extends Operator {
 
     // TOPS burst-level processing fields
     private boolean isTOPSProduct = false;
+
+    /**
+     * Debug-only geometry dump, enabled with {@code -Dgslc.diagGeometry=true}. Emits the
+     * per-target-pixel backward-geocoding solution (DEM height, slant range, source
+     * range/azimuth index, burst) as extra bands so two independently geocoded GSLCs can be
+     * compared pixel-by-pixel. Off by default; adds no parameters to the operator.
+     */
+    private boolean DIAG_GEOMETRY = false;
+    private Band diagHeightBand, diagSlantRangeBand, diagRangeIndexBand, diagAzimuthIndexBand, diagBurstBand;
+    private final java.util.concurrent.atomic.AtomicInteger diagRoundTripLogged =
+            new java.util.concurrent.atomic.AtomicInteger();
     private Sentinel1Utils su = null;
     private Sentinel1Utils.SubSwathInfo[] subSwath = null;
     private int subSwathIndex = 0;
@@ -501,6 +516,8 @@ public class GSLCGeocodingOp extends Operator {
     @Override
     public void initialize() throws OperatorException {
         try {
+            DIAG_GEOMETRY = Boolean.getBoolean("gslc.diagGeometry");
+
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
             validator.checkIfMapProjected(false);
@@ -547,11 +564,6 @@ public class GSLCGeocodingOp extends Operator {
                 SystemUtils.LOG.info("GSLC: applySolidEarthTide=true — IERS 2010 step-1 body " +
                         "tide displacement (Sun + Moon, degree-2 Love numbers) will be applied " +
                         "to each geocoded ground point before slant-range computation.");
-            }
-            if (applyIonosphericCorrection) {
-                SystemUtils.LOG.warning("GSLC: applyIonosphericCorrection=true but the " +
-                        "ionospheric model is currently a stub — no TEC delay is being applied. " +
-                        "Split-spectrum / GIM TEC integration is pending.");
             }
             if (applyTroposphericCorrection) {
                 SystemUtils.LOG.info("GSLC: applyTroposphericCorrection=true — using Saastamoinen " +
@@ -724,7 +736,8 @@ public class GSLCGeocodingOp extends Operator {
         SystemUtils.LOG.info(String.format(
                 "GSLC: residual Doppler centroid built from %d coefficient(s); " +
                         "|f_dc| range across swath = %.2f Hz (max). " +
-                        "Azimuth deramp will be applied during SM resampling.",
+                        "Used by the stripmap (SM) resampling path only — TOPS products are " +
+                        "deramped per burst instead and ignore this table.",
                 coeffs.length, maxAbsFdc));
         return fdc;
     }
@@ -814,6 +827,45 @@ public class GSLCGeocodingOp extends Operator {
     }
 
     /**
+     * Quantum, in metres, that the auto-derived output pixel spacing is snapped to.
+     * <p>
+     * 1 mm. Inter-platform metadata differences are ~1e-5 m (Sentinel-1A annotates an azimuth
+     * spacing of 13.98908 m where Sentinel-1D annotates 13.98910 m for the same IW3 mode), so a
+     * 1 mm quantum is ~50x larger than the spread it has to absorb while changing the spacing
+     * itself by less than 1e-4 of a pixel — geometrically irrelevant, since the grid is defined
+     * by (origin, step) and both are exact.
+     */
+    static final double PIXEL_SPACING_QUANTUM_M = 1.0e-3;
+
+    /**
+     * Snap an auto-derived pixel spacing to {@link #PIXEL_SPACING_QUANTUM_M}.
+     * <p>
+     * <b>Why this matters.</b> GSLC always snaps its output origin to the global standard grid,
+     * i.e. {@code origin = round(coord / step) * step}. Two products snapped with even a
+     * minutely different {@code step} land on two <em>different</em> lattices, and the offset
+     * between them is then an arbitrary fraction of a pixel rather than a whole number. On the
+     * Venezuela S1A/S1D pair a step difference of 1.8e-10 deg (a 12 cm drift across the scene —
+     * negligible on its own) produced a <b>0.219 px = 3.06 m</b> fractional origin offset, which
+     * {@code CreateStackOp}'s integer-pixel offset path cannot correct and which therefore
+     * misaligns every pixel of the stack. Quantising makes the derived step bit-identical for
+     * every product of a given sensor/mode, so the offset is exactly integral by construction.
+     * <p>
+     * Only the auto-derived spacing is quantised; an explicitly supplied
+     * {@code pixelSpacingInMeter}/{@code pixelSpacingInDegree} is always honoured verbatim, since
+     * that is how {@code CreateStackOp} locks a secondary onto the reference's exact grid.
+     *
+     * @param spacingMeters derived spacing in metres
+     * @return the spacing snapped to the quantum, or the input unchanged if it is not a positive
+     *         finite number
+     */
+    static double quantizePixelSpacing(final double spacingMeters) {
+        if (!Double.isFinite(spacingMeters) || spacingMeters <= 0.0) {
+            return spacingMeters;
+        }
+        return Math.round(spacingMeters / PIXEL_SPACING_QUANTUM_M) * PIXEL_SPACING_QUANTUM_M;
+    }
+
+    /**
      * Build the output grid (CRS, origin, pixel size, dimensions) from this product's footprint
      * via {@link CRSGeoCodingHandler}. Used when no reference product is supplied.
      */
@@ -833,16 +885,26 @@ public class GSLCGeocodingOp extends Operator {
             final double azimuthSpacing = SARGeocoding.getAzimuthPixelSpacing(sourceProduct);
             final double rangeSpacingNative = AbstractMetadata.getAttributeDouble(absRoot,
                     AbstractMetadata.range_spacing);
-            pixelSpacingInMeter = Math.max(azimuthSpacing, rangeSpacingNative);
-            pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
+            final double nativeSpacing = Math.max(azimuthSpacing, rangeSpacingNative);
 
             double multiplier = 1.0;
             if (oversamplingPercent > 0.0 && oversamplingPercent < 100.0) {
                 multiplier = 1.0 - (oversamplingPercent / 100.0);
             }
 
-            pixelSpacingInMeter *= multiplier;
-            pixelSpacingInDegree *= multiplier;
+            // Quantise before converting to degrees — see quantizePixelSpacing(). The degree
+            // spacing is derived FROM the quantised metre value (not scaled separately) so that
+            // equal metre spacing guarantees a bit-identical degree spacing, and hence an
+            // identical standard-grid lattice.
+            pixelSpacingInMeter = quantizePixelSpacing(nativeSpacing * multiplier);
+            pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
+
+            if (Double.compare(pixelSpacingInMeter, nativeSpacing * multiplier) != 0) {
+                SystemUtils.LOG.info(String.format(
+                        "GSLC: output pixel spacing quantised %.9f m -> %.9f m (%.0f um grid) so that "
+                                + "products from different platforms land on the same lattice.",
+                        nativeSpacing * multiplier, pixelSpacingInMeter, PIXEL_SPACING_QUANTUM_M * 1e6));
+            }
         }
         if (pixelSpacingInMeter <= 0.0) {
             pixelSpacingInMeter = SARGeocoding.getPixelSpacingInMeter(pixelSpacingInDegree);
@@ -850,12 +912,37 @@ public class GSLCGeocodingOp extends Operator {
         if (pixelSpacingInDegree <= 0) {
             pixelSpacingInDegree = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeter);
         }
-        delLat = pixelSpacingInDegree;
+
+        // Optional rectangular cells: an explicit Y (northing/latitude) spacing decouples the
+        // two axes so the output can approach the SLC's anisotropic native resolution
+        // (S1 IW: ~3.4 m ground range x ~14 m azimuth) instead of oversampling one axis to
+        // match the other. When unset, the grid is square (Y = X), the historical behaviour.
+        if (pixelSpacingInMeterY <= 0.0 && pixelSpacingInDegreeY <= 0.0) {
+            pixelSpacingInMeterY = pixelSpacingInMeter;
+            pixelSpacingInDegreeY = pixelSpacingInDegree;
+        } else {
+            if (pixelSpacingInMeterY <= 0.0) {
+                pixelSpacingInMeterY = SARGeocoding.getPixelSpacingInMeter(pixelSpacingInDegreeY);
+            }
+            if (pixelSpacingInDegreeY <= 0.0) {
+                pixelSpacingInDegreeY = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeterY);
+            }
+            SystemUtils.LOG.info(String.format(
+                    "GSLC: rectangular output cells %.4f m (E) x %.4f m (N). Native sampling of "
+                            + "the source: ~%.2f m ground range x ~%.2f m azimuth.",
+                    pixelSpacingInMeter, pixelSpacingInMeterY,
+                    AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.range_spacing) /
+                            Math.sin(Math.toRadians(AbstractMetadata.getAttributeDouble(absRoot,
+                                    AbstractMetadata.incidence_near))),
+                    SARGeocoding.getAzimuthPixelSpacing(sourceProduct)));
+        }
+        delLat = pixelSpacingInDegreeY;
         delLon = pixelSpacingInDegree;
 
+        // GSLC always aligns to the global standard grid (origin 0,0) so scenes are stackable.
         final CRSGeoCodingHandler crsHandler = new CRSGeoCodingHandler(sourceProduct, mapProjection,
                 pixelSpacingInDegree, pixelSpacingInMeter,
-                alignToStandardGrid, standardGridOriginX, standardGridOriginY);
+                pixelSpacingInDegreeY, pixelSpacingInMeterY, true, 0, 0);
 
         targetCRS = crsHandler.getTargetCRS();
 
@@ -906,8 +993,14 @@ public class GSLCGeocodingOp extends Operator {
         }
 
         if (saveLatLon) {
-            addTargetBand("latitude", Unit.DEGREES, null);
-            addTargetBand("longitude", Unit.DEGREES, null);
+            // -999 rather than the default 0.0: both fill paths write band.getNoDataValue() for
+            // pixels that failed to geocode, and 0.0 is a valid coordinate (equator/meridian).
+            final Band latBand = addTargetBand("latitude", Unit.DEGREES, null);
+            latBand.setNoDataValue(-999.0);
+            latBand.setNoDataValueUsed(true);
+            final Band lonBand = addTargetBand("longitude", Unit.DEGREES, null);
+            lonBand.setNoDataValue(-999.0);
+            lonBand.setNoDataValueUsed(true);
         }
 
         if (saveLocalIncidenceAngle) {
@@ -932,8 +1025,31 @@ public class GSLCGeocodingOp extends Operator {
         }
 
         if (saveSimulatedUnwrappedPhase) {
-            simulatedUnwrappedPhaseBand = addTargetBand("simulatedUnwrappedPhase", Unit.PHASE, null);
+            // FLOAT64: the unwrapped geometric phase is 4*pi*R/lambda, which for a spaceborne
+            // C-band SAR is ~2e8 radians. In float32 one ulp there is ~16 radians, so the band
+            // would be pure quantisation noise and useless for any phase work.
+            simulatedUnwrappedPhaseBand = addTargetBand(targetProduct, targetImageWidth, targetImageHeight,
+                    "simulatedUnwrappedPhase", Unit.PHASE, null, ProductData.TYPE_FLOAT64);
         }
+
+        if (DIAG_GEOMETRY) {
+            // slant range (~9e5 m) and the source indices need float64 for the same reason:
+            // float32 there is ~0.06 m, i.e. ~13 rad of carrier phase.
+            diagHeightBand = addTargetBand("diag_height", Unit.METERS, null);
+            diagSlantRangeBand = addTargetBand(targetProduct, targetImageWidth, targetImageHeight,
+                    "diag_slantRange", Unit.METERS, null, ProductData.TYPE_FLOAT64);
+            diagRangeIndexBand = addTargetBand(targetProduct, targetImageWidth, targetImageHeight,
+                    "diag_rangeIndex", null, null, ProductData.TYPE_FLOAT64);
+            diagAzimuthIndexBand = addTargetBand(targetProduct, targetImageWidth, targetImageHeight,
+                    "diag_azimuthIndex", null, null, ProductData.TYPE_FLOAT64);
+            diagBurstBand = addTargetBand("diag_burst", null, null);
+        }
+    }
+
+    private static ProductData diagBuf(final Map<Band, Tile> targetTiles, final Band band) {
+        if (band == null) return null;
+        final Tile t = targetTiles.get(band);
+        return t != null ? t.getRawSamples() : null;
     }
 
     private Band addTargetBand(final String bandName, final String bandUnit, final Band sourceBand) {
@@ -999,9 +1115,15 @@ public class GSLCGeocodingOp extends Operator {
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.lon_pixel_res, delLon);
 
         if (pixelSpacingInMeter > 0.0 &&
-                Double.compare(pixelSpacingInMeter, SARGeocoding.getPixelSpacing(sourceProduct)) != 0) {
+                (Double.compare(pixelSpacingInMeter, SARGeocoding.getPixelSpacing(sourceProduct)) != 0
+                        || Double.compare(pixelSpacingInMeterY, pixelSpacingInMeter) != 0)) {
+            // Per-axis: X (easting/longitude) is closest to range, Y (northing/latitude) to
+            // azimuth for near-polar orbits. InterferogramOp's metre-based coherence window
+            // reads these two attributes per direction, so rectangular cells get correctly
+            // rectangular windows.
             AbstractMetadata.setAttribute(absTgt, AbstractMetadata.range_spacing, pixelSpacingInMeter);
-            AbstractMetadata.setAttribute(absTgt, AbstractMetadata.azimuth_spacing, pixelSpacingInMeter);
+            AbstractMetadata.setAttribute(absTgt, AbstractMetadata.azimuth_spacing,
+                    pixelSpacingInMeterY > 0.0 ? pixelSpacingInMeterY : pixelSpacingInMeter);
         }
 
         // Stamp the source SLC's file path so downstream operators (notably CreateStackOp)
@@ -1024,6 +1146,18 @@ public class GSLCGeocodingOp extends Operator {
                 "true if topographic + ellipsoidal phase has been subtracted from the GSLC carrier");
         AbstractMetadata.setAttribute(absTgt, "gslc_output_flattened",
                 outputFlattened ? "true" : "false");
+
+        // Stamp whether the TOPS azimuth carrier was restored, for the same reason: a stack
+        // mixing carrier-restored and carrier-free legs contains an uncancelled per-burst
+        // quadratic azimuth phase (~tens of fringes/burst for a cross-platform pair).
+        // CreateStackOp reads this stamp when auto-building a slave GSLC so the slave matches
+        // the master's convention. Absence of the stamp means a legacy product => carrier
+        // restored (the old unconditional behaviour).
+        AbstractMetadata.addAbstractedAttribute(absTgt, "gslc_azimuth_carrier",
+                ProductData.TYPE_ASCII, "flag",
+                "true if the native TOPS azimuth (deramp) carrier is present in the output");
+        AbstractMetadata.setAttribute(absTgt, "gslc_azimuth_carrier",
+                outputAzimuthCarrier ? "true" : "false");
     }
 
     @Override
@@ -1325,6 +1459,12 @@ public class GSLCGeocodingOp extends Operator {
         final double[] rangeIndices = new double[numPixels];
         final double[] slantRanges = new double[numPixels];
         final int[] bestBurst = new int[numPixels];
+        // Per-target-pixel geometry kept for the optional output bands. The SM path fills
+        // elevation/latitude/longitude inline; the TOPS path is two-phase (geocode all pixels,
+        // then resample burst by burst), so the values are collected here and written below.
+        final double[] pxHeight = (saveDEM || DIAG_GEOMETRY) ? new double[numPixels] : null;
+        final double[] pxLat = saveLatLon ? new double[numPixels] : null;
+        final double[] pxLon = saveLatLon ? new double[numPixels] : null;
         java.util.Arrays.fill(bestBurst, -1);
 
         final PosVector earthPoint = new PosVector();
@@ -1423,6 +1563,11 @@ public class GSLCGeocodingOp extends Operator {
                 rangeIndices[idx] = rangeIndex;
                 slantRanges[idx] = slantRange;
                 bestBurst[idx] = burst;
+                if (pxHeight != null) pxHeight[idx] = alt;
+                if (pxLat != null) {
+                    pxLat[idx] = geoPos.lat;
+                    pxLon[idx] = geoPos.lon;
+                }
             }
         }
 
@@ -1454,6 +1599,42 @@ public class GSLCGeocodingOp extends Operator {
                 ? targetTiles.get(simulatedPhaseBand).getRawSamples() : null;
         ProductData bufUnwrappedPhase = (saveSimulatedUnwrappedPhase && targetTiles.containsKey(simulatedUnwrappedPhaseBand))
                 ? targetTiles.get(simulatedUnwrappedPhaseBand).getRawSamples() : null;
+
+        // Optional geometry output bands (elevation / latitude / longitude). The SM path writes
+        // these inline; without this block they came out empty for every TOPS product.
+        final ProductData demBuffer = (saveDEM && elevationBand != null
+                && targetTiles.containsKey(elevationBand)) ? targetTiles.get(elevationBand).getRawSamples() : null;
+        final Band latBand = saveLatLon ? targetProduct.getBand("latitude") : null;
+        final Band lonBand = saveLatLon ? targetProduct.getBand("longitude") : null;
+        final ProductData latBuffer = (latBand != null && targetTiles.containsKey(latBand))
+                ? targetTiles.get(latBand).getRawSamples() : null;
+        final ProductData lonBuffer = (lonBand != null && targetTiles.containsKey(lonBand))
+                ? targetTiles.get(lonBand).getRawSamples() : null;
+        if (demBuffer != null || latBuffer != null || lonBuffer != null) {
+            final double demNoData = elevationBand != null ? elevationBand.getNoDataValue() : 0.0;
+            for (int idx = 0; idx < numPixels; idx++) {
+                final boolean ok = bestBurst[idx] != -1;
+                if (demBuffer != null) demBuffer.setElemDoubleAt(idx, ok ? pxHeight[idx] : demNoData);
+                if (latBuffer != null) latBuffer.setElemDoubleAt(idx, ok ? pxLat[idx] : latBand.getNoDataValue());
+                if (lonBuffer != null) lonBuffer.setElemDoubleAt(idx, ok ? pxLon[idx] : lonBand.getNoDataValue());
+            }
+        }
+
+        if (DIAG_GEOMETRY) {
+            final ProductData bufH = diagBuf(targetTiles, diagHeightBand);
+            final ProductData bufR = diagBuf(targetTiles, diagSlantRangeBand);
+            final ProductData bufRi = diagBuf(targetTiles, diagRangeIndexBand);
+            final ProductData bufAi = diagBuf(targetTiles, diagAzimuthIndexBand);
+            final ProductData bufB = diagBuf(targetTiles, diagBurstBand);
+            for (int idx = 0; idx < numPixels; idx++) {
+                final boolean ok = bestBurst[idx] != -1;
+                if (bufH != null) bufH.setElemDoubleAt(idx, ok ? pxHeight[idx] : 0.0);
+                if (bufR != null) bufR.setElemDoubleAt(idx, ok ? slantRanges[idx] : 0.0);
+                if (bufRi != null) bufRi.setElemDoubleAt(idx, ok ? rangeIndices[idx] : 0.0);
+                if (bufAi != null) bufAi.setElemDoubleAt(idx, ok ? azimuthIndices[idx] : 0.0);
+                if (bufB != null) bufB.setElemDoubleAt(idx, ok ? bestBurst[idx] + 1 : 0.0);
+            }
+        }
 
         // Fill noData for pixels that didn't geocode
         for (int idx = 0; idx < numPixels; idx++) {
@@ -1527,17 +1708,30 @@ public class GSLCGeocodingOp extends Operator {
                         continue;
                     }
 
-                    // §1c: reramp using the deramp+demod phase evaluated analytically
-                    // at the fractional source position (not bisinc-interpolated from
-                    // the phase grid, which has burst-edge bias from the modulo-2pi
-                    // wraps).
-                    final double sampPhase = computeDerampDemodPhaseAt(
-                            subSwath, subSwathIndex, burstIndex,
-                            rangeIndices[idx], azimuthIndices[idx]);
-                    final double cosReramp = FastMath.cos(sampPhase);
-                    final double sinReramp = FastMath.sin(sampPhase);
-                    double convergentI = sampI * cosReramp + sampQ * sinReramp;
-                    double convergentQ = -sampI * sinReramp + sampQ * cosReramp;
+                    // The interpolated sample is in the deramped (carrier-free) azimuth domain.
+                    // By default it STAYS there: the TOPS azimuth carrier is acquisition-specific
+                    // (burst timing, FM rate) and does not cancel between two acquisitions —
+                    // restoring it puts a per-burst quadratic azimuth phase (~150 rad/burst
+                    // measured on a real S1A/S1D pair) into every cross-acquisition
+                    // interferogram. Classical InSAR avoids this because Back-Geocoding resamples
+                    // the secondary onto the reference's burst grid; independent per-scene
+                    // geocoding cannot, so the carrier must be left off (as OPERA CSLC does).
+                    double sampPhase = 0.0;
+                    double convergentI = sampI;
+                    double convergentQ = sampQ;
+                    if (outputAzimuthCarrier) {
+                        // §1c: reramp using the deramp+demod phase evaluated analytically
+                        // at the fractional source position (not bisinc-interpolated from
+                        // the phase grid, which has burst-edge bias from the modulo-2pi
+                        // wraps).
+                        sampPhase = computeDerampDemodPhaseAt(
+                                subSwath, subSwathIndex, burstIndex,
+                                rangeIndices[idx], azimuthIndices[idx]);
+                        final double cosReramp = FastMath.cos(sampPhase);
+                        final double sinReramp = FastMath.sin(sampPhase);
+                        convergentI = sampI * cosReramp + sampQ * sinReramp;
+                        convergentQ = -sampI * sinReramp + sampQ * cosReramp;
+                    }
 
                     // The data is now in the "flattened" (carrier-removed) domain
                     // because of the §1b pre-flatten step. If the user wants the
@@ -1550,6 +1744,40 @@ public class GSLCGeocodingOp extends Operator {
                         multiplyByExpMinusJPhi(convergentI, convergentQ, cosPhi, sinPhi, restored);
                         convergentI = restored[0];
                         convergentQ = restored[1];
+                    }
+
+                    // Round-trip audit: with outputFlattened=false the deramp/reramp and
+                    // pre-flatten/restore pairs must cancel exactly, so at a target pixel whose
+                    // source position is (near) an integer sample the output must equal the raw
+                    // SLC sample in BOTH magnitude and phase. Log the individual terms wherever
+                    // that holds so a non-closing term can be identified.
+                    // (Audit only meaningful in the carrier-restored convention, where the output
+                    // must equal the raw SLC sample bit-for-bit at integer source positions.)
+                    if (DIAG_GEOMETRY && outputAzimuthCarrier && diagRoundTripLogged.get() < 15) {
+                        final double rgI = rangeIndices[idx], azI = azimuthIndices[idx];
+                        if (Math.abs(rgI - Math.rint(rgI)) < 0.004 && Math.abs(azI - Math.rint(azI)) < 0.004) {
+                            final int sx = (int) Math.rint(rgI), sy = (int) Math.rint(azI);
+                            if (sx >= clampedRect.x && sx < clampedRect.x + bw
+                                    && sy >= clampedRect.y && sy < clampedRect.y + bh) {
+                                final double srcI = srcTileI.getSampleDouble(sx, sy);
+                                final double srcQ = srcTileQ.getSampleDouble(sx, sy);
+                                final double gridPhase = derampDemodPhase[sy - clampedRect.y][sx - clampedRect.x];
+                                final int srcPx = nearRangeOnLeft ? sx : (sourceImageWidth - 1 - sx);
+                                final double preFlat = 4.0 * Math.PI
+                                        * (nearEdgeSlantRange + srcPx * rangeSpacing) / wavelength;
+                                final double restore = phaseConstant * slantRanges[idx];
+                                double d = Math.atan2(convergentQ, convergentI) - Math.atan2(srcQ, srcI);
+                                d = Math.atan2(Math.sin(d), Math.cos(d));
+                                SystemUtils.LOG.info(String.format(
+                                        "GSLC-RT rg=%.4f az=%.4f |src|=%.2f |out|=%.2f  d(out-src)=%+.5f rad"
+                                                + " | deramp=%.6f sampPhase=%.6f delta=%+.3e"
+                                                + " | preFlat=%.3f restore=%.3f  (preFlat-restore) mod 2pi = %+.6f",
+                                        rgI, azI, Math.hypot(srcI, srcQ), Math.hypot(convergentI, convergentQ),
+                                        d, gridPhase, sampPhase, gridPhase - sampPhase,
+                                        preFlat, restore, Math.IEEEremainder(preFlat - restore, 2 * Math.PI)));
+                                diagRoundTripLogged.incrementAndGet();
+                            }
+                        }
                     }
 
                     if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, convergentI);

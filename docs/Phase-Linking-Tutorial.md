@@ -40,7 +40,7 @@ You will do the Phase Linking step twice: once in **SNAP Desktop**, once with **
 
 ## Why phase linking here
 
-A single repeat-pass interferogram is noise over natural surfaces — scattering changes between passes. Phase linking jointly estimates **one consistent phase per acquisition** from the whole stack, so vegetated/rural pixels become usable instead of being discarded (as classical Persistent-Scatterer InSAR does). The output is a **drop-in replacement** for the coregistered stack — Interferogram, Multi-Master InSAR and SBAS all work unchanged, but distributed-scatterer coherence is far higher.
+A single repeat-pass interferogram is noise over natural surfaces — scattering changes between passes. Phase linking jointly estimates **one consistent phase per acquisition** from the whole stack, so vegetated/rural pixels become usable instead of being discarded (as classical Persistent-Scatterer InSAR does). The output is a **drop-in replacement** for the coregistered stack — Interferogram, Multi-Reference InSAR and SBAS all work unchanged, but distributed-scatterer coherence is far higher.
 
 > **Note on stack size.** Three acquisitions is the **minimum** phase linking accepts (it needs ≥ 3 epochs). It cleanly demonstrates the workflow, but the coherence gain and time-series quality grow with more passes — add further acquisitions for an operational deformation product.
 
@@ -117,7 +117,7 @@ Run these from your working folder. The graph takes the three input products as 
 
 ### Step 1 — build the coregistered stack
 
-Save as `venezuela_stack.xml`. Reference (master) is **S1A**; secondaries are **S1C** and **S1D**:
+Save as `venezuela_stack.xml`. The reference is **S1A**; the secondaries are **S1C** and **S1D**:
 
 ```xml
 <graph id="VenezuelaStack">
@@ -162,7 +162,7 @@ Save as `venezuela_stack.xml`. Reference (master) is **S1A**; secondaries are **
     <parameters><subswath>IW3</subswath><selectedPolarisations>VV</selectedPolarisations></parameters>
   </node>
 
-  <!-- ==== coregister (master = first source), ESD, deburst ==== -->
+  <!-- ==== coregister (reference = first source), ESD, deburst ==== -->
   <node id="BackGeocoding"><operator>Back-Geocoding</operator>
     <sources>
       <sourceProduct refid="Split_A"/>
@@ -267,7 +267,7 @@ Form the first interferogram (S1A→S1C, the first consecutive pair) from the ph
 
 The **`subtractTopographicPhase`** flag is the command-line equivalent of the *Subtract topographic phase* checkbox in the GUI — it removes the DEM-simulated topographic fringes so the deformation signal remains. Point `Read` at `stack_PL.dim` for the phase-linked result and at `stack_IW3_VV.dim` for the raw baseline, and compare the coherence bands over the vegetated flanks — the phase-linked coherence should be markedly higher (see **Results** below for the temporal-coherence map and the before/after interferograms).
 
-For the full time-series workflow (Multi-Master network → SNAPHU unwrapping → SBAS inversion), see the notebook **`snap-nb-sar-ds-insar-timeseries`**.
+For the full time-series workflow (Multi-Reference network → SNAPHU unwrapping → SBAS inversion), see the notebook **`snap-nb-sar-ds-insar-timeseries`**.
 
 ---
 
@@ -314,6 +314,6 @@ Both images below are the **same interferometric pair, formed identically** — 
 
 ## Next steps
 
-- **Jupyter notebooks** — full, runnable SAR/InSAR workflows: <https://github.com/senbox-org/snap-jupyter-notebooks>. See `snap-nb-sar-ds-insar-timeseries` for the complete DS-InSAR time series (Phase Linking → Multi-Master network → SNAPHU unwrapping → SBAS inversion → velocity/displacement).
+- **Jupyter notebooks** — full, runnable SAR/InSAR workflows: <https://github.com/senbox-org/snap-jupyter-notebooks>. See `snap-nb-sar-ds-insar-timeseries` for the complete DS-InSAR time series (Phase Linking → Multi-Reference network → SNAPHU unwrapping → SBAS inversion → velocity/displacement).
 - Algorithm & parameter rationale: `Phase-Linking-Explained.md`.
 - Operator parameter reference: in-app Help (F1 in the dialog) → *Phase Linking*.

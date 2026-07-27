@@ -116,8 +116,9 @@ public class InterferogramOp extends Operator {
     private double cohWinSizeMeters = 0.0;
 
     @Parameter(description = "Read-only status flag set at initialization when the operator " +
-            "auto-detects GSLC inputs (is_terrain_corrected=1) and bypasses flat-Earth / " +
-            "topographic phase subtraction. Visible to make the bypass auditable.",
+            "auto-detects GSLC inputs (is_terrain_corrected=1). In GSLC mode the interferogram is " +
+            "the conjugate product with the flat-Earth (and, if enabled, topographic) phase removed " +
+            "in map geometry. Visible for auditability.",
             defaultValue = "false",
             label = "GSLC mode auto-detected")
     private boolean gslcModeAutoDetected = false;
@@ -127,6 +128,15 @@ public class InterferogramOp extends Operator {
 
     @Parameter(defaultValue="false", label="Subtract topographic phase")
     private boolean subtractTopographicPhase = false;
+
+    @Parameter(description = "GSLC mode only: estimate and remove the smooth residual phase ramp " +
+            "left by cross-acquisition GSLC interferometry (annotation-vs-data deramp mismatch, " +
+            "typically ~1 fringe per 80 px). The estimate is a low-order (quadratic) polynomial " +
+            "fitted robustly to block-wise fringe gradients — deliberately too rigid to absorb " +
+            "localized deformation signals. Like any ramp removal it will also absorb a genuine " +
+            "scene-wide linear deformation gradient, so it is off by default.",
+            defaultValue = "false", label = "Subtract residual ramp (GSLC)")
+    private boolean subtractResidualRamp = false;
     /*
         @Parameter(interval = "(1, 10]",
                 description = "Degree of orbit interpolation polynomial",
@@ -209,6 +219,24 @@ public class InterferogramOp extends Operator {
     private boolean isGSLCProduct = false;
     private Band[] gslcReferenceI, gslcReferenceQ, gslcSecondaryI, gslcSecondaryQ;
     private Band[] gslcTargetI, gslcTargetQ, gslcTargetCoh;
+
+    // GSLC flat-earth + topographic phase removal, recomputed in map geometry.
+    private boolean gslcRemoveRefPhase = false;
+    private GeoCoding gslcGeoCoding;
+    private SLCImage gslcRefSLC;
+    private Orbit gslcRefOrbit;
+    private final Map<Band, SLCImage> gslcSecSLCMap = new HashMap<>();
+    private final Map<Band, Orbit> gslcSecOrbitMap = new HashMap<>();
+    private static final int GSLC_REFPHASE_SUBSAMPLE = 10; // px grid step for the smooth reference-phase surface
+
+    // GSLC residual-ramp removal: per-pair quadratic phase polynomial
+    // phi(x,y) = c0*x + c1*y + c2*x^2 + c3*x*y + c4*y^2   (x, y normalised by GSLC_RAMP_NORM)
+    private volatile boolean gslcRampEstimated = false;
+    private final Object gslcRampLock = new Object();
+    private double[][] gslcRampCoef;                        // [pair][5], null row = estimation failed
+    private static final double GSLC_RAMP_NORM = 1000.0;    // px, conditioning for the LS fit
+    private static final int GSLC_RAMP_BLOCK = 384;         // px, estimation block size
+    private static final int GSLC_RAMP_ML = 8;              // multilook factor inside a block
 
     private static final boolean CREATE_VIRTUAL_BAND = true;
     private static final boolean OUTPUT_ETAD_IFG = true;
@@ -300,9 +328,9 @@ public class InterferogramOp extends Operator {
 
     /**
      * Initialize for GSLC (geocoded complex) interferogram.
-     * GSLC products are already phase-flattened and geocoded — the interferogram is simply
-     * the complex conjugate multiplication of primary and secondary, with no flat-earth or
-     * topographic phase subtraction needed.
+     * The interferogram is the complex conjugate product of reference and secondary; the flat-earth
+     * (and, if enabled, topographic) phase is then removed in map geometry — see
+     * {@link #setupGSLCReferencePhase()} and {@link #computeGslcReferencePhase}.
      */
     /**
      * Convert {@link #cohWinSizeMeters} (if > 0) into pixel-based
@@ -378,10 +406,20 @@ public class InterferogramOp extends Operator {
         gslcTargetCoh = includeCoherence ? new Band[numPairs] : null;
 
         for (int p = 0; p < numPairs; p++) {
-            // Derive tag from reference band name
+            // Derive tag from the reference band name, then append the secondary's date so the
+            // pair is identifiable — the normal (non-GSLC) path names bands
+            // "ifg_<swath>_<pol>_<refDate>_<secDate>", and dropping the secondary date here made
+            // GSLC interferograms ambiguous in a multi-secondary stack.
             final String refName = gslcReferenceI[p].getName();
             final String suffix = refName.substring(refName.indexOf('_'));
-            final String tag = suffix.replace("_ref", "").replace("_mst", "");
+            final String baseTag = suffix.replace("_ref", "").replace("_mst", "");
+
+            final String secName = gslcSecondaryI[p].getName();
+            final int lastUs = secName.lastIndexOf('_');
+            final String secDate = (lastUs >= 0 && lastUs < secName.length() - 1)
+                    ? secName.substring(lastUs + 1) : "";
+            final String tag = (secDate.isEmpty() || baseTag.endsWith('_' + secDate))
+                    ? baseTag : baseTag + '_' + secDate;
 
             final String iBandName = "i_" + productTag + tag;
             gslcTargetI[p] = targetProduct.addBand(iBandName, ProductData.TYPE_FLOAT32);
@@ -408,6 +446,15 @@ public class InterferogramOp extends Operator {
                 gslcTargetCoh[p].setNoDataValueUsed(true);
                 gslcTargetCoh[p].setNoDataValue(0);
             }
+        }
+
+        // A geocoded GSLC keeps the full sensor-to-target carrier, so ref*conj(sec) still contains
+        // the flat-earth + topographic phase. Remove it here (recomputed in map geometry) so the GSLC
+        // interferogram matches the traditional flat-earth/topo-removed result instead of showing the
+        // raw geometric fringes.
+        gslcRemoveRefPhase = subtractFlatEarthPhase || subtractTopographicPhase;
+        if (gslcRemoveRefPhase) {
+            setupGSLCReferencePhase();
         }
     }
 
@@ -448,11 +495,215 @@ public class InterferogramOp extends Operator {
     }
 
     /**
-     * Compute interferogram for GSLC (geocoded complex) products.
-     * No flat-earth or topographic phase subtraction — just complex conjugate multiplication.
+     * Compute interferogram for GSLC (geocoded complex) products: reference * conj(secondary),
+     * then subtract the flat-earth (+ topographic) phase recomputed in map geometry.
      */
+    /**
+     * Estimate the per-pair residual phase ramp of the (reference-phase-removed) GSLC
+     * interferogram as a quadratic phase polynomial, from block-wise fringe gradients.
+     * <p>
+     * Per block: form the conjugate product, remove the flat-earth/topo reference phase (when
+     * enabled), multilook, and take the lag-1 phase gradient — a robust dominant-fringe estimator
+     * on speckle. The (fx, fy) samples are then fitted (weighted, with one outlier-trim pass) to
+     * the gradient of {@code phi = c0*x + c1*y + c2*x^2 + c3*xy + c4*y^2} — curl-free by
+     * construction. Five global parameters cannot absorb localized deformation; a genuine
+     * scene-wide linear gradient would be absorbed, which is why the option is off by default.
+     */
+    private void estimateGslcResidualRampOnce() {
+        if (gslcRampEstimated) return;
+        synchronized (gslcRampLock) {
+            if (gslcRampEstimated) return;
+            gslcRampCoef = new double[gslcReferenceI.length][];
+            final int w = sourceProduct.getSceneRasterWidth();
+            final int h = sourceProduct.getSceneRasterHeight();
+            final int n = GSLC_RAMP_BLOCK;
+            final int step = Math.max(n + 64, Math.min(w, h) / 10);
+            for (int p = 0; p < gslcReferenceI.length; p++) {
+                try {
+                    final java.util.List<double[]> samples = new java.util.ArrayList<>();
+                    for (int y0 = 64; y0 + n < h - 64; y0 += step) {
+                        for (int x0 = 64; x0 + n < w - 64; x0 += step) {
+                            final double[] s = gslcRampBlockGradient(p, new Rectangle(x0, y0, n, n));
+                            if (s != null) samples.add(s);
+                        }
+                    }
+                    if (samples.size() < 10) {
+                        SystemUtils.LOG.warning("GSLC residual ramp: only " + samples.size() +
+                                " usable blocks for pair " + p + " — ramp removal skipped.");
+                        continue;
+                    }
+                    double[] c = fitGslcRamp(samples);
+                    // one trim pass: drop gradient outliers > 3x the median residual
+                    final double[] resid = new double[samples.size()];
+                    for (int i = 0; i < samples.size(); i++) {
+                        resid[i] = gslcRampGradResidual(samples.get(i), c);
+                    }
+                    final double[] sorted = resid.clone();
+                    java.util.Arrays.sort(sorted);
+                    final double thr = 3.0 * Math.max(sorted[sorted.length / 2], 1e-4);
+                    final java.util.List<double[]> kept = new java.util.ArrayList<>();
+                    for (int i = 0; i < samples.size(); i++) {
+                        if (resid[i] <= thr) kept.add(samples.get(i));
+                    }
+                    if (kept.size() >= 10) {
+                        c = fitGslcRamp(kept);
+                    }
+                    gslcRampCoef[p] = c;
+                    SystemUtils.LOG.info(String.format(
+                            "GSLC residual ramp (pair %d, %d/%d blocks): centre gradient " +
+                                    "(%.4f, %.4f) rad/px; coef [%.5g %.5g %.5g %.5g %.5g] (x,y in px/%.0f)",
+                            p, kept.size(), samples.size(),
+                            gslcRampFx(c, w / 2.0, h / 2.0), gslcRampFy(c, w / 2.0, h / 2.0),
+                            c[0], c[1], c[2], c[3], c[4], GSLC_RAMP_NORM));
+                } catch (Throwable t) {
+                    SystemUtils.LOG.warning("GSLC residual ramp estimation failed for pair " + p +
+                            ": " + t.getMessage() + " — ramp removal skipped.");
+                }
+            }
+            gslcRampEstimated = true;
+        }
+    }
+
+    /** Dominant fringe gradient (rad/px) of one block, or null if the block is unusable. */
+    private double[] gslcRampBlockGradient(final int p, final Rectangle rect) throws Exception {
+        final Tile ti = getSourceTile(gslcReferenceI[p], rect);
+        final Tile tq = getSourceTile(gslcReferenceQ[p], rect);
+        final Tile si = getSourceTile(gslcSecondaryI[p], rect);
+        final Tile sq = getSourceTile(gslcSecondaryQ[p], rect);
+        final double[][] refPhase = gslcRemoveRefPhase
+                ? computeGslcReferencePhase(rect,
+                        gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]))
+                : null;
+
+        final int ml = GSLC_RAMP_ML;
+        final int mw = rect.width / ml, mh = rect.height / ml;
+        final double[] mlRe = new double[mh * mw];
+        final double[] mlIm = new double[mh * mw];
+        int invalid = 0;
+        for (int y = 0; y < rect.height; y++) {
+            for (int x = 0; x < rect.width; x++) {
+                final double mI = ti.getSampleDouble(rect.x + x, rect.y + y);
+                final double mQ = tq.getSampleDouble(rect.x + x, rect.y + y);
+                final double sI = si.getSampleDouble(rect.x + x, rect.y + y);
+                final double sQ = sq.getSampleDouble(rect.x + x, rect.y + y);
+                if ((mI == 0 && mQ == 0) || (sI == 0 && sQ == 0)) {
+                    invalid++;
+                    continue;
+                }
+                double re = mI * sI + mQ * sQ;
+                double im = mQ * sI - mI * sQ;
+                if (refPhase != null) {
+                    final double ang = refPhase[y][x];
+                    final double cs = FastMath.cos(ang), sn = FastMath.sin(ang);
+                    final double r2 = re * cs + im * sn;
+                    im = -re * sn + im * cs;
+                    re = r2;
+                }
+                final double mag = Math.hypot(re, im);
+                if (mag <= 0) continue;
+                final int my = y / ml, mx = x / ml;
+                if (my >= mh || mx >= mw) continue;
+                mlRe[my * mw + mx] += re / mag;
+                mlIm[my * mw + mx] += im / mag;
+            }
+        }
+        if (invalid > rect.width * rect.height / 5) return null;
+
+        // lag-1 phase gradient of the multilooked field, in x and y
+        double gxr = 0, gxi = 0, gyr = 0, gyi = 0, pw = 0;
+        for (int my = 0; my < mh; my++) {
+            for (int mx = 0; mx < mw; mx++) {
+                final double ar = mlRe[my * mw + mx], ai = mlIm[my * mw + mx];
+                pw += ar * ar + ai * ai;
+                if (mx + 1 < mw) {
+                    final double br = mlRe[my * mw + mx + 1], bi = mlIm[my * mw + mx + 1];
+                    gxr += br * ar + bi * ai;
+                    gxi += bi * ar - br * ai;
+                }
+                if (my + 1 < mh) {
+                    final double br = mlRe[(my + 1) * mw + mx], bi = mlIm[(my + 1) * mw + mx];
+                    gyr += br * ar + bi * ai;
+                    gyi += bi * ar - br * ai;
+                }
+            }
+        }
+        final double weight = Math.sqrt(gxr * gxr + gxi * gxi) / Math.max(pw, 1e-30);
+        if (weight < 0.05) return null;   // no dominant fringe in this block
+        final double fx = Math.atan2(gxi, gxr) / ml;
+        final double fy = Math.atan2(gyi, gyr) / ml;
+        return new double[]{rect.x + rect.width / 2.0, rect.y + rect.height / 2.0, fx, fy, weight};
+    }
+
+    /** Weighted LS fit of the 5 ramp coefficients from (x, y, fx, fy, w) gradient samples. */
+    private static double[] fitGslcRamp(final java.util.List<double[]> samples) {
+        // gradient model: fx = c0/N + 2*c2*x/N^2 + c3*y/N^2 ; fy = c1/N + c3*x/N^2 + 2*c4*y/N^2
+        final double N = GSLC_RAMP_NORM;
+        final double[][] ata = new double[5][5];
+        final double[] atb = new double[5];
+        for (final double[] s : samples) {
+            final double x = s[0] / N, y = s[1] / N, wgt = Math.sqrt(s[4]);
+            final double[][] rows = {
+                    {1.0 / N, 0, 2 * x / N, y / N, 0},
+                    {0, 1.0 / N, 0, x / N, 2 * y / N}};
+            final double[] vals = {s[2], s[3]};
+            for (int r = 0; r < 2; r++) {
+                for (int i = 0; i < 5; i++) {
+                    for (int j = 0; j < 5; j++) {
+                        ata[i][j] += wgt * rows[r][i] * rows[r][j];
+                    }
+                    atb[i] += wgt * rows[r][i] * vals[r];
+                }
+            }
+        }
+        // solve 5x5 via Gaussian elimination with partial pivoting
+        final double[][] m = new double[5][6];
+        for (int i = 0; i < 5; i++) {
+            System.arraycopy(ata[i], 0, m[i], 0, 5);
+            m[i][5] = atb[i];
+        }
+        for (int col = 0; col < 5; col++) {
+            int piv = col;
+            for (int rr = col + 1; rr < 5; rr++) {
+                if (Math.abs(m[rr][col]) > Math.abs(m[piv][col])) piv = rr;
+            }
+            final double[] tmp = m[col]; m[col] = m[piv]; m[piv] = tmp;
+            final double d = m[col][col];
+            if (Math.abs(d) < 1e-20) return new double[5];
+            for (int j = col; j < 6; j++) m[col][j] /= d;
+            for (int rr = 0; rr < 5; rr++) {
+                if (rr == col) continue;
+                final double f = m[rr][col];
+                for (int j = col; j < 6; j++) m[rr][j] -= f * m[col][j];
+            }
+        }
+        return new double[]{m[0][5], m[1][5], m[2][5], m[3][5], m[4][5]};
+    }
+
+    private static double gslcRampFx(final double[] c, final double x, final double y) {
+        final double N = GSLC_RAMP_NORM;
+        return c[0] / N + 2 * c[2] * x / (N * N) + c[3] * y / (N * N);
+    }
+
+    private static double gslcRampFy(final double[] c, final double x, final double y) {
+        final double N = GSLC_RAMP_NORM;
+        return c[1] / N + c[3] * x / (N * N) + 2 * c[4] * y / (N * N);
+    }
+
+    private static double gslcRampGradResidual(final double[] s, final double[] c) {
+        return Math.hypot(s[2] - gslcRampFx(c, s[0], s[1]), s[3] - gslcRampFy(c, s[0], s[1]));
+    }
+
+    /** Ramp phase value at pixel (x, y). */
+    private static double gslcRampPhase(final double[] c, final double x, final double y) {
+        final double xn = x / GSLC_RAMP_NORM, yn = y / GSLC_RAMP_NORM;
+        return c[0] * xn + c[1] * yn + c[2] * xn * xn + c[3] * xn * yn + c[4] * yn * yn;
+    }
+
     private void computeTileStackForGSLC(final Map<Band, Tile> targetTileMap, final Rectangle targetRectangle) {
         try {
+            if (subtractResidualRamp && !gslcRampEstimated) {
+                estimateGslcResidualRampOnce();
+            }
             final int x0 = targetRectangle.x;
             final int y0 = targetRectangle.y;
             final int w = targetRectangle.width;
@@ -479,8 +730,42 @@ public class InterferogramOp extends Operator {
                 final ProductData tgtDataI = tgtTileI != null ? tgtTileI.getDataBuffer() : null;
                 final ProductData tgtDataQ = tgtTileQ != null ? tgtTileQ.getDataBuffer() : null;
 
+                // Flat-earth + topographic reference phase (radians, unwrapped) for this pair,
+                // computed in map geometry on a subsampled grid and bilinearly interpolated. Null
+                // when reference-phase removal is off (or the secondary geometry is unavailable) —
+                // then the raw conjugate product is written.
+                // Computed over the (larger) coherence rectangle when coherence is enabled, so the
+                // very same surface derotates the conjugate product inside the coherence window.
+                // Estimating coherence on the un-derotated product lets dense flat-earth/topo
+                // fringes cancel within the window and biases the estimate low.
+                final boolean cohOn = includeCoherence && gslcTargetCoh != null
+                        && targetTileMap.get(gslcTargetCoh[p]) != null;
+                final Rectangle refRect = cohOn ? cohRect : targetRectangle;
+                double[][] refPhase = gslcRemoveRefPhase
+                        ? computeGslcReferencePhase(refRect,
+                                gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]))
+                        : null;
+
+                // Residual-ramp removal rides on the same reference-phase surface so the
+                // interferogram and the coherence estimator stay mutually consistent.
+                final double[] rampC = (subtractResidualRamp && gslcRampCoef != null
+                        && p < gslcRampCoef.length) ? gslcRampCoef[p] : null;
+                if (rampC != null) {
+                    if (refPhase == null) {
+                        refPhase = new double[refRect.height][refRect.width];
+                    }
+                    for (int j = 0; j < refRect.height; j++) {
+                        final double[] row = refPhase[j];
+                        final double yy = refRect.y + j;
+                        for (int i = 0; i < refRect.width; i++) {
+                            row[i] += gslcRampPhase(rampC, refRect.x + i, yy);
+                        }
+                    }
+                }
+
                 // Interferogram: primary * conj(secondary)
                 // (mI + j*mQ) * (sI - j*sQ) = (mI*sI + mQ*sQ) + j*(mQ*sI - mI*sQ)
+                // then rotate by exp(-j*refPhase) to strip flat-earth + topographic phase.
                 //
                 // Hot path: use ProductData buffers and TileIndex stride math instead of
                 // per-pixel Tile.getSampleDouble(x, y), which goes through the SampleModel
@@ -496,6 +781,7 @@ public class InterferogramOp extends Operator {
                     refIndex.calculateStride(y);
                     secIndex.calculateStride(y);
                     tgtIndex.calculateStride(y);
+                    final double[] refPhaseRow = refPhase != null ? refPhase[y - refRect.y] : null;
                     for (int x = x0; x < x0 + w; x++) {
                         final int refIdx = refIndex.getIndex(x);
                         final int secIdx = secIndex.getIndex(x);
@@ -504,9 +790,21 @@ public class InterferogramOp extends Operator {
                         final double sI = secDataI.getElemDoubleAt(secIdx);
                         final double sQ = secDataQ.getElemDoubleAt(secIdx);
 
+                        double ifgI = mI * sI + mQ * sQ;
+                        double ifgQ = mQ * sI - mI * sQ;
+                        if (refPhaseRow != null) {
+                            final double ang = refPhaseRow[x - refRect.x];
+                            final double cs = FastMath.cos(ang);
+                            final double sn = FastMath.sin(ang);
+                            final double rI = ifgI * cs + ifgQ * sn;
+                            final double rQ = -ifgI * sn + ifgQ * cs;
+                            ifgI = rI;
+                            ifgQ = rQ;
+                        }
+
                         final int tgtIdx = tgtIndex.getIndex(x);
-                        if (tgtDataI != null) tgtDataI.setElemDoubleAt(tgtIdx, mI * sI + mQ * sQ);
-                        if (tgtDataQ != null) tgtDataQ.setElemDoubleAt(tgtIdx, mQ * sI - mI * sQ);
+                        if (tgtDataI != null) tgtDataI.setElemDoubleAt(tgtIdx, ifgI);
+                        if (tgtDataQ != null) tgtDataQ.setElemDoubleAt(tgtIdx, ifgQ);
                     }
                 }
 
@@ -516,7 +814,7 @@ public class InterferogramOp extends Operator {
                     if (cohTgtTile != null) {
                         computeGSLCCoherence(cohRect, targetRectangle,
                                 gslcReferenceI[p], gslcReferenceQ[p], gslcSecondaryI[p], gslcSecondaryQ[p],
-                                cohTgtTile);
+                                cohTgtTile, refPhase);
                     }
                 }
             }
@@ -525,10 +823,142 @@ public class InterferogramOp extends Operator {
         }
     }
 
+    /**
+     * Build the reference + per-secondary orbit/SLCImage geometry and the DEM used to remove
+     * the flat-earth (+ topographic) phase from geocoded GSLC interferograms in map geometry.
+     */
+    private void setupGSLCReferencePhase() throws Exception {
+        gslcGeoCoding = sourceProduct.getSceneGeoCoding();
+        if (gslcGeoCoding == null) {
+            throw new OperatorException("GSLC flat-earth/topographic phase removal requires a geocoded " +
+                    "product (scene map geocoding is missing).");
+        }
+        final MetadataElement refAbs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        gslcRefSLC = new SLCImage(refAbs, sourceProduct);
+        gslcRefOrbit = new Orbit(refAbs, orbitDegree);
+
+        final MetadataElement secRoot = AbstractMetadata.getSecondaryMetadata(sourceProduct.getMetadataRoot());
+        for (String secProdName : StackUtils.getSecondaryProductNames(sourceProduct)) {
+            final MetadataElement secAbs = (secRoot != null) ? secRoot.getElement(secProdName) : null;
+            if (secAbs == null) continue;
+            final SLCImage secSLC = new SLCImage(secAbs, sourceProduct);
+            final Orbit secOrbit = new Orbit(secAbs, orbitDegree);
+            final java.util.List<String> secBandNames =
+                    java.util.Arrays.asList(StackUtils.getSecondaryBandNames(sourceProduct, secProdName));
+            for (Band secI : gslcSecondaryI) {
+                if (secBandNames.contains(secI.getName())) {
+                    gslcSecSLCMap.put(secI, secSLC);
+                    gslcSecOrbitMap.put(secI, secOrbit);
+                }
+            }
+        }
+        if (subtractTopographicPhase && dem == null) {
+            defineDEM();
+        }
+    }
+
+    /**
+     * Reference (flat-earth + topographic) interferometric phase over a tile, in map geometry.
+     * For each node of a subsampled grid the ground point (lat, lon, DEM height) is projected to
+     * ECEF and its one-way range time to both the reference and secondary orbits is solved; the
+     * geometric phase (4&pi;/&lambda;)(R_ref &minus; R_sec) is then bilinearly interpolated to full
+     * resolution. Returns the (unwrapped) angle to subtract, or {@code null} if the secondary
+     * geometry is unavailable. With topographic phase off, ellipsoid height (0) is used so only the
+     * flat-earth phase is removed.
+     */
+    private double[][] computeGslcReferencePhase(final Rectangle rect, final SLCImage secSLC,
+                                                 final Orbit secOrbit) throws Exception {
+        if (secSLC == null || secOrbit == null) {
+            return null;
+        }
+        final int w = rect.width, h = rect.height, x0 = rect.x, y0 = rect.y;
+        final int step = GSLC_REFPHASE_SUBSAMPLE;
+        final int nx = (w + step - 1) / step + 1;
+        final int ny = (h + step - 1) / step + 1;
+        final double[][] node = new double[ny][nx];
+
+        final double phaseFactor = -4.0 * Constants.PI / secSLC.getRadarWavelength();
+        final boolean useDem = subtractTopographicPhase && dem != null;
+        final double demNoData = useDem ? dem.getDescriptor().getNoDataValue() : 0.0;
+        final GeoPos geo = new GeoPos();
+        final PixelPos pix = new PixelPos();
+
+        // Nodes are evaluated at their exact uniform-grid positions, including the last node of
+        // each tile which may lie past the tile edge — the bilinear interpolation below assumes
+        // uniform node spacing (gx = x/step), so clamping edge nodes to the tile edge would
+        // mis-position them and bias the last cell of every tile. CrsGeoCoding extrapolates
+        // linearly beyond the raster, so out-of-raster node positions are well-defined.
+        for (int j = 0; j < ny; j++) {
+            final int yy = y0 + j * step;
+            for (int i = 0; i < nx; i++) {
+                final int xx = x0 + i * step;
+                pix.setLocation(xx + 0.5, yy + 0.5);
+                gslcGeoCoding.getGeoPos(pix, geo);
+
+                double height = 0.0;
+                if (useDem) {
+                    try {
+                        final double e = dem.getElevation(geo);
+                        if (!Double.isNaN(e) && e != demNoData) height = e;
+                    } catch (Exception ignore) {
+                        height = 0.0;
+                    }
+                }
+                final Point xyz = Ellipsoid.ell2xyz(FastMath.toRadians(geo.lat), FastMath.toRadians(geo.lon), height);
+                final double tRef = gslcRefOrbit.xyz2t(xyz, gslcRefSLC).x;
+                final double tSec = secOrbit.xyz2t(xyz, secSLC).x;
+                // refPhaseSec = phaseFactor * (R_sec - R_ref); angle to subtract = refPhaseRef(=0) - refPhaseSec
+                node[j][i] = -(phaseFactor * Constants.lightSpeed * (tSec - tRef));
+            }
+        }
+
+        // Bilinear interpolation of the (continuous, unwrapped) phase surface to full resolution.
+        final double[][] out = new double[h][w];
+        for (int y = 0; y < h; y++) {
+            final double gy = (double) y / step;
+            int j0 = (int) gy; if (j0 > ny - 2) j0 = ny - 2; if (j0 < 0) j0 = 0;
+            final double ty = gy - j0;
+            for (int x = 0; x < w; x++) {
+                final double gx = (double) x / step;
+                int i0 = (int) gx; if (i0 > nx - 2) i0 = nx - 2; if (i0 < 0) i0 = 0;
+                final double tx = gx - i0;
+                final double v0 = node[j0][i0] + (node[j0][i0 + 1] - node[j0][i0]) * tx;
+                final double v1 = node[j0 + 1][i0] + (node[j0 + 1][i0 + 1] - node[j0 + 1][i0]) * tx;
+                out[y][x] = v0 + (v1 - v0) * ty;
+            }
+        }
+        return out;
+    }
+
+    /**
+     * @param refPhase flat-earth (+ topographic) phase over {@code cohRect}, or {@code null} when
+     *                 reference-phase removal is off. The conjugate product is derotated by it
+     *                 before being summed; without that, fringes inside the estimation window
+     *                 cancel and the coherence comes out biased low.
+     */
     private void computeGSLCCoherence(final Rectangle cohRect, final Rectangle targetRect,
                                        final Band refBandI, final Band refBandQ,
                                        final Band secBandI, final Band secBandQ,
-                                       final Tile cohTile) {
+                                       final Tile cohTile, final double[][] refPhase) {
+
+        // Precompute the derotation phasor once per tile — cos/sin per sample inside the
+        // (cohWinAz × cohWinRg) window would dominate the cost of this function.
+        double[][] refCos = null, refSin = null;
+        if (refPhase != null) {
+            refCos = new double[refPhase.length][];
+            refSin = new double[refPhase.length][];
+            for (int j = 0; j < refPhase.length; j++) {
+                final double[] src = refPhase[j];
+                final double[] c = new double[src.length];
+                final double[] s = new double[src.length];
+                for (int i = 0; i < src.length; i++) {
+                    c[i] = FastMath.cos(src[i]);
+                    s[i] = FastMath.sin(src[i]);
+                }
+                refCos[j] = c;
+                refSin[j] = s;
+            }
+        }
 
         final Tile refI = getSourceTile(refBandI, cohRect);
         final Tile refQ = getSourceTile(refBandQ, cohRect);
@@ -581,6 +1011,8 @@ public class InterferogramOp extends Operator {
                     // the row), since refIndex/secIndex share the same scanline layout.
                     refIndex.calculateStride(wy);
                     secIndex.calculateStride(wy);
+                    final double[] cRow = (refCos != null) ? refCos[wy - cohRect.y] : null;
+                    final double[] sRow = (refSin != null) ? refSin[wy - cohRect.y] : null;
                     if (allFloat) {
                         for (int wx = x - halfRg; wx <= x + halfRg; wx++) {
                             final int refIdx = refIndex.getIndex(wx);
@@ -590,8 +1022,17 @@ public class InterferogramOp extends Operator {
                             final double si = secArrI[secIdx];
                             final double sq = secArrQ[secIdx];
 
-                            sumReal += mi * si + mq * sq;
-                            sumImag += mq * si - mi * sq;
+                            double pr = mi * si + mq * sq;
+                            double pi = mq * si - mi * sq;
+                            if (cRow != null) {
+                                final int k = wx - cohRect.x;
+                                final double cs = cRow[k], sn = sRow[k];
+                                final double rot = pr * cs + pi * sn;
+                                pi = -pr * sn + pi * cs;
+                                pr = rot;
+                            }
+                            sumReal += pr;
+                            sumImag += pi;
                             sumRef += mi * mi + mq * mq;
                             sumSec += si * si + sq * sq;
                         }
@@ -604,8 +1045,17 @@ public class InterferogramOp extends Operator {
                             final double si = secDataI.getElemDoubleAt(secIdx);
                             final double sq = secDataQ.getElemDoubleAt(secIdx);
 
-                            sumReal += mi * si + mq * sq;
-                            sumImag += mq * si - mi * sq;
+                            double pr = mi * si + mq * sq;
+                            double pi = mq * si - mi * sq;
+                            if (cRow != null) {
+                                final int k = wx - cohRect.x;
+                                final double cs = cRow[k], sn = sRow[k];
+                                final double rot = pr * cs + pi * sn;
+                                pi = -pr * sn + pi * cs;
+                                pr = rot;
+                            }
+                            sumReal += pr;
+                            sumImag += pi;
                             sumRef += mi * mi + mq * mq;
                             sumSec += si * si + sq * sq;
                         }

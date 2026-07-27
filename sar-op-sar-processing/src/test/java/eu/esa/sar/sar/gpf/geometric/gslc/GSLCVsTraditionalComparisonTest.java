@@ -614,9 +614,6 @@ public class GSLCVsTraditionalComparisonTest extends ProcessorTest {
         gslcMasterParams.put("demName", "Copernicus 30m Global DEM");
         gslcMasterParams.put("imgResamplingMethod", imgResampler);
         gslcMasterParams.put("outputFlattened", outputFlattened);
-        gslcMasterParams.put("alignToStandardGrid", true);
-        gslcMasterParams.put("standardGridOriginX", 0.0);
-        gslcMasterParams.put("standardGridOriginY", 0.0);
         gslcMasterParams.put("nodataValueAtSea", false);
         gslcMasterParams.put("applySolidEarthTide", applySET);
         final Product masterGSLC = GPF.createProduct("GSLC-Terrain-Correction", gslcMasterParams, master);

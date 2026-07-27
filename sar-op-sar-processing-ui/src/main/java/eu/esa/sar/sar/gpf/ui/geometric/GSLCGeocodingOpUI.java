@@ -52,6 +52,8 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
 
     final JTextField pixelSpacingInMeter = new JTextField("");
     final JTextField pixelSpacingInDegree = new JTextField("");
+    final JTextField pixelSpacingInMeterY = new JTextField("");
+    final JTextField pixelSpacingInDegreeY = new JTextField("");
     final JTextField oversamplingPercent = new JTextField("");
     private final JTextField externalDEMFile = new JTextField("");
     private final JTextField externalDEMNoDataValue = new JTextField("");
@@ -63,7 +65,8 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     final JLabel sourcePixelSpacingsLabelPart2 = new JLabel("0.0(m) x 0.0(m)");
 
     final JCheckBox nodataValueAtSeaCheckBox = new JCheckBox("Mask out areas without elevation");
-    final JCheckBox outputFlattenedCheckBox = new JCheckBox("Output flattened complex data");
+    final JCheckBox outputFlattenedCheckBox = new JCheckBox("Output flattened complex data (not for InSAR)");
+    final JCheckBox outputAzimuthCarrierCheckBox = new JCheckBox("Restore TOPS azimuth carrier (not for InSAR)");
     final JCheckBox saveDEMCheckBox = new JCheckBox("DEM");
     final JCheckBox saveLatLonCheckBox = new JCheckBox("Latitude & Longitude");
     final JCheckBox saveIncidenceAngleFromEllipsoidCheckBox = new JCheckBox("Incidence angle from ellipsoid");
@@ -75,6 +78,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
 
     private Boolean nodataValueAtSea = true;
     private Boolean outputFlattened = false;
+    private Boolean outputAzimuthCarrier = false;
     private Boolean saveDEM = false;
     private Boolean saveLatLon = false;
     private Boolean saveIncidenceAngleFromEllipsoid = false;
@@ -141,6 +145,11 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         outputFlattenedCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 outputFlattened = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+        outputAzimuthCarrierCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                outputAzimuthCarrier = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
         saveDEMCheckBox.addItemListener(new ItemListener() {
@@ -224,6 +233,15 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
             pixelSpacingInDegree.setText(String.valueOf(pixDSaved));
         }
 
+        final Double pixMY = (Double) paramMap.get("pixelSpacingInMeterY");
+        if (pixMY != null && pixMY != 0.0) {
+            pixelSpacingInMeterY.setText(String.valueOf(pixMY));
+        }
+        final Double pixDY = (Double) paramMap.get("pixelSpacingInDegreeY");
+        if (pixDY != null && pixDY != 0.0) {
+            pixelSpacingInDegreeY.setText(String.valueOf(pixDY));
+        }
+
         Double oversample = (Double) paramMap.get("oversamplingPercent");
         if (oversample != null) {
             oversamplingPercent.setText(String.valueOf(oversample));
@@ -305,6 +323,12 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
             outputFlattenedCheckBox.setSelected(outputFlattened);
         }
 
+        paramVal = (Boolean) paramMap.get("outputAzimuthCarrier");
+        if (paramVal != null) {
+            outputAzimuthCarrier = paramVal;
+            outputAzimuthCarrierCheckBox.setSelected(outputAzimuthCarrier);
+        }
+
         paramVal = (Boolean) paramMap.get("saveDEM");
         if (paramVal != null) {
             saveDEM = paramVal;
@@ -380,6 +404,18 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
             paramMap.put("pixelSpacingInDegree", Double.parseDouble(pixelSpacingInDegree.getText()));
         }
 
+        if (pixelSpacingInMeterY.getText().isEmpty()) {
+            paramMap.put("pixelSpacingInMeterY", 0.0);
+        } else {
+            paramMap.put("pixelSpacingInMeterY", Double.parseDouble(pixelSpacingInMeterY.getText()));
+        }
+
+        if (pixelSpacingInDegreeY.getText().isEmpty()) {
+            paramMap.put("pixelSpacingInDegreeY", 0.0);
+        } else {
+            paramMap.put("pixelSpacingInDegreeY", Double.parseDouble(pixelSpacingInDegreeY.getText()));
+        }
+
         if (oversamplingPercent.getText().isEmpty()) {
             paramMap.put("oversamplingPercent", 0.0);
         } else {
@@ -404,6 +440,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
 
         paramMap.put("nodataValueAtSea", nodataValueAtSea);
         paramMap.put("outputFlattened", outputFlattened);
+        paramMap.put("outputAzimuthCarrier", outputAzimuthCarrier);
         paramMap.put("saveDEM", saveDEM);
         paramMap.put("saveLatLon", saveLatLon);
         paramMap.put("saveIncidenceAngleFromEllipsoid", saveIncidenceAngleFromEllipsoid);
@@ -448,6 +485,13 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, "Pixel Spacing (deg):", pixelSpacingInDegree);
         gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Pixel Spacing North (m), 0=square:", pixelSpacingInMeterY);
+        pixelSpacingInMeterY.setToolTipText(
+                "Optional north/latitude spacing for RECTANGULAR cells (preserves the SLC's " +
+                "anisotropic resolution, e.g. ~3.4 x ~7.5 m for S1 IW). Leave empty for square.");
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Pixel Spacing North (deg), 0=square:", pixelSpacingInDegreeY);
+        gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, "Oversampling (%):", oversamplingPercent);
 
         pixelSpacingInMeter.addFocusListener(new PixelSpacingMeterListener());
@@ -461,6 +505,9 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         contentPane.add(nodataValueAtSeaCheckBox, gbc);
         gbc.gridx = 1;
         contentPane.add(outputFlattenedCheckBox, gbc);
+        gbc.gridy++;
+        gbc.gridx = 1;
+        contentPane.add(outputAzimuthCarrierCheckBox, gbc);
 
         gbc.gridx = 0;
         gbc.gridy++;
