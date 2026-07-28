@@ -426,8 +426,20 @@ import java.util.Map;
                 final Tile targetTileI = targetTileMap.get(targetBandI);
                 final Tile targetTileQ = targetTileMap.get(targetBandQ);
 
+                // With outputPhaseCorrections the range-delay phase is removed from the complex data
+                // itself rather than only being emitted as tie-point grids. That is what makes ETAD
+                // usable by the geocode-first (GSLC) chain: InterferogramOp's ETAD handling runs only
+                // on the classical paths, so a geocoded stack can never subtract the grids downstream.
+                // Baking the correction in here also means it survives geocoding for free.
+                double[][] etadRangePhase = null;
+                if (outputPhaseCorrections) {
+                    etadRangePhase = new double[h][w];
+                    getETADRangePhaseForCurrentTile(x0, y0, w, h, mBurstIndex, etadRangePhase);
+                }
+
                 PerformETADCorrection(x0, y0, w, h, sourceRectangle, masterTileI, masterTileQ, targetTileI,
-                        targetTileQ, refDerampDemodPhase, refDerampDemodI, refDerampDemodQ, slavePixPos);
+                        targetTileQ, refDerampDemodPhase, refDerampDemodI, refDerampDemodQ, slavePixPos,
+                        etadRangePhase);
             }
 
         } catch (Throwable e) {
@@ -518,11 +530,37 @@ import java.util.Map;
         }
     }
 
+    /**
+     * Per-pixel ETAD range-delay phase for the current target tile, in radians.
+     * <p>
+     * Same definition as {@link #computeRangeTimeCorrectionPhase} (which builds the burst-level grid
+     * used by Option 2), but evaluated on the target tile so it can be applied directly to the
+     * complex samples: {@code phase = -2*pi*f * (tropospheric + geodetic - ionospheric + calibration)}.
+     */
+    private void getETADRangePhaseForCurrentTile(final int x0, final int y0, final int w, final int h,
+                                                 final int prodBurstIndex, final double[][] phase) {
+
+        final double[][] tropo = new double[h][w];
+        final double[][] geodeticRg = new double[h][w];
+        final double[][] ionosphericRg = new double[h][w];
+        getCorrectionForCurrentTile(TROPOSPHERIC_CORRECTION_RG, x0, y0, w, h, prodBurstIndex, tropo, 1.0);
+        getCorrectionForCurrentTile(GEODETIC_CORRECTION_RG, x0, y0, w, h, prodBurstIndex, geodeticRg, 1.0);
+        getCorrectionForCurrentTile(IONOSPHERIC_CORRECTION_RG, x0, y0, w, h, prodBurstIndex, ionosphericRg, 1.0);
+
+        final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
+        for (int r = 0; r < h; ++r) {
+            for (int c = 0; c < w; ++c) {
+                final double delay = tropo[r][c] + geodeticRg[r][c] - ionosphericRg[r][c] + rangeTimeCalibration;
+                phase[r][c] = -2.0 * Constants.PI * radarFrequency * delay;
+            }
+        }
+    }
+
     private void PerformETADCorrection(final int x0, final int y0, final int w, final int h,
                                        final Rectangle sourceRectangle, final Tile slaveTileI, final Tile slaveTileQ,
                                        final Tile tgtTileI, final Tile tgtTileQ, final double[][] derampDemodPhase,
                                        final double[][] derampDemodI, final double[][] derampDemodQ,
-                                       final PixelPos[][] slavePixPos) {
+                                       final PixelPos[][] slavePixPos, final double[][] etadRangePhase) {
 
         try {
             final BackGeocodingOp.ResamplingRaster resamplingRasterI = new BackGeocodingOp.ResamplingRaster(slaveTileI, derampDemodI);
@@ -568,7 +606,20 @@ import java.util.Map;
                         rerampRemodQ = noDataValue;
                     } else {
                         double sampleQ = selectedResampling.resample(resamplingRasterQ, resamplingIndex);
-                        final double samplePhase = selectedResampling.resample(resamplingRasterPhase, resamplingIndex);
+                        double samplePhase = selectedResampling.resample(resamplingRasterPhase, resamplingIndex);
+
+                        // Remove the ETAD range-delay phase at the same time as re-ramping.
+                        //
+                        // Resampling alone moves the target back to its true position but leaves the
+                        // delay in the phase the pixel carries, so the differential atmospheric term
+                        // survives into an interferogram untouched. The reramp below multiplies by
+                        // exp(-j*samplePhase); adding the ETAD phase into that angle multiplies by
+                        // exp(-j*etadPhase) as well, which is exactly the conjugate of the delay term
+                        // present in the data.
+                        if (etadRangePhase != null) {
+                            samplePhase += etadRangePhase[yy][xx];
+                        }
+
                         final double cosPhase = FastMath.cos(samplePhase);
                         final double sinPhase = FastMath.sin(samplePhase);
                         rerampRemodI = sampleI * cosPhase + sampleQ * sinPhase;

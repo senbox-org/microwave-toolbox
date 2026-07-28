@@ -124,7 +124,6 @@ public final class MultilookOp extends Operator {
         try {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
-            validator.checkIfTOPSARBurstProduct(false);
 
             // Map-projected input is accepted. Multilooking is spatial averaging over an
             // nRgLooks x nAzLooks block, which is just as well defined on a map grid as in radar
@@ -136,6 +135,15 @@ public final class MultilookOp extends Operator {
             // the target geo-coding (scale the affine transform, do not resample tie points), and
             // the radar-timing metadata (slant range / line time have no meaning on a map grid).
             isMapProjected = InputProductValidator.isMapProjected(sourceProduct);
+
+            // The TOPSAR-burst check only applies in radar geometry. A geocoded product cannot be
+            // burst-organised — geocoding resolves the bursts into one continuous map grid — but a
+            // GSLC still carries the burstList/linesPerBurst annotation inherited from TOPSAR-Split,
+            // which would otherwise trip "Source product should first be deburst" on a raster that
+            // has no bursts left in it.
+            if (!isMapProjected) {
+                validator.checkIfTOPSARBurstProduct(false);
+            }
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 

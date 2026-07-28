@@ -98,7 +98,31 @@ SET and troposphere are negligible for coherence-only or amplitude work; they ma
 
 Because ETAD's tropospheric layer and GSLC's `applyTroposphericCorrection` model the **same** path delay, enabling both **double-counts** it; the same holds for ETAD's geodetic layers against `applySolidEarthTide`. Choose ETAD (measured) where an ETAD product exists, otherwise GSLC's computed model. ETAD must also be applied to **both** acquisitions or to neither — a differential timing correction goes straight into the interferometric phase.
 
-A measured comparison of these layers has **not** yet been done; the ablation study is specified in `docs/superpowers/plans/2026-07-27-cross-toolbox-validation.md` §B4. Note the trap recorded there: the study must run with `subtractResidualRamp=false`, since ramp removal would absorb the long-wavelength signal these corrections produce and make every configuration look identical.
+#### Which corrections actually help — measured
+
+An eight-configuration ablation was run on a Sentinel-1B IW1 pair (15 Aug × 08 Sep 2020, 24-day baseline, 2 bursts), each configuration processed end to end through GSLC → CreateStack → Interferogram with **`subtractResidualRamp=false`** so that ramp removal could not absorb the long-wavelength signal under test. Identical 1200 × 1200 window in every case.
+
+| Configuration | Residues /10⁴ px | Δ vs baseline | 5×5 local coherence |
+|---|---|---|---|
+| Baseline, no corrections | 2554.6 | — | 0.2859 |
+| **ETAD, summed range + azimuth** | **2411.6** | **−5.6 %** | **0.2931** |
+| ETAD, azimuth layers only | 2477.4 | −3.0 % | 0.2879 |
+| ETAD, tropospheric only | 2487.4 | −2.6 % | 0.2879 |
+| ETAD, ionospheric only | 2509.2 | −1.8 % | 0.2857 |
+| ETAD, geodetic range only | 2511.1 | −1.7 % | 0.2856 |
+| GSLC `applySolidEarthTide` | 2511.0 | −1.7 % | 0.2856 |
+| GSLC `applyTroposphericCorrection` | 2535.5 | −0.7 % | **0.2714** |
+
+Four things worth taking from this:
+
+1. **Full ETAD is the best configuration** and beats every individual layer. The layer contributions are roughly additive (−3.0 % azimuth + −2.6 % tropospheric ≈ −5.6 % combined), consistent with independent error terms.
+2. **Ionospheric correction is marginal at C-band** (−1.8 %), as theory predicts: TEC phase scales as 1/f, so this term only becomes first-order at P-band (BIOMASS, ~12× larger).
+3. **GSLC's built-in Saastamoinen tropospheric model made results worse** — the only configuration to reduce coherence (0.2859 → 0.2714 local, 0.2850 → 0.2258 mean). A standard-atmosphere model applied independently to each acquisition injects more error than it removes over a 24-day pair. **Prefer ETAD's measured correction wherever an ETAD product exists.**
+4. **`applySolidEarthTide` and ETAD's geodetic-range layer agree to 0.1 residues** (2511.0 vs 2511.1) — two independent implementations of the same physical effect landing on the same answer, which is both a useful cross-check and a concrete illustration of the double-counting overlap noted above.
+
+> **Scope of these numbers.** Every configuration above ran in ETAD's *resampling* mode with `outputPhaseCorrections=false`, so the gains measure the **geometric** contribution only — better geolocation, hence better coregistration. The atmospheric **phase** was not removed. Resampling relocates a pixel but leaves the −4πΔr/λ that the delay put in its phase, and `InterferogramOp`'s ETAD phase handling runs only on the classical slant-range paths, never on the GSLC path. Enabling `outputPhaseCorrections` now removes the range-delay phase from the complex samples before geocoding, which is the correct route for a geocode-first chain; the figures above are therefore a **lower bound** on what ETAD contributes.
+
+Full experimental design in `docs/superpowers/plans/2026-07-27-cross-toolbox-validation.md` §B4.
 
 ---
 
@@ -168,6 +192,10 @@ InSAR-grade correctness is pinned by an executable spec, `GSLCInSarGradeTest.jav
 - **Two-burst S-1 IW** exercised in the InSAR-readiness pyramid (synthetic 2-burst geometry in the TOPS unit tests).
 
 **Head-to-head against the traditional pipeline (S1A + S1D cross-platform pair, Venezuela, 2-burst IW3 fixture):** with carrier-free output and `subtractResidualRamp`, the GSLC interferogram's phase-only self-coherence matches the classical (Back-Geocoding) interferogram **to three decimals at every estimation window tested** (5–80 px; e.g. win40: 0.0226 vs 0.0223, win80: 0.0130 vs 0.0128, same block, same statistic), and the two interferograms cross-agree at the level expected from their independent resampling noise. Three defects had to fall to get there — a dropped stacking offset, cross-platform lattice mismatch, and the non-cancelling TOPS azimuth carrier — each now pinned by a regression test (`GSLCStackOffsetProbeTest`, lattice tests, `GSLCCarrierResidualTest`).
+
+**Correction-layer ablation (S1B IW1, 15 Aug × 08 Sep 2020):** eight configurations measured end to end. Full ETAD improves unwrappability by **−5.6 % phase residues** and local phase coherence by **+2.5 %**; GSLC's built-in Saastamoinen tropospheric model is the only setting that makes the interferogram *worse*. Table and interpretation in §3.6.
+
+**Second mission — BIOMASS (P-band, stripmap, left-looking, 3-day pair):** the geocode-first chain runs end to end on a completely different mission. Both legs geocoded independently landed on **one lattice — identical grid step and a whole-pixel origin offset of exactly −71.000000 × −15.000000 px (to 1e-13)** — and the resulting interferogram is 81.7 % valid at **mean coherence 0.528**. This matters because the standard-grid snapping was designed and debugged entirely against Sentinel-1 to fix the cross-platform lattice defect; that it transfers exactly to a different band, geometry, pixel aspect and look direction is evidence the fix was general rather than tuned. Two BIOMASS-specific findings: the square-cell default picks the **coarser** axis, so the native 6.709 m azimuth sampling is coarsened 2.95× to 19.814 m (use rectangular cells — the fine axis is azimuth here, the reverse of S1 IW); and the stripmap Doppler-centroid residual is negligible at P-band (|f_dc| ≤ 0.05 Hz across the swath) where the TOPS azimuth carrier dominates at C-band.
 
 **Known limitations and roadmap:**
 

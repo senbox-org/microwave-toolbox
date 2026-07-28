@@ -58,6 +58,21 @@
 * NISAR: `gslc_azimuth_carrier` is stamped `none` for these non-TOPS products — there is no
   beam-steering azimuth carrier to keep or remove — and consumers now handle that third state
   explicitly rather than relying on a boolean parse default.
+* CreateStack (all-GSLC stacks): a secondary that is itself a GSLC came out **empty**. The slave's
+  slant-range SLC — reloaded from the `gslc_source_slc_path` stamp — was disposed at the end of
+  `doExecute`, but the auto-built secondary GSLC reads it lazily from `computeTile`, which runs later.
+  The leg silently produced full-size all-zero bands rather than an error. It only ever affected the
+  all-GSLC path: with a raw secondary nothing is reloaded and nothing was freed, so the documented
+  reference-GSLC + raw-secondary workflow was unaffected. The reloaded products are now released in the
+  operator's `dispose()`.
+* Multilook, PhaseToDisplacement and PhaseToElevation now accept **map-projected** input, which was
+  blocking the geocode-first (GSLC) workflow. `PhaseToDisplacement` is pure per-pixel arithmetic and had
+  no geometric assumption at all; `Multilook` builds the target geo-coding by scaling the source affine
+  by the look factors (rather than resampling onto a tie-point grid) and leaves radar timing annotation
+  untouched on a map grid; `PhaseToElevation` still refuses map-projected input for the **Schwabisch**
+  method, which fits its polynomial in radar image coordinates, but the DEM Seed method now fails only
+  on the geometry it genuinely needs. Multilook additionally no longer applies the TOPSAR-burst check to
+  a geocoded product, which cannot be burst-organised.
 
 # Microwave Toolbox 14
 

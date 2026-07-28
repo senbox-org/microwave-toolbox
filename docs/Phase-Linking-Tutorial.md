@@ -64,7 +64,7 @@ A single repeat-pass interferogram is noise over natural surfaces — scattering
 Phase Linking needs a coregistered, **debursted** complex stack. Build it from the three raw SLCs with this operator chain (the earliest pass, **S1A / 23 Jun**, is the reference):
 
 ```
-Apply-Orbit-File  →  TOPSAR-Split (IW3, VV)   ×3 (one per acquisition)
+Apply-Orbit-File  →  TOPSAR-Split (IW3, VV)  →  [S-1 ETAD Correction]   ×3 (one per acquisition)
         →  Back-Geocoding (S1A reference + S1C, S1D secondaries)
         →  Enhanced-Spectral-Diversity
         →  TOPSAR-Deburst
@@ -74,6 +74,40 @@ Apply-Orbit-File  →  TOPSAR-Split (IW3, VV)   ×3 (one per acquisition)
 The quickest reliable way in the GUI is **Tools ▸ Graph Builder**: add three `Read` nodes (one per `.SAFE`), wire each through `Apply-Orbit-File` and `TOPSAR-Split` (set **Subswath = IW3**, **Polarisation = VV**), feed all three into `Back-Geocoding`, then `Enhanced-Spectral-Diversity`, `TOPSAR-Deburst`, and `Write`. Run it. *(If you prefer, run the `gpt` graph in Part B Step 1 — it is the exact same chain and is easier to reproduce.)*
 
 > Restrict to the bursts covering the epicentre (TOPSAR-Split *First/Last Burst Index*) to cut processing time; leave them at the defaults to keep the whole subswath.
+
+#### Optional — ETAD correction on each acquisition
+
+**ETAD** supplies per-pixel range/azimuth timing corrections (tropospheric and ionospheric path delay,
+geodetic, bistatic and FM-mismatch shifts). It matters more for phase linking than for a single pair:
+the covariance matrix is estimated across **all** epochs, so an uncorrected timing error in one
+acquisition degrades every interferometric pair that epoch participates in, not just one.
+
+Insert **Radar ▸ Sentinel-1 TOPS ▸ S-1 ETAD Correction** after `TOPSAR-Split` on **each** of the three
+branches, before `Back-Geocoding` — the corrections are defined in radar timing and must be applied in
+radar geometry.
+
+| Field | Setting |
+|-------|---------|
+| ETAD product | *(leave empty — auto-downloaded; needs Copernicus credentials in **Tools ▸ Options ▸ General ▸ Credentials**)* |
+| Resampling Type | BiSinc 5-point |
+| Resampling Image | ✔ on |
+| **Output Phase Corrections** | ✔ **on** — removes the range-delay **phase**, not just the geolocation |
+| Sum Of Range / Azimuth Corrections | ✔ **on** (default) — these already contain the total correction |
+| Individual layers | all **off** (default) — they select a *subset*, used only for isolating one term |
+
+> **Resampling alone does not correct phase.** An atmospheric delay both displaces the target *and*
+> adds −4πΔr/λ to its phase. Resampling moves the pixel back but leaves the phase, so the delay
+> survives into every interferometric pair. *Output Phase Corrections* removes it from the complex
+> samples. For phase linking this is worth more than for a single pair, because the covariance matrix
+> is built from all epoch pairs at once.
+
+> **Apply it to all three acquisitions or to none.** ETAD-correcting a subset of the stack introduces a
+> differential timing correction between epochs, which is precisely the quantity phase linking
+> interprets as signal.
+
+> **Keep the original product names.** ETAD matches the SAR product to the ETAD product using the
+> sensing timestamps *in the name*; a renamed intermediate fails with an opaque
+> `Range [17, 55) out of bounds for length N`. A suffix is fine.
 
 ### Step 2 — Phase Linking
 

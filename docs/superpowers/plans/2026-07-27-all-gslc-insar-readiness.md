@@ -234,10 +234,105 @@ docs quietly carry. All numbers below are read from the real product annotation
   prerequisite entirely. It is small (822 × 24898 — a ~16 km-wide crop), which makes it a good
   *test* fixture rather than a showcase scene.
 
+**A4.1 — RUN 2026-07-27. GSLC works on BIOMASS; the predicted resolution loss is confirmed.**
+
+Reading the product through `gpt` reproduced every value taken from the annotation XML earlier:
+822 × 24898, `MISSION=BIOMASS`, `PRODUCT_TYPE=SCS`, `ACQUISITION_MODE=SM`, `radar_frequency=435.0`,
+`range_spacing=19.8139`, `azimuth_spacing=6.7089`, `SAMPLE_TYPE=COMPLEX`, 49 orbit state vectors,
+incidence 20.84–23.75°.
+
+**`GSLC-Terrain-Correction` ran to completion on the reference** — output 4252 × 10162, geocoded,
+`is_terrain_corrected=1`, `gslc_output_flattened=false`, `gslc_azimuth_carrier=false`. Three findings:
+
+1. **The square-cell resolution loss is real and measured.** Auto spacing chose
+   `19.813869328 m -> 19.814 m` (the quantiser at work) — i.e. `max(azimuth, range)`, the **range**
+   axis. The output carries `range_spacing = azimuth_spacing = 19.814`, so the native **6.709 m
+   azimuth sampling was coarsened 2.95×** to force square cells. This is exactly the inverted-aspect
+   problem predicted above, now observed rather than inferred. It is the concrete motivation for
+   A4.2: BIOMASS should be geocoded with rectangular cells (`dy < dx`).
+2. **The stripmap deramp path works and is nearly a no-op at P-band**, as predicted:
+   `residual Doppler centroid built from 5 coefficient(s); |f_dc| range across swath = 0.05 Hz (max)`.
+   Compare S1 TOPS, where the azimuth carrier is the dominant term.
+3. **BIOMASS is left-looking** (`antenna_pointing = left`) where Sentinel-1 is right-looking — not
+   previously noted anywhere in this plan. The geocoding completed correctly, so the backward
+   geometry solution is not making a right-looking assumption; worth an explicit regression test
+   since it is the kind of assumption that hides until a left-looking mission arrives.
+4. **The grid lock transfers to another mission — exactly.** The two independently geocoded legs came
+   out on one lattice: identical step (1.7799219039544198e-4°) and an origin offset of exactly
+   **−71.000000 × −15.000000 pixels**, whole-pixel to 1e-13. This matters because the cross-platform
+   lattice mismatch was one of the three root causes of the S1 zero-coherence bug, and the snapping
+   was built entirely against S1. It holding on a different band, geometry and look direction is
+   evidence the fix was general rather than tuned. Note the legs report slightly different *metre*
+   cell sizes (19.4118 vs 19.8141 m E-W) because they sit at different latitudes — the snapping works
+   in degrees on a shared lattice, which is precisely why that difference is harmless.
+
+**A4.1 defect found: `CreateStack` tries to REBUILD an already-geocoded secondary.**
+Feeding it two finished BIOMASS GSLCs failed with `[bandNames] is an empty array`, and the log shows
+why: `CreateStack: locking slave grid to master` followed by a second `GSLCGeocodingOp` run. Both legs
+carry `gslc_source_slc_path` (correctly — each points at its own source XML), and the presence of that
+stamp sends CreateStack down the auto-coregister path intended for a **raw** secondary, re-geocoding a
+product that is already geocoded. The rebuild then yields no matching bands.
+
+`skipBiasEstimation=true` does **not** help — that flag only skips cross-correlation refinement, exactly
+as its description says.
+
+### ROOT CAUSE (2026-07-27): the all-GSLC path frees the SLC its secondary is still reading
+
+**This invalidates this plan's opening premise.** The claim that "the all-GSLC path already *works* for
+a single pair" is **wrong**, and the way it failed is instructive: on S1 it does not error at all, it
+produces a **silently empty secondary**. Measured on a real S1 pair (20200815 × 20200908, IW1, 2 bursts,
+both legs geocoded to GSLC first):
+
+| stack band | nonzero |
+|---|---|
+| `i/q_IW1_VV_ref_15Aug2020` | **61.4%** |
+| `i/q_IW1_VV_sec1_08Sep2020` | **0.0%** |
+
+The interferogram that follows is all zeros — full-size bands, plausible product, no data. The two legs
+overlap almost exactly (origin offset ~0.0001°), so this is not a coverage problem.
+
+**Mechanism** (`CreateStackOp`, `doExecute` ≈ line 638):
+1. For a secondary that is *itself* a GSLC, CreateStack reloads its slant-range SLC from the
+   `gslc_source_slc_path` stamp and sets `disposeSlaveSlcAfter = slaveIsGslc = true`.
+2. It builds a **bias=0 placeholder** GSLC from that SLC — schema only, "no pixels are computed", meant
+   to be swapped later.
+3. Bias is estimated. **Two already-geocoded legs are already on the same locked grid, so the bias is
+   always tiny** (measured: Δrg −0.0391 px, Δaz +0.0047 px). Below `MIN_BIAS_PIXELS = 0.05` the rebuild
+   is skipped and the placeholder is kept.
+4. The loop then calls `job.slaveSlc.dispose()` — **but the placeholder reads that SLC lazily from
+   `computeTile`, which runs after `doExecute` returns.** The secondary reads a dead product: zeros.
+
+**Why it was never caught:** with a *raw* secondary (the documented workflow) `slaveIsGslc` is false,
+`slaveSlc` IS the source product, `disposeSlaveSlcAfter` is false, and nothing is freed. That path —
+the one the Venezuela tutorial and every fixture run uses — works. Only the all-GSLC path disposes, and
+only the all-GSLC path has a bias small enough to keep the placeholder. The two conditions coincide
+exactly.
+
+**Fix applied and VERIFIED on real data (2026-07-27):** the reloaded SLCs are collected into
+`deferredDisposeProducts` and freed in the operator's `dispose()` instead of mid-`doExecute`. Re-running
+the identical two-GSLC stack after redeploying:
+
+| stack band | before fix | after fix |
+|---|---|---|
+| `i/q_..._ref_15Aug2020` | 61.4% | 61.4% |
+| `i/q_..._sec1_08Sep2020` | **0.0%** | **61.4%** |
+
+(283,121 nonzero against the reference's 283,305 — the small difference is the legs' ~0.0001° origin
+offset, as expected.)
+
+**Regression risk if this is ever refactored:** the failing configuration needs *all three* of
+(a) secondary is itself a GSLC, (b) `gslc_source_slc_path` present, (c) bias below `MIN_BIAS_PIXELS`.
+Condition (c) is automatic for well-aligned inputs, so any test that stacks two GSLCs made on the same
+locked grid exercises it — but a test that only checks the chain *completes* will still pass while the
+secondary is empty. **Assert non-zero pixel content in the secondary band, not just band existence.**
+
+**Note the BIOMASS symptom differs** (`[bandNames] is an empty array` rather than silent zeros) — same
+broken path, different failure mode, probably because the BIOMASS band set survives the rebuild
+differently. Re-test BIOMASS once the fix is deployed before assuming it is the same defect.
+
 **Work:**
-- **A4.1** Run the existing GSLC → CreateStack → Interferogram chain on the 3-day SCS pair as-is and
-  record what actually happens. No code changes first — this is a measurement, and it is cheap
-  (~½ day) because the data and the metric scripts both already exist.
+- **A4.1 (done for the reference leg; secondary + interferogram in progress)** Run the existing
+  GSLC → CreateStack → Interferogram chain on the 3-day SCS pair as-is and record what happens.
 - **A4.2** Fix whatever A4.1 exposes; the likely candidates are the square-spacing default picking
   the coarse range axis, and any prose/parameter defaulting that assumes C-band magnitudes.
 - **A4.3** Add a BIOMASS row to the validation-evidence table in the explainer, and state the
