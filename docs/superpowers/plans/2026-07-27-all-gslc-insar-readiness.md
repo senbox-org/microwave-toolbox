@@ -11,9 +11,27 @@ So this plan is about the three things that *don't* yet work, each verified in c
 
 ---
 
-## A1 — N interferograms from one all-GSLC stack
+## A1 — N interferograms from one all-GSLC stack — **DONE (2026-07-27)**
 
-**Verified defect:** `InterferogramOp.initializeGSLC()` line 393:
+Implemented, with one addition beyond the plan and one incidental bug found. Pairing is now by
+polarisation rather than list position (a multi-pol stack could otherwise cross VV with VH whenever
+band order differed between reference and secondaries), an unmatchable secondary is a loud error, and
+`setupGSLCReferencePhase` validates that every paired secondary has its own `SLCImage`/`Orbit` —
+previously only pair 0 was used, so missing `Secondary_Metadata` went unnoticed and would now have
+surfaced as an NPE mid-tile.
+
+**Incidental find, fixed:** `computeGSLCCoherence`'s extended source rectangle (`cohRect`) was never
+clamped to the image, and neither was the window loop. At the first tile the origin goes negative;
+whether that throws or is silently border-extended depends on the source image implementation, which
+is why it had not shown up on file-backed products. Both are now clamped and border pixels are
+estimated over the truncated window.
+
+Tests: `TestGslcMultiSecondary` (4 tests — 3 secondaries → 3 ifgs + 3 coherence bands each carrying
+its own phase plane; multi-pol pairing with deliberately reversed band order so positional pairing
+would fail; loud failure on an unmatchable polarisation; single-secondary regression). Full
+`sar-io` + `sar-op-insar` suite: 133 run, 0 failures.
+
+**Verified defect (for the record):** `InterferogramOp.initializeGSLC()` line 393:
 ```java
 final int numPairs = Math.min(refIBands.size(), secIBands.size());
 ```
@@ -70,8 +88,30 @@ gaps**, all verified:
    plus the timing/wavelength fields `SLCImage` reads). Cannot be settled by inspection; needs a
    real product.
 
-**Work:**
-- **A2.1** Set `is_terrain_corrected = 1` in `NisarGSLCProductReader` (and check GCOV/GUNW
+**Status 2026-07-27: A2.1, A2.2, A2.3 DONE; A2.4 still blocked on a real product.**
+- **A2.1 done** — `is_terrain_corrected = 1` stamped in `NisarGSLCProductReader`.
+- **A2.2 done** — `NisarSubReader.setProjectedCrsGeoCoding()` builds an exact affine `CrsGeoCoding`
+  for 1-D projected grids from the EPSG code + pixel-centre coordinate arrays, preferred over the
+  tie-point path; the lat/lon tie-point grids are still added for operators that look them up by
+  name, but no longer overwrite the exact geocoding. Falls back to tie-points (with a warning) for
+  a non-uniform lattice or ascending northings, rather than emitting a wrong or flipped grid.
+  Tests: `TestNisarProjectedGeoCoding` (3 tests) pins the pixel-centre / `referencePixel 0.5`
+  convention the reader depends on — a half-pixel error here would have been silent and plausible —
+  and that per-axis rectangular steps survive.
+- **A2.3 done, differently than proposed.** Rather than widen a boolean to three states across
+  consumers, the reader stamps `gslc_azimuth_carrier = "none"` and
+  `CreateStackOp.readMasterAzimuthCarrierState` recognises `none`/`n/a` explicitly. The resulting
+  behaviour (build no carrier) was already what `Boolean.parseBoolean` happened to produce; it is now
+  intentional and documented instead of accidental.
+- **Checked, deliberately not changed:** GCOV/GUNW/GOFF also omit `is_terrain_corrected` and do not
+  override `addAbstractedMetadataHeader` at all. They are geocoded too, so the flag is arguably
+  right for them — but GCOV is backscatter and GUNW an unwrapped interferogram, neither feeds the
+  GSLC InSAR path, and setting it could change behaviour in terrain-correction operators. Left as a
+  separate decision rather than changed blind. **A2.2's `CrsGeoCoding` improvement does reach them**,
+  since it lives in the shared `NisarSubReader`.
+
+**Remaining work:**
+- **A2.1 (done)** Set `is_terrain_corrected = 1` in `NisarGSLCProductReader` (and check GCOV/GUNW
   subreaders for the same omission).
 - **A2.2** Build a **`CrsGeoCoding`** when the grid is 1-D projected with a known EPSG (the common
   NISAR case) — the coordinates are a regular lattice, so the affine transform is exact; keep the

@@ -37,6 +37,27 @@
   mismatch, ~1 fringe per 80 px on an S1A+S1D pair) as a low-order polynomial fitted to block-wise
   fringe gradients. Off by default: like any ramp removal it would also absorb a genuine
   scene-wide linear deformation gradient.
+* GSLC Interferogram (GSLC mode): a stack of one reference + N secondaries now produces N
+  interferograms instead of 1. Previously the pair count was `min(#reference, #secondary)` bands,
+  which is 1 for any GSLC stack, so secondaries 2..N were silently dropped from the output. Stacks
+  with several polarisations now pair by polarisation rather than by band order, and a secondary
+  that matches no reference is reported as an error instead of being mispaired or dropped.
+* GSLC Interferogram: the coherence window is clamped at the scene border. The extended source
+  rectangle could previously extend past the raster (negative origin at the first tile), which
+  threw or read outside the tile depending on the source image implementation; border pixels are
+  now estimated over the truncated window.
+* NISAR: L2 GSLC products now set `is_terrain_corrected`, so they are recognised as geocoded by
+  CreateStack and Interferogram. Without it a NISAR GSLC was routed through the slant-range
+  coregistration path — silently, and with meaningless results.
+* NISAR: 1-D projected coordinate grids now yield an exact `CrsGeoCoding` (affine, built from the
+  EPSG code plus the pixel-centre coordinate arrays) instead of an interpolated
+  `TiePointGeoCoding`. Besides being exact, this is what enables reference-grid locking and the
+  per-axis lattice guard, both of which read `getMapCRS()`/`getImageToMapTransform()` and silently
+  did nothing for NISAR before. Non-uniform lattices and ascending-northing grids fall back to
+  tie-points rather than being misrepresented as affine.
+* NISAR: `gslc_azimuth_carrier` is stamped `none` for these non-TOPS products — there is no
+  beam-steering azimuth carrier to keep or remove — and consumers now handle that third state
+  explicitly rather than relying on a boolean parse default.
 
 # Microwave Toolbox 14
 

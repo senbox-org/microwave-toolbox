@@ -355,6 +355,49 @@ public class InterferogramOp extends Operator {
                 cohWinSizeMeters, cohWinAz, cohWinRg, azSpacing, rgSpacing));
     }
 
+    /**
+     * Pick the reference band a given secondary should be interfered against. With a single
+     * reference — the usual GSLC stack — that is the only candidate. With several (one per
+     * polarisation) the match is made on polarisation, so a multi-pol stack pairs like with like
+     * instead of relying on band order.
+     *
+     * @throws OperatorException if no reference can be identified, rather than silently pairing
+     *                           mismatched polarisations or truncating the stack.
+     */
+    private static Band selectGslcReferenceFor(final Band secI, final List<Band> refIBands) {
+        if (refIBands.size() == 1) {
+            return refIBands.get(0);
+        }
+        final String secPol = OperatorUtils.getPolarizationFromBandName(secI.getName());
+        if (secPol != null) {
+            for (final Band refI : refIBands) {
+                if (secPol.equalsIgnoreCase(OperatorUtils.getPolarizationFromBandName(refI.getName()))) {
+                    return refI;
+                }
+            }
+        }
+        throw new OperatorException("GSLC interferogram: cannot pair secondary band '" + secI.getName()
+                + "' with a reference band — " + refIBands.size() + " reference bands were found"
+                + (secPol == null
+                        ? " and the secondary carries no polarisation tag to match on."
+                        : " but none of them has polarisation '" + secPol + "'."));
+    }
+
+    /** Find the Q band of the same complex pair as {@code iBand} by name ("i_x" -> "q_x"). */
+    private static Band findComplexPartner(final Band iBand, final List<Band> qBands) {
+        final String iName = iBand.getName();
+        if (iName.isEmpty() || Character.toLowerCase(iName.charAt(0)) != 'i') {
+            return null;
+        }
+        final String expected = 'q' + iName.substring(1);
+        for (final Band q : qBands) {
+            if (q.getName().equalsIgnoreCase(expected)) {
+                return q;
+            }
+        }
+        return null;
+    }
+
     private void initializeGSLC() throws Exception {
         sourceImageWidth = sourceProduct.getSceneRasterWidth();
         sourceImageHeight = sourceProduct.getSceneRasterHeight();
@@ -390,11 +433,43 @@ public class InterferogramOp extends Operator {
                     "Band names must contain 'ref' and 'sec' tags.");
         }
 
-        final int numPairs = Math.min(refIBands.size(), secIBands.size());
-        gslcReferenceI = refIBands.subList(0, numPairs).toArray(new Band[0]);
-        gslcReferenceQ = refQBands.subList(0, numPairs).toArray(new Band[0]);
-        gslcSecondaryI = secIBands.subList(0, numPairs).toArray(new Band[0]);
-        gslcSecondaryQ = secQBands.subList(0, numPairs).toArray(new Band[0]);
+        // Pair the reference against EVERY secondary. A GSLC stack is one reference + N
+        // secondaries, so the previous Math.min(refIBands.size(), secIBands.size()) evaluated to 1
+        // and silently dropped secondaries 2..N from the output. Several reference I-bands are
+        // legitimate (one per polarisation), in which case each secondary pairs with the reference
+        // of its own polarisation rather than by list position.
+        final List<Band> pairRefI = new ArrayList<>();
+        final List<Band> pairRefQ = new ArrayList<>();
+        final List<Band> pairSecI = new ArrayList<>();
+        final List<Band> pairSecQ = new ArrayList<>();
+
+        for (final Band secI : secIBands) {
+            final Band refI = selectGslcReferenceFor(secI, refIBands);
+
+            Band refQ = findComplexPartner(refI, refQBands);
+            if (refQ == null && refIBands.size() == refQBands.size()) {
+                refQ = refQBands.get(refIBands.indexOf(refI));   // legacy positional fallback
+            }
+            Band secQ = findComplexPartner(secI, secQBands);
+            if (secQ == null && secIBands.size() == secQBands.size()) {
+                secQ = secQBands.get(secIBands.indexOf(secI));
+            }
+            if (refQ == null || secQ == null) {
+                throw new OperatorException("GSLC interferogram: no imaginary-part (q_) band matching '"
+                        + (refQ == null ? refI.getName() : secI.getName()) + "'.");
+            }
+
+            pairRefI.add(refI);
+            pairRefQ.add(refQ);
+            pairSecI.add(secI);
+            pairSecQ.add(secQ);
+        }
+
+        final int numPairs = pairSecI.size();
+        gslcReferenceI = pairRefI.toArray(new Band[0]);
+        gslcReferenceQ = pairRefQ.toArray(new Band[0]);
+        gslcSecondaryI = pairSecI.toArray(new Band[0]);
+        gslcSecondaryQ = pairSecQ.toArray(new Band[0]);
 
         // Create target product
         targetProduct = new Product(sourceProduct.getName() + PRODUCT_SUFFIX,
@@ -709,12 +784,15 @@ public class InterferogramOp extends Operator {
             final int w = targetRectangle.width;
             final int h = targetRectangle.height;
 
-            // Extended rectangle for coherence window
-            final int cohx0 = x0 - (cohWinRg - 1) / 2;
-            final int cohy0 = y0 - (cohWinAz - 1) / 2;
-            final int cohw = w + cohWinRg - 1;
-            final int cohh = h + cohWinAz - 1;
-            final Rectangle cohRect = new Rectangle(cohx0, cohy0, cohw, cohh);
+            // Extended rectangle for the coherence window, clamped to the image. Without the clamp
+            // the border tiles ask for a negative origin (or past the last row/column); whether that
+            // throws or is silently border-extended depends on the source image implementation, so
+            // clamp here and truncate the window at the edges instead (see computeGSLCCoherence).
+            final int cohx0 = Math.max(0, x0 - (cohWinRg - 1) / 2);
+            final int cohy0 = Math.max(0, y0 - (cohWinAz - 1) / 2);
+            final int cohx1 = Math.min(sourceImageWidth  - 1, x0 + w - 1 + (cohWinRg - 1) / 2);
+            final int cohy1 = Math.min(sourceImageHeight - 1, y0 + h - 1 + (cohWinAz - 1) / 2);
+            final Rectangle cohRect = new Rectangle(cohx0, cohy0, cohx1 - cohx0 + 1, cohy1 - cohy0 + 1);
 
             for (int p = 0; p < gslcReferenceI.length; p++) {
                 final Tile refTileI = getSourceTile(gslcReferenceI[p], targetRectangle);
@@ -852,6 +930,17 @@ public class InterferogramOp extends Operator {
                 }
             }
         }
+        // Every paired secondary needs its own SLCImage/Orbit. Before N-pair support only pair 0
+        // was ever used, so a secondary with missing Secondary_Metadata went unnoticed; now it
+        // would surface as an NPE deep in the tile loop. Fail here with a name instead.
+        for (final Band secI : gslcSecondaryI) {
+            if (!gslcSecSLCMap.containsKey(secI)) {
+                throw new OperatorException("GSLC reference-phase removal: no secondary metadata for band '"
+                        + secI.getName() + "'. The stack must carry a Secondary_Metadata element for "
+                        + "each secondary product.");
+            }
+        }
+
         if (subtractTopographicPhase && dem == null) {
             defineDEM();
         }
@@ -1001,12 +1090,22 @@ public class InterferogramOp extends Operator {
         final int w = targetRect.width;
         final int h = targetRect.height;
 
+        // cohRect is clamped to the image, so the window must be clamped to it too: at the scene
+        // border the estimate is formed over the truncated window rather than reading outside the
+        // fetched tile. Interior pixels are unaffected.
+        final int cohXlo = cohRect.x, cohXhi = cohRect.x + cohRect.width - 1;
+        final int cohYlo = cohRect.y, cohYhi = cohRect.y + cohRect.height - 1;
+
         for (int y = y0; y < y0 + h; y++) {
             cohIndex.calculateStride(y);
+            final int wyLo = Math.max(y - halfAz, cohYlo);
+            final int wyHi = Math.min(y + halfAz, cohYhi);
             for (int x = x0; x < x0 + w; x++) {
                 double sumReal = 0, sumImag = 0, sumRef = 0, sumSec = 0;
+                final int wxLo = Math.max(x - halfRg, cohXlo);
+                final int wxHi = Math.min(x + halfRg, cohXhi);
 
-                for (int wy = y - halfAz; wy <= y + halfAz; wy++) {
+                for (int wy = wyLo; wy <= wyHi; wy++) {
                     // Stride is recomputed once per inner row (not per pixel within
                     // the row), since refIndex/secIndex share the same scanline layout.
                     refIndex.calculateStride(wy);
@@ -1014,7 +1113,7 @@ public class InterferogramOp extends Operator {
                     final double[] cRow = (refCos != null) ? refCos[wy - cohRect.y] : null;
                     final double[] sRow = (refSin != null) ? refSin[wy - cohRect.y] : null;
                     if (allFloat) {
-                        for (int wx = x - halfRg; wx <= x + halfRg; wx++) {
+                        for (int wx = wxLo; wx <= wxHi; wx++) {
                             final int refIdx = refIndex.getIndex(wx);
                             final int secIdx = secIndex.getIndex(wx);
                             final double mi = refArrI[refIdx];
@@ -1037,7 +1136,7 @@ public class InterferogramOp extends Operator {
                             sumSec += si * si + sq * sq;
                         }
                     } else {
-                        for (int wx = x - halfRg; wx <= x + halfRg; wx++) {
+                        for (int wx = wxLo; wx <= wxHi; wx++) {
                             final int refIdx = refIndex.getIndex(wx);
                             final int secIdx = secIndex.getIndex(wx);
                             final double mi = refDataI.getElemDoubleAt(refIdx);

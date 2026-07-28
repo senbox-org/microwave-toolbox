@@ -1,6 +1,7 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
@@ -8,8 +9,8 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.HashMap;
@@ -28,8 +29,15 @@ import static org.junit.Assume.assumeTrue;
  *    in GSLC's TOPS path (a deliberate misalignment must reduce coherence).
  *  - {@link #testTopsBiasEstimatorRunsWithoutRegression} proves CreateStack's TOPS bias estimator
  *    (Back-Geocoding + ESD) runs and does not regress coherence.
+ * <p>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCTopsBiasIntegrationTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCTopsBiasIntegrationTest extends ProcessorTest {
 
     private static final File FIX_DIR = new File(TestData.inputSAR + "S1/SLC/Etna-DLR/fixtures");

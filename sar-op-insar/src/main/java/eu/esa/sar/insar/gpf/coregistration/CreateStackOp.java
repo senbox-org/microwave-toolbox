@@ -1495,6 +1495,11 @@ public class CreateStackOp extends Operator {
      * uncancelled per-burst quadratic azimuth phase (~tens of fringes per burst on a
      * cross-platform pair). A missing stamp means a legacy product, which was always built with
      * the carrier restored — hence {@code true}, not {@code false}, as the fallback.
+     * <p>
+     * A third state, {@code "none"}, means the sensor has no beam-steering azimuth carrier at all
+     * (NISAR and any other non-TOPS mission), for which the correct action is to add none. That
+     * maps to {@code false} here, stated explicitly rather than left to
+     * {@link Boolean#parseBoolean}'s "anything that isn't 'true'" default.
      */
     private static boolean readMasterAzimuthCarrierState(final Product masterGslc) {
         if (masterGslc == null) return true;
@@ -1502,6 +1507,9 @@ public class CreateStackOp extends Operator {
         if (abs == null) return true;
         final String s = abs.getAttributeString("gslc_azimuth_carrier", null);
         if (s == null) return true;
+        if ("none".equalsIgnoreCase(s.trim()) || "n/a".equalsIgnoreCase(s.trim())) {
+            return false;
+        }
         return Boolean.parseBoolean(s);
     }
 

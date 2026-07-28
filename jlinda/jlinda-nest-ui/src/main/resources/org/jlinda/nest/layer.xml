@@ -36,17 +36,10 @@
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="DInSAROp"/>
             </file>
-            <file name="org-jlinda-nest-gpf-Slant2HeightOp-Action.instance">
-                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
-                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
-                <attr name="displayName" stringvalue="Phase to Height"/>
-                <attr name="operatorName" stringvalue="PhaseToHeight"/>
-                <attr name="dialogTitle" stringvalue="Phase to height conversion"/>
-                <attr name="ShortDescription" stringvalue="Phase to height conversion"/>
-                <attr name="targetProductNameSuffix" stringvalue="_hgt"/>
-                <attr name="icon" stringvalue="esaIcon"/>
-                <attr name="helpId" stringvalue="Slant2HeightOp"/>
-            </file>
+            <!-- Phase to Height (PhaseToHeight / Slant2HeightOp) is deprecated: its
+                 Schwabisch conversion now lives in Phase to Elevation. The action and
+                 its menu shadow were removed; the operator itself is retained so
+                 existing graphs keep running. -->
             <file name="org-jlinda-nest-gpf-RangeFilterOp-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
@@ -146,10 +139,6 @@
                     <file name="org-jlinda-nest-gpf-DInSAROp-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/org-jlinda-nest-gpf-DInSAROp-Action.instance"/>
                         <attr name="position" intvalue="500"/>
-                    </file>
-                    <file name="org-jlinda-nest-gpf-Slant2HeightOp-Action.shadow">
-                        <attr name="originalFile" stringvalue="Actions/Operators/org-jlinda-nest-gpf-Slant2HeightOp-Action.instance"/>
-                        <attr name="position" intvalue="600"/>
                     </file>
                 </folder>
                 <folder name="Filtering">

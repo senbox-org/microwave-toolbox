@@ -159,21 +159,114 @@ strike-slip, rupture ~200–210 × 30–40 km, max slip 3.6 m (USGS) / 4.49 m pe
   event, i.e. a **worse coseismic pair than ours** (23 Jun / 24 Jun, ~1 day). Our pair is the tighter
   one, which is a point worth making explicitly in the deliverable rather than leaving implicit.
 
-**Work:**
-- **B3.1** Forward-model each of the three slip models to S1 LOS displacement on our grid; compare
-  against our unwrapped GSLC interferogram. Report residual against all three, not the best one.
-- **B3.2** Project the published GNSS vectors into LOS and compare at station locations.
-- **B3.3** Compare against ESA's published interferogram qualitatively, noting the pair-span difference.
+### B3.0 — Scene geometry and LOS projection — **DONE (2026-07-27)**
+
+Everything below is read from the interferogram product, not assumed.
+
+| Quantity | Value | Source |
+|---|---|---|
+| Footprint | lon −69.206 … −68.156, lat 9.619 … 11.443 (115 × 202 km) | `IMAGE_TO_MODEL_TRANSFORM` |
+| Grid | 8358 × 14516 @ 1.2566604e-4° | same |
+| Pass / look | **ASCENDING**, right-looking | `PASS`, `antenna_pointing` |
+| Incidence | 41.764° near … 45.965° far (mean **43.86°**) | `incidence_near/far` |
+| Heading | **347.90°** | derived from mid-scene orbit **velocity** (ENU), 92 state vectors |
+| **LOS unit vector (ground→sat)** | **E −0.6775, N −0.1452, U +0.7210** | derived, \|v\| = 1.000000 |
+
+Two traps worth recording, both hit and corrected:
+1. The product's `first/last_near/far_lat/long` corners are the **geocoded, axis-aligned map bounding
+   box**, so differencing them yields a heading of exactly 180° — meaningless. The heading must come
+   from the orbit velocity vector rotated into ENU. 347.90° is the expected value for S1 ascending.
+2. `look_az = heading − 90°` is *already* the ground→satellite azimuth (257.9°, i.e. the satellite is
+   **west** of the target, as required for an ascending right-looking pass). Applying a further sign
+   flip inverts the LOS vector and silently flips the sign of every subsequent displacement.
+
+**Independent validation of the geometry:** projecting the published CCS1 GNSS vector
+(dE −0.463, dN −0.007, dU +0.030 m) onto this LOS gives **+0.336 m toward the satellite** (12.1
+fringes at 2.77 cm). The published DInSAR result for this event is **~30 cm LOS** — agreement to
+~10%, from completely independent inputs. The sign is physically right too: right-lateral slip moved
+the station ~46 cm **west**, and the satellite is to the west, so range shortens.
+**Caveat:** CCS1 (Caracas, ~66.9° W) lies *east* of our scene's eastern edge, so this validates the
+convention and magnitude, **not** a co-located point comparison. Which of the 7 published stations
+fall inside the footprint is still to be determined — that is the gate on B3.2.
+
+### B3.0b — Near-field fringe rate, and why the cheap route fails — **DONE (2026-07-27)**
+
+I attempted a shortcut: a N–S profile through the epicentre, coherence-weighted along-strike, then
+**1-D unwrapped** — which would have given LOS displacement with no unwrapper at all. It produced a
+clean-looking antisymmetric profile with a sign reversal at the epicentre latitude and a peak-to-peak
+of 49.75 cm. **That number is an artifact and is retracted.** Two checks killed it:
+
+1. **Stability sweep.** Across 12 combinations of block size (4/8/16/32 rows) and coherence threshold
+   (0.20/0.25/0.35), peak-to-peak ranged **5.3 – 49.7 cm** (24.7 ± 17.7). A quantity that moves 10×
+   with processing choices is not a measurement.
+2. **Nyquist check at full resolution** (13.89 m rows, ±15 km about the epicentre, 2114 usable row
+   steps) — the row-to-row wrapped phase step is:
+
+   | percentile | rad/row | equivalent |
+   |---|---|---|
+   | p50 | 0.166 | 1 fringe / 0.53 km |
+   | p90 | 0.844 | 1 fringe / 104 m |
+   | p95 | 1.355 | 1 fringe / 65 m |
+   | p99 | 2.661 | 1 fringe / 33 m |
+
+   At the time this was read as an aliasing limit: *"a block of B rows aliases once `B·|Δφ| > π`, so
+   every block size including B=4 aliases; averaging destroys the near-field fringes."*
+
+   > **That inference was WRONG and is corrected here (2026-07-27, later the same day).** These are
+   > *raw adjacent-pixel* differences, and at coherence ~0.23 they are dominated by **noise**, not by
+   > the signal's gradient. Averaging suppresses noise rather than aliasing it. Measuring properly —
+   > multilook first, then measure the block-to-block step — the step **falls** to a minimum at
+   > **B = 8 (111 m)** and only rises beyond B ≈ 16. Aliasing would make it rise monotonically. Full
+   > detail in `docs/superpowers/reports/2026-07-27-gslc-unwrapping-results.md` §7.1.
+
+**Corrected consequences:**
+- **Multilook to ≈ 8 × 8 (about 111 m) before unwrapping.** It raises the coherence estimate from 0.231
+  to 0.671, removes the need for snaphu tiling entirely, and cuts runtime from 19 min to 64 s.
+- **Tiling, not resolution, was the real hazard.** A full-resolution 24-tile unwrap disagreed with three
+  independent multilooked solutions by ~18 cm across 93% of pixels, while those three agreed with each
+  other to 0.8–1.8 cm. The full-resolution solution was rejected.
+- The profile/1-D-unwrap shortcut remains **not viable** for amplitude — but for the original reason
+  (it was unstable across processing choices, 5.3–49.7 cm), not because of aliasing.
+- The along-strike coherent average (±64 columns ≈ 1.8 km) was still never validated, and the
+  anisotropy check since run shows the phase rate is essentially **isotropic** (p95 ratio row/col 0.85),
+  so there is no case for averaging one axis preferentially here.
+- What survives: the sign reversal sat at lat **10.43 ± 0.01** in every long-run configuration, against
+  a published epicentre of 10.435 — suggestive corroboration of the deformation field's location,
+  though still not an amplitude measurement.
+
+### Remaining work
+
+- **B3.1a — Wrapped-domain comparison (no unwrapping needed; do this first).** Forward-model the slip
+  models to LOS, **wrap to the same 2.77 cm ambiguity**, and compare fringe geometry and count against
+  the observed wrapped interferogram. This sidesteps the unwrapping prerequisite and avoids importing
+  unwrapping's error modes. Note B3.0b's constraint: compare at full resolution, do not pre-average.
+- **B3.1b — Quantitative residual.** Needs the unwrapped product. **snaphu version resolved
+  (2026-07-27):** `BatchSnaphuUnwrapOp.downloadSnaphu()` auto-fetches it, so this is a download rather
+  than a build — **Windows 64-bit: snaphu v2.0.4**
+  (`step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip`, 1.77 MB, verified reachable
+  HTTP 200); Windows 32-bit and Linux/macOS: v1.4.2. Nothing is staged in `.snap/auxdata` yet. Route:
+  `SnaphuExport` → `snaphu` → `SnaphuImport`, or `BatchSnaphuUnwrapOp` which handles the download.
+- **B3.1c — Model acquisition + forward model.** The three published slip models must be fetched
+  (USGS/INGV/Peking) and an Okada elastic-dislocation forward model applied. This is the largest
+  single piece of remaining work in B3 and has no code in the repo today.
+- **B3.2** Project the published GNSS vectors into LOS and compare at station locations — gated on
+  station coordinates falling inside the footprint (see caveat above).
+- **B3.3** Compare against ESA's published interferogram qualitatively, noting that their 18 Jun /
+  25 Jun pair spans 7 days against our ~1 day.
 
 **Effort:** low compute; the data hunting that was the risk is complete. **Value:** highest of all
 three tiers, and the only one that speaks to *accuracy* rather than reproducibility.
 
 **Two honest caveats to carry into it:**
-1. **The epicentre (10.435° N, 68.472° W) lies just east of our scene's eastern edge.** So we capture
-   the rupture's western portion, not the epicentral maximum. This does not invalidate the comparison —
-   the rupture is ~200 km long and we cover a substantial part of it — but any claim must be about the
-   part of the fault we actually image, and the figures should show the scene footprint against the
-   fault trace so this is visible rather than buried.
+1. **Scene coverage — corrected 2026-07-27 by reading the product geocoding.** An earlier note in this
+   plan said the epicentre lay *east of* the scene. That was wrong: the interferogram's own
+   `IMAGE_TO_MODEL_TRANSFORM` (origin −69.20599, 11.44309; step 1.2566604e-4°; 8358 × 14516) gives a
+   footprint of **lon −69.206 … −68.156, lat 9.619 … 11.443**, ≈ 115 km E–W × 202 km N–S. The
+   epicentre (10.435° N, 68.472° W) is **inside** it — 34.6 km from the eastern edge, 80.4 km from the
+   western. So the epicentral zone *is* imaged, which strengthens B3 rather than qualifying it.
+   The real coverage limit is different: the rupture runs ~200 km along strike and **leaves the scene
+   to the east**, so the eastern half of the fault is unimaged. Figures should overlay the footprint on
+   the fault trace so that is visible rather than buried.
 2. The residual-ramp removal absorbs a scene-wide *linear* gradient by design, so GNSS comparison must
    be on the **relative** displacement field (station-to-station differences), not absolute LOS
    offsets. State this up front rather than discovering it in review. With a ~200 km rupture and a
@@ -183,6 +276,96 @@ three tiers, and the only one that speaks to *accuracy* rather than reproducibil
 for this comparison. But the residual-ramp removal absorbs a scene-wide *linear* gradient by design,
 so a GNSS comparison must be interpreted on the *relative* displacement field (differences between
 stations), not absolute LOS offsets. Worth stating up front rather than discovering during review.
+
+---
+
+## B4 — Correction-layer ablation: do the atmospheric/timing corrections actually help?
+
+**The question:** of the correction layers available to a GSLC InSAR chain, which measurably improve the
+interferogram, and by how much? Today every one of them is **off by default**, and nobody has measured
+their contribution on our data.
+
+### The full inventory (verified in code 2026-07-27)
+
+There are **three** independent places corrections can be applied, which is itself worth writing down
+because they overlap:
+
+| Layer | Where | Switches | Default |
+|---|---|---|---|
+| **1. ETAD** (`S1-ETAD-Correction`) | on the **split SLC**, before geocoding | `troposphericCorrectionRg`, `ionosphericCorrectionRg`, `geodeticCorrectionRg`, `dopplerShiftCorrectionRg`, `geodeticCorrectionAz`, `bistaticShiftCorrectionAz`, `fmMismatchCorrectionAz` | all **false** |
+| | | `sumOfRangeCorrections`, `sumOfAzimuthCorrections` | both **true** |
+| **2. GSLC** (`GSLC-Terrain-Correction`) | during geocoding | `applySolidEarthTide`, `applyTroposphericCorrection` (Saastamoinen) | both **false** |
+| **3. Interferogram domain** | after the ifg | `IonosphericCorrection` op (phase screens), `subtractResidualRamp` | off / off |
+
+**Two overlaps that must not be double-counted:**
+- ETAD's tropospheric layer and GSLC's `applyTroposphericCorrection` model the **same** delay. Enabling
+  both double-counts it. ETAD is measured, GSLC's is a computed model — prefer ETAD where a product exists.
+- ETAD's geodetic layers overlap GSLC's `applySolidEarthTide` the same way.
+- Note also that ETAD's *defaults* are not "nothing applied": with both sums `true`, the total range and
+  azimuth corrections — tropospheric and ionospheric delay included — are already applied. The
+  individual switches exist to select a subset, which is exactly what an ablation needs.
+
+### The confound that would invalidate the whole study
+
+**`subtractResidualRamp` must be OFF for the ablation.** It fits and removes a low-order polynomial,
+which is precisely the spatial form most of these corrections take (tropospheric delay and solid-Earth
+tide are long-wavelength). With ramp removal on, the ramp estimator would absorb the very signal being
+tested and every configuration would look identical. This is the single easiest way to get a
+convincing null result out of this experiment.
+
+Second confound: **corrections must be applied to BOTH acquisitions or to neither.** A differential
+correction goes straight into the interferometric phase. Since `CreateStack` auto-geocodes a raw
+secondary from the reference's stamps, the ablation must use the **all-GSLC** path (both legs geocoded
+explicitly) — which makes this dependent on **Plan A's A1** for convenience, though a 2-product stack
+works today.
+
+### Design
+
+Metrics — reuse the set already built and trusted this week, no new tooling: **phase residues / 10⁴ px**
+(unwrappability), **5×5 local phase coherence**, **phase-only coherence vs window size** (the 1/n-noise
+vs plateau discriminator), and near-field fringe rate.
+
+Configurations, each run end-to-end with `subtractResidualRamp=false`:
+
+| # | Configuration | Tests |
+|---|---|---|
+| 0 | baseline, no corrections | reference point |
+| 1 | ETAD, both sums on | total ETAD benefit |
+| 2 | ETAD, `troposphericCorrectionRg` only | tropospheric contribution |
+| 3 | ETAD, `ionosphericCorrectionRg` only | ionospheric contribution (expect **small at C-band**) |
+| 4 | ETAD, azimuth layers only (geodetic + bistatic + FM) | timing vs path-delay split |
+| 5 | GSLC `applyTroposphericCorrection` only | model vs ETAD's measured delay (compare against #2) |
+| 6 | GSLC `applySolidEarthTide` only | SET contribution |
+| 7 | best of the above + `IonosphericCorrection` phase screens | does the ifg-domain estimator add anything |
+
+**Data — no obstacle (corrected 2026-07-27).** ETAD needs **no manual download**: with `etadFile` unset,
+`S1ETADCorrectionOp` searches the Copernicus Data Space for the ETAD product matching each acquisition
+and downloads it to `<cache>/etad` (`S1ETADCorrectionOp:216-226` → `ETADSearch` → `DataSpaces`). The only
+prerequisite is **Copernicus credentials stored in SNAP's `CredentialsManager`**; without them the search
+cannot authenticate, and a genuinely missing product raises `ETAD product not found`.
+
+So the ablation **can run directly on the Venezuela coseismic pair**, which is the better target — it is
+the scene the deliverable is about. ETAD products also already sit on disk for **IW-Philippines** (the
+pair `GSLCTopsETADTest` uses), **ETAD-Surat** and **SM-Nigeria**, which remain useful as an
+offline/credential-free fallback and for cross-checking that an effect is not scene-specific.
+
+### Honest expectations, stated in advance
+
+Writing these down first so the result cannot be rationalised afterwards:
+- **Tropospheric** should dominate the atmospheric terms — differential delay of several cm to a dm,
+  i.e. multiple 2.77 cm fringes. Most likely to show a real effect.
+- **Ionospheric at C-band should be minor.** TEC phase scales as 1/f; this is the term that becomes
+  *first-order* at P-band (BIOMASS, ~12× larger), not at C-band.
+- **Solid-Earth tide** is ~cm and very long-wavelength, so it is the term most likely to be
+  indistinguishable from a ramp — and the one whose apparent effect would vanish if ramp removal were
+  left on.
+- **A null result is a legitimate and publishable outcome**: "for 1-day C-band pairs these corrections
+  change the interferogram by less than X" is useful guidance, provided the confounds above were
+  genuinely controlled.
+
+**Effort:** ~1 day for the Philippines ablation given the data is local (8 configurations × one chain
+each), plus ~½ day to write up. **Value:** turns seven off-by-default switches from folklore into
+measured guidance, and directly informs what the tutorial should recommend.
 
 ---
 

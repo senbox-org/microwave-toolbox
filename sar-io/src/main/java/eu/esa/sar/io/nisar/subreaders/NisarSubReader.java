@@ -29,6 +29,7 @@ import eu.esa.snap.core.dataio.cache.VariableDescriptor;
 import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.CrsGeoCoding;
 import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
@@ -927,6 +928,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
                 String unit = unitsAttr != null ? unitsAttr.getStringValue() : "";
 
                 TiePointGrid latGrid, lonGrid;
+                boolean exactCrsSet = false;
                 if (unit.contains("meter") || unit.equals("m")) {
                     // Projected coordinates - find EPSG code
                     int epsg = 0;
@@ -955,6 +957,9 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
                     Grids grids;
                     if(coordXVar.getRank() == 1 && coordYVar.getRank() == 1) {
+                        // A 1-D projected grid is a regular lattice, so an affine CrsGeoCoding
+                        // describes it exactly. Prefer it over interpolated tie-points.
+                        exactCrsSet = setProjectedCrsGeoCoding(epsg, coordXVar, coordYVar);
                         grids = createTiePointGridFrom1DProjected(epsg, coordXVar, coordYVar);
                     } else {
                         grids = createTiePointGridFromUTM(epsg, coordXVar, coordYVar);
@@ -980,12 +985,90 @@ public abstract class NisarSubReader implements CacheDataProvider {
                 product.addTiePointGrid(latGrid);
                 product.addTiePointGrid(lonGrid);
 
-                final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
-                product.setSceneGeoCoding(tpGeoCoding);
+                // The lat/lon tie-point grids stay for operators that look them up by name, but an
+                // exact CrsGeoCoding must not be replaced by an interpolated approximation of itself.
+                if (!exactCrsSet) {
+                    final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
+                    product.setSceneGeoCoding(tpGeoCoding);
+                }
             }
         } catch (Exception e) {
             SystemUtils.LOG.warning("Error creating tie-point grids: " + e.getMessage());
         }
+    }
+
+    /**
+     * Build an exact {@link CrsGeoCoding} for a 1-D projected coordinate grid.
+     * <p>
+     * NISAR L2 products (GSLC, GCOV, GUNW) sample a regular lattice in a projected CRS, listing
+     * pixel-centre eastings in {@code xCoordinates} and northings in {@code yCoordinates}. That is
+     * an affine image-to-map transform, which a {@code CrsGeoCoding} represents exactly while
+     * interpolated tie-points only approximate.
+     * <p>
+     * It also matters functionally, not just for accuracy: the InSAR chain detects geocoded
+     * products by testing for a {@code CrsGeoCoding}, and reference-grid locking in
+     * {@code CreateStackOp} reads {@code getMapCRS()} / {@code getImageToMapTransform()}. With a
+     * {@code TiePointGeoCoding} those checks fail, and a NISAR GSLC is routed through the
+     * slant-range coregistration path instead of the geocoded one — silently.
+     *
+     * @return true if the geocoding was set; false to fall back to tie-points.
+     */
+    private boolean setProjectedCrsGeoCoding(final int epsg, final Variable varX, final Variable varY) {
+        try {
+            final double[] x = (double[]) varX.read().get1DJavaArray(double.class);
+            final double[] y = (double[]) varY.read().get1DJavaArray(double.class);
+            if (x.length < 2 || y.length < 2) {
+                return false;
+            }
+            final double stepX = x[1] - x[0];
+            final double stepY = y[1] - y[0];
+            if (stepX == 0 || stepY == 0) {
+                return false;
+            }
+            // Reject a non-uniform lattice rather than misrepresenting it as affine.
+            if (!isUniformLattice(x, stepX) || !isUniformLattice(y, stepY)) {
+                SystemUtils.LOG.warning("NISAR: projected coordinates are not a uniform lattice — " +
+                        "using tie-point geocoding instead of an affine CrsGeoCoding");
+                return false;
+            }
+            // CrsGeoCoding assumes northings DESCEND with image row. Ascending northings would mean
+            // row 0 is the southernmost line, which cannot be expressed by the northing/step pair
+            // alone — fall back rather than emit a vertically flipped geocoding.
+            if (stepY > 0) {
+                SystemUtils.LOG.warning("NISAR: yCoordinates ascend (row 0 is the southernmost line) — " +
+                        "using tie-point geocoding to avoid a flipped CrsGeoCoding");
+                return false;
+            }
+
+            final org.opengis.referencing.crs.CoordinateReferenceSystem crs =
+                    org.geotools.referencing.CRS.decode("EPSG:" + epsg, true);
+
+            // x[0]/y[0] are pixel CENTRES, which is exactly what referencePixel (0.5, 0.5) denotes.
+            // The step magnitudes are passed positive; CrsGeoCoding applies the northing sign itself.
+            product.setSceneGeoCoding(new CrsGeoCoding(crs,
+                    product.getSceneRasterWidth(), product.getSceneRasterHeight(),
+                    x[0], y[0], Math.abs(stepX), Math.abs(stepY), 0.5, 0.5));
+
+            SystemUtils.LOG.info(String.format(
+                    "NISAR: exact CrsGeoCoding from EPSG:%d — origin (%.3f, %.3f), step %.6f x %.6f",
+                    epsg, x[0], y[0], Math.abs(stepX), Math.abs(stepY)));
+            return true;
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("NISAR: could not build a CrsGeoCoding from EPSG " + epsg +
+                    " (" + e.getMessage() + ") — falling back to tie-point geocoding");
+            return false;
+        }
+    }
+
+    /** True if {@code v} is an arithmetic progression of {@code step}, to within 1 ppm of the step. */
+    private static boolean isUniformLattice(final double[] v, final double step) {
+        final double tol = Math.abs(step) * 1.0e-6;
+        for (int i = 1; i < v.length; i++) {
+            if (Math.abs((v[i] - v[i - 1]) - step) > tol) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Grids createTiePointGridFrom1DProjected(final int epsg, final Variable varX, final Variable varY) throws IOException {

@@ -165,17 +165,20 @@ public class EmpiricalTropoCorrectionOp extends Operator {
         final List<Band> phaseBands = new ArrayList<>();
         final List<Band> coherenceBands = new ArrayList<>();
         for (Band b : sourceProduct.getBands()) {
-            if (b.getUnit() == null) {
+            final String unit = b.getUnit();
+            if (unit == null) {
                 continue;
             }
-            if (Unit.PHASE.equals(b.getUnit())) {
+            // Snaphu Import tags unwrapped bands as abs_phase; other unwrappers
+            // leave them as phase. Both are valid input here.
+            if (Unit.PHASE.equals(unit) || Unit.ABS_PHASE.equals(unit)) {
                 phaseBands.add(b);
-            } else if (Unit.COHERENCE.equals(b.getUnit())) {
+            } else if (Unit.COHERENCE.equals(unit)) {
                 coherenceBands.add(b);
             }
         }
         if (phaseBands.isEmpty()) {
-            throw new OperatorException("No band with unit '" + Unit.PHASE +
+            throw new OperatorException("No band with unit '" + Unit.PHASE + "' or '" + Unit.ABS_PHASE +
                     "' found. Run unwrapping (Snaphu Import) before this operator.");
         }
 
@@ -185,7 +188,9 @@ public class EmpiricalTropoCorrectionOp extends Operator {
             phaseToCoherence.put(phase, coh);
 
             final Band tgt = targetProduct.addBand(phase.getName(), ProductData.TYPE_FLOAT32);
-            tgt.setUnit(Unit.PHASE);
+            // Keep the input's unit: correcting an unwrapped (abs_phase) band still
+            // yields an unwrapped band, and downstream operators discover it by unit.
+            tgt.setUnit(phase.getUnit());
             tgt.setNoDataValueUsed(phase.isNoDataValueUsed());
             tgt.setNoDataValue(phase.getNoDataValue());
             ProductUtils.copySpectralBandProperties(phase, tgt);

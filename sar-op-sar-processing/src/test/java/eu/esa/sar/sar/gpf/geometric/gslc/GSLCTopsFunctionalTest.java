@@ -1,5 +1,6 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
@@ -7,8 +8,8 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -23,8 +24,15 @@ import static org.junit.Assume.assumeTrue;
  * Layer 2 functional tests on the locally available S1A IW dual-pol SLC scene.
  * File-gated: skip (not fail) when the scene is absent. Uses the embedded orbit
  * (no Apply-Orbit-File) and {@code nodataValueAtSea=false} per existing GSLC-test convention.
+ * <p>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCTopsFunctionalTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCTopsFunctionalTest extends ProcessorTest {
 
     private static final java.io.File SLC = TestData.inputS1_SLC;

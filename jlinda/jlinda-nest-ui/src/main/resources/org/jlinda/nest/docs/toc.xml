@@ -15,7 +15,7 @@
                     <tocitem text="Coherence Estimation" target="CoherenceOp"/>
                     <tocitem text="Three-Pass DInSAR" target="DInSAROp"/>
                     <tocitem text="Topographic Phase Removal" target="SubtRefDemOp"/>
-                    <tocitem text="Slant to Height" target="Slant2HeightOp"/>
+                    <tocitem text="Slant to Height (deprecated)" target="Slant2HeightOp"/>
                 </tocitem>
                 <tocitem text="Filtering">
                     <tocitem text="Azimuth Filtering" target="AzimuthFilterOp"/>
