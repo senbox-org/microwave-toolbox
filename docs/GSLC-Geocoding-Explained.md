@@ -90,6 +90,16 @@ For sub-decimetre deformation work, two geometry/phase corrections are exposed:
 
 SET and troposphere are negligible for coherence-only or amplitude work; they matter for displacement-grade InSAR.
 
+**These are not the only corrections available, and they overlap with the others.** A GSLC InSAR chain has three independent places to apply corrections:
+
+1. **ETAD** (`S1-ETAD-Correction`), applied to the **split SLC before geocoding** — Sentinel-1's auxiliary timing product supplies measured tropospheric and ionospheric range delay, geodetic effects, and bistatic/FM-mismatch azimuth shifts. Its `sumOfRangeCorrections` / `sumOfAzimuthCorrections` parameters default to **true**, so ETAD's default is the *total* correction; the seven individual layer switches (default false) exist to apply a subset.
+2. **GSLC itself** — the two rows above.
+3. **The interferogram domain** — the `IonosphericCorrection` operator (phase screens).
+
+Because ETAD's tropospheric layer and GSLC's `applyTroposphericCorrection` model the **same** path delay, enabling both **double-counts** it; the same holds for ETAD's geodetic layers against `applySolidEarthTide`. Choose ETAD (measured) where an ETAD product exists, otherwise GSLC's computed model. ETAD must also be applied to **both** acquisitions or to neither — a differential timing correction goes straight into the interferometric phase.
+
+A measured comparison of these layers has **not** yet been done; the ablation study is specified in `docs/superpowers/plans/2026-07-27-cross-toolbox-validation.md` §B4. Note the trap recorded there: the study must run with `subtractResidualRamp=false`, since ramp removal would absorb the long-wavelength signal these corrections produce and make every configuration look identical.
+
 ---
 
 ## 4. Where it sits in the pipeline

@@ -14,6 +14,7 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -31,12 +32,23 @@ import org.jlinda.core.utils.TileUtilsDoris;
 import java.awt.*;
 import java.util.HashMap;
 
+/**
+ * Converts unwrapped phase to terrain height using the Doris "Schwabisch" method.
+ *
+ * @deprecated Superseded by <code>PhaseToElevation</code>, which offers the same
+ * Schwabisch conversion (select the "Schwabisch" method) alongside the DEM-seeded
+ * conversion, discovers the unwrapped phase band more robustly, and does its heavy
+ * precomputation in {@code doExecute} instead of {@code initialize}. This operator
+ * is retained so existing graphs keep running; its menu entry has been removed.
+ * It will be deleted in a future release.
+ */
+@Deprecated
 @OperatorMetadata(alias = "PhaseToHeight",
         category = "Radar/Interferometric/Products",
         authors = "Petar Marinkovic",
         version = "1.0",
         copyright = "Copyright (C) 2013 by PPO.labs",
-        description = "Phase to Height conversion")
+        description = "Deprecated - use Phase to Elevation with method 'Schwabisch'. Phase to Height conversion.")
 public class Slant2HeightOp extends Operator {
 
     @SourceProduct(description = "Source product that contains unwrapped phase.")
@@ -93,6 +105,9 @@ public class Slant2HeightOp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
+            SystemUtils.LOG.warning("PhaseToHeight is deprecated and will be removed in a future release. "
+                    + "Use PhaseToElevation with method 'Schwabisch' instead.");
+
             // work out which is which product: loop through source product and check which product has a 'unwrapped phase' band
             sortOutSourceProducts();
 
@@ -211,8 +226,9 @@ public class Slant2HeightOp extends Operator {
             String bandName = bandNames[i];
             if (bandName.contains(tag) && bandName.contains(date)) {
                 final Band band = product.getBandAt(i);
+                final String unit = band.getUnit();
 
-                if (product.getBandAt(i).getUnit().contains(Unit.ABS_PHASE)) {
+                if (unit != null && unit.contains(Unit.ABS_PHASE)) {
                     bandReal = band;
                 } else if (BandUtilsDoris.isBandImag(band)) {
                     bandImag = band;

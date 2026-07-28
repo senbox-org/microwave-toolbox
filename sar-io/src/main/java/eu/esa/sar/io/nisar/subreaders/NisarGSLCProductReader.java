@@ -55,6 +55,21 @@ public class NisarGSLCProductReader extends NisarSubReader {
 
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
 
+        // A GSLC is geocoded by definition — its raster is on a map grid, not in slant range.
+        // This is the primary GSLC-detection flag for CreateStackOp.isGeocoded() and for
+        // InterferogramOp's GSLC-mode auto-detect; without it a NISAR GSLC is treated as
+        // slant-range data and silently routed through the wrong coregistration path.
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.is_terrain_corrected, 1);
+
+        // Azimuth-carrier state. NISAR is not a TOPS mission, so there is no beam-steering
+        // per-burst azimuth carrier to either keep or remove — the honest value is neither
+        // "true" nor "false" but "none". Consumers treat "none" as "do not add a carrier",
+        // which is what an auto-built companion GSLC must do to match this product.
+        AbstractMetadata.addAbstractedAttribute(absRoot, "gslc_azimuth_carrier",
+                ProductData.TYPE_ASCII, "flag",
+                "true/false if the TOPS azimuth carrier is restored; none for non-TOPS sensors");
+        AbstractMetadata.setAttribute(absRoot, "gslc_azimuth_carrier", "none");
+
         // Phase-flattening state: NISAR GSLCs retain the natural SLC carrier (per the
         // NISAR Algorithm Theoretical Basis Document — geocoding restores the phase after
         // resampling). Mark accordingly so CreateStack's auto-coregister builds the slave

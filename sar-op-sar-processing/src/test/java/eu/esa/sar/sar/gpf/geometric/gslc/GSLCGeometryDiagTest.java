@@ -1,4 +1,4 @@
-package eu.esa.sar.sar.gpf.geometric;
+package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import org.esa.snap.core.datamodel.GeoCoding;
 import org.esa.snap.core.datamodel.GeoPos;
@@ -6,6 +6,7 @@ import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.gpf.GPF;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -26,7 +27,30 @@ import static org.junit.Assume.assumeTrue;
  * <p>
  * Skipped unless the fixture directory exists. Point it elsewhere with
  * {@code -Dgslc.diagDir=/path/to/dir} containing {@code m.dim} and {@code s.dim}.
+ * <p>
+ * <b>Why this is {@code @Ignore}d and NOT a {@code LongTestRunner} test.</b> Measured at <b>780–1058 s</b>
+ * (13–17.6 min) — ~98% of all GSLC test time. Two independent reasons it must never run automatically:
+ * <ol>
+ *   <li>Several cases are fixture <em>producers</em>: they run the full geocode + CreateStack +
+ *       Interferogram chain on real S1 SLCs and write {@code .dim} products ({@code mgcf.dim},
+ *       {@code sgcf.dim}, {@code gslc_ifg_cf.dim}, {@code gslc_ifg_cfr.dim},
+ *       {@code gslc_stack_auto.dim}). That is a pipeline harness, not a regression suite.</li>
+ *   <li>Its gate is {@code System.getProperty("gslc.diagDir", "E:/Output/gslcdiag")} — a hardcoded
+ *       default that <em>exists on the investigation machine</em>. So unlike the sibling harnesses,
+ *       whose {@code TestData.inputSAR} gate leaves them skipping under surefire, this one's
+ *       "fixture gating" affords no protection at all: all 7 cases execute. {@code LongTestRunner}
+ *       would not help either, because builds here are run with
+ *       {@code -Denable.long.tests=true}.</li>
+ * </ol>
+ * Run it deliberately by commenting out the {@code @Ignore}:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCGeometryDiagTest
+ * </pre>
+ * Note the fixture dependency: {@code GSLCCarrierResidualTest} (which stays in the normal suite)
+ * consumes {@code gslc_ifg_cf.dim} and {@code mgcf.dim} produced here. Those files already exist on
+ * disk; that test is file-gated and skips cleanly where they do not.
  */
+@Ignore("Internal test harness - fixture producer, 13+ min; see class javadoc")
 public class GSLCGeometryDiagTest {
 
     private static final File DIR = new File(System.getProperty("gslc.diagDir", "E:/Output/gslcdiag"));

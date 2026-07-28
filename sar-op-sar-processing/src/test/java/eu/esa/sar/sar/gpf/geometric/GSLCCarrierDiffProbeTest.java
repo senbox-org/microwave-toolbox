@@ -6,6 +6,7 @@ import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.dataio.ProductIO;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -25,7 +26,19 @@ import static org.junit.Assume.assumeTrue;
  * times at the exact source positions recorded in the diag bands, fits the same per-burst
  * quadratic, and prints both for comparison. No interferogram involved — if the predicted curves
  * match the measured ones, the mechanism is confirmed.
+ * <p>
+ * <b>Why this is {@code @Ignore}d:</b> the hypothesis it was written to test has since been
+ * <em>confirmed</em>, and the fix (carrier-free GSLC legs by default) has landed — so the probe has
+ * served its purpose. It prints curves for human comparison rather than asserting a bound, and it is
+ * gated on hand-built fixtures in {@code E:/Output/gslcdiag} that exist only on the investigation
+ * machine. The standing automated guard for this defect class is
+ * {@code GSLCCarrierResidualTest}, which does assert a bound and stays in the running suite.
+ * <p>
+ * Kept in this package (rather than moved to {@code .gslc} with the other harnesses) because it
+ * calls the package-private {@link GSLCGeocodingOp#computeDerampDemodPhaseAt} directly. Widening
+ * that method's visibility to relocate a disabled diagnostic would be the wrong trade.
  */
+@Ignore("Internal test harness")
 public class GSLCCarrierDiffProbeTest {
 
     private static final File DIR = new File(System.getProperty("gslc.diagDir", "E:/Output/gslcdiag"));

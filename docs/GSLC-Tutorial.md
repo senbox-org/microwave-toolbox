@@ -26,13 +26,14 @@ S1C_IW_SLC__1SDV_20260624T224958_20260624T225025_008254_010515_304A.SAFE
 
 The pair brackets the earthquake by about a day before and 45 minutes after, so the interferometric phase carries essentially pure coseismic ground displacement, with only the first ~45 minutes of afterslip included. Much of the affected terrain is rural; GSLC's phase-preserving geocoding puts both scenes on a common map grid so the deformation fringes can be formed and interpreted directly.
 
-> **Where the scene sits relative to the rupture.** The doublet's epicentre (**10.435° N, 68.472° W**) lies just *east* of this scene's eastern edge, and the rupture extends ~200 km along the San Sebastián fault. So the interferogram images a substantial western portion of the rupture rather than the epicentral maximum — expect strong fringes across the scene, but do not read the peak displacement here as the event's peak. Published finite-fault models (USGS, INGV, Peking University) put maximum slip at 3.6–4.5 m.
+> **Where the scene sits relative to the rupture.** Read from the interferogram's own geocoding, the scene spans **lon −69.206 … −68.156, lat 9.619 … 11.443** (≈ 115 km E–W × 202 km N–S). The doublet's epicentre (**10.435° N, 68.472° W**) therefore falls **inside** the scene — about 34 km from the eastern edge and 80 km from the western one — so the epicentral zone is imaged directly. The rupture extends ~200 km along the San Sebastián fault, so it does run out of the scene to the east; the eastern part of the fault is not covered. Published finite-fault models (USGS, INGV, Peking University) put maximum slip at 3.6–4.5 m.
 
 ## What you will do
 
-1. Generate the **reference GSLC** from S1A (IW3 / VV) — a phase-preserving, geocoded complex image.
+1. Generate the **reference GSLC** from S1A (IW3 / VV) — a phase-preserving, geocoded complex image, optionally **ETAD-corrected** first.
 2. Feed the **raw secondary** (S1C) together with the reference GSLC to **`CreateStack`**, which auto-coregisters it onto the reference grid.
-3. Form the **interferogram** (removing flat-earth **and** topographic phase), filter and unwrap it to a coseismic displacement map.
+3. Form the **interferogram** (removing flat-earth **and** topographic phase) and filter it.
+4. **Unwrap** with SNAPHU and convert to a coseismic displacement map — already geocoded, so no terrain correction is needed afterwards.
 
 You will do it in the **SNAP Desktop** GUI and with **`gpt`** on the command line.
 
@@ -142,6 +143,69 @@ gpt gslc_reference.xml ^
 
 For **displacement-grade** work, add `-PapplySolidEarthTide=true -PapplyTroposphericCorrection=true` (and use the **same** setting for the secondary, which CreateStack rebuilds from the reference's stamp).
 
+#### Step 1b (optional but recommended) — ETAD correction
+
+**ETAD** (Extended Timing Annotation Dataset) is an auxiliary Sentinel-1 product that supplies per-pixel
+range and azimuth timing corrections — tropospheric and ionospheric path delay, solid-Earth geodetic
+effects, bistatic and FM-mismatch azimuth shifts. Applying it moves geolocation by **centimetres to
+decimetres**, which is small in amplitude terms but *not* small in phase terms: at C-band one range
+fringe is only 2.77 cm of line-of-sight.
+
+ETAD belongs **on the split SLC, before geocoding** — the corrections are defined in radar timing, so
+they must be applied while the product is still in radar geometry:
+
+```
+Read → Apply-Orbit-File → TOPSAR-Split → S1-ETAD-Correction → GSLC-Terrain-Correction
+```
+
+Insert this node between `TOPSAR-Split` and `GSLC-Terrain-Correction` in `gslc_reference.xml`:
+
+```xml
+  <node id="S1-ETAD-Correction"><operator>S1-ETAD-Correction</operator>
+    <sources><sourceProduct refid="TOPSAR-Split"/></sources>
+    <parameters>
+      <resamplingType>BISINC_5_POINT_INTERPOLATION</resamplingType>
+      <resamplingImage>true</resamplingImage>
+      <sumOfRangeCorrections>true</sumOfRangeCorrections>
+      <sumOfAzimuthCorrections>true</sumOfAzimuthCorrections>
+    </parameters>
+  </node>
+```
+
+then point `GSLC-Terrain-Correction`'s source at `S1-ETAD-Correction`. That is the whole change — the
+command line is unchanged:
+
+```
+gpt gslc_reference.xml -Ps1a=…SAFE -Poutput=S1A_GSLC.dim -c 12G -q 8
+```
+
+> **The ETAD product is found and downloaded automatically.** Leave `etadFile` unset and the operator
+> searches the Copernicus Data Space for the ETAD product matching the acquisition and downloads it to
+> SNAP's cache (`<cache>/etad`). This requires **Copernicus Data Space credentials stored in SNAP**
+> (*Tools → Manage External Tools / Product Library credentials* — the same ones used for product
+> download); without them the search cannot authenticate. If a product is genuinely unavailable the
+> operator fails with `ETAD product not found`. You can still pass `etadFile` explicitly to use a local
+> product.
+
+> **What the defaults actually do.** `sumOfRangeCorrections` and `sumOfAzimuthCorrections` default to
+> **`true`**, while every individual layer (`troposphericCorrectionRg`, `ionosphericCorrectionRg`,
+> `geodeticCorrectionRg`, `dopplerShiftCorrectionRg`, `geodeticCorrectionAz`,
+> `bistaticShiftCorrectionAz`, `fmMismatchCorrectionAz`) defaults to **`false`**. That is *not* "no
+> corrections applied" — the summed layers already contain the total range and azimuth correction,
+> tropospheric and ionospheric delay included. The individual switches exist to apply a **subset**,
+> which is what you want only when isolating one contribution for study.
+
+> **Apply ETAD to both acquisitions, or to neither.** A stack mixing an ETAD-corrected reference with an
+> uncorrected secondary puts the differential timing correction straight into the interferometric phase.
+> When `CreateStack` auto-geocodes a raw secondary it rebuilds it from the reference's stamps, so if you
+> ETAD-correct the reference you should ETAD-correct the secondary and geocode it yourself, then stack
+> two GSLCs (see the all-GSLC note in *Next steps*).
+
+> **Do not use ETAD together with GSLC's own `applyTroposphericCorrection`.** Both model the same
+> tropospheric path delay, so enabling both double-counts it. Choose one: ETAD (measured, from the
+> auxiliary product) or GSLC's Saastamoinen model (computed). ETAD is the better estimate where an ETAD
+> product exists. `applySolidEarthTide` overlaps with ETAD's geodetic layers in the same way.
+
 ### Step 2 — GSLC interferogram, end to end
 
 `reference GSLC + raw secondary (S1C) → CreateStack (auto-coregister) → Interferogram (flat-earth + topo removed) → Goldstein → Write`. Save as `gslc_insar.xml`:
@@ -201,7 +265,91 @@ gpt gslc_insar.xml ^
     -Poutput=ifg_GSLC.dim -c 12G -q 8
 ```
 
-The **`subtractTopographicPhase`** flag is the command-line equivalent of the *Subtract topographic phase* checkbox — it removes the DEM-simulated topographic fringes so the coseismic deformation signal remains. **`subtractResidualRamp`** removes the smooth residual ramp specific to cross-acquisition GSLC interferometry (~1 fringe per 80 px, from small differences in the two acquisitions' Doppler annotations); enable it for visualization and unwrapping, but be aware that — like classical orbital deramping — it would also absorb a genuine scene-wide linear deformation gradient. Export → SNAPHU → import to unwrap, then **Phase to Displacement**; the result is already geocoded.
+The **`subtractTopographicPhase`** flag is the command-line equivalent of the *Subtract topographic phase* checkbox — it removes the DEM-simulated topographic fringes so the coseismic deformation signal remains. **`subtractResidualRamp`** removes the smooth residual ramp specific to cross-acquisition GSLC interferometry (~1 fringe per 80 px, from small differences in the two acquisitions' Doppler annotations); enable it for visualization and unwrapping, but be aware that — like classical orbital deramping — it would also absorb a genuine scene-wide linear deformation gradient.
+
+### Step 3 — Unwrap to displacement (SNAPHU)
+
+The interferogram phase is *wrapped* into (−π, π]. Converting it to displacement needs **unwrapping**,
+done by the external **SNAPHU** program via export → run → import. Because a GSLC interferogram is
+already geocoded, the unwrapped result is a displacement map in map coordinates with no further
+terrain correction.
+
+**1. Get the SNAPHU binary.** `Radar → Interferometric → Unwrapping → Batch Snaphu Unwrapping`
+downloads it for you; the direct URLs are **Windows 64-bit: v2.0.4**
+(`step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip`), Windows 32-bit and Linux/macOS:
+v1.4.2 (`.../snaphu/1.4.2-2/…`). Keep the extracted `bin/` directory intact — on Windows `snaphu.exe`
+needs the `msys-2.0.dll` shipped beside it.
+
+**2. Export.**
+
+```
+gpt SnaphuExport -Ssource=ifg_GSLC.dim -PtargetFolder=snaphu_out ^
+    -PstatCostMode=DEFO -PinitMethod=MST ^
+    -PnumberOfTileRows=6 -PnumberOfTileCols=4 -PnumberOfProcessors=8 ^
+    -ProwOverlap=400 -PcolOverlap=400 -PtileCostThreshold=500
+```
+
+> **`SnaphuExport` needs a band whose unit is `phase`** — not i/q. It ignores the complex bands and
+> looks for a phase band plus a coherence band, so a product carrying only `i_`, `q_` and `coh_` fails
+> with `Wrapped phase band required`. The interferogram written by Step 2 has the virtual
+> `Phase_ifg_…` band and works as-is; the trap appears if you `Subset` first and select only the
+> complex bands. Include the `Phase_…` band in the subset (its `atan2(q,i)` expression needs `i_`/`q_`
+> present too).
+
+**3. Run SNAPHU** from the created folder, using the command SNAP writes into line 7 of `snaphu.conf`
+(the last argument is the raster **width**):
+
+```
+cd snaphu_out/ifg_GSLC
+snaphu -f snaphu.conf Phase_ifg_IW3_VV_23Jun2026_24Jun2026.snaphu.img 4000
+```
+
+**4. Import** the result, then convert to displacement:
+
+```
+gpt SnaphuImport -SsnaphuPhase=snaphu_out/ifg_GSLC/UnwPhase_….snaphu.hdr ^
+    -Swrapped=ifg_GSLC.dim -t unw_GSLC.dim
+gpt PhaseToDisplacement -Ssource=unw_GSLC.dim -t disp_GSLC.dim
+```
+
+#### Practical limits worth knowing before you start
+
+- **Multilook before unwrapping — it helps, substantially.** At single-look the interferogram is
+  noise-dominated (median coherence 0.23 on this pair), and unwrapping low-coherence data is where
+  SNAPHU goes wrong. Multilooking to roughly **8 × 8 (≈110 m cells)** on this scene raised the
+  coherence estimate from **0.23 to 0.67**, made the field small enough to unwrap in **a single tile**,
+  and cut runtime from 19 minutes to 64 seconds. Verify the choice for your own scene by multilooking
+  at several factors and measuring the block-to-block phase step: it *falls* while noise dominates and
+  starts to *rise* once cells get large enough to smear real signal — take the minimum. Going too far
+  (32 × 32 here) does begin to under-sample the deformation.
+- **Tile overlap, or better, no tiles.** SNAPHU warns `Tile overlap is small (may give bad results)`
+  when overlap is marginal relative to tile size — 200 px on 1000 px tiles triggers it. On this pair a
+  24-tile full-resolution unwrap produced a displacement field that disagreed with three independent
+  multilooked solutions by ~18 cm over 93% of pixels; the multilooked solutions agreed with each other
+  to 0.8–1.8 cm. **Multilooking enough to avoid tiling altogether is the more reliable route.** If you
+  must tile, use generous overlap (≥400 px) and always re-run with a different tiling to confirm the
+  field does not change.
+- **Coherence sets the ceiling.** Unwrapping is a guess where coherence is low, and it fails *silently* —
+  the output is always a smooth-looking raster. On this pair the median coherence over the epicentral
+  subset is only ≈0.23, with 14% nodata.
+- **A GSLC-specific caveat.** `snaphu.conf` is populated with **radar-geometry** parameters
+  (`DR` = slant-range spacing ≈2.33 m, `DA` = azimuth ≈15.6 m, and `NCORRLOOKS` derived from them),
+  but a GSLC raster is in **map** geometry (here 13.89 m square). `DEFO` costs are generic enough to
+  remain usable, but SNAPHU's statistical cost model is being given spacings that do not describe the
+  grid it is working on. Treat the unwrapped amplitude as approximate until validated.
+
+#### Check the unwrapped result rather than trusting it
+
+An unwrapped raster always looks plausible. Four cheap tests:
+
+1. **Re-wrap:** `wrap(unwrapped)` must reproduce the input wrapped phase wherever coherence is decent.
+   This catches scaling, offset and byte-order errors in one shot. (Note the exported `.snaphu.img`
+   files are **native/little-endian** float32, whereas BEAM-DIMAP `.img` files are big-endian.)
+2. **Residue density** in the *wrapped* input — bounds how much of the field could be unwrapped
+   unambiguously at all, independent of what SNAPHU returned.
+3. **2π jumps** between adjacent pixels in high-coherence areas: these are unwrapping errors, not signal.
+4. **Stratify by coherence:** report displacement statistics per coherence bin. If the "signal" exists
+   only in the low-coherence bins, it is noise.
 
 For the full worked example with figures, see the notebook **`snap-nb-sar-gslc-insar`**.
 

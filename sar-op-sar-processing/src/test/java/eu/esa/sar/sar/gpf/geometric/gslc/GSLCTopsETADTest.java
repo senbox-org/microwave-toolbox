@@ -1,13 +1,14 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.HashMap;
@@ -21,8 +22,15 @@ import static org.junit.Assume.assumeTrue;
  * Layer 3: GSLC must run on an ETAD-corrected TOPS SLC, and the ETAD correction must
  * make a measurable-but-bounded difference to the geocoded product (ETAD shifts
  * geolocation by cm–dm). File-gated on the local IW-Philippines ETAD pair.
+ * <p>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCTopsETADTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCTopsETADTest extends ProcessorTest {
 
     // ETAD-Surat has both the SLC (1SSH, single-pol) and the matching ETAD .SAFE locally.
