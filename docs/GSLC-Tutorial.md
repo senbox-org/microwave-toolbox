@@ -58,9 +58,10 @@ Traditional terrain correction geocodes amplitude and discards phase, so the cla
 ### A1. Generate the reference GSLC (S1A, IW3 / VV)
 
 1. **Prepare the input.** *File ▸ Open Product…* the S1A `.SAFE`, then **Radar ▸ Apply Orbit File**, then **Radar ▸ Sentinel-1 TOPS ▸ S-1 TOPS Split** and select **IW3** + **VV**.
-2. **Launch GSLC.** Menu **Radar ▸ Geometric ▸ Terrain Correction ▸ Geocoded SLC Terrain Correction** (dialog title *"GSLC Terrain Correction"*).
-3. **I/O Parameters tab.** Source = the orbit-applied, split S1A product; target name gets suffix `_GSLC`; keep `BEAM-DIMAP`.
-4. **Processing Parameters tab.** The fields that matter:
+2. **(Optional but recommended) Apply ETAD.** Menu **Radar ▸ Sentinel-1 TOPS ▸ S-1 ETAD Correction**, with the split product as source. See *A1b* below — do this **before** geocoding.
+3. **Launch GSLC.** Menu **Radar ▸ Geometric ▸ Terrain Correction ▸ Geocoded SLC Terrain Correction** (dialog title *"GSLC Terrain Correction"*).
+4. **I/O Parameters tab.** Source = the orbit-applied, split (and optionally ETAD-corrected) S1A product; target name gets suffix `_GSLC`; keep `BEAM-DIMAP`.
+5. **Processing Parameters tab.** The fields that matter:
 
    | Field | Default | Notes |
    |-------|---------|-------|
@@ -73,7 +74,62 @@ Traditional terrain correction geocodes amplitude and discards phase, so the cla
    | Restore TOPS azimuth carrier | **false** | **Leave false.** The carrier is acquisition-specific and does not cancel between acquisitions — restoring it corrupts cross-acquisition InSAR (~tens of spurious fringes per burst) |
    | Apply Solid Earth Tide / Tropospheric | off | Turn on for displacement-grade (sub-decimetre) InSAR |
 
-5. **Run.** The `S1A…_GSLC` product is a phase-preserving complex image on the map grid.
+6. **Run.** The `S1A…_GSLC` product is a phase-preserving complex image on the map grid.
+
+### A1b. ETAD correction (optional, recommended for displacement work)
+
+**ETAD** supplies per-pixel range and azimuth timing corrections — tropospheric and ionospheric path
+delay, solid-Earth geodetic effects, bistatic and FM-mismatch azimuth shifts. It moves geolocation by
+centimetres to decimetres, which is small in amplitude terms but not in phase terms: one C-band range
+fringe is 2.77 cm.
+
+Open **Radar ▸ Sentinel-1 TOPS ▸ S-1 ETAD Correction** with the **split** product as source (before
+GSLC — the corrections are defined in radar timing and must be applied in radar geometry).
+
+| Field | Setting | Notes |
+|-------|---------|-------|
+| ETAD product | *(leave empty)* | Found and downloaded automatically. Requires **Copernicus Data Space credentials** stored in SNAP — see the note below. Browse to a local `S1*_ETA_*.SAFE` to override |
+| Resampling Type | BiSinc 5-point | Match the kernel used for GSLC |
+| Resampling Image | ✔ on | Off switches to the classical InSAR mode (i/q passed through, corrections emitted as grids) |
+| **Output Phase Corrections** | ✔ **ON for InSAR** (default off) | **Essential.** See the note below — without it the atmospheric delay stays in the phase |
+| Sum Of Range Corrections | ✔ **on** (default) | The **total** range correction — tropospheric and ionospheric delay included |
+| Sum Of Azimuth Corrections | ✔ **on** (default) | The total azimuth correction |
+| Individual layers (Tropospheric / Ionospheric / Geodetic / Doppler / Bistatic / FM Mismatch) | all **off** (default) | Only for isolating one contribution when studying it |
+
+> **Tick *Output Phase Corrections* — resampling alone does not correct InSAR phase.** An atmospheric
+> delay Δr does two things: it makes the target *appear* at range R + Δr, and it adds −4πΔr/λ to the
+> phase the pixel carries. Resampling the image moves the pixel back to R but leaves that phase
+> untouched, so the differential term survives into the interferogram in full. With *Output Phase
+> Corrections* on, the range-delay phase is removed from the complex samples themselves, which is what
+> you want for a geocoded chain — the correction is then baked in before geocoding and carried through
+> automatically.
+>
+> This matters specifically for GSLC: `InterferogramOp`'s ETAD handling runs only on the classical
+> (slant-range) paths, so a geocoded stack cannot subtract ETAD grids downstream. The correction has to
+> be applied to the complex data up front.
+
+> **The defaults are not "no corrections".** The two *Sum Of…* boxes are ticked by default and already
+> contain the total correction. The seven individual checkboxes are unticked, which does **not** mean
+> nothing is applied — they select a *subset*, and you would tick one only after unticking the sums.
+
+> **Credentials for auto-download.** The search authenticates against the Copernicus Data Space. Set
+> them once under **Tools ▸ Options ▸ General ▸ Credentials** (the same ones the Product Library uses).
+> Without them the operator reports `ETAD product not found` even when a product exists.
+
+> **Keep the original product name.** ETAD matches the SAR product to the ETAD product using the
+> sensing start/stop timestamps *in the product name*. If you rename an intermediate to something short
+> (`my_subset`), correction fails with an opaque `Range [17, 55) out of bounds for length N`. Appending
+> a suffix is fine — `S1A_IW_SLC__1SDV_20260623T225050_…_split` works.
+
+> **Apply to both acquisitions, or to neither.** A stack mixing an ETAD-corrected reference with an
+> uncorrected secondary puts the differential timing correction straight into the interferometric phase.
+> Since `CreateStack` rebuilds a raw secondary from the reference's settings, the clean way to use ETAD
+> is to correct and geocode **both** legs yourself, then stack two GSLCs.
+
+> **Do not combine with GSLC's own tropospheric option.** ETAD's tropospheric layer and GSLC's
+> `Apply Tropospheric Correction` model the same delay — enabling both double-counts it. ETAD is the
+> measured estimate and is preferred where a product exists; the same applies to ETAD's geodetic layers
+> versus *Apply Solid Earth Tide*.
 
 ### A2. Build the coseismic interferogram (reference GSLC + raw secondary)
 
@@ -166,6 +222,9 @@ Insert this node between `TOPSAR-Split` and `GSLC-Terrain-Correction` in `gslc_r
     <parameters>
       <resamplingType>BISINC_5_POINT_INTERPOLATION</resamplingType>
       <resamplingImage>true</resamplingImage>
+      <!-- essential for InSAR: removes the range-delay phase from the complex data.
+           Without it, resampling fixes geolocation but leaves the atmospheric phase in place. -->
+      <outputPhaseCorrections>true</outputPhaseCorrections>
       <sumOfRangeCorrections>true</sumOfRangeCorrections>
       <sumOfAzimuthCorrections>true</sumOfAzimuthCorrections>
     </parameters>

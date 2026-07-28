@@ -163,6 +163,8 @@ public class CreateStackOp extends Operator {
      * {@link #initialize()}; consumed in {@link #doExecute(ProgressMonitor)}.
      */
     private Product reloadedMasterSlcForBias = null;
+    /** Slave SLCs reloaded from disk; freed in {@link #dispose()}, not in doExecute (see there). */
+    private final java.util.List<Product> deferredDisposeProducts = new java.util.ArrayList<>();
     private final java.util.List<PendingBiasJob> pendingBiasJobs = new java.util.ArrayList<>();
     private volatile boolean biasJobsRan = false;
 
@@ -264,6 +266,17 @@ public class CreateStackOp extends Operator {
 
     @Override
     public void dispose() {
+        // Slave SLCs reloaded from a gslc_source_slc_path stamp are held until here: the auto-built
+        // secondary GSLC reads them lazily from computeTile, so they cannot be freed in doExecute.
+        for (final Product p : deferredDisposeProducts) {
+            try {
+                p.dispose();
+            } catch (Throwable t) {
+                SystemUtils.LOG.fine("CreateStack: deferred dispose failed for '" +
+                        p.getName() + "': " + t.getMessage());
+            }
+        }
+        deferredDisposeProducts.clear();
         restoreGpfExecutor();
         super.dispose();
     }
@@ -636,7 +649,18 @@ public class CreateStackOp extends Operator {
                 pm.worked(2);
 
                 if (job.disposeSlaveSlcAfter) {
-                    job.slaveSlc.dispose();
+                    // MUST NOT dispose here. Both the bias=0 placeholder and the bias-corrected
+                    // rebuild are GSLC-Terrain-Correction targets that read this SLC *lazily* from
+                    // computeTile, which runs after doExecute returns. Disposing it now leaves the
+                    // secondary reading a dead product and the whole leg comes out as zeros — a
+                    // silent, plausible-looking empty raster rather than an error.
+                    //
+                    // This only ever bit the all-GSLC path: the slave SLC is reloaded from the
+                    // gslc_source_slc_path stamp (so disposeSlaveSlcAfter is true) only when the
+                    // secondary is ITSELF already a GSLC. With a raw secondary, slaveSlc IS the
+                    // source product, disposeSlaveSlcAfter is false, and nothing was ever freed —
+                    // which is why reference-GSLC + raw-secondary always worked.
+                    deferredDisposeProducts.add(job.slaveSlc);
                 }
             }
 
@@ -1334,6 +1358,24 @@ public class CreateStackOp extends Operator {
             if (i == masterIdx) continue;
             final Product p = sourceProduct[i];
 
+            // An already-geocoded secondary that is ALREADY on the master's lattice needs nothing
+            // doing to it: stack it as-is.
+            //
+            // The rebuild machinery below exists to (a) geocode a raw secondary onto the master grid
+            // and (b) re-geocode with a cross-correlation bias applied. Neither applies here. Both
+            // legs of an all-GSLC stack were geocoded with the same standard-grid snapping, so they
+            // are co-lattice by construction and the estimated bias is always below MIN_BIAS_PIXELS
+            // (measured on a real S1 pair: Δrg −0.0391, Δaz +0.0047 px) — the rebuild is discarded
+            // anyway. Skipping it removes an entire redundant geocoding pass, and avoids rebuilding
+            // from the source SLC with a band set that need not match the secondary's own
+            // (a BIOMASS quad-pol source re-geocodes to 8 bands where the product being replaced has
+            // 2, which left the stack with no reference bands at all: "[bandNames] is an empty array").
+            if (isGeocoded(p) && isCoLatticeWith(masterGslc, p)) {
+                SystemUtils.LOG.info("CreateStack: secondary '" + p.getName() + "' is already geocoded " +
+                        "on the reference lattice — stacking as-is (no re-geocoding, no bias estimation).");
+                continue;
+            }
+
             // Resolve the slave's slant-range SLC source.
             final Product slaveSlc;
             final boolean slaveIsGslc = isGeocoded(p);
@@ -1883,6 +1925,59 @@ public class CreateStackOp extends Operator {
      * grids are considered incompatible. Correctly co-latticed products give exactly 0.
      */
     static final double MAX_GEOCODED_SUBPIXEL_RESIDUAL = 0.01;
+
+    /**
+     * True when two geocoded products sit on the same lattice: same map CRS, same grid step, and an
+     * origin offset that is a whole number of pixels (to within
+     * {@link #MAX_GEOCODED_SUBPIXEL_RESIDUAL}). Such a pair can be stacked directly with an integer
+     * shift — no resampling and no re-geocoding.
+     * <p>
+     * Conservative by design: anything it cannot prove (missing or non-affine geo-coding, rotated
+     * grid, differing CRS) returns false and falls through to the existing rebuild path.
+     */
+    private static boolean isCoLatticeWith(final Product reference, final Product secondary) {
+        if (reference == null || secondary == null) {
+            return false;
+        }
+        final GeoCoding rgc = reference.getSceneGeoCoding();
+        final GeoCoding sgc = secondary.getSceneGeoCoding();
+        if (!(rgc instanceof org.esa.snap.core.datamodel.CrsGeoCoding) || !(sgc instanceof org.esa.snap.core.datamodel.CrsGeoCoding)) {
+            return false;
+        }
+        try {
+            final org.esa.snap.core.datamodel.CrsGeoCoding rc = (org.esa.snap.core.datamodel.CrsGeoCoding) rgc, sc = (org.esa.snap.core.datamodel.CrsGeoCoding) sgc;
+            if (!org.geotools.referencing.CRS.equalsIgnoreMetadata(rc.getMapCRS(), sc.getMapCRS())) {
+                return false;
+            }
+            final java.awt.geom.AffineTransform ra = asAffine(rc), sa = asAffine(sc);
+            if (ra == null || sa == null) {
+                return false;
+            }
+            if (ra.getShearX() != 0 || ra.getShearY() != 0 || sa.getShearX() != 0 || sa.getShearY() != 0) {
+                return false;
+            }
+            final double stepX = ra.getScaleX(), stepY = ra.getScaleY();
+            if (stepX == 0 || stepY == 0) {
+                return false;
+            }
+            // steps must match to a part in 1e-9 — coarser than the 1 mm spacing quantiser
+            if (Math.abs(sa.getScaleX() - stepX) > Math.abs(stepX) * 1.0e-9
+                    || Math.abs(sa.getScaleY() - stepY) > Math.abs(stepY) * 1.0e-9) {
+                return false;
+            }
+            final double dx = (sa.getTranslateX() - ra.getTranslateX()) / stepX;
+            final double dy = (sa.getTranslateY() - ra.getTranslateY()) / stepY;
+            return Math.abs(dx - Math.rint(dx)) <= MAX_GEOCODED_SUBPIXEL_RESIDUAL
+                    && Math.abs(dy - Math.rint(dy)) <= MAX_GEOCODED_SUBPIXEL_RESIDUAL;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static java.awt.geom.AffineTransform asAffine(final org.esa.snap.core.datamodel.CrsGeoCoding gc) {
+        final org.opengis.referencing.operation.MathTransform i2m = gc.getImageToMapTransform();
+        return (i2m instanceof java.awt.geom.AffineTransform) ? (java.awt.geom.AffineTransform) i2m : null;
+    }
 
     /**
      * Smallest estimated coregistration bias (pixels) worth rebuilding a slave GSLC for.
