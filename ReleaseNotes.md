@@ -1,82 +1,7 @@
-# Microwave Toolbox 15
-
-## 15.0.0
-* GSLC InSAR: TOPS azimuth (deramp) carrier is no longer restored by default — the carrier is
-  acquisition-specific and does not cancel between two acquisitions (~tens of spurious fringes per
-  burst on a cross-platform pair, e.g. S1A+S1D). New parameter `outputAzimuthCarrier` (default
-  false) restores the old behaviour; the state is stamped in metadata (`gslc_azimuth_carrier`) and
-  CreateStack builds auto-geocoded secondaries to match the reference's convention.
-* CreateStack: geocoded secondaries with a non-zero integer grid offset were silently stacked
-  UNSHIFTED — the offset was computed and recorded but a source-image pass-through bypassed the
-  code that applies it, destroying interferometric coherence (56 m misregistration on a real pair).
-  The pass-through is now revoked whenever a shift is needed, the compatibility tolerance gating it
-  is pixel-relative for geocoded products (was ~8 pixels), and a lattice-alignment check rejects
-  complex stacks whose grids differ by a fractional pixel. Note: geocoded amplitude stacks now also
-  get the shift applied (previously silently misaligned by up to ~8 px).
-* GSLC: auto-derived output pixel spacing is quantised to a 1 mm grid so products from different
-  platforms (S1A annotates 13.98908 m, S1D 13.98910 m for the same mode) land on one shared
-  lattice. GSLCs produced by earlier versions are NOT co-lattice with new ones — re-generate all
-  legs of a stack together, or pass the reference's exact pixel spacing explicitly.
-* CreateStack: bias-corrected slave GSLCs replacing a placeholder could keep reading the
-  placeholder's pixels through a stale source-image pass-through; the swap now clears it. Bias
-  rebuilds are skipped below 0.05 px (ESD residuals on synchronized S1 pairs are millipixels).
-* GSLC Interferogram (GSLC mode): coherence is now estimated on the flat-earth/topo-derotated
-  product (was biased low by fringe cancellation inside the window); interferogram band names
-  include both dates; TOPS outputs fill elevation/latitude/longitude bands (were empty);
-  simulatedUnwrappedPhase is float64 (float32 quantisation was ~16 rad at C-band phase magnitudes).
-* GSLC: rectangular (non-square) output cells via optional `pixelSpacingInMeterY` /
-  `pixelSpacingInDegreeY` (north/latitude step; the existing parameters become the east step).
-  Lets the geocoded SLC approach the source's anisotropic native resolution — e.g. S1 IW
-  ~3.4 m ground range × ~14 m azimuth suggests ~3.4 × 7.5 m cells (the north step must be
-  somewhat finer than native azimuth because the radar axes are rotated from the map axes by
-  the heading; precedent: OPERA CSLC-S1 ships 5 × 10 m UTM). CreateStack's grid-lock and the
-  lattice guard are per-axis, and the lock now reads the exact affine grid step instead of
-  differencing geo positions (removes a harmless ~1e-10 lattice imprecision for all cases).
-* GSLC Interferogram: new `subtractResidualRamp` option — robustly estimates and removes the
-  smooth residual phase ramp of cross-acquisition GSLC interferometry (annotation-vs-data deramp
-  mismatch, ~1 fringe per 80 px on an S1A+S1D pair) as a low-order polynomial fitted to block-wise
-  fringe gradients. Off by default: like any ramp removal it would also absorb a genuine
-  scene-wide linear deformation gradient.
-* GSLC Interferogram (GSLC mode): a stack of one reference + N secondaries now produces N
-  interferograms instead of 1. Previously the pair count was `min(#reference, #secondary)` bands,
-  which is 1 for any GSLC stack, so secondaries 2..N were silently dropped from the output. Stacks
-  with several polarisations now pair by polarisation rather than by band order, and a secondary
-  that matches no reference is reported as an error instead of being mispaired or dropped.
-* GSLC Interferogram: the coherence window is clamped at the scene border. The extended source
-  rectangle could previously extend past the raster (negative origin at the first tile), which
-  threw or read outside the tile depending on the source image implementation; border pixels are
-  now estimated over the truncated window.
-* NISAR: L2 GSLC products now set `is_terrain_corrected`, so they are recognised as geocoded by
-  CreateStack and Interferogram. Without it a NISAR GSLC was routed through the slant-range
-  coregistration path — silently, and with meaningless results.
-* NISAR: 1-D projected coordinate grids now yield an exact `CrsGeoCoding` (affine, built from the
-  EPSG code plus the pixel-centre coordinate arrays) instead of an interpolated
-  `TiePointGeoCoding`. Besides being exact, this is what enables reference-grid locking and the
-  per-axis lattice guard, both of which read `getMapCRS()`/`getImageToMapTransform()` and silently
-  did nothing for NISAR before. Non-uniform lattices and ascending-northing grids fall back to
-  tie-points rather than being misrepresented as affine.
-* NISAR: `gslc_azimuth_carrier` is stamped `none` for these non-TOPS products — there is no
-  beam-steering azimuth carrier to keep or remove — and consumers now handle that third state
-  explicitly rather than relying on a boolean parse default.
-* CreateStack (all-GSLC stacks): a secondary that is itself a GSLC came out **empty**. The slave's
-  slant-range SLC — reloaded from the `gslc_source_slc_path` stamp — was disposed at the end of
-  `doExecute`, but the auto-built secondary GSLC reads it lazily from `computeTile`, which runs later.
-  The leg silently produced full-size all-zero bands rather than an error. It only ever affected the
-  all-GSLC path: with a raw secondary nothing is reloaded and nothing was freed, so the documented
-  reference-GSLC + raw-secondary workflow was unaffected. The reloaded products are now released in the
-  operator's `dispose()`.
-* Multilook, PhaseToDisplacement and PhaseToElevation now accept **map-projected** input, which was
-  blocking the geocode-first (GSLC) workflow. `PhaseToDisplacement` is pure per-pixel arithmetic and had
-  no geometric assumption at all; `Multilook` builds the target geo-coding by scaling the source affine
-  by the look factors (rather than resampling onto a tie-point grid) and leaves radar timing annotation
-  untouched on a map grid; `PhaseToElevation` still refuses map-projected input for the **Schwabisch**
-  method, which fits its polynomial in radar image coordinates, but the DEM Seed method now fails only
-  on the geometry it genuinely needs. Multilook additionally no longer applies the TOPSAR-burst check to
-  a geocoded product, which cannot be burst-organised.
-
 # Microwave Toolbox 14
 
 ## 14.0.0
+* InSAR Phase Linking
 * MuLog (Multi-channel Logarithm) speckle filter
 * Dual Pol Descriptors from Abhinav Verma, Sapienza Università di Roma | Ph.D. (PMRF), IIT Bombay
 * Empirical Tropospheric Correction
@@ -84,10 +9,8 @@
 * ALOS4 Reader
 * NISAR Reader
 * Support for Sentinel-1D
-* GeoCoded SLC
-* InSAR Phase Linking
 * Jupyter Notebook SAR tutorials
-
+* GeoCoded SLC (Coming soon)
 
 # Microwave Toolbox 13
 
