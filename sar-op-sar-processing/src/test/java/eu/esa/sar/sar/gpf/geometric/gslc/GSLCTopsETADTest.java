@@ -54,7 +54,9 @@ public class GSLCTopsETADTest extends ProcessorTest {
 
     private static Product gslc(Product in) {
         final Map<String, Object> p = new HashMap<>();
-        p.put("demName", "SRTM 3Sec");
+        // Copernicus 30m: the project-standard DEM, cached by every other GSLC test/run on this
+        // machine — SRTM 3Sec risked a fresh tile download inside the timed test.
+        p.put("demName", "Copernicus 30m Global DEM");
         p.put("imgResamplingMethod", "BILINEAR_INTERPOLATION");
         p.put("nodataValueAtSea", false);
         return GPF.createProduct("GSLC-Terrain-Correction", p, in);
@@ -80,23 +82,30 @@ public class GSLCTopsETADTest extends ProcessorTest {
             final Product gPlain = gslc(splitIW1(src));
 
             // Both geocode to the same grid size; the data differs by a small geolocation shift.
-            final double diff = meanAbsDiffFirstReal(gPlain, gCorr);
-            System.out.printf("ETAD vs non-ETAD mean|delta(real band)| = %.6g%n", diff);
-            assertTrue("ETAD must change the GSLC (got " + diff + ")", diff > 0.0);
+            // A CENTRE WINDOW is ample to prove "ETAD changed the data" — and it is the whole
+            // difference between a minutes test and a half-hour one: reading full-width rows pulled
+            // every tile of BOTH GSLC rasters plus the full ETAD resample behind one of them,
+            // whereas reading a window lets GPF laziness compute only the tiles it touches, all the
+            // way back through the chain.
+            final double diff = meanAbsDiffCentreWindow(gPlain, gCorr, 1024);
+            System.out.printf("ETAD vs non-ETAD mean|delta(real band)| over centre window = %.6g%n", diff);
+            assertTrue("ETAD must change the GSLC (got " + diff + ")", diff > 1e-3);
         }
     }
 
-    private static double meanAbsDiffFirstReal(Product a, Product b) throws Exception {
+    private static double meanAbsDiffCentreWindow(Product a, Product b, int size) throws Exception {
         final Band ba = firstReal(a), bb = firstReal(b);
         assertNotNull(ba); assertNotNull(bb);
         final int w = Math.min(ba.getRasterWidth(), bb.getRasterWidth());
         final int h = Math.min(ba.getRasterHeight(), bb.getRasterHeight());
-        final float[] ra = new float[w], rb = new float[w];
+        final int ww = Math.min(size, w), wh = Math.min(size, h);
+        final int x0 = (w - ww) / 2, y0 = (h - wh) / 2;
+        final float[] ra = new float[ww], rb = new float[ww];
         double sum = 0; long n = 0;
-        for (int y = 0; y < h; y += 8) {
-            ba.readPixels(0, y, w, 1, ra, com.bc.ceres.core.ProgressMonitor.NULL);
-            bb.readPixels(0, y, w, 1, rb, com.bc.ceres.core.ProgressMonitor.NULL);
-            for (int x = 0; x < w; x++) {
+        for (int y = y0; y < y0 + wh; y += 4) {
+            ba.readPixels(x0, y, ww, 1, ra, com.bc.ceres.core.ProgressMonitor.NULL);
+            bb.readPixels(x0, y, ww, 1, rb, com.bc.ceres.core.ProgressMonitor.NULL);
+            for (int x = 0; x < ww; x++) {
                 if (Float.isNaN(ra[x]) || Float.isNaN(rb[x])) continue;
                 sum += Math.abs(ra[x] - rb[x]); n++;
             }

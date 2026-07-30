@@ -19,8 +19,11 @@ import com.bc.ceres.core.ProgressMonitor;
 import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.TiePointGrid;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -30,6 +33,7 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
@@ -37,6 +41,7 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
 
 import java.awt.*;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -75,6 +80,15 @@ public class GoldsteinFilterOp extends Operator {
     @Parameter(valueSet = {"32", "64", "128", "256"}, defaultValue = "64", label = "FFT Size")
     private String FFTSizeString = "64";
 
+    @Parameter(description = "FFT block extent in metres. When greater than 0 the block size is derived "
+            + "per axis from the pixel spacing, so the block covers the same ground distance in range "
+            + "and azimuth instead of being square in pixels. Overrides FFT Size. Recommended: a square "
+            + "block in PIXELS is strongly anisotropic on the ground in radar geometry - for S1 IW a "
+            + "64x64 block spans about 224 m x 895 m, a 4:1 footprint - which resolves fringe "
+            + "frequencies four times better in azimuth than in range.",
+            defaultValue = "0", label = "FFT Block Extent (m)")
+    private double fftSizeMeters = 0.0;
+
     @Parameter(valueSet = {"3", "5", "7"}, defaultValue = "3", label = "Window Size")
     private String windowSizeString = "3";
 
@@ -87,8 +101,12 @@ public class GoldsteinFilterOp extends Operator {
 
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
-    private int FFTSize;
-    private int halfFFTSize;
+    // Per axis: X is columns (range / easting), Y is rows (azimuth / northing). They are equal
+    // unless fftSizeMeters derives a physically square block on an anisotropic grid.
+    private int fftSizeX;
+    private int fftSizeY;
+    private int halfFFTSizeX;
+    private int halfFFTSizeY;
     private int windowSize;
     private int halfWindowSize;
     private Band cohBand = null;
@@ -116,8 +134,13 @@ public class GoldsteinFilterOp extends Operator {
             validator.checkIfCoregisteredStack();
             validator.checkIfSLC();
 
-            FFTSize = Integer.parseInt(FFTSizeString);
-            halfFFTSize = FFTSize / 2;
+            fftSizeX = Integer.parseInt(FFTSizeString);
+            fftSizeY = fftSizeX;
+            if (fftSizeMeters > 0.0) {
+                deriveFFTSizeFromMeters();
+            }
+            halfFFTSizeX = fftSizeX / 2;
+            halfFFTSizeY = fftSizeY / 2;
 
             windowSize = Integer.parseInt(windowSizeString);
             halfWindowSize = windowSize / 2;
@@ -245,7 +268,11 @@ public class GoldsteinFilterOp extends Operator {
             final int y0 = targetRectangle.y;
             final int w = targetRectangle.width;
             final int h = targetRectangle.height;
-            if (w < FFTSize || h < FFTSize) {
+            if (w < fftSizeX || h < fftSizeY) {
+                // The sliding window needs a full FFT block, so a tile this thin cannot be filtered
+                // at all. Mark it as no-data rather than leaving the tile buffer's zeros to pass for
+                // valid samples.
+                fillWithNoData(targetTileMap, targetRectangle);
                 return;
             }
 
@@ -285,24 +312,33 @@ public class GoldsteinFilterOp extends Operator {
                 final double qNoDataValue = qBand.getNoDataValue();
 
                 // perform filtering with a sliding window
-                final boolean[][] mask = new boolean[FFTSize][FFTSize];
-                final double[][] I = new double[FFTSize][FFTSize];
-                final double[][] Q = new double[FFTSize][FFTSize];
-                final double[][] specI = new double[FFTSize][FFTSize];
-                final double[][] specQ = new double[FFTSize][FFTSize];
-                final double[][] pwrSpec = new double[FFTSize][FFTSize];
-                final double[][] fltSpec = new double[FFTSize][FFTSize];
+                final boolean[][] mask = new boolean[fftSizeY][fftSizeX];
+                final double[][] I = new double[fftSizeY][fftSizeX];
+                final double[][] Q = new double[fftSizeY][fftSizeX];
+                final double[][] specI = new double[fftSizeY][fftSizeX];
+                final double[][] specQ = new double[fftSizeY][fftSizeX];
+                final double[][] pwrSpec = new double[fftSizeY][fftSizeX];
+                final double[][] fltSpec = new double[fftSizeY][fftSizeX];
                 final int colMax = I[0].length;
 
                 // arrays saving filtered I/Q data for the tile, note tile size could be different from 512x512 on boundary
                 final float[] iBandFiltered = new float[w * h];
                 final float[] qBandFiltered = new float[w * h];
+                // Tracks which pixels actually received a filtered contribution, so that pixels no
+                // FFT block covered are written as no-data instead of being left as a valid zero.
+                final boolean[] filtered = new boolean[w * h];
 
-                final int stepSize = FFTSize / 4;
-                final int syMax = FastMath.min(sy0 + sh - FFTSize, sourceImageHeight - FFTSize);
-                final int sxMax = FastMath.min(sx0 + sw - FFTSize, sourceImageWidth - FFTSize);
-                for (int y = sy0; y <= syMax; y += stepSize) {
-                    for (int x = sx0; x <= sxMax; x += stepSize) {
+                final int stepSizeX = fftSizeX / 4;
+                final int stepSizeY = fftSizeY / 4;
+                final int syMax = FastMath.min(sy0 + sh - fftSizeY, sourceImageHeight - fftSizeY);
+                final int sxMax = FastMath.min(sx0 + sw - fftSizeX, sourceImageWidth - fftSizeX);
+                // The block origins step by a quarter block and the last step rarely lands on syMax/sxMax,
+                // so a final clamped block is added. Without it the trailing (stepSize - 1) rows and
+                // columns at the scene edge are never filtered.
+                final int[] blockOriginsY = blockOrigins(sy0, syMax, stepSizeY);
+                final int[] blockOriginsX = blockOrigins(sx0, sxMax, stepSizeX);
+                for (int y : blockOriginsY) {
+                    for (int x : blockOriginsX) {
 
                         getComplexImagettes(x, y, iBandData, qBandData, srcIndex, I, Q, mask, noDataValue, qNoDataValue);
 
@@ -339,28 +375,51 @@ public class GoldsteinFilterOp extends Operator {
 
                         performInverse2DFFT(specI, specQ, fltSpec, I, Q);
 
-                        updateFilteredBands(x0, y0, w, h, x, y, I, Q, mask, iBandFiltered, qBandFiltered);
+                        updateFilteredBands(x0, y0, w, h, x, y, I, Q, mask, iBandFiltered, qBandFiltered, filtered);
                     }
                 }
 
-                // mask out pixels with low coherence
-                if (cohBand != null && useCoherenceMask) {
-                    try {
-                        final int yMax = y0 + h;
-                        final int xMax = x0 + w;
-                        for (int y = y0; y < yMax; y++) {
-                            cohIndex.calculateStride(y);
-                            for (int x = x0; x < xMax; x++) {
-                                final int k = (y - y0) * w + x - x0;
-                                if (cohBandData.getElemFloatAt(cohIndex.getIndex(x)) < coherenceThreshold) {
-                                    final int idx = iBandRaster.getDataBufferIndex(x, y);
-                                    iBandFiltered[k] = iBandData.getElemFloatAt(idx);
-                                    qBandFiltered[k] = qBandData.getElemFloatAt(idx);
-                                }
+                // Decide every pixel of the tile: no-data in, no-data out. This also applies the
+                // optional low-coherence mask, which may only ever touch valid pixels - writing
+                // source samples into no-data pixels is what filled the no-data area with garbage.
+                final double cohNoDataValue = cohBand != null && cohBand.isNoDataValueUsed()
+                        ? cohBand.getNoDataValue() : Double.NaN;
+                final int yMax = y0 + h;
+                final int xMax = x0 + w;
+                for (int y = y0; y < yMax; y++) {
+                    srcIndex.calculateStride(y);
+                    if (cohIndex != null) {
+                        cohIndex.calculateStride(y);
+                    }
+                    for (int x = x0; x < xMax; x++) {
+                        final int k = (y - y0) * w + x - x0;
+                        final int idx = srcIndex.getIndex(x);
+                        final double iVal = iBandData.getElemDoubleAt(idx);
+                        final double qVal = qBandData.getElemDoubleAt(idx);
+
+                        if (isNoData(iVal, noDataValue) || isNoData(qVal, qNoDataValue)) {
+                            iBandFiltered[k] = (float) noDataValue;
+                            qBandFiltered[k] = (float) qNoDataValue;
+                            continue;
+                        }
+
+                        // Give valid pixels below the coherence threshold their unfiltered samples
+                        // back. A coherence sample that is itself no-data says nothing about phase
+                        // quality (and coherence no-data is 0, below every threshold), so it must
+                        // not trigger the restore.
+                        if (useCoherenceMask && cohBandData != null) {
+                            final double coh = cohBandData.getElemDoubleAt(cohIndex.getIndex(x));
+                            if (!isNoData(coh, cohNoDataValue) && coh < coherenceThreshold) {
+                                iBandFiltered[k] = (float) iVal;
+                                qBandFiltered[k] = (float) qVal;
+                                continue;
                             }
                         }
-                    } catch (Exception e) {
-                        throw new OperatorException(e);
+
+                        if (!filtered[k]) {
+                            iBandFiltered[k] = (float) noDataValue;
+                            qBandFiltered[k] = (float) qNoDataValue;
+                        }
                     }
                 }
 
@@ -372,6 +431,58 @@ public class GoldsteinFilterOp extends Operator {
         }
     }
 
+    /** Write the band no-data value over every I/Q target tile of the given rectangle. */
+    private void fillWithNoData(final Map<Band, Tile> targetTileMap, final Rectangle targetRectangle) {
+
+        final int n = targetRectangle.width * targetRectangle.height;
+        for (Map.Entry<Band, Band> pair : targetIQPair.entrySet()) {
+            fillWithNoData(targetTileMap.get(pair.getKey()), pair.getKey().getNoDataValue(), n);
+            fillWithNoData(targetTileMap.get(pair.getValue()), pair.getValue().getNoDataValue(), n);
+        }
+    }
+
+    private static void fillWithNoData(final Tile tile, final double noDataValue, final int n) {
+
+        if (tile == null) {
+            return;
+        }
+        final float[] samples = new float[n];
+        if (noDataValue != 0.0) {
+            Arrays.fill(samples, (float) noDataValue);
+        }
+        tile.setRawSamples(new ProductData.Float(samples));
+    }
+
+    /**
+     * FFT block origins covering [start, max] in steps of stepSize, always including max so the
+     * block loop reaches the far edge of the scene rather than stopping up to stepSize-1 pixels
+     * short of it.
+     */
+    static int[] blockOrigins(final int start, final int max, final int stepSize) {
+        if (max < start) {
+            return new int[0];
+        }
+        final int n = (max - start) / stepSize + 1;
+        final boolean addEdgeBlock = start + (n - 1) * stepSize < max;
+        final int[] origins = new int[addEdgeBlock ? n + 1 : n];
+        for (int k = 0; k < n; k++) {
+            origins[k] = start + k * stepSize;
+        }
+        if (addEdgeBlock) {
+            origins[n] = max;
+        }
+        return origins;
+    }
+
+    /**
+     * A sample is invalid when it carries the band no-data value, and NaN is always invalid: a
+     * value comparison alone never matches NaN, which would let NaN into the FFT and smear a
+     * block-sized hole of NaN across the surrounding valid data.
+     */
+    private static boolean isNoData(final double v, final double noDataValue) {
+        return Double.isNaN(v) || v == noDataValue;
+    }
+
     /**
      * Get the source tile rectangle.
      *
@@ -381,13 +492,88 @@ public class GoldsteinFilterOp extends Operator {
      * @param h  The height of current tile.
      * @return The rectangle.
      */
+    /**
+     * Derive per-axis FFT block sizes so the block covers {@link #fftSizeMeters} on the ground in both
+     * directions, instead of being square in pixels.
+     * <p>
+     * A square-in-pixels block is strongly anisotropic on the ground wherever the sampling is: for
+     * Sentinel-1 IW radar geometry (~3.5 m ground range x ~14 m azimuth) a 64x64 block spans about
+     * 224 m x 895 m, so the filter resolves fringe frequencies four times better in azimuth than in
+     * range. The same applies to a geocoded product with rectangular cells.
+     * <p>
+     * Sizes are snapped to powers of two - the separable 1-D FFTs are most efficient there - and
+     * clamped to [8, 512]. The block is only approximately square on the ground when the spacing ratio
+     * is not itself close to a power of two; for S1 IW the ratio is almost exactly 4, so it is exact.
+     * <p>
+     * Ground range spacing is {@code range_spacing / sin(incidence)} in slant-range geometry, and
+     * {@code range_spacing} as-is once {@code srgr_flag} is set (map-projected or ground-range
+     * products), where the stored spacing is already a ground distance.
+     */
+    private void deriveFFTSizeFromMeters() {
+        try {
+            final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            if (abs == null) {
+                return;
+            }
+            final double rgSpacing = abs.getAttributeDouble(AbstractMetadata.range_spacing, 0);
+            final double azSpacing = abs.getAttributeDouble(AbstractMetadata.azimuth_spacing, 0);
+            if (rgSpacing <= 0.0 || azSpacing <= 0.0) {
+                SystemUtils.LOG.warning("GoldsteinFilterOp: pixel spacing unavailable, "
+                        + "keeping the square FFT size of " + fftSizeX + " px.");
+                return;
+            }
+
+            double groundRangeSpacing = rgSpacing;
+            final boolean srgr = AbstractMetadata.getAttributeBoolean(abs, AbstractMetadata.srgr_flag);
+            if (!srgr) {
+                final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
+                if (incidenceAngle != null) {
+                    final double inc = incidenceAngle.getPixelDouble(
+                            sourceProduct.getSceneRasterWidth() / 2.0,
+                            sourceProduct.getSceneRasterHeight() / 2.0);
+                    final double s = FastMath.sin(inc * org.esa.snap.engine_utilities.eo.Constants.DTOR);
+                    if (s > 0.0) {
+                        groundRangeSpacing = rgSpacing / s;
+                    }
+                }
+            }
+
+            fftSizeX = pow2Clamp(fftSizeMeters / groundRangeSpacing);
+            fftSizeY = pow2Clamp(fftSizeMeters / azSpacing);
+
+            SystemUtils.LOG.info(String.format(
+                    "GoldsteinFilterOp: FFT block extent %.1f m -> %d x %d px "
+                    + "(ground range %.2f m/px, azimuth %.2f m/px) = %.0f m x %.0f m on the ground.",
+                    fftSizeMeters, fftSizeX, fftSizeY, groundRangeSpacing, azSpacing,
+                    fftSizeX * groundRangeSpacing, fftSizeY * azSpacing));
+
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("GoldsteinFilterOp: could not derive the FFT size from metres ("
+                    + e.getMessage() + "); keeping the square FFT size of " + fftSizeX + " px.");
+        }
+    }
+
+    /** Nearest power of two to {@code v}, clamped to [8, 512]. */
+    static int pow2Clamp(final double v) {
+        if (v <= 8.0) {
+            return 8;
+        }
+        if (v >= 512.0) {
+            return 512;
+        }
+        final int lower = Integer.highestOneBit((int) v);
+        final int upper = lower << 1;
+        return (v - lower <= upper - v) ? lower : upper;
+    }
+
     private Rectangle getSourceRectangle(final int x0, final int y0, final int w, final int h) {
 
-        final int FFTSize3_4 = FFTSize * 3 / 4;
-        final int sx0 = FastMath.max(x0 - FFTSize3_4, 0);
-        final int sy0 = FastMath.max(y0 - FFTSize3_4, 0);
-        final int sxMax = FastMath.min(x0 + w - 1 + FFTSize3_4, sourceImageWidth - 1);
-        final int syMax = FastMath.min(y0 + h - 1 + FFTSize3_4, sourceImageHeight - 1);
+        final int marginX = fftSizeX * 3 / 4;
+        final int marginY = fftSizeY * 3 / 4;
+        final int sx0 = FastMath.max(x0 - marginX, 0);
+        final int sy0 = FastMath.max(y0 - marginY, 0);
+        final int sxMax = FastMath.min(x0 + w - 1 + marginX, sourceImageWidth - 1);
+        final int syMax = FastMath.min(y0 + h - 1 + marginY, sourceImageHeight - 1);
         final int sw = sxMax - sx0 + 1;
         final int sh = syMax - sy0 + 1;
 
@@ -411,8 +597,8 @@ public class GoldsteinFilterOp extends Operator {
                                      final boolean[][] mask,
                                      final double iNoDataValue, final double qNoDataValue) {
         int index;
-        final int maxY = y + FFTSize;
-        final int maxX = x + FFTSize;
+        final int maxY = y + fftSizeY;
+        final int maxX = x + fftSizeX;
         for (int yy = y; yy < maxY; yy++) {
             srcIndex.calculateStride(yy);
             final int yidx = yy - y;
@@ -420,10 +606,14 @@ public class GoldsteinFilterOp extends Operator {
                 index = srcIndex.getIndex(xx);
                 final double iVal = iBandData.getElemDoubleAt(index);
                 final double qVal = qBandData.getElemDoubleAt(index);
-                I[yidx][xx - x] = iVal;
-                Q[yidx][xx - x] = qVal;
                 // Mask a sample as valid only if BOTH I and Q are valid.
-                mask[yidx][xx - x] = iVal != iNoDataValue && qVal != qNoDataValue;
+                final boolean valid = !isNoData(iVal, iNoDataValue) && !isNoData(qVal, qNoDataValue);
+                mask[yidx][xx - x] = valid;
+                // Invalid samples enter the FFT as zeros: a no-data fill value (or a NaN, which
+                // propagates through the whole spectrum) would otherwise be filtered as if it were
+                // signal and would corrupt the valid samples sharing the block.
+                I[yidx][xx - x] = valid ? iVal : 0.0;
+                Q[yidx][xx - x] = valid ? qVal : 0.0;
             }
         }
     }
@@ -491,8 +681,8 @@ public class GoldsteinFilterOp extends Operator {
      */
     private double computeBlockAlpha(final int x, final int y,
                                      final ProductData cohData, final TileIndex cohIndex) {
-        final int yEnd = Math.min(y + FFTSize, sourceImageHeight);
-        final int xEnd = Math.min(x + FFTSize, sourceImageWidth);
+        final int yEnd = Math.min(y + fftSizeY, sourceImageHeight);
+        final int xEnd = Math.min(x + fftSizeX, sourceImageWidth);
         double sum = 0.0;
         int n = 0;
         for (int yy = y; yy < yEnd; yy++) {
@@ -606,16 +796,17 @@ public class GoldsteinFilterOp extends Operator {
     private void updateFilteredBands(final int x0, final int y0, final int w, final int h,
                                      final int x, final int y, final double[][] I, final double[][] Q,
                                      final boolean[][] mask,
-                                     final float[] iBandFiltered, final float[] qBandFiltered) {
+                                     final float[] iBandFiltered, final float[] qBandFiltered,
+                                     final boolean[] filtered) {
 
         final int xSt = FastMath.max(x, x0);
         final int ySt = FastMath.max(y, y0);
-        final int xEd = FastMath.min(x + FFTSize, x0 + w);
-        final int yEd = FastMath.min(y + FFTSize, y0 + h);
+        final int xEd = FastMath.min(x + fftSizeX, x0 + w);
+        final int yEd = FastMath.min(y + fftSizeY, y0 + h);
         for (int yy = ySt; yy < yEd; yy++) {
             final int yi = yy - y;
             final int yw = (yy - y0) * w;
-            final double weightY = (1 - Math.abs(yy - y - halfFFTSize + 0.5) / halfFFTSize);
+            final double weightY = (1 - Math.abs(yy - y - halfFFTSizeY + 0.5) / halfFFTSizeY);
             for (int xx = xSt; xx < xEd; xx++) {
 
                 if(!mask[yi][xx - x]) {
@@ -623,11 +814,12 @@ public class GoldsteinFilterOp extends Operator {
                 }
 
                 //final double weight = getTriangularWeight(x, y, xx, yy);
-                final double weight = (1 - Math.abs(xx - x - halfFFTSize + 0.5) / halfFFTSize) * weightY;
+                final double weight = (1 - Math.abs(xx - x - halfFFTSizeX + 0.5) / halfFFTSizeX) * weightY;
 
                 final int k = yw + (xx - x0);
                 iBandFiltered[k] += I[yi][xx - x] * weight;
                 qBandFiltered[k] += Q[yi][xx - x] * weight;
+                filtered[k] = true;
             }
         }
     }
@@ -642,8 +834,8 @@ public class GoldsteinFilterOp extends Operator {
      * @return The weight
      */
     private double getTriangularWeight(final int xUL, final int yUL, final int x, final int y) {
-        return (1 - Math.abs(x - xUL - halfFFTSize + 0.5) / halfFFTSize) *
-                (1 - Math.abs(y - yUL - halfFFTSize + 0.5) / halfFFTSize);
+        return (1 - Math.abs(x - xUL - halfFFTSizeX + 0.5) / halfFFTSizeX) *
+                (1 - Math.abs(y - yUL - halfFFTSizeY + 0.5) / halfFFTSizeY);
     }
 
 

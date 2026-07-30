@@ -192,15 +192,21 @@ public class GSLCTopsFunctionalTest extends ProcessorTest {
         assertNotNull("imag partner of " + ai.getName(), aq);
         assertNotNull("imag partner of " + bi.getName(), bq);
 
+        // CENTRE WINDOW, not the full raster: reading every row forces every tile of BOTH GSLCs
+        // through the stack. The identity property this guards (and the bug class that broke it —
+        // a dropped integer stacking offset) corrupts the whole raster, so a window is an equally
+        // sharp regression signal at a fraction of the cost.
         final int w = ai.getRasterWidth(), h = ai.getRasterHeight();
-        final float[] rai = new float[w], raq = new float[w], rbi = new float[w], rbq = new float[w];
+        final int ww = Math.min(1024, w), wh = Math.min(1024, h);
+        final int x0 = (w - ww) / 2, y0 = (h - wh) / 2;
+        final float[] rai = new float[ww], raq = new float[ww], rbi = new float[ww], rbq = new float[ww];
         double max = 0;
-        for (int y = 0; y < h; y++) {
-            ai.readPixels(0, y, w, 1, rai, com.bc.ceres.core.ProgressMonitor.NULL);
-            aq.readPixels(0, y, w, 1, raq, com.bc.ceres.core.ProgressMonitor.NULL);
-            bi.readPixels(0, y, w, 1, rbi, com.bc.ceres.core.ProgressMonitor.NULL);
-            bq.readPixels(0, y, w, 1, rbq, com.bc.ceres.core.ProgressMonitor.NULL);
-            for (int x = 0; x < w; x++) {
+        for (int y = y0; y < y0 + wh; y++) {
+            ai.readPixels(x0, y, ww, 1, rai, com.bc.ceres.core.ProgressMonitor.NULL);
+            aq.readPixels(x0, y, ww, 1, raq, com.bc.ceres.core.ProgressMonitor.NULL);
+            bi.readPixels(x0, y, ww, 1, rbi, com.bc.ceres.core.ProgressMonitor.NULL);
+            bq.readPixels(x0, y, ww, 1, rbq, com.bc.ceres.core.ProgressMonitor.NULL);
+            for (int x = 0; x < ww; x++) {
                 if (Float.isNaN(rai[x]) || Float.isNaN(rbi[x])) continue;
                 max = Math.max(max, Math.abs(rai[x] - rbi[x]));
                 max = Math.max(max, Math.abs(raq[x] - rbq[x]));
@@ -240,13 +246,17 @@ public class GSLCTopsFunctionalTest extends ProcessorTest {
         }
         assertNotNull("coherence band", coh);
         assertNotNull("interferogram real band", real);
+        // Centre window (see maxAbsComplexDiff): the same window as the other reads, so the ifg
+        // tiles computed there are reused from the JAI cache instead of recomputed.
         final int w = coh.getRasterWidth(), h = coh.getRasterHeight();
-        final float[] rc = new float[w], rr = new float[w];
+        final int ww = Math.min(1024, w), wh = Math.min(1024, h);
+        final int x0 = (w - ww) / 2, y0 = (h - wh) / 2;
+        final float[] rc = new float[ww], rr = new float[ww];
         double sum = 0; long n = 0;
-        for (int y = 0; y < h; y++) {
-            coh.readPixels(0, y, w, 1, rc, com.bc.ceres.core.ProgressMonitor.NULL);
-            real.readPixels(0, y, w, 1, rr, com.bc.ceres.core.ProgressMonitor.NULL);
-            for (int x = 0; x < w; x++) {
+        for (int y = y0; y < y0 + wh; y++) {
+            coh.readPixels(x0, y, ww, 1, rc, com.bc.ceres.core.ProgressMonitor.NULL);
+            real.readPixels(x0, y, ww, 1, rr, com.bc.ceres.core.ProgressMonitor.NULL);
+            for (int x = 0; x < ww; x++) {
                 if (Float.isNaN(rc[x]) || Float.isNaN(rr[x]) || rr[x] == 0f) continue;
                 sum += rc[x]; n++;
             }
@@ -260,11 +270,15 @@ public class GSLCTopsFunctionalTest extends ProcessorTest {
             if (unit.equals(b.getUnit())) { band = b; break; }
         }
         assertNotNull("band with unit " + unit, band);
+        // Centre window: the Phase band is VIRTUAL (atan2 over i/q), so a full-raster mean here
+        // silently computed the whole interferogram a second time.
         final int w = band.getRasterWidth(), h = band.getRasterHeight();
-        final float[] row = new float[w];
+        final int ww = Math.min(1024, w), wh = Math.min(1024, h);
+        final int x0 = (w - ww) / 2, y0 = (h - wh) / 2;
+        final float[] row = new float[ww];
         double sum = 0; long n = 0;
-        for (int y = 0; y < h; y++) {
-            band.readPixels(0, y, w, 1, row, com.bc.ceres.core.ProgressMonitor.NULL);
+        for (int y = y0; y < y0 + wh; y++) {
+            band.readPixels(x0, y, ww, 1, row, com.bc.ceres.core.ProgressMonitor.NULL);
             for (final float v : row) {
                 if (Float.isNaN(v)) continue;
                 sum += abs ? Math.abs(v) : v; n++;

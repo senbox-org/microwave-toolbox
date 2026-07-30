@@ -71,7 +71,19 @@ public class DataSpaces {
                                  final String startDate, final String endDate) {
         String query = "Collection/Name eq '"+collection+"'";
         query += " and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType' and att/OData.CSC.StringAttribute/Value eq '"+productType+"')";
-        query += " and ContentDate/Start gt "+startDate+" and ContentDate/End lt "+endDate;
+        // Temporal OVERLAP, not containment.
+        //
+        // This previously read "Start gt startDate and End lt endDate", i.e. the auxiliary product had
+        // to fit ENTIRELY INSIDE the requested window. That holds only when the caller's window is at
+        // least as long as the product it is looking for. For a BURST-SUBSET source it is not: three
+        // IW bursts span ~9 s (window 22:50:59-22:51:08 measured on S1A IW3 bursts 4-6) while the
+        // parent ETAD product spans the full ~30 s frame, so nothing matched and S1-ETAD-Correction
+        // failed with "ETAD product not found" -- indistinguishable from genuinely missing data.
+        //
+        // Overlap is the correct relation for "find the auxiliary product covering my data": it still
+        // matches every case containment did (containment implies overlap), and additionally matches a
+        // parent frame when the source is a subset of it.
+        query += " and ContentDate/Start lt "+endDate+" and ContentDate/End gt "+startDate;
         return query;
     }
 
@@ -219,6 +231,20 @@ public class DataSpaces {
             this.startTime = startTime;
             this.endTime = endTime;
             this.footprint = footprint;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        /** ContentDate/Start, ISO-8601 with trailing 'Z' (e.g. 2026-06-24T22:49:32.492Z). */
+        public String getStartTime() {
+            return startTime;
+        }
+
+        /** ContentDate/End, same format as {@link #getStartTime()}. */
+        public String getEndTime() {
+            return endTime;
         }
     }
 }

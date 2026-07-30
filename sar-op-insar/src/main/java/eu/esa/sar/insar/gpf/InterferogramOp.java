@@ -238,6 +238,76 @@ public class InterferogramOp extends Operator {
     private static final int GSLC_RAMP_BLOCK = 384;         // px, estimation block size
     private static final int GSLC_RAMP_ML = 8;              // multilook factor inside a block
 
+    // Per-burst extension of the residual ramp. The TOPS deramp-annotation error differs per burst
+    // (each burst has its own DC/FM annotation), so across two acquisitions the residual is a
+    // per-burst quadratic-in-azimuth with genuine discontinuities at burst seams — measured on the
+    // 2026 Venezuela S1A x S1C pair as ~6 rad/burst around mid-scene and far larger in the northern
+    // bursts, where a single scene-wide quadratic leaves dense fringes. Burst intervals are read
+    // from the reference's Original_Product_Metadata annotation (a plain metadata walk: this module
+    // must not depend on sar-op-sentinel1, and the walk also works on stacks that predate any
+    // stamping). When the walk fails (stripmap GSLC, pruned metadata) the global fit applies.
+    private double[] gslcBurstStartSod;                     // reference-burst azimuth start, seconds of day
+    private double[] gslcBurstEndSod;                       // reference-burst azimuth end, seconds of day
+    private GslcPerBurstRamp[] gslcRampPerBurst;            // [pair], null entry = global fallback
+
+    // Exact carrier-difference subtraction: when both legs carry the GSLC deramp-model band
+    // (GSLCGeocodingOp outputPhaseTerms, propagated by CreateStack), the interferogram subtracts
+    // the models' leg difference EXACTLY — the deterministic ~70% of the cross-acquisition
+    // annotation mismatch, including its full range and azimuth structure within every burst,
+    // which no low-order fit can represent. subtractResidualRamp then only fits the smooth
+    // annotation-ERROR remainder.
+    private static final String GSLC_CARRIER_MODEL_BAND = "azimuthCarrierPhase";
+    private Band[] gslcRefCarrierBand;                      // [pair], null = band not available
+    private Band[] gslcSecCarrierBand;
+    private static final int GSLC_RAMP_MIN_BURST_BLOCKS = 4; // fewer -> burst inherits neighbours
+
+    /**
+     * Per-burst residual-ramp model, parameterised in AZIMUTH TIME. Within burst {@code k}:
+     * {@code phi_k(x, eta) = dk[k] + aN*(x/N) + c2N*(x/N)^2 + bk[k]*(eta-etaK[k]) + qk[k]*(eta-etaK[k])^2}
+     * with {@code eta} the reference-orbit azimuth time (seconds of day) of the ground point.
+     * <p>
+     * Azimuth time — not map row — is the physical axis of the deramp-annotation error, and
+     * iso-eta lines are TILTED ~10-12° in map space. A map-row parameterisation leaks each burst's
+     * azimuth rate into a per-burst x-gradient (rate difference × tilt ≈ 19 rad across a swath,
+     * measured), which a shared range slope cannot hold; in eta the tilt is exact. The shared x
+     * terms then carry only the genuine range-direction gradient. {@code dk} are per-burst
+     * constants, unobservable from gradients, estimated from the phase itself — burst seams are
+     * genuine discontinuities, so no continuity is imposed across them.
+     */
+    static final class GslcPerBurstRamp {
+        final double aN, c2N;
+        final double[] etaK, bk, qk, dk;     // eta centres (sod), rad/s, rad/s^2, rad
+        final double[] burstStartSod, burstEndSod;
+
+        GslcPerBurstRamp(final double aN, final double c2N, final double[] etaK, final double[] bk,
+                         final double[] qk, final double[] dk,
+                         final double[] burstStartSod, final double[] burstEndSod) {
+            this.aN = aN; this.c2N = c2N; this.etaK = etaK; this.bk = bk; this.qk = qk; this.dk = dk;
+            this.burstStartSod = burstStartSod; this.burstEndSod = burstEndSod;
+        }
+
+        /** Burst index for an azimuth time (seconds of day); overlap resolved at the midpoint. */
+        int burstOfSod(final double tSod) {
+            final int n = burstStartSod.length;
+            for (int k = 0; k < n - 1; k++) {
+                final double boundary = 0.5 * (burstStartSod[k + 1] + burstEndSod[k]);
+                if (tSod < boundary) return k;
+            }
+            return n - 1;
+        }
+
+        double phaseAt(final double x, final double etaSod, final int k) {
+            final double xn = x / GSLC_RAMP_NORM;
+            final double de = etaSod - etaK[k];
+            return dk[k] + aN * xn + c2N * xn * xn + bk[k] * de + qk[k] * de * de;
+        }
+
+        /** Within-burst azimuth phase rate (rad/s) at azimuth time {@code etaSod}. */
+        double rateAt(final double etaSod, final int k) {
+            return bk[k] + 2.0 * qk[k] * (etaSod - etaK[k]);
+        }
+    }
+
     private static final boolean CREATE_VIRTUAL_BAND = true;
     private static final boolean OUTPUT_ETAD_IFG = true;
     private static final String PRODUCT_SUFFIX = "_Ifg";
@@ -248,6 +318,8 @@ public class InterferogramOp extends Operator {
     private static final String LATITUDE = " orthorectifiedLat";
     private static final String LONGITUDE = "orthorectifiedLon";
     private static final String ETAD_PHASE_CORRECTION = "etadPhaseCorrection";
+    /** Written where a coherence window contains no valid sample pair, so the mask matches the ifg. */
+    private static final double COHERENCE_NO_DATA = 0.0;
     private static final String ETAD_HEIGHT = "etadHeight";
     private static final String ETAD_GRADIENT = "etadGradient";
     private static final String REFERENCE_TAG = "ref";
@@ -278,6 +350,15 @@ public class InterferogramOp extends Operator {
             if (absRoot != null && absRoot.getAttributeInt(AbstractMetadata.is_terrain_corrected, 0) == 1) {
                 isGSLCProduct = true;
                 gslcModeAutoDetected = true;
+                // ETAD is deliberately NOT handled on this path, and checkETADCorrection() below is
+                // unreachable here. That is correct: the ETAD tie-point grids are per-burst grids keyed
+                // on burst azimuth time and two-way slant-range time, so they are meaningless once the
+                // product is in map geometry. For the geocode-first chain the correction is baked into
+                // the complex data upstream by S1-ETAD-Correction (run with both the geometric
+                // correction and the range-delay phase enabled) and simply survives geocoding.
+                //
+                // What this path MUST still do is verify symmetry - see checkETADStateSymmetry.
+                checkETADStateSymmetry(absRoot);
                 resolveCoherenceWindowFromMeters();
                 initializeGSLC();
                 return;
@@ -338,8 +419,52 @@ public class InterferogramOp extends Operator {
      * Recommended for geocoded inputs so the multilook support stays at a fixed
      * physical scale regardless of map-grid pixel size.
      */
+    /**
+     * Warn when the pixel-count coherence window implies a strongly elongated ground footprint.
+     * <p>
+     * {@code cohWinAz} and {@code cohWinRg} both default to 10, which is square only when the pixels
+     * are. In S1 IW radar geometry (~2.3 m slant range x ~14 m azimuth) a 10x10 window spans roughly
+     * 23 m x 140 m — a 6:1 footprint. In a geocoded product with square pixels the same numbers give
+     * 1:1. So the default silently means very different things in the two geometries, and results from
+     * the classical and geocode-first chains are not comparable unless this is set deliberately.
+     * <p>
+     * Advisory only — it never alters the result, and it stays silent when the window is already
+     * sensible for the geometry at hand.
+     */
+    private void warnIfCoherenceWindowIsGeometryBlind() {
+        try {
+            final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            if (abs == null) {
+                return;
+            }
+            final double rgSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.range_spacing);
+            final double azSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.azimuth_spacing);
+            if (rgSpacing <= 0.0 || azSpacing <= 0.0 || cohWinRg <= 0 || cohWinAz <= 0) {
+                return;
+            }
+            final double rgExtent = cohWinRg * rgSpacing;
+            final double azExtent = cohWinAz * azSpacing;
+            final double aspect = Math.max(rgExtent, azExtent) / Math.min(rgExtent, azExtent);
+            if (aspect > 2.0) {
+                SystemUtils.LOG.warning(String.format(
+                        "InterferogramOp: coherence window cohWinRg=%d x cohWinAz=%d spans about "
+                        + "%.0f m x %.0f m, an aspect ratio of %.1f:1, so coherence is averaged over a "
+                        + "strongly elongated footprint. Consider setting 'Coherence Window (m)' "
+                        + "(cohWinSizeMeters) instead: it yields a window that is square on the ground "
+                        + "whatever the geometry, and makes radar-geometry and geocoded results "
+                        + "directly comparable.",
+                        cohWinRg, cohWinAz, rgExtent, azExtent, aspect));
+            }
+        } catch (Exception e) {
+            SystemUtils.LOG.fine("InterferogramOp: coherence window advisory skipped: " + e.getMessage());
+        }
+    }
+
     private void resolveCoherenceWindowFromMeters() throws Exception {
-        if (cohWinSizeMeters <= 0.0) return;
+        if (cohWinSizeMeters <= 0.0) {
+            warnIfCoherenceWindowIsGeometryBlind();
+            return;
+        }
         final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
         if (abs == null) return;
         final double rgSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.range_spacing);
@@ -369,9 +494,15 @@ public class InterferogramOp extends Operator {
             return refIBands.get(0);
         }
         final String secPol = OperatorUtils.getPolarizationFromBandName(secI.getName());
+        final String secSwath = extractSubSwath(secI.getName());
         if (secPol != null) {
+            // Match on subswath AND polarisation. Polarisation alone is not a discriminator: two
+            // references can share a polarisation and differ by subswath (or by date, in a
+            // multi-reference stack), in which case the first match won and an IW2 secondary was
+            // silently paired against an IW1 reference — with the output band labelled IW1.
             for (final Band refI : refIBands) {
-                if (secPol.equalsIgnoreCase(OperatorUtils.getPolarizationFromBandName(refI.getName()))) {
+                if (secPol.equalsIgnoreCase(OperatorUtils.getPolarizationFromBandName(refI.getName()))
+                        && java.util.Objects.equals(secSwath, extractSubSwath(refI.getName()))) {
                     return refI;
                 }
             }
@@ -384,6 +515,23 @@ public class InterferogramOp extends Operator {
     }
 
     /** Find the Q band of the same complex pair as {@code iBand} by name ("i_x" -> "q_x"). */
+    /** The IW1/IW2/IW3/EW1.. subswath token in a band name, or null if it carries none. */
+    private static String extractSubSwath(final String bandName) {
+        final java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("(?:IW|EW)[1-5]").matcher(bandName.toUpperCase());
+        return m.find() ? m.group() : null;
+    }
+
+    /**
+     * The {@code sec1}/{@code sec2}/... (or legacy {@code slv1}/...) discriminator CreateStack adds to
+     * each secondary's bands. Returns null when the name carries none.
+     */
+    private static String extractSecondaryTag(final String bandName) {
+        final java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("(?:sec|slv)\\d+").matcher(bandName.toLowerCase());
+        return m.find() ? m.group() : null;
+    }
+
     private static Band findComplexPartner(final Band iBand, final List<Band> qBands) {
         final String iName = iBand.getName();
         if (iName.isEmpty() || Character.toLowerCase(iName.charAt(0)) != 'i') {
@@ -480,6 +628,7 @@ public class InterferogramOp extends Operator {
         gslcTargetQ = new Band[numPairs];
         gslcTargetCoh = includeCoherence ? new Band[numPairs] : null;
 
+        final java.util.Set<String> usedTags = new java.util.HashSet<>();
         for (int p = 0; p < numPairs; p++) {
             // Derive tag from the reference band name, then append the secondary's date so the
             // pair is identifiable — the normal (non-GSLC) path names bands
@@ -493,8 +642,26 @@ public class InterferogramOp extends Operator {
             final int lastUs = secName.lastIndexOf('_');
             final String secDate = (lastUs >= 0 && lastUs < secName.length() - 1)
                     ? secName.substring(lastUs + 1) : "";
-            final String tag = (secDate.isEmpty() || baseTag.endsWith('_' + secDate))
+            String tag = (secDate.isEmpty() || baseTag.endsWith('_' + secDate))
                     ? baseTag : baseTag + '_' + secDate;
+
+            // The date alone does not identify a secondary: two acquisitions on the same day (S1A +
+            // S1B, or two frames) collapse to one name and Product.addBand then rejects the
+            // duplicate. CreateStack already emits a sec1/sec2/... discriminator for exactly this
+            // reason, so carry it through when the date-based tag is not already unique.
+            final String secTag = extractSecondaryTag(secName);
+            if (secTag != null && !tag.contains(secTag)) {
+                final String candidate = baseTag + '_' + secTag + (secDate.isEmpty() ? "" : '_' + secDate);
+                if (usedTags.contains(tag)) {
+                    tag = candidate;
+                }
+            }
+            if (usedTags.contains(tag)) {
+                throw new OperatorException("GSLC interferogram: cannot form a unique band name for "
+                        + "secondary '" + secName + "' (tag '" + tag + "' already used). Rename the "
+                        + "stack bands so each secondary is distinguishable.");
+            }
+            usedTags.add(tag);
 
             final String iBandName = "i_" + productTag + tag;
             gslcTargetI[p] = targetProduct.addBand(iBandName, ProductData.TYPE_FLOAT32);
@@ -574,6 +741,313 @@ public class InterferogramOp extends Operator {
      * then subtract the flat-earth (+ topographic) phase recomputed in map geometry.
      */
     /**
+     * Reference-acquisition burst intervals (azimuth seconds of day) from the S1 annotation carried
+     * in {@code Original_Product_Metadata}. Returns {@code {start[], end[]}} or {@code null} when
+     * unavailable. A plain metadata walk, deliberately free of any sar-op-sentinel1 dependency
+     * (circular), and working on stacks produced before per-burst support existed.
+     */
+    private static double[][] extractGslcBurstTableSod(final Product product) {
+        try {
+            final MetadataElement opm =
+                    product.getMetadataRoot().getElement(AbstractMetadata.ORIGINAL_PRODUCT_METADATA);
+            if (opm == null) return null;
+            final MetadataElement annotation = opm.getElement("annotation");
+            if (annotation == null) return null;
+            for (final MetadataElement annFile : annotation.getElements()) {
+                final MetadataElement prod = annFile.getElement("product");
+                if (prod == null) continue;
+                final MetadataElement swathTiming = prod.getElement("swathTiming");
+                if (swathTiming == null) continue;
+                final MetadataElement burstList = swathTiming.getElement("burstList");
+                if (burstList == null) continue;
+                final MetadataElement imgAnn = prod.getElement("imageAnnotation");
+                final MetadataElement imgInfo = imgAnn != null ? imgAnn.getElement("imageInformation") : null;
+                if (imgInfo == null) continue;
+                final double azInterval = Double.parseDouble(imgInfo.getAttributeString("azimuthTimeInterval"));
+                final int linesPerBurst = Integer.parseInt(swathTiming.getAttributeString("linesPerBurst"));
+                final java.util.List<Double> starts = new java.util.ArrayList<>();
+                for (final MetadataElement burst : burstList.getElements()) {
+                    if (!burst.getName().startsWith("burst")) continue;
+                    final String azTime = burst.getAttributeString("azimuthTime", null);
+                    if (azTime == null) continue;
+                    starts.add(ProductData.UTC.parse(azTime, "yyyy-MM-dd'T'HH:mm:ss").getMJD());
+                }
+                if (starts.size() < 2 || azInterval <= 0 || linesPerBurst <= 0) continue;
+                java.util.Collections.sort(starts);
+                // One day anchor for the whole table keeps the axis monotone across midnight and
+                // matches the seconds-of-day axis of Orbit.xyz2t / SLCImage.tAzi1.
+                final double dayAnchorMjd = Math.floor(starts.get(0));
+                final double[] start = new double[starts.size()];
+                final double[] end = new double[starts.size()];
+                for (int k = 0; k < starts.size(); k++) {
+                    start[k] = (starts.get(k) - dayAnchorMjd) * 86400.0;
+                    end[k] = start[k] + (linesPerBurst - 1) * azInterval;
+                }
+                return new double[][]{start, end};
+            }
+        } catch (Throwable t) {
+            SystemUtils.LOG.fine("GSLC residual ramp: burst-table walk failed: " + t.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Pair up the GSLC deramp-model bands per interferometric pair, when the stack carries them.
+     * The reference band carries the ref/mst tag; each secondary's carries the same secN/slvN tag
+     * as its i/q bands. One leg without the band is a configuration smell (mixed GSLC settings) —
+     * warn and fall back to data-driven-only correction rather than subtract half a model.
+     */
+    private void discoverGslcCarrierModelBands() {
+        gslcRefCarrierBand = new Band[gslcSecondaryI.length];
+        gslcSecCarrierBand = new Band[gslcSecondaryI.length];
+        Band refCarrier = null;
+        final java.util.List<Band> secCarriers = new java.util.ArrayList<>();
+        for (final Band b : sourceProduct.getBands()) {
+            if (!b.getName().startsWith(GSLC_CARRIER_MODEL_BAND)) continue;
+            final String name = b.getName().toLowerCase();
+            if (name.contains("_" + REFERENCE_TAG) || name.contains("_" + LEGACY_REFERENCE_TAG)) {
+                refCarrier = b;
+            } else {
+                secCarriers.add(b);
+            }
+        }
+        for (int p = 0; p < gslcSecondaryI.length; p++) {
+            final String secTag = extractSecondaryTag(gslcSecondaryI[p].getName());
+            final String secDate = dateSuffixOf(gslcSecondaryI[p].getName());
+            Band secCarrier = null;
+            for (final Band b : secCarriers) {
+                // Prefer the secN tag, but accept a date match: CreateStack's tag counter runs per
+                // band slot, so the carrier band of the same secondary can carry a different secN
+                // than its i/q (observed: i_.._sec1_24Jun2026 with azimuthCarrierPhase_sec2_24Jun2026).
+                final String tag = extractSecondaryTag(b.getName());
+                if ((tag != null && tag.equals(secTag))
+                        || (secDate != null && secDate.equals(dateSuffixOf(b.getName())))) {
+                    secCarrier = b;
+                    break;
+                }
+            }
+            if (secCarrier == null && secCarriers.size() == 1 && gslcSecondaryI.length == 1) {
+                secCarrier = secCarriers.get(0);   // single-pair stack: no ambiguity
+            }
+            if (refCarrier != null && secCarrier != null) {
+                gslcRefCarrierBand[p] = refCarrier;
+                gslcSecCarrierBand[p] = secCarrier;
+                SystemUtils.LOG.info("GSLC carrier-difference: exact deramp-model subtraction "
+                        + "active for pair " + p + " ('" + refCarrier.getName() + "' vs '"
+                        + secCarrier.getName() + "').");
+            } else if (refCarrier != null || secCarrier != null) {
+                SystemUtils.LOG.warning("GSLC carrier-difference: only ONE leg of pair " + p
+                        + " carries the '" + GSLC_CARRIER_MODEL_BAND + "' band — regenerate both "
+                        + "GSLCs with outputPhaseTerms=true to enable exact model subtraction. "
+                        + "Falling back to data-driven ramp removal only.");
+            }
+        }
+    }
+
+    /**
+     * Add the leg difference of the GSLC deramp-model bands into the reference-phase surface.
+     * Carrier-free legs carry {@code truth × exp(-j·m)}, so the conjugate product carries
+     * {@code -(m_ref - m_sec)}; adding {@code (m_sec - m_ref)} to the subtracted surface restores
+     * the classical interferometric phase. (Sign pinned empirically: with it, the fitted residual
+     * rates collapse; flipped, they double.)
+     */
+    private void addGslcCarrierModelDiff(final double[][] refPhase, final Rectangle rect, final int p) {
+        final Tile refT = getSourceTile(gslcRefCarrierBand[p], rect);
+        final Tile secT = getSourceTile(gslcSecCarrierBand[p], rect);
+        for (int y = 0; y < rect.height; y++) {
+            final int yy = rect.y + y;
+            final double[] row = refPhase[y];
+            for (int x = 0; x < rect.width; x++) {
+                final int xx = rect.x + x;
+                row[x] += secT.getSampleDouble(xx, yy) - refT.getSampleDouble(xx, yy);
+            }
+        }
+    }
+
+    private boolean gslcCarrierDiffAvailable(final int p) {
+        return gslcRefCarrierBand != null && p < gslcRefCarrierBand.length
+                && gslcRefCarrierBand[p] != null && gslcSecCarrierBand[p] != null;
+    }
+
+    /** The trailing {@code _ddMmmyyyy} date token of a stacked band name, or null. */
+    private static String dateSuffixOf(final String bandName) {
+        final java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("_(\\d{2}[A-Za-z]{3}\\d{4})$").matcher(bandName);
+        return m.find() ? m.group(1) : null;
+    }
+
+    /** Reference-orbit azimuth time (seconds of day) of a map pixel, via geocoding + DEM height. */
+    private double refAzTimeSodAt(final double px, final double py) {
+        final GeoPos geo = new GeoPos();
+        gslcGeoCoding.getGeoPos(new PixelPos(px + 0.5, py + 0.5), geo);
+        double height = 0.0;
+        if (subtractTopographicPhase && dem != null) {
+            try {
+                final double e = dem.getElevation(geo);
+                if (!Double.isNaN(e) && e != demNoDataValue) height = e;
+            } catch (Exception ignore) {
+                height = 0.0;
+            }
+        }
+        final Point xyz = Ellipsoid.ell2xyz(FastMath.toRadians(geo.lat), FastMath.toRadians(geo.lon), height);
+        return gslcRefOrbit.xyz2t(xyz, gslcRefSLC).y;
+    }
+
+    /** One estimation block: fringe gradient plus the multilooked field it was measured on, kept so
+     *  the per-burst constants can be estimated afterwards without re-reading any tile. The local
+     *  azimuth-time frame (eta at the centre plus its map gradients) is filled during burst
+     *  labelling; the gradients carry the iso-eta TILT that maps azimuth rate into both fx and fy. */
+    private static final class GslcRampBlock {
+        final double xc, yc, fx, fy, weight;
+        final double[] mlRe, mlIm;
+        final int mw, mh, x0, y0;
+        int burst = -1;
+        double tSod = Double.NaN;      // reference azimuth time at (xc, yc), seconds of day
+        double dEtaDx = Double.NaN;    // d(eta)/dx, s/px
+        double dEtaDy = Double.NaN;    // d(eta)/dy, s/px
+
+        GslcRampBlock(final double xc, final double yc, final double fx, final double fy,
+                      final double weight, final double[] mlRe, final double[] mlIm,
+                      final int mw, final int mh, final int x0, final int y0) {
+            this.xc = xc; this.yc = yc; this.fx = fx; this.fy = fy; this.weight = weight;
+            this.mlRe = mlRe; this.mlIm = mlIm; this.mw = mw; this.mh = mh; this.x0 = x0; this.y0 = y0;
+        }
+
+        /** Azimuth time of an arbitrary pixel, from the block's local linear eta frame. */
+        double etaAt(final double x, final double y) {
+            return tSod + dEtaDx * (x - xc) + dEtaDy * (y - yc);
+        }
+    }
+
+    /**
+     * Weighted segmented fit in AZIMUTH TIME, two decoupled stages. Stage 1, per burst: every
+     * sample's {@code fy/dEtaDy} is a direct measurement of the within-burst azimuth phase rate
+     * (rad/s); fit rate(eta) linear per burst (i.e. phase quadratic in eta), with a per-burst
+     * outlier-trim pass — trimming against a global fit would discard exactly the
+     * strongly-deviating bursts this model exists for. Stage 2, shared: subtract each sample's
+     * azimuth-rate leakage {@code rate*dEtaDx} from {@code fx} (the iso-eta tilt maps azimuth rate
+     * into fx, per burst); what remains is the genuine range-direction gradient, fitted as
+     * {@code aN/N + 2*c2N*x/N^2} with its own trim pass. Bursts with too few samples inherit
+     * neighbours by linear interpolation over burst index. {@code dk} is left at zero — constants
+     * are unobservable from gradients and are filled from the phase by the caller.
+     * Package-visible and pure, for unit tests.
+     *
+     * @param samples rows of {@code {x, etaSod, fx, fy, weight, burstIndex, dEtaDx, dEtaDy}}
+     */
+    static GslcPerBurstRamp fitGslcPerBurstRamp(final java.util.List<double[]> samples,
+                                                final double[] startSod, final double[] endSod) {
+        final int nB = startSod.length;
+        final double N = GSLC_RAMP_NORM;
+
+        // stage 1: per-burst rate(eta) = bk + 2*qk*(eta - etaK)
+        final double[] etaK = new double[nB], bk = new double[nB], qk = new double[nB];
+        final boolean[] fitted = new boolean[nB];
+        for (int k = 0; k < nB; k++) {
+            etaK[k] = 0.5 * (startSod[k] + endSod[k]);
+            java.util.List<double[]> in = new java.util.ArrayList<>();
+            for (final double[] s : samples) {
+                if ((int) s[5] == k && Math.abs(s[7]) > 1e-12) in.add(s);
+            }
+            for (int pass = 0; pass < 2 && in.size() >= GSLC_RAMP_MIN_BURST_BLOCKS; pass++) {
+                double t11 = 0, t12 = 0, t22 = 0, u1 = 0, u2 = 0;
+                for (final double[] s : in) {
+                    final double wgt = Math.sqrt(s[4]);
+                    final double rate = s[3] / s[7];
+                    final double j1 = 2.0 * (s[1] - etaK[k]);
+                    t11 += wgt; t12 += wgt * j1; t22 += wgt * j1 * j1;
+                    u1 += wgt * rate; u2 += wgt * j1 * rate;
+                }
+                final double d2 = t11 * t22 - t12 * t12;
+                if (Math.abs(d2) > 1e-30) {
+                    bk[k] = (u1 * t22 - u2 * t12) / d2;
+                    qk[k] = (t11 * u2 - t12 * u1) / d2;
+                } else {
+                    bk[k] = (t11 > 1e-30) ? u1 / t11 : 0.0;
+                    qk[k] = 0.0;
+                }
+                fitted[k] = true;
+                if (pass == 0) {   // per-burst trim, then refit once
+                    final double[] resid = new double[in.size()];
+                    for (int i = 0; i < in.size(); i++) {
+                        final double[] s = in.get(i);
+                        resid[i] = Math.abs(s[3] / s[7] - (bk[k] + 2.0 * qk[k] * (s[1] - etaK[k])));
+                    }
+                    final double[] sorted = resid.clone();
+                    java.util.Arrays.sort(sorted);
+                    final double thr = 3.0 * Math.max(sorted[sorted.length / 2], 1e-3);
+                    final java.util.List<double[]> kept = new java.util.ArrayList<>();
+                    for (int i = 0; i < in.size(); i++) {
+                        if (resid[i] <= thr) kept.add(in.get(i));
+                    }
+                    if (kept.size() < GSLC_RAMP_MIN_BURST_BLOCKS || kept.size() == in.size()) break;
+                    in = kept;
+                }
+            }
+        }
+        // bursts without a fit inherit by linear interpolation over burst index; their eta centre
+        // stays the burst-table midpoint, which is always defined.
+        for (int k = 0; k < nB; k++) {
+            if (fitted[k]) continue;
+            int lo = -1, hi = -1;
+            for (int i = k - 1; i >= 0; i--) if (fitted[i]) { lo = i; break; }
+            for (int i = k + 1; i < nB; i++) if (fitted[i]) { hi = i; break; }
+            if (lo < 0 && hi < 0) { bk[k] = 0; qk[k] = 0; continue; }
+            if (lo < 0) { bk[k] = bk[hi]; qk[k] = qk[hi]; continue; }
+            if (hi < 0) { bk[k] = bk[lo]; qk[k] = qk[lo]; continue; }
+            final double t = (k - lo) / (double) (hi - lo);
+            bk[k] = bk[lo] + t * (bk[hi] - bk[lo]);
+            qk[k] = qk[lo] + t * (qk[hi] - qk[lo]);
+        }
+
+        // stage 2: shared range terms from the tilt-corrected fx residuals
+        java.util.List<double[]> fxIn = new java.util.ArrayList<>();
+        for (final double[] s : samples) {
+            final int k = (int) s[5];
+            if (k >= 0 && k < nB) fxIn.add(s);
+        }
+        double aN = 0.0, c2N = 0.0;
+        for (int pass = 0; pass < 2 && fxIn.size() >= 3; pass++) {
+            double s11 = 0, s12 = 0, s22 = 0, r1 = 0, r2 = 0;
+            for (final double[] s : fxIn) {
+                final int k = (int) s[5];
+                final double rate = bk[k] + 2.0 * qk[k] * (s[1] - etaK[k]);
+                final double fxResid = s[2] - rate * s[6];
+                final double wgt = Math.sqrt(s[4]);
+                final double j0 = 1.0 / N, j1 = 2.0 * s[0] / (N * N);
+                s11 += wgt * j0 * j0; s12 += wgt * j0 * j1; s22 += wgt * j1 * j1;
+                r1 += wgt * j0 * fxResid; r2 += wgt * j1 * fxResid;
+            }
+            final double det = s11 * s22 - s12 * s12;
+            if (Math.abs(det) > 1e-30) {
+                aN = (r1 * s22 - r2 * s12) / det;
+                c2N = (s11 * r2 - s12 * r1) / det;
+            } else {
+                aN = (s11 > 1e-30) ? r1 / s11 : 0.0;
+                c2N = 0.0;
+            }
+            if (pass == 0) {
+                final double[] resid = new double[fxIn.size()];
+                for (int i = 0; i < fxIn.size(); i++) {
+                    final double[] s = fxIn.get(i);
+                    final int k = (int) s[5];
+                    final double rate = bk[k] + 2.0 * qk[k] * (s[1] - etaK[k]);
+                    resid[i] = Math.abs(s[2] - rate * s[6] - (aN / N + 2.0 * c2N * s[0] / (N * N)));
+                }
+                final double[] sorted = resid.clone();
+                java.util.Arrays.sort(sorted);
+                final double thr = 3.0 * Math.max(sorted[sorted.length / 2], 1e-4);
+                final java.util.List<double[]> kept = new java.util.ArrayList<>();
+                for (int i = 0; i < fxIn.size(); i++) {
+                    if (resid[i] <= thr) kept.add(fxIn.get(i));
+                }
+                if (kept.size() < 3 || kept.size() == fxIn.size()) break;
+                fxIn = kept;
+            }
+        }
+        return new GslcPerBurstRamp(aN, c2N, etaK, bk, qk, new double[nB], startSod, endSod);
+    }
+
+    /**
      * Estimate the per-pair residual phase ramp of the (reference-phase-removed) GSLC
      * interferogram as a quadratic phase polynomial, from block-wise fringe gradients.
      * <p>
@@ -589,23 +1063,48 @@ public class InterferogramOp extends Operator {
         synchronized (gslcRampLock) {
             if (gslcRampEstimated) return;
             gslcRampCoef = new double[gslcReferenceI.length][];
+            gslcRampPerBurst = new GslcPerBurstRamp[gslcReferenceI.length];
             final int w = sourceProduct.getSceneRasterWidth();
             final int h = sourceProduct.getSceneRasterHeight();
             final int n = GSLC_RAMP_BLOCK;
-            final int step = Math.max(n + 64, Math.min(w, h) / 10);
+            final boolean perBurst = gslcBurstStartSod != null && gslcBurstStartSod.length >= 2
+                    && gslcRefOrbit != null && gslcRefSLC != null && gslcGeoCoding != null;
+            final int nB = perBurst ? gslcBurstStartSod.length : 0;
+            final int stepX = Math.max(n + 64, Math.min(w, h) / 10);
+            // Per-burst fitting needs several block rows PER BURST; the global grid gives ~10 rows
+            // for the whole scene (~1 per burst). Overlapping blocks are statistically fine here —
+            // each contributes an independent local gradient estimate to a weighted LS.
+            final int stepY = perBurst ? Math.max(n / 2, h / (nB * 5)) : stepX;
             for (int p = 0; p < gslcReferenceI.length; p++) {
                 try {
-                    final java.util.List<double[]> samples = new java.util.ArrayList<>();
-                    for (int y0 = 64; y0 + n < h - 64; y0 += step) {
-                        for (int x0 = 64; x0 + n < w - 64; x0 += step) {
-                            final double[] s = gslcRampBlockGradient(p, new Rectangle(x0, y0, n, n));
-                            if (s != null) samples.add(s);
+                    final java.util.List<GslcRampBlock> blocks = new java.util.ArrayList<>();
+                    for (int y0 = 64; y0 + n < h - 64; y0 += stepY) {
+                        for (int x0 = 64; x0 + n < w - 64; x0 += stepX) {
+                            final GslcRampBlock b = gslcRampBlockGradient(p, new Rectangle(x0, y0, n, n));
+                            if (b != null) blocks.add(b);
                         }
                     }
-                    if (samples.size() < 10) {
-                        SystemUtils.LOG.warning("GSLC residual ramp: only " + samples.size() +
+                    if (blocks.size() < 10) {
+                        SystemUtils.LOG.warning("GSLC residual ramp: only " + blocks.size() +
                                 " usable blocks for pair " + p + " — ramp removal skipped.");
                         continue;
+                    }
+                    final java.util.List<double[]> samples = new java.util.ArrayList<>(blocks.size());
+                    for (final GslcRampBlock b : blocks) {
+                        if (perBurst) {
+                            try {
+                                // local azimuth-time frame: value + map gradients (the gradients
+                                // carry the iso-eta tilt; D well below the block size)
+                                final double D = 96.0;
+                                b.tSod = refAzTimeSodAt(b.xc, b.yc);
+                                b.dEtaDx = (refAzTimeSodAt(b.xc + D, b.yc) - b.tSod) / D;
+                                b.dEtaDy = (refAzTimeSodAt(b.xc, b.yc + D) - b.tSod) / D;
+                                b.burst = gslcBurstIndexOfSod(b.tSod);
+                            } catch (Throwable t) {
+                                b.burst = -1;
+                            }
+                        }
+                        samples.add(new double[]{b.xc, b.yc, b.fx, b.fy, b.weight, b.burst});
                     }
                     double[] c = fitGslcRamp(samples);
                     // one trim pass: drop gradient outliers > 3x the median residual
@@ -630,6 +1129,24 @@ public class InterferogramOp extends Operator {
                             p, kept.size(), samples.size(),
                             gslcRampFx(c, w / 2.0, h / 2.0), gslcRampFy(c, w / 2.0, h / 2.0),
                             c[0], c[1], c[2], c[3], c[4], GSLC_RAMP_NORM));
+
+                    if (perBurst) {
+                        final java.util.List<double[]> pbSamples = new java.util.ArrayList<>(blocks.size());
+                        for (final GslcRampBlock b : blocks) {
+                            if (b.burst >= 0 && !Double.isNaN(b.dEtaDy) && Math.abs(b.dEtaDy) > 1e-12) {
+                                pbSamples.add(new double[]{b.xc, b.tSod, b.fx, b.fy, b.weight,
+                                        b.burst, b.dEtaDx, b.dEtaDy});
+                            }
+                        }
+                        if (pbSamples.size() >= 10) {
+                            gslcRampPerBurst[p] = fitGslcPerBurstConstants(
+                                    fitGslcPerBurstRamp(pbSamples, gslcBurstStartSod, gslcBurstEndSod),
+                                    blocks, p);
+                        } else {
+                            SystemUtils.LOG.warning("GSLC residual ramp: only " + pbSamples.size()
+                                    + " burst-labelled blocks — falling back to the global fit.");
+                        }
+                    }
                 } catch (Throwable t) {
                     SystemUtils.LOG.warning("GSLC residual ramp estimation failed for pair " + p +
                             ": " + t.getMessage() + " — ramp removal skipped.");
@@ -639,16 +1156,105 @@ public class InterferogramOp extends Operator {
         }
     }
 
+    /** Burst index for a reference azimuth time; overlap resolved at the midpoint. */
+    private int gslcBurstIndexOfSod(final double tSod) {
+        for (int k = 0; k < gslcBurstStartSod.length - 1; k++) {
+            if (tSod < 0.5 * (gslcBurstStartSod[k + 1] + gslcBurstEndSod[k])) return k;
+        }
+        return gslcBurstStartSod.length - 1;
+    }
+
+    /**
+     * Fill the per-burst constants {@code dk} from the phase itself: rotate every retained
+     * multilooked cell by the slope-only model and take the circular mean per burst. Referenced to
+     * the strongest burst so the interferogram keeps its overall constant. Bursts with no coherent
+     * cells copy the nearest estimated neighbour (index distance; angles are not interpolated
+     * across the wrap).
+     */
+    private GslcPerBurstRamp fitGslcPerBurstConstants(final GslcPerBurstRamp slopes,
+                                                      final java.util.List<GslcRampBlock> blocks,
+                                                      final int pairIndex) {
+        final int nB = slopes.burstStartSod.length;
+        final double[] sr = new double[nB], si = new double[nB];
+        final int[] nCells = new int[nB];
+        final int ml = GSLC_RAMP_ML;
+        for (final GslcRampBlock b : blocks) {
+            if (b.burst < 0 || Double.isNaN(b.tSod)) continue;
+            for (int my = 0; my < b.mh; my++) {
+                final double yy = b.y0 + (my + 0.5) * ml;
+                for (int mx = 0; mx < b.mw; mx++) {
+                    final double ar = b.mlRe[my * b.mw + mx], ai = b.mlIm[my * b.mw + mx];
+                    if (ar == 0 && ai == 0) continue;
+                    final double xx = b.x0 + (mx + 0.5) * ml;
+                    // eta from the block's local linear frame; the cell's own burst, so cells on
+                    // the far side of a seam inside a block accumulate into the right constant
+                    final double eta = b.etaAt(xx, yy);
+                    final int kCell = slopes.burstOfSod(eta);
+                    final double model = slopes.phaseAt(xx, eta, kCell);
+                    final double cs = FastMath.cos(model), sn = FastMath.sin(model);
+                    sr[kCell] += ar * cs + ai * sn;
+                    si[kCell] += ai * cs - ar * sn;
+                    nCells[kCell]++;
+                }
+            }
+        }
+        final double[] dk = new double[nB];
+        final boolean[] have = new boolean[nB];
+        int kStrong = -1;
+        double best = 0;
+        for (int k = 0; k < nB; k++) {
+            final double mag = Math.hypot(sr[k], si[k]);
+            if (nCells[k] > 0 && mag > 0) {
+                dk[k] = Math.atan2(si[k], sr[k]);
+                have[k] = true;
+                if (mag > best) { best = mag; kStrong = k; }
+            }
+        }
+        if (kStrong >= 0) {
+            final double ref = dk[kStrong];
+            for (int k = 0; k < nB; k++) {
+                if (have[k]) dk[k] = Math.atan2(Math.sin(dk[k] - ref), Math.cos(dk[k] - ref));
+            }
+        }
+        for (int k = 0; k < nB; k++) {
+            if (have[k]) continue;
+            int nearest = -1, bestDist = Integer.MAX_VALUE;
+            for (int i = 0; i < nB; i++) {
+                if (have[i] && Math.abs(i - k) < bestDist) { bestDist = Math.abs(i - k); nearest = i; }
+            }
+            dk[k] = nearest >= 0 ? dk[nearest] : 0.0;
+        }
+        final StringBuilder sb = new StringBuilder();
+        sb.append(String.format("GSLC residual ramp per-burst (pair %d, %d bursts, shared d/dx %.4f rad/px):",
+                pairIndex, nB, slopes.aN / GSLC_RAMP_NORM));
+        for (int k = 0; k < nB; k++) {
+            sb.append(String.format(" [b%d n=%d rate=%.3f rad/s q=%.3g d=%.3f]",
+                    k, nCells[k], slopes.bk[k], slopes.qk[k], dk[k]));
+        }
+        SystemUtils.LOG.info(sb.toString());
+        return new GslcPerBurstRamp(slopes.aN, slopes.c2N, slopes.etaK, slopes.bk, slopes.qk, dk,
+                slopes.burstStartSod, slopes.burstEndSod);
+    }
+
     /** Dominant fringe gradient (rad/px) of one block, or null if the block is unusable. */
-    private double[] gslcRampBlockGradient(final int p, final Rectangle rect) throws Exception {
+    private GslcRampBlock gslcRampBlockGradient(final int p, final Rectangle rect) throws Exception {
         final Tile ti = getSourceTile(gslcReferenceI[p], rect);
         final Tile tq = getSourceTile(gslcReferenceQ[p], rect);
         final Tile si = getSourceTile(gslcSecondaryI[p], rect);
         final Tile sq = getSourceTile(gslcSecondaryQ[p], rect);
-        final double[][] refPhase = gslcRemoveRefPhase
+        double[][] refPhase = gslcRemoveRefPhase
                 ? computeGslcReferencePhase(rect,
-                        gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]))
+                        gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]),
+                        null, true)
                 : null;
+        // The estimator must see the same surface the interferogram will subtract: with the exact
+        // model difference included, the fit measures only the annotation-error remainder.
+        if (gslcCarrierDiffAvailable(p)) {
+            if (refPhase == null) {
+                refPhase = new double[rect.height][rect.width];
+            }
+            addGslcCarrierModelDiff(refPhase, rect, p);
+        }
 
         final int ml = GSLC_RAMP_ML;
         final int mw = rect.width / ml, mh = rect.height / ml;
@@ -706,7 +1312,8 @@ public class InterferogramOp extends Operator {
         if (weight < 0.05) return null;   // no dominant fringe in this block
         final double fx = Math.atan2(gxi, gxr) / ml;
         final double fy = Math.atan2(gyi, gyr) / ml;
-        return new double[]{rect.x + rect.width / 2.0, rect.y + rect.height / 2.0, fx, fy, weight};
+        return new GslcRampBlock(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0, fx, fy, weight,
+                mlRe, mlIm, mw, mh, rect.x, rect.y);
     }
 
     /** Weighted LS fit of the 5 ramp coefficients from (x, y, fx, fy, w) gradient samples. */
@@ -819,14 +1426,33 @@ public class InterferogramOp extends Operator {
                 final boolean cohOn = includeCoherence && gslcTargetCoh != null
                         && targetTileMap.get(gslcTargetCoh[p]) != null;
                 final Rectangle refRect = cohOn ? cohRect : targetRectangle;
+                final GslcPerBurstRamp rampPB = (subtractResidualRamp && gslcRampPerBurst != null
+                        && p < gslcRampPerBurst.length) ? gslcRampPerBurst[p] : null;
                 double[][] refPhase = gslcRemoveRefPhase
                         ? computeGslcReferencePhase(refRect,
-                                gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]))
+                                gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]),
+                                rampPB, true)
                         : null;
+                if (refPhase == null && rampPB != null) {
+                    // Reference-phase removal off but per-burst ramp on: ramp-only surface through
+                    // the same node machinery (burst labels need the reference geometry).
+                    refPhase = computeGslcReferencePhase(refRect, null, null, rampPB, false);
+                }
+
+                // Exact deramp-model difference rides the same surface, so interferogram and
+                // coherence stay mutually consistent (as for flat-earth/topo and the ramp).
+                if (gslcCarrierDiffAvailable(p)) {
+                    if (refPhase == null) {
+                        refPhase = new double[refRect.height][refRect.width];
+                    }
+                    addGslcCarrierModelDiff(refPhase, refRect, p);
+                }
 
                 // Residual-ramp removal rides on the same reference-phase surface so the
-                // interferogram and the coherence estimator stay mutually consistent.
-                final double[] rampC = (subtractResidualRamp && gslcRampCoef != null
+                // interferogram and the coherence estimator stay mutually consistent. The global
+                // quadratic applies only when no per-burst model exists (stripmap GSLC, burst
+                // annotation unavailable) — the per-burst model already contains the global part.
+                final double[] rampC = (rampPB == null && subtractResidualRamp && gslcRampCoef != null
                         && p < gslcRampCoef.length) ? gslcRampCoef[p] : null;
                 if (rampC != null) {
                     if (refPhase == null) {
@@ -915,8 +1541,31 @@ public class InterferogramOp extends Operator {
         gslcRefSLC = new SLCImage(refAbs, sourceProduct);
         gslcRefOrbit = new Orbit(refAbs, orbitDegree);
 
+        if (subtractResidualRamp) {
+            final double[][] burstTable = extractGslcBurstTableSod(sourceProduct);
+            if (burstTable != null) {
+                gslcBurstStartSod = burstTable[0];
+                gslcBurstEndSod = burstTable[1];
+                SystemUtils.LOG.info("GSLC residual ramp: reference burst table with "
+                        + gslcBurstStartSod.length + " bursts — per-burst ramp fitting enabled.");
+            } else {
+                SystemUtils.LOG.info("GSLC residual ramp: no burst annotation found — "
+                        + "using the scene-global quadratic fit.");
+            }
+        }
+
+        discoverGslcCarrierModelBands();
+
         final MetadataElement secRoot = AbstractMetadata.getSecondaryMetadata(sourceProduct.getMetadataRoot());
         for (String secProdName : StackUtils.getSecondaryProductNames(sourceProduct)) {
+            // getSecondaryProductNames is a bare getElementNames(), so it includes
+            // Original_Product_Metadata. Constructing an SLCImage from that element throws
+            // "Metadata attribute 'MISSION' not found" and aborts GSLC mode on the DEFAULT
+            // parameters. Every sibling operator skips it explicitly — including this file's own
+            // classic path — so do the same here.
+            if (AbstractMetadata.ORIGINAL_PRODUCT_METADATA.equals(secProdName)) {
+                continue;
+            }
             final MetadataElement secAbs = (secRoot != null) ? secRoot.getElement(secProdName) : null;
             if (secAbs == null) continue;
             final SLCImage secSLC = new SLCImage(secAbs, sourceProduct);
@@ -956,8 +1605,9 @@ public class InterferogramOp extends Operator {
      * flat-earth phase is removed.
      */
     private double[][] computeGslcReferencePhase(final Rectangle rect, final SLCImage secSLC,
-                                                 final Orbit secOrbit) throws Exception {
-        if (secSLC == null || secOrbit == null) {
+                                                 final Orbit secOrbit, final GslcPerBurstRamp ramp,
+                                                 final boolean includeRefTerm) throws Exception {
+        if (includeRefTerm && (secSLC == null || secOrbit == null)) {
             return null;
         }
         final int w = rect.width, h = rect.height, x0 = rect.x, y0 = rect.y;
@@ -966,9 +1616,12 @@ public class InterferogramOp extends Operator {
         final int ny = (h + step - 1) / step + 1;
         final double[][] node = new double[ny][nx];
 
-        final double phaseFactor = -4.0 * Constants.PI / secSLC.getRadarWavelength();
+        final double phaseFactor = includeRefTerm ? -4.0 * Constants.PI / secSLC.getRadarWavelength() : 0.0;
         final boolean useDem = subtractTopographicPhase && dem != null;
-        final double demNoData = useDem ? dem.getDescriptor().getNoDataValue() : 0.0;
+        // Use the field, not dem.getDescriptor(): FileElevationModel (any externalDEMFile) returns a
+        // null descriptor, so dereferencing it here NPE'd on every tile. defineDEM() already resolves
+        // the correct value for both the auto-download and external cases.
+        final double demNoData = useDem ? demNoDataValue : 0.0;
         final GeoPos geo = new GeoPos();
         final PixelPos pix = new PixelPos();
 
@@ -994,10 +1647,20 @@ public class InterferogramOp extends Operator {
                     }
                 }
                 final Point xyz = Ellipsoid.ell2xyz(FastMath.toRadians(geo.lat), FastMath.toRadians(geo.lon), height);
-                final double tRef = gslcRefOrbit.xyz2t(xyz, gslcRefSLC).x;
-                final double tSec = secOrbit.xyz2t(xyz, secSLC).x;
-                // refPhaseSec = phaseFactor * (R_sec - R_ref); angle to subtract = refPhaseRef(=0) - refPhaseSec
-                node[j][i] = -(phaseFactor * Constants.lightSpeed * (tSec - tRef));
+                final Point tpRef = gslcRefOrbit.xyz2t(xyz, gslcRefSLC);
+                double v = 0.0;
+                if (includeRefTerm) {
+                    final double tSec = secOrbit.xyz2t(xyz, secSLC).x;
+                    // refPhaseSec = phaseFactor * (R_sec - R_ref); angle to subtract = refPhaseRef(=0) - refPhaseSec
+                    v = -(phaseFactor * Constants.lightSpeed * (tSec - tpRef.x));
+                }
+                if (ramp != null) {
+                    // Per-burst residual ramp, evaluated in azimuth time (.y of the same solve) —
+                    // exact under the iso-eta tilt. Folding it in at the nodes keeps burst seams
+                    // sharp to within one interpolation cell (~GSLC_REFPHASE_SUBSAMPLE px).
+                    v += ramp.phaseAt(xx, tpRef.y, ramp.burstOfSod(tpRef.y));
+                }
+                node[j][i] = v;
             }
         }
 
@@ -1102,6 +1765,7 @@ public class InterferogramOp extends Operator {
             final int wyHi = Math.min(y + halfAz, cohYhi);
             for (int x = x0; x < x0 + w; x++) {
                 double sumReal = 0, sumImag = 0, sumRef = 0, sumSec = 0;
+                int nValid = 0;
                 final int wxLo = Math.max(x - halfRg, cohXlo);
                 final int wxHi = Math.min(x + halfRg, cohXhi);
 
@@ -1120,6 +1784,16 @@ public class InterferogramOp extends Operator {
                             final double mq = refArrQ[refIdx];
                             final double si = secArrI[secIdx];
                             final double sq = secArrQ[secIdx];
+
+                            // Skip samples where EITHER leg is the (0,0) geocoding fill. Counting a
+                            // fill sample in sumRef but not in sumReal/sumSec drove the ratio toward
+                            // zero, so valid pixels within half a window of a fill boundary read
+                            // systematically low — indistinguishable from real decorrelation, and a
+                            // geocoded product is mostly fill around its edges.
+                            if ((mi == 0.0 && mq == 0.0) || (si == 0.0 && sq == 0.0)) {
+                                continue;
+                            }
+                            ++nValid;
 
                             double pr = mi * si + mq * sq;
                             double pi = mq * si - mi * sq;
@@ -1144,6 +1818,11 @@ public class InterferogramOp extends Operator {
                             final double si = secDataI.getElemDoubleAt(secIdx);
                             final double sq = secDataQ.getElemDoubleAt(secIdx);
 
+                            if ((mi == 0.0 && mq == 0.0) || (si == 0.0 && sq == 0.0)) {
+                                continue;   // geocoding fill on either leg — see the float path above
+                            }
+                            ++nValid;
+
                             double pr = mi * si + mq * sq;
                             double pi = mq * si - mi * sq;
                             if (cRow != null) {
@@ -1161,9 +1840,17 @@ public class InterferogramOp extends Operator {
                     }
                 }
 
-                final double crossMag = Math.sqrt(sumReal * sumReal + sumImag * sumImag);
-                final double denom = Math.sqrt(sumRef * sumSec);
-                final double coh = (denom > 0) ? crossMag / denom : 0.0;
+                // No valid sample pair in the window => no-data, so the coherence mask matches the
+                // interferogram mask. Previously a non-zero coherence was written at pixels where the
+                // interferogram itself is no-data, because the window still caught valid neighbours.
+                final double coh;
+                if (nValid == 0) {
+                    coh = COHERENCE_NO_DATA;
+                } else {
+                    final double crossMag = Math.sqrt(sumReal * sumReal + sumImag * sumImag);
+                    final double denom = Math.sqrt(sumRef * sumSec);
+                    coh = (denom > 0) ? crossMag / denom : COHERENCE_NO_DATA;
+                }
 
                 cohData.setElemDoubleAt(cohIndex.getIndex(x), coh);
             }
@@ -2790,6 +3477,96 @@ public class InterferogramOp extends Operator {
         }
     }
 
+    /**
+     * Provenance flag written by {@code S1ETADCorrectionOp}. A literal string, not that class's
+     * constant: {@code sar-op-sentinel1} compile-depends on this module, so the reverse import would
+     * be a Maven reactor cycle.
+     */
+    static final String ETAD_PHASE_APPLIED_ATTR = "etad_phase_applied";
+
+    /**
+     * Refuse to form an interferogram from a GSLC stack that mixes ETAD-corrected and uncorrected
+     * acquisitions.
+     * <p>
+     * The classical path degrades safely: {@code checkETADCorrection} ANDs the reference and secondary
+     * grid presence, so a one-sided pair gets no correction and the interferogram is uncorrected but
+     * internally consistent. The geocode-first chain has no such option — the correction is baked into
+     * the complex data per product, before the pair exists, and cannot be undone.
+     * <p>
+     * A one-sided stack therefore retains an uncompensated range-delay phase of order tens of radians
+     * (the differential delay is 0.15-0.40 m, i.e. 34-91 rad at C-band): smooth, spatially correlated,
+     * and indistinguishable from deformation. No downstream check can find it in the data, so this
+     * throws rather than warning — a {@code SystemUtils.LOG.warning} reaches only the log file in SNAP
+     * Desktop, which for a defect that silently mimics the signal being measured is not enough.
+     * <p>
+     * Absent provenance reads as 0 on both sides, so pre-flag stacks are unaffected.
+     */
+    private void checkETADStateSymmetry(final MetadataElement absRoot) {
+
+        final int refState = safeFlag(absRoot, ETAD_PHASE_APPLIED_ATTR);
+        final List<String> mismatched;
+        try {
+            mismatched = findETADPhaseMismatches(
+                    refState, StackUtils.findSecondaryMetadataRoot(sourceProduct));
+        } catch (Exception e) {
+            SystemUtils.LOG.fine("InterferogramOp: ETAD symmetry check skipped: " + e.getMessage());
+            return;
+        }
+        if (mismatched.isEmpty()) {
+            return;
+        }
+
+        throw new OperatorException("InterferogramOp: ETAD state is asymmetric across this GSLC stack. "
+                + "The reference has " + ETAD_PHASE_APPLIED_ATTR + '=' + refState
+                + " but these secondaries differ: " + String.join(", ", mismatched) + ". "
+                + "The ETAD range-delay phase was removed from one acquisition and not the other, so "
+                + "the interferogram would retain an uncompensated atmospheric phase ramp of tens of "
+                + "radians that is indistinguishable from deformation. Re-process every acquisition "
+                + "in this stack with the same S1-ETAD-Correction configuration. (If both were in fact "
+                + "corrected but one predates ETAD provenance being recorded, re-run "
+                + "S1-ETAD-Correction on that acquisition so the flag is written.)");
+    }
+
+    /**
+     * Secondaries whose ETAD phase state differs from the reference, described for a message.
+     *
+     * @param refState      the reference's {@code etad_phase_applied}
+     * @param secondaryRoot the {@code Secondary_Metadata} element, may be null
+     * @return one entry per mismatched secondary; empty when symmetric
+     */
+    static List<String> findETADPhaseMismatches(final int refState, final MetadataElement secondaryRoot) {
+
+        final List<String> mismatched = new ArrayList<>();
+        if (secondaryRoot == null) {
+            return mismatched;
+        }
+        for (final MetadataElement sec : secondaryRoot.getElements()) {
+            if (AbstractMetadata.ORIGINAL_PRODUCT_METADATA.equals(sec.getName())) {
+                continue;
+            }
+            final int secState = safeFlag(sec, ETAD_PHASE_APPLIED_ATTR);
+            if (secState != refState) {
+                mismatched.add(sec.getName() + " (" + ETAD_PHASE_APPLIED_ATTR + '=' + secState + ')');
+            }
+        }
+        return mismatched;
+    }
+
+    /**
+     * Read an int flag, treating absent or non-numeric as 0. {@code getAttributeInt(name, default)}
+     * returns the default only for an absent attribute; a non-numeric one throws.
+     */
+    private static int safeFlag(final MetadataElement elem, final String name) {
+        if (elem == null) {
+            return 0;
+        }
+        try {
+            return elem.getAttributeInt(name, 0);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private Map<Integer, Integer> createRefSecBurstMap(final String secondaryProductDate) {
 
         final Map<Integer, Integer> refSecBurstMap = new HashMap<>();
@@ -2800,23 +3577,72 @@ public class InterferogramOp extends Operator {
         final MetadataElement[] secondaryRoot = secondaryElem.getElements();
         for (MetadataElement meta : secondaryRoot) {
             if(meta.getName().contains(secondaryProductDate)) {
-                final MetadataElement etadBurstsElem = meta.getElement("ETAD_Burst_Index_Array");
-                final String refBursts = etadBurstsElem.getAttributeString("master_bursts");
-                final String secBursts = etadBurstsElem.getAttributeString("slave_bursts");
-                final Integer[] refBurstArray = stringToIntegerArray(refBursts);
-                final Integer[] secBurstArray = stringToIntegerArray(secBursts);
-                for (int i = 0; i < refBurstArray.length; ++i) {
-                    refSecBurstMap.put(refBurstArray[i], secBurstArray[i]);
-                }
+                refSecBurstMap.putAll(parseRefSecBurstMap(meta.getElement("ETAD_Burst_Index_Array")));
                 break;
             }
         }
         return refSecBurstMap;
     }
 
-    private Integer[] stringToIntegerArray(final String inputStr) {
-        String[] inputStrArray = inputStr.split(" ");
-        return Stream.of(inputStrArray).mapToInt(Integer::parseInt).boxed().toArray(Integer[]::new);
+    /**
+     * Build the reference-to-secondary ETAD burst index mapping from the
+     * {@code ETAD_Burst_Index_Array} element that
+     * {@link eu.esa.sar.sentinel1.gpf.BackGeocodingOp} attaches to each secondary's metadata.
+     * <p>
+     * The current attribute names are {@code reference_bursts} / {@code secondary_bursts}. The
+     * legacy {@code master_bursts} / {@code slave_bursts} names are still accepted so stacks
+     * written before the terminology rename keep working. Reading the legacy names only was a bug:
+     * nothing writes them, and the single-argument
+     * {@link MetadataElement#getAttributeString(String)} throws for a missing attribute, so every
+     * TOPS ETAD interferogram failed on its first tile.
+     * <p>
+     * Never throws: a null or incomplete element yields an empty map, which the callers treat as
+     * "no burst mapping available".
+     *
+     * @param etadBurstsElem the {@code ETAD_Burst_Index_Array} element, may be null
+     * @return reference burst index -> secondary burst index; empty when unavailable
+     */
+    static Map<Integer, Integer> parseRefSecBurstMap(final MetadataElement etadBurstsElem) {
+
+        final Map<Integer, Integer> map = new HashMap<>();
+        if (etadBurstsElem == null) {
+            return map;
+        }
+
+        String refBursts = etadBurstsElem.getAttributeString("reference_bursts", "");
+        String secBursts = etadBurstsElem.getAttributeString("secondary_bursts", "");
+        if (refBursts.trim().isEmpty() || secBursts.trim().isEmpty()) {
+            // Pre-rename stacks.
+            refBursts = etadBurstsElem.getAttributeString("master_bursts", "");
+            secBursts = etadBurstsElem.getAttributeString("slave_bursts", "");
+        }
+
+        final Integer[] refBurstArray = stringToIntegerArray(refBursts);
+        final Integer[] secBurstArray = stringToIntegerArray(secBursts);
+
+        final int n = Math.min(refBurstArray.length, secBurstArray.length);
+        if (refBurstArray.length != secBurstArray.length) {
+            SystemUtils.LOG.warning("InterferogramOp: ETAD_Burst_Index_Array has "
+                    + refBurstArray.length + " reference and " + secBurstArray.length
+                    + " secondary burst indices; using the first " + n + '.');
+        }
+        for (int i = 0; i < n; ++i) {
+            map.put(refBurstArray[i], secBurstArray[i]);
+        }
+        return map;
+    }
+
+    /**
+     * Parse a space-separated list of burst indices. The writer emits a trailing space, and an
+     * empty string when every index is -1, so blank entries are skipped rather than parsed.
+     */
+    private static Integer[] stringToIntegerArray(final String inputStr) {
+        if (inputStr == null || inputStr.trim().isEmpty()) {
+            return new Integer[0];
+        }
+        return Stream.of(inputStr.trim().split("\\s+"))
+                .filter(s -> !s.isEmpty())
+                .mapToInt(Integer::parseInt).boxed().toArray(Integer[]::new);
     }
 
 

@@ -483,6 +483,47 @@ public class RangeDopplerGeocodingOp extends Operator {
         nearRangeOnLeft = SARGeocoding.isNearRangeOnLeft(incidenceAngle, sourceImageWidth);
 
         isPolsar = absRoot.getAttributeInt(AbstractMetadata.polsarData, 0) == 1;
+
+        // InSAR results must not degrade to intensity by default: with no explicit band selection
+        // the complex-pair collapse below would geocode an interferogram to Intensity + coherence,
+        // silently discarding the interferometric phase — the very content being terrain-corrected.
+        // Geocode complex instead: i and q resampled per component IS complex interpolation, the
+        // only faithful way to move wrapped phase between grids (interpolating a wrapped Phase band
+        // averages across the ±pi boundary along every fringe). The source's virtual Phase/Intensity
+        // bands are re-created over the geocoded pair. Explicit band selection still overrides.
+        if ((sourceBandNames == null || sourceBandNames.length == 0)
+                && !outputComplex && !isPolsar && isInSARProduct(absRoot, sourceProduct)) {
+            outputComplex = true;
+            SystemUtils.LOG.info("Terrain-Correction: InSAR source detected (coregistered stack / "
+                    + "coherence band with complex pairs) — geocoding complex data as complex and "
+                    + "carrying the Phase band, instead of collapsing to Intensity. Select bands "
+                    + "explicitly to override.");
+        }
+    }
+
+    /**
+     * An interferometric-processing result: a coregistered stack (or a product carrying a
+     * coherence-unit band) whose data is complex. These are the products for which the intensity
+     * collapse silently destroys the purpose of the terrain correction.
+     */
+    static boolean isInSARProduct(final MetadataElement absRoot, final Product product) {
+        boolean hasComplexPair = false;
+        boolean hasCoherence = false;
+        for (final Band b : product.getBands()) {
+            final String unit = b.getUnit();
+            if (unit == null) continue;
+            if (!(b instanceof VirtualBand) && (unit.equals(Unit.REAL) || unit.equals(Unit.IMAGINARY))) {
+                hasComplexPair = true;
+            } else if (unit.contains(Unit.COHERENCE)) {
+                hasCoherence = true;
+            }
+        }
+        if (!hasComplexPair) {
+            return false;
+        }
+        final boolean coregisteredStack =
+                absRoot != null && absRoot.getAttributeInt(AbstractMetadata.coregistered_stack, 0) == 1;
+        return hasCoherence || coregisteredStack;
     }
 
     /**
@@ -713,11 +754,20 @@ public class RangeDopplerGeocodingOp extends Operator {
 
                     if (outputComplex && noBandsSelected && srcBand.getUnit().equals(Unit.IMAGINARY)) { // add virtual bands
 
-                        int idx = sourceProduct.getBandIndex(srcBand.getName());
-                        Band band = sourceProduct.getBandAt(idx + 1);
-                        if (band != null && band instanceof VirtualBand) {
-                            VirtualBand srcVirtBand = (VirtualBand) band;
-
+                        // Copy ALL consecutive virtual bands that follow the pair, not just the
+                        // first: an interferogram carries Intensity AND Phase virtuals after q, and
+                        // stopping at idx+1 dropped the Phase — the band this mode exists to keep.
+                        // Their expressions reference the i/q names, which are preserved above.
+                        final int idx = sourceProduct.getBandIndex(srcBand.getName());
+                        for (int v = idx + 1; v < sourceProduct.getNumBands(); v++) {
+                            final Band band = sourceProduct.getBandAt(v);
+                            if (!(band instanceof VirtualBand)) {
+                                break;
+                            }
+                            final VirtualBand srcVirtBand = (VirtualBand) band;
+                            if (targetProduct.containsBand(srcVirtBand.getName())) {
+                                continue;
+                            }
                             final VirtualBand virtBand = new VirtualBand(srcVirtBand.getName(), srcVirtBand.getDataType(),
                                                                          targetImageWidth, targetImageHeight, srcVirtBand.getExpression());
                             virtBand.setUnit(srcVirtBand.getUnit());

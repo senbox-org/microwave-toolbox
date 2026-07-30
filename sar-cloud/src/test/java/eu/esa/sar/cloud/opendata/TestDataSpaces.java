@@ -42,10 +42,13 @@ public class TestDataSpaces {
         assertTrue(query.contains("Collection/Name eq 'SENTINEL-1'"));
         assertTrue(query.contains("productType"));
         assertTrue(query.contains("IW_ETA__AX"));
-        assertTrue(query.contains("2024-05-03T00:50:00.000Z"));
-        assertTrue(query.contains("2024-05-03T00:51:00.000Z"));
-        assertTrue(query.contains("ContentDate/Start gt"));
-        assertTrue(query.contains("ContentDate/End lt"));
+        // Temporal OVERLAP, not containment: the product's start must precede the window's END and
+        // its end must follow the window's START. Containment ("Start gt start and End lt end")
+        // returned nothing when the caller's window was a burst subset of the product it was
+        // looking for (a ~9 s three-burst window can never contain a ~30 s ETAD frame).
+        // Each clause is asserted with its date so a swapped pair also fails.
+        assertTrue(query.contains("ContentDate/Start lt 2024-05-03T00:51:00.000Z"));
+        assertTrue(query.contains("ContentDate/End gt 2024-05-03T00:50:00.000Z"));
     }
 
     @Test

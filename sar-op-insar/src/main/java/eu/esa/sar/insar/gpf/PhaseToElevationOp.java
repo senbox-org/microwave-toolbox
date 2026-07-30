@@ -180,17 +180,20 @@ public final class PhaseToElevationOp extends Operator {
             //
             //  - Schwabisch fits a slant-range-to-height polynomial over a window in RADAR image
             //    coordinates (see computeSchwabischModel), so on a map grid the model would be
-            //    evaluated in the wrong coordinate system and return silently wrong heights. It
-            //    therefore still requires radar geometry, and says so.
-            //  - DEM Seed reads per-pixel latitude/longitude/incidence-angle/slant-range-time tie
-            //    point grids. It already fails with a precise message when they are absent, which
-            //    is the correct behaviour for a product that lacks them, so no blanket check is
-            //    needed: a map-projected product that does carry those grids will work.
-            if (isSchwabisch && InputProductValidator.isMapProjected(sourceProduct)) {
-                throw new OperatorException("The " + METHOD_SCHWABISCH + " method requires a product in " +
-                        "radar geometry: it fits a slant-range-to-height polynomial in radar image " +
-                        "coordinates, which is not meaningful on a map-projected grid. Use the '" +
-                        METHOD_DEM_SEED + "' method, or run this operator before terrain correction.");
+            //    evaluated in the wrong coordinate system and return silently wrong heights.
+            //  - DEM Seed is EQUALLY radar-only, contrary to what an earlier version of this comment
+            //    claimed. computeSeedReferencedTile evaluates baseline.getBperp(y, x) /
+            //    getBpar(y, x) — polynomials fitted over the radar image window — and indexes
+            //    lookAngles[x] as if x were a range sample. On a map grid those arguments are in the
+            //    wrong coordinate system and the polynomial is extrapolated outside its fitted
+            //    range. Today it happens to fail earlier, because no geocoding operator in the
+            //    toolbox carries the required tie point grids forward, but relying on that is safety
+            //    by accident. Both methods are therefore refused explicitly.
+            if (InputProductValidator.isMapProjected(sourceProduct)) {
+                throw new OperatorException("Phase to Elevation requires a product in radar geometry. " +
+                        "Both methods evaluate baseline/look-angle models in radar image coordinates " +
+                        "(range across, azimuth down), which are not meaningful on a map-projected " +
+                        "grid. Run this operator BEFORE terrain correction / geocoding.");
             }
 
             getMetadata();

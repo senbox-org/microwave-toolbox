@@ -30,6 +30,8 @@ import org.esa.snap.ui.AppContext;
 import org.geotools.referencing.wkt.UnformattableObjectException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
+import org.esa.snap.core.datamodel.MetadataElement;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -50,6 +52,17 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
 
     final JComboBox<String> imgResamplingMethod = new JComboBox<>(ResamplingFactory.resamplingNames);
 
+    /** "Custom" is a UI-only entry: it is never written as a gridSpacing value. Choosing it means
+     *  "ignore the policy and use the numbers I typed", which is expressed to the operator by
+     *  writing an explicit pixelSpacingInMeter instead. */
+    static final String GRID_CUSTOM = "Custom (enter spacing below)";
+    final JComboBox<String> gridSpacing = new JComboBox<>(new String[]{
+            "NATIVE_ANISOTROPIC", "SQUARE_COARSEST", "SQUARE_FINEST", GRID_CUSTOM});
+    /** Shows the step a policy will derive. DISPLAY ONLY -- deliberately never written to paramMap,
+     *  because an explicit spacing OVERRIDES gridSpacing: freezing these numbers into a saved graph
+     *  would silently apply one scene's step to every later product. */
+    final JLabel derivedSpacingLabel = new JLabel("");
+
     final JTextField pixelSpacingInMeter = new JTextField("");
     final JTextField pixelSpacingInDegree = new JTextField("");
     final JTextField pixelSpacingInMeterY = new JTextField("");
@@ -67,6 +80,8 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     final JCheckBox nodataValueAtSeaCheckBox = new JCheckBox("Mask out areas without elevation");
     final JCheckBox outputFlattenedCheckBox = new JCheckBox("Output flattened complex data (not for InSAR)");
     final JCheckBox outputAzimuthCarrierCheckBox = new JCheckBox("Restore TOPS azimuth carrier (not for InSAR)");
+    final JCheckBox outputPhaseTermsCheckBox = new JCheckBox(
+            "Output phase-term bands (enables exact carrier-difference InSAR)");
     final JCheckBox saveDEMCheckBox = new JCheckBox("DEM");
     final JCheckBox saveLatLonCheckBox = new JCheckBox("Latitude & Longitude");
     final JCheckBox saveIncidenceAngleFromEllipsoidCheckBox = new JCheckBox("Incidence angle from ellipsoid");
@@ -79,6 +94,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     private Boolean nodataValueAtSea = true;
     private Boolean outputFlattened = false;
     private Boolean outputAzimuthCarrier = false;
+    private Boolean outputPhaseTerms = false;
     private Boolean saveDEM = false;
     private Boolean saveLatLon = false;
     private Boolean saveIncidenceAngleFromEllipsoid = false;
@@ -152,6 +168,11 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
                 outputAzimuthCarrier = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
+        outputPhaseTermsCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                outputPhaseTerms = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
         saveDEMCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 saveDEM = (e.getStateChange() == ItemEvent.SELECTED);
@@ -222,6 +243,18 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         final String mapProjection = (String) paramMap.get("mapProjection");
         mapProjHandler.initParameters(mapProjection, sourceProducts);
         crsButton.setText(mapProjHandler.getCRSName());
+
+        final Object gs = paramMap.get("gridSpacing");
+        // An explicit spacing overrides gridSpacing in the operator, so a graph carrying one must
+        // open as Custom -- otherwise the dialog would claim a policy is in force when it is not.
+        final Double savedPixM = (Double) paramMap.get("pixelSpacingInMeter");
+        if (savedPixM != null && savedPixM > 0.0) {
+            gridSpacing.setSelectedItem(GRID_CUSTOM);
+        } else if (gs != null) {
+            gridSpacing.setSelectedItem(gs.toString());
+        }
+        gridSpacing.addItemListener(e -> updateGridSpacingState());
+        updateGridSpacingState();   // reflect the restored selection immediately
 
         pixMSaved = (Double) paramMap.get("pixelSpacingInMeter");
         if (pixMSaved != null && pixMSaved != 0.0) {
@@ -329,6 +362,12 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
             outputAzimuthCarrierCheckBox.setSelected(outputAzimuthCarrier);
         }
 
+        paramVal = (Boolean) paramMap.get("outputPhaseTerms");
+        if (paramVal != null) {
+            outputPhaseTerms = paramVal;
+            outputPhaseTermsCheckBox.setSelected(outputPhaseTerms);
+        }
+
         paramVal = (Boolean) paramMap.get("saveDEM");
         if (paramVal != null) {
             saveDEM = paramVal;
@@ -383,6 +422,65 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         return new UIValidation(UIValidation.State.OK, "");
     }
 
+    /**
+     * A policy owns the grid step, so the spacing fields are disabled and show what will be derived.
+     * Only "Custom" hands control back to the user. Greying rather than filling is the point: see
+     * {@link #derivedSpacingLabel}.
+     */
+    private void updateGridSpacingState() {
+        final boolean custom = GRID_CUSTOM.equals(gridSpacing.getSelectedItem());
+        pixelSpacingInMeter.setEnabled(custom);
+        pixelSpacingInDegree.setEnabled(custom);
+        pixelSpacingInMeterY.setEnabled(custom);
+        pixelSpacingInDegreeY.setEnabled(custom);
+        if (custom) {
+            derivedSpacingLabel.setText("using the values entered below");
+            return;
+        }
+        derivedSpacingLabel.setText(describeDerivedStep((String) gridSpacing.getSelectedItem()));
+    }
+
+    /**
+     * Describe the step the selected policy will derive, from the source product's own metadata.
+     * Mirrors GSLCGeocodingOp: east steps by SLANT range (a mode constant, so every scene from the
+     * beam agrees), north by azimuth spacing, and both are quantised so a stack stays lattice-aligned.
+     */
+    private String describeDerivedStep(final String policy) {
+        if (sourceProducts == null || sourceProducts.length == 0) {
+            return "(select a source product to see the derived step)";
+        }
+        try {
+            final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProducts[0]);
+            final double rg = abs.getAttributeDouble(AbstractMetadata.range_spacing, 0.0);
+            final double az = abs.getAttributeDouble(AbstractMetadata.azimuth_spacing, 0.0);
+            if (rg <= 0.0 || az <= 0.0) {
+                return "(source spacing unavailable)";
+            }
+            final double x;
+            final double y;
+            if ("SQUARE_FINEST".equals(policy)) {
+                x = Math.min(rg, az);
+                y = x;
+            } else if ("SQUARE_COARSEST".equals(policy)) {
+                x = Math.max(rg, az);
+                y = x;
+            } else {
+                x = rg;
+                y = az;
+            }
+            return String.format("%.2f m east x %.2f m north (quantised, derived from this product)",
+                    quantise(x), quantise(y));
+        } catch (Exception e) {
+            return "(could not derive: " + e.getMessage() + ")";
+        }
+    }
+
+    /** Same 50 mm quantum GSLCGeocodingOp applies to a derived step, so the label cannot disagree
+     *  with what the operator will actually use. */
+    private static double quantise(final double v) {
+        return Math.round(v / 0.05) * 0.05;
+    }
+
     @Override
     public void updateParameters() {
 
@@ -392,28 +490,43 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         paramMap.put("demName", properDEMName);
         paramMap.put("demResamplingMethod", demResamplingMethod.getSelectedItem());
         paramMap.put("imgResamplingMethod", imgResamplingMethod.getSelectedItem());
-        if (pixelSpacingInMeter.getText().isEmpty()) {
-            paramMap.put("pixelSpacingInMeter", 0.0);
-        } else {
-            paramMap.put("pixelSpacingInMeter", Double.parseDouble(pixelSpacingInMeter.getText()));
-        }
+        final boolean customGrid = GRID_CUSTOM.equals(gridSpacing.getSelectedItem());
+        if (customGrid) {
+            // Custom: the typed spacing is authoritative, so do NOT send a policy the operator would
+            // ignore -- leaving it in would misrepresent the graph to anyone reading it later.
+            paramMap.remove("gridSpacing");
 
-        if (pixelSpacingInDegree.getText().isEmpty()) {
-            paramMap.put("pixelSpacingInDegree", 0.0);
-        } else {
-            paramMap.put("pixelSpacingInDegree", Double.parseDouble(pixelSpacingInDegree.getText()));
-        }
+            if (pixelSpacingInMeter.getText().isEmpty()) {
+                paramMap.put("pixelSpacingInMeter", 0.0);
+            } else {
+                paramMap.put("pixelSpacingInMeter", Double.parseDouble(pixelSpacingInMeter.getText()));
+            }
 
-        if (pixelSpacingInMeterY.getText().isEmpty()) {
-            paramMap.put("pixelSpacingInMeterY", 0.0);
-        } else {
-            paramMap.put("pixelSpacingInMeterY", Double.parseDouble(pixelSpacingInMeterY.getText()));
-        }
+            if (pixelSpacingInDegree.getText().isEmpty()) {
+                paramMap.put("pixelSpacingInDegree", 0.0);
+            } else {
+                paramMap.put("pixelSpacingInDegree", Double.parseDouble(pixelSpacingInDegree.getText()));
+            }
 
-        if (pixelSpacingInDegreeY.getText().isEmpty()) {
-            paramMap.put("pixelSpacingInDegreeY", 0.0);
+            if (pixelSpacingInMeterY.getText().isEmpty()) {
+                paramMap.put("pixelSpacingInMeterY", 0.0);
+            } else {
+                paramMap.put("pixelSpacingInMeterY", Double.parseDouble(pixelSpacingInMeterY.getText()));
+            }
+
+            if (pixelSpacingInDegreeY.getText().isEmpty()) {
+                paramMap.put("pixelSpacingInDegreeY", 0.0);
+            } else {
+                paramMap.put("pixelSpacingInDegreeY", Double.parseDouble(pixelSpacingInDegreeY.getText()));
+            }
         } else {
-            paramMap.put("pixelSpacingInDegreeY", Double.parseDouble(pixelSpacingInDegreeY.getText()));
+            paramMap.put("gridSpacing", gridSpacing.getSelectedItem());
+            // Clear any spacing so the policy actually applies: gridSpacing only takes effect when no
+            // explicit pixel spacing is given. Only the typed-spacing reads above are skipped here —
+            // an early `return` at this spot once skipped EVERYTHING below (map projection, external
+            // DEM, oversampling and every output checkbox), silently dropping any non-default
+            // setting whenever a grid policy was selected. Found by a user with a breakpoint in
+            // GSLCGeocodingOp.initialize(); do not reintroduce it.
         }
 
         if (oversamplingPercent.getText().isEmpty()) {
@@ -441,6 +554,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         paramMap.put("nodataValueAtSea", nodataValueAtSea);
         paramMap.put("outputFlattened", outputFlattened);
         paramMap.put("outputAzimuthCarrier", outputAzimuthCarrier);
+        paramMap.put("outputPhaseTerms", outputPhaseTerms);
         paramMap.put("saveDEM", saveDEM);
         paramMap.put("saveLatLon", saveLatLon);
         paramMap.put("saveIncidenceAngleFromEllipsoid", saveIncidenceAngleFromEllipsoid);
@@ -481,6 +595,11 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, sourcePixelSpacingsLabelPart1, sourcePixelSpacingsLabelPart2);
         gbc.gridy++;
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Grid Spacing:", gridSpacing);
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Derived step:", derivedSpacingLabel);
+        gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, "Pixel Spacing (m):", pixelSpacingInMeter);
         gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, "Pixel Spacing (deg):", pixelSpacingInDegree);
@@ -508,6 +627,9 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
         gbc.gridy++;
         gbc.gridx = 1;
         contentPane.add(outputAzimuthCarrierCheckBox, gbc);
+        gbc.gridy++;
+        gbc.gridx = 1;
+        contentPane.add(outputPhaseTermsCheckBox, gbc);
 
         gbc.gridx = 0;
         gbc.gridy++;

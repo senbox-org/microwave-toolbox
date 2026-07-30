@@ -81,6 +81,12 @@ public class S1ETADCorrectionOp extends Operator {
             label = "Output Phase Corrections")
     private boolean outputPhaseCorrections = false;
 
+    @Parameter(description = "Also write the applied range-delay phase as an 'etadPhase' band, so the "
+            + "size of the correction can be inspected without reprocessing. Diagnostic only: adds a "
+            + "non-complex band, which changes what coregistration and stacking see.",
+            defaultValue = "false", label = "Output ETAD phase as a band (diagnostic)")
+    private boolean outputETADPhaseBand = false;
+
     @Parameter(description = "Tropospheric Correction (Range)", defaultValue = "false",
             label = "Tropospheric Correction (Range)")
     private boolean troposphericCorrectionRg = false;
@@ -206,6 +212,37 @@ public class S1ETADCorrectionOp extends Operator {
         if (outputPhaseCorrections && !((acquisitionMode.equals("IW") || acquisitionMode.equals("SM")) && productType.equals("SLC"))) {
             throw new OperatorException("Option 2 is for Sentinel-1 IW SLC and SM SLC product only");
         }
+
+        checkCombinedModeSupported(resamplingImage, outputPhaseCorrections, acquisitionMode);
+    }
+
+    /**
+     * Applying the geometric correction and the range-delay phase in a single pass is implemented in
+     * {@code TOPSCorrector} only.
+     * <p>
+     * {@code SMCorrector} would fail: it dispatches its target product on
+     * {@code outputPhaseCorrections} but its tiles on {@code resamplingImage}, and it never bakes
+     * phase into pixels. With both flags set the target gets correction bands that the resampling
+     * tile path cannot fill, and it dies on a null tile entry when a computed band is pulled.
+     * <p>
+     * Guarding here rather than fixing {@code SMCorrector} keeps this change small and makes the
+     * limitation explicit to the user. It also underwrites the {@code etad_phase_applied}
+     * provenance flag: with this guard in place, reaching {@link #writeETADProvenance} with both
+     * flags true implies TOPS, which does bake the phase in.
+     *
+     * @throws OperatorException if the combined mode is requested for a non-IW acquisition
+     */
+    static void checkCombinedModeSupported(final boolean resamplingImage,
+                                           final boolean outputPhaseCorrections,
+                                           final String acquisitionMode) {
+
+        if (resamplingImage && outputPhaseCorrections && !"IW".equals(acquisitionMode)) {
+            throw new OperatorException("ETAD: applying the geometric correction and the "
+                    + "range-delay phase correction in a single pass is implemented for IW (TOPS) "
+                    + "only, not " + acquisitionMode + ". Either enable image resampling alone "
+                    + "(geometric correction only), or disable it to emit the phase corrections as "
+                    + "tie-point grids for the classical InSAR chain.");
+        }
     }
 
     private void createETADUtils() throws Exception {
@@ -222,7 +259,7 @@ public class S1ETADCorrectionOp extends Operator {
             }
 
             File outputFolder = new File(SystemUtils.getCacheDir(), "etad");
-            etadFile = etadSearch.download(results[0], outputFolder);
+            etadFile = etadSearch.download(selectBestOverlap(sourceProduct, results), outputFolder);
         }
 
         // disposed of in etadUtils.dispose()
@@ -231,6 +268,50 @@ public class S1ETADCorrectionOp extends Operator {
         validateETADProduct(sourceProduct, etadProduct);
 
         etadUtils = new ETADUtils(etadProduct);
+    }
+
+    /**
+     * The search window is padded by ±5 s, so whenever the scene starts or ends within 5 s of a
+     * slice boundary the ADJACENT slice of the same datatake matches too — and taking
+     * {@code results[0]} then downloads an ETAD covering only the couple of seconds of overlap
+     * (observed live: 224932_225000 slice selected for a 224958_225025 scene, caught by
+     * {@code validateETADProduct}). Pick the candidate with maximum temporal overlap instead.
+     */
+    static DataSpaces.Result selectBestOverlap(final Product sourceProduct, final DataSpaces.Result[] results) {
+        if (results.length == 1) {
+            return results[0];
+        }
+        DataSpaces.Result best = null;
+        double bestOverlap = Double.NEGATIVE_INFINITY;
+        try {
+            final double srcStart = sourceProduct.getStartTime().getMJD() * Constants.secondsInDay;
+            final double srcEnd = sourceProduct.getEndTime().getMJD() * Constants.secondsInDay;
+            for (final DataSpaces.Result r : results) {
+                try {
+                    final double s = ProductData.UTC.parse(r.getStartTime().replace("Z", ""),
+                            "yyyy-MM-dd'T'HH:mm:ss").getMJD() * Constants.secondsInDay;
+                    final double e = ProductData.UTC.parse(r.getEndTime().replace("Z", ""),
+                            "yyyy-MM-dd'T'HH:mm:ss").getMJD() * Constants.secondsInDay;
+                    final double overlap = Math.min(srcEnd, e) - Math.max(srcStart, s);
+                    if (overlap > bestOverlap) {
+                        bestOverlap = overlap;
+                        best = r;
+                    }
+                } catch (Exception oneResult) {
+                    SystemUtils.LOG.warning("ETAD search: cannot parse ContentDate of '"
+                            + r.getName() + "': " + oneResult.getMessage());
+                }
+            }
+        } catch (Exception all) {
+            best = null;
+        }
+        if (best == null) {
+            return results[0];
+        }
+        SystemUtils.LOG.info(String.format(
+                "ETAD search: %d candidates; selected '%s' with %.1f s overlap of the scene.",
+                results.length, best.getName(), bestOverlap));
+        return best;
     }
 
     private void getResampling() {
@@ -257,6 +338,7 @@ public class S1ETADCorrectionOp extends Operator {
         etadCorrector.setSumOfRangeCorrections(sumOfRangeCorrections);
         etadCorrector.setResamplingImage(resamplingImage);
         etadCorrector.setOutputPhaseCorrections(outputPhaseCorrections);
+        etadCorrector.setOutputETADPhaseBand(outputETADPhaseBand);
         etadCorrector.setEtadUtils(etadUtils);
         etadCorrector.setEtadProduct(etadProduct);
         etadCorrector.initialize();
@@ -305,8 +387,22 @@ public class S1ETADCorrectionOp extends Operator {
             final double etadStartTime = ETADUtils.getTime(etadHeaderElem, "startTime").getMJD()* Constants.secondsInDay;
             final double etadStopTime = ETADUtils.getTime(etadHeaderElem, "stopTime").getMJD()* Constants.secondsInDay;
 
-            if (srcStartTime < etadStartTime || srcStopTime > etadStopTime) {
-                throw new OperatorException("The selected ETAD product does not match the source product");
+            // Containment with tolerance. Legitimate pairs can have only tens of MILLISECONDS of
+            // margin (measured: 35-57 ms on S1A/S1C Venezuela slices), so exact containment is one
+            // reprocessing baseline away from a false rejection — while a wrong date is off by a
+            // day and a neighbouring slice of the same pass by ~25 s. 2 s separates the two cleanly.
+            final double tolerance = 2.0;
+            if (srcStartTime < etadStartTime - tolerance || srcStopTime > etadStopTime + tolerance) {
+                throw new OperatorException(String.format(
+                        "The selected ETAD product does not match the source product: source '%s' senses "
+                                + "%s to %s but ETAD '%s' covers %s to %s. Select the ETAD product of the "
+                                + "same mission, date and slice.",
+                        sourceProduct.getName(),
+                        ETADUtils.getTime(adsHeaderElem, "startTime").format(),
+                        ETADUtils.getTime(adsHeaderElem, "stopTime").format(),
+                        etadProduct.getName(),
+                        ETADUtils.getTime(etadHeaderElem, "startTime").format(),
+                        ETADUtils.getTime(etadHeaderElem, "stopTime").format()));
             }
 
         } catch(Throwable e) {
@@ -319,8 +415,96 @@ public class S1ETADCorrectionOp extends Operator {
      */
     private void updateTargetProductMetadata() {
 
+        writeETADProvenance(targetProduct, etadProduct != null ? etadProduct.getName() : null,
+                resamplingImage, outputPhaseCorrections, azimuthCorrectionsSelected());
+    }
+
+    /**
+     * True when any ETAD azimuth layer is selected. These are the layers that carry the bistatic
+     * shift, which {@code GSLCGeocodingOp} would otherwise apply a second time.
+     */
+    private boolean azimuthCorrectionsSelected() {
+        return sumOfAzimuthCorrections || geodeticCorrectionAz || bistaticShiftCorrectionAz
+                || fmMismatchCorrectionAz;
+    }
+
+    /** Set to 1 whenever this operator has run. */
+    public static final String ETAD_CORRECTION_APPLIED = "etad_correction_applied";
+    /** Set to 1 when the image was resampled to the ETAD-corrected geometry. */
+    public static final String ETAD_GEOMETRY_APPLIED = "etad_geometry_applied";
+    /** Set to 1 when the ETAD range-delay phase was removed from the complex data. */
+    public static final String ETAD_PHASE_APPLIED = "etad_phase_applied";
+    /** Name of the ETAD product used. */
+    public static final String ETAD_PRODUCT = "etad_product";
+    /**
+     * Set to 1 when an ETAD AZIMUTH correction was resampled into the pixels.
+     * <p>
+     * Recorded separately from {@link #ETAD_GEOMETRY_APPLIED} because the azimuth layers include the
+     * bistatic shift, and {@code GSLCGeocodingOp} applies its own bistatic azimuth residual
+     * unconditionally for Sentinel-1. Measurement on a real IW product shows the two describe the
+     * same range-dependent quantity to within 1% (ETAD across-swath span -0.1700 ms versus GSLC's
+     * (rFar-rNear)/c = 0.1687 ms), so the geocoder must not re-apply it. Without this flag the
+     * geocoder cannot tell whether ETAD's azimuth terms were selected.
+     */
+    public static final String ETAD_AZIMUTH_APPLIED = "etad_azimuth_applied";
+
+    /**
+     * Record what this ETAD run actually applied, so downstream operators can distinguish a
+     * corrected product from a raw one and refuse to double-correct.
+     * <p>
+     * {@code etad_geometry_applied} tracks resampling of the image. {@code etad_phase_applied}
+     * tracks removal of the range-delay phase from the complex data, which happens only in the
+     * TOPS combined mode ({@code TOPSCorrector} computes {@code etadRangePhase} when
+     * {@code outputPhaseCorrections} and folds it into the reramp angle). In the InSAR (grid) mode
+     * the corrections are emitted as tie-point grids and nothing is applied to the pixels, so both
+     * geometry and phase are recorded as 0 there even though {@code outputPhaseCorrections} is
+     * forced true.
+     * <p>
+     * Attributes are created before being set: {@code AbstractMetadata.setAttribute(..., int)} does
+     * not auto-create a missing attribute, which is why the former {@code etad_correction_flag}
+     * write silently did nothing.
+     *
+     * @param targetProduct         product to annotate
+     * @param etadProductName       ETAD product name, may be null
+     * @param resamplingImage       whether the image was resampled
+     * @param outputPhaseCorrections whether phase corrections were requested
+     * @param azimuthCorrectionsSelected whether any ETAD azimuth layer was selected; only meaningful
+     *                                   when the image was resampled
+     */
+    public static void writeETADProvenance(final Product targetProduct, final String etadProductName,
+                                           final boolean resamplingImage,
+                                           final boolean outputPhaseCorrections,
+                                           final boolean azimuthCorrectionsSelected) {
+
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
-        AbstractMetadata.setAttribute(absRoot, "etad_correction_flag", 1);
+        if (absRoot == null) {
+            return;
+        }
+
+        setIntFlag(absRoot, ETAD_CORRECTION_APPLIED, 1);
+        setIntFlag(absRoot, ETAD_GEOMETRY_APPLIED, resamplingImage ? 1 : 0);
+        setIntFlag(absRoot, ETAD_PHASE_APPLIED, (resamplingImage && outputPhaseCorrections) ? 1 : 0);
+        // Only the resampling mode moves pixels, so an azimuth selection alone changes nothing.
+        setIntFlag(absRoot, ETAD_AZIMUTH_APPLIED,
+                (resamplingImage && azimuthCorrectionsSelected) ? 1 : 0);
+        // Retained for backward compatibility, and now actually written.
+        setIntFlag(absRoot, "etad_correction_flag", 1);
+
+        if (etadProductName != null && !etadProductName.isEmpty()) {
+            if (!absRoot.containsAttribute(ETAD_PRODUCT)) {
+                AbstractMetadata.addAbstractedAttribute(absRoot, ETAD_PRODUCT,
+                        ProductData.TYPE_ASCII, "", "ETAD product used for correction");
+            }
+            AbstractMetadata.setAttribute(absRoot, ETAD_PRODUCT, etadProductName);
+        }
+    }
+
+    private static void setIntFlag(final MetadataElement absRoot, final String name, final int value) {
+        if (!absRoot.containsAttribute(name)) {
+            AbstractMetadata.addAbstractedAttribute(absRoot, name, ProductData.TYPE_UINT8, "flag",
+                    "ETAD correction provenance");
+        }
+        AbstractMetadata.setAttribute(absRoot, name, value);
     }
 
     /**

@@ -53,6 +53,16 @@ import java.util.concurrent.locks.ReentrantLock;
     protected boolean sumOfRangeCorrections = false;
     protected boolean resamplingImage = false;
     protected boolean outputPhaseCorrections = false;
+    /**
+     * Emit the baked-in ETAD range-delay phase as a band so it can be inspected.
+     * <p>
+     * Opt-in: when the phase is applied to the complex data (resampling mode), nothing downstream
+     * records how large the correction was, and the Option-2 tie-point grids are not written in that
+     * mode. Without this the only way to quantify the correction is to reprocess with the phase
+     * disabled and difference the results. Off by default because it adds a non-complex band to the
+     * output, which changes what coregistration and stacking see.
+     */
+    protected boolean outputETADPhaseBand = false;
     // Volatile: subclasses read this outside synchronized blocks as a fast-path "already computed" check.
     protected volatile boolean tropoToHeightGradientComputed = false;
 
@@ -152,6 +162,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
     public void setOutputPhaseCorrections(final boolean flag) {
         outputPhaseCorrections = flag;
+    }
+
+    public void setOutputETADPhaseBand(final boolean flag) {
+        outputETADPhaseBand = flag;
     }
 
     public Product createTargetProduct() {
