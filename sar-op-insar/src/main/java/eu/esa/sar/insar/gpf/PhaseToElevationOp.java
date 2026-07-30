@@ -47,27 +47,44 @@ import org.esa.snap.engine_utilities.util.Maths;
 import org.jlinda.core.Baseline;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.SLCImage;
+import org.jlinda.core.Window;
+import org.jlinda.core.geocode.Slant2Height;
+import org.jlinda.core.utils.PolyUtils;
+import org.jlinda.core.utils.TileUtilsDoris;
+import org.jblas.DoubleMatrix;
 
 import java.awt.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 
 @OperatorMetadata(alias = "PhaseToElevation",
         category = "Radar/Interferometric/Products",
-        authors = "Jun Lu, Luis Veci",
-        version = "1.0",
+        authors = "Jun Lu, Luis Veci, Petar Marinkovic",
+        version = "1.1",
         copyright = "Copyright (C) 2016 by Array Systems Computing Inc.",
         description = "DEM Generation")
 public final class PhaseToElevationOp extends Operator {
+
+    /** Linearised height-of-ambiguity conversion referenced to DEM seed points. */
+    public static final String METHOD_DEM_SEED = "DEM Seed";
+    /** Doris "Schwabisch" polynomial conversion. Needs no DEM. */
+    public static final String METHOD_SCHWABISCH = "Schwabisch";
 
     @SourceProduct(alias = "source")
     private Product sourceProduct;
     @TargetProduct
     private Product targetProduct;
+
+    @Parameter(valueSet = {METHOD_DEM_SEED, METHOD_SCHWABISCH}, defaultValue = METHOD_DEM_SEED,
+            label = "Method",
+            description = "DEM Seed: linearise the phase-to-height relation about a reference point " +
+                    "solved from low-slope DEM seeds (requires a DEM). " +
+                    "Schwabisch: fit reference phase at several altitudes with a 1D polynomial per point " +
+                    "and a 2D polynomial across the scene (requires no DEM).")
+    private String method = METHOD_DEM_SEED;
 
     @Parameter(description = "The digital elevation model.",
             defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
@@ -82,6 +99,31 @@ public final class PhaseToElevationOp extends Operator {
 
     @Parameter(label = "DEM No Data Value", defaultValue = "0")
     private double externalDEMNoDataValue = 0;
+
+    @Parameter(valueSet = {"100", "200", "300", "400", "500"}, defaultValue = "200",
+            label = "Number of estimation points",
+            description = "Schwabisch only: number of points at which reference phase is evaluated.")
+    private int nPoints = 200;
+
+    @Parameter(valueSet = {"2", "3", "4", "5"}, defaultValue = "3",
+            label = "Number of height samples",
+            description = "Schwabisch only: number of height samples in the range [0, 5000) m.")
+    private int nHeights = 3;
+
+    @Parameter(valueSet = {"1", "2", "3", "4", "5"}, defaultValue = "2",
+            label = "Degree of 1D polynomial",
+            description = "Schwabisch only: degree of the 1D polynomial fitting height against reference phase.")
+    private int degree1D = 2;
+
+    @Parameter(valueSet = {"1", "2", "3", "4", "5", "6", "7", "8"}, defaultValue = "5",
+            label = "Degree of 2D polynomial",
+            description = "Schwabisch only: degree of the 2D polynomial fitting the 1D coefficients across the scene.")
+    private int degree2D = 5;
+
+    @Parameter(valueSet = {"2", "3", "4", "5"}, defaultValue = "3",
+            label = "Orbit interpolation degree",
+            description = "Degree of the polynomial orbit interpolator.")
+    private int orbitDegree = 3;
 
     private ElevationModel dem = null;
     private FileElevationModel fileElevationModel = null;
@@ -106,8 +148,14 @@ public final class PhaseToElevationOp extends Operator {
 
     private final Baseline baseline = new Baseline();
 
+    // Schwabisch state. Immutable once doExecute() has run, so computeTile()
+    // may call applySchwabisch() concurrently from JAI threads.
+    private Slant2Height slant2Height = null;
+    private boolean isSchwabisch = false;
+
     private Band unwrappedPhaseBand;
     private static final String PRODUCT_SUFFIX = "_Hgt";
+    private static final String ELEVATION_BAND_NAME = "elevation";
 
     /**
      * Initializes this operator and sets the one and only target product.
@@ -125,25 +173,88 @@ public final class PhaseToElevationOp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
-            validator.checkIfMapProjected(false);
+            isSchwabisch = METHOD_SCHWABISCH.equals(method);
+
+            // Map-projected input is no longer rejected outright — that blanket guard also blocked
+            // the geocode-first (GSLC) workflow. Instead each method states what it actually needs:
+            //
+            //  - Schwabisch fits a slant-range-to-height polynomial over a window in RADAR image
+            //    coordinates (see computeSchwabischModel), so on a map grid the model would be
+            //    evaluated in the wrong coordinate system and return silently wrong heights.
+            //  - DEM Seed is EQUALLY radar-only, contrary to what an earlier version of this comment
+            //    claimed. computeSeedReferencedTile evaluates baseline.getBperp(y, x) /
+            //    getBpar(y, x) — polynomials fitted over the radar image window — and indexes
+            //    lookAngles[x] as if x were a range sample. On a map grid those arguments are in the
+            //    wrong coordinate system and the polynomial is extrapolated outside its fitted
+            //    range. Today it happens to fail earlier, because no geocoding operator in the
+            //    toolbox carries the required tie point grids forward, but relying on that is safety
+            //    by accident. Both methods are therefore refused explicitly.
+            if (InputProductValidator.isMapProjected(sourceProduct)) {
+                throw new OperatorException("Phase to Elevation requires a product in radar geometry. " +
+                        "Both methods evaluate baseline/look-angle models in radar image coordinates " +
+                        "(range across, azimuth down), which are not meaningful on a map-projected " +
+                        "grid. Run this operator BEFORE terrain correction / geocoding.");
+            }
 
             getMetadata();
 
-            getTiePointGrid();
-
             createTargetProduct();
 
-            if (externalDEMFile == null) {
-                DEMFactory.checkIfDEMInstalled(demName);
+            if (isSchwabisch) {
+                // Schwabisch works from the orbits alone - no tie point grids, no DEM.
+                validateSchwabischParameters();
+            } else {
+                getTiePointGrid();
+                if (externalDEMFile == null) {
+                    DEMFactory.checkIfDEMInstalled(demName);
+                }
+                DEMFactory.validateDEM(demName, sourceProduct);
             }
-
-            DEMFactory.validateDEM(demName, sourceProduct);
-
-            getBaseline();
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    /**
+     * Heavy, scene-global precomputation. Runs once, before any tile is served,
+     * so the parameter dialog and Graph Builder stay responsive.
+     */
+    @Override
+    public void doExecute(ProgressMonitor pm) throws OperatorException {
+
+        try {
+            pm.beginTask("Computing phase to elevation model...", 100);
+
+            if (isSchwabisch) {
+                computeSchwabischModel();
+            } else {
+                getElevationModel();
+                getBaseline();
+                computeReferenceHeightAndPhase(unwrappedPhaseBand, baseline);
+            }
+
+            pm.worked(100);
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
+        }
+    }
+
+    /**
+     * The 2D polynomial in the Schwabisch solution has
+     * {@code numberOfCoefficients(degree2D)} unknowns, and each estimation point
+     * contributes one observation. Fail early with an actionable message rather
+     * than letting jlinda throw a bare IllegalArgumentException mid-run.
+     */
+    private void validateSchwabischParameters() {
+
+        final int numUnknowns = PolyUtils.numberOfCoefficients(degree2D);
+        if (nPoints < numUnknowns) {
+            throw new OperatorException("Schwabisch: " + nPoints + " estimation points is fewer than the "
+                    + numUnknowns + " coefficients of a degree-" + degree2D + " 2D polynomial. "
+                    + "Increase 'Number of estimation points' or decrease 'Degree of 2D polynomial'.");
         }
     }
 
@@ -217,6 +328,13 @@ public final class PhaseToElevationOp extends Operator {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
 
+        if (isSchwabisch) {
+            absTgt.setAttributeString("phase to elevation method", METHOD_SCHWABISCH);
+            return;
+        }
+
+        absTgt.setAttributeString("phase to elevation method", METHOD_DEM_SEED);
+
         if (externalDEMFile != null && fileElevationModel == null) { // if external DEM file is specified by user
             AbstractMetadata.setAttribute(absTgt, AbstractMetadata.DEM, externalDEMFile.getPath());
         } else {
@@ -235,100 +353,170 @@ public final class PhaseToElevationOp extends Operator {
      */
     private void addSelectedBands() {
 
-        final Band[] sourceBands = OperatorUtils.getSourceBands(sourceProduct, null, false);
-        boolean validProduct = false;
-        for (Band band : sourceBands) {
-            if (band.getName().toLowerCase().startsWith("unw")) {
-                validProduct = true;
-                unwrappedPhaseBand = band;
-                break;
-            }
+        unwrappedPhaseBand = findUnwrappedPhaseBand(
+                OperatorUtils.getSourceBands(sourceProduct, null, false));
+
+        if (unwrappedPhaseBand == null) {
+            throw new OperatorException("Cannot find UnwrappedPhase band in the source product. "
+                    + "Expected a band with unit '" + Unit.ABS_PHASE + "' or a name starting with 'Unw'. "
+                    + "Run phase unwrapping (Snaphu Import) before this operator.");
         }
 
-        if (!validProduct) {
-            throw new OperatorException("Cannot find UnwrappedPhase band in the source product.");
-        }
-
-        final Band targetBand = new Band("elevation", ProductData.TYPE_FLOAT32,
+        final Band targetBand = new Band(ELEVATION_BAND_NAME, ProductData.TYPE_FLOAT32,
                 sourceImageWidth, sourceImageHeight);
 
         targetBand.setUnit(Unit.METERS);
+        targetBand.setNoDataValue(Double.NaN);
+        targetBand.setNoDataValueUsed(true);
         targetProduct.addBand(targetBand);
+    }
+
+    /**
+     * Locate the unwrapped phase band. Unit-based discovery is preferred because
+     * Snaphu Import tags unwrapped bands as {@link Unit#ABS_PHASE} regardless of
+     * how they are named; the name check remains as a fallback for products
+     * written before that convention.
+     */
+    static Band findUnwrappedPhaseBand(final Band[] sourceBands) {
+
+        for (Band band : sourceBands) {
+            if (Unit.ABS_PHASE.equals(band.getUnit())) {
+                return band;
+            }
+        }
+        for (Band band : sourceBands) {
+            if (band.getName().toLowerCase().startsWith("unw")) {
+                return band;
+            }
+        }
+        return null;
     }
 
     private void getBaseline() throws Exception {
         final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
         final SLCImage referenceMetaData = new SLCImage(referenceMeta, sourceProduct);
-        final Orbit referenceOrbit = new Orbit(referenceMeta, 3);
+        final Orbit referenceOrbit = new Orbit(referenceMeta, orbitDegree);
 
         final MetadataElement[] secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
         final SLCImage secondaryMetaData = new SLCImage(secondaryRoot[0], sourceProduct);
-        final Orbit secondaryOrbit = new Orbit(secondaryRoot[0], 3);
+        final Orbit secondaryOrbit = new Orbit(secondaryRoot[0], orbitDegree);
 
         baseline.model(referenceMetaData, secondaryMetaData, referenceOrbit, secondaryOrbit);
     }
 
     /**
-     * Called by the framework in order to compute the stack of tiles for the given target bands.
-     * <p>The default implementation throws a runtime exception with the message "not implemented".</p>
+     * Set up the Doris "Schwabisch" phase-to-height model (ported from the
+     * deprecated PhaseToHeight / Slant2HeightOp operator):
+     * <ol>
+     *   <li>evaluate reference phase at {@code nHeights} altitudes in {@code nPoints}
+     *       points distributed over the scene, using the precise orbits;</li>
+     *   <li>solve h(phi) as a {@code degree1D} polynomial at each point;</li>
+     *   <li>model each 1D coefficient as a {@code degree2D} 2D polynomial in (line, pixel).</li>
+     * </ol>
+     * No DEM is involved - the ambiguity reference comes from the orbit geometry.
+     */
+    private void computeSchwabischModel() throws Exception {
+
+        final MetadataElement referenceMeta = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        final SLCImage referenceMetaData = new SLCImage(referenceMeta, sourceProduct);
+        final Orbit referenceOrbit = new Orbit(referenceMeta, orbitDegree);
+
+        final MetadataElement[] secondaryRoot = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
+        if (secondaryRoot.length == 0) {
+            throw new OperatorException("No secondary metadata found. "
+                    + "PhaseToElevation requires an interferometric product.");
+        }
+        final SLCImage secondaryMetaData = new SLCImage(secondaryRoot[0], sourceProduct);
+        final Orbit secondaryOrbit = new Orbit(secondaryRoot[0], orbitDegree);
+
+        final Slant2Height s2h = new Slant2Height(nPoints, nHeights, degree1D, degree2D,
+                referenceMetaData, referenceOrbit, secondaryMetaData, secondaryOrbit);
+        // Window bounds match those used by the original Slant2HeightOp so that
+        // results are reproducible against the deprecated operator. They only set
+        // the polynomial normalisation range and the point distribution.
+        s2h.setDataWindow(new Window(0, sourceImageHeight, 0, sourceImageWidth));
+        s2h.schwabisch();
+
+        slant2Height = s2h;
+    }
+
+    /**
+     * Compute the elevation band for one tile. All scene-global state was
+     * computed in {@link #doExecute} and is read-only here, so this is safe to
+     * call concurrently from the JAI tile scheduler.
      *
-     * @param targetTiles     The current tiles to be computed for each target band.
-     * @param targetRectangle The area in pixel coordinates to be computed (same for all rasters in <code>targetRasters</code>).
-     * @param pm              A progress monitor which should be used to determine computation cancelation requests.
-     * @throws OperatorException if an error occurs during computation of the target rasters.
+     * @param targetBand The target band.
+     * @param targetTile The current tile to be computed.
+     * @param pm         A progress monitor used to determine computation cancelation requests.
+     * @throws OperatorException if an error occurs during computation of the target raster.
      */
     @Override
-    public void computeTileStack(Map<Band, Tile> targetTiles, Rectangle targetRectangle, ProgressMonitor pm)
+    public void computeTile(final Band targetBand, final Tile targetTile, final ProgressMonitor pm)
             throws OperatorException {
 
         try {
-            final Band sourceBand = unwrappedPhaseBand;
-            final Tile sourceTile = getSourceTile(sourceBand, targetRectangle);
-            final ProductData sourceData = sourceTile.getDataBuffer();
-
-            final Band targetBand = targetProduct.getBand("elevation");
-            final Tile targetTile = targetTiles.get(targetBand);
-            final ProductData targetData = targetTile.getDataBuffer();
-            final TileIndex srcIndex = new TileIndex(sourceTile);
-            final TileIndex trgIndex = new TileIndex(targetTile);
-
-            if (!isElevationModelAvailable) {
-                getElevationModel();
+            if (isSchwabisch) {
+                computeSchwabischTile(targetTile);
+            } else {
+                computeSeedReferencedTile(targetTile);
             }
-
-            if (!refHeightPhaseComputed) {
-                computeReferenceHeightAndPhase(sourceBand, baseline);
-            }
-
-            final int x0 = targetRectangle.x;
-            final int y0 = targetRectangle.y;
-            final int w = targetRectangle.width;
-            final int h = targetRectangle.height;
-            // System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
-
-            final int xc = sourceImageWidth / 2;
-            double phase, slantRange, incidenceAngle, bn, bp, alpha, height, flatAngle;
-            for (int y = y0; y < y0 + h; y++) {
-                srcIndex.calculateStride(y);
-                trgIndex.calculateStride(y);
-                for (int x = x0; x < x0 + w; x++) {
-
-                    phase = sourceData.getElemDoubleAt(srcIndex.getIndex(x));
-                    slantRange = slantRangeTimeTPG.getPixelDouble(x, y) / Constants.oneBillion * Constants.halfLightSpeed;
-                    incidenceAngle = incidenceAngleTPG.getPixelDouble(x, y) * MathUtils.DTOR;
-                    bn = baseline.getBperp(y, x);
-                    bp = baseline.getBpar(y, x);
-                    flatAngle = lookAngles[x] - lookAngles[xc];
-                    alpha = -slantRange * FastMath.sin(incidenceAngle) /
-                            (2 * waveNumber * (bp * FastMath.sin(flatAngle) + bn * FastMath.cos(flatAngle)));
-//                  alpha = -slantRange*FastMath.sin(incidenceAngle)/(2*waveNumber*bn);
-                    height = refHeight + alpha * (phase - refPhase);
-                    targetData.setElemDoubleAt(trgIndex.getIndex(x), height);
-                }
-            }
-
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    /**
+     * Evaluate the Schwabisch polynomial model h = f(line, pixel, phase) over the tile.
+     */
+    private void computeSchwabischTile(final Tile targetTile) {
+
+        final Rectangle rect = targetTile.getRectangle();
+        final Tile sourceTile = getSourceTile(unwrappedPhaseBand, rect);
+
+        // applySchwabisch converts in place: pull the phase, overwrite with height.
+        final DoubleMatrix data = TileUtilsDoris.pullDoubleMatrix(sourceTile);
+        final Window tileWindow = new Window(rect.y, rect.y + rect.height - 1,
+                rect.x, rect.x + rect.width - 1);
+        slant2Height.applySchwabisch(tileWindow, data);
+
+        TileUtilsDoris.pushDoubleMatrix(data, targetTile, rect);
+    }
+
+    /**
+     * Linearised conversion about the reference (height, phase) solved from DEM seeds.
+     */
+    private void computeSeedReferencedTile(final Tile targetTile) throws Exception {
+
+        final Rectangle rect = targetTile.getRectangle();
+        final Tile sourceTile = getSourceTile(unwrappedPhaseBand, rect);
+        final ProductData sourceData = sourceTile.getDataBuffer();
+        final ProductData targetData = targetTile.getDataBuffer();
+        final TileIndex srcIndex = new TileIndex(sourceTile);
+        final TileIndex trgIndex = new TileIndex(targetTile);
+
+        final int x0 = rect.x;
+        final int y0 = rect.y;
+        final int w = rect.width;
+        final int h = rect.height;
+
+        final int xc = sourceImageWidth / 2;
+        double phase, slantRange, incidenceAngle, bn, bp, alpha, height, flatAngle;
+        for (int y = y0; y < y0 + h; y++) {
+            srcIndex.calculateStride(y);
+            trgIndex.calculateStride(y);
+            for (int x = x0; x < x0 + w; x++) {
+
+                phase = sourceData.getElemDoubleAt(srcIndex.getIndex(x));
+                slantRange = slantRangeTimeTPG.getPixelDouble(x, y) / Constants.oneBillion * Constants.halfLightSpeed;
+                incidenceAngle = incidenceAngleTPG.getPixelDouble(x, y) * MathUtils.DTOR;
+                bn = baseline.getBperp(y, x);
+                bp = baseline.getBpar(y, x);
+                flatAngle = lookAngles[x] - lookAngles[xc];
+                alpha = -slantRange * FastMath.sin(incidenceAngle) /
+                        (2 * waveNumber * (bp * FastMath.sin(flatAngle) + bn * FastMath.cos(flatAngle)));
+                height = refHeight + alpha * (phase - refPhase);
+                targetData.setElemDoubleAt(trgIndex.getIndex(x), height);
+            }
         }
     }
 

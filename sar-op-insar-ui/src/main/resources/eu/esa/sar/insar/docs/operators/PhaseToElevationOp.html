@@ -22,16 +22,58 @@
     <li>The
         input to this operator the output of Stitch operator.
     </li>
+    <li>The unwrapped phase band is located by unit (<i>abs_phase</i>, as set by Snaphu Import),
+        falling back to a band name starting with &quot;Unw&quot;.
+    </li>
     <li>The output of this operator is the elevation band.</li>
 </ul>
 <ol>
 </ol>
+
+<h4>Methods</h4>
+<p class="MsoNormal">
+    Two phase-to-height conversions are available. They differ in how the phase
+    ambiguity is referenced and in whether a DEM is required.
+</p>
+<ul>
+    <li><b>DEM Seed</b> (default) &mdash; the phase-to-height relation is linearised
+        about a single reference (height, phase) pair. That reference is solved by
+        least squares from 150 low-slope seed points sampled from a DEM, and the
+        height of ambiguity at each pixel is derived from the local perpendicular
+        and parallel baseline. Requires a DEM and the latitude, longitude,
+        incidence angle and slant range time tie point grids.
+    </li>
+    <li><b>Schwabisch</b> &mdash; the Doris polynomial method. Reference phase is
+        evaluated from the precise orbits at several altitudes in a set of points
+        distributed over the scene; a 1D polynomial in phase is fitted for the
+        height at each point, and each of its coefficients is then modelled as a
+        2D polynomial in (line, pixel). This captures the spatial variation and
+        the nonlinearity of the phase-to-height relation and needs
+        <b>no DEM</b>. This method was previously exposed as the separate
+        &quot;Phase to Height&quot; operator, which is now deprecated.
+    </li>
+</ul>
+
 <h4>Parameters Used</h4>&nbsp;&nbsp; The following processing parameters are needed for this operator (see Figure
 1):<br>
+<ul>
+    <li>Method: DEM Seed or Schwabisch, as described above.</li>
+    <li>Orbit Interpolation Degree: Degree of the polynomial orbit interpolator.</li>
+</ul>
+&nbsp;&nbsp; DEM Seed only:
 <ul>
     <li>Digital Elevation Model: The digital elevation model used in reference height calculation.</li>
     <li>DEM Resampling Method: The resampling method used in getting elevation from DEM.<br>
     </li>
+</ul>
+&nbsp;&nbsp; Schwabisch only:
+<ul>
+    <li>Number of estimation points: Number of points at which reference phase is evaluated.
+        Must be at least the number of coefficients of the 2D polynomial.
+    </li>
+    <li>Number of height samples: Number of height samples in the range [0, 5000) m.</li>
+    <li>Degree of 1D polynomial: Degree of the polynomial fitting height against reference phase.</li>
+    <li>Degree of 2D polynomial: Degree of the polynomial fitting the 1D coefficients across the scene.</li>
 </ul>
 <img style="width: 450px; height: 450px;" alt="" src="images/dem_generation_ui.jpg"><br>
 <br>
@@ -44,6 +86,12 @@ Figure 1. DEM Generation operator UI<br>
 <p>[1] MARK A. RICHARDS, "A Beginner&#8217;s Guide to
     Interferometric SAR Concepts and Signal Processing," IEEE A&amp;E
     SYSTEMS MAGAZINE VOL. 22, NO. 9 SEPTEMBER 2007<br>
+    <br>
+</p>
+
+<p>[2] Bert Kampes, Stefania Usai, "Doris: The Delft Object-oriented Radar
+    Interferometric Software," 2nd International Symposium on Operationalization
+    of Remote Sensing, Enschede, 1999. (Schwabisch slant-to-height method)<br>
     <br>
 </p>
 

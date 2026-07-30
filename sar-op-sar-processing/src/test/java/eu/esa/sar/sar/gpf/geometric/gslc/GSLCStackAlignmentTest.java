@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
@@ -26,8 +27,8 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 
@@ -49,8 +50,15 @@ import static org.junit.Assume.assumeTrue;
  * </ol>
  * Prints every intermediate value so the failure mode is obvious even when an assertion
  * fires. File-existence gated; skipped on machines without the fixtures.
+ * <p>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCStackAlignmentTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCStackAlignmentTest extends ProcessorTest {
 
     private static final File MASTER_FILE = new File(
@@ -76,8 +84,8 @@ public class GSLCStackAlignmentTest extends ProcessorTest {
             printSlcInfo("master SLC", masterSLC);
             printSlcInfo("slave  SLC", slaveSLC);
 
-            // --- Run GSLCGeocoding with the current defaults (outputFlattened=false,
-            //     alignToStandardGrid=true). --------------------------------------------
+            // --- Run GSLCGeocoding with the current defaults (outputFlattened=false;
+            //     standard-grid alignment is always on). ------------------------------
             final Product masterGSLC = runDefaultGslc(masterSLC, "master");
             final Product slaveGSLC  = runDefaultGslc(slaveSLC,  "slave");
 
@@ -213,9 +221,6 @@ public class GSLCStackAlignmentTest extends ProcessorTest {
         // Defaults that the InSAR pipeline depends on — set explicitly so the test
         // documents the requirement and survives any future default flips.
         op.setParameter("outputFlattened", false);
-        op.setParameter("alignToStandardGrid", true);
-        op.setParameter("standardGridOriginX", 0.0);
-        op.setParameter("standardGridOriginY", 0.0);
         final Product target = op.getTargetProduct();
         assertNotNull(label + " GSLC must not be null", target);
         return target;

@@ -1,6 +1,7 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
@@ -8,8 +9,8 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.HashMap;
@@ -20,24 +21,67 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * GSLC TOPS coregistration on the fast Etna fixtures (orbit-applied IW1 burst-1-2 VV splits, built
- * once by {@code snap_tmp/build_etna_fixture.ps1}). Reading the small BEAM-DIMAP fixtures skips the
- * ~8 GB SLC-zip reads, the orbit download, and TOPSAR-Split, so these file-gated tests iterate in
- * minutes instead of ~hour. Two checks:
+ * GSLC TOPS coregistration on the fast Etna fixtures (orbit-applied IW2 two-burst VV splits,
+ * RANGE-CROPPED to a ~4400-column strip around Mt Etna). Reading the small BEAM-DIMAP fixtures
+ * skips the ~8 GB SLC-zip reads, the orbit download, and TOPSAR-Split, so these file-gated tests
+ * iterate in minutes instead of ~an hour. Checks:
  *  - {@link #testAzimuthOffsetDegradesCoherenceWhenMisaligned} proves azimuthOffsetPixels is applied
  *    in GSLC's TOPS path (a deliberate misalignment must reduce coherence).
  *  - {@link #testTopsBiasEstimatorRunsWithoutRegression} proves CreateStack's TOPS bias estimator
  *    (Back-Geocoding + ESD) runs and does not regress coherence.
+ *  - {@link #testGslcVsClassicalCoherenceOverEtna} runs both pipelines and prints the coherence
+ *    comparison (measure, not gate: it only asserts both are finite).
+ * <p>
+ * <b>Fixture recipe</b> (the full-width orbit-applied splits are preserved in
+ * {@code fixtures/fullwidth/}; the cropped fixtures are cut from them — a range-only crop keeps
+ * every azimuth line, which TOPS burst metadata requires):
+ * <pre>
+ *   gpt Subset -PgeoRegion="POLYGON((14.92 37.2, 15.08 37.2, 15.08 38.4, 14.92 38.4, 14.92 37.2))"
+ *       -PcopyMetadata=true -t fixtures/etna_master.dim -f BEAM-DIMAP fixtures/fullwidth/etna_master.dim
+ * </pre>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCTopsBiasIntegrationTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent —
+ * and it SKIPS (rather than silently multiplying its runtime ~8x) when the fixture on disk is the
+ * full-width variant, which once crept in after a measurement session and turned the ~10-minute
+ * class into an hour.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCTopsBiasIntegrationTest extends ProcessorTest {
 
     private static final File FIX_DIR = new File(TestData.inputSAR + "S1/SLC/Etna-DLR/fixtures");
     private static final File FIXTURE_MASTER = new File(FIX_DIR, "etna_master.dim");
     private static final File FIXTURE_SLAVE = new File(FIX_DIR, "etna_slave.dim");
+    /** The cropped strip is ~4400 columns; the full-width IW2 split is ~25000. Anything above this
+     *  is the wrong (slow) fixture, not a slightly different crop. */
+    private static final int MAX_CROPPED_FIXTURE_COLS = 8000;
 
     private static boolean fixturesPresent() {
-        return FIXTURE_MASTER.isFile() && FIXTURE_SLAVE.isFile();
+        return FIXTURE_MASTER.isFile() && FIXTURE_SLAVE.isFile() && fixtureIsRangeCropped();
+    }
+
+    /** Cheap width check straight from the DIMAP header text — no product open needed. */
+    private static boolean fixtureIsRangeCropped() {
+        try {
+            final String dim = new String(java.nio.file.Files.readAllBytes(FIXTURE_MASTER.toPath()),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            final java.util.regex.Matcher m =
+                    java.util.regex.Pattern.compile("<NCOLS>(\\d+)</NCOLS>").matcher(dim);
+            if (m.find()) {
+                final int cols = Integer.parseInt(m.group(1));
+                if (cols > MAX_CROPPED_FIXTURE_COLS) {
+                    System.out.println("Etna fixture is FULL-WIDTH (" + cols + " cols) — skipping; "
+                            + "rebuild the range-cropped fixture (see the class javadoc recipe).");
+                    return false;
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            return true;   // unreadable header: let the product open report the real problem
+        }
     }
 
     private static Product gslc(File fixture, Double azimuthOffsetPixels) {
@@ -207,6 +251,15 @@ public class GSLCTopsBiasIntegrationTest extends ProcessorTest {
         assertTrue("both pipelines should yield finite coherence", classical100 > 0 && gslc100 > 0);
     }
 
+    /**
+     * Mean coherence over valid pixels of a CENTRE WINDOW, not the whole raster. Reading every row
+     * pulled every tile of the interferogram — and through GPF laziness, every tile of the GSLC /
+     * Back-Geocoding / topographic-phase chain behind it, which dominated this class's runtime.
+     * The window still holds >10^4 independent coherence estimates (10x10-px estimation window),
+     * so the direction / no-regression assertions are unaffected; every configuration reads the
+     * SAME window of its product, so the compared differences are like-for-like. The printed
+     * absolute values are window means, i.e. spot measures rather than full-scene means.
+     */
     private static double meanCoherenceValid(Product p) throws Exception {
         Band coh = null, real = null;
         for (final Band b : p.getBands()) {
@@ -215,12 +268,14 @@ public class GSLCTopsBiasIntegrationTest extends ProcessorTest {
         }
         if (coh == null) return Double.NaN;
         final int w = coh.getRasterWidth(), h = coh.getRasterHeight();
-        final float[] rc = new float[w], rr = new float[w];
+        final int ww = Math.min(1024, w), wh = Math.min(1024, h);
+        final int x0 = (w - ww) / 2, y0 = (h - wh) / 2;
+        final float[] rc = new float[ww], rr = new float[ww];
         double sum = 0; long n = 0;
-        for (int y = 0; y < h; y++) {
-            coh.readPixels(0, y, w, 1, rc, ProgressMonitor.NULL);
-            if (real != null) real.readPixels(0, y, w, 1, rr, ProgressMonitor.NULL);
-            for (int x = 0; x < w; x++) {
+        for (int y = y0; y < y0 + wh; y++) {
+            coh.readPixels(x0, y, ww, 1, rc, ProgressMonitor.NULL);
+            if (real != null) real.readPixels(x0, y, ww, 1, rr, ProgressMonitor.NULL);
+            for (int x = 0; x < ww; x++) {
                 if (Float.isNaN(rc[x])) continue;
                 if (real != null && (Float.isNaN(rr[x]) || rr[x] == 0f)) continue;
                 sum += rc[x]; n++;

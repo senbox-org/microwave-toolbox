@@ -243,6 +243,144 @@ public class TestCreateStackOp extends ProcessorTest {
         }
     }
 
+    /**
+     * A complex secondary whose grid origin is offset by a NON-integer number of pixels cannot be
+     * aligned by the integer-pixel geocoded offset path, and silently destroys interferometric
+     * coherence if it is allowed through. It must be rejected outright.
+     */
+    @Test
+    public void testCreateStack_GeocodedComplex_FractionalLatticeOffsetRejected() throws Exception {
+        final int w = 50, h = 50;
+        final double pixelSize = 0.001;
+        final double refEasting = 10.000, refNorthing = 50.000;
+        // 3.25 px east / 7.0 px south -> 0.25 px residual in x that no integer offset can absorb.
+        final Product ref = createGeocodedComplexProduct("ref", w, h, refEasting, refNorthing, pixelSize);
+        final Product sec = createGeocodedComplexProduct("sec", w, h,
+                refEasting + 3.25 * pixelSize, refNorthing - 7.0 * pixelSize, pixelSize);
+
+        final CreateStackOp op = (CreateStackOp) spi.createOperator();
+        op.setSourceProducts(ref, sec);
+        op.setTestParameters(CreateStackOp.MASTER_EXTENT, CreateStackOp.INITIAL_OFFSET_ORBIT);
+        try {
+            op.getTargetProduct();
+            fail("a 0.25 px lattice residual on a complex stack must be rejected, not silently rounded");
+        } catch (OperatorException expected) {
+            final String m = expected.getMessage();
+            assertTrue("message should name the offending product, was: " + m, m.contains("sec"));
+            assertTrue("message should quote the residual, was: " + m, m.contains("px"));
+        }
+    }
+
+    /** The same geometry with a whole-pixel offset is legitimate and must still be accepted. */
+    @Test
+    public void testCreateStack_GeocodedComplex_IntegerLatticeOffsetAccepted() throws Exception {
+        final int w = 50, h = 50;
+        final double pixelSize = 0.001;
+        final double refEasting = 10.000, refNorthing = 50.000;
+        final Product ref = createGeocodedComplexProduct("ref", w, h, refEasting, refNorthing, pixelSize);
+        final Product sec = createGeocodedComplexProduct("sec", w, h,
+                refEasting + 3.0 * pixelSize, refNorthing - 7.0 * pixelSize, pixelSize);
+
+        final CreateStackOp op = (CreateStackOp) spi.createOperator();
+        op.setSourceProducts(ref, sec);
+        op.setTestParameters(CreateStackOp.MASTER_EXTENT, CreateStackOp.INITIAL_OFFSET_ORBIT);
+
+        final Product target = op.getTargetProduct();
+        assertNotNull(target);
+        final MetadataElement orbitOffsets =
+                AbstractMetadata.getAbstractedMetadata(target).getElement("Orbit_Offsets");
+        assertNotNull("Orbit_Offsets element missing", orbitOffsets);
+        assertTrue(orbitOffsets.getElements().length >= 1);
+
+        // THE assertion that catches the pass-through bug: the offset must be applied to the
+        // PIXELS, not merely recorded in metadata. target(x, y) must equal source(x + offX,
+        // y + offY) with (offX, offY) = (-3, -7). A metadata-only check passes even when the
+        // secondary band is wired straight to its unshifted source image.
+        Band stackSec = null;
+        for (final Band b : target.getBands()) {
+            if (b.getName().startsWith("i_sec") && b.getName().contains("_sec1")) {
+                stackSec = b;
+                break;
+            }
+        }
+        assertNotNull("stack secondary i-band not found in " +
+                String.join(",", target.getBandNames()), stackSec);
+        final Band srcSec = sec.getBand("i_sec");
+
+        final float[] got = new float[1];
+        final float[] exp = new float[1];
+        for (final int[] xy : new int[][]{{10, 10}, {30, 20}, {44, 48}}) {
+            stackSec.readPixels(xy[0], xy[1], 1, 1, got, com.bc.ceres.core.ProgressMonitor.NULL);
+            srcSec.readPixels(xy[0] - 3, xy[1] - 7, 1, 1, exp, com.bc.ceres.core.ProgressMonitor.NULL);
+            assertEquals("pixel (" + xy[0] + "," + xy[1] + ") must come from the shifted source",
+                    exp[0], got[0], 1e-6f);
+        }
+        // Rows above the shifted footprint have no source data — must be no-data, not a copy
+        // of the unshifted source.
+        stackSec.readPixels(1, 1, 1, 1, got, com.bc.ceres.core.ProgressMonitor.NULL);
+        assertEquals("out-of-footprint pixel must be no-data",
+                (float) stackSec.getGeophysicalNoDataValue(), got[0], 1e-6f);
+    }
+
+    /**
+     * Rectangular (non-square) map cells: two complex products on one rectangular lattice with a
+     * whole-pixel offset must stack (the geocoded-offset path and the lattice guard are per-axis);
+     * a fractional offset on either axis must still be rejected.
+     */
+    @Test
+    public void testCreateStack_GeocodedComplex_RectangularCells() throws Exception {
+        final int w = 50, h = 50;
+        final double px = 0.001, py = 0.002;   // rectangular: N step twice the E step
+        final Product ref = createGeocodedComplexProductRect("ref", w, h, 10.000, 50.000, px, py);
+        final Product secOk = createGeocodedComplexProductRect("sec", w, h,
+                10.000 + 3 * px, 50.000 - 5 * py, px, py);
+
+        final CreateStackOp op = (CreateStackOp) spi.createOperator();
+        op.setSourceProducts(ref, secOk);
+        op.setTestParameters(CreateStackOp.MASTER_EXTENT, CreateStackOp.INITIAL_OFFSET_ORBIT);
+        final Product target = op.getTargetProduct();
+        assertNotNull(target);
+        final MetadataElement oo = AbstractMetadata.getAbstractedMetadata(target).getElement("Orbit_Offsets");
+        assertNotNull(oo);
+        assertEquals(-3, oo.getElements()[0].getAttributeInt("init_offset_X"));
+        assertEquals(-5, oo.getElements()[0].getAttributeInt("init_offset_Y"));
+
+        // fractional on the Y axis only — must be rejected for complex data
+        final Product secBad = createGeocodedComplexProductRect("sec", w, h,
+                10.000 + 3 * px, 50.000 - 5.5 * py, px, py);
+        final CreateStackOp op2 = (CreateStackOp) spi.createOperator();
+        op2.setSourceProducts(createGeocodedComplexProductRect("ref", w, h, 10.000, 50.000, px, py), secBad);
+        op2.setTestParameters(CreateStackOp.MASTER_EXTENT, CreateStackOp.INITIAL_OFFSET_ORBIT);
+        try {
+            op2.getTargetProduct();
+            fail("a 0.5-px Y lattice residual on a rectangular complex stack must be rejected");
+        } catch (OperatorException expected) {
+            assertTrue(expected.getMessage().contains("px"));
+        }
+    }
+
+    private static Product createGeocodedComplexProductRect(final String name, final int w, final int h,
+                                                            final double easting, final double northing,
+                                                            final double pixelSizeX, final double pixelSizeY)
+            throws Exception {
+        final Product p = createGeocodedComplexProduct(name, w, h, easting, northing, pixelSizeX);
+        p.setSceneGeoCoding(new CrsGeoCoding(DefaultGeographicCRS.WGS84,
+                w, h, easting, northing, pixelSizeX, pixelSizeY));
+        return p;
+    }
+
+    private static Product createGeocodedComplexProduct(final String name, final int w, final int h,
+                                                        final double easting, final double northing,
+                                                        final double pixelSize) throws Exception {
+        final Product p = createGeocodedProduct(name, w, h, easting, northing, pixelSize);
+        for (final Band b : p.getBands().clone()) {
+            p.removeBand(b);
+        }
+        TestUtils.createBand(p, "i_" + name, ProductData.TYPE_FLOAT32, Unit.REAL, w, h, true);
+        TestUtils.createBand(p, "q_" + name, ProductData.TYPE_FLOAT32, Unit.IMAGINARY, w, h, true);
+        return p;
+    }
+
     private static Product createGeocodedProduct(final String name, final int w, final int h,
                                                   final double easting, final double northing,
                                                   final double pixelSize) throws Exception {

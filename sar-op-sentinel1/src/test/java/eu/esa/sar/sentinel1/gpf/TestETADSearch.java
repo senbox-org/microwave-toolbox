@@ -19,6 +19,7 @@ import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.cloud.opendata.DataSpaces;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
@@ -28,6 +29,7 @@ import java.io.File;
 import java.nio.file.Files;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -97,10 +99,18 @@ public class TestETADSearch {
             ETADSearch etadSearch = new ETADSearch();
             DataSpaces.Result[] results = etadSearch.search(s1GRD);
 
-            assertEquals("One ETAD file found", 1, results.length);
+            // The overlap query legitimately returns the matching slice PLUS the abutting slices of
+            // the same datatake (the ±5 s search pad overlaps their boundaries); the operator picks
+            // the maximum-overlap candidate. Exercise that same selection here, and require the
+            // chosen product to actually cover the scene — downloading results[0] blindly was
+            // exactly the wrong-slice bug the selection fixed.
+            assertTrue("At least one ETAD candidate", results.length >= 1);
+            final DataSpaces.Result best = S1ETADCorrectionOp.selectBestOverlap(s1GRD, results);
+            assertNotNull(best);
+            assertSelectedCoversScene(s1GRD, best);
 
             File outputFolder = Files.createTempDirectory("etad").toFile();
-            File file = etadSearch.download(results[0], outputFolder);
+            File file = etadSearch.download(best, outputFolder);
             assert file.exists();
 
             s1GRD.dispose();
@@ -115,14 +125,32 @@ public class TestETADSearch {
             ETADSearch etadSearch = new ETADSearch();
             DataSpaces.Result[] results = etadSearch.search(s1GRD);
 
-            assertEquals("One ETAD file found", 1, results.length);
+            assertTrue("At least one ETAD candidate", results.length >= 1);
+            final DataSpaces.Result best = S1ETADCorrectionOp.selectBestOverlap(s1GRD, results);
+            assertNotNull(best);
+            assertSelectedCoversScene(s1GRD, best);
 
             File outputFolder = Files.createTempDirectory("etad").toFile();
-            File file = etadSearch.download(results[0], outputFolder);
+            File file = etadSearch.download(best, outputFolder);
             assert file.exists();
 
             s1GRD.dispose();
             FileUtils.deleteTree(outputFolder);
         }
+    }
+
+    /** The selected ETAD must cover the scene's sensing window (2 s tolerance, matching the
+     *  operator's validation) — an abutting slice overlaps by seconds and must never win. */
+    private static void assertSelectedCoversScene(final Product product, final DataSpaces.Result best)
+            throws Exception {
+        final double tolDays = 2.0 / 86400.0;
+        final double etadStart = ProductData.UTC.parse(
+                best.getStartTime().replace("Z", ""), "yyyy-MM-dd'T'HH:mm:ss").getMJD();
+        final double etadEnd = ProductData.UTC.parse(
+                best.getEndTime().replace("Z", ""), "yyyy-MM-dd'T'HH:mm:ss").getMJD();
+        assertTrue("selected ETAD '" + best.getName() + "' starts after the scene",
+                etadStart <= product.getStartTime().getMJD() + tolDays);
+        assertTrue("selected ETAD '" + best.getName() + "' ends before the scene",
+                etadEnd >= product.getEndTime().getMJD() - tolDays);
     }
 }

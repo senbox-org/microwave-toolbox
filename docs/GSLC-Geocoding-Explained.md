@@ -23,7 +23,7 @@ This is the "geocode-first" architecture behind global-scale systems (Agram et a
 
 ## 2. The core idea in one paragraph
 
-For every pixel of the **output map grid**, use the precise orbit + a DEM to find where that ground point falls in the source SLC (its zero-Doppler azimuth time and slant range). Before resampling, **remove the geometric carrier phase** (4πR/λ) so the signal is smooth enough to interpolate cleanly; resample the complex I/Q with a high-fidelity interpolator; then **restore that same carrier phase** in the new map geometry. The output complex pixel therefore carries the correct sensor-to-target phase for its map location — so a `master · conj(slave)` product between two GSLCs yields exactly the differential-range phase (the `exp(−j·4π(R_master − R_slave)/λ)` term), with no coregistration chain in between.
+For every pixel of the **output map grid**, use the precise orbit + a DEM to find where that ground point falls in the source SLC (its zero-Doppler azimuth time and slant range). Before resampling, **remove the geometric carrier phase** (4πR/λ) so the signal is smooth enough to interpolate cleanly; resample the complex I/Q with a high-fidelity interpolator; then **restore that same carrier phase** in the new map geometry. The output complex pixel therefore carries the correct sensor-to-target phase for its map location — so a `reference · conj(secondary)` product between two GSLCs yields exactly the differential-range phase (the `exp(−j·4π(R_reference − R_secondary)/λ)` term), with no coregistration chain in between.
 
 ---
 
@@ -45,7 +45,16 @@ The raw SLC phase spins rapidly (high fringe frequency from the 4πR/λ carrier)
 
 and removes it from the complex signal. The SLC carrier is `exp(−j·φ_sim)`, so flattening **multiplies by** `exp(+j·φ_sim)` to cancel it: `C' = C · exp(+j·φ_sim)`. The flattened signal has low fringe frequency and resamples cleanly.
 
-> **TOPS note.** For IW/EW data an additional azimuth deramp (from the antenna steering) is removed *first*, and the range carrier is pre-flattened on the deramped tile before resampling; the azimuth reramp phase is then re-applied **analytically at the fractional source position** rather than interpolated — this is what prevents burst-edge phase bias. Stripmap data with a residual Doppler centroid (e.g. ENVISAT ASAR IMS) gets an analogous sample-by-sample azimuth deramp/reramp.
+> **TOPS note.** For IW/EW data an additional azimuth deramp (from the antenna steering) is removed *first*, and the range carrier is pre-flattened on the deramped tile before resampling. The azimuth carrier is **not put back** by default (`outputAzimuthCarrier = false`): it is acquisition-specific — burst timing and FM rate — and does **not** cancel between two acquisitions, so restoring it injects a per-burst quadratic azimuth phase into every cross-acquisition interferogram (~150 rad ≈ 24 spurious fringes per burst measured on a real S1A+S1D pair; the effect is small for same-platform pairs with tight burst sync, which is why it can go unnoticed). Classical InSAR is immune because Back-Geocoding resamples the secondary onto the reference's burst grid; independent per-scene geocoding cannot do that, so the carrier must stay off — the same convention as OPERA CSLC. The carrier state is stamped in metadata (`gslc_azimuth_carrier`) and CreateStack matches it when auto-building a secondary; all legs of a stack must share one convention. Stripmap data with a residual Doppler centroid (e.g. ENVISAT ASAR IMS) still gets its sample-by-sample azimuth deramp/reramp — the stripmap f_dc carrier is orders of magnitude gentler, though a cross-acquisition f_dc difference is a known residual there too.
+>
+> One residual remains in a carrier-free cross-acquisition interferogram: with the carrier restored, deramp-model errors cancel in the round trip; with it removed, each leg keeps its own annotation-vs-data mismatch, and the difference between two acquisitions survives into the interferogram. **This residual is per burst, not one smooth surface** — every burst carries its own Doppler-centroid/FM-rate annotation, so the residual is a quadratic-in-azimuth-time per burst with genuine discontinuities at burst seams and range-dependent structure inside each burst. On a same-platform pair it is small (~1 fringe per 80 px measured on S1A+S1D); on a **cross-platform pair it is large and strongly burst-variable** (S1A×S1C, 10-burst IW3: per-burst azimuth phase rates spanning 39.7–68.3 rad/s — a spread no scene-global fit can represent).
+>
+> Two complementary removals handle it, both in `Interferogram`'s GSLC mode:
+>
+> 1. **Exact carrier-difference subtraction (deterministic — enable it).** The GSLC operator knows precisely which deramp model it removed from each leg; with **`outputPhaseTerms=true`** it writes that model phase as an `azimuthCarrierPhase` band, `CreateStack` carries the band per leg, and `Interferogram` subtracts the two models' **exact difference** — full azimuth *and* range structure, every burst, no fitting. Measured on the S1A×S1C pair this removes roughly half to three-quarters of the mismatch per burst (fitted residual rates fall from 57/58/45 to 34/29/10 rad/s). If only one leg carries the band, the operator warns and skips it — produce both GSLCs with the same setting.
+> 2. **`subtractResidualRamp` (data-driven — the remainder).** What the annotations cannot predict — the genuine annotation *error* difference — is estimated from the data: **per burst, in azimuth time** (each block's fringe gradient is labeled with its burst via the reference orbit's azimuth-time solve; per-burst rate polynomials plus shared range terms; per-burst constants from the phase itself, seams kept discontinuous), falling back to the scene-global quadratic for stripmap or when burst annotation is unavailable. It is too rigid to absorb localized deformation, but — like classical orbital deramping — it would absorb a genuine scene-wide linear gradient, hence off by default.
+>
+> This pairing is the GSLC-domain analogue of why classical TOPS InSAR needs ESD: the annotation is trusted for what it can predict, and the data corrects the rest.
 
 ### 3.3 High-fidelity complex resampling
 
@@ -53,29 +62,93 @@ The flattened I and Q are resampled from the source slant-range grid onto the ta
 
 ### 3.4 Phase restoration — the InSAR-critical default
 
-By default (**`outputFlattened = false`**) the operator **puts the carrier back** with the inverse multiply `C_geo = C'_resampled · exp(−j·φ_sim)`. This restores the absolute phase relative to the *new map geometry*, which is exactly what InSAR needs — the master·conj(slave) product then carries the differential-range phase `exp(−j·4π(R_master − R_slave)/λ)`.
+By default (**`outputFlattened = false`**) the operator **puts the carrier back** with the inverse multiply `C_geo = C'_resampled · exp(−j·φ_sim)`. This restores the absolute phase relative to the *new map geometry*, which is exactly what InSAR needs — the reference·conj(secondary) product then carries the differential-range phase `exp(−j·4π(R_reference − R_secondary)/λ)`.
 
-If `outputFlattened = true`, the carrier is **not** restored: each pixel holds only the local scattering coefficient σ(P). That is useful for amplitude/scattering or single-date PolSAR work, but it makes the GSLC **unusable for InSAR** — the range-difference phase is zeroed. **Use one mode consistently across all dates in a stack**; mixing flattened and non-flattened bands produces a noise interferogram. (The operator stamps `gslc_output_flattened` into metadata so `CreateStack` can enforce a matching state on an auto-built slave.)
+If `outputFlattened = true`, the carrier is **not** restored: each pixel holds only the local scattering coefficient σ(P). That is useful for amplitude/scattering or single-date PolSAR work, but it makes the GSLC **unusable for InSAR** — the range-difference phase is zeroed. **Use one mode consistently across all dates in a stack**; mixing flattened and non-flattened bands produces a noise interferogram. (The operator stamps `gslc_output_flattened` into metadata so `CreateStack` can enforce a matching state on an auto-built secondary.)
 
 > **Sign convention — a fixed bug worth flagging.** Flatten uses `exp(+jφ)` (to cancel the SLC's `exp(−jφ)` carrier) and restore uses the inverse `exp(−jφ)`. An earlier version used `exp(+jφ)` in **both** steps, doubling the carrier and corrupting the interferogram. The current code is correct (`multiplyByExpJPhi` to flatten, `multiplyByExpMinusJPhi` to restore) and pinned by `GSLCInSarGradeTest`.
 
 ### 3.5 Coregistration — folded into the grid, not a separate chain
 
-Because every GSLC is built on the **same standard map grid** (`alignToStandardGrid = true`, default), two overlapping scenes already share a global lat/lon lattice: the same ground point lands at the same fractional pixel (modulo an integer offset). That is coregistration by construction. Any residual sub-pixel misregistration (clock bias, processor-time delta, orbit residual) is absorbed by two scalar offsets — **`rangeOffsetPixels`** and **`azimuthOffsetPixels`** — applied inside the geometric sampling.
+Because every GSLC is always built on the **same standard map grid** (a fixed global lat/lon lattice anchored at 0,0), two overlapping scenes already share it: the same ground point lands at the same fractional pixel (modulo an integer offset). That is coregistration by construction. Any residual sub-pixel misregistration (clock bias, processor-time delta, orbit residual) is absorbed by two scalar offsets — **`rangeOffsetPixels`** and **`azimuthOffsetPixels`** — applied inside the geometric sampling.
 
-The simplest workflow geocodes **only the master** explicitly; `CreateStack` then reads the master's `gslc_source_slc_path` stamp, cross-correlates against the raw slave SLC to estimate the (Δr, Δa) bias, rebuilds the slave GSLC with those offsets, and stacks the two. The user runs GSLC once, feeds raw SLC slaves, and CreateStack handles the rest.
+The simplest workflow geocodes **only the reference** explicitly; `CreateStack` then reads the reference's `gslc_source_slc_path` stamp, cross-correlates against the raw secondary SLC to estimate the (Δr, Δa) bias, rebuilds the secondary GSLC with those offsets, and stacks the two. The user runs GSLC once, feeds raw SLC secondaries, and CreateStack handles the rest.
+
+### 3.5b Output grid — square or rectangular cells
+
+A map projection fixes the grid axes' **directions and units**, not the cell aspect ratio — the two sampling steps are independent. By default GSLC uses a square cell (equal degree steps, which is already mildly rectangular in ground metres away from the equator). Because SLC resolution is strongly anisotropic, the square default — the **coarser of the two native spacings**, `max(azimuthSpacing, rangeSpacing)` — discards sampling on the finer axis. For S1 IW (≈ 3.4 m ground range × ≈ 22 m azimuth, sampled at ≈ 3.4 × 14 m) that costs ~4× of the range sampling: fewer independent looks for coherence estimation and multilooking than classical radar-geometry InSAR keeps.
+
+**Which axis is the fine one is mission-dependent — do not assume it is range.** S1 IW is range-fine / azimuth-coarse, but BIOMASS stripmap is the reverse (19.81 m slant-range vs 6.71 m azimuth spacing, so azimuth-fine / range-coarse), and its ground aspect ratio is *larger* than S1's. The rule above and the rectangular-cell criterion below are both symmetric in the two axes, so they hold either way; only the resulting orientation flips (`dy < dx` instead of `dx < dy`).
+
+Setting the optional **Pixel Spacing North** (`pixelSpacingInMeterY`/`pixelSpacingInDegreeY`) decouples the axes. The limit on how coarse the north step may be is set by the orbit heading θ rotating the radar axes away from the map axes: the Nyquist-adequate steps are `dx ≤ 1/(B_rg·cosθ + B_az·sinθ)` and `dy ≤ 1/(B_rg·sinθ + B_az·cosθ)`. For S1 (|θ| ≈ 10–15°) that gives **≈ 3.4 m east × 7.5 m north** — near-full information preservation at ~4× fewer samples than a 3.4 m square grid. (Precedent: OPERA CSLC-S1 ships 5 × 10 m UTM cells.) `CreateStack`'s grid-lock and the lattice-alignment guard operate per axis, so rectangular stacks coregister exactly like square ones.
+
+On **oversampling**: because the resampler interpolates band-limited complex data (deramped, range-pre-flattened) with sinc-family kernels, requesting a *finer output grid* **is** band-limited oversampling — mathematically equivalent to FFT zero-padding of the source. Use `oversamplingPercent` (or simply a finer explicit spacing) together with `BISINC_21_POINT` for very-high-resolution work such as point-target analysis; no separate source-domain oversampling stage is needed.
+
+For lossless native-resolution cells (3.4 × 14 m with no heading penalty) the map axes themselves would have to align with the radar axes — i.e. a per-relative-orbit oblique projection (Hotine Oblique Mercator along the ground track). That remains a legitimate, EPSG-parameterizable map projection and a possible future option; rectangular cells on a standard CRS cover most of the benefit today.
 
 ### 3.6 Displacement-grade corrections (optional)
 
-For sub-decimetre deformation work, three geometry/phase corrections are exposed:
+For sub-decimetre deformation work, two geometry/phase corrections are exposed:
 
 | Correction | What it does | Status |
 |-----------|--------------|--------|
 | **Solid Earth Tide** (`applySolidEarthTide`) | ~10 cm body-tide displacement (IERS 2010 step-1, degree-2 Love numbers); shifts **both** rangeIndex and phase | Implemented |
 | **Troposphere** (`applyTroposphericCorrection`) | Saastamoinen dry path delay (standard atmosphere); shifts **phase only** | Implemented |
-| **Ionosphere** (`applyIonosphericCorrection`) | L-band TEC path delay (NISAR, ALOS-2/4) | **Stub** — logs a warning; full split-spectrum/TEC pending |
 
-SET and troposphere are negligible for coherence-only or amplitude work; they matter for displacement-grade InSAR. Ionosphere has no effect at C-/X-band.
+SET and troposphere are negligible for coherence-only or amplitude work; they matter for displacement-grade InSAR.
+
+**These are not the only corrections available, and they overlap with the others.** A GSLC InSAR chain has three independent places to apply corrections:
+
+1. **ETAD** (`S1-ETAD-Correction`), applied to the **split SLC before geocoding** — Sentinel-1's auxiliary timing product supplies measured tropospheric and ionospheric range delay, geodetic effects, and bistatic/FM-mismatch azimuth shifts. Its `sumOfRangeCorrections` / `sumOfAzimuthCorrections` parameters default to **true**, so ETAD's default is the *total* correction; the seven individual layer switches (default false) exist to apply a subset. **For a GSLC chain, `resamplingImage=true` + `outputPhaseCorrections=true` is mandatory**: with `resamplingImage=false` the operator only *attaches* the corrections as tie-point grids, which are consumed exclusively by the classical slant-range interferogram path — for GSLC that mode is a guaranteed silent no-op (measured: the "corrected" GSLC came out bit-identical to the uncorrected one).
+2. **GSLC itself** — the two rows above.
+3. **The interferogram domain** — the `IonosphericCorrection` operator (phase screens).
+
+Because ETAD's tropospheric layer and GSLC's `applyTroposphericCorrection` model the **same** path delay, enabling both **double-counts** it; the same holds for ETAD's geodetic layers against `applySolidEarthTide`. Choose ETAD (measured) where an ETAD product exists, otherwise GSLC's computed model. ETAD must also be applied to **both** acquisitions or to neither — a differential timing correction goes straight into the interferometric phase.
+
+#### Which corrections actually help — measured
+
+An eight-configuration ablation was run on a Sentinel-1B IW1 pair (15 Aug × 08 Sep 2020, 24-day baseline, 2 bursts), each configuration processed end to end through GSLC → CreateStack → Interferogram with **`subtractResidualRamp=false`** so that ramp removal could not absorb the long-wavelength signal under test. Identical 1200 × 1200 window in every case.
+
+| Configuration | Residues /10⁴ px | Δ vs baseline | 5×5 local coh | Δ | mean coh | Δ |
+|---|---|---|---|---|---|---|
+| Baseline, no corrections | 2554.6 | — | 0.2859 | — | 0.2850 | — |
+| **ETAD, summed range + azimuth** | **2411.6** | **−5.6 %** | **0.2931** | **+0.0072** | 0.2790 | −0.0060 |
+| ETAD, azimuth layers only | 2477.4 | −3.0 % | 0.2879 | +0.0020 | 0.2744 | −0.0106 |
+| ETAD, tropospheric only | 2487.4 | −2.6 % | 0.2879 | +0.0020 | 0.2750 | −0.0100 |
+| ETAD, ionospheric only | 2509.2 | −1.8 % | 0.2857 | −0.0002 | 0.2728 | −0.0122 |
+| ETAD, geodetic range only | 2511.1 | −1.7 % | 0.2856 | −0.0003 | 0.2726 | −0.0124 |
+| GSLC `applySolidEarthTide` | 2511.0 | −1.7 % | 0.2856 | −0.0003 | 0.2728 | −0.0122 |
+| GSLC `applyTroposphericCorrection` | 2535.5 | −0.7 % | 0.2714 | −0.0145 | 0.2258 | −0.0592 |
+
+What this does and does not establish:
+
+1. **Full ETAD is the best configuration on both phase metrics** — the lowest residue density (−5.6 %) and the only configuration to raise 5×5 local phase coherence appreciably (+0.0072). It beats every individual layer.
+2. **The layers are NOT additive, despite appearances.** Azimuth-only (−3.0 %) plus tropospheric-only (−2.6 %) happens to equal the combined −5.6 %, but adding the ionospheric (−1.8 %) and geodetic-range (−1.7 %) terms as well would give −9.1 %, far more than the −5.6 % actually measured. The two-term agreement is a coincidence; the single-layer figures share a large common component and must not be summed.
+3. **The two coherence metrics disagree, and this is unresolved.** Residue density and *local phase* coherence improve with ETAD, but **mean coherence falls in every single configuration** (−0.0060 to −0.0592). Only the local/phase-structure metrics support "ETAD helps". A plausible reading is that resampling slightly decorrelates the pair while improving phase-gradient structure, but this has not been demonstrated. **Treat the improvement as established for unwrappability, not for coherence.**
+4. **Ionospheric, geodetic-range and solid-Earth-tide corrections are at the noise floor here** (−1.7 to −1.8 % residues, local coherence flat to −0.0003). For ionosphere that matches theory — TEC phase scales as 1/f, so it only becomes first-order at P-band (BIOMASS, ~12× larger) — but on this evidence none of the three is individually distinguishable from no correction.
+5. **GSLC's built-in Saastamoinen tropospheric model degrades the result** — it is the worst configuration on every metric (local coherence 0.2859 → 0.2714, mean 0.2850 → 0.2258). A standard-atmosphere model applied independently to each acquisition injects more error than it removes over a 24-day pair. **Prefer ETAD's measured correction wherever an ETAD product exists.**
+6. **`applySolidEarthTide` and ETAD's geodetic-range layer agree to 0.1 residues** (2511.0 vs 2511.1) and to 4 decimals on both coherence metrics — two independent implementations of the same physical effect landing on the same answer. A useful cross-check, and a concrete illustration of the double-counting overlap noted above.
+
+> **Scope of these numbers — they measure the geometric contribution only.** Every configuration above ran in ETAD's *resampling* mode with `outputPhaseCorrections=false`, so the gains come from better geolocation and hence better coregistration. Resampling relocates a pixel but leaves the −4πΔr/λ that the delay put in its phase, and `InterferogramOp`'s ETAD phase handling runs only on the classical slant-range paths, never on the GSLC path. Enabling `outputPhaseCorrections` removes the range-delay phase from the complex samples before geocoding, which is the correct route for a geocode-first chain.
+
+#### The atmospheric phase term, measured separately
+
+Re-running the full-ETAD configuration with `outputPhaseCorrections=true` changes **every** pixel, and the correction it applies is a **smooth** field — adjacent-pixel gradient of the *differential* (the part that survives into the interferogram) is 0.063 rad/px mean, against 1.571 rad/px for a random field — spanning **0.98 cycles ≈ 2.7 cm LOS** across the scene. That is a physically plausible differential tropospheric signal for a 24-day pair.
+
+Its effect on the residue/local-coherence metrics above is **nil** (2411.6 → 2416.1 residues, local coherence 0.2931 → 0.2916). That is a limitation of those metrics, not of the correction: **residue density and a 5×5 coherence window are measures of *local* phase noise and are blind to a smooth one-cycle-per-scene field by construction.** Choosing them for an atmospheric ablation was a design error worth recording.
+
+Measured with a statistic that can see long-wavelength phase — the circular standard deviation of the 32 × 32 multilooked interferometric phase — the correction clearly works:
+
+| | circular σ of 32×32 phase | concentration R |
+|---|---|---|
+| ETAD geometric only | 2.8069 rad | 0.0195 |
+| **ETAD + phase correction** | **2.5726 rad (−8.3 %)** | **0.0365 (+87 %)** |
+
+This also validates the **sign**: an inverted correction would double the atmospheric phase and degrade this statistic, whereas it improves substantially. R remains small in absolute terms because residual topography, deformation and un-modelled atmosphere all still contribute.
+
+**Guidance:** enable `outputPhaseCorrections` for any displacement-grade GSLC work, and do not judge an atmospheric correction with residue counts or small-window coherence.
+
+Full experimental design in `docs/superpowers/plans/2026-07-27-cross-toolbox-validation.md` §B4.
 
 ---
 
@@ -86,8 +159,8 @@ Traditional TOPS InSAR                 GSLC-based InSAR
 ──────────────────────                 ────────────────────────
 Apply-Orbit-File                       Apply-Orbit-File
 TOPSAR-Split                           TOPSAR-Split
-Back-Geocoding (coregister)      →     GSLC-Terrain-Correction (master)
-Enhanced-Spectral-Diversity      →     CreateStack (auto-coregisters slave)
+Back-Geocoding (coregister)      →     GSLC-Terrain-Correction (reference)
+Enhanced-Spectral-Diversity      →     CreateStack (auto-coregisters secondary)
 Interferogram                          Interferogram
 TOPSAR-Deburst                   →     —
 TOPSAR-Merge                     →     —
@@ -107,17 +180,18 @@ The GSLC approach collapses steps 3–4 and 6–8 of the traditional chain. Each
 | **DEM** | Copernicus 30m Global | Auto-downloaded; supply an external DEM for local high-res work |
 | **Image Resampling** | BiSinc 5-point | Keep a sinc kernel for InSAR; higher orders (11/21) trade speed for fidelity |
 | **DEM Resampling** | Bilinear | Bilinear is fine for most terrain; BiSinc for steep relief |
-| **Pixel Spacing (m / deg)** | 0 (auto) | 0 → derived from source; set explicitly to fix an output resolution across a stack |
-| **Oversampling (%)** | 0 | 20% → 20% finer pixels; use to reduce interpolation loss on high-relief scenes |
+| **Pixel Spacing (m / deg)** | 0 (auto) | 0 → derived from source; set explicitly to fix an output resolution across a stack. Becomes the **east** step when a north spacing is also set |
+| **Pixel Spacing North (m / deg)** | 0 (square) | Optional **rectangular cells** preserving the SLC's anisotropic resolution — S1 IW: ≈ 3.4 m east × 7.5 m north (see §3.5b). Leave 0 for square |
+| **Oversampling (%)** | 0 | 20% → 20% finer pixels; use to reduce interpolation loss on high-relief scenes. A finer grid through the sinc kernel *is* band-limited oversampling (§3.5b) |
 | **Map Projection** | WGS84(DD) | Any WKT CRS; use a metric projection (UTM) if you need metre grids |
-| **Align to Standard Grid** | **true** | **Leave on for stacking** — guarantees a shared lattice across scenes. Off only for a one-off single scene |
-| **Standard Grid Origin X/Y** | 0, 0 | Anchor of the shared lattice; leave default unless aligning to an external grid |
 | **Output phase-flattened** | **false** | **Leave false for InSAR.** True only for amplitude/PolSAR single-date use |
-| **Range/Azimuth offset (px)** | 0 | Sub-pixel slave alignment; **CreateStack sets these automatically** |
-| **Apply SET / Tropo / Iono** | false | Turn on SET + Tropo for displacement-grade InSAR; Iono is an L-band stub today |
+| **Restore TOPS azimuth carrier** | **false** | **Leave false.** Acquisition-specific; does not cancel between acquisitions — restoring it corrupts cross-acquisition InSAR (~tens of spurious fringes per burst) |
+| **Output phase-term bands** (`outputPhaseTerms`) | false | **Turn on for InSAR.** Writes the removed deramp model as an `azimuthCarrierPhase` band (plus the flattening phase), enabling `Interferogram`'s **exact carrier-difference subtraction** (§3.2). Must be on for **both** legs (the CreateStack auto-path matches the reference automatically). Adds float64 bands (~2× product size) — leave off for pure backscatter products |
+| **Range/Azimuth offset (px)** | 0 | Sub-pixel secondary alignment; **CreateStack sets these automatically** |
+| **Apply SET / Tropo** | false | Turn on SET + Tropo for displacement-grade InSAR |
 | **Mask out no-elevation areas** | true | Skips sea/no-DEM pixels; speeds processing |
 
-**First-run recipe:** defaults, `outputFlattened=false`, `alignToStandardGrid=true`. Geocode the master; feed raw SLC slaves to `CreateStack`. Inspect the interferogram coherence; enable SET+tropo only when chasing sub-decimetre displacement.
+**First-run recipe:** defaults, `outputFlattened=false`, **`outputPhaseTerms=true`**. Geocode the reference; feed raw SLC secondaries to `CreateStack`; on the `Interferogram` step enable `subtractFlatEarthPhase`, `subtractTopographicPhase` **and `subtractResidualRamp`** — with the phase-term bands present the operator first subtracts the two legs' deramp models **exactly**, then the per-burst data-driven fit removes the annotation-error remainder (the GSLC-domain analogue of ESD; see the TOPS note in §3.2). Inspect the interferogram coherence; enable ETAD (option-1 mode) or SET+tropo only when chasing sub-decimetre displacement. Judge phase quality **after** filtering or multilooking — a correct single-look interferogram at γ ≈ 0.2 looks like noise on screen, and a decimated full-scene zoom aliases dense fringes into misleading moiré on a fine GSLC grid.
 
 ---
 
@@ -136,7 +210,7 @@ For full IW coverage, process each subswath (IW1/IW2/IW3) independently and mosa
 
 ## 7. Validation evidence
 
-InSAR-grade correctness is pinned by an executable spec, `GSLCInSarGradeTest.java` (15 `@Test` methods, built on the Capella SM SLC fixture), plus a TOPS test family (`GSLCTops*Test`, `GSLCVs*ComparisonTest`). Each hardening fix is anchored to a test:
+InSAR-grade correctness is pinned by an executable spec, `GSLCInSarGradeTest.java` (14 `@Test` methods, built on the Capella SM SLC fixture), plus a TOPS test family (`GSLCTops*Test`, `GSLCVs*ComparisonTest`). Each hardening fix is anchored to a test:
 
 - **Sign convention** — flatten `exp(+jφ)` / restore `exp(−jφ)` (fixes the doubled-carrier bug).
 - **TOPS range pre-flatten + analytic reramp** — removes burst-edge aliasing and phase bias.
@@ -144,18 +218,28 @@ InSAR-grade correctness is pinned by an executable spec, `GSLCInSarGradeTest.jav
 - **Solid Earth Tide** math contract vs. reference, and an **identical-pair → zero-phase interferogram** test.
 - **Two-burst S-1 IW** exercised in the InSAR-readiness pyramid (synthetic 2-burst geometry in the TOPS unit tests).
 
+**Head-to-head against the traditional pipeline (S1A + S1D cross-platform pair, Venezuela, 2-burst IW3 fixture):** with carrier-free output and `subtractResidualRamp`, the GSLC interferogram's phase-only self-coherence matches the classical (Back-Geocoding) interferogram **to three decimals at every estimation window tested** (5–80 px; e.g. win40: 0.0226 vs 0.0223, win80: 0.0130 vs 0.0128, same block, same statistic), and the two interferograms cross-agree at the level expected from their independent resampling noise. Three defects had to fall to get there — a dropped stacking offset, cross-platform lattice mismatch, and the non-cancelling TOPS azimuth carrier — each now pinned by a regression test (`GSLCStackOffsetProbeTest`, lattice tests, `GSLCCarrierResidualTest`).
+
+**Full-scene cross-platform pair (S1A × S1C, Venezuela coseismic, 10-burst IW3):** the scene that motivated per-burst removal. Measured per-burst azimuth phase rates span **39.7–68.3 rad/s across the ten bursts** — a scene-global fit removes only the average and leaves dense fringes over the strongly-deviating bursts (visually striking in the northern third of this scene). The per-burst azimuth-time fit removes the burst structure; the exact carrier-difference subtraction (`outputPhaseTerms` bands) then accounts deterministically for the models' full range/azimuth structure, and the fitted data-driven remainder collapses by 2–5× per burst (e.g. 57/58/45 → 34/29/10 rad/s on the 3-burst validation window). At matched multilook (~84 m cells) the full-scene GSLC interferogram reproduces the classical chain's fringe field — including the coseismic fan that matches independently published interferograms of the event. Lattice registration between the chains is exact (integer pixel offset, fractional residual 0.000000). Remaining cross-chain differences concentrate where phase gradients are steepest — the signature of sub-pixel geolocation-convention differences between the chains (δ·∇φ), plus ETAD application-route differences — and are comparison-level, not artifacts within the GSLC product.
+
+**Correction-layer ablation (S1B IW1, 15 Aug × 08 Sep 2020):** eight configurations measured end to end. Full ETAD improves unwrappability by **−5.6 % phase residues** and local phase coherence by **+0.0072**, and GSLC's built-in Saastamoinen tropospheric model degrades the interferogram on every metric. Two honest caveats carried in §3.6: *mean* coherence falls in **every** configuration, so the improvement is established for unwrappability rather than coherence; and the individual layer contributions are **not** additive. These figures are also a lower bound — they measure ETAD's geometric contribution only (see §3.6).
+
+**Second mission — BIOMASS (P-band, stripmap, left-looking, 3-day pair):** the geocode-first chain runs end to end on a completely different mission. Both legs geocoded independently landed on **one lattice — identical grid step and a whole-pixel origin offset of exactly −71.000000 × −15.000000 px (to 1e-13)** — and the resulting interferogram is 81.7 % valid at **mean coherence 0.528**. This matters because the standard-grid snapping was designed and debugged entirely against Sentinel-1 to fix the cross-platform lattice defect; that it transfers exactly to a different band, geometry, pixel aspect and look direction is evidence the fix was general rather than tuned. Two BIOMASS-specific findings: the square-cell default picks the **coarser** axis, so the native 6.709 m azimuth sampling is coarsened 2.95× to 19.814 m (use rectangular cells — the fine axis is azimuth here, the reverse of S1 IW); and the stripmap Doppler-centroid residual is negligible at P-band (|f_dc| ≤ 0.05 Hz across the swath) where the TOPS azimuth carrier dominates at C-band.
+
 **Known limitations and roadmap:**
 
-- **Full ionospheric correction** is a stub (split-spectrum / GIM-TEC pending).
 - A few **end-to-end integration tests are DEM-gated** (skipped without SRTM/Copernicus availability).
-- Validation to date is on **2 bursts**; extending to **6 bursts / a full slice** and a **quantified coherence comparison against the traditional pipeline** is the natural next validation step.
+- Full-scene validation is on **10-burst IW subswaths**; a multi-subswath slice and long-stack (SBAS/PSI) validation are the natural next steps.
+- Exact carrier-difference subtraction requires GSLCs produced with `outputPhaseTerms=true`; stacks built without the bands fall back to data-driven removal alone (with a log warning when only one leg carries them).
+- Cross-chain (GSLC vs classical) equivalence beyond fringe-field agreement is bounded by two open route-level items: sub-pixel geolocation-convention differences between the chains, and the differing ETAD application routes (baked-in phase vs classical grid consumption).
 
 ---
 
 ## 8. Frequently asked questions
 
 - **"Is GSLC just terrain correction on complex data?"** No — it is a geocode-first *architecture*. It preserves phase and builds every scene on a shared grid, so coregistration and the deburst/merge/TC chain collapse into it.
-- **"Why might my GSLC interferogram be noisier than expected?"** Most likely candidates, in order: (1) `outputFlattened` mismatched between master and slave; (2) burst-edge / nodata effects when processing many bursts; (3) residual sub-pixel misregistration not captured by the scalar offsets; (4) DEM quality, or SET + troposphere left off for a displacement scene.
+- **"Why might my GSLC interferogram be noisier than expected?"** Most likely candidates, in order: (1) `outputFlattened` mismatched between reference and secondary; (2) burst-edge / nodata effects when processing many bursts; (3) residual sub-pixel misregistration not captured by the scalar offsets; (4) DEM quality, or SET + troposphere left off for a displacement scene.
+- **"Why does my GSLC interferogram show fringes the classical one doesn't?"** The cross-acquisition deramp-annotation residual (§3.2) — per-burst, large on cross-platform pairs, and further exaggerated on screen because a decimated zoom of a fine GSLC grid aliases dense fringes into moiré. Remedy: produce both GSLCs with `outputPhaseTerms=true` and enable `subtractResidualRamp` on the interferogram; judge the result multilooked, not at full-scene zoom.
 - **"Does it work with and without ETAD?"** Yes. ETAD refines the geometry further but is not required.
 - **"ERS / ENVISAT?"** Stripmap ASAR IMS is a direct, supported input — the operator has dedicated ENVISAT Doppler-deramp code (the InSAR-grade test fixture is Capella Stripmap; there is no ENVISAT/S-1 SM end-to-end test yet).
 - **"How is the output grid sized?"** From pixel spacing (m or deg) × oversampling, on the standard lattice anchored at the grid origin; set pixel spacing explicitly to lock resolution across a stack.

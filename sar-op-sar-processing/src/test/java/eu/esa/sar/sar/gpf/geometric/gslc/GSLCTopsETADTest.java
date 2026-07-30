@@ -1,13 +1,14 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.HashMap;
@@ -21,8 +22,15 @@ import static org.junit.Assume.assumeTrue;
  * Layer 3: GSLC must run on an ETAD-corrected TOPS SLC, and the ETAD correction must
  * make a measurable-but-bounded difference to the geocoded product (ETAD shifts
  * geolocation by cm–dm). File-gated on the local IW-Philippines ETAD pair.
+ * <p>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCTopsETADTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCTopsETADTest extends ProcessorTest {
 
     // ETAD-Surat has both the SLC (1SSH, single-pol) and the matching ETAD .SAFE locally.
@@ -46,7 +54,9 @@ public class GSLCTopsETADTest extends ProcessorTest {
 
     private static Product gslc(Product in) {
         final Map<String, Object> p = new HashMap<>();
-        p.put("demName", "SRTM 3Sec");
+        // Copernicus 30m: the project-standard DEM, cached by every other GSLC test/run on this
+        // machine — SRTM 3Sec risked a fresh tile download inside the timed test.
+        p.put("demName", "Copernicus 30m Global DEM");
         p.put("imgResamplingMethod", "BILINEAR_INTERPOLATION");
         p.put("nodataValueAtSea", false);
         return GPF.createProduct("GSLC-Terrain-Correction", p, in);
@@ -72,23 +82,30 @@ public class GSLCTopsETADTest extends ProcessorTest {
             final Product gPlain = gslc(splitIW1(src));
 
             // Both geocode to the same grid size; the data differs by a small geolocation shift.
-            final double diff = meanAbsDiffFirstReal(gPlain, gCorr);
-            System.out.printf("ETAD vs non-ETAD mean|delta(real band)| = %.6g%n", diff);
-            assertTrue("ETAD must change the GSLC (got " + diff + ")", diff > 0.0);
+            // A CENTRE WINDOW is ample to prove "ETAD changed the data" — and it is the whole
+            // difference between a minutes test and a half-hour one: reading full-width rows pulled
+            // every tile of BOTH GSLC rasters plus the full ETAD resample behind one of them,
+            // whereas reading a window lets GPF laziness compute only the tiles it touches, all the
+            // way back through the chain.
+            final double diff = meanAbsDiffCentreWindow(gPlain, gCorr, 1024);
+            System.out.printf("ETAD vs non-ETAD mean|delta(real band)| over centre window = %.6g%n", diff);
+            assertTrue("ETAD must change the GSLC (got " + diff + ")", diff > 1e-3);
         }
     }
 
-    private static double meanAbsDiffFirstReal(Product a, Product b) throws Exception {
+    private static double meanAbsDiffCentreWindow(Product a, Product b, int size) throws Exception {
         final Band ba = firstReal(a), bb = firstReal(b);
         assertNotNull(ba); assertNotNull(bb);
         final int w = Math.min(ba.getRasterWidth(), bb.getRasterWidth());
         final int h = Math.min(ba.getRasterHeight(), bb.getRasterHeight());
-        final float[] ra = new float[w], rb = new float[w];
+        final int ww = Math.min(size, w), wh = Math.min(size, h);
+        final int x0 = (w - ww) / 2, y0 = (h - wh) / 2;
+        final float[] ra = new float[ww], rb = new float[ww];
         double sum = 0; long n = 0;
-        for (int y = 0; y < h; y += 8) {
-            ba.readPixels(0, y, w, 1, ra, com.bc.ceres.core.ProgressMonitor.NULL);
-            bb.readPixels(0, y, w, 1, rb, com.bc.ceres.core.ProgressMonitor.NULL);
-            for (int x = 0; x < w; x++) {
+        for (int y = y0; y < y0 + wh; y += 4) {
+            ba.readPixels(x0, y, ww, 1, ra, com.bc.ceres.core.ProgressMonitor.NULL);
+            bb.readPixels(x0, y, ww, 1, rb, com.bc.ceres.core.ProgressMonitor.NULL);
+            for (int x = 0; x < ww; x++) {
                 if (Float.isNaN(ra[x]) || Float.isNaN(rb[x])) continue;
                 sum += Math.abs(ra[x] - rb[x]); n++;
             }

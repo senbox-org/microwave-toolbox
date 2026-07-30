@@ -40,7 +40,7 @@ You will do the Phase Linking step twice: once in **SNAP Desktop**, once with **
 
 ## Why phase linking here
 
-A single repeat-pass interferogram is noise over natural surfaces — scattering changes between passes. Phase linking jointly estimates **one consistent phase per acquisition** from the whole stack, so vegetated/rural pixels become usable instead of being discarded (as classical Persistent-Scatterer InSAR does). The output is a **drop-in replacement** for the coregistered stack — Interferogram, Multi-Master InSAR and SBAS all work unchanged, but distributed-scatterer coherence is far higher.
+A single repeat-pass interferogram is noise over natural surfaces — scattering changes between passes. Phase linking jointly estimates **one consistent phase per acquisition** from the whole stack, so vegetated/rural pixels become usable instead of being discarded (as classical Persistent-Scatterer InSAR does). The output is a **drop-in replacement** for the coregistered stack — Interferogram, Multi-Reference InSAR and SBAS all work unchanged, but distributed-scatterer coherence is far higher.
 
 > **Note on stack size.** Three acquisitions is the **minimum** phase linking accepts (it needs ≥ 3 epochs). It cleanly demonstrates the workflow, but the coherence gain and time-series quality grow with more passes — add further acquisitions for an operational deformation product.
 
@@ -64,7 +64,7 @@ A single repeat-pass interferogram is noise over natural surfaces — scattering
 Phase Linking needs a coregistered, **debursted** complex stack. Build it from the three raw SLCs with this operator chain (the earliest pass, **S1A / 23 Jun**, is the reference):
 
 ```
-Apply-Orbit-File  →  TOPSAR-Split (IW3, VV)   ×3 (one per acquisition)
+Apply-Orbit-File  →  TOPSAR-Split (IW3, VV)  →  [S-1 ETAD Correction]   ×3 (one per acquisition)
         →  Back-Geocoding (S1A reference + S1C, S1D secondaries)
         →  Enhanced-Spectral-Diversity
         →  TOPSAR-Deburst
@@ -74,6 +74,40 @@ Apply-Orbit-File  →  TOPSAR-Split (IW3, VV)   ×3 (one per acquisition)
 The quickest reliable way in the GUI is **Tools ▸ Graph Builder**: add three `Read` nodes (one per `.SAFE`), wire each through `Apply-Orbit-File` and `TOPSAR-Split` (set **Subswath = IW3**, **Polarisation = VV**), feed all three into `Back-Geocoding`, then `Enhanced-Spectral-Diversity`, `TOPSAR-Deburst`, and `Write`. Run it. *(If you prefer, run the `gpt` graph in Part B Step 1 — it is the exact same chain and is easier to reproduce.)*
 
 > Restrict to the bursts covering the epicentre (TOPSAR-Split *First/Last Burst Index*) to cut processing time; leave them at the defaults to keep the whole subswath.
+
+#### Optional — ETAD correction on each acquisition
+
+**ETAD** supplies per-pixel range/azimuth timing corrections (tropospheric and ionospheric path delay,
+geodetic, bistatic and FM-mismatch shifts). It matters more for phase linking than for a single pair:
+the covariance matrix is estimated across **all** epochs, so an uncorrected timing error in one
+acquisition degrades every interferometric pair that epoch participates in, not just one.
+
+Insert **Radar ▸ Sentinel-1 TOPS ▸ S-1 ETAD Correction** after `TOPSAR-Split` on **each** of the three
+branches, before `Back-Geocoding` — the corrections are defined in radar timing and must be applied in
+radar geometry.
+
+| Field | Setting |
+|-------|---------|
+| ETAD product | *(leave empty — auto-downloaded; needs Copernicus credentials in **Tools ▸ Options ▸ General ▸ Credentials**)* |
+| Resampling Type | BiSinc 5-point |
+| Resampling Image | ✔ on |
+| **Output Phase Corrections** | ✔ **on** — removes the range-delay **phase**, not just the geolocation |
+| Sum Of Range / Azimuth Corrections | ✔ **on** (default) — these already contain the total correction |
+| Individual layers | all **off** (default) — they select a *subset*, used only for isolating one term |
+
+> **Resampling alone does not correct phase.** An atmospheric delay both displaces the target *and*
+> adds −4πΔr/λ to its phase. Resampling moves the pixel back but leaves the phase, so the delay
+> survives into every interferometric pair. *Output Phase Corrections* removes it from the complex
+> samples. For phase linking this is worth more than for a single pair, because the covariance matrix
+> is built from all epoch pairs at once.
+
+> **Apply it to all three acquisitions or to none.** ETAD-correcting a subset of the stack introduces a
+> differential timing correction between epochs, which is precisely the quantity phase linking
+> interprets as signal.
+
+> **Keep the original product names.** ETAD matches the SAR product to the ETAD product using the
+> sensing timestamps *in the name*; a renamed intermediate fails with an opaque
+> `Range [17, 55) out of bounds for length N`. A suffix is fine.
 
 ### Step 2 — Phase Linking
 
@@ -117,7 +151,7 @@ Run these from your working folder. The graph takes the three input products as 
 
 ### Step 1 — build the coregistered stack
 
-Save as `venezuela_stack.xml`. Reference (master) is **S1A**; secondaries are **S1C** and **S1D**:
+Save as `venezuela_stack.xml`. The reference is **S1A**; the secondaries are **S1C** and **S1D**:
 
 ```xml
 <graph id="VenezuelaStack">
@@ -162,7 +196,7 @@ Save as `venezuela_stack.xml`. Reference (master) is **S1A**; secondaries are **
     <parameters><subswath>IW3</subswath><selectedPolarisations>VV</selectedPolarisations></parameters>
   </node>
 
-  <!-- ==== coregister (master = first source), ESD, deburst ==== -->
+  <!-- ==== coregister (reference = first source), ESD, deburst ==== -->
   <node id="BackGeocoding"><operator>Back-Geocoding</operator>
     <sources>
       <sourceProduct refid="Split_A"/>
@@ -267,7 +301,7 @@ Form the first interferogram (S1A→S1C, the first consecutive pair) from the ph
 
 The **`subtractTopographicPhase`** flag is the command-line equivalent of the *Subtract topographic phase* checkbox in the GUI — it removes the DEM-simulated topographic fringes so the deformation signal remains. Point `Read` at `stack_PL.dim` for the phase-linked result and at `stack_IW3_VV.dim` for the raw baseline, and compare the coherence bands over the vegetated flanks — the phase-linked coherence should be markedly higher (see **Results** below for the temporal-coherence map and the before/after interferograms).
 
-For the full time-series workflow (Multi-Master network → SNAPHU unwrapping → SBAS inversion), see the notebook **`snap-nb-sar-ds-insar-timeseries`**.
+For the full time-series workflow (Multi-Reference network → SNAPHU unwrapping → SBAS inversion), see the notebook **`snap-nb-sar-ds-insar-timeseries`**.
 
 ---
 
@@ -314,6 +348,6 @@ Both images below are the **same interferometric pair, formed identically** — 
 
 ## Next steps
 
-- **Jupyter notebooks** — full, runnable SAR/InSAR workflows: <https://github.com/senbox-org/snap-jupyter-notebooks>. See `snap-nb-sar-ds-insar-timeseries` for the complete DS-InSAR time series (Phase Linking → Multi-Master network → SNAPHU unwrapping → SBAS inversion → velocity/displacement).
+- **Jupyter notebooks** — full, runnable SAR/InSAR workflows: <https://github.com/senbox-org/snap-jupyter-notebooks>. See `snap-nb-sar-ds-insar-timeseries` for the complete DS-InSAR time series (Phase Linking → Multi-Reference network → SNAPHU unwrapping → SBAS inversion → velocity/displacement).
 - Algorithm & parameter rationale: `Phase-Linking-Explained.md`.
 - Operator parameter reference: in-app Help (F1 in the dialog) → *Phase Linking*.

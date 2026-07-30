@@ -104,7 +104,18 @@ public class TestMultiReferenceInSAR {
 
         MultiMasterInSAROp op = new MultiMasterInSAROp();
         op.setSourceProduct(sourceProductWithoutElevationBand);
+        op.setParameter("addElevation", false); // disable auto-add so the missing-band error is exercised
         assertThrows(OperatorException.class, () -> { op.initialize(); });
+    }
+
+    @Test
+    public void test_addElevation_defaults_true() throws Exception {
+        // ESA request: the "Add elevation band" option must exist and be on by default so users
+        // don't hit the missing-elevation error.
+        final MultiMasterInSAROp op = new MultiMasterInSAROp();
+        final java.lang.reflect.Field field = MultiMasterInSAROp.class.getDeclaredField("addElevation");
+        field.setAccessible(true);
+        org.junit.Assert.assertTrue("addElevation must default to true", field.getBoolean(op));
     }
 
     @Test

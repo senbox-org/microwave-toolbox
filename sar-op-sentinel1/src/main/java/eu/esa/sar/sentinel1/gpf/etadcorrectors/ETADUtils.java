@@ -315,9 +315,30 @@ public final class ETADUtils {
         return -1;
     }
 
+    /**
+     * Match an ETAD input product by the sensing start/stop timestamps carried in the SAR product
+     * name.
+     * <p>
+     * This used to be {@code ProductName.substring(17, 55)}, i.e. fixed character offsets into a
+     * full Sentinel-1 SAFE name. Any product whose name had been changed — a subset or split written
+     * to a shorter filename, which is entirely normal in a processing graph — threw
+     * {@code Range [17, 55) out of bounds for length N} from deep inside computeTileStack, with
+     * nothing to indicate that the product *name* was the problem.
+     * <p>
+     * The timestamps are now located by pattern rather than by position, so any name that still
+     * contains them works regardless of prefix length, and a name that genuinely lacks them gets a
+     * clear message instead of an index error.
+     */
     public int getProductIndex(final String ProductName) {
 
-        final String productSensingStartStopTime = ProductName.substring(17, 55).toLowerCase();
+        final java.util.regex.Matcher m = SENSING_TIMES.matcher(ProductName);
+        if (!m.find()) {
+            throw new IllegalArgumentException("Cannot determine the sensing start/stop time from " +
+                    "product name '" + ProductName + "'. ETAD correction matches the SAR product to " +
+                    "the ETAD product by the <start>T<time>_<stop>T<time> timestamps in the name, so " +
+                    "the original Sentinel-1 product name must be preserved (a suffix is fine).");
+        }
+        final String productSensingStartStopTime = m.group().toLowerCase();
         for (InputProduct prod : inputProducts) {
             if (prod.productID.toLowerCase().contains(productSensingStartStopTime)) {
                 return prod.pIndex;
@@ -325,6 +346,16 @@ public final class ETADUtils {
         }
         return -1;
     }
+
+    /**
+     * {@code 20200815T173048_20200815T173116_022937} — sensing start/stop plus, when present, the
+     * absolute orbit number. The trailing group is optional but greedy, so for a standard Sentinel-1
+     * name this matches exactly the same 38-character string the old {@code substring(17, 55)}
+     * produced; for a renamed product that has dropped the orbit it degrades to the timestamps,
+     * which already identify an acquisition uniquely.
+     */
+    private static final java.util.regex.Pattern SENSING_TIMES =
+            java.util.regex.Pattern.compile("\\d{8}T\\d{6}_\\d{8}T\\d{6}(?:_\\d{6})?");
 
     public int getSwathIndex(final int pIndex, final double slantRangeTime) {
 

@@ -16,6 +16,7 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.GCPManager;
@@ -28,8 +29,8 @@ import org.esa.snap.core.datamodel.ProductNodeGroup;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -59,8 +60,15 @@ import static org.junit.Assume.assumeTrue;
  *                (slave is auto-geocoded against masterGSLC's grid by CreateStack)
  *  GSLC (B):     Apply-Orbit-File (done) → GSLC(master) → GSLC(slave) → CreateStack → Interferogram
  * </pre>
+ * <p>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCVsTraditionalComparisonTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCVsTraditionalComparisonTest extends ProcessorTest {
 
     private static final File MASTER_FILE = new File(
@@ -614,9 +622,6 @@ public class GSLCVsTraditionalComparisonTest extends ProcessorTest {
         gslcMasterParams.put("demName", "Copernicus 30m Global DEM");
         gslcMasterParams.put("imgResamplingMethod", imgResampler);
         gslcMasterParams.put("outputFlattened", outputFlattened);
-        gslcMasterParams.put("alignToStandardGrid", true);
-        gslcMasterParams.put("standardGridOriginX", 0.0);
-        gslcMasterParams.put("standardGridOriginY", 0.0);
         gslcMasterParams.put("nodataValueAtSea", false);
         gslcMasterParams.put("applySolidEarthTide", applySET);
         final Product masterGSLC = GPF.createProduct("GSLC-Terrain-Correction", gslcMasterParams, master);

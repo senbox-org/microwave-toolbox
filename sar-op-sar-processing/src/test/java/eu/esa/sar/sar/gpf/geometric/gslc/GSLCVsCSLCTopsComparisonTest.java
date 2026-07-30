@@ -1,6 +1,7 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.ProductIO;
@@ -9,8 +10,8 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -31,8 +32,15 @@ import static org.junit.Assume.assumeTrue;
  * This harness is the reusable core for the follow-on Approach-3 standalone validation tool.
  *
  * Set MASTER/SLAVE to the Napoli IW SLC pair (same track/subswath overlap) to enable.
+ * <p>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCVsCSLCTopsComparisonTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCVsCSLCTopsComparisonTest extends ProcessorTest {
 
     private static final File MASTER = new File(TestData.inputSAR + "S1/Napoli/master_IW_SLC.zip");

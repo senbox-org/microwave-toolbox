@@ -17,6 +17,9 @@ package eu.esa.sar.insar.gpf.ui;
 
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.core.dataop.dem.ElevationModelDescriptor;
+import org.esa.snap.core.dataop.dem.ElevationModelRegistry;
+import org.esa.snap.dem.dataio.DEMFactory;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.graphbuilder.gpf.ui.BaseOperatorUI;
 import org.esa.snap.graphbuilder.gpf.ui.UIValidation;
@@ -54,6 +57,12 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
     private final JLabel orbitDegreeLabel = new JLabel("Orbit interpolation degree");
     private final JComboBox<Integer> orbitDegreeComboBox = new JComboBox(new Integer[]{1, 2, 3, 4, 5});
 
+    private final JCheckBox addElevationCheckBox = new JCheckBox("Add elevation band");
+    private final JLabel demNameLabel = new JLabel("Digital Elevation Model:");
+    private final JComboBox<String> demNameComboBox = new JComboBox<>(DEMFactory.getDEMNameList());
+    private final JLabel demResamplingLabel = new JLabel("DEM Resampling Method:");
+    private final JComboBox<String> demResamplingComboBox = new JComboBox<>(DEMFactory.getDEMResamplingMethods());
+
     private final JCheckBox includeWavenumberCheckBox = new JCheckBox("Include wavenumber");
     private final JCheckBox includeIncidenceAngleCheckBox = new JCheckBox("Include incidence angle");
     private final JCheckBox includeLatLonCheckBox = new JCheckBox("Include latitude and longitude");
@@ -78,6 +87,7 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
     private ChartPanel chartPanel;
 
     // Helper attributes
+    private Boolean addElevation = true;
     private Boolean includeWavenumber = false;
     private Boolean includeIncidenceAngle = false;
     private Boolean includeLatLon = false;
@@ -158,6 +168,10 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
             }
         });
 
+        addElevationCheckBox.addItemListener(e -> {
+            addElevation = (e.getStateChange() == ItemEvent.SELECTED);
+            enableDemControls(addElevation);
+        });
         includeWavenumberCheckBox.addItemListener(e -> includeWavenumber = (e.getStateChange() == ItemEvent.SELECTED));
         includeIncidenceAngleCheckBox.addItemListener(e -> includeIncidenceAngle = (e.getStateChange() == ItemEvent.SELECTED));
         includeLatLonCheckBox.addItemListener(e -> includeLatLon = (e.getStateChange() == ItemEvent.SELECTED));
@@ -172,6 +186,20 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
     public void initParameters() {
 
         orbitDegreeComboBox.setSelectedItem(paramMap.get("orbitDegree"));
+
+        final Object addElevationParam = paramMap.get("addElevation");
+        if (addElevationParam != null) {
+            addElevation = (Boolean) addElevationParam;
+        }
+        addElevationCheckBox.setSelected(addElevation);
+
+        final String demNameParam = (String) paramMap.get("demName");
+        if (demNameParam != null) {
+            final ElevationModelDescriptor descriptor = ElevationModelRegistry.getInstance().getDescriptor(demNameParam);
+            demNameComboBox.setSelectedItem(descriptor != null ? DEMFactory.getDEMDisplayName(descriptor) : demNameParam);
+        }
+        demResamplingComboBox.setSelectedItem(paramMap.get("demResamplingMethod"));
+        enableDemControls(addElevation);
 
         includeWavenumberCheckBox.setSelected(includeWavenumber);
         includeIncidenceAngleCheckBox.setSelected(includeIncidenceAngle);
@@ -234,6 +262,10 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
 
         paramMap.put("pairs", pairs);
 
+        paramMap.put("addElevation", addElevation);
+        paramMap.put("demName", DEMFactory.getProperDEMName((String) demNameComboBox.getSelectedItem()));
+        paramMap.put("demResamplingMethod", demResamplingComboBox.getSelectedItem());
+
         paramMap.put("includeWavenumber", includeWavenumber);
         paramMap.put("includeIncidenceAngle", includeIncidenceAngle);
         paramMap.put("includeLatLon", includeLatLon);
@@ -247,6 +279,11 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
         if (cohWindowRgStr != null && !cohWindowRgStr.isEmpty()) {
             paramMap.put("cohWindowRg", Integer.parseInt(cohWindowRgStr));
         }
+    }
+
+    private void enableDemControls(final boolean flag) {
+        DialogUtils.enableComponents(demNameLabel, demNameComboBox, flag);
+        DialogUtils.enableComponents(demResamplingLabel, demResamplingComboBox, flag);
     }
 
     private JComponent createPanel() {
@@ -263,6 +300,14 @@ public class MultiMasterInSAROpUI extends BaseOperatorUI {
 
         gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, cohWindowAzLabel, cohWindowAzTextField);
+
+        gbc.gridy++;
+        contentPane.add(addElevationCheckBox, gbc);
+
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, demNameLabel, demNameComboBox);
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, demResamplingLabel, demResamplingComboBox);
 
         gbc.gridy++;
         contentPane.add(includeLatLonCheckBox, gbc);

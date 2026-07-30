@@ -205,12 +205,29 @@ import java.util.Map;
 
             targetBand.setUnit(srcBand.getUnit());
             targetBand.setDescription(srcBand.getDescription());
+            // PerformETADCorrection writes noDataValue into out-of-coverage pixels, so the band must
+            // declare it — otherwise downstream (CreateStack, coherence) treats fill as valid data.
+            // BaseCorrector.createTargetProduct and SMCorrector both do this; TOPS Option 1 did not.
+            targetBand.setNoDataValue(noDataValue);
+            targetBand.setNoDataValueUsed(true);
             targetProduct.addBand(targetBand);
 
             if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
                 int idx = targetProduct.getBandIndex(targetBand.getName());
                 ReaderUtils.createVirtualIntensityBand(targetProduct, targetProduct.getBandAt(idx-1), targetBand, "");
             }
+        }
+
+        if (outputPhaseCorrections && outputETADPhaseBand) {
+            final Band phaseBand = new Band(ETAD_PHASE_BAND, ProductData.TYPE_FLOAT32,
+                    sourceImageWidth, sourceImageHeight);
+            phaseBand.setUnit(Unit.PHASE);
+            phaseBand.setNoDataValue(0.0);
+            phaseBand.setNoDataValueUsed(false);
+            phaseBand.setDescription("ETAD range-delay phase removed from the complex data, radians. "
+                    + "Diagnostic: multiply the complex data by exp(+j*etadPhase) to recover the "
+                    + "uncorrected phase.");
+            targetProduct.addBand(phaseBand);
         }
     }
 
@@ -249,6 +266,17 @@ import java.util.Map;
             saveBurstDataAsTiePointGrid(gradient, ETAD_GRADIENT + "_" + subSwath.subSwathName + "_" + burstIndex);
         }
     }
+
+    /**
+     * Name of the optional diagnostic band carrying the baked-in range-delay phase.
+     * <p>
+     * Deliberately NOT {@code etadPhaseCorrection}: {@code InterferogramOp.checkETADCorrection}'s
+     * band branch matches on {@code bandName.contains("etadPhaseCorrection")}, so a band with that
+     * substring would be mistaken for an Option-2 correction band once tagged {@code _ref}/{@code _sec}
+     * by CreateStack, and the phase — already removed from the complex data here — would be applied a
+     * second time downstream.
+     */
+    static final String ETAD_PHASE_BAND = "etadPhase";
 
     private boolean isValidBurst(final ETADUtils.Burst etadBurst) {
 
@@ -405,6 +433,19 @@ import java.util.Map;
             final double[][] refDerampDemodPhase = mSU.computeDerampDemodPhase(mSubSwath,
                     subSwathIndex, mBurstIndex, sourceRectangle);
 
+            // With outputPhaseCorrections the range-delay phase is removed from the complex data
+            // itself rather than only being emitted as tie-point grids. That is what makes ETAD
+            // usable by the geocode-first (GSLC) chain: InterferogramOp's ETAD handling runs only on
+            // the classical paths, so a geocoded stack can never subtract the grids downstream.
+            // Baking the correction in here also means it survives geocoding for free.
+            // Computed ONCE per tile: the range delay is polarization-independent, so evaluating it
+            // inside the loop below did the same 3 bilinear interpolations twice on a dual-pol product.
+            double[][] etadRangePhase = null;
+            if (outputPhaseCorrections) {
+                etadRangePhase = new double[h][w];
+                getETADRangePhaseForCurrentTile(x0, y0, w, h, mBurstIndex, etadRangePhase);
+            }
+
             for(String polarization : mSU.getPolarizations()) {
                 final Band masterBandI = BackGeocodingOp.getBand(sourceProduct, "i_", swathIndexStr, polarization);
                 final Band masterBandQ = BackGeocodingOp.getBand(sourceProduct, "q_", swathIndexStr, polarization);
@@ -427,11 +468,52 @@ import java.util.Map;
                 final Tile targetTileQ = targetTileMap.get(targetBandQ);
 
                 PerformETADCorrection(x0, y0, w, h, sourceRectangle, masterTileI, masterTileQ, targetTileI,
-                        targetTileQ, refDerampDemodPhase, refDerampDemodI, refDerampDemodQ, slavePixPos);
+                        targetTileQ, refDerampDemodPhase, refDerampDemodI, refDerampDemodQ, slavePixPos,
+                        etadRangePhase);
             }
+
+            // Outside the polarization loop: the range delay is polarization-independent, so the
+            // diagnostic band is written once per tile rather than once per polarization.
+            saveETADPhaseBand(x0, y0, w, h, etadRangePhase, targetTileMap);
 
         } catch (Throwable e) {
             throw new OperatorException(e);
+        }
+    }
+
+    /**
+     * Write the range-delay phase that was just baked into the complex data into the optional
+     * {@link #ETAD_PHASE_BAND} diagnostic band.
+     * <p>
+     * Without this the correction is unauditable in the resampling mode: the phase is applied to the
+     * pixels and the Option-2 tie-point grids are not written, so quantifying it otherwise means
+     * reprocessing with the phase disabled and differencing the results.
+     * <p>
+     * A no-op when the band was not requested, or when this tile has no phase (out of ETAD coverage).
+     */
+    private void saveETADPhaseBand(final int x0, final int y0, final int w, final int h,
+                                   final double[][] etadRangePhase, final Map<Band, Tile> targetTileMap) {
+
+        if (etadRangePhase == null) {
+            return;
+        }
+        final Band phaseBand = targetProduct.getBand(ETAD_PHASE_BAND);
+        if (phaseBand == null) {
+            return;
+        }
+        final Tile phaseTile = targetTileMap.get(phaseBand);
+        if (phaseTile == null) {
+            return;
+        }
+
+        final ProductData data = phaseTile.getDataBuffer();
+        for (int y = y0; y < y0 + h; ++y) {
+            final int yy = y - y0;
+            for (int x = x0; x < x0 + w; ++x) {
+                final double p = etadRangePhase[yy][x - x0];
+                data.setElemFloatAt(phaseTile.getDataBufferIndex(x, y),
+                        Double.isNaN(p) ? 0.0f : (float) p);
+            }
         }
     }
 
@@ -518,11 +600,37 @@ import java.util.Map;
         }
     }
 
+    /**
+     * Per-pixel ETAD range-delay phase for the current target tile, in radians.
+     * <p>
+     * Same definition as {@link #computeRangeTimeCorrectionPhase} (which builds the burst-level grid
+     * used by Option 2), but evaluated on the target tile so it can be applied directly to the
+     * complex samples: {@code phase = -2*pi*f * (tropospheric + geodetic - ionospheric + calibration)}.
+     */
+    private void getETADRangePhaseForCurrentTile(final int x0, final int y0, final int w, final int h,
+                                                 final int prodBurstIndex, final double[][] phase) {
+
+        final double[][] tropo = new double[h][w];
+        final double[][] geodeticRg = new double[h][w];
+        final double[][] ionosphericRg = new double[h][w];
+        getCorrectionForCurrentTile(TROPOSPHERIC_CORRECTION_RG, x0, y0, w, h, prodBurstIndex, tropo, 1.0);
+        getCorrectionForCurrentTile(GEODETIC_CORRECTION_RG, x0, y0, w, h, prodBurstIndex, geodeticRg, 1.0);
+        getCorrectionForCurrentTile(IONOSPHERIC_CORRECTION_RG, x0, y0, w, h, prodBurstIndex, ionosphericRg, 1.0);
+
+        final double rangeTimeCalibration = getInstrumentRangeTimeCalibration(subSwath.subSwathName);
+        for (int r = 0; r < h; ++r) {
+            for (int c = 0; c < w; ++c) {
+                final double delay = tropo[r][c] + geodeticRg[r][c] - ionosphericRg[r][c] + rangeTimeCalibration;
+                phase[r][c] = -2.0 * Constants.PI * radarFrequency * delay;
+            }
+        }
+    }
+
     private void PerformETADCorrection(final int x0, final int y0, final int w, final int h,
                                        final Rectangle sourceRectangle, final Tile slaveTileI, final Tile slaveTileQ,
                                        final Tile tgtTileI, final Tile tgtTileQ, final double[][] derampDemodPhase,
                                        final double[][] derampDemodI, final double[][] derampDemodQ,
-                                       final PixelPos[][] slavePixPos) {
+                                       final PixelPos[][] slavePixPos, final double[][] etadRangePhase) {
 
         try {
             final BackGeocodingOp.ResamplingRaster resamplingRasterI = new BackGeocodingOp.ResamplingRaster(slaveTileI, derampDemodI);
@@ -568,7 +676,26 @@ import java.util.Map;
                         rerampRemodQ = noDataValue;
                     } else {
                         double sampleQ = selectedResampling.resample(resamplingRasterQ, resamplingIndex);
-                        final double samplePhase = selectedResampling.resample(resamplingRasterPhase, resamplingIndex);
+                        double samplePhase = selectedResampling.resample(resamplingRasterPhase, resamplingIndex);
+
+                        // Remove the ETAD range-delay phase at the same time as re-ramping.
+                        //
+                        // Resampling alone moves the target back to its true position but leaves the
+                        // delay in the phase the pixel carries, so the differential atmospheric term
+                        // survives into an interferogram untouched. The reramp below multiplies by
+                        // exp(-j*samplePhase); adding the ETAD phase into that angle multiplies by
+                        // exp(-j*etadPhase) as well, which is exactly the conjugate of the delay term
+                        // present in the data.
+                        // Guard NaN: a NaN in any ETAD layer would otherwise propagate through
+                        // cos/sin into the output samples. The geometric path is protected by the
+                        // isNaN(sampleI) check above; the phase path needs its own.
+                        if (etadRangePhase != null) {
+                            final double ep = etadRangePhase[yy][xx];
+                            if (!Double.isNaN(ep)) {
+                                samplePhase += ep;
+                            }
+                        }
+
                         final double cosPhase = FastMath.cos(samplePhase);
                         final double sinPhase = FastMath.sin(samplePhase);
                         rerampRemodI = sampleI * cosPhase + sampleQ * sinPhase;

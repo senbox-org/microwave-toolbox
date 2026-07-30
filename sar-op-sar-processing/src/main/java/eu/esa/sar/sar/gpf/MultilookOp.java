@@ -27,8 +27,12 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.opengis.referencing.operation.MathTransform;
+
+import java.awt.geom.AffineTransform;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
@@ -97,6 +101,7 @@ public final class MultilookOp extends Operator {
     private double rangeSpacing;
     private double azimuthSpacing;
     private boolean isPolsar = false;
+    private boolean isMapProjected = false;
 
     private final HashMap<String, String[]> targetBandNameToSourceBandName = new HashMap<>();
     private static final String PRODUCT_SUFFIX = "_ML";
@@ -119,8 +124,26 @@ public final class MultilookOp extends Operator {
         try {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
-            validator.checkIfMapProjected(false);
-            validator.checkIfTOPSARBurstProduct(false);
+
+            // Map-projected input is accepted. Multilooking is spatial averaging over an
+            // nRgLooks x nAzLooks block, which is just as well defined on a map grid as in radar
+            // geometry — on a geocoded product the two axes are simply easting/northing rather than
+            // range/azimuth. Rejecting it blocked the geocode-first (GSLC) workflow, where
+            // multilooking before phase unwrapping is what makes the unwrap tractable.
+            //
+            // Two things must be handled differently for a map-projected product, below:
+            // the target geo-coding (scale the affine transform, do not resample tie points), and
+            // the radar-timing metadata (slant range / line time have no meaning on a map grid).
+            isMapProjected = InputProductValidator.isMapProjected(sourceProduct);
+
+            // The TOPSAR-burst check only applies in radar geometry. A geocoded product cannot be
+            // burst-organised — geocoding resolves the bursts into one continuous map grid — but a
+            // GSLC still carries the burstList/linesPerBurst annotation inherited from TOPSAR-Split,
+            // which would otherwise trip "Source product should first be deburst" on a raster that
+            // has no bursts left in it.
+            if (!isMapProjected) {
+                validator.checkIfTOPSARBurstProduct(false);
+            }
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 
@@ -337,6 +360,14 @@ public final class MultilookOp extends Operator {
 
     private void addGeoCoding() {
 
+        // A map-projected source carries an exact affine image-to-map transform. Multilooking only
+        // scales the pixel size by the look factors and shifts the origin to the centre of the first
+        // averaged block, so the target transform is exact too — build it directly rather than
+        // resampling the geo-coding onto an 11x11 tie-point grid, which would discard that exactness.
+        if (isMapProjected && copyScaledCrsGeoCoding()) {
+            return;
+        }
+
         final int gridWidth = 11;
         final int gridHeight = 11;
         final float subSamplingX = targetImageWidth / (gridWidth - 1.0f);
@@ -366,6 +397,51 @@ public final class MultilookOp extends Operator {
     }
 
     /**
+     * Build the target {@link CrsGeoCoding} for a map-projected source by scaling the source's
+     * affine transform by the look factors.
+     * <p>
+     * Source pixel (0,0)..(nRgLooks-1, nAzLooks-1) is averaged into target pixel (0,0), so the
+     * target's first pixel centre sits at the centre of that block — half a source pixel short of
+     * half a target pixel. Working in the source's own reference-pixel convention (0.5, 0.5 = centre
+     * of the first pixel) the target origin is therefore unchanged: both describe the upper-left
+     * corner of the same ground area. Only the step scales.
+     *
+     * @return true if a geo-coding was set; false to fall back to the tie-point path.
+     */
+    private boolean copyScaledCrsGeoCoding() {
+        final GeoCoding srcGC = sourceProduct.getSceneGeoCoding();
+        if (!(srcGC instanceof CrsGeoCoding)) {
+            return false;
+        }
+        try {
+            final MathTransform i2m = ((CrsGeoCoding) srcGC).getImageToMapTransform();
+            if (!(i2m instanceof AffineTransform)) {
+                return false;
+            }
+            final AffineTransform at = (AffineTransform) i2m;
+            if (at.getShearX() != 0.0 || at.getShearY() != 0.0) {
+                return false;   // rotated grid: not expressible by the simple constructor below
+            }
+            final double stepX = Math.abs(at.getScaleX()) * nRgLooks;
+            final double stepY = Math.abs(at.getScaleY()) * nAzLooks;
+            // Map coordinate of the upper-left CORNER of the source raster, converted to the
+            // centre of the first target pixel, which is what referencePixel (0.5, 0.5) denotes.
+            final double easting = at.getTranslateX() + 0.5 * stepX * Math.signum(at.getScaleX());
+            final double northing = at.getTranslateY() + 0.5 * stepY * Math.signum(at.getScaleY());
+
+            targetProduct.setSceneGeoCoding(new CrsGeoCoding(
+                    ((CrsGeoCoding) srcGC).getMapCRS(),
+                    targetImageWidth, targetImageHeight,
+                    easting, northing, stepX, stepY, 0.5, 0.5));
+            return true;
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("Multilook: could not scale the source CrsGeoCoding (" +
+                    e.getMessage() + ") — falling back to tie-point geo-coding");
+            return false;
+        }
+    }
+
+    /**
      * Update metadata in the target product.
      */
     private void updateTargetProductMetadata() {
@@ -379,6 +455,23 @@ public final class MultilookOp extends Operator {
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.num_output_lines, targetImageHeight);
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.num_samples_per_line, targetImageWidth);
 
+        // SAMPLE_TYPE is NOT a geometry property, so it must be updated on every path. When
+        // outputIntensity is set the operator emits Intensity bands; leaving SAMPLE_TYPE as COMPLEX
+        // makes InputProductValidator.isComplex() — and therefore every downstream checkIfSLC() —
+        // mis-classify the product. This must stay ABOVE the map-projected early return below.
+        if (outputIntensity) {
+            absTgt.setAttributeString(AbstractMetadata.SAMPLE_TYPE, "DETECTED");
+        }
+
+        // The remaining updates re-time the raster: they advance the first-line time and the near-edge
+        // slant range to the CENTRE of the first averaged block. That is only meaningful while rows
+        // are azimuth lines and columns are range samples. On a map-projected product the axes are
+        // easting/northing, the row index carries no acquisition time, and shifting these values
+        // would corrupt otherwise-valid annotation. Leave them untouched there.
+        if (isMapProjected) {
+            return;
+        }
+
         final float oldLineTimeInterval = (float) absTgt.getAttributeDouble(AbstractMetadata.line_time_interval);
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.line_time_interval, oldLineTimeInterval * nAzLooks);
 
@@ -390,9 +483,6 @@ public final class MultilookOp extends Operator {
         double newFirstLineUTC = oldFirstLineUTC + oldLineTimeInterval * ((nAzLooks - 1) / 2.0) / Constants.secondsInDay;
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.first_line_time, new ProductData.UTC(newFirstLineUTC));
 
-        if(outputIntensity) {
-            absTgt.setAttributeString(AbstractMetadata.SAMPLE_TYPE, "DETECTED");
-        }
     }
 
     /**

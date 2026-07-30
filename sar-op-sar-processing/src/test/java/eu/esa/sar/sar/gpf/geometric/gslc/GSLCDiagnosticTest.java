@@ -16,6 +16,7 @@
 package eu.esa.sar.sar.gpf.geometric.gslc;
 
 import com.bc.ceres.core.ProgressMonitor;
+import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import eu.esa.sar.insar.gpf.coregistration.GCPManager;
@@ -26,8 +27,8 @@ import org.esa.snap.core.datamodel.ProductNodeGroup;
 import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -55,8 +56,15 @@ import static org.junit.Assume.assumeTrue;
  *         Tells us whether scalar bias suffices or whether polynomial / LUT bias is
  *         needed for the full scene.</li>
  * </ul>
+ * <p>
+ * <b>Long test.</b> This harness drives real SAR products through multi-operator chains, so it is
+ * gated off by default and enabled explicitly:
+ * <pre>
+ *   mvn test -pl sar-op-sar-processing -Dtest=GSLCDiagnosticTest -Denable.long.tests=true
+ * </pre>
+ * It remains fixture-gated on top of that, so it skips cleanly where the input products are absent.
  */
-@Ignore("Internal test harness")
+@RunWith(LongTestRunner.class)
 public class GSLCDiagnosticTest extends ProcessorTest {
 
     private static final File MASTER_FILE = new File(
@@ -452,9 +460,6 @@ public class GSLCDiagnosticTest extends ProcessorTest {
         params.put("demName", "Copernicus 30m Global DEM");
         params.put("imgResamplingMethod", resampler);
         params.put("outputFlattened", false);
-        params.put("alignToStandardGrid", true);
-        params.put("standardGridOriginX", 0.0);
-        params.put("standardGridOriginY", 0.0);
         params.put("nodataValueAtSea", false);
         params.put("rangeOffsetPixels", rangeOffsetPx);
         params.put("azimuthOffsetPixels", azimuthOffsetPx);

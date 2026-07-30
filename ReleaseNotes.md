@@ -1,6 +1,7 @@
 # Microwave Toolbox 14
 
 ## 14.0.0
+* InSAR Phase Linking
 * MuLog (Multi-channel Logarithm) speckle filter
 * Dual Pol Descriptors from Abhinav Verma, Sapienza Università di Roma | Ph.D. (PMRF), IIT Bombay
 * Empirical Tropospheric Correction
@@ -8,10 +9,8 @@
 * ALOS4 Reader
 * NISAR Reader
 * Support for Sentinel-1D
-* GeoCoded SLC
-* InSAR Phase Linking
 * Jupyter Notebook SAR tutorials
-
+* GeoCoded SLC (Coming soon)
 
 # Microwave Toolbox 13
 
