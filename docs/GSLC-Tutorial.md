@@ -72,6 +72,7 @@ Traditional terrain correction geocodes amplitude and discards phase, so the cla
    | Map Projection | WGS84(DD) | Any WKT CRS; use UTM for a metric grid |
    | Output phase-flattened complex data | **false** | **Leave false for InSAR.** True only for amplitude/PolSAR single-date use |
    | Restore TOPS azimuth carrier | **false** | **Leave false.** The carrier is acquisition-specific and does not cancel between acquisitions — restoring it corrupts cross-acquisition InSAR (~tens of spurious fringes per burst) |
+   | Output phase-term bands | ✔ **ON for InSAR** (default off) | Writes the removed deramp model as an `azimuthCarrierPhase` band. The Interferogram step then subtracts the two acquisitions' models **exactly** (their difference is the main reason a raw cross-acquisition GSLC interferogram shows extra fringes). Costs ~2× product size — leave off only for pure backscatter work |
    | Apply Solid Earth Tide / Tropospheric | off | Turn on for displacement-grade (sub-decimetre) InSAR |
 
 6. **Run.** The `S1A…_GSLC` product is a phase-preserving complex image on the map grid.
@@ -88,9 +89,9 @@ GSLC — the corrections are defined in radar timing and must be applied in rada
 
 | Field | Setting | Notes |
 |-------|---------|-------|
-| ETAD product | *(leave empty)* | Found and downloaded automatically. Requires **Copernicus Data Space credentials** stored in SNAP — see the note below. Browse to a local `S1*_ETA_*.SAFE` to override |
+| ETAD product | *(leave empty)* | Found and downloaded automatically (the search picks the candidate with **maximum time overlap**, so an adjacent slice of the same datatake is no longer selected by mistake). Requires **Copernicus Data Space credentials** stored in SNAP — see the note below. Browse to a local `S1*_ETA_*.SAFE` to override — it must be the **same mission, date and slice** as the input |
 | Resampling Type | BiSinc 5-point | Match the kernel used for GSLC |
-| Resampling Image | ✔ on | Off switches to the classical InSAR mode (i/q passed through, corrections emitted as grids) |
+| Resampling Image | ✔ **on — required for GSLC** | Off switches to the classical InSAR mode: the corrections are only *attached* as grids that the classical slant-range chain consumes downstream. **A GSLC chain can never read those grids, so "off" is a silent no-op for this tutorial** (measured: bit-identical output) |
 | **Output Phase Corrections** | ✔ **ON for InSAR** (default off) | **Essential.** See the note below — without it the atmospheric delay stays in the phase |
 | Sum Of Range Corrections | ✔ **on** (default) | The **total** range correction — tropospheric and ionospheric delay included |
 | Sum Of Azimuth Corrections | ✔ **on** (default) | The total azimuth correction |
@@ -117,9 +118,14 @@ GSLC — the corrections are defined in radar timing and must be applied in rada
 > Without them the operator reports `ETAD product not found` even when a product exists.
 
 > **Keep the original product name.** ETAD matches the SAR product to the ETAD product using the
-> sensing start/stop timestamps *in the product name*. If you rename an intermediate to something short
-> (`my_subset`), correction fails with an opaque `Range [17, 55) out of bounds for length N`. Appending
-> a suffix is fine — `S1A_IW_SLC__1SDV_20260623T225050_…_split` works.
+> sensing start/stop timestamps *in the product name*. Renaming an intermediate to something short
+> (`my_subset`) breaks the match; appending a suffix is fine —
+> `S1A_IW_SLC__1SDV_20260623T225050_…_split` works.
+>
+> **"The selected ETAD product does not match the source product."** The message prints both sensing
+> windows — read them. The usual cause is the **adjacent slice** of the same datatake (same mission,
+> same date, same orbit, but a window ~25 s off that only overlaps your scene by a couple of seconds)
+> or a cross-date/cross-mission pick. Select the ETAD file whose window *contains* your scene's.
 
 > **Apply to both acquisitions, or to neither.** A stack mixing an ETAD-corrected reference with an
 > uncorrected secondary puts the differential timing correction straight into the interferometric phase.
@@ -140,13 +146,13 @@ You only geocode the **reference** explicitly; `CreateStack` auto-coregisters th
 3. **Interferogram Formation** — *Radar ▸ Interferometric ▸ Products ▸ Interferogram Formation*. In *Processing Parameters*:
    - Keep **Subtract flat-earth phase** ticked.
    - **✔ Tick "Subtract topographic phase".** This simulates the topographic fringes from the DEM and removes them, so the interferogram shows **deformation + residual atmosphere** rather than topography — essential for reading the coseismic signal.
-   - **✔ Tick "Subtract Residual Ramp (GSLC)".** Cross-acquisition GSLC interferograms carry a smooth residual ramp (~1 fringe per 80 px) from small differences between the two acquisitions' Doppler annotations — the GSLC-domain analogue of why classical TOPS InSAR needs ESD. This option estimates it robustly (a low-order polynomial fitted to block-wise fringe gradients, too rigid to absorb the localized earthquake signal) and removes it. Without it the ramp survives into unwrapping. Caveat: like classical orbital deramping, it would also absorb a genuine *scene-wide linear* deformation gradient.
+   - **✔ Tick "Subtract Residual Ramp (GSLC)".** Cross-acquisition GSLC interferograms carry a residual from the two acquisitions' differing Doppler annotations — **per burst**, and large on a cross-platform pair like this one (S1A×S1C: per-burst azimuth rates spanning 40–68 rad/s across the ten bursts). This is the GSLC-domain analogue of why classical TOPS InSAR needs ESD. Two mechanisms remove it, automatically layered: if both GSLCs carry the `azimuthCarrierPhase` band (the *Output phase-term bands* checkbox in A1), the operator first subtracts the two deramp models' **exact difference**; the per-burst data-driven fit then removes the remaining annotation *error* (too rigid to absorb the localized earthquake signal — the fit is per-burst rate polynomials, not a free surface). Watch the log: `GSLC carrier-difference: exact deramp-model subtraction active` confirms the bands were found. Caveat: like classical orbital deramping, the fit would absorb a genuine *scene-wide linear* deformation gradient.
    - Keep **Include coherence** ticked.
 4. **Goldstein Phase Filtering** → **SnaphuExport → SNAPHU → SnaphuImport** (unwrap) → **Phase to Displacement** (line-of-sight displacement in metres).
 
    Because the GSLC pair is **already geocoded**, the displacement map is already in map coordinates — **no final Range-Doppler Terrain Correction is needed** (one fewer step than the traditional chain).
 
-> **Consistency rule:** reference and secondary must share the **same** `Output phase-flattened` setting **and** the same `Restore TOPS azimuth carrier` setting (leave the latter at its default, off — restoring the carrier corrupts cross-acquisition interferograms with tens of spurious fringes per burst). Mixing conventions yields a meaningless (noise) interferogram. The CreateStack auto-coregister path enforces both from the reference's metadata stamps.
+> **Consistency rule:** reference and secondary must share the **same** `Output phase-flattened` setting, the same `Restore TOPS azimuth carrier` setting (leave it off — restoring the carrier corrupts cross-acquisition interferograms with tens of spurious fringes per burst), **and the same `Output phase-term bands` setting** (the exact model subtraction needs the band on *both* legs; with only one it logs a warning and falls back to the data-driven fit alone). Mixing the first two conventions yields a meaningless (noise) interferogram. The CreateStack auto-coregister path enforces all three from the reference's metadata stamps and bands.
 
 ---
 
@@ -180,6 +186,9 @@ Save as `gslc_reference.xml`:
       <pixelSpacingInMeter>0</pixelSpacingInMeter>
       <mapProjection>WGS84(DD)</mapProjection>
       <outputFlattened>false</outputFlattened>
+      <!-- writes the removed deramp model as a band; Interferogram then subtracts the two
+           acquisitions' models exactly (see the Subtract Residual Ramp note in Step 2) -->
+      <outputPhaseTerms>true</outputPhaseTerms>
       <applySolidEarthTide>false</applySolidEarthTide>
       <applyTroposphericCorrection>false</applyTroposphericCorrection>
     </parameters>
@@ -324,7 +333,7 @@ gpt gslc_insar.xml ^
     -Poutput=ifg_GSLC.dim -c 12G -q 8
 ```
 
-The **`subtractTopographicPhase`** flag is the command-line equivalent of the *Subtract topographic phase* checkbox — it removes the DEM-simulated topographic fringes so the coseismic deformation signal remains. **`subtractResidualRamp`** removes the smooth residual ramp specific to cross-acquisition GSLC interferometry (~1 fringe per 80 px, from small differences in the two acquisitions' Doppler annotations); enable it for visualization and unwrapping, but be aware that — like classical orbital deramping — it would also absorb a genuine scene-wide linear deformation gradient.
+The **`subtractTopographicPhase`** flag is the command-line equivalent of the *Subtract topographic phase* checkbox — it removes the DEM-simulated topographic fringes so the coseismic deformation signal remains. **`subtractResidualRamp`** removes the cross-acquisition annotation residual — **per burst**, and layered on top of the exact deramp-model subtraction that activates automatically when both GSLCs carry the `azimuthCarrierPhase` band (`outputPhaseTerms=true` in Step 1; look for `GSLC carrier-difference: exact deramp-model subtraction active` in the log). Enable it for visualization and unwrapping, but be aware that — like classical orbital deramping — the data-driven part would absorb a genuine scene-wide linear deformation gradient.
 
 ### Step 3 — Unwrap to displacement (SNAPHU)
 
@@ -428,7 +437,7 @@ Measured objectively on the same ground pixels (both products on ~14 m map grids
 
 Two lessons:
 
-- **GSLC never resamples wrapped phase.** The interferogram is born on the map grid, filtered there, and is final — there is no post-filter geometric resampling anywhere in the chain. The traditional quick-look above terrain-corrects a *wrapped* phase raster, which smears exactly the dense fringes that carry the deformation signal (41% more residues in the near-fault zone). In the traditional chain the proper practice for displacement products is to unwrap in radar geometry *first* and terrain-correct the unwrapped phase — GSLC sidesteps the issue entirely.
+- **GSLC never resamples wrapped phase.** The interferogram is born on the map grid, filtered there, and is final — there is no post-filter geometric resampling anywhere in the chain. The traditional quick-look above terrain-corrects a *wrapped* phase raster, which smears exactly the dense fringes that carry the deformation signal (41% more residues in the near-fault zone). In the traditional chain the proper practice for displacement products is to unwrap in radar geometry *first* and terrain-correct the unwrapped phase — GSLC sidesteps the issue entirely. (Terrain-Correction itself now detects an InSAR source and, with no explicit band selection, geocodes the complex pair *as complex* and re-derives the Phase band — so a default TC of an interferogram no longer interpolates wrapped phase, nor silently collapses it to Intensity. The figure above predates that fix.)
 - **If you want the GSLC result to look smoother too**, give the Goldstein filter more samples: the square 14 m grid carries ~4× fewer independent range samples per filter window than the native SLC sampling. Rerunning the GSLC step with **rectangular cells** (Pixel Spacing ≈ 3.4 m east × 7.5 m north, see the table in A1) restores the native sample density — smoother filtered output *and* fewer residues, still with no wrapped-phase resampling.
 
 > **Optional extension — post-seismic pair.** The 30 Jun **S1D** acquisition (same track, `S1D_IW_SLC__1SDV_20260630T225009_20260630T225040_003472_006226_2543.SAFE`) pairs with S1C (24 Jun) to image the **first six days of post-seismic motion**: repeat the same workflow with S1C as reference and S1D as secondary. Comparing the coseismic and post-seismic interferograms is a compact demonstration of why acquisition timing matters as much as processing.
@@ -455,7 +464,9 @@ Two lessons:
 | Coherence lower than expected | Check DEM quality; for displacement scenes enable SET + troposphere; verify like-for-like comparison (same multilook, same area). Note S1A↔S1C is a cross-platform constellation pair — confirm they share the relative orbit/track (this pair: both on relative orbit 106). |
 | Reference and secondary don't align | Ensure both use the same pixel spacing (GSLC always snaps to the shared standard grid automatically); let CreateStack set the sub-pixel `rangeOffsetPixels`/`azimuthOffsetPixels`. |
 | Topographic fringes still dominate the interferogram | Enable **Subtract topographic phase** (`subtractTopographicPhase=true`) with a valid DEM. |
-| Regular fringes / wavy "fringe packets" across the whole scene that the traditional interferogram doesn't show | The cross-acquisition GSLC residual ramp (~1 fringe per 80 px; at a decimated screen zoom it aliases into wavy packets). Enable **Subtract Residual Ramp (GSLC)** (`subtractResidualRamp=true`) on the Interferogram step. |
+| Regular fringes / wavy "fringe packets" that the traditional interferogram doesn't show — possibly only over *part* of the scene | The cross-acquisition annotation residual (per burst — some bursts deviate far more than others, so it can look regional; a decimated screen zoom aliases it into wavy packets). Produce both GSLCs with **Output phase-term bands** on and enable **Subtract Residual Ramp (GSLC)** (`subtractResidualRamp=true`) on the Interferogram step; confirm `exact deramp-model subtraction active` in the log. |
+| ETAD: `The selected ETAD product does not match the source product` | The message prints both sensing windows. Usual cause: the **adjacent slice** of the same datatake (window ~25 s off, overlaps your scene by seconds) or a cross-date/mission file. Pick the ETAD whose window contains the scene's; the auto-search now selects by maximum overlap. |
+| ETAD ran but changed nothing in the GSLC chain | `Resampling Image` was off (classical grid mode — a silent no-op for GSLC). Set `resamplingImage=true` **and** `outputPhaseCorrections=true`, and apply to both acquisitions. |
 | Slow / huge output over sea | Keep *Mask out areas with no elevation* (`nodataValueAtSea=true`) on. |
 
 ## Next steps

@@ -107,44 +107,27 @@ public class TestPhaseOpsMapProjected {
     }
 
     /**
-     * Schwabisch fits a slant-range-to-height polynomial in radar image coordinates, so it must
-     * refuse a map-projected product rather than evaluate the model in the wrong coordinate system.
+     * BOTH PhaseToElevation methods must refuse map-projected input. Schwabisch fits its polynomial
+     * in radar image coordinates, and DEM Seed indexes baseline/look-angle models the same way, so
+     * neither is meaningful on a map grid. Previously only Schwabisch was guarded and the DEM Seed
+     * branch relied on a tie-point-grid lookup failing first — safety by accident.
      */
     @Test
-    public void testPhaseToElevationSchwabischStillRejectsMapProjected() throws Exception {
-        final Product src = createGeocodedUnwrappedProduct();
-        final PhaseToElevationOp op = new PhaseToElevationOp();
-        op.setSourceProduct(src);
-        op.setParameter("method", PhaseToElevationOp.METHOD_SCHWABISCH);
-        try {
-            op.getTargetProduct();
-            fail("Schwabisch must reject map-projected input");
-        } catch (OperatorException e) {
-            final String m = e.getMessage();
-            assertTrue("message should explain the radar-geometry requirement, was: " + m,
-                    m.contains("radar geometry"));
-            assertTrue("message should name the alternative method, was: " + m,
-                    m.contains(PhaseToElevationOp.METHOD_DEM_SEED));
-        }
-    }
-
-    /**
-     * The DEM Seed method no longer trips a blanket map-projection guard; it fails only on what it
-     * genuinely needs — the radar-geometry tie point grids — and must say so specifically.
-     */
-    @Test
-    public void testPhaseToElevationDemSeedFailsOnMissingGridsNotOnProjection() throws Exception {
-        final Product src = createGeocodedUnwrappedProduct();
-        final PhaseToElevationOp op = new PhaseToElevationOp();
-        op.setSourceProduct(src);
-        op.setParameter("method", PhaseToElevationOp.METHOD_DEM_SEED);
-        try {
-            op.getTargetProduct();
-            // acceptable: if a future build can supply the geometry, this legitimately succeeds
-        } catch (OperatorException e) {
-            final String m = e.getMessage();
-            assertTrue("should no longer fail merely for being map projected, was: " + m,
-                    !m.contains("should not be map projected"));
+    public void testPhaseToElevationRejectsMapProjectedForBothMethods() throws Exception {
+        for (final String method : new String[]{PhaseToElevationOp.METHOD_SCHWABISCH,
+                                               PhaseToElevationOp.METHOD_DEM_SEED}) {
+            final Product src = createGeocodedUnwrappedProduct();
+            final PhaseToElevationOp op = new PhaseToElevationOp();
+            op.setSourceProduct(src);
+            op.setParameter("method", method);
+            try {
+                op.getTargetProduct();
+                fail("method '" + method + "' must reject map-projected input");
+            } catch (OperatorException e) {
+                final String m = e.getMessage();
+                assertTrue("message for '" + method + "' should state the radar-geometry requirement, was: "
+                        + m, m.contains("radar geometry"));
+            }
         }
     }
 }

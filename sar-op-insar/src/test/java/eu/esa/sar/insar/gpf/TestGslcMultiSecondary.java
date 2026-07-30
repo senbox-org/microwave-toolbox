@@ -252,4 +252,46 @@ public class TestGslcMultiSecondary {
                 - expectedMeanPhase(1));
         assertTrue("single-pair phase wrong by " + d + " rad", d < 0.02);
     }
+    /**
+     * Coherence must ignore the (0,0) geocoding fill.
+     * <p>
+     * A geocoded product is mostly fill around its edges. Counting a fill sample in the reference
+     * power sum but not in the cross/secondary sums drove the ratio toward zero, so valid pixels
+     * within half a window of a fill boundary read systematically LOW — up to 25% on a perfectly
+     * coherent pair — which is indistinguishable from real decorrelation. And a non-zero coherence
+     * was written at pixels where the interferogram itself is no-data, so the two masks disagreed.
+     */
+    @Test
+    public void testCoherenceIgnoresGeocodingFill() throws Exception {
+        final int FILL_FROM = 160;
+        final Product src = newStack();
+        addReference(src, "ref_23Jun2026");
+
+        // secondary identical to the reference (=> true coherence 1) but fill for x >= FILL_FROM
+        final float[] si = new float[SIZE * SIZE];
+        final float[] sq = new float[SIZE * SIZE];
+        for (int y = 0; y < SIZE; y++) {
+            for (int x = 0; x < SIZE; x++) {
+                if (x < FILL_FROM) { si[y * SIZE + x] = 1f; sq[y * SIZE + x] = 0f; }
+            }
+        }
+        addBand(src, "i_sec1_30Jun2026", Unit.REAL, si);
+        addBand(src, "q_sec1_30Jun2026", Unit.IMAGINARY, sq);
+
+        final Product tgt = runIfg(src, true);
+        final Band coh = tgt.getBand(namesStartingWith(tgt, "coh").get(0));
+        assertNotNull("coherence band missing", coh);
+        final float[] c = new float[SIZE];
+        coh.readPixels(0, SIZE / 2, SIZE, 1, c);
+
+        // valid pixels right up to the boundary must still read ~1, not a decaying ramp
+        for (int x = FILL_FROM - 12; x < FILL_FROM; x++) {
+            assertTrue("coherence depressed by the nearby fill at x=" + x + ": " + c[x],
+                    c[x] > 0.95f);
+        }
+        // deep inside the fill there is no valid sample pair => no-data
+        for (int x = FILL_FROM + 12; x < SIZE; x++) {
+            assertEquals("coherence must be no-data inside the fill at x=" + x, 0.0f, c[x], 1e-6f);
+        }
+    }
 }

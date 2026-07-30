@@ -1,0 +1,109 @@
+# Traditional (radar-coordinate) InSAR vs GSLC (geocode-first) InSAR -- WITHIN one tool.
+#
+# WHY THIS CASE EXISTS, separately from insar_s1_venezuela_orbit106.yml
+# That case compares SNAP against ISCE3 on the GSLC path. If it shows a discrepancy, it cannot say
+# WHICH axis the discrepancy lives on. This case pins the other axis:
+#
+#                     |  traditional InSAR   |  GSLC InSAR
+#   ------------------+----------------------+-------------------
+#   Microwave Toolbox |  A (this case)       |  B (this case)
+#   ISCE ecosystem    |  C (needs ISCE2)     |  D (COMPASS)
+#
+#   A vs B  -> does geocode-first agree with the classical path INSIDE one implementation?
+#   B vs D  -> do the two implementations agree on GSLC? (the other case)
+#   A vs C  -> do they agree on the classical path? (blocked, see below)
+#
+# A-vs-B is the strongest single check available, because both sides share the same orbit model,
+# DEM interpolation, and resampling kernel. Anything that differs is attributable to the geocode-first
+# ALGORITHM rather than to a library, a convention, or a build.
+#
+# BLOCKED, and deliberately not faked: the ISCE column's traditional entry (C) cannot be produced by
+# this harness today. isce3 0.25.7 as packaged has NO `isce3.workflows` module and no Sentinel-1 TOPS
+# InSAR workflow -- the ISCE3/COMPASS/Dolphin lineage is geocode-first for S1 by design. Classical S1
+# InSAR in that ecosystem means ISCE2 `topsApp.py`, a separate package that conflicts with isce3 in a
+# shared environment and therefore needs its own engine image (engines/isce2/). Until that exists,
+# this case covers the Microwave Toolbox row only, and says so rather than implying full coverage.
+
+case: insar_classic_vs_gslc_venezuela
+feature: GSLC-InSAR-vs-Classic
+description: >
+  Same S1A/S1C 1-day pair, same DEM, same output grid, processed two ways inside the Microwave
+  Toolbox: the classical Back-Geocoding/ESD chain, and the geocode-first GSLC chain. Compares the
+  resulting geocoded interferometric phase.
+
+# The two "engines" here are two PIPELINES, not two tools. Reusing the engine abstraction rather than
+# inventing a `variants` key keeps every existing precondition, tolerance and comparator applicable:
+# an engine is simply "something that produces a geocoded interferogram from a case".
+engines:
+  - snap-gslc
+  - snap-classic
+
+scene:
+  slc: /scenes/Venezuela/S1A_IW_SLC__1SDV_20260623T225050_20260623T225120_065103_0834C8_BAD5.SAFE.zip
+  polarisation: VV
+  subswath: IW1
+secondary:
+  slc: /scenes/Venezuela/S1C_IW_SLC__1SDV_20260624T224958_20260624T225025_008254_010515_304A.SAFE.zip
+  polarisation: VV
+  subswath: IW1
+
+dem: /data/dem/copernicus30_venezuela_orbit106.tif
+orbits: /data/orbits
+
+# Identical output grid for BOTH pipelines. The classical chain works in radar coordinates and is
+# terrain-corrected onto this grid at the END; the GSLC chain geocodes at the START. Forcing one grid
+# is what makes the two comparable at all -- otherwise the diff measures the final resampling.
+grid:
+  crs: EPSG:32619
+  # SQUARE cells, unlike the cross-tool case's 5 x 10. This is forced, not preferred:
+  # Terrain-Correction (the classical chain's geocoding step) exposes only `pixelSpacingInMeter`
+  # -- there is no Y counterpart -- so it can ONLY produce square cells, whereas GSLC accepts
+  # pixelSpacingInMeterY. Comparing 5x10 GSLC against a square TC output would diff two different
+  # lattices and measure resampling. 10 m is chosen over 5 m because S1 IW native sampling is
+  # ~4.5 m ground range x ~14 m azimuth: a 5 m square grid would invent azimuth resolution that is
+  # not in the data, and doubles the pixel count for nothing.
+  spacing: [10.0, 10.0]
+
+# Carrier-free and unflattened, as required for fringes. Both pipelines can honour this natively:
+# no analytic post-correction is involved anywhere in this case, which is precisely what makes it a
+# cleaner test than the cross-tool one.
+conventions:
+  flattened: false
+  azimuth_carrier: removed
+
+engine_params:
+  snap-gslc:
+    imgResamplingMethod: BISINC_5_POINT_INTERPOLATION
+    outputPhaseTerms: true
+  snap-classic:
+    # Back-Geocoding + Enhanced Spectral Diversity, then Interferogram, Deburst, and finally
+    # Terrain-Correction onto the grid above. ESD is ON because it is standard practice for TOPS
+    # pairs; leaving it off would compare GSLC against a knowingly degraded classical result.
+    esd: true
+    demResamplingMethod: BILINEAR_INTERPOLATION
+    imgResamplingMethod: BISINC_5_POINT_INTERPOLATION
+
+metrics:
+  - phase_difference_smoothness
+  - rms_difference
+  - residue_density
+  - local_phase_coherence
+  - circular_std_multilooked
+
+tolerances:
+  # TIGHTER than the cross-tool case (0.25 rad): both sides share the same orbit model, DEM
+  # interpolation and resampling kernel, so there is no library or build difference to absorb.
+  # Prior work in this repository found carrier-free GSLC matching classical InSAR to three decimals,
+  # so a loose bound here would fail to detect a regression it is meant to catch.
+  rms_difference:
+    max: 0.10
+  circular_std_multilooked:
+    max: 0.20
+  residue_density:
+    max: 0.02
+
+# Expected disagreement, recorded so it is not misread as a defect: the classical chain deramps and
+# resamples in radar coordinates and geocodes once at the end, while GSLC geocodes each SLC directly.
+# The two therefore apply their interpolation kernel at DIFFERENT points in the chain, so exact
+# equality is not expected -- only agreement within the tolerances above, with no spatial structure
+# in the residual. Structure in the residual is the finding; a small noise floor is not.

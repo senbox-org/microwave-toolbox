@@ -76,6 +76,16 @@
             <groupId>org.esa.snap</groupId>
             <artifactId>snap-dem</artifactId>
         </dependency>
+        <!-- direct deps for the GSLC feature gate (nbm verifies runtime visibility):
+             snap-gpf for the OperatorSpi registry, org-openide-awt for DynamicMenuContent -->
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>snap-gpf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-awt</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

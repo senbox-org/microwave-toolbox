@@ -33,6 +33,33 @@ public class BaseCorrectorFlagsTest {
     }
 
     @Test
+    public void setOutputETADPhaseBand_setsFlagCorrectly() {
+        baseCorrector.setOutputETADPhaseBand(true);
+        assertTrue(baseCorrector.outputETADPhaseBand);
+
+        baseCorrector.setOutputETADPhaseBand(false);
+        assertFalse(baseCorrector.outputETADPhaseBand);
+    }
+
+    /**
+     * The diagnostic band must NOT be named so that {@code InterferogramOp.checkETADCorrection}'s band
+     * branch matches it — that branch keys on {@code bandName.contains("etadPhaseCorrection")}, and a
+     * match would make the downstream operator apply a phase that has already been removed from the
+     * complex data, doubling the atmospheric error instead of removing it.
+     * <p>
+     * Guards against a well-meaning rename.
+     */
+    @Test
+    public void etadPhaseBandNameCannotBeMistakenForAnOption2CorrectionBand() {
+        assertFalse("band name must not contain \"" + BaseCorrector.ETAD_PHASE_CORRECTION
+                        + "\", or InterferogramOp would re-apply the phase",
+                TOPSCorrector.ETAD_PHASE_BAND.contains(BaseCorrector.ETAD_PHASE_CORRECTION));
+        // Nor the height/gradient layer names, matched the same way.
+        assertFalse(TOPSCorrector.ETAD_PHASE_BAND.contains(BaseCorrector.ETAD_HEIGHT));
+        assertFalse(TOPSCorrector.ETAD_PHASE_BAND.contains(BaseCorrector.ETAD_GRADIENT));
+    }
+
+    @Test
     public void setIonosphericCorrectionRg_setsFlagCorrectly() {
         baseCorrector.setIonosphericCorrectionRg(true);
         assertTrue(baseCorrector.ionosphericCorrectionRg);

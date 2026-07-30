@@ -43,9 +43,18 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
     private final JLabel etadFileLabel = new JLabel("");
     private final JTextField etadFile = new JTextField("");
     private final JButton etadFileBrowseButton = new JButton("...");
-    private final JCheckBox resamplingImageCheckBox = new JCheckBox("Option 1: Resampling Image");
-    private final JCheckBox outputPhaseCorrectionsCheckBox =
-            new JCheckBox("Option 2: Output Phase Correction (Range)");
+    // Not "Option 1"/"Option 2": these are independent corrections and enabling BOTH is what the
+    // geocode-first (GSLC) InSAR chain needs.
+    // Package-private, like the correction-layer boxes below, so the mode state machine is testable.
+    final JCheckBox resamplingImageCheckBox =
+            new JCheckBox("Resample image (geometric correction)");
+    final JCheckBox outputPhaseCorrectionsCheckBox =
+            new JCheckBox("Apply range-delay phase correction");
+    // Diagnostic: writes the applied phase as a band so the correction can be quantified without
+    // reprocessing. Off by default - it adds a non-complex band, which changes what coregistration
+    // and stacking see.
+    final JCheckBox outputETADPhaseBandCheckBox =
+            new JCheckBox("Also output the applied phase as a band (diagnostic)");
     private final JComboBox resamplingType = new JComboBox(ResamplingFactory.resamplingNames);
     final JCheckBox troposphericCorrectionRgCheckBox = new JCheckBox("Tropospheric Correction (Range)");
     final JCheckBox ionosphericCorrectionRgCheckBox = new JCheckBox("Ionospheric Correction (Range)");
@@ -59,6 +68,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
     private Boolean resamplingImage = true;
     private Boolean outputPhaseCorrections = false;
+    private Boolean outputETADPhaseBand = false;
     private Boolean troposphericCorrectionRg = false;
     private Boolean ionosphericCorrectionRg = false;
     private Boolean geodeticCorrectionRg = false;
@@ -102,21 +112,31 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             }
         });
 
+        // The two checkboxes are NOT alternatives. Enabling both - resample the image AND remove the
+        // range-delay phase from the complex data - is the configuration the geocode-first (GSLC)
+        // InSAR chain needs, because both corrections then live in the pixels and survive geocoding.
+        // They used to clear each other, which made that combination unreachable from this dialog.
+        //
+        // The only invalid combination is neither: S1ETADCorrectionOp forces phase corrections on
+        // when the image is not resampled, so the UI mirrors that rather than allowing a state the
+        // operator would silently rewrite.
         resamplingImageCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 resamplingImage = (e.getStateChange() == ItemEvent.SELECTED);
 
+                resamplingType.setEnabled(resamplingImage);
+
                 if (resamplingImage) {
-                    resamplingType.setEnabled(true);
-                    outputPhaseCorrectionsCheckBox.setSelected(false);
-                    outputPhaseCorrections = false;
+                    // The geometric correction needs at least one layer selected, or the operator
+                    // rejects the run with "No correction layer is selected".
                     sumOfAzimuthCorrectionsCheckBox.setSelected(true);
                     sumOfRangeCorrectionsCheckBox.setSelected(true);
                 } else {
-                    resamplingType.setEnabled(false);
+                    // Mirror the operator: no resampling implies phase corrections.
                     outputPhaseCorrectionsCheckBox.setSelected(true);
                     outputPhaseCorrections = true;
                 }
+                updateCorrectionLayerStates();
             }
         });
 
@@ -124,47 +144,21 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
             public void itemStateChanged(ItemEvent e) {
                 outputPhaseCorrections = (e.getStateChange() == ItemEvent.SELECTED);
 
-                if (outputPhaseCorrections) {
-                    resamplingImageCheckBox.setSelected(false);
-                    resamplingType.setEnabled(false);
-                    resamplingImage = false;
-
-                    troposphericCorrectionRgCheckBox.setEnabled(false);
-                    ionosphericCorrectionRgCheckBox.setEnabled(false);
-                    geodeticCorrectionRgCheckBox.setEnabled(false);
-                    dopplerShiftCorrectionRgCheckBox.setEnabled(false);
-                    sumOfRangeCorrectionsCheckBox.setEnabled(false);
-                    geodeticCorrectionAzCheckBox.setEnabled(false);
-                    bistaticShiftCorrectionAzCheckBox.setEnabled(false);
-                    fmMismatchCorrectionAzCheckBox.setEnabled(false);
-                    sumOfAzimuthCorrectionsCheckBox.setEnabled(false);
-
-                    troposphericCorrectionRgCheckBox.setSelected(false);
-                    ionosphericCorrectionRgCheckBox.setSelected(false);
-                    geodeticCorrectionRgCheckBox.setSelected(false);
-                    dopplerShiftCorrectionRgCheckBox.setSelected(false);
-                    sumOfRangeCorrectionsCheckBox.setSelected(false);
-                    geodeticCorrectionAzCheckBox.setSelected(false);
-                    bistaticShiftCorrectionAzCheckBox.setSelected(false);
-                    fmMismatchCorrectionAzCheckBox.setSelected(false);
-                    sumOfAzimuthCorrectionsCheckBox.setSelected(false);
-
-                } else {
-
+                if (!outputPhaseCorrections) {
+                    // Neither correction is not a valid state, so turning the phase off implies
+                    // resampling on.
                     resamplingImageCheckBox.setSelected(true);
                     resamplingType.setEnabled(true);
                     resamplingImage = true;
-
-                    troposphericCorrectionRgCheckBox.setEnabled(true);
-                    ionosphericCorrectionRgCheckBox.setEnabled(true);
-                    geodeticCorrectionRgCheckBox.setEnabled(true);
-                    dopplerShiftCorrectionRgCheckBox.setEnabled(true);
-                    sumOfRangeCorrectionsCheckBox.setEnabled(true);
-                    geodeticCorrectionAzCheckBox.setEnabled(true);
-                    bistaticShiftCorrectionAzCheckBox.setEnabled(true);
-                    fmMismatchCorrectionAzCheckBox.setEnabled(true);
-                    sumOfAzimuthCorrectionsCheckBox.setEnabled(true);
                 }
+                outputETADPhaseBandCheckBox.setEnabled(outputPhaseCorrections);
+                updateCorrectionLayerStates();
+            }
+        });
+
+        outputETADPhaseBandCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                outputETADPhaseBand = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -307,6 +301,64 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         return panel;
     }
 
+    /**
+     * Refresh the correction-layer panel from the current mode. Single authority for that state, so
+     * the two mode checkboxes cannot leave it inconsistent.
+     * <p>
+     * The per-layer selections drive the GEOMETRIC correction, so they apply whenever the image is
+     * resampled — including the combined mode (resample + phase). They do NOT govern the
+     * range-delay phase term, which always covers the full delay regardless of what is ticked here.
+     * <p>
+     * Previously the layer boxes were disabled and deselected whenever phase corrections were
+     * enabled. With the checkboxes no longer mutually exclusive that would drive every layer to
+     * false while the image was still being resampled, and the operator would then reject the run
+     * with "No correction layer is selected".
+     */
+    private void updateCorrectionLayerStates() {
+        updateCorrectionLayerStates(true);
+    }
+
+    /**
+     * @param clearWhenInactive when true, also deselect the layers in grids-only mode. Pass false
+     *                          from {@link #initParameters()}: the selections there were just loaded
+     *                          from the graph, and clearing them would have {@link #updateParameters()}
+     *                          silently write the user's saved layer choices back as false.
+     */
+    private void updateCorrectionLayerStates(final boolean clearWhenInactive) {
+
+        // resamplingImage is a Boolean and may be null before initParameters has run.
+        final boolean layersApply = Boolean.TRUE.equals(resamplingImage);
+
+        sumOfRangeCorrectionsCheckBox.setEnabled(layersApply);
+        sumOfAzimuthCorrectionsCheckBox.setEnabled(layersApply);
+
+        // Individual layers are subsumed by, and so disabled by, their sum-of counterpart.
+        final boolean individualRange = layersApply && !sumOfRangeCorrectionsCheckBox.isSelected();
+        troposphericCorrectionRgCheckBox.setEnabled(individualRange);
+        ionosphericCorrectionRgCheckBox.setEnabled(individualRange);
+        geodeticCorrectionRgCheckBox.setEnabled(individualRange);
+        dopplerShiftCorrectionRgCheckBox.setEnabled(individualRange);
+
+        final boolean individualAz = layersApply && !sumOfAzimuthCorrectionsCheckBox.isSelected();
+        geodeticCorrectionAzCheckBox.setEnabled(individualAz);
+        bistaticShiftCorrectionAzCheckBox.setEnabled(individualAz);
+        fmMismatchCorrectionAzCheckBox.setEnabled(individualAz);
+
+        if (!layersApply && clearWhenInactive) {
+            // Grids-only mode: the layer selections have no effect, so clear them rather than
+            // leaving stale ticks in a disabled panel.
+            troposphericCorrectionRgCheckBox.setSelected(false);
+            ionosphericCorrectionRgCheckBox.setSelected(false);
+            geodeticCorrectionRgCheckBox.setSelected(false);
+            dopplerShiftCorrectionRgCheckBox.setSelected(false);
+            sumOfRangeCorrectionsCheckBox.setSelected(false);
+            geodeticCorrectionAzCheckBox.setSelected(false);
+            bistaticShiftCorrectionAzCheckBox.setSelected(false);
+            fmMismatchCorrectionAzCheckBox.setSelected(false);
+            sumOfAzimuthCorrectionsCheckBox.setSelected(false);
+        }
+    }
+
     private boolean isIndividualRangeCorrectionLayerSelected() {
         return (troposphericCorrectionRg != null && troposphericCorrectionRg) ||
                 (ionosphericCorrectionRg != null && ionosphericCorrectionRg) ||
@@ -337,6 +389,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         if(outputPhaseCorrections != null) {
             outputPhaseCorrectionsCheckBox.setSelected(outputPhaseCorrections);
         }
+        outputETADPhaseBand = (Boolean)paramMap.get("outputETADPhaseBand");
+        if(outputETADPhaseBand != null) {
+            outputETADPhaseBandCheckBox.setSelected(outputETADPhaseBand);
+        }
+        // Only meaningful when a phase correction is actually applied.
+        outputETADPhaseBandCheckBox.setEnabled(Boolean.TRUE.equals(outputPhaseCorrections));
 
         troposphericCorrectionRg = (Boolean)paramMap.get("troposphericCorrectionRg");
         ionosphericCorrectionRg = (Boolean)paramMap.get("ionosphericCorrectionRg");
@@ -394,6 +452,12 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
                 dopplerShiftCorrectionRgCheckBox.setEnabled(false);
             }
         }
+
+        // Derive the layer panel's enabled state from the FINAL selections. The mode checkboxes are
+        // set above before the layer selections, so their listeners evaluated the panel against
+        // stale values; this makes the displayed state consistent with what will be submitted.
+        // clearWhenInactive=false: do not touch the selections just loaded from the graph.
+        updateCorrectionLayerStates(false);
     }
 
     @Override
@@ -420,6 +484,7 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         paramMap.put("resamplingType", resamplingType.getSelectedItem());
         paramMap.put("resamplingImage", resamplingImage);
         paramMap.put("outputPhaseCorrections", outputPhaseCorrections);
+        paramMap.put("outputETADPhaseBand", outputETADPhaseBand);
 
         paramMap.put("troposphericCorrectionRg", troposphericCorrectionRg);
         paramMap.put("ionosphericCorrectionRg", ionosphericCorrectionRg);
@@ -498,9 +563,17 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         gbc.gridy++;
         contentPane.add(outputPhaseCorrectionsCheckBox, gbc);
         gbc.gridy++;
+        contentPane.add(outputETADPhaseBandCheckBox, gbc);
+        gbc.gridy++;
         contentPane.add(new JTextArea("PhaseCorrection = -2 * \u03c0 * f * (troposphericCorrectionRg + geodeticCorrectionRg" +
                 " \n                               - ionosphericCorrectionRg + instrumentTimingCalibrationRange)" +
-                "\nwhere f is the radar frequency. Note this option is for TOPS InSAR application only."), gbc);
+                "\nwhere f is the radar frequency. This phase term always covers the full range delay," +
+                "\nregardless of which correction layers are selected above - those govern the" +
+                "\ngeometric correction only. Sentinel-1 IW/SM SLC only." +
+                "\n" +
+                "\nFor the geocode-first (GSLC) InSAR chain, enable this TOGETHER with 'Resample" +
+                "\nimage' so both corrections are baked into the complex data and survive geocoding." +
+                "\nCombining them is supported for IW (TOPS) only."), gbc);
 
         DialogUtils.fillPanel(contentPane, gbc);
 

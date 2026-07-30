@@ -37,8 +37,9 @@
                 <attr name="icon" stringvalue="esaIcon"/>
             </file>
             <file name="eu-esa-sar-sar-gpf-geometric-GSLCGeocodingOp-Action.instance">
-                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
-                <attr name="delegate"  methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <!-- gated by -DENABLE_GSLC: the factory returns an invisible action when the
+                     property is absent, hiding the feature from the release menu -->
+                <attr name="instanceCreate" methodvalue="eu.esa.sar.sar.gpf.ui.geometric.GSLCFeatureGate.createAction"/>
                 <attr name="displayName" stringvalue="Geocoded SLC Terrain Correction"/>
                 <attr name="operatorName" stringvalue="GSLC-Terrain-Correction"/>
                 <attr name="dialogTitle" stringvalue="GSLC Terrain Correction"/>

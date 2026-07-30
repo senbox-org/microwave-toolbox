@@ -424,6 +424,31 @@ public final class BackGeocodingOp extends Operator {
         }
     }
 
+    /**
+     * Space-separated list of {@code values[i]} for every index where {@code refFilter[i] != -1}, i.e.
+     * every reference burst that found a match. Trailing space retained: that is the historical format
+     * and {@code InterferogramOp.parseRefSecBurstMap} splits on whitespace.
+     * <p>
+     * Returns an <b>empty string</b> when nothing matched. Callers must not write that into a metadata
+     * attribute — {@code ProductData.ASCII.setElems} rejects a zero-length value and throws.
+     *
+     * @param values    indices to emit
+     * @param refFilter reference indices; an entry of -1 means that burst had no match
+     */
+    static String joinMatchedBurstIndices(final int[] values, final int[] refFilter) {
+        if (values == null || refFilter == null) {
+            return "";
+        }
+        final StringBuilder sb = new StringBuilder();
+        final int n = Math.min(values.length, refFilter.length);
+        for (int i = 0; i < n; ++i) {
+            if (refFilter[i] != -1) {
+                sb.append(values[i]).append(' ');
+            }
+        }
+        return sb.toString();
+    }
+
     private void saveSecondaryBurstIndexArray(final int[] refBurstIndexArray, final int[] secBurstIndexArray,
                                           final Product secondaryProduct) {
 
@@ -434,14 +459,24 @@ public final class BackGeocodingOp extends Operator {
         final MetadataElement[] secondaryRoot = secondaryElem.getElements();
         for (MetadataElement meta : secondaryRoot) {
             if(meta.getName().contains(secondaryProduct.getName())) {
-                final MetadataElement etadBurstsElem = new MetadataElement("ETAD_Burst_Index_Array");
-                String refBursts = "", secBursts = "";
-                for (int i = 0; i < refBurstIndexArray.length; ++i) {
-                    if (refBurstIndexArray[i] != -1) {
-                        refBursts += refBurstIndexArray[i] + " ";
-                        secBursts += secBurstIndexArray[i] + " ";
-                    }
+                final String refBursts = joinMatchedBurstIndices(refBurstIndexArray, refBurstIndexArray);
+                final String secBursts = joinMatchedBurstIndices(secBurstIndexArray, refBurstIndexArray);
+
+                // No burst of the secondary matched one of the reference. Writing the element with
+                // empty strings would throw: ProductData.ASCII.setElems rejects a zero-length value,
+                // so setAttributeString("reference_bursts", "") raises IllegalArgumentException and
+                // aborts coregistration inside what is only a bookkeeping step. Omit the element
+                // instead — InterferogramOp.parseRefSecBurstMap treats a missing one as "no mapping
+                // available", which is exactly the truth here.
+                if (refBursts.isEmpty() || secBursts.isEmpty()) {
+                    SystemUtils.LOG.warning("BackGeocodingOp: no ETAD burst of secondary '"
+                            + secondaryProduct.getName() + "' matched a reference burst; omitting "
+                            + "ETAD_Burst_Index_Array. Any downstream ETAD phase correction for this "
+                            + "pair will be skipped.");
+                    continue;
                 }
+
+                final MetadataElement etadBurstsElem = new MetadataElement("ETAD_Burst_Index_Array");
                 etadBurstsElem.setAttributeString("reference_bursts", refBursts);
                 etadBurstsElem.setAttributeString("secondary_bursts", secBursts);
                 meta.addElement(etadBurstsElem);

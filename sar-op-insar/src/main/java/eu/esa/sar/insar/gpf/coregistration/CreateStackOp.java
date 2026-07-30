@@ -629,6 +629,7 @@ public class CreateStackOp extends Operator {
                         final java.util.Map<String, Object> params = new HashMap<>();
                         params.put("outputFlattened", readMasterFlattenedState(referenceProduct));
                         params.put("outputAzimuthCarrier", readMasterAzimuthCarrierState(referenceProduct));
+                        params.put("outputPhaseTerms", masterHasCarrierModelBand(referenceProduct));
                         params.put("rangeOffsetPixels", dRangePixels);
                         params.put("azimuthOffsetPixels", dAzimuthPixels);
                         applyMasterGridLockParams(params, referenceProduct);
@@ -931,14 +932,22 @@ public class CreateStackOp extends Operator {
             for (Product secProduct : sourceProduct) {
                 for (Band band : secProduct.getBands()) {
                     String bandUnit = band.getUnit();
-                    if (bandUnit != null && bandUnit.equals(Unit.PHASE))
+                    // The GSLC azimuth-carrier MODEL band must ride the stack per leg: the
+                    // interferogram subtracts the leg DIFFERENCE of the deramp models exactly —
+                    // the deterministic ~70% of the cross-acquisition annotation mismatch that
+                    // data-driven ramp fitting otherwise has to chase. It is a real (non-virtual)
+                    // measurement band despite its PHASE unit, so exempt it from the phase-band
+                    // skip below.
+                    final boolean carrierModelBand = !(band instanceof VirtualBand)
+                            && band.getName().startsWith(GSLC_CARRIER_MODEL_BAND);
+                    if (bandUnit != null && bandUnit.equals(Unit.PHASE) && !carrierModelBand)
                         continue;
                     if (band instanceof VirtualBand && !(bandUnit != null && (bandUnit.equals(Unit.REAL) || bandUnit.equals(Unit.IMAGINARY))))
                         continue;
                     if (secProduct == referenceProduct && (band == referenceBands[0] || band == referenceBands[1] || appendToReference))
                         continue;
 
-                    if(bandUnit == null) {
+                    if(bandUnit == null || carrierModelBand) {
                         bandList.add(band);
                     } else {
                         for (Band refBand : referenceBands) {
@@ -1370,10 +1379,29 @@ public class CreateStackOp extends Operator {
             // from the source SLC with a band set that need not match the secondary's own
             // (a BIOMASS quad-pol source re-geocodes to 8 bands where the product being replaced has
             // 2, which left the stack with no reference bands at all: "[bandNames] is an empty array").
+            // Geometry alone is NOT sufficient to skip the rebuild. The rebuild also forces the
+            // secondary onto the reference's PHASE conventions (outputFlattened,
+            // outputAzimuthCarrier — see the params below). Skipping on a lattice match alone would
+            // silently accept a flattened secondary against an unflattened reference, or a
+            // carrier-restored leg against a carrier-free one, which this file's own javadoc
+            // describes as yielding meaningless phase / tens of fringes per burst. Compare the
+            // stamps too, and fall through to the rebuild when they disagree so the secondary is
+            // brought onto the reference's conventions.
             if (isGeocoded(p) && isCoLatticeWith(masterGslc, p)) {
-                SystemUtils.LOG.info("CreateStack: secondary '" + p.getName() + "' is already geocoded " +
-                        "on the reference lattice — stacking as-is (no re-geocoding, no bias estimation).");
-                continue;
+                final boolean flatMatches =
+                        readMasterFlattenedState(masterGslc) == readMasterFlattenedState(p);
+                final boolean carrierMatches =
+                        readMasterAzimuthCarrierState(masterGslc) == readMasterAzimuthCarrierState(p);
+                if (flatMatches && carrierMatches) {
+                    SystemUtils.LOG.info("CreateStack: secondary '" + p.getName() + "' is already geocoded " +
+                            "on the reference lattice with matching phase conventions — stacking as-is " +
+                            "(no re-geocoding, no bias estimation).");
+                    continue;
+                }
+                SystemUtils.LOG.warning("CreateStack: secondary '" + p.getName() + "' is co-lattice with " +
+                        "the reference but its phase conventions differ (flattened match=" + flatMatches +
+                        ", azimuth-carrier match=" + carrierMatches + ") — re-geocoding it onto the " +
+                        "reference's conventions instead of stacking as-is.");
             }
 
             // Resolve the slave's slant-range SLC source.
@@ -1407,6 +1435,9 @@ public class CreateStackOp extends Operator {
                 final java.util.Map<String, Object> params = new HashMap<>();
                 params.put("outputFlattened", readMasterFlattenedState(masterGslc));
                 params.put("outputAzimuthCarrier", readMasterAzimuthCarrierState(masterGslc));
+                // match the master's carrier-model-band contract so the interferogram can
+                // subtract the leg difference of the deramp models exactly
+                params.put("outputPhaseTerms", masterHasCarrierModelBand(masterGslc));
                 params.put("rangeOffsetPixels", 0.0);
                 params.put("azimuthOffsetPixels", 0.0);
                 applyMasterGridLockParams(params, masterGslc);
@@ -1555,6 +1586,21 @@ public class CreateStackOp extends Operator {
         return Boolean.parseBoolean(s);
     }
 
+    /**
+     * Whether the master GSLC carries the {@code azimuthCarrierPhase} model band (band presence is
+     * the contract, not the recorded parameter): an internally-built secondary must match it so the
+     * interferogram can subtract the leg difference of the deramp models exactly.
+     */
+    private static boolean masterHasCarrierModelBand(final Product masterGslc) {
+        if (masterGslc == null) return false;
+        for (final Band b : masterGslc.getBands()) {
+            if (!(b instanceof VirtualBand) && b.getName().startsWith(GSLC_CARRIER_MODEL_BAND)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void applyMasterGridLockParams(final java.util.Map<String, Object> params,
                                                   final Product masterGslc) {
         if (masterGslc == null) return;
@@ -1592,8 +1638,15 @@ public class CreateStackOp extends Operator {
                         ((org.esa.snap.core.datamodel.CrsGeoCoding) gc).getImageToMapTransform();
                 if (i2m instanceof java.awt.geom.AffineTransform) {
                     final java.awt.geom.AffineTransform at = (java.awt.geom.AffineTransform) i2m;
-                    dLon = Math.abs(at.getScaleX());
-                    dLat = Math.abs(at.getScaleY());
+                    // The affine scales are in MAP CRS UNITS, not necessarily degrees. Adopting them
+                    // unconditionally turned a UTM master's ~14 m step into "14 degrees", which the
+                    // metre conversion below then inflated to ~1000 km pixels. Only take them when the
+                    // CRS axes are angular; for a projected CRS fall through to differencing GeoPos,
+                    // which yields degrees for every CRS.
+                    if (isAngularCrs(((org.esa.snap.core.datamodel.CrsGeoCoding) gc).getMapCRS())) {
+                        dLon = Math.abs(at.getScaleX());
+                        dLat = Math.abs(at.getScaleY());
+                    }
                 }
             }
             if (!(dLon > 0) || !(dLat > 0)) {
@@ -1926,6 +1979,10 @@ public class CreateStackOp extends Operator {
      */
     static final double MAX_GEOCODED_SUBPIXEL_RESIDUAL = 0.01;
 
+    /** GSLC deramp-model band prefix (see GSLCGeocodingOp outputPhaseTerms); kept in the stack per
+     *  leg so InterferogramOp can subtract the models' leg difference exactly. */
+    static final String GSLC_CARRIER_MODEL_BAND = "azimuthCarrierPhase";
+
     /**
      * True when two geocoded products sit on the same lattice: same map CRS, same grid step, and an
      * origin offset that is a whole number of pixels (to within
@@ -1935,6 +1992,15 @@ public class CreateStackOp extends Operator {
      * Conservative by design: anything it cannot prove (missing or non-affine geo-coding, rotated
      * grid, differing CRS) returns false and falls through to the existing rebuild path.
      */
+    /**
+     * True when the CRS's horizontal axes are angular (degrees), i.e. a geographic CRS. A projected
+     * CRS reports linear units, and its image-to-map affine scales are metres — not interchangeable
+     * with the pixelSpacingInDegree parameters.
+     */
+    private static boolean isAngularCrs(final org.opengis.referencing.crs.CoordinateReferenceSystem crs) {
+        return crs instanceof org.opengis.referencing.crs.GeographicCRS;
+    }
+
     private static boolean isCoLatticeWith(final Product reference, final Product secondary) {
         if (reference == null || secondary == null) {
             return false;

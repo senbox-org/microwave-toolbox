@@ -19,6 +19,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
+import org.esa.snap.core.datamodel.ProductData;
+
+import org.esa.snap.engine_utilities.datamodel.Unit;
+
+import static org.junit.Assert.assertNull;
+
 public class GSLCGeocodingOpTest extends ProcessorTest {
 
     private GSLCGeocodingOp op;
@@ -142,5 +148,42 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
         op.setParameter("imgResamplingMethod", "BILINEAR_INTERPOLATION");
         op.setParameter("nodataValueAtSea", false);
         return op.getTargetProduct();
+    }
+    /**
+     * The separable phase terms must be present and declared as phase in float64.
+     * <p>
+     * These bands exist so the product's phase convention is REVERSIBLE rather than baked in: a
+     * consumer multiplies by exp(-j*phase) to remove a term or exp(+j*phase) to restore it. That is
+     * only usable if the bands carry enough precision — the flattening phase is 4*pi*R/lambda with
+     * R ~ 9e5 m, so float32 quantisation there is ~13 rad and would make the term useless. This test
+     * pins the contract (presence, unit, dtype); the numerical agreement with ISCE3's
+     * carrierPhaseRaster / flattenPhaseRaster is Phase 1a of the cross-tool validation spec.
+     */
+    @Test
+    public void testSeparablePhaseTermsContract() throws Exception {
+        assumeTrue(inputFile1 + " not found", inputFile1.exists());
+
+        final Product src = TestUtils.readSourceProduct(inputFile1);
+        final GSLCGeocodingOp op = new GSLCGeocodingOp();
+        op.setSourceProduct(src);
+        op.setParameter("outputPhaseTerms", true);
+        op.setParameter("nodataValueAtSea", false);
+        final Product tgt = op.getTargetProduct();
+
+        for (final String name : new String[]{"azimuthCarrierPhase", "flatteningPhase"}) {
+            final Band b = tgt.getBand(name);
+            assertNotNull("separable phase term band missing: " + name, b);
+            assertEquals("band " + name + " must be tagged as phase", Unit.PHASE, b.getUnit());
+            assertEquals("band " + name + " must be float64 — float32 is ~13 rad at these magnitudes",
+                    ProductData.TYPE_FLOAT64, b.getDataType());
+        }
+
+        // absent by default, so existing products and graphs are unchanged
+        final GSLCGeocodingOp plain = new GSLCGeocodingOp();
+        plain.setSourceProduct(TestUtils.readSourceProduct(inputFile1));
+        plain.setParameter("nodataValueAtSea", false);
+        final Product plainTgt = plain.getTargetProduct();
+        assertNull("phase-term bands must be opt-in", plainTgt.getBand("azimuthCarrierPhase"));
+        assertNull("phase-term bands must be opt-in", plainTgt.getBand("flatteningPhase"));
     }
 }

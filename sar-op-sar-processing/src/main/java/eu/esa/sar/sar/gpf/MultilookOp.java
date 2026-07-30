@@ -455,6 +455,14 @@ public final class MultilookOp extends Operator {
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.num_output_lines, targetImageHeight);
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.num_samples_per_line, targetImageWidth);
 
+        // SAMPLE_TYPE is NOT a geometry property, so it must be updated on every path. When
+        // outputIntensity is set the operator emits Intensity bands; leaving SAMPLE_TYPE as COMPLEX
+        // makes InputProductValidator.isComplex() — and therefore every downstream checkIfSLC() —
+        // mis-classify the product. This must stay ABOVE the map-projected early return below.
+        if (outputIntensity) {
+            absTgt.setAttributeString(AbstractMetadata.SAMPLE_TYPE, "DETECTED");
+        }
+
         // The remaining updates re-time the raster: they advance the first-line time and the near-edge
         // slant range to the CENTRE of the first averaged block. That is only meaningful while rows
         // are azimuth lines and columns are range samples. On a map-projected product the axes are
@@ -475,9 +483,6 @@ public final class MultilookOp extends Operator {
         double newFirstLineUTC = oldFirstLineUTC + oldLineTimeInterval * ((nAzLooks - 1) / 2.0) / Constants.secondsInDay;
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.first_line_time, new ProductData.UTC(newFirstLineUTC));
 
-        if(outputIntensity) {
-            absTgt.setAttributeString(AbstractMetadata.SAMPLE_TYPE, "DETECTED");
-        }
     }
 
     /**

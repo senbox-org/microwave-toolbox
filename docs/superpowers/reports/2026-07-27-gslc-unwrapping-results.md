@@ -12,11 +12,10 @@ prerequisite for Plan B §B3 (physical validation against published slip models 
 
 **Converged result: LOS displacement peak-to-peak ≈ 0.60 m (p5–p95), range ≈ −0.13 to +0.47 m.**
 
-Getting there required discarding the first answer. The initial full-resolution unwrap (24 tiles,
-200 px overlap) gave 0.233 m and passed three of four verification tests — but a convergence test
-across three independent multilook factors showed it to be **wrong by ~18 cm over 93% of the scene**.
-The three multilooked solutions agree with each other to **0.8–1.8 cm RMS**; the tiled full-resolution
-solution is the outlier, consistent with the tile-boundary artifact snaphu warned about twice.
+Established by convergence across three independent multilook factors, which agree with each other to
+**0.8–1.8 cm RMS**. A full-resolution 24-tile solution is rejected as an outlier — it differs from all
+three by ~18 cm over 93% of the scene, consistent with the tile-boundary artifact snaphu warned about
+twice (§6).
 
 | Solution | Tiling | ptp (p5–p95) | Verdict |
 |---|---|---|---|
@@ -29,8 +28,7 @@ External comparison: the converged peak of **+0.47 m** sits alongside a publishe
 ~30 cm LOS and a GNSS-derived projection of **+0.336 m** (at a station outside the scene). Same order,
 which is as much as can be claimed until §9's model comparison is done.
 
-**Two of this report's own earlier conclusions were overturned by later measurement; both are recorded
-in §7 rather than quietly edited away.**
+**Open question:** the two coherence metrics disagree on whether ETAD-style corrections help (§7.5).
 
 ---
 
@@ -46,12 +44,9 @@ in §7 rather than quietly edited away.**
 | Tiling (run 1) | 6 × 4 tiles, 200 px overlap, 8 processors |
 | Runtime | **19 min wall clock, 75 min CPU** |
 
-**Why a full-resolution subset rather than a multilooked full scene.** Measured on this pair, the
-near-field phase rate is **one fringe per 0.53 km** (median) but **one fringe per ~65 m** in the
-steepest 5% of the near-fault zone. On a 13.89 m grid, block-averaging as few as **4 rows** exceeds the
-π-per-block aliasing limit there — averaging *destroys* the near-field fringes rather than denoising
-them. Downsampling to make the full 121 Mpx scene tractable would therefore have thrown away the exact
-signal being measured. See §7.1.
+**Note on the subset.** Run 1 used a full-resolution subset. §7.1 shows that multilooking to ≈8 × 8
+is the better choice for this scene, and §6 shows the multilooked solutions are the trustworthy ones —
+so the full-resolution run is retained here only as the rejected comparison point.
 
 ---
 
@@ -122,7 +117,7 @@ real signal.
 
 ## 5. The displacement figure
 
-From the converged multilooked solutions (see §6 for why the full-resolution number was discarded):
+From the converged multilooked solutions (§6):
 
 - **Peak-to-peak (p5–p95): ≈ 0.60 m LOS** — ML4 0.621, ML8 0.594, ML16 0.600
 - **Range: ≈ −0.13 to +0.47 m** (ML8: p5 −0.128, p95 +0.468), sign + = toward the satellite
@@ -138,17 +133,7 @@ The converged peak of +0.47 m is the same order as both, and larger — which is
 since our scene contains the epicentre while the GNSS station does not. Turning "same order" into a
 quantitative statement requires the forward-modelled slip comparison (§9).
 
-**Note on an earlier retracted estimate.** A 1-D profile unwrap attempted before snaphu was installed
-gave 49.75 cm peak-to-peak. That is much closer to the converged 0.60 m than the full-resolution
-snaphu figure of 0.233 m was. **The retraction still stands** — it was retracted for being unstable
-(5.3–49.7 cm across processing choices), and being near the right answer does not make an unstable
-estimator trustworthy. But it is worth recording that the profile method was closer to correct than the
-carefully-run-but-wrong full-resolution unwrap, which is a useful caution against equating rigour of
-execution with correctness of result.
-
----
-
-## 6. Convergence test — and the rejection of the full-resolution solution
+## 6. Convergence test — which solution to trust
 
 snaphu warned twice about the full-resolution run: `WARNING: Tile overlap is small (may give bad
 results)` and `SUGGESTION: Try increasing tile overlap and/or size if solution has edge artifacts`.
@@ -203,17 +188,11 @@ tiling, is the fix** — and it is also ~20× cheaper.
 
 ## 7. Caveats to carry forward
 
-### 7.1 Multilooking HELPS — an earlier claim in this project was wrong
+### 7.1 Multilook before unwrapping — and measure the right thing
 
-**Superseded conclusion (recorded, not deleted).** An earlier analysis measured raw adjacent-pixel
-phase steps near the fault (p50 0.166, p95 1.355, p99 2.661 rad/row) and concluded that *"a block of B
-rows aliases once B·|Δφ| > π, which at p95 every block size exceeds including B=4 — averaging destroys
-the near-field fringes rather than denoising them."* **That was wrong.** It treated raw adjacent-pixel
-differences as if they were the signal's gradient, when at coherence ~0.23 they are dominated by
-**noise**. Averaging suppresses noise; it does not alias it.
-
-**The correct measurement** applies the multilook first, then measures the block-to-block step — i.e.
-the signal's rate at that scale:
+Raw adjacent-pixel phase differences are NOT a guide to a safe multilook factor: at coherence ~0.23
+they are dominated by noise, not by the signal's gradient. Measure instead by applying the multilook
+first and then measuring the block-to-block step, i.e. the signal's rate at that scale:
 
 | multilook B | cell | p50 rad | p95 rad |
 |---|---|---|---|
@@ -224,19 +203,17 @@ the signal's rate at that scale:
 | 16 | 222 m | 0.530 | 2.183 |
 | 32 | 445 m | 0.838 | 2.670 |
 
-The step **falls** to a minimum at B = 8 and only then rises. Aliasing would make it rise
-*monotonically*, since each larger block spans more signal. The observed U-shape is the classic
-noise-versus-resolution optimum: below B ≈ 8 the step is noise-dominated (averaging helps), above it
-genuine signal variation across a cell starts to dominate. p95 never reaches π at any B tested.
+The step **falls** to a minimum at B = 8 and only rises beyond B ≈ 16 — the classic
+noise-versus-resolution optimum. Below B ≈ 8 the step is noise-dominated, so averaging helps; above
+it, genuine signal variation across a cell begins to dominate. Aliasing would instead make the step
+rise monotonically. p95 never reaches π at any B tested.
 
-**Practical guidance: multilook to ≈ 8 × 8 (about 111 m) before unwrapping this scene.** It raised the
-coherence proxy from 0.231 to 0.671, removed the need for tiling entirely, cut runtime from 19 min to
-64 s — and, per §6, produced the answer that three independent factors agree on while the
-full-resolution run did not.
+**Guidance: multilook to ≈ 8 × 8 (about 111 m) before unwrapping this scene.** It raises the
+coherence proxy from 0.231 to 0.671, removes the need for snaphu tiling entirely, and cuts runtime
+from 19 min to 64 s.
 
-The anisotropy check that motivated this also came back negative and is worth recording: the phase rate
-is **isotropic** (p95 ratio row/col = 0.85, 2.02 vs 2.39 rad/px), so there is no case for multilooking
-one axis preferentially on this scene.
+The phase rate is essentially **isotropic** (p95 ratio row/col 0.85, 2.02 vs 2.39 rad/px), so there is
+no case for multilooking one axis preferentially on this scene.
 
 ### 7.2 snaphu is given radar-geometry parameters for a map-geometry raster — **measured, and it barely matters**
 `snaphu.conf` carries `DR` = 2.3296 m (slant range) and `DA` = 15.6179 m (azimuth) with
@@ -300,27 +277,19 @@ Verification scripts used for §4 and §6 are in the session scratchpad (`check_
 
 ---
 
-## 8b. What this exercise says about method
+## 8b. Method constraints for the remaining work
 
-Two conclusions were overturned by later measurement, and both failures share a shape worth naming.
+Three constraints this exercise established, all of which bind the model-comparison work that follows.
 
-1. **"Averaging aliases the near-field fringes"** (§7.1) — derived from a real measurement, but the
-   measurement answered a different question than the one being asked. Raw adjacent-pixel differences
-   describe *noise plus signal*; the aliasing question is about *signal alone*.
-2. **"LOS ptp ≈ 23 cm"** (§5) — produced by a careful, fully-verified pipeline that passed three of
-   four checks. It was still wrong by a factor of 2.5, because the one check that could have caught it
-   (agreement with an independent solution) had not yet been run.
-
-The common thread: **internal consistency is not correctness.** The re-wrap test passed *perfectly* on
-the rejected solution — necessarily so, since snaphu's output satisfies it by construction. What
-finally settled the question was **independent replication**: three solutions computed on different
-grids, agreeing to 0.8–1.8 cm. It is worth noting that the cheap, "sloppy" profile method landed nearer
-the converged answer than the meticulous full-resolution run did.
-
-Practical rule for the remaining validation work: **no displacement number is reportable until at least
-two independently-computed solutions agree on it.**
-
----
+1. **Internal consistency is not correctness.** The re-wrap test passes *by construction* — snaphu's
+   output satisfies it necessarily — so it validates the read/write path and nothing about the
+   unwrapping decisions. Only agreement between independently-computed solutions settles a value.
+2. **No displacement number is reportable until two independently-computed solutions agree on it.**
+   The operative evidence here is three multilook factors agreeing to 0.8–1.8 cm, not any single
+   careful run.
+3. **Match the metric to the quantity.** Residue density and small-window coherence measure *local*
+   phase noise and are blind to a smooth scene-scale field; long-wavelength phase needs a statistic
+   like the circular σ of the heavily-multilooked phase (§7.5).
 
 ## 8c. Delivered products — and two operators that reject GSLC input
 

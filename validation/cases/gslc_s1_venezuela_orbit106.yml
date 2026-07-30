@@ -1,0 +1,101 @@
+# GSLC cross-tool comparison — Sentinel-1 IW TOPS, Venezuela, relative orbit 106.
+#
+# Why this pair: S1A 2026-06-23 and S1C 2026-06-24 are a ONE-DAY repeat on the same relative orbit
+# (106). A 1-day interval keeps temporal decorrelation and atmospheric change small, so a residual
+# phase difference between two engines is much more likely to be an algorithmic difference than a
+# geophysical or decorrelation artefact. That is exactly what a convention/implementation comparison
+# needs, and it is why this pair is preferred over the 7-day S1A/S1D pair also on disk.
+#
+# Terrain is deliberately NOT flat (0 m coast to ~3560 m Cordillera de la Costa within the frame):
+# a flat scene would let a geocoding bug hide, because the DEM-dependent terms would all be small.
+
+case: gslc_s1_venezuela_orbit106
+feature: GSLC
+description: >
+  Geocoded SLC of a 1-day S1A/S1C IW TOPS repeat pair over northern Venezuela, compared between the
+  Microwave Toolbox and ISCE3/COMPASS on an identical output lattice, identical DEM, and identical
+  phase convention.
+
+engines:
+  - snap
+  - isce3
+
+# --- inputs -----------------------------------------------------------------------------------
+# SAFEs are left ZIPPED on purpose. Both engines read zipped SAFE natively (s1-reader via
+# _burst_from_zip; SNAP via its S1 reader), and the measurement TIFFs inside are STORED rather than
+# deflated (compression ratio 1.000), so a tile read is a plain seek to a byte offset in the outer
+# file with no inflate cost. Unzipping would add ~16 GB of disk for no throughput gain.
+scene:
+  slc: /scenes/Venezuela/S1A_IW_SLC__1SDV_20260623T225050_20260623T225120_065103_0834C8_BAD5.SAFE.zip
+  polarisation: VV
+  subswath: IW1
+  # burst_ids is intentionally absent = all bursts. COMPASS's schema makes it
+  # list(str(), min=1, required=False), so it must be OMITTED rather than set null.
+
+secondary:
+  slc: /scenes/Venezuela/S1C_IW_SLC__1SDV_20260624T224958_20260624T225025_008254_010515_304A.SAFE.zip
+
+# ONE staged DEM file, passed explicitly to every engine. Naming a DEM by label ("Copernicus 30 m")
+# would let each tool resolve its own copy and the comparison would then be measuring the DEMs.
+# Built from the 9 Copernicus 30 m tiles N09-N11 x W069-W071, clipped to the pair's common footprint
+# plus a 0.15 deg margin (geocoding must look up elevations slightly beyond the SLC edge).
+dem: /data/dem/copernicus30_venezuela_orbit106.tif
+
+orbits: /data/orbits          # POEORB for both dates; COMPASS has no auto-download
+
+# --- output grid ------------------------------------------------------------------------------
+# UTM 19N is the correct zone for lon -70.7..-68.2. Posting matches the OPERA CSLC-S1 product spec
+# (5 m range-ish x 10 m azimuth-ish) so results are directly comparable to distributed CSLC granules.
+grid:
+  crs: EPSG:32619
+  spacing: [5.0, 10.0]
+
+# --- phase convention (the single most important precondition) ---------------------------------
+# Both axes stated explicitly because the engines' DEFAULTS DISAGREE ON BOTH:
+#   Microwave Toolbox: outputFlattened=false, outputAzimuthCarrier=false  (carrier-free, unflattened)
+#   ISCE3/COMPASS:     flatten=True,         reramp=True                  (flattened, carrier-restored)
+# A default-vs-default run produces a difference that is pure convention mismatch and is
+# indistinguishable from a genuine defect. This case adopts the CSLC-compatible convention because
+# COMPASS hardcodes reramp=True in s1_geocode_slc.py and CANNOT emit carrier-free output.
+conventions:
+  flattened: true
+  azimuth_carrier: restored
+
+engine_params:
+  snap:
+    imgResamplingMethod: BISINC_5_POINT_INTERPOLATION
+    # Emit the separable terms so the comparison can be done term-by-term rather than only on the
+    # total phase. COMPASS writes the same two grids (azimuth_carrier_phase, flattening_phase),
+    # which is what makes a term-level diff possible at all.
+    outputPhaseTerms: true
+  isce3:
+    flatten: true
+    # burst_database_file: /data/opera/burst_db.sqlite3
+    # ^ REQUIRED to run COMPASS, despite its schema marking it optional. geo_runconfig.py:71 calls
+    #   os.path.isfile() on it BEFORE the None check at line 101, so a null raises TypeError and the
+    #   None branch is unreachable. Uncomment once the OPERA burst database is staged.
+
+# --- what gets measured -----------------------------------------------------------------------
+# Each metric declares what it is blind to (see compare/metrics.py). circular_std_multilooked is
+# included specifically because residue density and small-window coherence are BLIND to smooth,
+# scene-scale phase error — the exact error mode a geocoding difference produces.
+metrics:
+  - phase_difference_smoothness
+  - amplitude_ratio
+  - rms_difference
+  - residue_density
+  - local_phase_coherence
+  - circular_std_multilooked
+
+tolerances:
+  # Justification is required inline: a tolerance without a stated basis is just a number chosen to
+  # make the test pass.
+  rms_difference:
+    max: 0.15          # rad. ~1/40 cycle. Below the ~0.2 rad 1-day tropospheric variability floor,
+                       # so anything larger is implementation, not atmosphere.
+  amplitude_ratio:
+    mean: [0.98, 1.02] # 2%: covers interpolation-kernel differences (BISINC5 vs ISCE3's sinc) without
+                       # admitting a calibration or radiometric-term error.
+  circular_std_multilooked:
+    max: 0.30          # rad at 32x32 multilook. A smooth scene-scale geocoding bias of even a
+                       # fraction of a pixel exceeds this while leaving residue density untouched.
