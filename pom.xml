@@ -57,7 +57,7 @@
         <jcoord.version>1.0</jcoord.version>
         <jmatio.version>1.5</jmatio.version>
         <json-schema-validator.version>1.5.6</json-schema-validator.version>
-        <jsoup.version>1.20.1</jsoup.version>
+        <jsoup.version>1.23.1</jsoup.version>
         <jtransforms.version>2.4</jtransforms.version>
         <jfreechart.version>1.5.5</jfreechart.version>
         <opencsv.version>2.3</opencsv.version>
