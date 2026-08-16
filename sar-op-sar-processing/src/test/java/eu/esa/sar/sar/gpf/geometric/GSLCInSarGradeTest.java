@@ -313,32 +313,34 @@ public class GSLCInSarGradeTest extends ProcessorTest {
     }
 
     /**
-     * Issue §1b: The TOPS path currently resamples I/Q with the 4 pi R / lambda
-     * carrier still present. For C-/X-band wavelengths that's tens of fringes
-     * per range pixel, aliased through any sub-pixel sinc interpolator. The
-     * SM path already pre-flattens the carrier (see
-     * {@code GSLCResamplingRaster}); the TOPS path must do the same.
+     * Issue §1b, REVISED (the original spec here was physically wrong and has been
+     * withdrawn): a focused SLC is BASEBAND in range — the 4 pi R / lambda phase of
+     * each target is a per-scatterer constant living in the speckle, not a lattice
+     * carrier on the sample grid. There is therefore nothing to "pre-flatten" before
+     * the sinc kernel; doing so multiplies the data by a per-column ramp whose
+     * frequency aliases to (4*pi*rangeSpacing/lambda) mod 2*pi — for ERS that is
+     * -0.4989 cycles/pixel (essentially Nyquist), which destroys sub-pixel
+     * interpolation (measured on real ERS-1 SLC data: gamma 0.997 raw vs 0.093
+     * pre-flattened for a 5-pt sinc at mu=0.5). The flattening phase must be applied
+     * AFTER resampling at the target's geometric slant range.
      * <p>
-     * The simplest contract: there must be a documented helper method in the
-     * operator that pre-flattens the range carrier on a deramped tile prior to
-     * resampling. RED until that helper exists and is called from
-     * {@code computeTileStackTOPS}.
+     * This test now guards against the pre-flatten ever being REINTRODUCED: no
+     * helper by the old names may exist. The positive interpolation-fidelity
+     * contract lives in {@code GSLCComplexResamplingFidelityTest}.
      */
     @Test
-    public void testTOPSPath_HasRangeCarrierPreFlattenHelper() {
-        boolean hasHelper = false;
+    public void testTOPSPath_HasNoRangeCarrierPreFlattenHelper() {
         for (java.lang.reflect.Method m : GSLCGeocodingOp.class.getDeclaredMethods()) {
             if (m.getName().equals("preFlattenRangeCarrier")
                     || m.getName().equals("applyRangeCarrierFlattening")) {
-                hasHelper = true;
-                break;
+                fail("§1b (revised): GSLCGeocodingOp must NOT pre-flatten the range carrier " +
+                     "before interpolation — focused SLC data is baseband in range, and the " +
+                     "per-column exp(+j*4*pi*R/lambda) ramp aliases (-0.4989 cyc/px on ERS), " +
+                     "collapsing sub-pixel interpolation fidelity (gamma 0.997 -> 0.093, " +
+                     "measured). Apply the flattening AFTER the kernel instead; see " +
+                     "GSLCComplexResamplingFidelityTest. Found forbidden helper: " + m.getName());
             }
         }
-        assertTrue("§1b: GSLCGeocodingOp must expose a 'preFlattenRangeCarrier' (or " +
-                   "'applyRangeCarrierFlattening') helper used by the TOPS path before " +
-                   "resampling. Without pre-flattening, sub-pixel interpolation aliases " +
-                   "the carrier fringes for short-wavelength sensors.",
-                   hasHelper);
     }
 
     /**

@@ -81,7 +81,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     final JCheckBox outputFlattenedCheckBox = new JCheckBox("Output flattened complex data (not for InSAR)");
     final JCheckBox outputAzimuthCarrierCheckBox = new JCheckBox("Restore TOPS azimuth carrier (not for InSAR)");
     final JCheckBox outputPhaseTermsCheckBox = new JCheckBox(
-            "Output phase-term bands (enables exact carrier-difference InSAR)");
+            "Output phase-term bands (enables exact carrier-difference InSAR)", true);
     final JCheckBox saveDEMCheckBox = new JCheckBox("DEM");
     final JCheckBox saveLatLonCheckBox = new JCheckBox("Latitude & Longitude");
     final JCheckBox saveIncidenceAngleFromEllipsoidCheckBox = new JCheckBox("Incidence angle from ellipsoid");
@@ -94,7 +94,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     private Boolean nodataValueAtSea = true;
     private Boolean outputFlattened = false;
     private Boolean outputAzimuthCarrier = false;
-    private Boolean outputPhaseTerms = false;
+    private Boolean outputPhaseTerms = true;   // InSAR-ready default, matches the operator
     private Boolean saveDEM = false;
     private Boolean saveLatLon = false;
     private Boolean saveIncidenceAngleFromEllipsoid = false;

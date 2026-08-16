@@ -1,0 +1,82 @@
+<graph id="s1TradControl">
+  <version>1.0</version>
+
+  <!--
+    Classical (non-GSLC) Sentinel-1 IW TOPS interferometric control chain.
+    File paths are parameterized as gpt graph variables: ${input1}, ${input2}, ${output}.
+    Pass them with -Pinput1=... -Pinput2=... -Poutput=... on the gpt/exec:java command line.
+
+    Operator aliases below were verified against @OperatorMetadata(alias=...) in this repo:
+      Back-Geocoding          sar-op-sentinel1/.../BackGeocodingOp.java
+      Enhanced-Spectral-Diversity  sar-op-sentinel1/.../SpectralDiversityOp.java
+      Interferogram            sar-op-insar/.../InterferogramOp.java
+      TOPSAR-Deburst           sar-op-sentinel1/.../TOPSARDeburstOp.java
+
+    Unlike the ERS chain (see trad_ers_control.xml), none of these S1 TOPS operators depend
+    on the in-memory GCPManager singleton, so this chain has no equivalent "must be one
+    graph" constraint; it is shown as a single graph purely for convenience and
+    reproducibility.
+  -->
+
+  <node id="Read1">
+    <operator>Read</operator>
+    <sources/>
+    <parameters>
+      <file>${input1}</file>
+    </parameters>
+  </node>
+  <node id="Read2">
+    <operator>Read</operator>
+    <sources/>
+    <parameters>
+      <file>${input2}</file>
+    </parameters>
+  </node>
+  <node id="Back-Geocoding">
+    <operator>Back-Geocoding</operator>
+    <sources>
+      <sourceProduct refid="Read1"/>
+      <sourceProduct.1 refid="Read2"/>
+    </sources>
+    <parameters>
+      <demName>Copernicus 30m Global DEM</demName>
+      <resamplingType>BISINC_5_POINT_INTERPOLATION</resamplingType>
+    </parameters>
+  </node>
+  <node id="Enhanced-Spectral-Diversity">
+    <operator>Enhanced-Spectral-Diversity</operator>
+    <sources>
+      <sourceProduct refid="Back-Geocoding"/>
+    </sources>
+    <parameters/>
+  </node>
+  <node id="Interferogram">
+    <operator>Interferogram</operator>
+    <sources>
+      <sourceProduct refid="Enhanced-Spectral-Diversity"/>
+    </sources>
+    <parameters>
+      <subtractFlatEarthPhase>true</subtractFlatEarthPhase>
+      <subtractTopographicPhase>true</subtractTopographicPhase>
+      <demName>Copernicus 30m Global DEM</demName>
+      <includeCoherence>true</includeCoherence>
+    </parameters>
+  </node>
+  <node id="TOPSAR-Deburst">
+    <operator>TOPSAR-Deburst</operator>
+    <sources>
+      <sourceProduct refid="Interferogram"/>
+    </sources>
+    <parameters/>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="TOPSAR-Deburst"/>
+    </sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

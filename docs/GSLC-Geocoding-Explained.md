@@ -206,6 +206,38 @@ The GSLC approach collapses steps 3–4 and 6–8 of the traditional chain. Each
 
 For full IW coverage, process each subswath (IW1/IW2/IW3) independently and mosaic the GSLCs (or the interferograms) per date.
 
+### 6.1 Archive (pre-2000) stripmap data — known limitation
+
+GSLC InSAR converts each product's annotation directly into absolute phase, so it inherits
+annotation errors that classical InSAR silently absorbs in its data-driven coregistration
+warp. On a 1995 ERS-1/ERS-2 tandem pair (VMP-processed) we measured, against a classical
+control on identical inputs:
+
+* a constant range bias (~0.5 px) and a ~2 px azimuth timing drift (a ~2 ms first/last-line
+  annotation error) — **corrected automatically** by CreateStack's block-cross-correlation
+  offset field (affine; the estimator's precision, ~±0.05 px, deliberately bounds the model);
+* a large phase-vs-annotation range drift (~270 fringes full swath, linear) — **removed** by
+  `subtractResidualRamp`, plus a nonlinear slant-range component (~35 rad) removed by the new
+  `residualRampRangeProfile` option;
+* a residual smooth two-dimensional annotation-phase surface (~1–2 fringes per 10 km at its
+  densest, strongest in the scene north, ≈±0.05 px equivalent) that **remains** in the
+  interferogram. This component is definitively **phase-only**: row-resolved amplitude
+  cross-correlation of the raw SLC pair (250-row bands, 8 range blocks each) shows the
+  registration needs are smooth to 0.005 px everywhere — there is no feature displacement
+  for any registration estimator, of any polynomial degree, to measure. It is the VMP
+  processor's phase-vs-position relation itself. The GSLC chain pays the full retained
+  carrier (~1756 rad per equivalent pixel) for it; the classical chain multiplies the same
+  error only by the flat-earth gradient (~0.1 rad/px) and is therefore immune by
+  construction. The `residualRamp2D` surface (with `residualRamp2DNodes`) removes its
+  broad-scale part, but the densest fringes exceed the node density that coherent block
+  sampling can support (measured: 8353 usable blocks → 22×22 nodes on this scene).
+  Goldstein filtering makes the artifact *more* visible, as with any coherent fringe
+  pattern. Quantitative work on pre-2000 VMP archive data should prefer the classical
+  chain.
+
+Modern missions (Sentinel-1, Capella, NISAR-class) have annotation quality orders of
+magnitude better; none of this applies at a measurable level there.
+
 ---
 
 ## 7. Validation evidence

@@ -586,19 +586,25 @@ public class CreateStackOp extends Operator {
                 pm.setSubTaskName("Cross-correlating '" + job.slaveSlc.getName() + "'");
                 double dRangePixels = 0.0;
                 double dAzimuthPixels = 0.0;
+                double[] rangePoly = null;
+                double[] azimuthPoly = null;
                 if (skipBiasEstimation) {
                     SystemUtils.LOG.info("CreateStack: skipBiasEstimation=true — using bias=0 " +
                             "for slave '" + job.slaveSlc.getName() + "' (geometric coregistration only).");
                     pm.worked(1);
                 } else if (reloadedMasterSlcForBias != null) {
                     try {
-                        final double[] bias = estimateSlcBias(reloadedMasterSlcForBias, job.slaveSlc,
+                        final SlcBiasEstimate bias = estimateSlcBias(reloadedMasterSlcForBias, job.slaveSlc,
                                 com.bc.ceres.core.SubProgressMonitor.create(pm, 1));
-                        dRangePixels = bias[0];
-                        dAzimuthPixels = bias[1];
+                        dRangePixels = bias.dRange;
+                        dAzimuthPixels = bias.dAzimuth;
+                        rangePoly = bias.rangePoly;
+                        azimuthPoly = bias.azimuthPoly;
                         SystemUtils.LOG.info(String.format(
-                                "CreateStack: bias for slave '%s' — Δrange=%+.4f px, Δazimuth=%+.4f px",
-                                job.slaveSlc.getName(), dRangePixels, dAzimuthPixels));
+                                "CreateStack: bias for slave '%s' — Δrange=%+.4f px, Δazimuth=%+.4f px%s",
+                                job.slaveSlc.getName(), dRangePixels, dAzimuthPixels,
+                                (rangePoly != null || azimuthPoly != null)
+                                        ? " + spatially-varying offset field" : ""));
                     } catch (Throwable t) {
                         SystemUtils.LOG.warning("CreateStack: bias estimation failed for '" +
                                 job.slaveSlc.getName() + "': " + t.getMessage() +
@@ -611,27 +617,55 @@ public class CreateStackOp extends Operator {
                 if (pm.isCanceled()) throw new OperatorException("Cancelled by user.");
 
                 // Step 2 — rebuild the slave GSLC with the bias applied. Skip when the
-                // estimated bias is below the estimator's own noise floor: rebuilding for a
-                // few-millipixel correction buys nothing and drags in the placeholder-swap
-                // machinery (a whole second geocoding pass) for free.
-                if (Math.abs(dRangePixels) < MIN_BIAS_PIXELS && Math.abs(dAzimuthPixels) < MIN_BIAS_PIXELS
-                        && (dRangePixels != 0.0 || dAzimuthPixels != 0.0)) {
+                // estimated correction never exceeds the estimator's own noise floor anywhere
+                // in the scene: rebuilding for a few-millipixel correction buys nothing and
+                // drags in the placeholder-swap machinery (a whole second geocoding pass).
+                final int slaveW = job.slaveSlc.getSceneRasterWidth();
+                final int slaveH = job.slaveSlc.getSceneRasterHeight();
+                final double maxRg = maxAbsOffsetAtCorners(rangePoly, dRangePixels, slaveW, slaveH);
+                final double maxAz = maxAbsOffsetAtCorners(azimuthPoly, dAzimuthPixels, slaveW, slaveH);
+                if (maxRg < MIN_BIAS_PIXELS && maxAz < MIN_BIAS_PIXELS
+                        && (maxRg != 0.0 || maxAz != 0.0)) {
                     SystemUtils.LOG.info(String.format(
-                            "CreateStack: bias for '%s' (Δrg=%+.4f, Δaz=%+.4f px) is below %.2f px — " +
-                                    "keeping the unbiased geocoding.",
-                            job.slaveSlc.getName(), dRangePixels, dAzimuthPixels, MIN_BIAS_PIXELS));
+                            "CreateStack: bias for '%s' (max |Δrg|=%.4f, |Δaz|=%.4f px anywhere in " +
+                                    "the scene) is below %.2f px — keeping the unbiased geocoding.",
+                            job.slaveSlc.getName(), maxRg, maxAz, MIN_BIAS_PIXELS));
                     dRangePixels = 0.0;
                     dAzimuthPixels = 0.0;
+                    rangePoly = null;
+                    azimuthPoly = null;
                 }
-                if (dRangePixels != 0.0 || dAzimuthPixels != 0.0) {
+                if (dRangePixels != 0.0 || dAzimuthPixels != 0.0
+                        || rangePoly != null || azimuthPoly != null) {
                     pm.setSubTaskName("Re-geocoding '" + job.slaveSlc.getName() + "' with bias");
                     try {
                         final java.util.Map<String, Object> params = new HashMap<>();
                         params.put("outputFlattened", readMasterFlattenedState(referenceProduct));
                         params.put("outputAzimuthCarrier", readMasterAzimuthCarrierState(referenceProduct));
                         params.put("outputPhaseTerms", masterHasCarrierModelBand(referenceProduct));
-                        params.put("rangeOffsetPixels", dRangePixels);
-                        params.put("azimuthOffsetPixels", dAzimuthPixels);
+                        final String refBurstTable = readMasterBurstValidTimes(referenceProduct);
+                        if (refBurstTable != null) {
+                            params.put("refBurstValidTimes", refBurstTable);
+                        }
+                        final String refKernel = readMasterImgResampling(referenceProduct);
+                        if (refKernel != null) {
+                            params.put("imgResamplingMethod", refKernel);
+                        }
+                        // Per axis: an accepted FIELD carries the whole correction (constant
+                        // included) via the poly parameter; otherwise the scalar bias is applied
+                        // the historical way (annotation shift). Never both on one axis.
+                        if (rangePoly != null) {
+                            params.put("rangeOffsetPoly", joinCoefficients(rangePoly));
+                            params.put("rangeOffsetPixels", 0.0);
+                        } else {
+                            params.put("rangeOffsetPixels", dRangePixels);
+                        }
+                        if (azimuthPoly != null) {
+                            params.put("azimuthOffsetPoly", joinCoefficients(azimuthPoly));
+                            params.put("azimuthOffsetPixels", 0.0);
+                        } else {
+                            params.put("azimuthOffsetPixels", dAzimuthPixels);
+                        }
                         applyMasterGridLockParams(params, referenceProduct);
                         final Product corrected = createOperatorTargetProduct(
                                 "GSLC-Terrain-Correction", params, job.slaveSlc);
@@ -1438,6 +1472,16 @@ public class CreateStackOp extends Operator {
                 // match the master's carrier-model-band contract so the interferogram can
                 // subtract the leg difference of the deramp models exactly
                 params.put("outputPhaseTerms", masterHasCarrierModelBand(masterGslc));
+                // lock the secondary's burst-overlap boundaries to the master's so both legs
+                // select the same burst at every map pixel (mixed-burst strips decorrelate)
+                final String refBurstTable = readMasterBurstValidTimes(masterGslc);
+                if (refBurstTable != null) {
+                    params.put("refBurstValidTimes", refBurstTable);
+                }
+                final String refKernel = readMasterImgResampling(masterGslc);
+                if (refKernel != null) {
+                    params.put("imgResamplingMethod", refKernel);
+                }
                 params.put("rangeOffsetPixels", 0.0);
                 params.put("azimuthOffsetPixels", 0.0);
                 applyMasterGridLockParams(params, masterGslc);
@@ -1584,6 +1628,32 @@ public class CreateStackOp extends Operator {
             return false;
         }
         return Boolean.parseBoolean(s);
+    }
+
+    /** The master GSLC's interpolation-kernel stamp, or null (legacy) — forwarded so an
+     *  auto-built secondary resamples with the SAME kernel as the reference. */
+    static String readMasterImgResampling(final Product masterGslc) {   // package-visible for tests
+        if (masterGslc == null) return null;
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(masterGslc);
+        if (abs == null) return null;
+        final String s = abs.getAttributeString("gslc_img_resampling", null);
+        return (s == null || s.trim().isEmpty()) ? null : s;
+    }
+
+    /**
+     * The master GSLC's {@code gslc_burst_valid_times} stamp, or null when absent (legacy or
+     * non-TOPS master). Forwarded to an auto-built secondary as {@code refBurstValidTimes} so its
+     * burst-overlap selection follows the master's boundaries — otherwise each leg splits the TOPS
+     * burst overlap at its own midpoint, and in the strip between the two boundaries the stack
+     * pairs looks from different bursts (~4 kHz apart in Doppler centroid), which no phase model
+     * can make coherent.
+     */
+    private static String readMasterBurstValidTimes(final Product masterGslc) {
+        if (masterGslc == null) return null;
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(masterGslc);
+        if (abs == null) return null;
+        final String s = abs.getAttributeString("gslc_burst_valid_times", null);
+        return (s == null || s.trim().isEmpty()) ? null : s;
     }
 
     /**
@@ -1736,16 +1806,43 @@ public class CreateStackOp extends Operator {
     }
 
 
-    private static double[] estimateSlcBias(final Product masterSlc, final Product slaveSlc,
-                                            final ProgressMonitor pm)
+    /**
+     * Result of the slave-vs-master SLC bias estimation. {@code dRange}/{@code dAzimuth} are the
+     * robust (median) constants — the historical scalar bias. {@code rangePoly}/{@code azimuthPoly}
+     * are optional affine offset FIELDS "a0 + a1*x + a2*y" in source pixels (x = range sample,
+     * y = azimuth line), fitted to the per-GCP offsets when they show a spatially coherent drift.
+     * First seen on 1995 ERS-1/ERS-2 tandem VMP pairs, whose data-vs-annotation registration
+     * drifts ~1.7 px in range across the swath and ~2 px in azimuth along the scene; a constant
+     * bias leaves the drift in place and the retained range carrier turns it into hundreds of
+     * radians of spurious smooth fringes in the GSLC interferogram (the classical chain absorbs
+     * the same drift in its polynomial CC-warp). Null when the GCP set cannot support a stable
+     * affine fit — callers then fall back to the scalar bias.
+     */
+    static final class SlcBiasEstimate {
+        final double dRange, dAzimuth;
+        final double[] rangePoly, azimuthPoly;
+
+        SlcBiasEstimate(final double dRange, final double dAzimuth,
+                        final double[] rangePoly, final double[] azimuthPoly) {
+            this.dRange = dRange;
+            this.dAzimuth = dAzimuth;
+            this.rangePoly = rangePoly;
+            this.azimuthPoly = azimuthPoly;
+        }
+    }
+
+    private static SlcBiasEstimate estimateSlcBias(final Product masterSlc, final Product slaveSlc,
+                                                   final ProgressMonitor pm)
             throws Exception {
         INSIDE_BIAS_ESTIMATION.set(true);
         try {
             // TOPS pairs cannot use the stripmap nested-CreateStack + Cross-Correlation path
             // (cross-correlation on raw TOPS SLCs is invalid, and the nested CreateStack refuses
             // TOPS). Use Back-Geocoding + ESD to get the (range, azimuth) residual instead.
+            // TOPS gets constants only — its per-burst machinery handles the rest.
             if (isTopsSlc(masterSlc) && isTopsSlc(slaveSlc)) {
-                return estimateTopsBias(masterSlc, slaveSlc, pm);
+                final double[] off = estimateTopsBias(masterSlc, slaveSlc, pm);
+                return new SlcBiasEstimate(off[0], off[1], null, null);
             }
             return estimateSlcBiasInner(masterSlc, slaveSlc, pm);
         } finally {
@@ -1838,8 +1935,309 @@ public class CreateStackOp extends Operator {
         return new double[]{ esdRgAz[0], esdRgAz[1] };
     }
 
-    private static double[] estimateSlcBiasInner(final Product masterSlc, final Product slaveSlc,
-                                                 final ProgressMonitor pm)
+    private static SlcBiasEstimate estimateSlcBiasInner(final Product masterSlc, final Product slaveSlc,
+                                                        final ProgressMonitor pm)
+            throws Exception {
+        // Primary estimator: a degree-2 offset field fitted from a dense, classical-chain-strength
+        // GCP set (400 GCPs @ coherenceThreshold 0.4), converted to "need" against exact orbit
+        // geometry. Root-cause fix for the ~130-rad smooth GSLC interferogram artifact on ERS
+        // archive pairs: the classical chain's warp is a degree-2 polynomial fitted the same way;
+        // our previous best (affine from 65 noisy FFT blocks) could not represent the same
+        // spatially-varying need. estimateSlcBiasByGcpField cross-checks itself against the block
+        // estimator and falls back to it outright on disagreement, so this is never a regression
+        // versus the previous primary estimator.
+        try {
+            final SlcBiasEstimate est = estimateSlcBiasByGcpField(masterSlc, slaveSlc, pm);
+            if (est != null) {
+                return est;
+            }
+            SystemUtils.LOG.warning("CreateStack: GCP offset-field bias estimation yielded too few " +
+                    "usable GCPs — falling back to the block-CC estimator.");
+        } catch (Throwable t) {
+            SystemUtils.LOG.warning("CreateStack: GCP offset-field bias estimation failed (" +
+                    t.getMessage() + ") — falling back to the block-CC estimator.");
+        }
+
+        // Secondary estimator: block FFT cross-correlation against exact orbit geometry.
+        // Measured need on the ERS-1/ERS-2 tandem VMP pair: the GCP-based affine fit
+        // hallucinated a ~0.9 px range slope (33 coherence-gated GCPs, selection-biased)
+        // where the true need is ~constant +0.5 px, and under-fitted the real ~1.8 px
+        // azimuth drift 5x. The block method measures the needed correction directly:
+        //   needed(az,rg) = (data offset from CC) - (orbit-geometric index difference)
+        // in SLC pixels, unambiguously — validated against an independent python
+        // measurement on the same pair before being adopted here.
+        try {
+            final SlcBiasEstimate est = estimateSlcBiasByBlocks(masterSlc, slaveSlc);
+            if (est != null) {
+                return est;
+            }
+            SystemUtils.LOG.warning("CreateStack: block-CC bias estimation yielded too few valid " +
+                    "blocks — falling back to the GCP median estimator (constants only).");
+        } catch (Throwable t) {
+            SystemUtils.LOG.warning("CreateStack: block-CC bias estimation failed (" + t.getMessage() +
+                    ") — falling back to the GCP median estimator (constants only).");
+        }
+        return estimateSlcBiasByGcps(masterSlc, slaveSlc, pm);
+    }
+
+    /**
+     * Estimate the slave-vs-master coregistration need on a grid of image blocks:
+     * for each block, the slave amplitude patch is pre-shifted by the orbit-geometric
+     * index difference (jlinda zero-Doppler solves at the scene average height) and the
+     * residual data offset is measured by FFT cross-correlation with parabolic sub-pixel
+     * refinement. {@code needed = dataOffset - geometricDifference} is exactly the field
+     * {@code GSLCGeocodingOp.rangeOffsetPoly/azimuthOffsetPoly} must apply (convention:
+     * {@code rangeIndex += needed}; the sign is pinned by the file-gated ERS test).
+     * Returns null when fewer than {@link #MIN_FIELD_BLOCKS} blocks correlate.
+     */
+    static SlcBiasEstimate estimateSlcBiasByBlocks(final Product masterSlc, final Product slaveSlc)
+            throws Exception {
+        final MetadataElement absM = AbstractMetadata.getAbstractedMetadata(masterSlc);
+        final MetadataElement absS = AbstractMetadata.getAbstractedMetadata(slaveSlc);
+        final org.jlinda.core.SLCImage mMeta = new org.jlinda.core.SLCImage(absM, masterSlc);
+        final org.jlinda.core.SLCImage sMeta = new org.jlinda.core.SLCImage(absS, slaveSlc);
+        final org.jlinda.core.Orbit mOrbit = new org.jlinda.core.Orbit(absM, 3);
+        final org.jlinda.core.Orbit sOrbit = new org.jlinda.core.Orbit(absS, 3);
+        final double avgHeight = absM.getAttributeDouble(AbstractMetadata.avg_scene_height, 0.0);
+
+        final Band[] mIQ = findComplexPair(masterSlc);
+        final Band[] sIQ = findComplexPair(slaveSlc);
+        if (mIQ == null || sIQ == null) {
+            SystemUtils.LOG.warning("CreateStack: block-CC needs complex (i/q) bands on both products.");
+            return null;
+        }
+
+        final int W = masterSlc.getSceneRasterWidth();
+        final int H = masterSlc.getSceneRasterHeight();
+        final int SW = slaveSlc.getSceneRasterWidth();
+        final int SH = slaveSlc.getSceneRasterHeight();
+        final int BS = FIELD_BLOCK_SIZE;
+        if (W < 2 * BS || H < 4 * BS) {
+            return null;
+        }
+
+        final java.util.List<double[]> samples = new java.util.ArrayList<>(); // {rg, az, needRg, needAz}
+        final int nRows = 14, nCols = 7;
+        final int mgX = Math.max(BS / 2, 64), mgY = Math.max(BS, 512);
+        for (int r = 0; r < nRows; r++) {
+            final int y0 = mgY + (int) ((long) r * (H - 2 * mgY - BS) / Math.max(1, nRows - 1));
+            for (int c = 0; c < nCols; c++) {
+                final int x0 = mgX + (int) ((long) c * (W - 2 * mgX - BS) / Math.max(1, nCols - 1));
+                try {
+                    // orbit-geometric index difference at the block centre
+                    final org.jlinda.core.Point xyz = mOrbit.lph2xyz(
+                            y0 + BS / 2.0 + 1.0, x0 + BS / 2.0, avgHeight, mMeta);
+                    final org.jlinda.core.Point tm = mOrbit.xyz2t(xyz, mMeta);
+                    final org.jlinda.core.Point ts = sOrbit.xyz2t(xyz, sMeta);
+                    // same-formula conversion on both legs so any index-origin convention cancels
+                    final double dgeomAz = sMeta.ta2line(ts.y) - mMeta.ta2line(tm.y);
+                    final double dgeomRg = sMeta.tr2pix(ts.x) - mMeta.tr2pix(tm.x);
+
+                    final int sy = y0 + (int) Math.round(dgeomAz);
+                    final int sx = x0 + (int) Math.round(dgeomRg);
+                    if (sy < 0 || sx < 0 || sy + BS > SH || sx + BS > SW) {
+                        continue;
+                    }
+                    final double[] ampM = readAmplitudeBlock(mIQ, x0, y0, BS);
+                    final double[] ampS = readAmplitudeBlock(sIQ, sx, sy, BS);
+                    if (ampM == null || ampS == null) {
+                        continue;
+                    }
+                    final double[] d = blockCrossCorrelate(ampM, ampS, BS, FIELD_MAX_RESIDUAL_PX);
+                    if (d == null) {
+                        continue;
+                    }
+                    // cc peak d: m(x) ~ sBlock(x - d); feature at master x sits at slave
+                    // raw x + intShift - d  =>  needed = (intShift - d) - dgeom
+                    final double needAz = Math.round(dgeomAz) - d[0] - dgeomAz;
+                    final double needRg = Math.round(dgeomRg) - d[1] - dgeomRg;
+                    samples.add(new double[]{x0 + BS / 2.0, y0 + BS / 2.0, needRg, needAz});
+                } catch (Throwable t) {
+                    SystemUtils.LOG.fine("CreateStack: block (" + x0 + "," + y0 + ") skipped: "
+                            + t.getMessage());
+                }
+            }
+        }
+        if (samples.size() < MIN_FIELD_BLOCKS) {
+            return null;
+        }
+        final int n = samples.size();
+        final double[] xs = new double[n], ys = new double[n], nRg = new double[n], nAz = new double[n];
+        for (int i = 0; i < n; i++) {
+            final double[] s = samples.get(i);
+            xs[i] = s[0]; ys[i] = s[1]; nRg[i] = s[2]; nAz[i] = s[3];
+        }
+        final double medRg = median(nRg.clone());
+        final double medAz = median(nAz.clone());
+        // AFFINE ONLY for the auto-estimated field. Measured on the ERS tandem pair
+        // (2026-08-07, v4 validation): a degree-3 fit to 65 blocks with ~±0.05 px CC noise
+        // OVERFITS — its smooth wiggles injected ±0.05-0.1 px of spurious structure, i.e.
+        // ±90-175 rad of phase through the retained carrier, making the interferogram WORSE
+        // (residual-vs-classical concentration unchanged, ramp/profile estimators chasing the
+        // injected surface). The affine field is what block-CC precision genuinely supports;
+        // anything beyond it must come from the PHASE-side data-driven models
+        // (subtractResidualRamp / residualRampRangeProfile), not the registration field.
+        // The higher-degree machinery stays for the explicit rangeOffsetPoly/azimuthOffsetPoly
+        // parameters (6/10-term expert use).
+        final int wantDegree = 1;
+        double[] rangePoly = null, azimuthPoly = null;
+        int usedDegree = wantDegree;
+        for (int dg = wantDegree; dg >= 1 && rangePoly == null; dg--) {
+            rangePoly = fitPolyOffsetField(xs, ys, nRg, W, H, dg, MIN_FIELD_BLOCKS);
+            usedDegree = dg;
+        }
+        for (int dg = Math.min(wantDegree, usedDegree); dg >= 1 && azimuthPoly == null; dg--) {
+            azimuthPoly = fitPolyOffsetField(xs, ys, nAz, W, H, dg, MIN_FIELD_BLOCKS);
+        }
+        SystemUtils.LOG.info(String.format(
+                "CreateStack: block-CC offset need for slave '%s' (%d blocks, field degree %d) — "
+                        + "range %s px, azimuth %s px across the scene (medians %+.4f / %+.4f px).",
+                slaveSlc.getName(), n, usedDegree,
+                describeFieldRange(rangePoly, W, H, medRg),
+                describeFieldRange(azimuthPoly, W, H, medAz), medRg, medAz));
+        return new SlcBiasEstimate(medRg, medAz, rangePoly, azimuthPoly);
+    }
+
+    /** First (i, q) band pair by unit, or null. */
+    private static Band[] findComplexPair(final Product p) {
+        Band i = null, q = null;
+        for (final Band b : p.getBands()) {
+            if (b.getUnit() == null) continue;
+            if (i == null && b.getUnit().equals(Unit.REAL)) i = b;
+            else if (i != null && q == null && b.getUnit().equals(Unit.IMAGINARY)) q = b;
+            if (i != null && q != null) break;
+        }
+        return (i != null && q != null) ? new Band[]{i, q} : null;
+    }
+
+    /** Amplitude block, or null when mostly empty (sea/fill). */
+    private static double[] readAmplitudeBlock(final Band[] iq, final int x0, final int y0, final int bs)
+            throws java.io.IOException {
+        final float[] bi = new float[bs * bs];
+        final float[] bq = new float[bs * bs];
+        iq[0].readPixels(x0, y0, bs, bs, bi, ProgressMonitor.NULL);
+        iq[1].readPixels(x0, y0, bs, bs, bq, ProgressMonitor.NULL);
+        final double[] amp = new double[bs * bs];
+        int nValid = 0;
+        for (int k = 0; k < amp.length; k++) {
+            amp[k] = Math.hypot(bi[k], bq[k]);
+            if (amp[k] > 0) nValid++;
+        }
+        return (nValid > amp.length * 0.9) ? amp : null;
+    }
+
+    /**
+     * FFT cross-correlation of two n x n amplitude blocks. Returns {dRow, dCol} — the shift
+     * of the second block relative to the first ({@code a(x) ~ b(x - d)}) with parabolic
+     * sub-pixel refinement — or null when the integer peak exceeds {@code maxShift} (no
+     * plausible alignment). Package-visible for unit tests.
+     */
+    static double[] blockCrossCorrelate(final double[] ampA, final double[] ampB, final int n,
+                                        final int maxShift) {
+        double meanA = 0, meanB = 0;
+        for (int k = 0; k < n * n; k++) { meanA += ampA[k]; meanB += ampB[k]; }
+        meanA /= n * n; meanB /= n * n;
+
+        final double[] a = new double[2 * n * n];
+        final double[] b = new double[2 * n * n];
+        for (int k = 0; k < n * n; k++) {
+            a[2 * k] = ampA[k] - meanA;
+            b[2 * k] = ampB[k] - meanB;
+        }
+        final edu.emory.mathcs.jtransforms.fft.DoubleFFT_2D fft =
+                new edu.emory.mathcs.jtransforms.fft.DoubleFFT_2D(n, n);
+        fft.complexForward(a);
+        fft.complexForward(b);
+        // X = A * conj(B), then inverse -> correlation surface
+        for (int k = 0; k < n * n; k++) {
+            final double ar = a[2 * k], ai = a[2 * k + 1];
+            final double br = b[2 * k], bi = b[2 * k + 1];
+            a[2 * k] = ar * br + ai * bi;
+            a[2 * k + 1] = ai * br - ar * bi;
+        }
+        fft.complexInverse(a, true);
+
+        int pkRow = 0, pkCol = 0;
+        double pkVal = Double.NEGATIVE_INFINITY;
+        for (int r = 0; r < n; r++) {
+            for (int c = 0; c < n; c++) {
+                final double v = a[2 * (r * n + c)];
+                if (v > pkVal) { pkVal = v; pkRow = r; pkCol = c; }
+            }
+        }
+        final int dRow = pkRow <= n / 2 ? pkRow : pkRow - n;
+        final int dCol = pkCol <= n / 2 ? pkCol : pkCol - n;
+        if (Math.abs(dRow) > maxShift || Math.abs(dCol) > maxShift) {
+            return null;
+        }
+        // parabolic sub-pixel on wrap-around neighbours
+        final java.util.function.BiFunction<Integer, Integer, Double> cc = (r, c) ->
+                a[2 * ((((r % n) + n) % n) * n + (((c % n) + n) % n))];
+        final double subRow = parabolicPeakOffset(cc.apply(pkRow - 1, pkCol), pkVal, cc.apply(pkRow + 1, pkCol));
+        final double subCol = parabolicPeakOffset(cc.apply(pkRow, pkCol - 1), pkVal, cc.apply(pkRow, pkCol + 1));
+        return new double[]{dRow + subRow, dCol + subCol};
+    }
+
+    /** Vertex offset in [-0.5, 0.5] of the parabola through (-1,m), (0,c), (+1,p). */
+    static double parabolicPeakOffset(final double m, final double c, final double p) {
+        final double denom = m - 2 * c + p;
+        if (!(Math.abs(denom) > 1e-30)) return 0.0;
+        final double off = 0.5 * (m - p) / denom;
+        return Math.max(-0.5, Math.min(0.5, off));
+    }
+
+    private static double median(final double[] v) {
+        java.util.Arrays.sort(v);
+        final int n = v.length;
+        return (n % 2 == 0) ? 0.5 * (v[n / 2 - 1] + v[n / 2]) : v[n / 2];
+    }
+
+    /** Linear-interpolated percentile ({@code p} in [0,1]) of an ALREADY-SORTED-ASCENDING array. */
+    private static double percentile(final double[] sortedAsc, final double p) {
+        final int n = sortedAsc.length;
+        if (n == 0) return Double.NaN;
+        if (n == 1) return sortedAsc[0];
+        final double idx = p * (n - 1);
+        final int lo = (int) Math.floor(idx);
+        final int hi = (int) Math.ceil(idx);
+        if (lo == hi) return sortedAsc[lo];
+        final double frac = idx - lo;
+        return sortedAsc[lo] * (1 - frac) + sortedAsc[hi] * frac;
+    }
+
+    /**
+     * Fix-round-2 diagnostic (GCP-field path only): log the raw-need distribution for one axis
+     * BEFORE fitting/trimming — N, min, p10, median, p90, max, and the p10..p90 span. Compared
+     * against the fitted field's total variation over the scene, this is what exposed the MAD
+     * trim underfitting genuine smooth structure (see task-3B-report.md, Fix round 2).
+     */
+    private static void logNeedStats(final String axis, final double[] need, final String slaveName) {
+        final double[] sorted = need.clone();
+        java.util.Arrays.sort(sorted);
+        final int n = sorted.length;
+        if (n == 0) {
+            SystemUtils.LOG.info("CreateStack: [GCP-field] " + axis + " raw-need stats for slave '" +
+                    slaveName + "': N=0.");
+            return;
+        }
+        final double p10 = percentile(sorted, 0.10);
+        final double p50 = percentile(sorted, 0.50);
+        final double p90 = percentile(sorted, 0.90);
+        SystemUtils.LOG.info(String.format(
+                "CreateStack: [GCP-field] %s raw-need stats for slave '%s': N=%d min=%+.4f p10=%+.4f "
+                        + "median=%+.4f p90=%+.4f max=%+.4f px (p10..p90 span %.4f px).",
+                axis, slaveName, n, sorted[0], p10, p50, p90, sorted[n - 1], p90 - p10));
+    }
+
+    /** Block size for the field estimator; large enough for robust amplitude CC on 1-look SLCs. */
+    static final int FIELD_BLOCK_SIZE = 512;
+    /** Largest credible residual (px) after geometric pre-alignment; beyond this = failed match. */
+    static final int FIELD_MAX_RESIDUAL_PX = 8;
+    /** Minimum correlated blocks for a usable estimate. */
+    static final int MIN_FIELD_BLOCKS = 12;
+
+    private static SlcBiasEstimate estimateSlcBiasByGcps(final Product masterSlc, final Product slaveSlc,
+                                                         final ProgressMonitor pm)
             throws Exception {
         final long t0 = System.currentTimeMillis();
         SystemUtils.LOG.fine("CreateStack: estimating bias for slave '" + slaveSlc.getName() +
@@ -1920,12 +2318,807 @@ public class CreateStackOp extends Operator {
         if (dxs.isEmpty()) {
             throw new OperatorException("Cross-Correlation matched no GCPs between master and slave.");
         }
+        // Constants only: the coherence-gated GCP set is selection-biased and CANNOT support
+        // a slope fit (measured on the ERS tandem pair: it hallucinated a ~0.9 px range drift
+        // where the true need is constant). Fields come from estimateSlcBiasByBlocks.
         java.util.Collections.sort(dxs);
         java.util.Collections.sort(dys);
         final int n = dxs.size();
         final double medDx = (n % 2 == 0) ? 0.5 * (dxs.get(n / 2 - 1) + dxs.get(n / 2)) : dxs.get(n / 2);
         final double medDy = (n % 2 == 0) ? 0.5 * (dys.get(n / 2 - 1) + dys.get(n / 2)) : dys.get(n / 2);
-        return new double[]{medDx, medDy};
+        return new SlcBiasEstimate(medDx, medDy, null, null);
+    }
+
+    /**
+     * Read the nested stack's integer orbit-init offset for its (only) secondary band, written
+     * by CreateStack's initial-offset step to the abstracted metadata: element
+     * {@code Orbit_Offsets} → first child element → attributes {@code init_offset_X} /
+     * {@code init_offset_Y} (ints). GCP positions coming out of the nested stack are in the
+     * stack's own (master-extent) pixel frame; adding this offset converts them back to the raw
+     * slave SLC's pixel frame. Best-effort — returns {@code {0, 0}} when the element is absent
+     * or malformed (older/rebuilt stacks, or an orbit-init step that never ran).
+     */
+    private static double[] readNestedStackInitOffset(final Product nestedStack) {
+        try {
+            final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(nestedStack);
+            final MetadataElement orbitOffsets = abs == null ? null : abs.getElement("Orbit_Offsets");
+            if (orbitOffsets == null || orbitOffsets.getNumElements() == 0) {
+                return new double[]{0.0, 0.0};
+            }
+            final MetadataElement first = orbitOffsets.getElementAt(0);
+            return new double[]{
+                    first.getAttributeInt("init_offset_X", 0),
+                    first.getAttributeInt("init_offset_Y", 0)};
+        } catch (Throwable t) {
+            return new double[]{0.0, 0.0};
+        }
+    }
+
+    /**
+     * Estimate the slave-vs-master coregistration need as a DEGREE-2 offset field fitted from a
+     * dense, classical-chain-strength GCP set (400 GCPs, coherenceThreshold 0.4, fine
+     * registration) — the measured root-cause fix for the ~130-rad smooth GSLC interferogram
+     * artifact on ERS archive pairs (see task-3B-brief.md). The classical chain wins over the
+     * historical affine/scalar estimators because its degree-2 CC-warp captures a spatially
+     * coherent registration need that a plane (or a single number) cannot; this reuses the same
+     * nested-CreateStack + Cross-Correlation machinery as {@link #estimateSlcBiasByGcps} but at
+     * the settings that actually support a slope/curvature fit, converts each matched GCP into
+     * an orbit-geometry-relative "need" using the same jlinda idiom as
+     * {@link #estimateSlcBiasByBlocks}, and fits per-axis polynomials.
+     * <p>
+     * A REQUIRED cross-check against {@code estimateSlcBiasByBlocks} vetoes the field (falling
+     * back to the block estimate outright) whenever the two disagree — drift-aware: per axis,
+     * when the block estimator also fitted a field, both fields are sampled on the same 7x7
+     * scene grid and compared by median |difference| (gate 0.15 px); when the block estimator
+     * has constants only for that axis, the GCP field's own median over that grid is compared
+     * against the block's scalar (gate 0.25 px). A single-point (e.g. scene-centre) comparison
+     * against a spatially-varying block field is deliberately avoided — it produces a spurious
+     * mismatch whenever the true field drifts across the scene (measured on the ERS pair: block
+     * azimuth ranges +5.3..+7.4 px). When the block estimator is unavailable (null or throws),
+     * the cross-check is skipped and the GCP field is accepted on its own guards.
+     * <p>
+     * Returns null when neither degree 2 nor degree 1 can be fitted for both axes.
+     */
+    static SlcBiasEstimate estimateSlcBiasByGcpField(final Product masterSlc, final Product slaveSlc,
+                                                      final ProgressMonitor pm)
+            throws Exception {
+        final long t0 = System.currentTimeMillis();
+        SystemUtils.LOG.fine("CreateStack: estimating GCP offset field for slave '" + slaveSlc.getName() +
+                "' against master '" + masterSlc.getName() + "'");
+
+        // Nested stack + Cross-Correlation, exactly as estimateSlcBiasByGcps but tuned to the
+        // classical chain's settings (dense GCPs, looser coherence gate, fine registration) so
+        // the resulting set can support a degree-2 fit rather than constants only.
+        final CreateStackOp stackOp = new CreateStackOp();
+        stackOp.setSourceProducts(masterSlc, slaveSlc);
+        stackOp.setParameter("extent", MASTER_EXTENT);
+        stackOp.setParameter("initialOffsetMethod", INITIAL_OFFSET_ORBIT);
+        stackOp.setParameter("resamplingType", "NONE");
+        stackOp.setParameter("autoCoregisterGSLC", false); // nested stack is SLC-on-SLC; nothing to coregister
+        final Product stack = stackOp.getTargetProduct();
+
+        final CrossCorrelationOp ccOp = new CrossCorrelationOp();
+        ccOp.setSourceProduct(stack);
+        ccOp.setParameter("numGCPtoGenerate", 400);
+        ccOp.setParameter("coarseRegistrationWindowWidth", "64");
+        ccOp.setParameter("coarseRegistrationWindowHeight", "64");
+        ccOp.setParameter("applyFineRegistration", true);
+        ccOp.setParameter("inSAROptimized", true);
+        ccOp.setParameter("coherenceThreshold", 0.4);
+        final Product cc = ccOp.getTargetProduct();
+
+        Band masterBand = null;
+        Band slaveBand  = null;
+        for (final Band b : cc.getBands()) {
+            if (b.getUnit() != null && b.getUnit().equals(Unit.REAL)) {
+                if (masterBand == null) masterBand = b;
+                else if (slaveBand == null) { slaveBand = b; break; }
+            }
+        }
+        if (masterBand == null || slaveBand == null) {
+            throw new OperatorException("Cross-Correlation output is missing master or slave band.");
+        }
+
+        // Force the matching loops to run by reading the slave band — GCPs are populated
+        // as a side effect of computeTile. Driven exactly like estimateSlcBiasByGcps: a
+        // row-stripe readPixels loop, ticking the caller's pm (CrossCorrelationOp prints its
+        // own "Cross Correlating <slave>... N%" progress separately).
+        final int w = slaveBand.getRasterWidth();
+        final int h = slaveBand.getRasterHeight();
+        final int step = 256;
+        final int nSteps = (h + step - 1) / step;
+        pm.beginTask("Cross-correlating " + slaveSlc.getName(), nSteps);
+        try {
+            final float[] row = new float[w];
+            for (int y = 0; y < h; y += step) {
+                if (pm.isCanceled()) {
+                    throw new OperatorException("Cancelled by user during cross-correlation.");
+                }
+                slaveBand.readPixels(0, y, w, 1, row, com.bc.ceres.core.ProgressMonitor.NULL);
+                pm.worked(1);
+            }
+        } finally {
+            pm.done();
+        }
+        SystemUtils.LOG.fine("CreateStack: GCP field CC scan complete in " +
+                (System.currentTimeMillis() - t0) / 1000 + "s.");
+
+        final ProductNodeGroup<org.esa.snap.core.datamodel.Placemark> mGcp =
+                GCPManager.instance().getGcpGroup(masterBand);
+        final ProductNodeGroup<org.esa.snap.core.datamodel.Placemark> sGcp =
+                GCPManager.instance().getGcpGroup(slaveBand);
+
+        final double[] initOffset = readNestedStackInitOffset(stack);
+
+        // jlinda geometric-difference idiom, built ONCE outside the per-GCP loop (verbatim from
+        // estimateSlcBiasByBlocks): master frame == nested-stack frame here (extent=Master).
+        final MetadataElement absM = AbstractMetadata.getAbstractedMetadata(masterSlc);
+        final MetadataElement absS = AbstractMetadata.getAbstractedMetadata(slaveSlc);
+        final org.jlinda.core.SLCImage mMeta = new org.jlinda.core.SLCImage(absM, masterSlc);
+        final org.jlinda.core.SLCImage sMeta = new org.jlinda.core.SLCImage(absS, slaveSlc);
+        final org.jlinda.core.Orbit mOrbit = new org.jlinda.core.Orbit(absM, 3);
+        final org.jlinda.core.Orbit sOrbit = new org.jlinda.core.Orbit(absS, 3);
+        final double avgHeight = absM.getAttributeDouble(AbstractMetadata.avg_scene_height, 0.0);
+
+        final int slaveW = slaveSlc.getSceneRasterWidth();
+        final int slaveH = slaveSlc.getSceneRasterHeight();
+
+        final java.util.List<double[]> samples = new java.util.ArrayList<>(); // {px, py, needRg, needAz}
+        for (final org.esa.snap.core.datamodel.Placemark mp
+                : mGcp.toArray(new org.esa.snap.core.datamodel.Placemark[0])) {
+            final org.esa.snap.core.datamodel.Placemark sp = sGcp.get(mp.getName());
+            if (sp == null) continue;
+            try {
+                final double mx = mp.getPixelPos().x, my = mp.getPixelPos().y;
+                final double sx = sp.getPixelPos().x, sy = sp.getPixelPos().y;
+                // data offset in the nested-stack (master-extent) frame
+                final double ox = sx - mx;
+                final double oy = sy - my;
+                // raw-slave-frame position for the fit (this is the frame GSLC-Terrain-Correction's
+                // rangeOffsetPoly/azimuthOffsetPoly parameters are evaluated in downstream)
+                final double px = sx + initOffset[0];
+                final double py = sy + initOffset[1];
+
+                // orbit-geometric index difference at the GCP position, exactly as
+                // estimateSlcBiasByBlocks: (line, pixel) = (master y + 1, master x)
+                final org.jlinda.core.Point xyz = mOrbit.lph2xyz(my + 1.0, mx, avgHeight, mMeta);
+                final org.jlinda.core.Point tm = mOrbit.xyz2t(xyz, mMeta);
+                final org.jlinda.core.Point ts = sOrbit.xyz2t(xyz, sMeta);
+                final double dgeomAz = sMeta.ta2line(ts.y) - mMeta.ta2line(tm.y);
+                final double dgeomRg = sMeta.tr2pix(ts.x) - mMeta.tr2pix(tm.x);
+
+                final double needRg = ox + (initOffset[0] - dgeomRg);
+                final double needAz = oy + (initOffset[1] - dgeomAz);
+                samples.add(new double[]{px, py, needRg, needAz});
+            } catch (Throwable t) {
+                SystemUtils.LOG.fine("CreateStack: GCP '" + mp.getName() + "' skipped: " + t.getMessage());
+            }
+        }
+
+        final int n = samples.size();
+        if (n < 150) {
+            SystemUtils.LOG.warning("CreateStack: GCP field estimation only has " + n +
+                    " usable GCPs for slave '" + slaveSlc.getName() + "' (need >= 150 for a degree-2 fit).");
+        }
+        final double[] xs = new double[n], ys = new double[n], nRg = new double[n], nAz = new double[n];
+        for (int i = 0; i < n; i++) {
+            final double[] s = samples.get(i);
+            xs[i] = s[0]; ys[i] = s[1]; nRg[i] = s[2]; nAz[i] = s[3];
+        }
+
+        // Fix-round-2 diagnostics: raw-need distribution BEFORE fitting/trimming, per axis. If
+        // the fitted field's total variation ends up much smaller than the raw p10..p90 span,
+        // the trim (not a genuinely flat need surface) is eating real structure.
+        {
+            double xMin = Double.POSITIVE_INFINITY, xMax = Double.NEGATIVE_INFINITY;
+            double yMin = Double.POSITIVE_INFINITY, yMax = Double.NEGATIVE_INFINITY;
+            for (int i = 0; i < n; i++) {
+                xMin = Math.min(xMin, xs[i]); xMax = Math.max(xMax, xs[i]);
+                yMin = Math.min(yMin, ys[i]); yMax = Math.max(yMax, ys[i]);
+            }
+            SystemUtils.LOG.info(String.format(
+                    "CreateStack: [GCP-field] matched-GCP spatial coverage for slave '%s': "
+                            + "x=[%.1f..%.1f] of scene width %d (%.1f%%), y=[%.1f..%.1f] of scene height %d (%.1f%%).",
+                    slaveSlc.getName(), xMin, xMax, slaveW, 100.0 * (xMax - xMin) / slaveW,
+                    yMin, yMax, slaveH, 100.0 * (yMax - yMin) / slaveH));
+        }
+        logNeedStats("range", nRg, slaveSlc.getName());
+        logNeedStats("azimuth", nAz, slaveSlc.getName());
+
+        // Fix-round-2, step 4: neither the MAD trim nor a flat 7%-per-pass percentile trim on the
+        // raw per-GCP needs reached the required field variation (see task-3B-report.md, Fix
+        // round 2) — a fixed-cut/fixed-fraction trim cannot tell "genuine curvature at the scene
+        // edges" from "a handful of gross correlation mismatches" once the residual scale shrinks
+        // after the first pass. The classical chain's own answer to exactly this problem is CPM
+        // (org.jlinda.core.coregistration.CPM) — the SAME InSAR-optimized, data-snooping (w-test)
+        // degree-2 polynomial estimator WarpOp itself uses when inSAROptimized=true (see
+        // WarpOp.getWarpData): it removes ONE statistically-significant outlier per iteration
+        // against a calibrated critical value (95% confidence, matching WarpOp's rmsThreshold=0.05
+        // default), not a blanket fraction, so it keeps genuine edge/corner structure that a
+        // fixed-cut trim discards. WarpOp itself does NOT persist its fitted coefficients to
+        // metadata (only per-GCP coordinates/RMS — confirmed by inspection: writeWarpDataToMetadata
+        // writes "WarpData"/"GCP<i>" elements with ref_x/ref_y/sec_x/sec_y/rms, never the
+        // polynomial coefficients), so there is nothing to read back from a WarpOp pass; instead
+        // CPM is reused directly, in-process, on the SAME matched GCP groups (mGcp/sGcp) from our
+        // own nested Cross-Correlation — no extra CC run needed. Its fitted warp polynomial is
+        // then sampled on a 12x12 scene grid to build need(P) = warpPolynomial(P) - dgeom(P), and
+        // OUR degree-2 field is fit to those exact (smooth, outlier-free) samples. Falls back to
+        // the percentile-trim per-GCP fit (previous fix-round-2 attempt, still a genuine
+        // improvement over plain MAD) if CPM is unavailable or fails.
+        double[] rangePoly = null;
+        double[] azimuthPoly = null;
+        try {
+            final int stackW = stack.getSceneRasterWidth();
+            final int stackH = stack.getSceneRasterHeight();
+            final org.jlinda.core.Window masterWindow = new org.jlinda.core.Window(0, stackH, 0, stackW);
+            final org.jlinda.core.coregistration.CPM cpm = new org.jlinda.core.coregistration.CPM(
+                    2, 20, 1.95996398454005f, masterWindow, mGcp, sGcp);
+            if (!cpm.isValid()) {
+                throw new OperatorException("CPM: not enough redundant GCPs for a degree-2 warp.");
+            }
+            cpm.computeCPM();
+            cpm.computeEstimationStats();
+            cpm.wrapJaiWarpPolynomial();
+            final javax.media.jai.WarpPolynomial jaiWarp = cpm.getJAIWarp();
+            if (jaiWarp == null) {
+                throw new OperatorException("CPM: warp polynomial unavailable.");
+            }
+            final float[] xCoefF = jaiWarp.getXCoeffs();
+            final float[] yCoefF = jaiWarp.getYCoeffs();
+            final double[] warpXCoef = new double[xCoefF.length];
+            final double[] warpYCoef = new double[yCoefF.length];
+            for (int i = 0; i < xCoefF.length; i++) warpXCoef[i] = xCoefF[i];
+            for (int i = 0; i < yCoefF.length; i++) warpYCoef[i] = yCoefF[i];
+            final int warpDeg = offsetFieldDegreeOf(warpXCoef.length);
+
+            SystemUtils.LOG.info(String.format(
+                    "CreateStack: [GCP-field] CPM warp fit for slave '%s': %d of %d matched GCPs " +
+                            "survived data-snooping (degree %d).",
+                    slaveSlc.getName(), cpm.getNumObservations(), n, warpDeg));
+
+            // need(P) = warpPolynomial(P) - dgeom(P), sampled on a 12x12 master-frame scene grid.
+            final int GRID = 12;
+            final double[] gx = new double[GRID * GRID], gy = new double[GRID * GRID];
+            final double[] gNeedRg = new double[GRID * GRID], gNeedAz = new double[GRID * GRID];
+            int k = 0;
+            for (int a = 0; a < GRID; a++) {
+                final double mx = a * (stackW - 1.0) / (GRID - 1);
+                for (int b = 0; b < GRID; b++) {
+                    final double my = b * (stackH - 1.0) / (GRID - 1);
+
+                    // warp polynomial evaluated at MASTER (mx, my) predicts the corresponding
+                    // SLAVE (stack-frame) position — same convention as offsetFieldTerms/evalOffsetField.
+                    final double sxPred = evalOffsetField(warpXCoef, warpDeg, mx, my);
+                    final double syPred = evalOffsetField(warpYCoef, warpDeg, mx, my);
+                    final double ox = sxPred - mx;
+                    final double oy = syPred - my;
+                    final double px = sxPred + initOffset[0];
+                    final double py = syPred + initOffset[1];
+
+                    final org.jlinda.core.Point xyz = mOrbit.lph2xyz(my + 1.0, mx, avgHeight, mMeta);
+                    final org.jlinda.core.Point tm = mOrbit.xyz2t(xyz, mMeta);
+                    final org.jlinda.core.Point ts = sOrbit.xyz2t(xyz, sMeta);
+                    final double dgeomAz = sMeta.ta2line(ts.y) - mMeta.ta2line(tm.y);
+                    final double dgeomRg = sMeta.tr2pix(ts.x) - mMeta.tr2pix(tm.x);
+
+                    gx[k] = px; gy[k] = py;
+                    gNeedRg[k] = ox + (initOffset[0] - dgeomRg);
+                    gNeedAz[k] = oy + (initOffset[1] - dgeomAz);
+                    k++;
+                }
+            }
+
+            // minPoints=100 (of the 144 GRID*GRID samples): these are smooth, noise-free synthetic
+            // samples derived analytically from the already-fitted CPM warp polynomial and jlinda
+            // geometry, not noisy independent measurements — MIN_GCPS's usual "enough independent
+            // points to trust a robust fit" rationale doesn't apply here, so 100 is just a loose
+            // sanity floor (comfortably above the 6-term degree-2 minimum) rather than a
+            // statistically-derived threshold.
+            rangePoly = fitPolyOffsetField(gx, gy, gNeedRg, slaveW, slaveH, 2, 100);
+            azimuthPoly = fitPolyOffsetField(gx, gy, gNeedAz, slaveW, slaveH, 2, 100);
+            if (rangePoly == null || azimuthPoly == null) {
+                SystemUtils.LOG.warning("CreateStack: CPM-grid degree-2 fit failed for slave '" +
+                        slaveSlc.getName() + "' — falling back to the per-GCP percentile-trim fit.");
+                rangePoly = null;
+                azimuthPoly = null;
+            } else {
+                SystemUtils.LOG.fine("CreateStack: [GCP-field] route=CPM-grid for slave '" +
+                        slaveSlc.getName() + "'.");
+            }
+        } catch (Throwable t) {
+            SystemUtils.LOG.warning("CreateStack: CPM warp estimation failed for slave '" +
+                    slaveSlc.getName() + "' (" + t.getMessage() + ") — falling back to the per-GCP " +
+                    "percentile-trim fit.");
+        }
+
+        // Fallback: the previous fix-round-2 attempt (7%-per-pass percentile trim of the raw,
+        // noisy per-GCP needs) — still a genuine improvement over the original MAD trim even
+        // though it did not by itself reach the required field variation. verbose=true logs each
+        // pass's removed-point count.
+        if (rangePoly == null) {
+            rangePoly = fitPolyOffsetField(xs, ys, nRg, slaveW, slaveH, 2, 150, TrimMode.PERCENTILE, true);
+            if (rangePoly == null) {
+                rangePoly = fitPolyOffsetField(xs, ys, nRg, slaveW, slaveH, 1, 60, TrimMode.PERCENTILE, true);
+            }
+        }
+        if (rangePoly == null) {
+            SystemUtils.LOG.warning("CreateStack: GCP offset field (range) could not be fitted for " +
+                    "slave '" + slaveSlc.getName() + "' at degree 2 or 1.");
+            return null;
+        }
+        if (azimuthPoly == null) {
+            azimuthPoly = fitPolyOffsetField(xs, ys, nAz, slaveW, slaveH, 2, 150, TrimMode.PERCENTILE, true);
+            if (azimuthPoly == null) {
+                azimuthPoly = fitPolyOffsetField(xs, ys, nAz, slaveW, slaveH, 1, 60, TrimMode.PERCENTILE, true);
+            }
+        }
+        if (azimuthPoly == null) {
+            SystemUtils.LOG.warning("CreateStack: GCP offset field (azimuth) could not be fitted for " +
+                    "slave '" + slaveSlc.getName() + "' at degree 2 or 1.");
+            return null;
+        }
+
+        final double medRg = median(nRg.clone());
+        final double medAz = median(nAz.clone());
+
+        // Cross-check against the independently-derived block-CC estimate — DRIFT-AWARE and
+        // FRAME-AWARE.
+        // Fix-round-1: the original gate compared the GCP field's CENTRE value against the
+        // block estimator's spatial MEDIAN of a field that drifts ~+5.3..+7.4 px along
+        // azimuth on the ERS pair; that is an apples-to-oranges comparison that guarantees a
+        // spurious ~0.3 px "disagreement" even when both estimators agree everywhere. Instead,
+        // per axis: when the block estimator fitted its own field, compare BOTH fields sampled
+        // at the SAME 7x7 scene grid (median |difference|, gate 0.15 px) — the fair way to
+        // compare two spatially-varying quantities; when the block estimator has constants
+        // only for that axis, compare the GCP field's median over the same grid against the
+        // block's scalar (gate 0.25 px, looser because a median-vs-scalar comparison already
+        // discards spatial information on one side). Any exception from the block estimator,
+        // or a null block result, is treated as "cross-check unavailable" — the GCP field is
+        // then accepted on its own guards (fitPolyOffsetField's MAD trim / spread / drift
+        // bounds), not vetoed.
+        // Fix-round-3: the two fields live in DIFFERENT pixel frames. Verified by inspection —
+        // estimateSlcBiasByBlocks samples at (x0 + BS/2, y0 + BS/2) where x0/y0 are laid out
+        // directly over masterSlc's own raster (0..W-1, 0..H-1): its fields are fit in the
+        // MASTER frame. estimateSlcBiasByGcpField samples at (px, py) = predicted-slave-position
+        // + initOffset (raw-slave frame): its fields are fit in the RAW-SLAVE frame. The 7x7
+        // grid below is laid out in MASTER-frame coordinates (matching the block field, which
+        // needs no correction); the GCP field needs initOffset added before evaluation so both
+        // sides are sampled at the same physical scene location. Dormant on the ERS gate fixture
+        // only because its measured initOffset happens to be {0, 0}.
+        SlcBiasEstimate blockEst = null;
+        try {
+            blockEst = estimateSlcBiasByBlocks(masterSlc, slaveSlc);
+        } catch (Throwable t) {
+            SystemUtils.LOG.fine("CreateStack: block-CC cross-check failed for slave '" +
+                    slaveSlc.getName() + "': " + t.getMessage());
+        }
+        double dRange = medRg;
+        double dAzimuth = medAz;
+        if (blockEst == null) {
+            SystemUtils.LOG.info("CreateStack: block-CC cross-check unavailable for slave '" +
+                    slaveSlc.getName() + "' — accepting the GCP offset field on its own guards.");
+        } else {
+            final int W = masterSlc.getSceneRasterWidth();
+            final int H = masterSlc.getSceneRasterHeight();
+
+            final boolean rgFieldVsField = blockEst.rangePoly != null;
+            final boolean azFieldVsField = blockEst.azimuthPoly != null;
+            final double rgDiff = rgFieldVsField
+                    ? medianFieldDiffOverScene(rangePoly, initOffset[0], initOffset[1],
+                            blockEst.rangePoly, 0.0, 0.0, W, H)
+                    : Math.abs(medianFieldOverScene(rangePoly, W, H, initOffset[0], initOffset[1])
+                            - blockEst.dRange);
+            final double azDiff = azFieldVsField
+                    ? medianFieldDiffOverScene(azimuthPoly, initOffset[0], initOffset[1],
+                            blockEst.azimuthPoly, 0.0, 0.0, W, H)
+                    : Math.abs(medianFieldOverScene(azimuthPoly, W, H, initOffset[0], initOffset[1])
+                            - blockEst.dAzimuth);
+            final double rgGate = rgFieldVsField ? 0.15 : 0.25;
+            final double azGate = azFieldVsField ? 0.15 : 0.25;
+
+            SystemUtils.LOG.info(String.format(
+                    "CreateStack: GCP-field cross-check for slave '%s' — range diff %.4f px " +
+                            "(gate %.2f, %s), azimuth diff %.4f px (gate %.2f, %s).",
+                    slaveSlc.getName(), rgDiff, rgGate, rgFieldVsField ? "field-vs-field" : "median-vs-median",
+                    azDiff, azGate, azFieldVsField ? "field-vs-field" : "median-vs-median"));
+
+            if (rgDiff > rgGate || azDiff > azGate) {
+                SystemUtils.LOG.warning(String.format(
+                        "CreateStack: GCP offset field for slave '%s' disagrees with the block-CC " +
+                                "cross-check (range diff %.4f px, gate %.2f, %s; azimuth diff %.4f px, " +
+                                "gate %.2f, %s) — using the block estimate instead.",
+                        slaveSlc.getName(), rgDiff, rgGate, rgFieldVsField ? "field-vs-field" : "median-vs-median",
+                        azDiff, azGate, azFieldVsField ? "field-vs-field" : "median-vs-median"));
+                return blockEst;
+            }
+            dRange = blockEst.dRange;
+            dAzimuth = blockEst.dAzimuth;
+        }
+
+        final int loggedDegree = Math.max(offsetFieldDegreeOf(rangePoly.length), offsetFieldDegreeOf(azimuthPoly.length));
+        SystemUtils.LOG.info(String.format(
+                "CreateStack: GCP offset field for slave '%s' (%d GCPs, degree %d) — "
+                        + "range %s px, azimuth %s px across the scene (medians %+.4f / %+.4f px).",
+                slaveSlc.getName(), n, loggedDegree,
+                describeFieldRange(rangePoly, slaveW, slaveH, medRg),
+                describeFieldRange(azimuthPoly, slaveW, slaveH, medAz), dRange, dAzimuth));
+
+        return new SlcBiasEstimate(dRange, dAzimuth, rangePoly, azimuthPoly);
+    }
+
+    /**
+     * Median of a non-null polynomial field's values sampled over the standard 7x7 scene grid
+     * (its own fitted degree), each grid point (x, y) offset by ({@code offX}, {@code offY})
+     * before evaluation. Used by the GCP-field cross-check's "median-vs-median" branch (block
+     * estimator has constants only for that axis).
+     * <p>
+     * Fix-round-3: the grid (x, y) points are always laid out in the MASTER pixel frame (the
+     * frame {@code estimateSlcBiasByBlocks}' own fields are fitted in). The GCP field, however,
+     * is fitted in the RAW-SLAVE pixel frame ({@code estimateSlcBiasByGcpField} builds its fit
+     * positions as nested-stack-frame position + {@code initOffset}). Evaluating the GCP field
+     * at a master-frame grid point WITHOUT first adding {@code initOffset} silently compares it
+     * at the wrong physical location — dormant on the ERS gate fixture only because that pair's
+     * measured {@code initOffset} happens to be {0, 0}. Callers MUST pass {@code initOffset} (or
+     * {@code (0, 0)} for a field that is already natively in the master frame, e.g. the block
+     * field) so both sides of a comparison are evaluated at the same physical scene location.
+     */
+    static double medianFieldOverScene(final double[] poly, final int w, final int h,
+                                       final double offX, final double offY) {
+        final int degree = offsetFieldDegreeOf(poly.length);
+        final double[] v = new double[49];
+        int k = 0;
+        for (int a = 0; a <= 6; a++) {
+            for (int b = 0; b <= 6; b++) {
+                v[k++] = evalOffsetField(poly, degree,
+                        a * (w - 1.0) / 6 + offX, b * (h - 1.0) / 6 + offY);
+            }
+        }
+        return median(v);
+    }
+
+    /**
+     * Median of {@code |fieldA - fieldB|} sampled at the SAME 7x7 MASTER-frame scene grid points,
+     * each field's own (x, y) offset by its own ({@code offAX}/{@code offAY},
+     * {@code offBX}/{@code offBY}) before evaluation, each field evaluated at its own fitted
+     * degree. Drift-aware alternative to comparing two spatially-varying fields at a single point
+     * (e.g. the scene centre) or against each other's overall median, either of which is an
+     * apples-to-oranges comparison for a field that drifts significantly across the scene
+     * (measured on the ERS pair: block azimuth field ranges +5.3..+7.4 px). Used by the GCP-field
+     * cross-check's "field-vs-field" branch.
+     * <p>
+     * Fix-round-3 (see {@link #medianFieldOverScene}'s note): the per-field offset lets each side
+     * be evaluated in ITS OWN pixel frame while both are sampled at the same physical scene
+     * location — e.g. the GCP field (raw-slave frame) needs {@code initOffset} added, the block
+     * field (already master frame, matching the grid) needs {@code (0, 0)}.
+     */
+    static double medianFieldDiffOverScene(final double[] polyA, final double offAX, final double offAY,
+                                           final double[] polyB, final double offBX, final double offBY,
+                                           final int w, final int h) {
+        final int degA = offsetFieldDegreeOf(polyA.length);
+        final int degB = offsetFieldDegreeOf(polyB.length);
+        final double[] diffs = new double[49];
+        int k = 0;
+        for (int a = 0; a <= 6; a++) {
+            for (int b = 0; b <= 6; b++) {
+                final double x = a * (w - 1.0) / 6, y = b * (h - 1.0) / 6;
+                diffs[k++] = Math.abs(
+                        evalOffsetField(polyA, degA, x + offAX, y + offAY)
+                                - evalOffsetField(polyB, degB, x + offBX, y + offBY));
+            }
+        }
+        return median(diffs);
+    }
+
+    /** "[min .. max]" of a polynomial field over a scene sample grid; "[c .. c]" for null. */
+    private static String describeFieldRange(final double[] poly, final int w, final int h,
+                                             final double constant) {
+        if (poly == null) {
+            return String.format("[%+.3f .. %+.3f]", constant, constant);
+        }
+        final int degree = offsetFieldDegreeOf(poly.length);
+        double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
+        for (int a = 0; a <= 6; a++) {
+            for (int b = 0; b <= 6; b++) {
+                final double v = evalOffsetField(poly, degree, a * (w - 1.0) / 6, b * (h - 1.0) / 6);
+                min = Math.min(min, v);
+                max = Math.max(max, v);
+            }
+        }
+        return String.format("[%+.3f .. %+.3f]", min, max);
+    }
+
+    /** Largest |offset| a polynomial field (or scalar fallback) reaches over a 7x7 scene grid. */
+    static double maxAbsOffsetAtCorners(final double[] poly, final double constant,
+                                        final int w, final int h) {
+        return maxAbsOffsetOverScene(poly, constant, w, h);
+    }
+
+    static double maxAbsOffsetOverScene(final double[] poly, final double constant,
+                                        final int w, final int h) {
+        if (poly == null) {
+            return Math.abs(constant);
+        }
+        final int degree = offsetFieldDegreeOf(poly.length);
+        double max = 0.0;
+        for (int a = 0; a <= 6; a++) {
+            for (int b = 0; b <= 6; b++) {
+                max = Math.max(max, Math.abs(
+                        evalOffsetField(poly, degree, a * (w - 1.0) / 6, b * (h - 1.0) / 6)));
+            }
+        }
+        return max;
+    }
+
+    /**
+     * Robust affine fit {@code d(x,y) = a0 + a1*x + a2*y} to per-GCP offsets, with two
+     * MAD-based outlier-trim passes. Returns {@code [a0, a1, a2]} in absolute source pixels,
+     * or null when the GCP set cannot support a stable plane: too few points, poor spatial
+     * spread (slope would be extrapolation), or an implausibly steep fitted drift.
+     * Package-visible for unit tests.
+     */
+    /**
+     * Monomial exponents for the 2-D offset-field polynomial, constant first, degree-major:
+     * [1, x, y, x², xy, y², x³, x²y, xy², y³] — 3/6/10 terms for degree 1/2/3. MUST stay in
+     * sync with {@code GSLCGeocodingOp.evalOffsetPoly}'s convention (its degree-1 prefix is
+     * the historical "a0,a1,a2" format). Pinned by tests on both sides.
+     */
+    static int[][] offsetFieldTerms(final int degree) {
+        final java.util.List<int[]> t = new java.util.ArrayList<>();
+        t.add(new int[]{0, 0});
+        for (int dd = 1; dd <= degree; dd++) {
+            for (int i = dd; i >= 0; i--) {
+                t.add(new int[]{i, dd - i});
+            }
+        }
+        return t.toArray(new int[0][]);
+    }
+
+    static double evalOffsetField(final double[] c, final int degree, final double x, final double y) {
+        final int[][] terms = offsetFieldTerms(degree);
+        double v = 0;
+        for (int k = 0; k < terms.length && k < c.length; k++) {
+            v += c[k] * Math.pow(x, terms[k][0]) * Math.pow(y, terms[k][1]);
+        }
+        return v;
+    }
+
+    static int offsetFieldDegreeOf(final int nTerms) {
+        int d = 0, n = 1;
+        while (n < nTerms) {
+            d++;
+            n += d + 1;
+        }
+        return d;
+    }
+
+    static double[] fitAffineOffsetField(final double[] x, final double[] y, final double[] d,
+                                         final int width, final int height) {
+        return fitPolyOffsetField(x, y, d, width, height, 1, 25);
+    }
+
+    static double[] fitAffineOffsetField(final double[] x, final double[] y, final double[] d,
+                                         final int width, final int height, final int minPoints) {
+        return fitPolyOffsetField(x, y, d, width, height, 1, minPoints);
+    }
+
+    /**
+     * Outlier-trim strategy for {@link #fitPolyOffsetField}. {@code MAD} (the historical/default
+     * behaviour, unchanged for every existing caller) cuts at {@code max(3*1.4826*MAD, 0.05)} px
+     * — appropriate for the noisy 65-block FFT-CC set, but on a dense, low-noise GCP set (needs
+     * RMS-about-fit ~0.1 px) it can misclassify genuine smooth structure (real extremes ~0.25 px
+     * from the initial fit) as outliers across passes, underfitting the field. {@code PERCENTILE}
+     * instead drops a fixed fraction (7%) of the currently-kept points by largest |residual| per
+     * pass, with a hard floor of 150 surviving points — used ONLY by the GCP-field path
+     * ({@link #estimateSlcBiasByGcpField}), which has enough points (150-400) to afford a
+     * percentage-based trim and needs to preserve real sub-pixel structure the MAD cut would eat.
+     */
+    enum TrimMode { MAD, PERCENTILE }
+
+    /**
+     * Robust polynomial fit {@code d(x,y)} of the given degree (1..3) with two outlier-trim
+     * passes ({@link TrimMode#MAD}, non-verbose) — the original signature, used by every
+     * pre-existing caller (block path, {@code fitAffineOffsetField}, unit tests) with IDENTICAL
+     * behaviour to before this diagnostic/percentile-trim addition.
+     */
+    static double[] fitPolyOffsetField(final double[] x, final double[] y, final double[] d,
+                                       final int width, final int height, final int degree,
+                                       final int minPoints) {
+        return fitPolyOffsetField(x, y, d, width, height, degree, minPoints, TrimMode.MAD, false);
+    }
+
+    /**
+     * Robust polynomial fit {@code d(x,y)} of the given degree (1..3) with two outlier-trim
+     * passes; centred/normalised internally, coefficients returned in ABSOLUTE pixels in the
+     * {@link #offsetFieldTerms} order. Null when the point set cannot support the fit.
+     * {@code verbose} (GCP-field diagnostics only) logs each pass's removed-point count at INFO.
+     */
+    static double[] fitPolyOffsetField(final double[] x, final double[] y, final double[] d,
+                                       final int width, final int height, final int degree,
+                                       final int minPoints, final TrimMode trimMode,
+                                       final boolean verbose) {
+        final int MIN_GCPS = Math.max(minPoints, 3 * offsetFieldTerms(degree).length);
+        final double MIN_SPAN_FRACTION = 0.35;
+        final double MAX_DRIFT_PIXELS = 20.0;   // |a1|*W and |a2|*H sanity bound
+        final int PERCENTILE_FLOOR = 150;
+        if (x.length < MIN_GCPS || width <= 1 || height <= 1) {
+            return null;
+        }
+        boolean[] keep = new boolean[x.length];
+        java.util.Arrays.fill(keep, true);
+        double[] coef = null;
+        for (int pass = 0; pass < 3; pass++) {
+            // spread check on the surviving points
+            double xMin = Double.POSITIVE_INFINITY, xMax = Double.NEGATIVE_INFINITY;
+            double yMin = Double.POSITIVE_INFINITY, yMax = Double.NEGATIVE_INFINITY;
+            int n = 0;
+            for (int i = 0; i < x.length; i++) {
+                if (!keep[i]) continue;
+                n++;
+                xMin = Math.min(xMin, x[i]); xMax = Math.max(xMax, x[i]);
+                yMin = Math.min(yMin, y[i]); yMax = Math.max(yMax, y[i]);
+            }
+            if (n < MIN_GCPS
+                    || (xMax - xMin) < MIN_SPAN_FRACTION * width
+                    || (yMax - yMin) < MIN_SPAN_FRACTION * height) {
+                return null;
+            }
+            // centred/normalised LS for conditioning: monomials in u=(x-cx)/W, v=(y-cy)/H
+            final double cx = 0.5 * (xMin + xMax), cy = 0.5 * (yMin + yMax);
+            final int[][] terms = offsetFieldTerms(degree);
+            final int nT = terms.length;
+            final double[][] ata = new double[nT][nT];
+            final double[] atb = new double[nT];
+            final double[] row = new double[nT];
+            for (int i = 0; i < x.length; i++) {
+                if (!keep[i]) continue;
+                final double u = (x[i] - cx) / width, v = (y[i] - cy) / height;
+                for (int k = 0; k < nT; k++) {
+                    row[k] = Math.pow(u, terms[k][0]) * Math.pow(v, terms[k][1]);
+                }
+                for (int a = 0; a < nT; a++) {
+                    for (int b = 0; b < nT; b++) {
+                        ata[a][b] += row[a] * row[b];
+                    }
+                    atb[a] += row[a] * d[i];
+                }
+            }
+            final double[] cNorm = solveSymmetric(ata, atb);
+            if (cNorm == null) {
+                return null;
+            }
+            // expand normalised-centred monomials to absolute-pixel coefficients:
+            // q*((x-cx)/W)^i*((y-cy)/H)^j = q/W^i/H^j * sum_{a<=i,b<=j} C(i,a)C(j,b)(-cx)^(i-a)(-cy)^(j-b) x^a y^b
+            coef = new double[nT];
+            for (int k = 0; k < nT; k++) {
+                final int i = terms[k][0], j = terms[k][1];
+                final double q = cNorm[k] / Math.pow(width, i) / Math.pow(height, j);
+                for (int a = 0; a <= i; a++) {
+                    for (int b = 0; b <= j; b++) {
+                        final double f = binomial(i, a) * binomial(j, b)
+                                * Math.pow(-cx, i - a) * Math.pow(-cy, j - b);
+                        coef[termIndex(terms, a, b)] += q * f;
+                    }
+                }
+            }
+
+            if (pass == 2) break;
+
+            // Outlier trim for the next pass. Residuals computed once against the currently-kept
+            // points, then either the MAD cut or the percentile drop is applied to them.
+            int nKept = 0;
+            for (final boolean b : keep) if (b) nKept++;
+            final int[] keptIdx = new int[nKept];
+            final double[] keptResid = new double[nKept];
+            {
+                int p = 0;
+                for (int i = 0; i < x.length; i++) {
+                    if (!keep[i]) continue;
+                    keptIdx[p] = i;
+                    keptResid[p] = Math.abs(d[i] - evalOffsetField(coef, degree, x[i], y[i]));
+                    p++;
+                }
+            }
+
+            if (trimMode == TrimMode.PERCENTILE) {
+                // Drop the worst 7% of currently-kept points by |residual|, never below the floor.
+                final int nDrop = Math.min((int) Math.floor(0.07 * nKept), Math.max(0, nKept - PERCENTILE_FLOOR));
+                if (nDrop > 0) {
+                    final Integer[] order = new Integer[nKept];
+                    for (int i = 0; i < nKept; i++) order[i] = i;
+                    java.util.Arrays.sort(order, (a, b) -> Double.compare(keptResid[b], keptResid[a]));
+                    for (int k = 0; k < nDrop; k++) {
+                        keep[keptIdx[order[k]]] = false;
+                    }
+                }
+                if (verbose) {
+                    SystemUtils.LOG.info(String.format(
+                            "CreateStack: [GCP-field] fitPolyOffsetField pass %d (percentile trim, degree %d): "
+                                    + "removed %d of %d points (worst 7%%%s), %d remain.",
+                            pass, degree, nDrop, nKept,
+                            nDrop < (int) Math.floor(0.07 * nKept) ? ", floor reached" : "",
+                            nKept - nDrop));
+                }
+            } else {
+                final double[] sorted = keptResid.clone();
+                java.util.Arrays.sort(sorted);
+                final double mad = nKept > 0 ? sorted[nKept / 2] : 0.0;
+                final double cut = Math.max(3.0 * 1.4826 * mad, 0.05);
+                int removed = 0;
+                for (int k = 0; k < nKept; k++) {
+                    if (keptResid[k] > cut) {
+                        keep[keptIdx[k]] = false;
+                        removed++;
+                    }
+                }
+                if (verbose) {
+                    SystemUtils.LOG.info(String.format(
+                            "CreateStack: [GCP-field] fitPolyOffsetField pass %d (MAD trim, degree %d): "
+                                    + "mad=%.4f cut=%.4f removed %d of %d points.",
+                            pass, degree, mad, cut, removed, nKept));
+                }
+            }
+        }
+        if (coef == null) {
+            return null;
+        }
+        for (final double c : coef) {
+            if (!Double.isFinite(c)) return null;
+        }
+        // sanity: the fitted field must stay bounded over the whole scene
+        if (maxAbsOffsetOverScene(coef, 0.0, width, height) > MAX_DRIFT_PIXELS) {
+            return null;
+        }
+        return coef;
+    }
+
+    static String joinCoefficients(final double[] c) {
+        final StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < c.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append(c[i]);
+        }
+        return sb.toString();
+    }
+
+    private static double binomial(final int n, final int k) {
+        double v = 1;
+        for (int i = 0; i < k; i++) v = v * (n - i) / (i + 1);
+        return v;
+    }
+
+    private static int termIndex(final int[][] terms, final int i, final int j) {
+        for (int k = 0; k < terms.length; k++) {
+            if (terms[k][0] == i && terms[k][1] == j) return k;
+        }
+        throw new IllegalStateException("no term x^" + i + " y^" + j);
+    }
+
+    /** Gaussian elimination with partial pivoting; null when singular. */
+    private static double[] solveSymmetric(final double[][] ata, final double[] atb) {
+        final int n = atb.length;
+        final double[][] m = new double[n][n + 1];
+        for (int i = 0; i < n; i++) {
+            System.arraycopy(ata[i], 0, m[i], 0, n);
+            m[i][n] = atb[i];
+        }
+        for (int col = 0; col < n; col++) {
+            int piv = col;
+            for (int rr = col + 1; rr < n; rr++) {
+                if (Math.abs(m[rr][col]) > Math.abs(m[piv][col])) piv = rr;
+            }
+            final double[] tmp = m[col]; m[col] = m[piv]; m[piv] = tmp;
+            final double dd = m[col][col];
+            if (Math.abs(dd) < 1e-14) return null;
+            for (int j = col; j < n + 1; j++) m[col][j] /= dd;
+            for (int rr = 0; rr < n; rr++) {
+                if (rr == col) continue;
+                final double f = m[rr][col];
+                for (int j = col; j < n + 1; j++) m[rr][j] -= f * m[col][j];
+            }
+        }
+        final double[] out = new double[n];
+        for (int i = 0; i < n; i++) out[i] = m[i][n];
+        return out;
     }
 
     /**
