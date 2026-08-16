@@ -84,7 +84,33 @@ The following parameters are used by this operator:
         give better results.
     </li>
     <li>
-        Flag for skipping estimation and subtraction of the reference-phase.</li><li>Flag for subtracting topographic phase</li><li>DEM to be used for subtracting topographic phase</li><li>Extension of tile (%) for DEM simulation (optimization parameter)</li><li>Flag for outputting elevation (if topographic phase subtraction is chosen)</li><li>Flag for outputting orthorectified latitudes and longitudes&nbsp;(if topographic phase subtraction is chosen)</li><li>Flag for including coherence estimation</li><li>Choice of using square pixel or not (for&nbsp;coherence estimation)</li><li>Coherence range and azimuth window sizes</li>
+        Flag for skipping estimation and subtraction of the reference-phase.</li><li>Flag for subtracting topographic phase</li><li>DEM to be used for subtracting topographic phase</li><li>Extension of tile (%) for DEM simulation (optimization parameter)</li><li>Flag for outputting elevation (if topographic phase subtraction is chosen)</li><li>Flag for outputting orthorectified latitudes and longitudes&nbsp;(if topographic phase subtraction is chosen)</li><li>
+        Flag for subtracting the residual ramp (GSLC stacks only): estimates and removes the smooth
+        residual phase ramp of cross-acquisition GSLC interferometry as a robust low-order polynomial
+        fitted to block-wise fringe gradients. Off by default &mdash; like any ramp removal it also
+        absorbs a genuine scene-wide linear gradient.
+    </li><li>
+        Residual ramp degree (GSLC stripmap only): polynomial degree of the residual-ramp fit,
+        2 (default, safe) to 4. Higher degrees capture smoothly curved archive annotation-phase
+        surfaces at the cost of absorbing more of any genuine large-scale deformation.
+    </li><li>
+        Flag for subtracting the residual range profile (GSLC stripmap only, requires the residual
+        ramp): additionally fits and removes a smooth data-driven 1-D phase profile in slant range,
+        estimated after the polynomial ramp. For archive products whose annotation-phase error is
+        nonlinear in range.
+    </li><li>
+        Flag for subtracting a 2-D residual surface (GSLC stripmap only, requires the residual ramp):
+        additionally fits and removes a bounded smooth 2-D phase surface left after the polynomial
+        ramp and optional range profile. WARNING: the surface absorbs all smooth scene-scale phase,
+        including genuine deformation broader than about a tenth of the scene &mdash; never enable it
+        for wide-area deformation mapping; intended for archive-data DEM/coherence work.
+    </li><li>
+        2-D residual surface nodes (GSLC, expert): node count per axis of the surface grid;
+        0 (default) = adaptive up to 10x10. Higher counts resolve finer archive annotation-phase
+        structure at a directly proportional cost in signal absorption &mdash; at N nodes the surface
+        absorbs all smooth phase broader than about 1/(N-1) of the scene, deformation included.
+        The count is shrunk automatically when block sampling cannot support it.
+    </li><li>Flag for including coherence estimation</li><li>Choice of using square pixel or not (for&nbsp;coherence estimation)</li><li>Coherence range and azimuth window sizes</li>
 </ol>
 
 <h4>Source bands:</h4>

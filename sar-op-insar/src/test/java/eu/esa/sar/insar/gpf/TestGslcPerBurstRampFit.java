@@ -34,7 +34,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class TestGslcPerBurstRampFit {
 
-    private static final double N = 1000.0;   // must match InterferogramOp.GSLC_RAMP_NORM
+    private static final double N = InterferogramOp.GSLC_RAMP_NORM;
 
     // three bursts with S1-like overlap, seconds of day; eta centres = interval midpoints
     private static final double[] START = {80000.0, 80002.7, 80005.4};
@@ -84,9 +84,12 @@ public class TestGslcPerBurstRampFit {
         final InterferogramOp.GslcPerBurstRamp ramp =
                 InterferogramOp.fitGslcPerBurstRamp(synthSamples(new Random(42), false), START, END);
 
-        // the tilt leakage (rate*dEtaDx ~ -0.02 rad/px, burst-dependent) must NOT end up in aN
-        assertEquals(A_TRUE, ramp.aN, 0.05);
-        assertEquals(C2_TRUE, ramp.c2N, 0.05);
+        // the tilt leakage (rate*dEtaDx ~ -0.02 rad/px, burst-dependent) must NOT end up in the
+        // range terms; truth is shared here, so every burst must recover the same values
+        for (int k = 0; k < 3; k++) {
+            assertEquals("a burst " + k, A_TRUE, ramp.ak[k], 0.05);
+            assertEquals("c burst " + k, C2_TRUE, ramp.ck[k], 0.05);
+        }
         for (int k = 0; k < 3; k++) {
             for (double eta = ETA_K[k] - 0.9; eta <= ETA_K[k] + 0.9; eta += 0.45) {
                 assertEquals("rate burst " + k + " at eta=" + eta,
@@ -128,6 +131,31 @@ public class TestGslcPerBurstRampFit {
         final double eta = ETA_K[k] + 0.4, x = 15000, h = 1e-3;
         final double numRate = (ramp.phaseAt(x, eta + h, k) - ramp.phaseAt(x, eta - h, k)) / (2 * h);
         assertEquals(ramp.rateAt(eta, k), numRate, 1e-6);
+    }
+
+    @Test
+    public void testPerBurstResidualGradientRemovesModelLeavesExtras() {
+        // The per-burst model's own gradients must subtract exactly (residual 0), and any smooth
+        // EXTRA field must pass through untouched — this is what lets the range profile / 2-D
+        // surface be fitted on TOPS residuals without double-counting the per-burst model.
+        final InterferogramOp.GslcPerBurstRamp ramp =
+                InterferogramOp.fitGslcPerBurstRamp(synthSamples(new Random(42), false), START, END);
+        final int k = 1;
+        final double x = 15000, eta = ETA_K[k] + 0.5;
+        final double rate = ramp.rateAt(eta, k);
+        final double gxModel = ramp.ak[k] / N + 2.0 * ramp.ck[k] * x / (N * N) + rate * DETA_DX;
+        final double gyModel = rate * DETA_DY;
+
+        final double[] pure = InterferogramOp.perBurstResidualGradient(
+                x, eta, gxModel, gyModel, DETA_DX, DETA_DY, k, ramp);
+        assertEquals(0.0, pure[0], 1e-12);
+        assertEquals(0.0, pure[1], 1e-12);
+
+        final double extraX = 3.2e-4, extraY = -1.1e-4;
+        final double[] res = InterferogramOp.perBurstResidualGradient(
+                x, eta, gxModel + extraX, gyModel + extraY, DETA_DX, DETA_DY, k, ramp);
+        assertEquals(extraX, res[0], 1e-12);
+        assertEquals(extraY, res[1], 1e-12);
     }
 
     @Test

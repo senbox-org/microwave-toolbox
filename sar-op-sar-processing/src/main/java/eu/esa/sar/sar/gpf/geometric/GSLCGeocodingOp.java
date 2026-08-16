@@ -68,9 +68,9 @@ import java.util.Map;
  * <p>
  * Key features:
  * 1. Precise Orbit Ephemerides and High-Resolution DEM usage.
- * 2. Phase Flattening (Carrier Phase Compensation) before resampling.
- * 3. High-Fidelity Complex Resampling (e.g., truncated Sinc).
- * 4. Phase Restoration (optional).
+ * 2. High-Fidelity Complex Resampling of the baseband i/q (e.g., truncated Sinc).
+ * 3. Optional Phase Flattening (topographic/ellipsoidal carrier removal),
+ *    applied after resampling at the target's geometric slant range.
  */
 @OperatorMetadata(alias = "GSLC-Terrain-Correction",
         category = "Radar/Geometric/Terrain Correction",
@@ -229,13 +229,45 @@ public class GSLCGeocodingOp extends Operator {
             defaultValue = "false", label = "Restore TOPS azimuth carrier")
     private boolean outputAzimuthCarrier = false;
 
-    @Parameter(defaultValue = "false", label = "Output separable phase terms",
+    @Parameter(defaultValue = "true", label = "Output separable phase terms",
             description = "Also write the azimuth-carrier phase and the flattening phase as bands, so "
                     + "either term can be applied or removed after the fact instead of being baked "
                     + "into the complex data. Mirrors ISCE3 geocodeSlc's carrierPhaseRaster / "
                     + "flattenPhaseRaster, and is what makes the product's phase convention "
-                    + "reversible and comparable term-by-term against that reference implementation.")
-    private boolean outputPhaseTerms = false;
+                    + "reversible and comparable term-by-term against that reference implementation. "
+                    + "Default true: InterferogramOp's exact carrier-difference subtraction (the "
+                    + "deterministic removal of the cross-acquisition deramp-model mismatch) requires "
+                    + "these bands on both stack legs, so InSAR-ready is the default convention.")
+    private boolean outputPhaseTerms = true;
+
+    @Parameter(label = "Reference burst boundaries",
+            description = "Reference GSLC burst time table (one row per burst, "
+                    + "'burstId:firstLine:firstValid:lastValid' or 'firstLine:firstValid:lastValid', "
+                    + "times in seconds) used to LOCK burst-overlap selection to the reference's "
+                    + "boundaries. Each acquisition otherwise splits the ~2 km TOPS burst overlap "
+                    + "at its own valid-time midpoint; the two boundaries differ wherever the "
+                    + "valid-line trimming differs, and in the strip between them a stack pairs "
+                    + "looks from different bursts (~4 kHz apart in Doppler centroid) — inherently "
+                    + "incoherent. Bursts are matched by track-anchored burst ID when available "
+                    + "(handles splits framing different burst windows), else by index. Set "
+                    + "automatically by CreateStack's auto-coregistration from the reference "
+                    + "GSLC's gslc_burst_valid_times stamp; rarely set by hand.")
+    private String refBurstValidTimes = null;
+
+    /** Locked overlap boundaries in this acquisition's time frame (one per seam, NaN = that seam
+     *  falls back to the midpoint rule), or null => all seams use the per-acquisition midpoint
+     *  rule. Built in initTOPSData from {@link #refBurstValidTimes}. */
+    private double[] overlapMidLock = null;
+
+    /** Full burst-lock state ({@link #overlapMidLock} plus the pairable-burst flags and the
+     *  reference's transported partition window used to mask unpairable output), or null when no
+     *  reference table is supplied. Built in initTOPSData from {@link #refBurstValidTimes}. */
+    private BurstLock burstLock = null;
+
+    /** Track-anchored S1 burst IDs in burst order (annotation swathTiming/burstList/burst/burstId,
+     *  the RELATIVE id — identical for the same ground burst across platforms/passes), or null
+     *  when the annotation predates burst IDs (IPF < 3.40). */
+    private long[] burstIds = null;
 
     private Band carrierPhaseBand = null;
     private Band flatteningPhaseBand = null;
@@ -275,6 +307,36 @@ public class GSLCGeocodingOp extends Operator {
                     "sampling position. Pairs with rangeOffsetPixels for scalar-bias " +
                     "coregistration of an InSAR slave.")
     private double azimuthOffsetPixels = 0.0;
+
+    /**
+     * Spatially-varying coregistration offset fields (stripmap only). Some SLC pairs —
+     * first seen on the 1995 ERS-1/ERS-2 tandem VMP products — carry a data-vs-annotation
+     * registration error that DRIFTS smoothly across the scene (measured ~1.7 px in range
+     * across the swath, ~2 px in azimuth along the scene on the Etna tandem pair). A scalar
+     * bias cannot represent it, and the retained range carrier turns the varying range
+     * component into hundreds of radians of spurious smooth fringes (~450 rad per map pixel
+     * of misregistration). The classical chain absorbs exactly this in its polynomial
+     * CC-warp; the GSLC chain corrects it here, at the source-index lookup, while the
+     * restored carrier phase stays purely geometric.
+     * <p>
+     * Format: "a0,a1,a2" evaluated as {@code a0 + a1*rangeIndex + a2*azimuthIndex} (source
+     * pixels, absolute indices) and added to the source range index at every output pixel.
+     * Empty = disabled. Ignored (with a warning) on the TOPS path.
+     */
+    @Parameter(defaultValue = "",
+            label = "Range offset field (px)",
+            description = "Affine range-offset field 'a0,a1,a2' in source pixels, " +
+                    "evaluated as a0 + a1*rangeIndex + a2*azimuthIndex and added to the " +
+                    "source sampling position (stripmap only). Empty = disabled.")
+    private String rangeOffsetPoly = "";
+
+    /** See {@link #rangeOffsetPoly}; same format, applied to the azimuth index. */
+    @Parameter(defaultValue = "",
+            label = "Azimuth offset field (px)",
+            description = "Affine azimuth-offset field 'b0,b1,b2' in source pixels, " +
+                    "evaluated as b0 + b1*rangeIndex + b2*azimuthIndex and added to the " +
+                    "source sampling position (stripmap only). Empty = disabled.")
+    private String azimuthOffsetPoly = "";
 
     @Parameter(defaultValue = "false",
             label = "Apply Solid Earth Tide correction",
@@ -348,6 +410,9 @@ public class GSLCGeocodingOp extends Operator {
 
     // TOPS burst-level processing fields
     private boolean isTOPSProduct = false;
+    /** Parsed {@link #rangeOffsetPoly} / {@link #azimuthOffsetPoly}; null = field disabled. */
+    private double[] rangeOffsetPolyCoef = null;
+    private double[] azimuthOffsetPolyCoef = null;
 
     /**
      * Debug-only geometry dump, enabled with {@code -Dgslc.diagGeometry=true}. Emits the
@@ -380,8 +445,18 @@ public class GSLCGeocodingOp extends Operator {
 
     /**
      * Multiply (iIn + j*qIn) by exp(+j*phi), given precomputed cos and sin of phi.
-     * Used by the SM path to flatten the source-side range carrier during resampling
-     * and by the TOPS path to apply post-resample range-carrier flattening.
+     * Used by both the SM and TOPS paths to apply the range-carrier flattening
+     * AFTER resampling, at the target's geometric slant range, when
+     * {@code outputFlattened=true}.
+     * <p>
+     * NOTE: the flattening must never be applied per source column BEFORE the
+     * sinc kernel (a former "pre-flatten" step did exactly that). A focused SLC
+     * is baseband in range — the 4πR/λ phase is a per-scatterer constant, not a
+     * sample-grid carrier — so a per-column exp(+j·4πR(x)/λ) ramp aliases to
+     * (4π·Δr/λ) mod 2π per pixel (−0.4989 cycles/pixel for ERS, ≈ Nyquist) and
+     * destroys sub-pixel interpolation. Measured on real ERS-1 SLC data: 5-pt
+     * sinc at mu=0.5 achieves γ=0.997 on raw baseband i/q vs γ=0.093
+     * pre-flattened. Guarded by {@code GSLCComplexResamplingFidelityTest}.
      */
     static void multiplyByExpJPhi(final double iIn, final double qIn,
                                   final double cosPhi, final double sinPhi,
@@ -392,84 +467,14 @@ public class GSLCGeocodingOp extends Operator {
 
     /**
      * Multiply (iIn + j*qIn) by exp(-j*phi), given precomputed cos and sin of phi.
-     * Inverse of {@link #multiplyByExpJPhi}. Used to restore the original SLC range
-     * carrier when {@code outputFlattened=false}.
+     * Inverse of {@link #multiplyByExpJPhi}; retained to pin the sign convention
+     * of the flatten/restore pair (see GSLCInSarGradeTest §1a).
      */
     static void multiplyByExpMinusJPhi(final double iIn, final double qIn,
                                        final double cosPhi, final double sinPhi,
                                        final double[] out2) {
         out2[0] = iIn * cosPhi + qIn * sinPhi;
         out2[1] = qIn * cosPhi - iIn * sinPhi;
-    }
-
-    /**
-     * Pre-flatten the range carrier on a deramped source tile in place (§1b).
-     * <p>
-     * For each pixel (yy, xx) in {@code rect}, this multiplies (derampedI[yy][xx],
-     * derampedQ[yy][xx]) by exp(+j * 4 pi R / lambda), where R is the slant range
-     * at the absolute source range pixel (rect.x + xx).
-     * <p>
-     * Removing the rapidly-varying range carrier before sinc interpolation prevents
-     * sub-pixel amplitude cancellation between adjacent samples whose phases differ
-     * by tens of cycles for short-wavelength SAR (e.g. ~83 cycles per pixel for
-     * Sentinel-1 C-band at 2.3 m range spacing). The SM path already does this
-     * inside {@link GSLCResamplingRaster}; this helper is the TOPS-path equivalent.
-     *
-     * @param derampedI         in-place real part of the deramped tile.
-     * @param derampedQ         in-place imag part of the deramped tile.
-     * @param rect              source rectangle whose top-left is the (0,0) of the tile arrays.
-     * @param rangeSpacing      pixel spacing in range (m).
-     * @param wavelength        radar wavelength (m).
-     * @param nearEdgeSlantRange slant range at near-range edge of source image (m).
-     * @param nearRangeOnLeft   whether range increases with column index in the source.
-     * @param sourceImageWidth  width of the full source image (used to mirror x when nearRangeOnLeft=false).
-     */
-    static void preFlattenRangeCarrier(final double[][] derampedI, final double[][] derampedQ,
-                                       final Rectangle rect, final double rangeSpacing,
-                                       final double wavelength, final double nearEdgeSlantRange,
-                                       final boolean nearRangeOnLeft, final int sourceImageWidth) {
-        final int bh = rect.height;
-        final int bw = rect.width;
-        final double phaseStep = 4.0 * Math.PI * rangeSpacing / wavelength;
-        final double sign = nearRangeOnLeft ? 1.0 : -1.0;
-        final double cosStep = FastMath.cos(sign * phaseStep);
-        final double sinStep = FastMath.sin(sign * phaseStep);
-
-        // Phase at first column (xx=0) of the tile:
-        //   absX  = rect.x
-        //   srcPx = nearRangeOnLeft ? absX : (sourceImageWidth - 1 - absX)
-        //   phi0  = 4 pi * (nearEdgeSlantRange + srcPx * rangeSpacing) / wavelength
-        // Subsequent columns increment by `sign * phaseStep`.
-        final int absX0 = rect.x;
-        final int srcPx0 = nearRangeOnLeft ? absX0 : (sourceImageWidth - 1 - absX0);
-        final double phi0 = 4.0 * Math.PI * (nearEdgeSlantRange + srcPx0 * rangeSpacing) / wavelength;
-
-        // Pre-compute the column-major phasor table once (same for all rows).
-        final double[] cosCol = new double[bw];
-        final double[] sinCol = new double[bw];
-        double cosCur = FastMath.cos(phi0);
-        double sinCur = FastMath.sin(phi0);
-        for (int xx = 0; xx < bw; xx++) {
-            cosCol[xx] = cosCur;
-            sinCol[xx] = sinCur;
-            final double cNext = cosCur * cosStep - sinCur * sinStep;
-            final double sNext = sinCur * cosStep + cosCur * sinStep;
-            cosCur = cNext;
-            sinCur = sNext;
-        }
-
-        for (int yy = 0; yy < bh; yy++) {
-            final double[] rowI = derampedI[yy];
-            final double[] rowQ = derampedQ[yy];
-            for (int xx = 0; xx < bw; xx++) {
-                final double iVal = rowI[xx];
-                final double qVal = rowQ[xx];
-                final double c = cosCol[xx];
-                final double s = sinCol[xx];
-                rowI[xx] = iVal * c - qVal * s;
-                rowQ[xx] = qVal * c + iVal * s;
-            }
-        }
     }
 
     /**
@@ -567,6 +572,9 @@ public class GSLCGeocodingOp extends Operator {
 
             if (isTOPSProduct) {
                 initTOPSData();
+            } else if (refBurstValidTimes != null && !refBurstValidTimes.trim().isEmpty()) {
+                SystemUtils.LOG.warning("GSLC: refBurstValidTimes is set but this is not a TOPS "
+                        + "product — the burst-boundary lock applies to TOPS only and is ignored.");
             }
 
             imgResampling = ResamplingFactory.createResampling(imgResamplingMethod);
@@ -750,6 +758,38 @@ public class GSLCGeocodingOp extends Operator {
                     azimuthOffsetPixels, -azShiftDays * 86400.0));
         }
 
+        // Spatially-varying offset fields (see the rangeOffsetPoly parameter doc). Applied
+        // at the source-index lookup in the stripmap tile loop; the restored carrier phase
+        // stays geometric, so this corrects data-vs-annotation registration drift without
+        // touching the InSAR-relevant phase model.
+        rangeOffsetPolyCoef = parseOffsetPoly(rangeOffsetPoly, "rangeOffsetPoly");
+        azimuthOffsetPolyCoef = parseOffsetPoly(azimuthOffsetPoly, "azimuthOffsetPoly");
+        if (rangeOffsetPolyCoef != null || azimuthOffsetPolyCoef != null) {
+            if (isTOPSProduct) {
+                SystemUtils.LOG.warning("GSLC: rangeOffsetPoly/azimuthOffsetPoly are stripmap-only " +
+                        "and are IGNORED on the TOPS path (TOPS secondaries use the ESD-based bias).");
+                rangeOffsetPolyCoef = null;
+                azimuthOffsetPolyCoef = null;
+            } else {
+                final double rgFar = sourceImageWidth - 1.0, azFar = sourceImageHeight - 1.0;
+                SystemUtils.LOG.info(String.format(
+                        "GSLC: offset fields active — range [%+.3f .. %+.3f] px, azimuth " +
+                                "[%+.3f .. %+.3f] px across the scene (corner extremes).",
+                        offsetPolyExtreme(rangeOffsetPolyCoef, rgFar, azFar, false),
+                        offsetPolyExtreme(rangeOffsetPolyCoef, rgFar, azFar, true),
+                        offsetPolyExtreme(azimuthOffsetPolyCoef, rgFar, azFar, false),
+                        offsetPolyExtreme(azimuthOffsetPolyCoef, rgFar, azFar, true)));
+                // The source rectangle is derived from UNcorrected corner solves; widen its
+                // kernel margin so field-shifted lookups near tile edges stay inside it.
+                final double maxAbsField = Math.max(
+                        Math.max(Math.abs(offsetPolyExtreme(rangeOffsetPolyCoef, rgFar, azFar, false)),
+                                 Math.abs(offsetPolyExtreme(rangeOffsetPolyCoef, rgFar, azFar, true))),
+                        Math.max(Math.abs(offsetPolyExtreme(azimuthOffsetPolyCoef, rgFar, azFar, false)),
+                                 Math.abs(offsetPolyExtreme(azimuthOffsetPolyCoef, rgFar, azFar, true))));
+                margin += (int) Math.ceil(maxAbsField);
+            }
+        }
+
         // Build the residual Doppler centroid profile f_dc(r) per source range column.
         // For sub-pixel SLC resampling to preserve phase, the azimuth carrier
         // exp(+j·2π·f_dc(r)·(eta − eta_ref)) must be deramped before the sinc kernel
@@ -759,6 +799,113 @@ public class GSLCGeocodingOp extends Operator {
         // noise" failure on Envisat ASAR). See research note in
         // sources/research_opera_isce3_gslc.md.
         fdcPerSourceColumn = buildFdcPerSourceColumn();
+        if (!isTOPSProduct) {
+            // Data-driven arbitration (SM path only — TOPS ignores this table): the Madsen
+            // lag-1 estimate measures the physical spectrum centroid in the raster frame,
+            // immune to annotation conventions. It replaces the annotation table when the two
+            // disagree, and substitutes for it entirely when the annotation is missing or was
+            // rejected by the PRF sanity gate (legacy-VMP ERS annotation quality; the CEOS
+            // Doppler-units mismatch). Costs ~1500 row reads, negligible next to geocoding.
+            final double prfForFdc = absRoot.getAttributeDouble(
+                    AbstractMetadata.pulse_repetition_frequency, 0.0);
+            if (prfForFdc > 0.0) {
+                final double[] dataFdc = estimateFdcFromData(sourceProduct, prfForFdc);
+                final double[] chosen = chooseFdcTable(fdcPerSourceColumn, dataFdc, prfForFdc);
+                if (chosen != fdcPerSourceColumn) {
+                    fdcPerSourceColumn = chosen;
+                    if (chosen != null) {
+                        SystemUtils.LOG.info(String.format(
+                                "GSLC: azimuth deramp using the DATA-MEASURED Doppler centroid " +
+                                        "(lag-1 ACF): %.1f Hz (near) … %.1f Hz (far).",
+                                chosen[0], chosen[chosen.length - 1]));
+                    }
+                } else if (dataFdc != null && fdcPerSourceColumn != null) {
+                    SystemUtils.LOG.info("GSLC: annotation Doppler centroid confirmed by the " +
+                            "data-measured centroid — annotation table kept.");
+                }
+            }
+        }
+    }
+
+    /**
+     * Parse an offset-field parameter (see {@link #rangeOffsetPoly}): 3, 6 or 10 comma-
+     * separated finite doubles = polynomial degree 1, 2 or 3 in the canonical monomial order
+     * (constant first, degree-major: 1, rg, az, rg², rg·az, az², rg³, rg²·az, rg·az², az³ —
+     * kept in sync with {@code CreateStackOp.offsetFieldTerms}). Blank/null/all-zero disables
+     * the field (returns null).
+     */
+    static double[] parseOffsetPoly(final String value, final String paramName) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        final String[] parts = value.trim().split(",");
+        if (parts.length != 3 && parts.length != 6 && parts.length != 10) {
+            throw new OperatorException(paramName + " must have 3, 6 or 10 comma-separated " +
+                    "values (polynomial degree 1, 2 or 3); got " + parts.length + " in '" + value + "'");
+        }
+        final double[] c = new double[parts.length];
+        boolean anyNonZero = false;
+        for (int i = 0; i < parts.length; i++) {
+            try {
+                c[i] = Double.parseDouble(parts[i].trim());
+            } catch (NumberFormatException e) {
+                throw new OperatorException(paramName + " term " + i + " is not a number: '" +
+                        parts[i].trim() + "'");
+            }
+            if (!Double.isFinite(c[i])) {
+                throw new OperatorException(paramName + " term " + i + " is not finite.");
+            }
+            anyNonZero |= c[i] != 0.0;
+        }
+        return anyNonZero ? c : null;
+    }
+
+    /**
+     * Offset field value in source pixels; 0 for a null field. Canonical monomial order as in
+     * {@link #parseOffsetPoly}; the degree is implied by the coefficient count (3/6/10).
+     */
+    static double evalOffsetPoly(final double[] c, final double rg, final double az) {
+        if (c == null) {
+            return 0.0;
+        }
+        double v = c[0] + c[1] * rg + c[2] * az;
+        if (c.length >= 6) {
+            v += c[3] * rg * rg + c[4] * rg * az + c[5] * az * az;
+        }
+        if (c.length >= 10) {
+            v += c[6] * rg * rg * rg + c[7] * rg * rg * az + c[8] * rg * az * az + c[9] * az * az * az;
+        }
+        return v;
+    }
+
+    /** Min or max of a polynomial field over a 7x7 scene sample grid (for logging/margins). */
+    private static double offsetPolyExtreme(final double[] c, final double rgFar, final double azFar,
+                                            final boolean max) {
+        double ext = max ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+        for (int a = 0; a <= 6; a++) {
+            for (int b = 0; b <= 6; b++) {
+                final double v = evalOffsetPoly(c, a * rgFar / 6.0, b * azFar / 6.0);
+                ext = max ? Math.max(ext, v) : Math.min(ext, v);
+            }
+        }
+        return ext;
+    }
+
+    /**
+     * Apply the affine offset fields to a solved source position. The field is evaluated at
+     * the uncorrected geometric indices (drift slopes are ~1e-4 px/px, so evaluating at the
+     * corrected position would change nothing measurable) and shifts only WHERE the source
+     * SLC is read — {@code slantRange}, and with it the restored carrier phase, remains the
+     * geometric value for the target ground point.
+     */
+    private void applyOffsetField(final PositionData data) {
+        if (rangeOffsetPolyCoef == null && azimuthOffsetPolyCoef == null) {
+            return;
+        }
+        final double rg = data.rangeIndex;
+        final double az = data.azimuthIndex;
+        data.rangeIndex += evalOffsetPoly(rangeOffsetPolyCoef, rg, az);
+        data.azimuthIndex += evalOffsetPoly(azimuthOffsetPolyCoef, rg, az);
     }
 
     /**
@@ -791,8 +938,17 @@ public class GSLCGeocodingOp extends Operator {
         // reference for stripmap Doppler polynomial evaluation: `* Constants.oneBillionth`).
         // The polynomial coefficients are in Hz / s^j, so the polynomial argument must
         // be the (slant-range-time − reference) difference in SECONDS.
-        final double refSrt = dop.slant_range_time * Constants.oneBillionth; // ns → s
+        //
+        // Reference-time convention differs by mission family: ENVISAT ASAR stores an ABSOLUTE
+        // two-way reference time (nonzero); the ERS CEOS reader stores 0.0, and for ERS the
+        // polynomial is referenced to the FIRST RANGE SAMPLE. Evaluating ERS terms against
+        // absolute time gave |f_dc| ≈ 49 kHz (29x PRF, pure garbage); referenced to the first
+        // sample the same terms reproduce the DATA-MEASURED centroid (Madsen one-lag estimator,
+        // ERS-1 orbit 21159: measured −337…−294 Hz across the swath, predicted −334…−284,
+        // RMS 10.9 Hz). So: stored reference 0 ⇒ anchor at the first pixel's slant-range time.
         final double twoOverC = 2.0 / lightSpeedInMetersPerSecond;
+        final double storedRefSrt = dop.slant_range_time * Constants.oneBillionth; // ns → s
+        final double refSrt = storedRefSrt != 0.0 ? storedRefSrt : nearEdgeSlantRange * twoOverC;
 
         final double[] fdc = new double[sourceImageWidth];
         double maxAbsFdc = 0.0;
@@ -835,6 +991,175 @@ public class GSLCGeocodingOp extends Operator {
         return fdc;
     }
 
+    /**
+     * Madsen lag-1 estimator: per-column Doppler centroid measured FROM THE DATA as the phase
+     * of the azimuth lag-1 autocorrelation, {@code f_dc(col) = PRF/(2π)·angle(Σ s(az+1,col)·
+     * conj(s(az,col)))}, accumulated over three 512-row blocks spread across the scene and
+     * smoothed by {@link #fitFdcProfile}. Works in the raster frame directly, so it is immune
+     * to every annotation convention (units, reference time, mirroring) — the reason it can
+     * arbitrate the metadata polynomial on archive products. The lag-1 phase is the PRINCIPAL
+     * value (f_dc modulo PRF), which is exactly what baseband-centering the interpolation
+     * kernel needs. Returns null when no complex band pair exists or reading fails.
+     * Ground truth pinned on the 1995 ERS tandem pair: ERS-1 −341…−296 Hz, ERS-2 −556…−491 Hz
+     * (python lag-1 ACF, scatter 1.2 Hz around a range quadratic).
+     */
+    static double[] estimateFdcFromData(final Product slc, final double prf) {
+        try {
+            Band iBand = null, qBand = null;
+            for (final Band b : slc.getBands()) {
+                final String unit = b.getUnit();
+                if (unit == null) continue;
+                if (iBand == null && unit.equals(Unit.REAL)) iBand = b;
+                else if (iBand != null && qBand == null && unit.equals(Unit.IMAGINARY)) { qBand = b; break; }
+            }
+            if (iBand == null || qBand == null) {
+                return null;
+            }
+            final int w = slc.getSceneRasterWidth();
+            final int h = slc.getSceneRasterHeight();
+            final int rows = 513;
+            if (h < 3 * rows || w < 64) {
+                return null;
+            }
+            final double[] accRe = new double[w];
+            final double[] accIm = new double[w];
+            final float[] i0 = new float[w], q0 = new float[w], i1 = new float[w], q1 = new float[w];
+            for (final int y0 : new int[]{h / 6, h / 2, 5 * h / 6}) {
+                iBand.readPixels(0, y0, w, 1, i0, com.bc.ceres.core.ProgressMonitor.NULL);
+                qBand.readPixels(0, y0, w, 1, q0, com.bc.ceres.core.ProgressMonitor.NULL);
+                for (int y = y0 + 1; y < y0 + rows; y++) {
+                    iBand.readPixels(0, y, w, 1, i1, com.bc.ceres.core.ProgressMonitor.NULL);
+                    qBand.readPixels(0, y, w, 1, q1, com.bc.ceres.core.ProgressMonitor.NULL);
+                    for (int c = 0; c < w; c++) {
+                        // s(y,c)·conj(s(y-1,c))
+                        accRe[c] += i1[c] * (double) i0[c] + q1[c] * (double) q0[c];
+                        accIm[c] += q1[c] * (double) i0[c] - i1[c] * (double) q0[c];
+                    }
+                    System.arraycopy(i1, 0, i0, 0, w);
+                    System.arraycopy(q1, 0, q0, 0, w);
+                }
+            }
+            return fitFdcProfile(accRe, accIm, w, prf);
+        } catch (Throwable t) {
+            SystemUtils.LOG.warning("GSLC: data-driven Doppler-centroid estimation failed: "
+                    + t.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Turn per-column lag-1 ACF accumulations into a smooth per-column f_dc profile: 16 range
+     * bins (phase of the binned complex sum → Hz), weighted quadratic LS in normalized column,
+     * evaluated per column. Quadratic because the physical centroid varies smoothly with range
+     * (measured scatter around a quadratic on real ERS: 1.2 Hz); fitting rather than using raw
+     * per-column angles keeps the deramp free of speckle-driven column-to-column jitter.
+     * Returns null when fewer than 8 bins carry signal.
+     */
+    static double[] fitFdcProfile(final double[] accRe, final double[] accIm, final int width,
+                                  final double prf) {
+        final int NB = 16;
+        final double[] bx = new double[NB];
+        final double[] bf = new double[NB];
+        final double[] bw = new double[NB];
+        int usable = 0;
+        final int per = width / NB;
+        if (per < 4) {
+            return null;
+        }
+        for (int b = 0; b < NB; b++) {
+            double re = 0, im = 0;
+            final int c0 = b * per, c1 = (b == NB - 1) ? width : (b + 1) * per;
+            for (int c = c0; c < c1; c++) {
+                re += accRe[c];
+                im += accIm[c];
+            }
+            final double mag = Math.hypot(re, im);
+            if (mag <= 0) {
+                continue;
+            }
+            bx[usable] = (0.5 * (c0 + c1)) / width;
+            bf[usable] = Math.atan2(im, re) * prf / (2.0 * Math.PI);
+            bw[usable] = mag;
+            usable++;
+        }
+        if (usable < 8) {
+            return null;
+        }
+        // weighted quadratic LS via normal equations (3x3)
+        final double[][] ata = new double[3][3];
+        final double[] atb = new double[3];
+        for (int k = 0; k < usable; k++) {
+            final double[] row = {1.0, bx[k], bx[k] * bx[k]};
+            for (int a = 0; a < 3; a++) {
+                for (int b = 0; b < 3; b++) ata[a][b] += bw[k] * row[a] * row[b];
+                atb[a] += bw[k] * row[a] * bf[k];
+            }
+        }
+        final double[] c = solve3x3(ata, atb);
+        if (c == null) {
+            return null;
+        }
+        final double[] fdc = new double[width];
+        for (int col = 0; col < width; col++) {
+            final double x = col / (double) width;
+            fdc[col] = c[0] + c[1] * x + c[2] * x * x;
+        }
+        return fdc;
+    }
+
+    private static double[] solve3x3(final double[][] a, final double[] b) {
+        final double[][] m = {{a[0][0], a[0][1], a[0][2], b[0]},
+                              {a[1][0], a[1][1], a[1][2], b[1]},
+                              {a[2][0], a[2][1], a[2][2], b[2]}};
+        for (int col = 0; col < 3; col++) {
+            int piv = col;
+            for (int r = col + 1; r < 3; r++) {
+                if (Math.abs(m[r][col]) > Math.abs(m[piv][col])) piv = r;
+            }
+            final double[] tmp = m[col]; m[col] = m[piv]; m[piv] = tmp;
+            if (Math.abs(m[col][col]) < 1e-14) return null;
+            final double d = m[col][col];
+            for (int j = col; j < 4; j++) m[col][j] /= d;
+            for (int r = 0; r < 3; r++) {
+                if (r == col) continue;
+                final double f = m[r][col];
+                for (int j = col; j < 4; j++) m[r][j] -= f * m[col][j];
+            }
+        }
+        return new double[]{m[0][3], m[1][3], m[2][3]};
+    }
+
+    /**
+     * Arbitrate the annotation-derived f_dc table against the data-driven estimate: the
+     * annotation is kept when the two agree (median |difference| within max(25 Hz, 1.5% of
+     * PRF)); otherwise the DATA wins — on archive products (legacy-VMP ERS, cross-facility
+     * ASAR) the annotation quality is exactly what cannot be trusted, while the lag-1
+     * estimator measures the physical spectrum centroid directly. Either side being null
+     * yields the other.
+     */
+    static double[] chooseFdcTable(final double[] annotationFdc, final double[] dataFdc,
+                                   final double prf) {
+        if (annotationFdc == null) return dataFdc;
+        if (dataFdc == null) return annotationFdc;
+        final int n = Math.min(annotationFdc.length, dataFdc.length);
+        final double[] diffs = new double[n];
+        for (int c = 0; c < n; c++) {
+            diffs[c] = Math.abs(annotationFdc[c] - dataFdc[c]);
+        }
+        java.util.Arrays.sort(diffs);
+        final double medianDiff = diffs[n / 2];
+        final double gate = Math.max(25.0, 0.015 * prf);
+        if (medianDiff <= gate) {
+            return annotationFdc;
+        }
+        SystemUtils.LOG.warning(String.format(
+                "GSLC: annotation Doppler centroid disagrees with the data-measured centroid " +
+                        "(median |diff| %.1f Hz, gate %.1f Hz) — using the DATA estimate " +
+                        "(lag-1 ACF). Archive annotation quality issue (known for legacy-VMP " +
+                        "ERS products).", medianDiff, gate));
+        return dataFdc;
+    }
+
     private void initTOPSData() throws Exception {
         su = new Sentinel1Utils(sourceProduct);
         subSwath = su.getSubSwath();
@@ -863,6 +1188,80 @@ public class GSLCGeocodingOp extends Operator {
                     azimuthOffsetPixels,
                     azimuthOffsetPixels * subSwath[subSwathIndex - 1].azimuthTimeInterval));
         }
+
+        // Track-anchored burst IDs (when the annotation carries them) — the exact key for
+        // matching this acquisition's bursts to the reference's when the two TOPSAR-Splits
+        // frame different burst windows, and the payload that makes this product's own stamp
+        // alignable by a future secondary.
+        burstIds = extractBurstIds(sourceProduct, subSwath[subSwathIndex - 1].numOfBursts);
+
+        // Burst-boundary lock: transport the reference's overlap boundaries into this
+        // acquisition's time frame so both stack legs select the same burst at every map
+        // pixel. Must run AFTER applyAzimuthOffsetToBurstTimes — the boundary offset Δk is
+        // computed against the same (shifted) burst times selectBurst compares at runtime.
+        if (refBurstValidTimes != null && !refBurstValidTimes.trim().isEmpty()) {
+            final Sentinel1Utils.SubSwathInfo ss = subSwath[subSwathIndex - 1];
+            burstLock = computeBurstLock(refBurstValidTimes, burstIds,
+                    ss.burstFirstLineTime, ss.burstFirstValidLineTime, ss.burstLastValidLineTime);
+            overlapMidLock = burstLock == null ? null : burstLock.overlapMid;
+            if (burstLock != null) {
+                SystemUtils.LOG.info(String.format(
+                        "GSLC TOPS: burst-overlap boundaries locked to the reference (%d of %d "
+                                + "seam(s); largest boundary shift %.1f azimuth line(s) vs own "
+                                + "midpoint rule; %d edge seam(s) pushed to the matched burst's "
+                                + "extent). Output is masked outside the reference's pairable "
+                                + "window (bursts the reference does not frame cannot form a "
+                                + "coherent pair).",
+                        burstLock.matchedSeams, burstLock.overlapMid.length,
+                        burstLock.maxBoundaryShiftSec / ss.azimuthTimeInterval,
+                        burstLock.pushedSeams));
+            }
+        }
+    }
+
+    /**
+     * Track-anchored (relative) S1 burst IDs from the annotation carried in
+     * {@code Original_Product_Metadata} (swathTiming/burstList/burst/burstId — present since
+     * IPF 3.40). The relative ID names the ground burst, so it is identical across platforms and
+     * passes of the same track — unlike the {@code absolute} attribute, which counts per
+     * acquisition. Returns them in burst (time) order, or null when absent or inconsistent with
+     * {@code expectedCount} — callers must treat null as "IDs unavailable", never as an error.
+     */
+    static long[] extractBurstIds(final Product product, final int expectedCount) {
+        try {
+            final MetadataElement opm =
+                    product.getMetadataRoot().getElement(AbstractMetadata.ORIGINAL_PRODUCT_METADATA);
+            if (opm == null) return null;
+            final MetadataElement annotation = opm.getElement("annotation");
+            if (annotation == null) return null;
+            for (final MetadataElement annFile : annotation.getElements()) {
+                final MetadataElement prod = annFile.getElement("product");
+                if (prod == null) continue;
+                final MetadataElement swathTiming = prod.getElement("swathTiming");
+                if (swathTiming == null) continue;
+                final MetadataElement burstList = swathTiming.getElement("burstList");
+                if (burstList == null) continue;
+                final java.util.List<Long> ids = new java.util.ArrayList<>();
+                boolean missing = false;
+                for (final MetadataElement burst : burstList.getElements()) {
+                    if (!burst.getName().startsWith("burst")) continue;
+                    final MetadataElement idElem = burst.getElement("burstId");
+                    final String id = idElem != null ? idElem.getAttributeString("burstId", null) : null;
+                    if (id == null) {
+                        missing = true;
+                        break;
+                    }
+                    ids.add(Long.parseLong(id.trim()));
+                }
+                if (missing || ids.size() != expectedCount) return null;
+                final long[] out = new long[ids.size()];
+                for (int i = 0; i < out.length; i++) out[i] = ids.get(i);
+                return out;
+            }
+        } catch (Throwable t) {
+            SystemUtils.LOG.fine("GSLC TOPS: burst-ID walk failed: " + t.getMessage());
+        }
+        return null;
     }
 
     private synchronized void getElevationModel() throws Exception {
@@ -1297,13 +1696,14 @@ public class GSLCGeocodingOp extends Operator {
             // for the term-by-term comparison these bands exist to support.
             carrierPhaseBand = addTargetBand(targetProduct, targetImageWidth, targetImageHeight,
                     "azimuthCarrierPhase", Unit.PHASE, null, ProductData.TYPE_FLOAT64);
-            carrierPhaseBand.setDescription("TOPS azimuth deramp/demod carrier phase at the source "
-                    + "position of each output pixel. Multiply the complex data by exp(-j*phase) to "
-                    + "remove it, exp(+j*phase) to restore it.");
+            carrierPhaseBand.setDescription("Azimuth carrier model phase at the source position of "
+                    + "each output pixel (TOPS: the deramp/demod carrier; stripmap: the residual "
+                    + "Doppler-centroid carrier 2*pi*f_dc(r)*eta, informational — the stripmap "
+                    + "round-trip restores it so it is NOT a cross-acquisition correction term).");
             flatteningPhaseBand = addTargetBand(targetProduct, targetImageWidth, targetImageHeight,
                     "flatteningPhase", Unit.PHASE, null, ProductData.TYPE_FLOAT64);
             flatteningPhaseBand.setDescription("Geometric (range) flattening phase 4*pi*R/lambda for "
-                    + "each output pixel. Multiply by exp(-j*phase) to flatten, exp(+j*phase) to "
+                    + "each output pixel. Multiply by exp(+j*phase) to flatten, exp(-j*phase) to "
                     + "restore the natural SLC carrier.");
         }
 
@@ -1433,6 +1833,52 @@ public class GSLCGeocodingOp extends Operator {
                 "true if the native TOPS azimuth (deramp) carrier is present in the output");
         AbstractMetadata.setAttribute(absTgt, "gslc_azimuth_carrier",
                 outputAzimuthCarrier ? "true" : "false");
+
+        // CreateStackOp forwards this so an auto-built secondary uses the SAME interpolation
+        // kernel as the reference — asymmetric kernels give the legs different interpolation
+        // decorrelation. Absence => the secondary keeps the GSLC default.
+        if (imgResamplingMethod != null) {
+            AbstractMetadata.addAbstractedAttribute(absTgt, "gslc_img_resampling",
+                    ProductData.TYPE_ASCII, "name", "Interpolation kernel used for the complex resampling");
+            AbstractMetadata.setAttribute(absTgt, "gslc_img_resampling", imgResamplingMethod);
+        }
+
+        // Provenance for the spatially-varying coregistration fields (stripmap): record the
+        // applied affine coefficients so a stacked product shows how its secondary was aligned.
+        if (rangeOffsetPolyCoef != null) {
+            AbstractMetadata.addAbstractedAttribute(absTgt, "gslc_range_offset_poly",
+                    ProductData.TYPE_ASCII, "px",
+                    "Affine range offset field a0,a1,a2 applied to the source sampling position");
+            AbstractMetadata.setAttribute(absTgt, "gslc_range_offset_poly",
+                    rangeOffsetPolyCoef[0] + "," + rangeOffsetPolyCoef[1] + "," + rangeOffsetPolyCoef[2]);
+        }
+        if (azimuthOffsetPolyCoef != null) {
+            AbstractMetadata.addAbstractedAttribute(absTgt, "gslc_azimuth_offset_poly",
+                    ProductData.TYPE_ASCII, "px",
+                    "Affine azimuth offset field b0,b1,b2 applied to the source sampling position");
+            AbstractMetadata.setAttribute(absTgt, "gslc_azimuth_offset_poly",
+                    azimuthOffsetPolyCoef[0] + "," + azimuthOffsetPolyCoef[1] + "," + azimuthOffsetPolyCoef[2]);
+        }
+
+        // Stamp this product's burst valid-time table (as used at runtime, i.e. after any
+        // azimuth-offset shift) so CreateStackOp can lock an auto-built secondary's burst-
+        // overlap boundaries to this reference's (refBurstValidTimes). Without the lock each
+        // leg splits the ~2 km TOPS burst overlap at its own midpoint, and the strip between
+        // the two boundaries pairs looks from different bursts (~4 kHz apart in Doppler
+        // centroid) — inherently incoherent, visible as a decorrelated line at every seam.
+        if (isTOPSProduct && subSwath != null) {
+            // When a lock was active this stamps the EFFECTIVE partition (locked/pushed
+            // boundaries, masked window) — what this product's output actually contains — so a
+            // future stack using this product as its reference locks to the right boundaries.
+            final String burstTable = formatBurstValidTimes(subSwath[subSwathIndex - 1], burstIds,
+                    burstLock);
+            if (burstTable != null) {
+                AbstractMetadata.addAbstractedAttribute(absTgt, "gslc_burst_valid_times",
+                        ProductData.TYPE_ASCII, "sec",
+                        "Per-burst [burstId:]firstLine:firstValid:lastValid zero-Doppler times used for burst selection");
+                AbstractMetadata.setAttribute(absTgt, "gslc_burst_valid_times", burstTable);
+            }
+        }
     }
 
     @Override
@@ -1507,8 +1953,8 @@ public class GSLCGeocodingOp extends Operator {
                 Tile srcTileQ = getSourceTile(pair.srcQ, sourceRectangle);
                 
                 ActivePair ap = new ActivePair();
-                ap.raster = new GSLCResamplingRaster(srcTileI, srcTileQ, rangeSpacing, wavelength,
-                        nearEdgeSlantRange, sourceImageWidth, sourceImageHeight, nearRangeOnLeft,
+                ap.raster = new GSLCResamplingRaster(srcTileI, srcTileQ,
+                        sourceImageWidth, sourceImageHeight,
                         fdcPerSourceColumn, lineTimeIntervalSec);
                 ap.bufI = processI ? targetTiles.get(pair.tgtI).getRawSamples() : null;
                 ap.bufQ = processQ ? targetTiles.get(pair.tgtQ).getRawSamples() : null;
@@ -1528,6 +1974,16 @@ public class GSLCGeocodingOp extends Operator {
             ProductData projectedLocalIncidenceAngleBuffer = (saveProjectedLocalIncidenceAngle && targetTiles.containsKey(targetProduct.getBand("projectedLocalIncidenceAngle"))) ? targetTiles.get(targetProduct.getBand("projectedLocalIncidenceAngle")).getRawSamples() : null;
             ProductData incidenceAngleFromEllipsoidBuffer = (saveIncidenceAngleFromEllipsoid && targetTiles.containsKey(targetProduct.getBand("incidenceAngleFromEllipsoid"))) ? targetTiles.get(targetProduct.getBand("incidenceAngleFromEllipsoid")).getRawSamples() : null;
             ProductData layoverShadowMaskBuffer = (saveLayoverShadowMask && targetTiles.containsKey(targetProduct.getBand("layoverShadowMask"))) ? targetTiles.get(targetProduct.getBand("layoverShadowMask")).getRawSamples() : null;
+
+            // outputPhaseTerms bands, stripmap fill (the TOPS path fills its own): the values are
+            // computed per pixel anyway — without this block the bands came out empty on every
+            // stripmap product (first reported on the ERS tandem work).
+            ProductData bufCarrier = (outputPhaseTerms && carrierPhaseBand != null
+                    && targetTiles.containsKey(carrierPhaseBand))
+                    ? targetTiles.get(carrierPhaseBand).getRawSamples() : null;
+            ProductData bufFlattening = (outputPhaseTerms && flatteningPhaseBand != null
+                    && targetTiles.containsKey(flatteningPhaseBand))
+                    ? targetTiles.get(flatteningPhaseBand).getRawSamples() : null;
 
             final Resampling.Index resamplingIndex = imgResampling.createIndex();
             final PositionData posData = new PositionData();
@@ -1561,8 +2017,16 @@ public class GSLCGeocodingOp extends Operator {
 
                     if (!isNoData) {
                         tileGeoRef.getGeoPos(x, y, geoPos);
-                        if (!getPosition(geoPos.lat, geoPos.lon, alt, posData) || !isValidCell(posData.rangeIndex, posData.azimuthIndex)) {
+                        if (!getPosition(geoPos.lat, geoPos.lon, alt, posData)) {
                             isNoData = true;
+                        } else {
+                            // Coregistration offset fields shift only the source lookup;
+                            // must run before the validity check so out-of-image corrected
+                            // positions fall through to noData like any other invalid cell.
+                            applyOffsetField(posData);
+                            if (!isValidCell(posData.rangeIndex, posData.azimuthIndex)) {
+                                isNoData = true;
+                            }
                         }
                     }
 
@@ -1573,6 +2037,8 @@ public class GSLCGeocodingOp extends Operator {
                         }
                         if (bufPhase != null) bufPhase.setElemDoubleAt(idx, noDataPhase);
                         if (bufUnwrappedPhase != null) bufUnwrappedPhase.setElemDoubleAt(idx, noDataUnwrappedPhase);
+                        if (bufCarrier != null) bufCarrier.setElemDoubleAt(idx, 0.0);
+                        if (bufFlattening != null) bufFlattening.setElemDoubleAt(idx, 0.0);
                         if (demBuffer != null) demBuffer.setElemDoubleAt(idx, noDataDem);
                         if (latBuffer != null) latBuffer.setElemDoubleAt(idx, noDataLat);
                         if (lonBuffer != null) lonBuffer.setElemDoubleAt(idx, noDataLon);
@@ -1604,51 +2070,56 @@ public class GSLCGeocodingOp extends Operator {
                     // convention (azimuth carrier preserved, only the topographic /
                     // range carrier flattened when outputFlattened=true).
                     double cosAzTgt = 1.0, sinAzTgt = 0.0;
+                    double phiAzTgt = 0.0;
                     if (fdcPerSourceColumn != null) {
                         final double fdcTgt = interpFdcAt(rangeIndex);
-                        final double phiAzTgt = 2.0 * Math.PI * fdcTgt * azimuthIndex * lineTimeIntervalSec;
+                        phiAzTgt = 2.0 * Math.PI * fdcTgt * azimuthIndex * lineTimeIntervalSec;
                         cosAzTgt = FastMath.cos(phiAzTgt);
                         sinAzTgt = FastMath.sin(phiAzTgt);
                     }
+                    if (bufCarrier != null) bufCarrier.setElemDoubleAt(idx, phiAzTgt);
+                    if (bufFlattening != null) bufFlattening.setElemDoubleAt(idx, phase);
 
                     for (ActivePair ap : activePairs) {
-                        ap.raster.setSlantRangeAtCenter(slantRange, rangeIndex);
-
                         ap.raster.setReturnReal(true);
-                        double iFlat = imgResampling.resample(ap.raster, resamplingIndex);
+                        double iSamp = imgResampling.resample(ap.raster, resamplingIndex);
 
                         ap.raster.setReturnReal(false);
-                        double qFlat = imgResampling.resample(ap.raster, resamplingIndex);
+                        double qSamp = imgResampling.resample(ap.raster, resamplingIndex);
 
-                        if (iFlat == ap.raster.getNoDataValue() || qFlat == ap.raster.getNoDataValue()) {
+                        if (iSamp == ap.raster.getNoDataValue() || qSamp == ap.raster.getNoDataValue()) {
                              if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, ap.noDataI);
                              if (ap.bufQ != null) ap.bufQ.setElemDoubleAt(idx, ap.noDataQ);
                         } else {
                              // Azimuth reramp (applied for both outputFlattened modes — the
                              // natural SLC azimuth carrier is restored regardless of whether
-                             // the range carrier is being flattened or restored).
-                             // (iFlat + j·qFlat) · exp(+j·phiAzTgt)
+                             // the range carrier is being flattened).
+                             // (iSamp + j·qSamp) · exp(+j·phiAzTgt)
                              if (fdcPerSourceColumn != null) {
-                                  final double iAz = iFlat * cosAzTgt - qFlat * sinAzTgt;
-                                  final double qAz = qFlat * cosAzTgt + iFlat * sinAzTgt;
-                                  iFlat = iAz;
-                                  qFlat = qAz;
+                                  final double iAz = iSamp * cosAzTgt - qSamp * sinAzTgt;
+                                  final double qAz = qSamp * cosAzTgt + iSamp * sinAzTgt;
+                                  iSamp = iAz;
+                                  qSamp = qAz;
                              }
 
+                             // The kernel interpolated raw baseband i/q, so iSamp/qSamp is
+                             // the natural SLC sample s(p) at the target position. The
+                             // flattening phase (topographic + ellipsoidal carrier removal)
+                             // is applied AFTER the kernel at the target's geometric slant
+                             // range — never before it, where the per-column exp(+j·4πR/λ)
+                             // ramp aliases (−0.4989 cyc/px on ERS) and destroys sub-pixel
+                             // interpolation. See GSLCResamplingRaster and
+                             // GSLCComplexResamplingFidelityTest.
                              double iFinal, qFinal;
                              if (outputFlattened) {
-                                  iFinal = iFlat;
-                                  qFinal = qFlat;
+                                  // s(p) · exp(+j·4π·R_tgt/λ)
+                                  final double[] flattened = new double[2];
+                                  multiplyByExpJPhi(iSamp, qSamp, cosPhi, sinPhi, flattened);
+                                  iFinal = flattened[0];
+                                  qFinal = flattened[1];
                              } else {
-                                  // The resampler already applied exp(+j*phi) to the source
-                                  // (see GSLCResamplingRaster.getSamples). To recover the
-                                  // original SLC convention we must multiply by exp(-j*phi),
-                                  // i.e. the inverse — not exp(+j*phi) again, which doubles
-                                  // the carrier (issue §1a).
-                                  final double[] restored = new double[2];
-                                  multiplyByExpMinusJPhi(iFlat, qFlat, cosPhi, sinPhi, restored);
-                                  iFinal = restored[0];
-                                  qFinal = restored[1];
+                                  iFinal = iSamp;
+                                  qFinal = qSamp;
                              }
                              if (ap.bufI != null) ap.bufI.setElemDoubleAt(idx, iFinal);
                              if (ap.bufQ != null) ap.bufQ.setElemDoubleAt(idx, qFinal);
@@ -1801,9 +2272,11 @@ public class GSLCGeocodingOp extends Operator {
                 // Convert zero-Doppler time to seconds for burst lookup
                 final double zeroDopplerTimeSec = correctedTime * Constants.secondsInDay;
 
-                // Determine burst membership
-                final int burst = selectBurst(zeroDopplerTimeSec, ss);
+                // Determine burst membership (overlap boundaries locked to the reference
+                // acquisition's when refBurstValidTimes is set — see overlapMidLock)
+                final int burst = selectBurst(zeroDopplerTimeSec, ss, overlapMidLock);
                 if (burst < 0) continue;
+                if (!isPairableWithReference(burstLock, burst, zeroDopplerTimeSec)) continue;
 
                 // Compute burst-local azimuth index
                 final double lineWithinBurst = (zeroDopplerTimeSec - ss.burstFirstLineTime[burst])
@@ -1956,14 +2429,14 @@ public class GSLCGeocodingOp extends Operator {
                 final double[][] derampedQ = new double[bh][bw];
                 performDerampDemod(srcTileI, srcTileQ, clampedRect, derampDemodPhase, derampedI, derampedQ);
 
-                // §1b: pre-flatten the range carrier on the deramped tile before
-                // resampling so that sinc interpolation operates on a slowly-
-                // varying signal phase rather than tens of carrier cycles per
-                // range pixel.
-                preFlattenRangeCarrier(derampedI, derampedQ, clampedRect, rangeSpacing,
-                        wavelength, nearEdgeSlantRange, nearRangeOnLeft, sourceImageWidth);
-
-                // Create resampling rasters from deramped+pre-flattened arrays.
+                // The deramped tile is interpolated as-is: after the TOPS azimuth
+                // deramp the signal is baseband on BOTH axes — the range carrier
+                // 4πR/λ is a per-scatterer constant living in the speckle, not a
+                // sample-grid lattice term, so there is nothing to remove before
+                // the kernel. (The former per-column "pre-flatten" injected an
+                // aliased carrier — (4π·Δr/λ) mod 2π, ≈ −0.026 cyc/px for S1 but
+                // −0.4989 for ERS — degrading sub-pixel interpolation. The
+                // flattening phase is applied AFTER resampling, below.)
                 final ArrayResamplingRaster rasterI = new ArrayResamplingRaster(derampedI, bw, bh);
                 final ArrayResamplingRaster rasterQ = new ArrayResamplingRaster(derampedQ, bw, bh);
 
@@ -2023,27 +2496,33 @@ public class GSLCGeocodingOp extends Operator {
                         convergentQ = -sampI * sinReramp + sampQ * cosReramp;
                     }
 
-                    // The data is now in the "flattened" (carrier-removed) domain
-                    // because of the §1b pre-flatten step. If the user wants the
-                    // original SLC convention back, multiply by exp(-j * 4 pi R / lambda).
-                    if (!outputFlattened) {
+                    // The kernel interpolated the raw deramped tile, so convergentI/Q is the
+                    // natural (carrier-convention chosen above) SLC sample at the target
+                    // position. When the flattened convention is requested, remove the
+                    // topographic/ellipsoidal carrier AFTER the kernel by multiplying with
+                    // exp(+j * 4 pi R / lambda) at the target's geometric slant range —
+                    // applying it per source column BEFORE the kernel aliases the ramp
+                    // ((4π·Δr/λ) mod 2π per pixel) and degrades sub-pixel interpolation.
+                    if (outputFlattened) {
                         final double rangePhase = phaseConstant * slantRanges[idx];
                         final double cosPhi = FastMath.cos(rangePhase);
                         final double sinPhi = FastMath.sin(rangePhase);
-                        final double[] restored = new double[2];
-                        multiplyByExpMinusJPhi(convergentI, convergentQ, cosPhi, sinPhi, restored);
-                        convergentI = restored[0];
-                        convergentQ = restored[1];
+                        final double[] flattened = new double[2];
+                        multiplyByExpJPhi(convergentI, convergentQ, cosPhi, sinPhi, flattened);
+                        convergentI = flattened[0];
+                        convergentQ = flattened[1];
                     }
 
-                    // Round-trip audit: with outputFlattened=false the deramp/reramp and
-                    // pre-flatten/restore pairs must cancel exactly, so at a target pixel whose
-                    // source position is (near) an integer sample the output must equal the raw
-                    // SLC sample in BOTH magnitude and phase. Log the individual terms wherever
-                    // that holds so a non-closing term can be identified.
-                    // (Audit only meaningful in the carrier-restored convention, where the output
-                    // must equal the raw SLC sample bit-for-bit at integer source positions.)
-                    if (DIAG_GEOMETRY && outputAzimuthCarrier && diagRoundTripLogged.get() < 15) {
+                    // Round-trip audit: with outputFlattened=false the deramp/reramp pair must
+                    // cancel exactly, so at a target pixel whose source position is (near) an
+                    // integer sample the output must equal the raw SLC sample in BOTH magnitude
+                    // and phase. Log the individual terms wherever that holds so a non-closing
+                    // term can be identified.
+                    // (Audit only meaningful in the carrier-restored, non-flattened convention,
+                    // where the output must equal the raw SLC sample bit-for-bit at integer
+                    // source positions.)
+                    if (DIAG_GEOMETRY && outputAzimuthCarrier && !outputFlattened
+                            && diagRoundTripLogged.get() < 15) {
                         final double rgI = rangeIndices[idx], azI = azimuthIndices[idx];
                         if (Math.abs(rgI - Math.rint(rgI)) < 0.004 && Math.abs(azI - Math.rint(azI)) < 0.004) {
                             final int sx = (int) Math.rint(rgI), sy = (int) Math.rint(azI);
@@ -2052,19 +2531,13 @@ public class GSLCGeocodingOp extends Operator {
                                 final double srcI = srcTileI.getSampleDouble(sx, sy);
                                 final double srcQ = srcTileQ.getSampleDouble(sx, sy);
                                 final double gridPhase = derampDemodPhase[sy - clampedRect.y][sx - clampedRect.x];
-                                final int srcPx = nearRangeOnLeft ? sx : (sourceImageWidth - 1 - sx);
-                                final double preFlat = 4.0 * Math.PI
-                                        * (nearEdgeSlantRange + srcPx * rangeSpacing) / wavelength;
-                                final double restore = phaseConstant * slantRanges[idx];
                                 double d = Math.atan2(convergentQ, convergentI) - Math.atan2(srcQ, srcI);
                                 d = Math.atan2(Math.sin(d), Math.cos(d));
                                 SystemUtils.LOG.info(String.format(
                                         "GSLC-RT rg=%.4f az=%.4f |src|=%.2f |out|=%.2f  d(out-src)=%+.5f rad"
-                                                + " | deramp=%.6f sampPhase=%.6f delta=%+.3e"
-                                                + " | preFlat=%.3f restore=%.3f  (preFlat-restore) mod 2pi = %+.6f",
+                                                + " | deramp=%.6f sampPhase=%.6f delta=%+.3e",
                                         rgI, azI, Math.hypot(srcI, srcQ), Math.hypot(convergentI, convergentQ),
-                                        d, gridPhase, sampPhase, gridPhase - sampPhase,
-                                        preFlat, restore, Math.IEEEremainder(preFlat - restore, 2 * Math.PI)));
+                                        d, gridPhase, sampPhase, gridPhase - sampPhase));
                                 diagRoundTripLogged.incrementAndGet();
                             }
                         }
@@ -2119,9 +2592,6 @@ public class GSLCGeocodingOp extends Operator {
     }
 
     /**
-     * Determine which burst a pixel belongs to using valid line times and midpoint overlap rule.
-     */
-    /**
      * Apply a scalar azimuth coregistration offset to a TOPS subswath's burst-time references.
      * The TOPS azimuth index is derived from burst times (not firstLineUTC), so a positive
      * {@code azimuthOffsetPixels} must subtract {@code az * azimuthTimeInterval} seconds from each
@@ -2141,6 +2611,20 @@ public class GSLCGeocodingOp extends Operator {
     }
 
     static int selectBurst(double zeroDopplerTimeSec, Sentinel1Utils.SubSwathInfo ss) {
+        return selectBurst(zeroDopplerTimeSec, ss, null);
+    }
+
+    /**
+     * Determine which burst a pixel belongs to using valid line times. In the burst overlap the
+     * split defaults to the midpoint rule (same as TOPSARDeburstOp) unless a locked boundary from
+     * the reference acquisition is supplied ({@code overlapMidLock[k]} = boundary between bursts k
+     * and k+1, this acquisition's time frame). The lock only partitions the true overlap — outside
+     * it burst containment decides — so a locked boundary can never select a burst the pixel is
+     * not valid in; if the transported boundary falls outside the physical overlap, the residual
+     * mixed strip is simply as small as this acquisition's burst timing allows.
+     */
+    static int selectBurst(double zeroDopplerTimeSec, Sentinel1Utils.SubSwathInfo ss,
+                           double[] overlapMidLock) {
         int firstBurst = -1;
         int secondBurst = -1;
 
@@ -2160,10 +2644,290 @@ public class GSLCGeocodingOp extends Operator {
         if (firstBurst == -1) return -1;
         if (secondBurst == -1) return firstBurst;
 
-        // Overlap: use midpoint rule between valid regions (same as TOPSARDeburstOp)
-        final double midTime = (ss.burstLastValidLineTime[firstBurst] +
-                ss.burstFirstValidLineTime[secondBurst]) / 2.0;
+        // Overlap: locked boundary when supplied for this seam (NaN = unmatched seam), else
+        // midpoint rule (same as TOPSARDeburstOp)
+        final double lockedMid = (overlapMidLock != null && firstBurst < overlapMidLock.length)
+                ? overlapMidLock[firstBurst] : Double.NaN;
+        final double midTime = !Double.isNaN(lockedMid)
+                ? lockedMid
+                : (ss.burstLastValidLineTime[firstBurst] +
+                        ss.burstFirstValidLineTime[secondBurst]) / 2.0;
         return (zeroDopplerTimeSec < midTime) ? firstBurst : secondBurst;
+    }
+
+    /**
+     * Transport the REFERENCE acquisition's burst-overlap boundaries into this acquisition's time
+     * frame. {@code refTable} is the reference GSLC's {@code gslc_burst_valid_times} stamp — per
+     * burst either "burstId:firstLine:firstValid:lastValid" (4 fields, IDs available) or
+     * "firstLine:firstValid:lastValid" (3 fields, legacy annotation without burst IDs), times in
+     * seconds. For each seam the reference's own midpoint boundary m_ref = (lastValid_ref[j] +
+     * firstValid_ref[j+1]) / 2 is shifted by the local time-axis offset Δ = mean of the two
+     * matched bursts' SENSING start-time differences (this − ref, from firstLine, NOT firstValid):
+     * burst sensing starts are synchronized between acquisitions of an interferometric pair to
+     * ~ms, whereas the valid-line windows carry each processor's own trimming — the very asymmetry
+     * that makes the two acquisitions' midpoint boundaries disagree in the first place. Any
+     * base-time/convention difference between the two annotations also cancels in Δ.
+     * <p>
+     * Burst correspondence: when both sides carry track-anchored burst IDs, seam (k, k+1) of this
+     * acquisition locks to the reference bursts with the SAME IDs — this handles TOPSAR-Splits
+     * framing different burst windows (e.g. 10-vs-9 bursts), which index alignment cannot (the
+     * candidate alignments differ by one burst cycle and timing alone cannot break the tie). Seams
+     * whose IDs are absent from the reference stay NaN (= per-seam midpoint fallback in
+     * {@link #selectBurst}). Without IDs on either side, index alignment is used and the burst
+     * counts must match. Returns one boundary per seam, or null (with a warning) when the table is
+     * unusable — the caller then falls back to the per-acquisition midpoint rule everywhere.
+     */
+    static double[] computeLockedOverlapMidpoints(final String refTable, final long[] idsThis,
+                                                  final double[] flThis,
+                                                  final double[] fvThis, final double[] lvThis) {
+        final BurstLock lock = computeBurstLock(refTable, idsThis, flThis, fvThis, lvThis);
+        return lock == null ? null : lock.overlapMid;
+    }
+
+    /**
+     * The full burst-lock state derived from the reference table: the locked overlap boundaries
+     * (see {@link #computeLockedOverlapMidpoints}), which of this acquisition's bursts exist in
+     * the reference at all, and the reference's own burst-partition window transported into this
+     * acquisition's time frame. Package-visible for tests.
+     */
+    static final class BurstLock {
+        /** One boundary per seam of THIS acquisition; NaN = midpoint fallback (seam entirely
+         *  outside the reference's coverage). */
+        final double[] overlapMid;
+        /** Per burst of THIS acquisition: does the reference frame the same ground burst?
+         *  A pixel served from an unpairable burst can never form a coherent interferogram
+         *  against the reference (adjacent bursts see disjoint Doppler bands). */
+        final boolean[] pairable;
+        /** The reference's pairable partition window, transported: before/after these times the
+         *  reference either has no data or serves it from a burst this acquisition lacks. */
+        final double refStartSod, refEndSod;
+        /** Seams locked to a reference seam / edge seams pushed to the matched burst's extent. */
+        final int matchedSeams, pushedSeams;
+        /** Largest |locked − own-midpoint| over the matched seams, seconds. */
+        final double maxBoundaryShiftSec;
+
+        BurstLock(final double[] overlapMid, final boolean[] pairable,
+                  final double refStartSod, final double refEndSod,
+                  final int matchedSeams, final int pushedSeams,
+                  final double maxBoundaryShiftSec) {
+            this.overlapMid = overlapMid;
+            this.pairable = pairable;
+            this.refStartSod = refStartSod;
+            this.refEndSod = refEndSod;
+            this.matchedSeams = matchedSeams;
+            this.pushedSeams = pushedSeams;
+            this.maxBoundaryShiftSec = maxBoundaryShiftSec;
+        }
+    }
+
+    /**
+     * True when a sample from burst {@code burst} at zero-Doppler time {@code tSod} can pair
+     * coherently with the reference acquisition: the burst must exist in the reference's table
+     * and the time must fall inside the reference's own burst-partition window. Outside that
+     * window the reference either has no data or — the extra-burst case — serves the ground from
+     * a burst this acquisition lacks, so the pair would look through ~4 kHz-disjoint Doppler
+     * bands and is inherently incoherent; such output is masked rather than emitted as
+     * valid-looking garbage. No lock (null) means no masking.
+     */
+    static boolean isPairableWithReference(final BurstLock lock, final int burst,
+                                           final double tSod) {
+        if (lock == null) return true;
+        if (burst >= 0 && burst < lock.pairable.length && !lock.pairable[burst]) return false;
+        return tSod >= lock.refStartSod && tSod <= lock.refEndSod;
+    }
+
+    static BurstLock computeBurstLock(final String refTable, final long[] idsThis,
+                                      final double[] flThis,
+                                      final double[] fvThis, final double[] lvThis) {
+        if (refTable == null || refTable.trim().isEmpty()
+                || flThis == null || fvThis == null || lvThis == null) {
+            return null;
+        }
+        try {
+            final String[] rows = refTable.trim().split(",");
+            final int nRef = rows.length;
+            final int nThis = flThis.length;
+            final long[] idsRef = new long[nRef];
+            final double[] flRef = new double[nRef];
+            final double[] fvRef = new double[nRef];
+            final double[] lvRef = new double[nRef];
+            boolean refHasIds = true;
+            for (int i = 0; i < nRef; i++) {
+                final String[] f = rows[i].trim().split(":");
+                if (f.length != 4 && f.length != 3) {
+                    throw new IllegalArgumentException(
+                            "expected 'burstId:firstLine:firstValid:lastValid' or "
+                                    + "'firstLine:firstValid:lastValid' per burst, got '" + rows[i] + "'");
+                }
+                final int t = f.length - 3;   // index of firstLine
+                refHasIds &= f.length == 4;
+                if (f.length == 4) {
+                    idsRef[i] = Long.parseLong(f[0].trim());
+                }
+                flRef[i] = Double.parseDouble(f[t].trim());
+                fvRef[i] = Double.parseDouble(f[t + 1].trim());
+                lvRef[i] = Double.parseDouble(f[t + 2].trim());
+            }
+
+            final boolean byId = refHasIds && idsThis != null && idsThis.length == nThis;
+            if (!byId && nRef != nThis) {
+                SystemUtils.LOG.warning(String.format(
+                        "GSLC TOPS: reference burst table has %d burst(s) but this product has %d, "
+                                + "and burst IDs are unavailable to align them — burst-boundary "
+                                + "lock skipped (differing TOPSAR-Split burst ranges?); falling "
+                                + "back to the per-acquisition midpoint rule.",
+                        nRef, nThis));
+                return null;
+            }
+
+            // Per-burst correspondence: matchRef[k] = reference index framing the same ground
+            // burst, -1 when the reference does not frame it.
+            final int[] matchRef = new int[nThis];
+            final boolean[] pairable = new boolean[nThis];
+            int kFirst = -1, kLast = -1;
+            for (int k = 0; k < nThis; k++) {
+                matchRef[k] = -1;
+                if (byId) {
+                    for (int i = 0; i < nRef; i++) {
+                        if (idsRef[i] == idsThis[k]) {
+                            matchRef[k] = i;
+                            break;
+                        }
+                    }
+                } else {
+                    matchRef[k] = k;
+                }
+                pairable[k] = matchRef[k] >= 0;
+                if (pairable[k]) {
+                    if (kFirst < 0) kFirst = k;
+                    kLast = k;
+                }
+            }
+            if (kFirst < 0) {
+                SystemUtils.LOG.warning(
+                        "GSLC TOPS: no common bursts between the reference table and this product "
+                                + "(disjoint TOPSAR-Splits?) — burst-boundary lock skipped; falling "
+                                + "back to the per-acquisition midpoint rule.");
+                return null;
+            }
+
+            final double[] mid = new double[Math.max(0, nThis - 1)];
+            int matched = 0;
+            int pushed = 0;
+            double maxShift = 0.0;
+            for (int k = 0; k < nThis - 1; k++) {
+                final int j = matchRef[k];
+                final int j1 = matchRef[k + 1];
+                if (j >= 0 && j1 == j + 1) {
+                    // Both bursts framed by the reference as the same seam: transport its
+                    // boundary (see the method javadoc above for the Δ convention).
+                    final double mRef = (lvRef[j] + fvRef[j + 1]) / 2.0;
+                    final double dk = ((flThis[k] - flRef[j]) + (flThis[k + 1] - flRef[j + 1])) / 2.0;
+                    mid[k] = mRef + dk;
+                    matched++;
+                    final double ownMid = (lvThis[k] + fvThis[k + 1]) / 2.0;
+                    maxShift = Math.max(maxShift, Math.abs(mid[k] - ownMid));
+                } else if (j >= 0 && j1 < 0) {
+                    // Edge seam: the reference has no seam here (its burst j continues), so the
+                    // matched burst must be preferred through its whole valid extent — switching
+                    // at the own midpoint would pair this acquisition's next burst against the
+                    // reference's continuing one (disjoint Doppler => incoherent strip).
+                    mid[k] = lvThis[k];
+                    pushed++;
+                } else if (j < 0 && j1 >= 0) {
+                    mid[k] = fvThis[k + 1];
+                    pushed++;
+                } else {
+                    mid[k] = Double.NaN;   // seam entirely outside the reference's coverage
+                }
+            }
+
+            // The reference's own partition window, transported with the nearest matched burst's
+            // sensing-start offset: where the reference has extra bursts beyond the common window
+            // it switches to them at ITS midpoint rule (the reference is geocoded standalone), and
+            // beyond that boundary — or beyond its coverage — nothing this acquisition emits can
+            // pair with it.
+            final int jFirst = matchRef[kFirst];
+            final int jLast = matchRef[kLast];
+            final double dFirst = flThis[kFirst] - flRef[jFirst];
+            final double dLast = flThis[kLast] - flRef[jLast];
+            final double refStart = (jFirst > 0
+                    ? (lvRef[jFirst - 1] + fvRef[jFirst]) / 2.0
+                    : fvRef[0]) + dFirst;
+            final double refEnd = (jLast < nRef - 1
+                    ? (lvRef[jLast] + fvRef[jLast + 1]) / 2.0
+                    : lvRef[nRef - 1]) + dLast;
+
+            return new BurstLock(mid, pairable, refStart, refEnd, matched, pushed, maxShift);
+        } catch (Exception e) {
+            SystemUtils.LOG.warning("GSLC TOPS: could not parse reference burst table ('" + refTable
+                    + "'): " + e + " — burst-boundary lock skipped; falling back to the "
+                    + "per-acquisition midpoint rule.");
+            return null;
+        }
+    }
+
+    /**
+     * This subswath's burst time table, one row per burst: "burstId:firstLine:firstValid:lastValid"
+     * when track-anchored burst IDs are available, else "firstLine:firstValid:lastValid" (seconds,
+     * {@link Double#toString} round-trip precision) — the payload of the
+     * {@code gslc_burst_valid_times} stamp consumed by {@link #computeLockedOverlapMidpoints}.
+     */
+    static String formatBurstValidTimes(final Sentinel1Utils.SubSwathInfo ss, final long[] ids) {
+        return formatBurstValidTimes(ss, ids, null);
+    }
+
+    /**
+     * Stamp variant carrying the EFFECTIVE partition: when this product was built with a
+     * burst-boundary lock, its output switched bursts at the locked/pushed boundaries and was
+     * masked to the pairable window — not at its own midpoints over its own span. A future stack
+     * that uses this product as its reference reconstructs boundaries from the stamped
+     * (lastValid[k] + firstValid[k+1]) / 2 midpoints and the fv[0]/lv[last] window, so the stamp
+     * shifts each seam's fv/lv pair symmetrically to make the midpoint equal the effective
+     * boundary (containment-clamped, NaN = own midpoint) and clamps the window ends to the
+     * pairable window. Each fv/lv value participates in exactly one seam midpoint, so the shifts
+     * are independent; a null lock stamps the plain table.
+     */
+    static String formatBurstValidTimes(final Sentinel1Utils.SubSwathInfo ss, final long[] ids,
+                                        final BurstLock lock) {
+        if (ss == null || ss.numOfBursts <= 0 || ss.burstFirstLineTime == null
+                || ss.burstFirstValidLineTime == null || ss.burstLastValidLineTime == null) {
+            return null;
+        }
+        final int n = ss.numOfBursts;
+        final double[] fv = java.util.Arrays.copyOf(ss.burstFirstValidLineTime, n);
+        final double[] lv = java.util.Arrays.copyOf(ss.burstLastValidLineTime, n);
+        if (lock != null && lock.overlapMid != null) {
+            for (int k = 0; k < n - 1 && k < lock.overlapMid.length; k++) {
+                final double m = lock.overlapMid[k];
+                if (Double.isNaN(m)) continue;
+                // effective boundary as selectBurst resolves it: containment wins outside the overlap
+                final double eff = Math.min(Math.max(m, fv[k + 1]), lv[k]);
+                final double shift = eff - 0.5 * (lv[k] + fv[k + 1]);
+                lv[k] += shift;
+                fv[k + 1] += shift;
+            }
+            if (Double.isFinite(lock.refStartSod)) {
+                fv[0] = Math.max(fv[0], lock.refStartSod);
+            }
+            if (Double.isFinite(lock.refEndSod)) {
+                lv[n - 1] = Math.min(lv[n - 1], lock.refEndSod);
+            }
+        }
+        final boolean withIds = ids != null && ids.length == n;
+        final StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < n; i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            if (withIds) {
+                sb.append(ids[i]).append(':');
+            }
+            sb.append(ss.burstFirstLineTime[i]).append(':')
+                    .append(fv[i]).append(':')
+                    .append(lv[i]);
+        }
+        return sb.toString();
     }
 
     /**
@@ -2459,58 +3223,64 @@ public class GSLCGeocodingOp extends Operator {
         double slantRange;
     }
 
+    /**
+     * Complex-aware {@link Resampling.Raster} for the SM path. Serves raw baseband
+     * i/q samples to the sinc kernel, with only the azimuth Doppler-centroid deramp
+     * applied per sample.
+     * <p>
+     * The RANGE carrier is deliberately NOT touched here: a focused SLC's range
+     * spectrum is baseband — the absolute-range phase {@code 4πR/λ} of each target
+     * is a per-scatterer constant living in the speckle, not a lattice carrier on
+     * the sample grid. Multiplying each column by {@code exp(+j·4πR(x)/λ)} before
+     * interpolation (the former "pre-flatten") injects a coherent carrier at the
+     * aliased frequency {@code (4π·Δr/λ) mod 2π}, which for ERS is −0.4989
+     * cycles/pixel (≈ Nyquist) and destroys sub-pixel interpolation (measured on
+     * real ERS-1 SLC data: 5-pt sinc at mu=0.5 achieves γ=0.997 on raw baseband
+     * i/q vs γ=0.093 pre-flattened). The flattening phase, when requested, is
+     * applied AFTER the kernel at the target's geometric slant range (see the SM
+     * tile loop). Guarded by {@code GSLCComplexResamplingFidelityTest}.
+     */
     private static class GSLCResamplingRaster implements Resampling.Raster {
         private final Tile sourceTileI;
         private final Tile sourceTileQ;
-        private final double rangeSpacing;
-        private final double wavelength;
-        private final double nearEdgeSlantRange;
         private final double noDataValue;
         private boolean returnReal;
         private final int sourceWidth;
         private final int sourceHeight;
-        private final boolean nearRangeOnLeft;
-        private double centerSlantRange;
-        private double centerRangeIndex;
 
         /**
          * Residual Doppler centroid per source range column (Hz), or {@code null} if
          * the metadata had none. When non-null, the resampler subtracts
          * {@code 2π·f_dc(x_j)·y_i·lineTimeIntervalSec} from each sample's
          * deramp phase, bringing the azimuth signal to baseband before sinc interpolation.
+         * (Unlike the range carrier, the azimuth spectrum genuinely IS centred on
+         * f_dc — the deramp is required physics; verified against annotated ERS
+         * azimuth spectra, centroid −0.188 cyc/px matching the annotation.)
          */
         private final double[] fdcPerSourceColumn;
         private final double lineTimeIntervalSec;
 
-        private final double phaseStep;
-        private final double sign;
-
-        // Cache fields
-        private double lastRangeIndex = -1.0;
+        // Cache fields. getSamples is invoked twice per output pixel (real pass then
+        // imaginary pass) with the identical kernel window; the served samples depend
+        // only on the window itself, so the cache keys on the window origin. Adjacent
+        // target pixels that resolve to the same source window also hit.
+        private int lastX0 = Integer.MIN_VALUE;
+        private int lastY0 = Integer.MIN_VALUE;
         private double[][] cachedI;
         private double[][] cachedQ;
         private boolean lastAllValid;
 
         public GSLCResamplingRaster(Tile sourceTileI, Tile sourceTileQ,
-                                    double rangeSpacing, double wavelength,
-                                    double nearEdgeSlantRange, int sourceWidth, int sourceHeight,
-                                    boolean nearRangeOnLeft,
+                                    int sourceWidth, int sourceHeight,
                                     double[] fdcPerSourceColumn,
                                     double lineTimeIntervalSec) {
             this.sourceTileI = sourceTileI;
             this.sourceTileQ = sourceTileQ;
-            this.rangeSpacing = rangeSpacing;
-            this.wavelength = wavelength;
-            this.nearEdgeSlantRange = nearEdgeSlantRange;
             this.noDataValue = sourceTileI.getRasterDataNode().getNoDataValue();
             this.sourceWidth = sourceWidth;
             this.sourceHeight = sourceHeight;
-            this.nearRangeOnLeft = nearRangeOnLeft;
             this.fdcPerSourceColumn = fdcPerSourceColumn;
             this.lineTimeIntervalSec = lineTimeIntervalSec;
-
-            this.phaseStep = 4.0 * Math.PI * rangeSpacing / wavelength;
-            this.sign = nearRangeOnLeft ? 1.0 : -1.0;
         }
 
         public double getNoDataValue() {
@@ -2519,11 +3289,6 @@ public class GSLCGeocodingOp extends Operator {
 
         public void setReturnReal(boolean returnReal) {
             this.returnReal = returnReal;
-        }
-
-        public void setSlantRangeAtCenter(double slantRange, double rangeIndex) {
-            this.centerSlantRange = slantRange;
-            this.centerRangeIndex = rangeIndex;
         }
 
         @Override
@@ -2538,46 +3303,37 @@ public class GSLCGeocodingOp extends Operator {
 
         @Override
         public boolean getSamples(int[] x, int[] y, double[][] samples) {
-            // Check if we can serve from cache
-            if (Double.compare(centerRangeIndex, lastRangeIndex) == 0 && cachedI != null) {
-                // Verify dimensions just in case (fast)
-                if (cachedI.length == y.length && cachedI[0].length == x.length) {
-                    double[][] source = returnReal ? cachedI : cachedQ;
-                    for (int i = 0; i < y.length; i++) {
-                        System.arraycopy(source[i], 0, samples[i], 0, x.length);
-                    }
-                    return lastAllValid;
+            // Serve from cache when the kernel window is unchanged (always the case
+            // for the second, imaginary-pass call of the same output pixel).
+            if (cachedI != null && lastX0 == x[0] && lastY0 == y[0]
+                    && cachedI.length == y.length && cachedI[0].length == x.length) {
+                double[][] source = returnReal ? cachedI : cachedQ;
+                for (int i = 0; i < y.length; i++) {
+                    System.arraycopy(source[i], 0, samples[i], 0, x.length);
                 }
+                return lastAllValid;
             }
 
             boolean allValid = true;
             Rectangle rect = sourceTileI.getRectangle();
-            
+
             // Ensure cache is allocated
             if (cachedI == null || cachedI.length != y.length || cachedI[0].length != x.length) {
                 cachedI = new double[y.length][x.length];
                 cachedQ = new double[y.length][x.length];
             }
 
-            // Use incremental phase rotation across range samples to avoid per-sample cos/sin.
-            // Phase at kernel sample x[j] = phaseBase + (x[j] - centerRangeIndex) * sign * phaseStep
-            // For consecutive integer x values, phase increments by sign * phaseStep.
-            final double phaseBase = centerSlantRange * 4.0 * Math.PI / wavelength;
-            final double cosStep = FastMath.cos(sign * phaseStep);
-            final double sinStep = FastMath.sin(sign * phaseStep);
-
             final int rxMin = rect.x;
             final int rxMax = rect.x + rect.width - 1;
             final int ryMin = rect.y;
             final int ryMax = rect.y + rect.height - 1;
 
-            // Per-sample deramp model (Yague-Martinez 2016 §III, ISCE3 geocodeSlc):
+            // Per-sample azimuth deramp (Yague-Martinez 2016 §III, ISCE3 geocodeSlc):
             //   SLC(eta, r) = a(eta,r) · exp(-j·4π·R(r)/λ) · exp(+j·2π·f_dc(r)·eta·dt)
-            // To deramp to baseband for sinc:
-            //   multiply by exp(+j·4π·R(r)/λ)  (range, already in code as +phi_range)
-            //   multiply by exp(-j·2π·f_dc(r)·eta·dt)  (azimuth, NEW)
-            // Combined phase added per sample: phi = phi_range − phi_az,
-            // where phi_az = 2π·f_dc(x_j)·y_i·dt.
+            // The exp(-j·4πR/λ) term is a constant per scatterer (baseband in range —
+            // do NOT touch it before the kernel); the azimuth carrier is removed per
+            // sample by multiplying with exp(−j·phi_az), phi_az = 2π·f_dc(x_j)·y_i·dt,
+            // and re-applied at the target position after resampling.
             final boolean derampAz = (fdcPerSourceColumn != null);
             final double azPhaseScale = 2.0 * Math.PI * lineTimeIntervalSec;
 
@@ -2594,12 +3350,6 @@ public class GSLCGeocodingOp extends Operator {
                 if (yInBounds) {
                     srcIndex.calculateStride(yi);
                 }
-
-                // Compute phase for the first x sample in this row
-                double deltaX0 = (x[0] - centerRangeIndex) * sign;
-                double phi0 = phaseBase + deltaX0 * phaseStep;
-                double cosPhiCur = FastMath.cos(phi0);
-                double sinPhiCur = FastMath.sin(phi0);
 
                 for (int j = 0; j < x.length; j++) {
                     final int xj = x[j];
@@ -2618,40 +3368,25 @@ public class GSLCGeocodingOp extends Operator {
                             cachedQ[i][j] = noDataValue;
                             allValid = false;
                         } else if (derampAz && xj >= 0 && xj < fdcPerSourceColumn.length) {
-                            // Combine range deramp (incremental phi_range tracked in
-                            // cosPhiCur/sinPhiCur) with per-sample azimuth deramp.
-                            //   total = phi_range − phi_az
-                            //   exp(+j·total) = exp(+j·phi_range) · exp(−j·phi_az)
+                            // (I + jQ) · exp(−j·phi_az)
+                            //   = (I·cos + Q·sin) + j(Q·cos − I·sin)
                             final double phiAz = azPhaseScale * fdcPerSourceColumn[xj] * yi;
                             final double cosAz = FastMath.cos(phiAz);
                             final double sinAz = FastMath.sin(phiAz);
-                            // R = exp(+j·phi_range): (cosR, sinR) = (cosPhiCur, sinPhiCur)
-                            // A = exp(−j·phi_az):    (cosAz, -sinAz)
-                            // R·A = (cosR·cosAz + sinR·sinAz) + j(sinR·cosAz − cosR·sinAz)
-                            final double cosT = cosPhiCur * cosAz + sinPhiCur * sinAz;
-                            final double sinT = sinPhiCur * cosAz - cosPhiCur * sinAz;
-                            cachedI[i][j] = iVal * cosT - qVal * sinT;
-                            cachedQ[i][j] = qVal * cosT + iVal * sinT;
+                            cachedI[i][j] = iVal * cosAz + qVal * sinAz;
+                            cachedQ[i][j] = qVal * cosAz - iVal * sinAz;
                         } else {
-                            // (I + jQ) * e^{+j*phi_range} = (I*cos - Q*sin) + j(Q*cos + I*sin)
-                            cachedI[i][j] = iVal * cosPhiCur - qVal * sinPhiCur;
-                            cachedQ[i][j] = qVal * cosPhiCur + iVal * sinPhiCur;
+                            cachedI[i][j] = iVal;
+                            cachedQ[i][j] = qVal;
                         }
-                    }
-
-                    // Incremental phase rotation for next x sample: e^{j*(phi+step)} = e^{j*phi} * e^{j*step}
-                    if (j < x.length - 1) {
-                        final double cosNext = cosPhiCur * cosStep - sinPhiCur * sinStep;
-                        final double sinNext = sinPhiCur * cosStep + cosPhiCur * sinStep;
-                        cosPhiCur = cosNext;
-                        sinPhiCur = sinNext;
                     }
                 }
             }
-            
-            lastRangeIndex = centerRangeIndex;
+
+            lastX0 = x[0];
+            lastY0 = y[0];
             lastAllValid = allValid;
-            
+
             // Copy to output
             double[][] source = returnReal ? cachedI : cachedQ;
             for (int i = 0; i < y.length; i++) {

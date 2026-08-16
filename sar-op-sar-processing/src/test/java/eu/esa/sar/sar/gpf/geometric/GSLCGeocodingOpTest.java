@@ -178,12 +178,26 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
                     ProductData.TYPE_FLOAT64, b.getDataType());
         }
 
-        // absent by default, so existing products and graphs are unchanged
+        // the interpolation kernel must be stamped so CreateStack builds the secondary with the
+        // SAME kernel as the reference (asymmetric kernels decorrelate the legs)
+        assertEquals("BISINC_5_POINT_INTERPOLATION",
+                org.esa.snap.engine_utilities.datamodel.AbstractMetadata.getAbstractedMetadata(tgt)
+                        .getAttributeString("gslc_img_resampling", null));
+
+        // Default true (InSAR-ready convention: InterferogramOp's exact carrier-difference
+        // subtraction needs the bands on both stack legs) — but explicitly opt-out-able.
+        final GSLCGeocodingOp byDefault = new GSLCGeocodingOp();
+        byDefault.setSourceProduct(TestUtils.readSourceProduct(inputFile1));
+        byDefault.setParameter("nodataValueAtSea", false);
+        assertNotNull("phase-term bands are on by default (InSAR-ready convention)",
+                byDefault.getTargetProduct().getBand("azimuthCarrierPhase"));
+
         final GSLCGeocodingOp plain = new GSLCGeocodingOp();
         plain.setSourceProduct(TestUtils.readSourceProduct(inputFile1));
+        plain.setParameter("outputPhaseTerms", false);
         plain.setParameter("nodataValueAtSea", false);
         final Product plainTgt = plain.getTargetProduct();
-        assertNull("phase-term bands must be opt-in", plainTgt.getBand("azimuthCarrierPhase"));
-        assertNull("phase-term bands must be opt-in", plainTgt.getBand("flatteningPhase"));
+        assertNull("phase-term bands must honour opt-out", plainTgt.getBand("azimuthCarrierPhase"));
+        assertNull("phase-term bands must honour opt-out", plainTgt.getBand("flatteningPhase"));
     }
 }

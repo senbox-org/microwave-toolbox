@@ -403,4 +403,22 @@ public class TestCreateStackOp extends ProcessorTest {
         TestUtils.createBand(p, "amplitude", ProductData.TYPE_FLOAT32, Unit.AMPLITUDE, w, h, true);
         return p;
     }
+
+    @Test
+    public void testReadMasterImgResamplingStamp() throws Exception {
+        // The auto path must rebuild the secondary with the SAME interpolation kernel as the
+        // reference; the reader consumes the gslc_img_resampling stamp and returns null for
+        // legacy products (=> the secondary keeps the GSLC default).
+        final Product master = createGeocodedProduct("master", 100, 100, 10.0, -68.0, 1.2566e-4);
+        assertNull("legacy master without the stamp", CreateStackOp.readMasterImgResampling(master));
+
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(master);
+        AbstractMetadata.addAbstractedAttribute(abs, "gslc_img_resampling",
+                ProductData.TYPE_ASCII, "name", "");
+        AbstractMetadata.setAttribute(abs, "gslc_img_resampling", "BISINC_21_POINT_INTERPOLATION");
+        assertEquals("BISINC_21_POINT_INTERPOLATION", CreateStackOp.readMasterImgResampling(master));
+
+        AbstractMetadata.setAttribute(abs, "gslc_img_resampling", "  ");
+        assertNull("blank stamp treated as absent", CreateStackOp.readMasterImgResampling(master));
+    }
 }
