@@ -18,6 +18,7 @@ import org.jlinda.core.Ellipsoid;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.Point;
 import org.jlinda.core.SLCImage;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -38,9 +39,9 @@ import static org.junit.Assume.assumeTrue;
  * <p>
  * Split out from {@link GSLCTopsInSarTest} (which keeps the fast, deterministic Layer-1 synthetic
  * unit tests) and gated with {@link LongTestRunner} per the project's long-test convention
- * (`-Denable.long.tests=true`): both tests here build a full, un-subset TOPS GSLC and take
- * ~90-300 s each, which would otherwise tax every plain {@code mvn test} run of this module even
- * when the fixture happens to be present. {@code LongTestRunner} gates at the class level only
+ * (`-Denable.long.tests=true`): the tests here need a full, un-subset TOPS GSLC (built once and
+ * shared across the class — see {@code sharedGslc()}) plus one locked GSLC, far too heavy for
+ * every plain {@code mvn test} run of this module even when the fixture happens to be present. {@code LongTestRunner} gates at the class level only
  * (see {@code com.bc.ceres.test.LongTestRunner}), so the fast Layer-1 tests could not stay in the
  * same class without also being gated — hence the split.
  */
@@ -65,6 +66,48 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
     private static final int NUM_COLUMN_BINS = 6;
 
     /**
+     * Shared master GSLC (and its source product), built ONCE with the union of the parameters
+     * the tests need — BISINC resampling plus all three diagnostic bands — and reused by every
+     * test in this class. Each GSLC build geocodes the full un-subset 2-burst scene (the
+     * dominant cost of this class); before sharing, the three tests rebuilt an identical
+     * product four times. The extra diagnostic bands are pull-computed, so tests that never
+     * read them pay nothing; the I/Q samples are unaffected by diagnostic-band settings.
+     * Built lazily (not in @BeforeClass) so the per-test file-gating assumes run first;
+     * disposed once in {@link #disposeSharedProducts()}.
+     */
+    private static Product sharedSrc = null;
+    private static Product sharedGslc = null;
+
+    private static synchronized Product sharedGslc() throws Exception {
+        if (sharedGslc == null) {
+            sharedSrc = TestUtils.readSourceProduct(mFile);
+            final GSLCGeocodingOp op = (GSLCGeocodingOp) spi.createOperator();
+            op.setSourceProduct(sharedSrc);
+            op.setParameter("demName", "Copernicus 30m Global DEM");
+            op.setParameter("imgResamplingMethod", "BISINC_5_POINT_INTERPOLATION");
+            op.setParameter("outputFlattened", false);
+            op.setParameter("nodataValueAtSea", false);
+            op.setParameter("saveSimulatedUnwrappedPhase", true);
+            op.setParameter("saveDEM", true);
+            op.setParameter("outputPhaseTerms", true);
+            sharedGslc = op.getTargetProduct();
+        }
+        return sharedGslc;
+    }
+
+    @AfterClass
+    public static void disposeSharedProducts() {
+        if (sharedGslc != null) {
+            sharedGslc.dispose();
+            sharedGslc = null;
+        }
+        if (sharedSrc != null) {
+            sharedSrc.dispose();
+            sharedSrc = null;
+        }
+    }
+
+    /**
      * Geometry drift contract on a real TOPS product (carrier-free default): reuses
      * {@link GSLCGeometryContractTest#measureGeometryDrift} unchanged — {@code simulatedUnwrappedPhase}
      * is float64 {@code 4*pi*R/lambda} on TOPS too, independent of the azimuth-carrier convention.
@@ -76,43 +119,26 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
         assumeTrue(mFile + " not found", mFile.exists());
         assumeTrue(sFile + " not found", sFile.exists());
 
-        final Product src = TestUtils.readSourceProduct(mFile);
-        try {
-            final MetadataElement srcAbs = AbstractMetadata.getAbstractedMetadata(src);
+        final Product gslc = sharedGslc();
+        final MetadataElement srcAbs = AbstractMetadata.getAbstractedMetadata(sharedSrc);
 
-            final GSLCGeocodingOp op = (GSLCGeocodingOp) spi.createOperator();
-            op.setSourceProduct(src);
-            op.setParameter("demName", "Copernicus 30m Global DEM");
-            op.setParameter("imgResamplingMethod", "BISINC_5_POINT_INTERPOLATION");
-            op.setParameter("outputFlattened", false);
-            op.setParameter("nodataValueAtSea", false);
-            op.setParameter("saveSimulatedUnwrappedPhase", true);
-            op.setParameter("saveDEM", true);
-            final Product gslc = op.getTargetProduct();
-            try {
-                final int nValidRaster = GSLCGeometryContractTest.countValidSimPhasePixels(
-                        gslc, MIN_VALID_RASTER_PIXELS);
-                assumeTrue("TOPS fixture geocoded too few valid simulatedUnwrappedPhase pixels (" +
-                                nValidRaster + ") — DEM unavailable in this environment?",
-                        nValidRaster >= MIN_VALID_RASTER_PIXELS);
+        final int nValidRaster = GSLCGeometryContractTest.countValidSimPhasePixels(
+                gslc, MIN_VALID_RASTER_PIXELS);
+        assumeTrue("TOPS fixture geocoded too few valid simulatedUnwrappedPhase pixels (" +
+                        nValidRaster + ") — DEM unavailable in this environment?",
+                nValidRaster >= MIN_VALID_RASTER_PIXELS);
 
-                final double[] r = GSLCGeometryContractTest.measureGeometryDrift(gslc, srcAbs);
-                System.out.printf(
-                        "GSLCTopsInSarLongTest[geometryContract]: meanResidual=%.4f m, columnDrift=%.6f m, " +
-                                "rowDrift=%.6f m%n", r[0], r[1], r[2]);
+        final double[] r = GSLCGeometryContractTest.measureGeometryDrift(gslc, srcAbs);
+        System.out.printf(
+                "GSLCTopsInSarLongTest[geometryContract]: meanResidual=%.4f m, columnDrift=%.6f m, " +
+                        "rowDrift=%.6f m%n", r[0], r[1], r[2]);
 
-                assertTrue("mean R_jlinda-R_snap residual should be sanity-bounded (a constant offset " +
-                                "up to a few metres is allowed); got " + r[0],
-                        Math.abs(r[0]) < 5.0);
-                assertTrue("TOPS R drift across scene must stay below 1 cm; got columnDrift=" + r[1] +
-                                " rowDrift=" + r[2],
-                        Math.abs(r[1]) < 0.01 && Math.abs(r[2]) < 0.01);
-            } finally {
-                gslc.dispose();
-            }
-        } finally {
-            src.dispose();
-        }
+        assertTrue("mean R_jlinda-R_snap residual should be sanity-bounded (a constant offset " +
+                        "up to a few metres is allowed); got " + r[0],
+                Math.abs(r[0]) < 5.0);
+        assertTrue("TOPS R drift across scene must stay below 1 cm; got columnDrift=" + r[1] +
+                        " rowDrift=" + r[2],
+                Math.abs(r[1]) < 0.01 && Math.abs(r[2]) < 0.01);
     }
 
     /**
@@ -131,55 +157,37 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
         assumeTrue(mFile + " not found", mFile.exists());
         assumeTrue(sFile + " not found", sFile.exists());
 
-        final Product src = TestUtils.readSourceProduct(mFile);
-        try {
-            final GSLCGeocodingOp op = (GSLCGeocodingOp) spi.createOperator();
-            op.setSourceProduct(src);
-            op.setParameter("demName", "Copernicus 30m Global DEM");
-            op.setParameter("imgResamplingMethod", "BISINC_5_POINT_INTERPOLATION");
-            op.setParameter("outputFlattened", false);
-            op.setParameter("nodataValueAtSea", false);
-            op.setParameter("saveSimulatedUnwrappedPhase", true);
-            op.setParameter("saveDEM", true);
-            op.setParameter("outputPhaseTerms", true);
-            final Product gslc = op.getTargetProduct();
-            try {
-                final int nValidRaster = GSLCGeometryContractTest.countValidSimPhasePixels(
-                        gslc, MIN_VALID_RASTER_PIXELS);
-                assumeTrue("TOPS fixture geocoded too few valid simulatedUnwrappedPhase pixels (" +
-                                nValidRaster + ") — DEM unavailable in this environment?",
-                        nValidRaster >= MIN_VALID_RASTER_PIXELS);
+        final Product gslc = sharedGslc();
+        final int nValidRaster = GSLCGeometryContractTest.countValidSimPhasePixels(
+                gslc, MIN_VALID_RASTER_PIXELS);
+        assumeTrue("TOPS fixture geocoded too few valid simulatedUnwrappedPhase pixels (" +
+                        nValidRaster + ") — DEM unavailable in this environment?",
+                nValidRaster >= MIN_VALID_RASTER_PIXELS);
 
-                final TopsFaithfulStats stats = computeTopsFaithfulStats(gslc, src);
-                System.out.printf(
-                        "GSLCTopsInSarLongTest[faithfulPhase]: conc=%.4f, bestAzOffset=%.2f, nCandidates=%d, " +
-                                "columnBinTrend=%.4f rad%n",
-                        stats.concentration, stats.bestAzOffset, stats.nCandidates, stats.columnBinTrend);
+        final TopsFaithfulStats stats = computeTopsFaithfulStats(gslc, sharedSrc);
+        System.out.printf(
+                "GSLCTopsInSarLongTest[faithfulPhase]: conc=%.4f, bestAzOffset=%.2f, nCandidates=%d, " +
+                        "columnBinTrend=%.4f rad%n",
+                stats.concentration, stats.bestAzOffset, stats.nCandidates, stats.columnBinTrend);
 
-                // Printed UNCONDITIONALLY (not just on failure): this is also the proof that the
-                // candidate set genuinely spans both bursts, not just a narrow along-track band.
-                System.out.println("GSLCTopsInSarLongTest[faithfulPhase]: per-burst breakdown:");
-                for (int b = 0; b < stats.burstConcentration.length; b++) {
-                    System.out.printf("  burst %d: concentration=%.4f (n=%d)%n",
-                            b, stats.burstConcentration[b], stats.burstCount[b]);
-                }
-
-                for (int b = 0; b < stats.burstCount.length; b++) {
-                    assertTrue("burst " + b + " contributed only " + stats.burstCount[b] +
-                                    " candidates (< " + MIN_PER_BURST_CANDIDATES + ") — candidate collection " +
-                                    "did not genuinely cover both bursts of the 2-burst scene",
-                            stats.burstCount[b] >= MIN_PER_BURST_CANDIDATES);
-                }
-
-                assertTrue("TOPS faithful concentration " + stats.concentration, stats.concentration > 0.7);
-                assertTrue("per-column-bin phase trend across swath " + stats.columnBinTrend + " rad",
-                        Math.abs(stats.columnBinTrend) < 0.5);
-            } finally {
-                gslc.dispose();
-            }
-        } finally {
-            src.dispose();
+        // Printed UNCONDITIONALLY (not just on failure): this is also the proof that the
+        // candidate set genuinely spans both bursts, not just a narrow along-track band.
+        System.out.println("GSLCTopsInSarLongTest[faithfulPhase]: per-burst breakdown:");
+        for (int b = 0; b < stats.burstConcentration.length; b++) {
+            System.out.printf("  burst %d: concentration=%.4f (n=%d)%n",
+                    b, stats.burstConcentration[b], stats.burstCount[b]);
         }
+
+        for (int b = 0; b < stats.burstCount.length; b++) {
+            assertTrue("burst " + b + " contributed only " + stats.burstCount[b] +
+                            " candidates (< " + MIN_PER_BURST_CANDIDATES + ") — candidate collection " +
+                            "did not genuinely cover both bursts of the 2-burst scene",
+                    stats.burstCount[b] >= MIN_PER_BURST_CANDIDATES);
+        }
+
+        assertTrue("TOPS faithful concentration " + stats.concentration, stats.concentration > 0.7);
+        assertTrue("per-column-bin phase trend across swath " + stats.columnBinTrend + " rad",
+                Math.abs(stats.columnBinTrend) < 0.5);
     }
 
     private static final class TopsCandidate {
@@ -246,6 +254,22 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
 
         final SLCImage slcImage = new SLCImage(srcAbs, null);
         final Orbit orbit = new Orbit(srcAbs, 3);
+
+        // Mirror the production azimuth solve's bistatic handling (GSLCGeocodingOp.getPosition +
+        // resolveBistaticCorrectionRefRange): the operator shifts its source azimuth by the
+        // range-dependent bistatic term — on an IPF-bulk-corrected S1 product the residual
+        // (R - R_near)/c, 0 → ~0.08 lines across the sub-swath. jlinda's xyz2t is a pure
+        // zero-Doppler solve without it, so the test's predicted azimuth must add the same term
+        // or every candidate compares the GSLC sample against a raw row up to that far away —
+        // at the TOPS deramp slope (tens of rad/line near burst edges) that alone drags the
+        // concentration from ~0.95 to ~0.6 with a range-dependent column-bin trend.
+        final boolean bulkBistaticApplied =
+                srcAbs.getAttributeInt(AbstractMetadata.bistatic_correction_applied, 0) == 1;
+        final double bistaticRefRange = GSLCGeocodingOp.resolveBistaticCorrectionRefRange(
+                bulkBistaticApplied,
+                RangeDopplerGeocodingOp.getMissionType(srcAbs),
+                nearEdgeSlantRange,
+                srcAbs.getAttributeInt(GSLCGeocodingOp.ETAD_AZIMUTH_APPLIED, 0) == 1);
 
         final Band simPhaseBand = gslc.getBand("simulatedUnwrappedPhase");
         final Band elevBand = gslc.getBand("elevation");
@@ -383,7 +407,16 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
                     // SECONDS-OF-DAY while Sentinel1Utils' burst times are absolute seconds since
                     // the MJD epoch — dayOffsetSec (same single pass, same UTC day) puts them on
                     // the same axis.
-                    final double zeroDopplerTimeSec = dayOffsetSec + tAzimuth;
+                    // Bistatic term exactly as the production solve applies it (full term when the
+                    // IPF bulk correction is absent, near-range-referenced residual otherwise) —
+                    // it feeds burst selection AND the line index, same as in getPosition.
+                    double bistaticSec = 0.0;
+                    if (!bulkBistaticApplied) {
+                        bistaticSec = R / Constants.lightSpeed;
+                    } else if (bistaticRefRange > 0.0) {
+                        bistaticSec = (R - bistaticRefRange) / Constants.lightSpeed;
+                    }
+                    final double zeroDopplerTimeSec = dayOffsetSec + tAzimuth + bistaticSec;
                     final int burst = GSLCGeocodingOp.selectBurst(zeroDopplerTimeSec, ss);
                     if (burst < 0) {
                         continue;
@@ -581,15 +614,14 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
         // the identity row south.
         final double windowCut = 1.5;
 
-        final Product srcA = TestUtils.readSourceProduct(mFile);
         final Product srcB = TestUtils.readSourceProduct(mFile);
-        Product gslcA = null, gslcB = null;
+        Product gslcB = null;
         try {
-            final GSLCGeocodingOp opA = (GSLCGeocodingOp) spi.createOperator();
-            opA.setSourceProduct(srcA);
-            opA.setParameter("demName", "Copernicus 30m Global DEM");
-            opA.setParameter("nodataValueAtSea", false);
-            gslcA = opA.getTargetProduct();
+            // Unlocked leg A is the shared GSLC — a self-lock B only needs A's stamp and
+            // A's pixels for the relative assertions, and the shared product's extra
+            // diagnostic bands do not touch the I/Q samples. B is built with the SAME
+            // resampling so assertion (b)'s pixel-identity comparison stays exact.
+            final Product gslcA = sharedGslc();
 
             final String stampA = AbstractMetadata.getAbstractedMetadata(gslcA)
                     .getAttributeString("gslc_burst_valid_times", null);
@@ -605,6 +637,7 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
             final GSLCGeocodingOp opB = (GSLCGeocodingOp) spi.createOperator();
             opB.setSourceProduct(srcB);
             opB.setParameter("demName", "Copernicus 30m Global DEM");
+            opB.setParameter("imgResamplingMethod", "BISINC_5_POINT_INTERPOLATION");
             opB.setParameter("nodataValueAtSea", false);
             opB.setParameter("refBurstValidTimes", refTable);
             gslcB = opB.getTargetProduct();
@@ -661,9 +694,8 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
                             + "extent (expected ~" + (lvLast - windowCut) + ", got " + lvLastB + ")",
                     Math.abs(lvLastB - (lvLast - windowCut)) < 1e-6);
         } finally {
-            if (gslcA != null) gslcA.dispose();
+            // shared gslcA/sharedSrc are disposed once in disposeSharedProducts()
             if (gslcB != null) gslcB.dispose();
-            srcA.dispose();
             srcB.dispose();
         }
     }
