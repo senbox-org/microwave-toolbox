@@ -207,23 +207,6 @@ public class TestDataSpaces {
         }
     }
 
-    // --- Integration test (requires live Copernicus credentials) ---
-
-    @Test
-    //@STTM("SNAP-3707")
-    public void testDataSpaces() throws Exception {
-        final DataSpaces dataSpaces = new DataSpaces();
-        assumeTrue("DataSpaces credentials not found", dataSpaces.hasToken());
-
-        String query = dataSpaces.constructQuery("SENTINEL-1", "IW_ETA__AX",
-                "2024-05-03T00:50:00.000Z", "2024-05-03T00:51:00.000Z");
-        JSONObject response = dataSpaces.query(query);
-
-        DataSpaces.Result[] results = dataSpaces.getResults(response);
-        assertTrue(results.length != 0);
-
-        File outputFolder = Files.createTempDirectory("etad").toFile();
-        File file = dataSpaces.download(results[0], outputFolder);
-        assertTrue(file.exists());
-    }
+    // The live query+download integration test lives in TestDataSpacesLongTest
+    // (LongTestRunner-gated): it needs credentials, network, and ~45 s.
 }
