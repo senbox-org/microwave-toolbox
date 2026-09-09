@@ -93,6 +93,18 @@ public class CosmoSkymedReader extends SARReader {
     }
 
     /**
+     * The NetCDF backing store reads strided sections natively, so sub-sampled reads cost only the
+     * samples that are asked for. Declaring this lets SNAP render the higher pyramid levels and
+     * build sub-sampled subsets through {@link #readBandRasterDataImpl} instead of reading every
+     * full-resolution tile of the source region and discarding almost all of it - which is what
+     * made large CSG scenes exhaust the heap and display as a blank image.
+     */
+    @Override
+    public boolean isSubsetReadingFullySupported() {
+        return true;
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override

@@ -742,10 +742,10 @@ public class NetCDFUtils {
                 }
             }
 
-            // otherwise go by the largest size
-            if (bestRasterDim == null ||
-                    (bestRasterDim.getDimX().getLength() * bestRasterDim.getDimY().getLength()) <
-                            (rasterDim.getDimX().getLength() * rasterDim.getDimY().getLength())) {
+            // otherwise go by the largest size. Compute in long: a single frame of a large
+            // CSG/S1 raster can exceed Integer.MAX_VALUE pixels, and an int product would wrap
+            // negative and make the biggest raster compare as the smallest.
+            if (bestRasterDim == null || rasterSize(bestRasterDim) < rasterSize(rasterDim)) {
                 bestRasterDim = rasterDim;
             }
             // Otherwise, the best is the one which holds the most variables
@@ -756,6 +756,14 @@ public class NetCDFUtils {
         }
 
         return bestRasterDim;
+    }
+
+    /**
+     * Number of pixels in a raster dimension, as a long so that rasters larger than
+     * {@link Integer#MAX_VALUE} pixels compare correctly.
+     */
+    private static long rasterSize(final NcRasterDim rasterDim) {
+        return (long) rasterDim.getDimX().getLength() * (long) rasterDim.getDimY().getLength();
     }
 
     private static boolean contains(List<Variable> varList, String[] nameList) {
