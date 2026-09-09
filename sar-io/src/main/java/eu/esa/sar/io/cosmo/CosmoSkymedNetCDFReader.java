@@ -448,7 +448,7 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
         }
     }
 
-    private void addFirstLastLineTimes(final int rasterHeight) {
+    private void addFirstLastLineTimes(final int rasterHeight) throws IOException {
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
         final MetadataElement root = AbstractMetadata.getOriginalProductMetadata(product);
         final MetadataElement globalElem = root.getElement(NetcdfConstants.GLOBAL_ATTRIBUTES_NAME);
@@ -457,21 +457,23 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
         final double referenceUTC = ReaderUtils.getTime(globalElem, "Reference_UTC", standardDateFormat).getMJD(); // in days
         double firstLineTime = bandElem.getAttributeDouble("Zero_Doppler_Azimuth_First_Time", 0) / (24 * 3600); // in days
         if (firstLineTime == 0) {
-            final MetadataElement s01Elem = globalElem.getElement("S01");
-            if(s01Elem != null) {
-                firstLineTime = s01Elem.getElement("B001").getAttributeDouble("Azimuth_First_Time") / (24 * 3600); // in days
-            } else {
-                firstLineTime = globalElem.getAttributeDouble("S01_B001_Azimuth_First_Time") / (24 * 3600); // in days
+            final Double burstTime = findBurstAttribute(globalElem, "S01", "Azimuth_First_Time", false);
+            if (burstTime == null) {
+                throw new IOException("Unable to determine the azimuth first time: neither the image" +
+                        " 'Zero Doppler Azimuth First Time' attribute nor a S01 burst group holding" +
+                        " 'Azimuth First Time' was found");
             }
+            firstLineTime = burstTime / (24 * 3600); // in days
         }
         double lastLineTime = bandElem.getAttributeDouble("Zero_Doppler_Azimuth_Last_Time", 0) / (24 * 3600); // in days
         if (lastLineTime == 0) {
-            final MetadataElement s01Elem = globalElem.getElement("S01");
-            if(s01Elem != null) {
-                lastLineTime = s01Elem.getElement("B001").getAttributeDouble("Azimuth_Last_Time") / (24 * 3600); // in days
-            } else {
-                lastLineTime = globalElem.getAttributeDouble("S01_B001_Azimuth_Last_Time") / (24 * 3600); // in days
+            final Double burstTime = findBurstAttribute(globalElem, "S01", "Azimuth_Last_Time", true);
+            if (burstTime == null) {
+                throw new IOException("Unable to determine the azimuth last time: neither the image" +
+                        " 'Zero Doppler Azimuth Last Time' attribute nor a S01 burst group holding" +
+                        " 'Azimuth Last Time' was found");
             }
+            lastLineTime = burstTime / (24 * 3600); // in days
         }
         double lineTimeInterval = bandElem.getAttributeDouble("Line_Time_Interval", 0); // in s
         final ProductData.UTC startTime = new ProductData.UTC(referenceUTC + firstLineTime);
@@ -485,6 +487,86 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
             lineTimeInterval = ReaderUtils.getLineTimeInterval(startTime, stopTime, rasterHeight);
         }
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.line_time_interval, lineTimeInterval);
+    }
+
+    /**
+     * Reads a burst-level attribute such as {@code Azimuth_First_Time} from a sub-swath.
+     *
+     * <p>The COSMO-SkyMed Mission Products Description names the burst groups {@code B<nnn>}, but
+     * deliveries exist that use a wider field ({@code B0001}), so any number of digits is accepted.
+     * Both layouts NetCDF-Java can produce are handled: nested elements
+     * ({@code S01} -&gt; {@code B0001} -&gt; {@code Azimuth_First_Time}) and the flattened attribute name
+     * ({@code S01_B0001_Azimuth_First_Time}).</p>
+     *
+     * @param globalElem the Global_Attributes metadata element
+     * @param subSwath   the sub-swath element/prefix, e.g. {@code S01}
+     * @param suffix     the burst attribute name, e.g. {@code Azimuth_First_Time}
+     * @param lastBurst  {@code true} to take the highest-numbered burst, {@code false} for the lowest
+     * @return the attribute value, or {@code null} if no burst group carries it
+     */
+    static Double findBurstAttribute(final MetadataElement globalElem, final String subSwath,
+                                     final String suffix, final boolean lastBurst) {
+        if (globalElem == null) {
+            return null;
+        }
+        int bestBurst = -1;
+        Double bestValue = null;
+
+        // Nested layout: S01 -> B<nnn> -> suffix
+        final MetadataElement subSwathElem = globalElem.getElement(subSwath);
+        if (subSwathElem != null) {
+            for (final MetadataElement burstElem : subSwathElem.getElements()) {
+                final int burstNum = burstNumber(burstElem.getName());
+                if (burstNum < 0 || !burstElem.containsAttribute(suffix)) {
+                    continue;
+                }
+                if (bestValue == null || (lastBurst ? burstNum > bestBurst : burstNum < bestBurst)) {
+                    bestBurst = burstNum;
+                    bestValue = burstElem.getAttributeDouble(suffix);
+                }
+            }
+        }
+        if (bestValue != null) {
+            return bestValue;
+        }
+
+        // Flattened layout: S01_B<nnn>_suffix
+        final String prefix = subSwath + "_B";
+        final String tail = '_' + suffix;
+        for (final String attrName : globalElem.getAttributeNames()) {
+            if (!attrName.startsWith(prefix) || !attrName.endsWith(tail)) {
+                continue;
+            }
+            final int burstNum = burstNumber(
+                    attrName.substring(subSwath.length() + 1, attrName.length() - tail.length()));
+            if (burstNum < 0) {
+                continue;
+            }
+            if (bestValue == null || (lastBurst ? burstNum > bestBurst : burstNum < bestBurst)) {
+                bestBurst = burstNum;
+                bestValue = globalElem.getAttributeDouble(attrName);
+            }
+        }
+        return bestValue;
+    }
+
+    /**
+     * @return the burst number of a {@code B<nnn>} group name, or -1 if the name is not a burst group.
+     */
+    private static int burstNumber(final String name) {
+        if (name == null || name.length() < 2 || (name.charAt(0) != 'B' && name.charAt(0) != 'b')) {
+            return -1;
+        }
+        for (int i = 1; i < name.length(); ++i) {
+            if (!Character.isDigit(name.charAt(i))) {
+                return -1;
+            }
+        }
+        try {
+            return Integer.parseInt(name.substring(1));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     private void addSRGRCoefficients() {
@@ -755,6 +837,76 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
         product.addTiePointGrid(slantRangeGrid);
     }
 
+    /**
+     * Reads a sub-sampled region, one destination row at a time, using a strided NetCDF section so
+     * that only the samples that end up in {@code destBuffer} are read.
+     *
+     * <p>Without this, SNAP renders the higher pyramid levels by reading every level-0 tile that
+     * intersects the source region and throwing almost all of it away
+     * (see {@code BandOpImage.readHigherLevelData}). For a scene of a few hundred megapixels that is
+     * merely slow; for a multi-frame CSG product it is several gigabytes per rendered tile, which
+     * exhausts the heap and leaves the image view blank.</p>
+     */
+    private void readSubSampled(final int sourceOffsetX, final int sourceOffsetY,
+                                final int sourceStepX, final int sourceStepY,
+                                final Band destBand, final int destWidth, final int destHeight,
+                                final ProductData destBuffer, final ProgressMonitor pm) throws IOException {
+
+        final Variable variable = bandMap.get(destBand);
+        final int rank = variable.getRank();
+        final int[] varShape = variable.getShape();
+        final int maxY = varShape[0];
+        final int maxX = varShape[1];
+
+        final int[] origin = new int[rank];
+        final int[] size = new int[rank];
+        final int[] stride = new int[rank];
+        for (int i = 0; i < rank; i++) {
+            origin[i] = 0;
+            size[i] = 1;
+            stride[i] = 1;
+        }
+        if (isComplex && Unit.IMAGINARY.equals(destBand.getUnit())) {
+            origin[2] = 1;
+        }
+
+        // Clamp to the samples that actually exist; anything past the edge stays at the buffer's
+        // initial value (no-data), which is what the framework expects for a partial edge tile.
+        final int numX = Math.min(destWidth, (maxX - sourceOffsetX + sourceStepX - 1) / sourceStepX);
+        if (numX <= 0) {
+            return;
+        }
+        origin[1] = sourceOffsetX;
+        // A NetCDF section shape is the extent spanned, not the number of samples taken: with a
+        // stride of n, numX samples span (numX - 1) * n + 1 source columns.
+        size[1] = (numX - 1) * sourceStepX + 1;
+        stride[1] = sourceStepX;
+
+        pm.beginTask("Reading data from band " + destBand.getName(), destHeight);
+        try {
+            for (int y = 0; y < destHeight; y++) {
+                final int srcY = sourceOffsetY + y * sourceStepY;
+                if (srcY >= maxY) {
+                    break;
+                }
+                origin[0] = yFlipped ? (maxY - 1) - srcY : srcY;
+
+                final Array array;
+                synchronized (netcdfFile) {
+                    array = variable.read(new ucar.ma2.Section(origin, size, stride));
+                }
+                System.arraycopy(array.getStorage(), 0, destBuffer.getElems(), y * destWidth, numX);
+                pm.worked(1);
+            }
+        } catch (InvalidRangeException e) {
+            final IOException ioException = new IOException(e.getMessage());
+            ioException.initCause(e);
+            throw ioException;
+        } finally {
+            pm.done();
+        }
+    }
+
     private MetadataElement getBandElement(final Band band) {
         final MetadataElement root = AbstractMetadata.getOriginalProductMetadata(product);
         final Variable variable = bandMap.get(band);
@@ -830,14 +982,24 @@ public class CosmoSkymedNetCDFReader implements CosmoSkymedReader.CosmoReader {
                                           int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
                                           ProgressMonitor pm) throws IOException {
 
-        Guardian.assertTrue("sourceStepX == 1 && sourceStepY == 1", sourceStepX == 1 && sourceStepY == 1);
+        if (sourceStepX != 1 || sourceStepY != 1) {
+            // Sub-sampled read, used for the higher pyramid levels of the image view and for
+            // sub-sampled subsets. Only the requested samples are read - never the whole source
+            // region - which is what keeps a multi-gigabyte scene renderable.
+            readSubSampled(sourceOffsetX, sourceOffsetY, sourceStepX, sourceStepY,
+                    destBand, destWidth, destHeight, destBuffer, pm);
+            return;
+        }
+
         Guardian.assertTrue("sourceWidth == destWidth", sourceWidth == destWidth);
         Guardian.assertTrue("sourceHeight == destHeight", sourceHeight == destHeight);
 
         final int sceneHeight = product.getSceneRasterHeight();
         final int sceneWidth = product.getSceneRasterWidth();
         destHeight = Math.min(destHeight, sceneHeight-sourceOffsetY);
-        destWidth = Math.min(destWidth, sceneWidth-destOffsetX);
+        // Clamp against where the read starts in the source, not in the destination buffer: the
+        // two are equal for a plain tile read but differ once a subset offset is in play.
+        destWidth = Math.min(destWidth, sceneWidth-sourceOffsetX);
 
         if (cacheSupport.isActive()) {
             cacheSupport.readFromCache(destBand.getName(), destOffsetX, destOffsetY, destWidth, destHeight, destBuffer);
