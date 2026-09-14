@@ -859,6 +859,11 @@ public final class BackGeocodingOp extends Operator {
             validator1.checkIfSARProduct();
             validator1.checkIfSentinel1Product();
             validator1.checkIfSLC();
+            // Coregistration here is burst-domain: computeTileStack walks numOfBursts and deramps
+            // each burst, and the source bands are looked up as i_<swath>_<pol>. A debursted
+            // product - or a polarimetric matrix built from one, which still declares SAMPLE_TYPE
+            // COMPLEX and so passes checkIfSLC - has no burst geometry left to work with.
+            validator1.checkIfTOPSARBurstProduct(true);
 
             final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
             if(absRoot == null) {

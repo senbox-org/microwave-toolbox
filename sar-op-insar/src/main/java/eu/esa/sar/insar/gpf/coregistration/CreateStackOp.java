@@ -19,6 +19,7 @@ import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.CRSGeoCodingHandler;
 import eu.esa.sar.commons.Resolution;
 import eu.esa.sar.commons.SARGeocoding;
+import eu.esa.sar.commons.polsar.PolBandUtils;
 import org.esa.snap.core.subset.PixelSubsetRegion;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -64,9 +65,12 @@ import java.awt.Rectangle;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The CreateStack operator.
@@ -92,6 +96,7 @@ public class CreateStackOp extends Operator {
 
     private Product referenceProduct = null;
     private final Band[] referenceBands = new Band[2];
+    private static final Pattern SECONDARY_INDEX = Pattern.compile("_(?:sec|slv)(\\d+)_");
 
     @TargetProduct(description = "The target product which will use the reference's grid.")
     private Product targetProduct = null;
@@ -441,20 +446,37 @@ public class CreateStackOp extends Operator {
             int cnt = 1;
             if (appendToReference) {
                 for (Band trgBand : targetProduct.getBands()) {
-                    final String name = trgBand.getName();
-                    if (name.contains(StackUtils.SEC + cnt))
-                        ++cnt;
+                    final int index = secondaryIndexOf(trgBand.getName());
+                    if (index >= cnt) {
+                        cnt = index + 1;
+                    }
                 }
             }
+            // An imaginary band reuses the suffix of the real band it pairs with, but only when that
+            // suffix really belongs to a secondary band of the SAME product. On the first iteration
+            // `suffix` still held the reference suffix set above, so an imaginary-first selection
+            // built a name that already existed and the band was dropped by the guard below without
+            // a target band, a sourceRasterMap entry, or a warning.
+            Product suffixProduct = null;
+            String suffixPairKey = null;
             for (final Band srcBand : secondaryBandList) {
                 if (srcBand.getProduct() != referenceProduct) {
-                    if (srcBand.getUnit() != null && srcBand.getUnit().equals(Unit.IMAGINARY)) {
+                    final String pairKey = complexPairKey(srcBand);
+                    if (pairKey != null && srcBand.getProduct() == suffixProduct
+                            && pairKey.equals(suffixPairKey)) {
+                        // the partner of the band just named: share its tag
                     } else {
                         suffix = StackUtils.SEC + cnt++ + StackUtils.createBandTimeStamp(srcBand.getProduct());
+                        suffixProduct = srcBand.getProduct();
+                        suffixPairKey = pairKey;
                     }
                     final String tgtBandName = srcBand.getName() + suffix;
 
-                    if (targetProduct.getBand(tgtBandName) == null) {
+                    if (targetProduct.getBand(tgtBandName) != null) {
+                        SystemUtils.LOG.warning("CreateStack: band '" + srcBand.getName() + "' of '" +
+                                srcBand.getProduct().getName() + "' collides with existing target band '" +
+                                tgtBandName + "' and was not added to the stack.");
+                    } else {
                         final Product srcProduct = srcBand.getProduct();
                         int dataType;
                         if (!isResampling) {
@@ -782,6 +804,22 @@ public class CreateStackOp extends Operator {
         String[] masterBandNames = new String[] {};
         final Product defaultProd = sourceProduct[0];
         if (defaultProd != null) {
+            // A polarimetric matrix product has no i/q channel: C12_real / C12_imag are matrix
+            // elements, not a complex pair. Picking them as the reference pair puts them at the head
+            // of the band list, so Reference_bands no longer starts at C11 - and
+            // PolBandUtils.getProductBands fills its array in exactly that order, which assembles
+            // the reference date's covariance matrix with C11 <- C12_real and never complains.
+            final String[] matrixNames =
+                    PolBandUtils.getMatrixBandNames(PolBandUtils.getSourceProductType(defaultProd));
+            if (matrixNames != null) {
+                for (Band band : defaultProd.getBands()) {
+                    if (!(band instanceof VirtualBand)
+                            && PolBandUtils.isMatrixElementBand(band.getName(), matrixNames[0])) {
+                        return new String[]{band.getName()};
+                    }
+                }
+            }
+
             int index = 0;
             for(Band band : defaultProd.getBands()) {
                 if (band.getUnit() != null && band.getUnit().equals(Unit.REAL)) {
@@ -964,7 +1002,16 @@ public class CreateStackOp extends Operator {
         // add secondary bands
         if (slaveBandNames == null || slaveBandNames.length == 0 || contains(masterBandNames, slaveBandNames[0])) {
             for (Product secProduct : sourceProduct) {
-                for (Band band : secProduct.getBands()) {
+                // The elements of a polarimetric matrix are one inseparable set: the diagonal ones
+                // (C11, C22, ...) carry unit "intensity" while the off-diagonal ones carry
+                // "real"/"imaginary", so matching them against the reference band's unit keeps only
+                // one half and drops the rest without a word. A matrix product therefore contributes
+                // exactly its elements: the reference band of such a product is C11, whose intensity
+                // unit would otherwise let the normal filter sweep in every other intensity band
+                // (Sigma0_C11_db, coh_C11_win, elevation) alongside the matrix.
+                final String[] matrixBandNames =
+                        PolBandUtils.getMatrixBandNames(PolBandUtils.getSourceProductType(secProduct));
+                for (Band band : orderMatrixElementsFirst(secProduct, matrixBandNames)) {
                     String bandUnit = band.getUnit();
                     // The GSLC azimuth-carrier MODEL band must ride the stack per leg: the
                     // interferogram subtracts the leg DIFFERENCE of the deramp models exactly —
@@ -981,7 +1028,11 @@ public class CreateStackOp extends Operator {
                     if (secProduct == referenceProduct && (band == referenceBands[0] || band == referenceBands[1] || appendToReference))
                         continue;
 
-                    if(bandUnit == null || carrierModelBand) {
+                    if (matrixBandNames != null) {
+                        if (isMatrixElement(matrixBandNames, band.getName())) {
+                            bandList.add(band);
+                        }
+                    } else if(bandUnit == null || carrierModelBand) {
                         bandList.add(band);
                     } else {
                         for (Band refBand : referenceBands) {
@@ -1001,42 +1052,158 @@ public class CreateStackOp extends Operator {
                     throw new OperatorException("Please do not select the same band as reference and secondary");
                 }
                 final String bandName = getBandName(name);
-                final String productName = getProductName(name);
+                final List<Product> prods = getProducts(name, bandName);
+                if (prods.isEmpty()) continue;
 
-                final Product prod = getProduct(productName, bandName);
-                if (prod == null) continue;
+                final String bandUnit = prods.get(0).getBand(bandName).getUnit();
+                if (bandUnit != null && bandUnit.contains(Unit.PHASE)) {
+                    throw new OperatorException("Phase band should not be selected for co-registration");
+                }
 
-                final Band band = prod.getBand(bandName);
-                final String bandUnit = band.getUnit();
-                if (bandUnit != null) {
-                    if (bandUnit.contains(Unit.PHASE)) {
-                        throw new OperatorException("Phase band should not be selected for co-registration");
-                    } else if (bandUnit.contains(Unit.REAL) || bandUnit.contains(Unit.IMAGINARY)) {
-                        if (slaveBandNames.length < 2) {
-                            throw new OperatorException("Real and imaginary secondary bands should be selected in pairs");
-                        }
-                        final String nextBandName = getBandName(slaveBandNames[i + 1]);
-                        final String nextBandProdName = getProductName(slaveBandNames[i + 1]);
-                        if (!nextBandProdName.contains(productName)) {
-                            throw new OperatorException("Real and imaginary secondary bands should be selected from the same product in pairs");
-                        }
-                        final Band nextBand = prod.getBand(nextBandName);
-                        if ((bandUnit.contains(Unit.REAL) && !nextBand.getUnit().contains(Unit.IMAGINARY) ||
-                                (bandUnit.contains(Unit.IMAGINARY) && !nextBand.getUnit().contains(Unit.REAL)))) {
-                            throw new OperatorException("Real and imaginary secondary bands should be selected in pairs");
-                        }
-                        bandList.add(band);
-                        bandList.add(nextBand);
-                        i++;
-                    } else {
-                        bandList.add(band);
+                if (bandUnit != null && (bandUnit.contains(Unit.REAL) || bandUnit.contains(Unit.IMAGINARY))) {
+                    if (i + 1 >= slaveBandNames.length) {
+                        throw new OperatorException("Real and imaginary secondary bands should be selected in pairs");
                     }
+                    final String nextName = slaveBandNames[i + 1];
+                    final String nextBandName = getBandName(nextName);
+                    if (name.contains("::") && !getProductName(nextName).contains(getProductName(name))) {
+                        throw new OperatorException("Real and imaginary secondary bands should be selected from the same product in pairs");
+                    }
+                    for (final Product prod : prods) {
+                        final Band band = prod.getBand(bandName);
+                        final Band nextBand = prod.getBand(nextBandName);
+                        if (nextBand == null || nextBand.getUnit() == null ||
+                                (bandUnit.contains(Unit.REAL) && !nextBand.getUnit().contains(Unit.IMAGINARY)) ||
+                                (bandUnit.contains(Unit.IMAGINARY) && !nextBand.getUnit().contains(Unit.REAL))) {
+                            throw new OperatorException("Real and imaginary secondary bands should be selected in pairs");
+                        }
+                        addIfAbsent(bandList, band);
+                        addIfAbsent(bandList, nextBand);
+                    }
+                    i++;
                 } else {
-                    bandList.add(band);
+                    for (final Product prod : prods) {
+                        addIfAbsent(bandList, prod.getBand(bandName));
+                    }
                 }
             }
         }
         return bandList.toArray(new Band[0]);
+    }
+
+    /**
+     * True when the band is one of the matrix elements of a polarimetric matrix product, so it must
+     * ride the stack alongside its siblings regardless of its unit.
+     */
+    private static boolean isMatrixElement(final String[] matrixBandNames, final String bandName) {
+        if (matrixBandNames == null) {
+            return false;
+        }
+        for (String element : matrixBandNames) {
+            if (PolBandUtils.isMatrixElementBand(bandName, element)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A matrix product's bands in the canonical element order consumers read them positionally,
+     * followed by whatever else the product carries (which still faces the reference-unit filter).
+     * Product band order is only whatever the producing operator happened to use, and it is the
+     * order Reference_bands / Secondary_bands get written in.
+     */
+    private static List<Band> orderMatrixElementsFirst(final Product product, final String[] matrixBandNames) {
+        final List<Band> bands = new ArrayList<>(Arrays.asList(product.getBands()));
+        if (matrixBandNames == null) {
+            return bands;
+        }
+        final List<Band> ordered = new ArrayList<>(bands.size());
+        for (String element : matrixBandNames) {
+            for (Band band : bands) {
+                if (!ordered.contains(band) && PolBandUtils.isMatrixElementBand(band.getName(), element)) {
+                    ordered.add(band);
+                    break;
+                }
+            }
+        }
+        for (Band band : bands) {
+            if (!ordered.contains(band)) {
+                ordered.add(band);
+            }
+        }
+        return ordered;
+    }
+
+    /**
+     * The name a complex band shares with its partner: i_IW1_VV and q_IW1_VV both key on IW1_VV,
+     * C12_real and C12_imag both key on C12. Null for a band that has no partner. The pair has to
+     * carry one _secN tag - WarpOp and RemodulateOp find a band's derampDemodPhase, and DemodulateOp
+     * its init_offsets, by that tag alone, and a split pair makes those lookups silently miss.
+     */
+    private static String complexPairKey(final Band band) {
+        final String unit = band.getUnit();
+        if (unit == null || !(unit.equals(Unit.REAL) || unit.equals(Unit.IMAGINARY))) {
+            return null;
+        }
+        final String name = band.getName();
+        if (name.startsWith("i_") || name.startsWith("q_")) {
+            return name.substring(2);
+        }
+        if (name.endsWith("_real")) {
+            return name.substring(0, name.length() - "_real".length());
+        }
+        if (name.endsWith("_imag")) {
+            return name.substring(0, name.length() - "_imag".length());
+        }
+        return null;
+    }
+
+    /**
+     * The highest _secN index already present in a band name, or 0. Testing
+     * {@code name.contains("_sec" + cnt)} made _sec10 satisfy the test for cnt == 1, so seeding the
+     * counter for an appended acquisition mis-fired and its bands collided with existing ones.
+     */
+    private static int secondaryIndexOf(final String bandName) {
+        final Matcher matcher = SECONDARY_INDEX.matcher(bandName);
+        int index = 0;
+        while (matcher.find()) {
+            index = Math.max(index, Integer.parseInt(matcher.group(1)));
+        }
+        return index;
+    }
+
+    /**
+     * Resolve a selected secondary band name to the source products that own it. A name qualified
+     * as {@code band::product} picks that one product; note that this form is not reachable from
+     * the operator UI, whose updateParameters() no longer writes these parameters at all, nor from
+     * a GPF graph, whose band-name ValueSet is built from the first source product. An unqualified
+     * name - the only form a hand written GPT graph can express - contributes the band from every
+     * source product that has it: a stack's acquisitions normally share band names, so binding
+     * them all to sourceProduct[0] would fill the stack with the first acquisition and leave the
+     * later dates empty.
+     */
+    private List<Product> getProducts(final String name, final String bandName) {
+        final List<Product> products = new ArrayList<>(sourceProduct.length);
+        if (name.contains("::")) {
+            final Product prod = getProduct(getProductName(name), bandName);
+            if (prod != null) {
+                products.add(prod);
+            }
+        } else {
+            for (Product prod : sourceProduct) {
+                if (prod.getBand(bandName) != null) {
+                    products.add(prod);
+                }
+            }
+        }
+        return products;
+    }
+
+    private static void addIfAbsent(final List<Band> bandList, final Band band) {
+        if (band != null && !bandList.contains(band)) {
+            bandList.add(band);
+        }
     }
 
     private Product getProduct(final String productName, final String bandName) {

@@ -543,6 +543,8 @@ public final class Sentinel1Utils {
      */
     public void computeDopplerRate() throws IOException {
 
+        checkSubSwathAvailable();
+
         if (orbit == null) {
             getProductOrbit();
         }
@@ -568,6 +570,19 @@ public final class Sentinel1Utils {
         }
     }
 
+    /**
+     * The sub-swath list is empty whenever the product carries neither Band_* abstracted metadata
+     * (TOPSAR-Deburst removes those elements) nor a swath tag in its band names (a polarimetric
+     * matrix product is named C11, C12_real, ... ). Say so instead of indexing subSwath[0] and
+     * surfacing as "Index 0 out of bounds for length 0" from whichever operator built the utils.
+     */
+    private void checkSubSwathAvailable() throws IOException {
+        if (subSwath == null || subSwath.length == 0) {
+            throw new IOException("No Sentinel-1 sub-swath metadata found in " + sourceProduct.getName() +
+                    ". A TOPSAR split burst product is required.");
+        }
+    }
+
     private double getVelocity(final double time) {
         final PosVector velocity = orbit.getVelocity(time);
         return Math.sqrt(velocity.x*velocity.x + velocity.y*velocity.y + velocity.z*velocity.z);
@@ -577,6 +592,8 @@ public final class Sentinel1Utils {
      * Compute range-dependent reference time t_ref for each burst.
      */
     public void computeReferenceTime() throws IOException {
+
+        checkSubSwathAvailable();
 
         if (!isDopplerCentroidAvailable) {
             computeDopplerCentroid();
@@ -1125,6 +1142,36 @@ public final class Sentinel1Utils {
         return 0;
     }
 
+    /**
+     * getSubSwathIndex returns 0 when no sub-swath covers the given slant range time - which is
+     * always the case when the product carries no sub-swath metadata at all. Every geolocation
+     * getter feeds that index straight back as subSwath[subSwathIndex - 1], so validate it here
+     * rather than index subSwath[-1].
+     */
+    private int getValidSubSwathIndex(final double slantRangeTime) {
+        if (subSwath == null || subSwath.length == 0) {
+            throw new IllegalArgumentException("No Sentinel-1 sub-swath metadata found in " +
+                    sourceProduct.getName() + ". A TOPSAR split burst product is required.");
+        }
+        final int subSwathIndex = getSubSwathIndex(slantRangeTime);
+        if (subSwathIndex >= 1 && subSwathIndex <= subSwath.length) {
+            return subSwathIndex;
+        }
+        return clampSubSwathIndex(slantRangeTime, subSwath[0].slrTimeToFirstPixel, subSwath.length);
+    }
+
+    /**
+     * getSubSwathIndex returns its 0 sentinel both for a time before the first sub-swath and for one
+     * past the last. computeIndex below extrapolates at either range edge by design (it clamps
+     * j0/j1 and i0/i1), and TOPSARDeburst samples the far-range column of a multi-swath grid whose
+     * width is a rounded-up pixel count, so it can overshoot slrTimeToLastPixel by a fraction of a
+     * pixel. Clamp to the nearest sub-swath rather than refuse a valid product.
+     */
+    static int clampSubSwathIndex(final double slantRangeTime, final double firstSubSwathStartTime,
+                                  final int numOfSubSwath) {
+        return slantRangeTime < firstSubSwathStartTime ? 1 : numOfSubSwath;
+    }
+
     public void computeIndex(final double azTime, final double slrTime, final int subSwathIndex, Index index) {
 
         int j0 = -1, j1 = -1;
@@ -1181,7 +1228,7 @@ public final class Sentinel1Utils {
 
     public double getLatitude(final double azimuthTime, final double slantRangeTime) {
         Index index = new Index();
-        final int subSwathIndex = getSubSwathIndex(slantRangeTime);
+        final int subSwathIndex = getValidSubSwathIndex(slantRangeTime);
         computeIndex(azimuthTime, slantRangeTime, subSwathIndex, index);
         return getLatitudeValue(index, subSwathIndex);
     }
@@ -1194,7 +1241,7 @@ public final class Sentinel1Utils {
 
     public double getLongitude(final double azimuthTime, final double slantRangeTime) {
         Index index = new Index();
-        final int subSwathIndex = getSubSwathIndex(slantRangeTime);
+        final int subSwathIndex = getValidSubSwathIndex(slantRangeTime);
         computeIndex(azimuthTime, slantRangeTime, subSwathIndex, index);
         return getLongitudeValue(index, subSwathIndex);
     }
@@ -1207,14 +1254,14 @@ public final class Sentinel1Utils {
 
     public double getSlantRangeTime(final double azimuthTime, final double slantRangeTime) {
         Index index = new Index();
-        final int subSwathIndex = getSubSwathIndex(slantRangeTime);
+        final int subSwathIndex = getValidSubSwathIndex(slantRangeTime);
         computeIndex(azimuthTime, slantRangeTime, subSwathIndex, index);
         return getSlantRangeTimeValue(index, subSwathIndex);
     }
 
     public double getIncidenceAngle(final double azimuthTime, final double slantRangeTime) {
         Index index = new Index();
-        final int subSwathIndex = getSubSwathIndex(slantRangeTime);
+        final int subSwathIndex = getValidSubSwathIndex(slantRangeTime);
         computeIndex(azimuthTime, slantRangeTime, subSwathIndex, index);
         return getIncidenceAngleValue(index, subSwathIndex);
     }
