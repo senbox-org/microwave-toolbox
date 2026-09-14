@@ -112,6 +112,11 @@ public final class TOPSARDeburstOp extends Operator {
             validator.checkIfSentinel1Product();
             validator.checkProductType(new String[]{"SLC"});
             validator.checkAcquisitionMode(new String[]{"IW","EW"});
+            // Deburst reads subSwath[0].firstLineTime as soon as Sentinel1Utils is built. Product
+            // type and acquisition mode are inherited by anything derived from an IW SLC - a
+            // polarimetric matrix product included - so they do not establish that burst geometry
+            // is still there.
+            validator.checkIfTOPSARBurstProduct(true);
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
 

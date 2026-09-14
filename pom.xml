@@ -24,6 +24,13 @@
 
         <skipTests>false</skipTests>
         <surefire.jvm.args>-enableassertions -Xmx4096M -Dfile.encoding=UTF-8 --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/sun.awt.shell=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.base/java.security=ALL-UNNAMED --add-exports java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED</surefire.jvm.args>
+        <!-- Extra surefire fork arguments, appended to surefire.jvm.args rather than replacing it.
+             Overriding surefire.jvm.args itself on the command line silently drops -Xmx4096M (forks
+             then fall back to the JVM default max heap, a quarter of physical RAM, which with a -T
+             parallel build exhausts memory and kills forks at startup) AND every add-opens /
+             add-exports flag the JDK 21 tests need. Use this property instead:
+             mvn test -Dsurefire.jvm.extra.args="-DoutputFolder=e:\API" -->
+        <surefire.jvm.extra.args></surefire.jvm.extra.args>
         <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
         <buildDate>${maven.build.timestamp}</buildDate>
         <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
@@ -636,7 +643,7 @@
                                 <value>target/test-data</value>
                             </property>
                         </systemPropertyVariables>
-                        <argLine>${surefire.jvm.args} @{argLine}</argLine>
+                        <argLine>${surefire.jvm.args} ${surefire.jvm.extra.args} @{argLine}</argLine>
                     </configuration>
 
                 </plugin>

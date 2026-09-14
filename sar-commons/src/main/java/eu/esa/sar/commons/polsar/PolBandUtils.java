@@ -129,16 +129,16 @@ public class PolBandUtils {
 
         if (isCoregistered) {
             final String[] refBandNames = StackUtils.getReferenceBandNames(srcProduct);
+            checkAcquisitionBandNames(refBandNames, "reference", srcProduct.getName());
             final Band[] refBands = getBands(srcProduct, sourceProductType, refBandNames);
-            final String suffix = refBandNames[0].substring(refBandNames[0].lastIndexOf('_'), refBandNames[0].length());
-            quadSrcBandList.add(new PolSourceBand(srcProduct.getName(), refBands, suffix));
+            quadSrcBandList.add(new PolSourceBand(srcProduct.getName(), refBands, getBandSuffix(refBandNames[0])));
 
             final String[] secProductNames = StackUtils.getSecondaryProductNames(srcProduct);
             for (String secProd : secProductNames) {
                 final String[] secBandNames = StackUtils.getSecondaryBandNames(srcProduct, secProd);
+                checkAcquisitionBandNames(secBandNames, secProd, srcProduct.getName());
                 final Band[] secBands = getBands(srcProduct, sourceProductType, secBandNames);
-                final String suf = secBandNames[0].substring(secBandNames[0].lastIndexOf('_'), secBandNames[0].length());
-                quadSrcBandList.add(new PolSourceBand(secProd, secBands, suf));
+                quadSrcBandList.add(new PolSourceBand(secProd, secBands, getBandSuffix(secBandNames[0])));
             }
         } else {
             final String[] bandNames = srcProduct.getBandNames();
@@ -146,6 +146,24 @@ public class PolBandUtils {
             quadSrcBandList.add(new PolSourceBand(srcProduct.getName(), refBands, ""));
         }
         return quadSrcBandList.toArray(new PolSourceBand[0]);
+    }
+
+    /**
+     * A product flagged as a coregistered stack must list the bands of each acquisition in its
+     * Secondary_Metadata. Without that list there is nothing to group by, so say which acquisition
+     * of which product is missing rather than indexing an empty array.
+     */
+    private static void checkAcquisitionBandNames(final String[] bandNames, final String acquisition,
+                                                  final String productName) throws Exception {
+        if (bandNames == null || bandNames.length == 0) {
+            throw new Exception("No " + acquisition + " bands found in coregistered stack " + productName +
+                    ". The Secondary_Metadata band list is missing or empty.");
+        }
+    }
+
+    private static String getBandSuffix(final String bandName) {
+        final int idx = bandName.lastIndexOf('_');
+        return idx < 0 ? "" : bandName.substring(idx);
     }
 
     /**
@@ -159,11 +177,11 @@ public class PolBandUtils {
     private static Band[] getBands(final Product srcProduct, final MATRIX sourceProductType, final String[] bandNames) throws Exception {
 
         if (sourceProductType == MATRIX.DUAL_HH_HV) { // dual pol HH HV
-            return getDualPolSrcBands(srcProduct, getComplexBandNames(), sourceProductType);
+            return getDualPolSrcBands(srcProduct, bandNames, getComplexBandNames(), sourceProductType);
         } else if (sourceProductType == MATRIX.DUAL_VH_VV) { // dual VH VV
-            return getDualPolSrcBands(srcProduct, getComplexBandNames(), sourceProductType);
+            return getDualPolSrcBands(srcProduct, bandNames, getComplexBandNames(), sourceProductType);
         } else if (sourceProductType == MATRIX.DUAL_HH_VV) { // dual HH VV
-            return getDualPolSrcBands(srcProduct, getComplexBandNames(), sourceProductType);
+            return getDualPolSrcBands(srcProduct, bandNames, getComplexBandNames(), sourceProductType);
         }else if (sourceProductType == MATRIX.FULL) { // full pol
             return getQuadPolSrcBands(srcProduct, bandNames);
         } else if (sourceProductType == MATRIX.C3) { // C3
@@ -184,16 +202,32 @@ public class PolBandUtils {
         return null;
     }
 
-    private static Band[] getDualPolSrcBands(final Product srcProduct, final String[] srcBandNames,
-                                             final MATRIX sourceProductType) {
+    /**
+     * Collect the i/q band pair of each polarisation of one acquisition.
+     *
+     * @param srcProduct  the source product
+     * @param bandNames   the band names this acquisition owns. On a coregistered stack this is the
+     *                    per-date list from {@code Secondary_Metadata}; scanning the whole product
+     *                    instead would hand every date the same bands, so each date's covariance
+     *                    matrix would be built from dataBuffers[0..3] = date 1 and date 2 of the
+     *                    same polarisation.
+     * @param prefixes    the complex band name prefixes to accept (i_, q_)
+     * @param sourceProductType which polarisation pair to return
+     */
+    private static Band[] getDualPolSrcBands(final Product srcProduct, final String[] bandNames,
+                                             final String[] prefixes, final MATRIX sourceProductType)
+            throws Exception {
 
         final List<Band> hhBandList = new ArrayList<>();
         final List<Band> hvBandList = new ArrayList<>();
         final List<Band> vvBandList = new ArrayList<>();
         final List<Band> vhBandList = new ArrayList<>();
-        for(Band srcBand : srcProduct.getBands()) {
-            final String bandName = srcBand.getName();
-            for (String s : srcBandNames) {
+        for (final String bandName : bandNames) {
+            final Band srcBand = srcProduct.getBand(bandName);
+            if (srcBand == null) {
+                throw new Exception("Band " + bandName + " not found in " + srcProduct.getName());
+            }
+            for (String s : prefixes) {
                 if(bandName.startsWith(s)) {
                     if (bandName.toLowerCase().contains("hh")) {
                         hhBandList.add(srcBand);
@@ -204,22 +238,56 @@ public class PolBandUtils {
                     } else if (bandName.toLowerCase().contains("vh")) {
                         vhBandList.add(srcBand);
                     }
+                    break;
                 }
             }
         }
 
+        final List<Band> scatterVector = new ArrayList<>(4);
         if (sourceProductType == MATRIX.DUAL_HH_HV) {
-            hhBandList.addAll(hvBandList);
-            return hhBandList.toArray(new Band[0]);
+            addComplexPair(scatterVector, hhBandList, "HH", srcProduct);
+            addComplexPair(scatterVector, hvBandList, "HV", srcProduct);
         } else if (sourceProductType == MATRIX.DUAL_VH_VV) {
-            vvBandList.addAll(vhBandList);
-            return vvBandList.toArray(new Band[0]);
+            addComplexPair(scatterVector, vvBandList, "VV", srcProduct);
+            addComplexPair(scatterVector, vhBandList, "VH", srcProduct);
         } else if (sourceProductType == MATRIX.DUAL_HH_VV) {
-            hhBandList.addAll(vvBandList);
-            return hhBandList.toArray(new Band[0]);
+            addComplexPair(scatterVector, hhBandList, "HH", srcProduct);
+            addComplexPair(scatterVector, vvBandList, "VV", srcProduct);
+        } else {
+            return null;
         }
 
-        return null;
+        return scatterVector.toArray(new Band[0]);
+    }
+
+    /**
+     * Append one polarisation's i/q pair in the order DualPolProcessor.getScatterVector reads it:
+     * the real part first, the imaginary part second. Taking the two in encounter order silently
+     * conjugates C12 for any product that lists q before i, and anything other than exactly one
+     * pair per polarisation (a detected GRD resolves to none, an unsplit multi-swath product to
+     * three) has to be reported here rather than surface as an out-of-bounds inside computeTile.
+     */
+    private static void addComplexPair(final List<Band> scatterVector, final List<Band> polBands,
+                                       final String pol, final Product srcProduct) throws Exception {
+        Band real = null, imaginary = null;
+        for (final Band band : polBands) {
+            final Unit.UnitType unitType = Unit.getUnitType(band);
+            if (unitType == Unit.UnitType.REAL && real == null) {
+                real = band;
+            } else if (unitType == Unit.UnitType.IMAGINARY && imaginary == null) {
+                imaginary = band;
+            } else {
+                throw new Exception("Unexpected band " + band.getName() + " for polarisation " + pol +
+                        " in " + srcProduct.getName() +
+                        "; exactly one real and one imaginary band are expected.");
+            }
+        }
+        if (real == null || imaginary == null) {
+            throw new Exception("A real and an imaginary band are expected for polarisation " + pol +
+                    " in " + srcProduct.getName() + "; found " + polBands.size() + " complex band(s).");
+        }
+        scatterVector.add(real);
+        scatterVector.add(imaginary);
     }
 
     private static Band[] getQuadPolSrcBands(final Product srcProduct, final String[] srcBandNames) throws Exception {
@@ -231,6 +299,9 @@ public class PolBandUtils {
             final List<Band> bandList = new ArrayList<>();
             for (final String srcBandName : srcBandNames) {
                 final Band band = srcProduct.getBand(srcBandName);
+                if (band == null) {
+                    throw new Exception("Band " + srcBandName + " not found in " + srcProduct.getName());
+                }
                 final String bandUnit = band.getUnit();
                 if (bandUnit == null || !bandUnit.contains(Unit.INTENSITY))
                     continue;
@@ -252,6 +323,9 @@ public class PolBandUtils {
         for (final String srcBandName : srcBandNames) {
 
             final Band band = srcProduct.getBand(srcBandName);
+            if (band == null) {
+                throw new Exception("Band " + srcBandName + " not found in " + srcProduct.getName());
+            }
             final Unit.UnitType bandUnit = Unit.getUnitType(band);
             if (!(bandUnit == Unit.UnitType.REAL || bandUnit == Unit.UnitType.IMAGINARY))
                 continue;
@@ -303,6 +377,10 @@ public class PolBandUtils {
 
         final Band[] sourceBands = new Band[validBandNames.length];
 
+        // Slot each band by the element it matches. Consumers read this array positionally
+        // (dataBuffers[0] is C11, [1] is C12_real, ...), so filling it in the order the caller
+        // happened to list the names would silently build the matrix from the wrong elements
+        // while still satisfying the count check below.
         int validBandCnt = 0;
         for (final String bandName : srcBandNames) {
             final Band band = srcProduct.getBand(bandName);
@@ -310,16 +388,26 @@ public class PolBandUtils {
                 throw new Exception("Band " + bandName + " not found");
             }
 
-            for (final String validName : validBandNames) {
-                if (bandName.contains(validName)) {
-                    sourceBands[validBandCnt++] = band;
+            for (int i = 0; i < validBandNames.length; ++i) {
+                if (isMatrixElementBand(bandName, validBandNames[i])) {
+                    if (sourceBands[i] != null) {
+                        // Two bands claiming the same element means more than one acquisition
+                        // reached this method - typically a stack whose coregistered_stack flag was
+                        // lost. Keeping the first would return one date and label it as the product.
+                        throw new Exception("Two bands match matrix element " + validBandNames[i] +
+                                " in " + srcProduct.getName() + ": " + sourceBands[i].getName() +
+                                " and " + bandName + ". A single acquisition is expected.");
+                    }
+                    sourceBands[i] = band;
+                    ++validBandCnt;
                     break;
                 }
             }
         }
 
         if (validBandCnt != validBandNames.length) {
-            throw new Exception("Input is not a valid polarimetric matrix");
+            throw new Exception("Input is not a valid polarimetric matrix: found " + validBandCnt +
+                    " of " + validBandNames.length + " elements in " + srcProduct.getName());
         }
         return sourceBands;
     }
@@ -407,6 +495,44 @@ public class PolBandUtils {
      *
      * @return The source band names.
      */
+    /**
+     * True when the band name IS the given matrix element, optionally carrying a stack suffix.
+     * Anchored at the start with a '_' separator: Sigma0_C11_db and coh_C11_win merely contain the
+     * token, and matching them would let either displace the real C11 in a band list that every
+     * consumer reads positionally.
+     *
+     * @param bandName the band name
+     * @param element  the canonical element name, e.g. C11 or C12_real
+     * @return true if the band is that element
+     */
+    public static boolean isMatrixElementBand(final String bandName, final String element) {
+        return bandName.equals(element) || bandName.startsWith(element + '_');
+    }
+
+    /**
+     * The canonical element names of a polarimetric matrix, in the order every consumer reads them
+     * positionally (see DualPolProcessor.getCovarianceMatrixC2 / QuadPolProcessor).
+     *
+     * @param matrixType the matrix type
+     * @return the element names, or null if the type is not a matrix
+     */
+    public static String[] getMatrixBandNames(final MATRIX matrixType) {
+        switch (matrixType) {
+            case C2:
+                return getC2BandNames();
+            case C3:
+                return getC3BandNames();
+            case C4:
+                return getC4BandNames();
+            case T3:
+                return getT3BandNames();
+            case T4:
+                return getT4BandNames();
+            default:
+                return null;
+        }
+    }
+
     public static String[] getC2BandNames() {
         return new String[]{
                 "C11",
