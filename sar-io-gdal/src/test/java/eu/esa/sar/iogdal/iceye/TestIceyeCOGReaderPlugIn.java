@@ -48,4 +48,13 @@ public class TestIceyeCOGReaderPlugIn extends AbstractProductReaderPlugInGDALTes
         isValidDecodeQualification(TestIceyeAMLCPXProductReader.inputCPXtif);
         isValidDecodeQualification(TestIceyeAMLCPXProductReader.inputCPXjson);
     }
+
+    /** The Open Data Initiative delivers ICEYE_*_GRD/_SLC as .tif plus a STAC .json. */
+    @Test
+    public void testValidDecodeQualificationOpenData() {
+        isValidDecodeQualification(IceyeOpenDataFixtures.grdCog());
+        isValidDecodeQualification(IceyeOpenDataFixtures.grdStacItem());
+        isValidDecodeQualification(IceyeOpenDataFixtures.slcCog());
+        isValidDecodeQualification(IceyeOpenDataFixtures.slcStacItem());
+    }
 }
