@@ -64,6 +64,20 @@
             <artifactId>sar-io</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- the ICEYE COG readers, for the end-to-end calibration tests -->
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io-gdal</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- and its committed product fixtures -->
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io-gdal</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.esa.snap</groupId>
             <artifactId>ceres-core</artifactId>
