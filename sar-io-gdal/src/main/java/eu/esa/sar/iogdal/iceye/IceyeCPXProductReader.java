@@ -31,7 +31,7 @@ public class IceyeCPXProductReader extends IceyeAMLCPXProductReader {
         phaseBand.setUnit(Unit.PHASE);
         phaseBand.setNoDataValue(99999.0);
         phaseBand.setNoDataValueUsed(true);
-        phaseBand.setSourceImage(gdalPhaseBand.getSourceImage());
+        phaseBand.setSourceImage(transpose(gdalPhaseBand));
         product.addBand(phaseBand);
         bandMap.put(phaseBand, IceyeConstants.PHASE_BAND_INDEX);
 

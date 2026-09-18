@@ -21,8 +21,22 @@
 <ul>
     <li>SLC, GRD, GEC, GTC delivered as Cloud-Optimized GeoTIFF (COG)</li>
     <li>Sidecar JSON metadata describing acquisition, geometry, and calibration</li>
+    <li>SLC-COG and GRD-COG from the ICEYE Open Data Initiative, whose sidecar is a
+        STAC item</li>
 </ul>
 <p class="MsoNormal"><b>Polarizations:</b> Single-pol VV (most modes).</p>
+
+<p class="MsoNormal"><b>Opening a product:</b> select either the <code>.tif</code> or its
+sidecar <code>.json</code> &mdash; both open the same product. The reader identifies the
+delivery from the metadata carried inside the COG and does not depend on the sidecar
+being present.</p>
+
+<p class="MsoNormal"><b>Image orientation:</b> ICEYE writes these COGs "shadows-down",
+with azimuth along the image columns and range along the rows. SNAP presents them in its
+own SAR convention, x across range and y along azimuth, so the raster you see is the
+transpose of what a plain GeoTIFF viewer shows. Opening the file with a generic GeoTIFF
+reader instead bypasses this, along with the SAR metadata, and the result cannot be used
+by the SAR operators.</p>
 
 <p class="MsoNormal"><b>Notes:</b> This is the GDAL-backed reader for the COG-format ICEYE delivery,
 distinct from the legacy native-HDF5 ICEYE reader (<i>Import ICEYE</i>). The COG

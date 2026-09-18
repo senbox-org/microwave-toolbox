@@ -1,6 +1,8 @@
 package eu.esa.sar.iogdal.iceye;
 
 import com.bc.ceres.core.ProgressMonitor;
+import com.bc.ceres.multilevel.MultiLevelImage;
+import com.bc.ceres.multilevel.support.DefaultMultiLevelImage;
 
 import eu.esa.sar.commons.io.JSONProductDirectory;
 import eu.esa.sar.commons.io.SARReader;
@@ -51,7 +53,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
     HashMap<Band, Integer> bandMap = new HashMap<>(4);
     int imageWidth, imageHeight;
 
-    private boolean lookLeft;
+    boolean lookLeft;
     private ImageInputStream inputStream;
     private JSONObject metadataJSON = null;
 
@@ -463,7 +465,7 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
         ampBand.setUnit(Unit.AMPLITUDE);
         ampBand.setNoDataValue(0);
         ampBand.setNoDataValueUsed(true);
-        ampBand.setSourceImage(gdalBand.getSourceImage());
+        ampBand.setSourceImage(transpose(gdalBand));
         product.addBand(ampBand);
         bandMap.put(ampBand, IceyeConstants.AMPLITUDE_BAND_INDEX);
 
@@ -471,6 +473,18 @@ public abstract class IceyeAMLCPXProductReader extends SARReader {
     }
 
     abstract void addProductSpecificBands(Product product, String polarization);
+
+    /**
+     * ICEYE stores these products shadows-down, with azimuth along the TIFF
+     * columns and range along the rows, so the GDAL image is the transpose of
+     * the band SNAP declares. Handing the GDAL image over untransposed only
+     * happens to look right on a square frame; on any other it is wrong in both
+     * axes. See {@link IceyeTransposedMultiLevelSource}.
+     */
+    MultiLevelImage transpose(final Band gdalBand) {
+        return new DefaultMultiLevelImage(new IceyeTransposedMultiLevelSource(
+                gdalBand.getSourceImage(), imageWidth, imageHeight, lookLeft));
+    }
 
     void addTiePointGridsToProduct(Product product) {
 
