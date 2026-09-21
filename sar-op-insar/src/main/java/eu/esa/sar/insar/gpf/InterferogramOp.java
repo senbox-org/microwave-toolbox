@@ -109,8 +109,11 @@ public class InterferogramOp extends Operator {
 
     @Parameter(description = "Coherence estimation window size in metres. When > 0, " +
             "overrides cohWinAz/cohWinRg at initialization by converting from the pixel " +
-            "spacing of the (geocoded) inputs. Recommended for GSLC inputs so the multilook " +
-            "support is set in physical units regardless of map-grid pixel size.",
+            "spacing of the inputs. Recommended for GSLC inputs so the multilook " +
+            "support is set in physical units regardless of map-grid pixel size. It yields a " +
+            "window that is square on the ground in both radar and map geometry " +
+            "(the radar branch divides by the ground-range step, rg_spacing / sin(incidence)), " +
+            "making radar-geometry and geocoded results directly comparable.",
             defaultValue = "0",
             label = "Coherence Window (m)")
     private double cohWinSizeMeters = 0.0;
@@ -307,8 +310,34 @@ public class InterferogramOp extends Operator {
     // the models' leg difference EXACTLY — the deterministic ~70% of the cross-acquisition
     // annotation mismatch, including its full range and azimuth structure within every burst,
     // which no low-order fit can represent. subtractResidualRamp then only fits the smooth
-    // annotation-ERROR remainder.
+    // annotation-ERROR remainder. (The "~70%" is historic: it was measured while the add-back
+    // carried the wrong sign, see CARRIER_DIFF_SIGN; re-measure the ramp's remit with the corrected sign.)
     private static final String GSLC_CARRIER_MODEL_BAND = "azimuthCarrierPhase";
+
+    /**
+     * Sign with which {@code (m_sec - m_ref)} is added to the subtracted reference-phase surface.
+     * <b>-1 (default) is correct</b>: {@code GSLCGeocodingOp} restores the carrier with exp(-j*phi), so a
+     * carrier-free TOPS leg still carries {@code truth x exp(+j*m)}; the conjugate product then carries
+     * {@code +(m_ref - m_sec)} and adding {@code (m_ref - m_sec)} to the subtracted surface restores the
+     * classical phase. Measured on the Venezuela S1A x S1C pair (ETAD on, bursts 4-6): the GSLC carrier
+     * band equals the classical Back-Geocoding deramp phase to <0.01 rad and the carrier-free legs equal the
+     * classical deramped legs; with this sign the interferogram agrees with the classical one (R5b phase
+     * concentration 0.961, gradient ratios 0.87 / 0.86), whereas the former +1 left a per-burst surface of
+     * 2 x (m_ref - m_sec) (concentration 0.236, azimuth gradient ratio 37.9).
+     * {@code -Dgslc.carrierDiffSign=+1} restores the LEGACY behaviour, only to reproduce older results.
+     */
+    static final double CARRIER_DIFF_SIGN = readCarrierDiffSign(System.getProperty("gslc.carrierDiffSign"));
+
+    static double readCarrierDiffSign(final String property) {
+        final String p = property == null ? "" : property.trim();
+        return ("+1".equals(p) || "1".equals(p)) ? 1.0 : -1.0;
+    }
+
+    /** Amount added to the subtracted reference-phase surface for one pixel (radians). */
+    public static double carrierDiffAngle(final double mRef, final double mSec) {
+        return CARRIER_DIFF_SIGN * (mSec - mRef);
+    }
+
     private Band[] gslcRefCarrierBand;                      // [pair], null = band not available
     private Band[] gslcSecCarrierBand;
     private static final int GSLC_RAMP_MIN_BURST_BLOCKS = 4; // fewer -> burst inherits neighbours
@@ -687,6 +716,29 @@ public class InterferogramOp extends Operator {
         }
     }
 
+    /**
+     * Convert a ground distance into (range, azimuth) window sizes in pixels.
+     *
+     * In RADAR geometry {@code range_spacing} is SLANT range, so the ground step is
+     * {@code rgSpacing / sin(incidence)}. Dividing the requested metres by the slant step
+     * instead - as this did before 2026-09-18 - produced a window ~1/sin(theta) too wide
+     * on the ground (~1.5x at S1 IW incidence), silently biasing any coherence comparison
+     * against a geocoded product. In MAP geometry the spacing is already a ground step.
+     *
+     * @param isGeocoded {@code is_terrain_corrected == 1}
+     */
+    static int[] coherenceWindowFromMeters(final double meters, final double rgSpacing,
+                                           final double azSpacing, final double incidenceDeg,
+                                           final boolean isGeocoded) {
+        double groundRg = rgSpacing;
+        if (!isGeocoded && incidenceDeg > 1.0 && incidenceDeg < 89.0) {
+            groundRg = rgSpacing / Math.sin(Math.toRadians(incidenceDeg));
+        }
+        final int winRg = groundRg > 0.0 ? Math.max(3, (int) Math.round(meters / groundRg)) : 3;
+        final int winAz = azSpacing > 0.0 ? Math.max(3, (int) Math.round(meters / azSpacing)) : 3;
+        return new int[]{winRg, winAz};
+    }
+
     private void resolveCoherenceWindowFromMeters() throws Exception {
         if (cohWinSizeMeters <= 0.0) {
             warnIfCoherenceWindowIsGeometryBlind();
@@ -696,15 +748,18 @@ public class InterferogramOp extends Operator {
         if (abs == null) return;
         final double rgSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.range_spacing);
         final double azSpacing = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.azimuth_spacing);
-        if (rgSpacing > 0.0) {
-            cohWinRg = Math.max(3, (int) Math.round(cohWinSizeMeters / rgSpacing));
-        }
-        if (azSpacing > 0.0) {
-            cohWinAz = Math.max(3, (int) Math.round(cohWinSizeMeters / azSpacing));
-        }
+        final double incNear = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.incidence_near);
+        final double incFar = AbstractMetadata.getAttributeDouble(abs, AbstractMetadata.incidence_far);
+        final double incidenceDeg = (incNear > 0.0 && incFar > 0.0) ? 0.5 * (incNear + incFar) : 0.0;
+        final boolean isGeocoded = abs.getAttributeInt(AbstractMetadata.is_terrain_corrected, 0) == 1;
+        final int[] win = coherenceWindowFromMeters(cohWinSizeMeters, rgSpacing, azSpacing,
+                incidenceDeg, isGeocoded);
+        cohWinRg = win[0];
+        cohWinAz = win[1];
         SystemUtils.LOG.info(String.format(
-                "InterferogramOp: cohWinSizeMeters=%.1f m -> cohWinAz=%d, cohWinRg=%d (pixel spacing az=%.2f m, rg=%.2f m)",
-                cohWinSizeMeters, cohWinAz, cohWinRg, azSpacing, rgSpacing));
+                "InterferogramOp: cohWinSizeMeters=%.1f m -> cohWinAz=%d, cohWinRg=%d "
+                        + "(pixel spacing az=%.2f m, rg=%.2f m, incidence=%.2f deg, geocoded=%b)",
+                cohWinSizeMeters, cohWinAz, cohWinRg, azSpacing, rgSpacing, incidenceDeg, isGeocoded));
     }
 
     /**
@@ -1074,7 +1129,9 @@ public class InterferogramOp extends Operator {
                 gslcSecCarrierBand[p] = secCarrier;
                 SystemUtils.LOG.info("GSLC carrier-difference: exact deramp-model subtraction "
                         + "active for pair " + p + " ('" + refCarrier.getName() + "' vs '"
-                        + secCarrier.getName() + "').");
+                        + secCarrier.getName() + "')."
+                        + (CARRIER_DIFF_SIGN > 0 ? " LEGACY add-back sign in use (gslc.carrierDiffSign=+1): "
+                        + "expect a per-burst surface of 2*(m_ref - m_sec) in the interferogram." : ""));
             } else if (refCarrier != null || secCarrier != null) {
                 SystemUtils.LOG.warning("GSLC carrier-difference: only ONE leg of pair " + p
                         + " carries the '" + GSLC_CARRIER_MODEL_BAND + "' band — regenerate both "
@@ -1086,10 +1143,18 @@ public class InterferogramOp extends Operator {
 
     /**
      * Add the leg difference of the GSLC deramp-model bands into the reference-phase surface.
-     * Carrier-free legs carry {@code truth × exp(-j·m)}, so the conjugate product carries
-     * {@code -(m_ref - m_sec)}; adding {@code (m_sec - m_ref)} to the subtracted surface restores
-     * the classical interferometric phase. (Sign pinned empirically: with it, the fitted residual
-     * rates collapse; flipped, they double.)
+     * {@code GSLCGeocodingOp} restores the carrier with exp(-j·m), so carrier-free legs carry
+     * {@code truth × exp(+j·m)} and the conjugate product carries {@code +(m_ref - m_sec)}; adding
+     * {@code (m_ref - m_sec)} to the SUBTRACTED surface (multiplying the interferogram by
+     * exp(-j·(m_ref - m_sec))) restores the classical interferometric phase. This method adds
+     * {@link #CARRIER_DIFF_SIGN}{@code × (m_sec - m_ref)}, i.e. {@code (m_ref - m_sec)} by default.
+     *
+     * <p>History: until 2026-09-21 this added {@code (m_sec - m_ref)}, on the premise that carrier-free
+     * legs carry exp(-j·m) ("sign pinned empirically: the fitted residual rates collapse"). The premise
+     * was inverted: the legs carry exp(+j·m), and the old sign left 2 × (m_ref - m_sec) in every GSLC
+     * TOPS interferogram, a per-burst azimuth/range surface that the residual-ramp estimator then fitted.
+     * The synthetic tests could not see it (identical geometry gives m_ref = m_sec; a closure of three
+     * pairs cancels it identically). See the evidence on {@link #CARRIER_DIFF_SIGN}.
      */
     private void addGslcCarrierModelDiff(final double[][] refPhase, final Rectangle rect, final int p) {
         final Tile refT = getSourceTile(gslcRefCarrierBand[p], rect);
@@ -1099,7 +1164,7 @@ public class InterferogramOp extends Operator {
             final double[] row = refPhase[y];
             for (int x = 0; x < rect.width; x++) {
                 final int xx = rect.x + x;
-                row[x] += secT.getSampleDouble(xx, yy) - refT.getSampleDouble(xx, yy);
+                row[x] += carrierDiffAngle(refT.getSampleDouble(xx, yy), secT.getSampleDouble(xx, yy));
             }
         }
     }

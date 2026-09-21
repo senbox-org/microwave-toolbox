@@ -1,0 +1,43 @@
+<graph id="trad_s1_bg_deramped">
+  <version>1.0</version>
+  <!--
+    DIAGNOSTIC ONLY (surface hypothesis test): the classical Back-Geocoding with the reramp DISABLED and the
+    deramp/demod model phase written out for both legs. The legs are then baseband (azimuth-deramped), so they
+    can be compared pixel by pixel with the GSLC carrier-free legs, and the classical model phase can be
+    compared with the GSLC azimuthCarrierPhase bands. No ESD (it adds a phase-only correction the GSLC does
+    not have; its measured shift on this pair is ~0.03 px). Same DEM and BISINC kernel as the R5 control.
+  -->
+  <node id="Read1">
+    <operator>Read</operator>
+    <parameters><file>${input1}</file></parameters>
+  </node>
+  <node id="Read2">
+    <operator>Read</operator>
+    <parameters><file>${input2}</file></parameters>
+  </node>
+  <node id="Back-Geocoding">
+    <operator>Back-Geocoding</operator>
+    <sources>
+      <sourceProduct refid="Read1"/>
+      <sourceProduct.1 refid="Read2"/>
+    </sources>
+    <parameters>
+      <demName>External DEM</demName>
+      <externalDEMFile>${dem}</externalDEMFile>
+      <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
+      <resamplingType>BISINC_5_POINT_INTERPOLATION</resamplingType>
+      <outputDerampDemodPhase>true</outputDerampDemodPhase>
+      <disableReramp>true</disableReramp>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Back-Geocoding"/>
+    </sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

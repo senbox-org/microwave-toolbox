@@ -11,7 +11,9 @@
 * Support for Sentinel-1D
 * Jupyter Notebook SAR tutorials
 * GeoCoded SLC (Coming soon)
-* “File Name” field is missing in the “New Project” dialog on macOS
+* Interferogram: `cohWinSizeMeters` now divides by the ground-range step (range_spacing / sin(incidence)) in radar geometry instead of the slant step. Behaviour change: the coherence window is ~1.5x smaller in range for S1 IW (100 m -> 27 x 7 px, was 43 x 7), so coherence values for any radar-geometry product processed with `cohWinSizeMeters` differ from previously recorded values and are not comparable across this change.
+* Interferogram (GSLC input): the carrier-difference add-back had the wrong sign (carrier-free legs carry `truth x exp(+j*m)`, not `exp(-j*m)`), which left `2 x (m_ref - m_sec)` as a smooth per-burst surface in every GSLC TOPS interferogram. Corrected; on Venezuela S1A x S1C the GSLC and classical interferograms now agree (phase concentration 0.24 -> 0.96). Behaviour change: GSLC interferograms, and `subtractResidualRamp` results derived from them, differ from previously recorded ones. `-Dgslc.carrierDiffSign=+1` restores the legacy sign for reproducing old results.
+
 # Microwave Toolbox 13
 
 ## Update 13.0.4

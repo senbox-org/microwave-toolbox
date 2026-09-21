@@ -19,7 +19,6 @@ import org.jlinda.core.Orbit;
 import org.jlinda.core.Point;
 import org.jlinda.core.SLCImage;
 import org.junit.AfterClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -34,8 +33,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Task 1.3 Layer-2 TOPS leg contract tests, file-gated on a real S1 IW3 2-burst fixture:
  * {@link #testGeometryContract_TopsS1Fixture()} and {@link #testFaithfulPhase_TopsS1Fixture()}
- * (the latter currently {@code @Ignore}d for runtime - see the annotation for the measurement and
- * what has to change to bring it back).
+ * (the latter reads a bounded {@value #SCAN_SLAB_COLS}-column slab per window to stay in budget).
  * Reuses the Task 1.1/1.2 helpers from {@link GSLCGeometryContractTest} and the
  * {@code ers_faithful.py}-derived method in {@link GSLCFaithfulPhaseTest} (extended here for the
  * carrier-free TOPS deramp/reramp).
@@ -155,20 +153,9 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
      * non-integer azimuth the BISINC-resampled value is a genuine blend across several source rows,
      * not a stand-in for any single raw sample.
      */
-    @Ignore("Measured 2026-09-14: does not complete inside a 25-minute cap, while the other two "
-            + "tests in this class take 222 s and 276 s. Two causes, both independent of the "
-            + "16-window striding this scan already uses: (1) every window reads the FULL 12700-px "
-            + "width for five bands, then `break blockScan` abandons the window once its 125-"
-            + "candidate quota is met - usually within the first few hundred columns - so most of "
-            + "what is materialised is never examined; (2) the whole source SLC is bulk-read into "
-            + "two float[23665*3008] arrays (~570 MB) while this method also raises the JAI tile "
-            + "cache to 768 MB, inside the 4 GB surefire heap. Re-enable by reading each window in "
-            + "column chunks and stopping at the quota, and by sampling the source instead of "
-            + "holding all of it; then re-measure before removing this annotation. The faithful-"
-            + "phase contract itself is unaffected and still covered for stripmap by "
-            + "GSLCFaithfulPhaseTest.")
     @Test
     public void testFaithfulPhase_TopsS1Fixture() throws Exception {
+        final long tStart = System.currentTimeMillis();
         assumeTrue(mFile + " not found", mFile.exists());
         assumeTrue(sFile + " not found", sFile.exists());
 
@@ -180,6 +167,11 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
                 nValidRaster >= MIN_VALID_RASTER_PIXELS);
 
         final TopsFaithfulStats stats = computeTopsFaithfulStats(gslc, sharedSrc);
+        final long elapsedSec = (System.currentTimeMillis() - tStart) / 1000L;
+        System.out.println("testFaithfulPhase_TopsS1Fixture elapsed " + elapsedSec + " s");
+        assertTrue("Test must stay inside the 25-minute long-test budget; took "
+                + elapsedSec + " s", elapsedSec < 1500);
+
         System.out.printf(
                 "GSLCTopsInSarLongTest[faithfulPhase]: conc=%.4f, bestAzOffset=%.2f, nCandidates=%d, " +
                         "columnBinTrend=%.4f rad%n",
@@ -204,6 +196,11 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
         assertTrue("per-column-bin phase trend across swath " + stats.columnBinTrend + " rad",
                 Math.abs(stats.columnBinTrend) < 0.5);
     }
+
+    /** Columns read per candidate window. The contract is a concentration over selected
+     *  pixels, not a swath-wide statistic, so a bounded slab is sufficient - and reading
+     *  the full 12700-px width per window is what pushed this test past a 25-minute cap. */
+    private static final int SCAN_SLAB_COLS = 512;
 
     private static final class TopsCandidate {
         final int x;
@@ -354,13 +351,19 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
         // SMALL windows spread evenly from top to bottom touches only a fraction of the raster
         // while still genuinely spanning the full along-track (both-burst) extent, which the
         // per-burst floor assertion below then verifies.
-        final int numSamples = 16;
+        final int numSamples = 48;
         final int sampleRows = Math.max(1, Math.min(h, 60));
-        final double[] simPhaseBlock = new double[w * sampleRows];
-        final double[] elevBlock = new double[w * sampleRows];
-        final double[] carrierBlock = new double[w * sampleRows];
-        final double[] gslcIBlock = new double[w * sampleRows];
-        final double[] gslcQBlock = new double[w * sampleRows];
+        final int slabW = Math.min(w, SCAN_SLAB_COLS);
+        final double[] simPhaseBlock = new double[slabW * sampleRows];
+        final double[] elevBlock = new double[slabW * sampleRows];
+        final double[] carrierBlock = new double[slabW * sampleRows];
+        final double[] gslcIBlock = new double[slabW * sampleRows];
+        final double[] gslcQBlock = new double[slabW * sampleRows];
+        // Slab column positions: stride 5 is coprime with numSamples (48), so the 48 windows
+        // visit 48 distinct evenly spread column offsets in an order decorrelated from the row
+        // stride. Keeps both bursts AND the full swath width represented (the column-bin trend
+        // gate needs the latter) while each window reads only slabW columns.
+        final int maxX0 = Math.max(0, w - slabW);
 
         // Cap total candidates (a robust multiple of MIN_CANDIDATES, not a bare threshold), spread
         // evenly across the sampled windows via a labelled break out of just that window's pixel
@@ -373,18 +376,21 @@ public class GSLCTopsInSarLongTest extends ProcessorTest {
         for (int s = 0; s < numSamples; s++) {
             final int y0 = (numSamples <= 1) ? 0 : (int) Math.round((double) s * maxY0 / (numSamples - 1));
             final int bh = Math.min(sampleRows, h - y0);
-            simPhaseBand.readPixels(0, y0, w, bh, simPhaseBlock);
-            elevBand.readPixels(0, y0, w, bh, elevBlock);
-            carrierBand.readPixels(0, y0, w, bh, carrierBlock);
-            gslcIQ[0].readPixels(0, y0, w, bh, gslcIBlock);
-            gslcIQ[1].readPixels(0, y0, w, bh, gslcQBlock);
+            final int slot = (numSamples <= 1) ? 0 : (s * 5) % numSamples;
+            final int x0 = (numSamples <= 1) ? 0 : (int) Math.round((double) slot * maxX0 / (numSamples - 1));
+            simPhaseBand.readPixels(x0, y0, slabW, bh, simPhaseBlock);
+            elevBand.readPixels(x0, y0, slabW, bh, elevBlock);
+            carrierBand.readPixels(x0, y0, slabW, bh, carrierBlock);
+            gslcIQ[0].readPixels(x0, y0, slabW, bh, gslcIBlock);
+            gslcIQ[1].readPixels(x0, y0, slabW, bh, gslcQBlock);
 
             int blockCandidates = 0;
             blockScan:
             for (int ly = 0; ly < bh; ly++) {
                 final int y = y0 + ly;
-                for (int x = 0; x < w; x++) {
-                    final int lidx = ly * w + x;
+                for (int lx = 0; lx < slabW; lx++) {
+                    final int x = x0 + lx;
+                    final int lidx = ly * slabW + lx;
                     final double simPhase = simPhaseBlock[lidx];
                     if (simPhase == 0.0 || !Double.isFinite(simPhase)) {
                         continue;

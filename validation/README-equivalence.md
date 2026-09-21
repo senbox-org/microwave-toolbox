@@ -62,7 +62,7 @@ starting with `GATE `.
 |---|---|---|
 | `common-grid-valid-cells` | `>= 100000` | Sanity check: enough geographic overlap between the two products to draw any conclusion at all. |
 | `phase-residual-conc` | `>= 0.85` | Magnitude-weighted concentration `\|sum(D)\| / sum(\|D\|)` of the diff field `D = GSLC · conj(trad)`, after removing ONE fitted plane (see "Plane removal" below). **D itself is the complex per-cell aggregate — not normalized to a unit phasor per cell first** — so a cell built from stronger/more-coherent samples counts for more, matching how the 0.85 target and the 0.32–0.36 broken range were originally measured. 1.0 = phase perfectly aligned after removing the ramp; 0.0 = uniformly random. Measured on the broken ERS v5 product: 0.355 (right in the documented 0.32–0.36 broken range); the trad self-noise ceiling (comparing trad against itself under equivalent conditions) is ~0.9. |
-| `residual-rms-rad` | `<= 1.0` | RMS of the wrapped residual phase (radians) after plane removal, over the same valid-cell set as `phase-residual-conc`. |
+| `residual-rms-rad` | `<= 1.0` | RMS of the wrapped residual phase (radians) **about its circular mean**, after plane removal, over the same valid-cell set as `phase-residual-conc`. Taking it about the mean (rather than about zero) is required because a constant phase offset between the two chains is an expected datum ambiguity — see "Plane removal". Corrected 2026-09-18; before that a constant offset above 1.0 rad failed a perfectly-equivalent pair. |
 | `gx-median-ratio` | `<= 2.0` | Median \|gx\| (column-direction, i.e. range/x, lag-1 phase gradient) of the GSLC ifg divided by the same quantity for the trad ifg, both measured independently on the common grid (not on the diff field). Measured broken: 4–24 (see run below); a floor of `1e-4` rad/cell is applied to the trad-side denominator to avoid division by ~0. |
 | `gy-median-ratio` | `<= 2.0` | Same as `gx-median-ratio` but for the row-direction (azimuth/y) gradient. |
 | `coherence-parity` | `>= -0.02` | `mean(coh_GSLC) − mean(coh_trad)` over common coherent cells. SKIPs if either product lacks a coherence band. |
@@ -221,6 +221,26 @@ caused entirely by that metric-normalization fix, not by any change to the plane
 table and "Plane removal" above for the corrected (shipped) formula, and self-test case 3
 below for evidence that the corrected formula reaches 0.85+ on realistic noisy-but-unbiased
 data.
+
+## Burst-seam gate (`compare/seam_steps_guided.py`)
+
+```bash
+python validation/compare/seam_steps_guided.py <gslc_stack_with_carrier.dim> <ifg.dim> [--threshold 0.3]
+```
+
+Emits `GATE seam-worst-step PASS|FAIL <worst_abs_rad> <threshold>` per interferogram and
+exits non-zero on any FAIL, matching `gslc_equivalence.py`'s output contract.
+
+**Use this, not `compare/seam_steps.py`.** The blind meter has no burst geometry: it flags
+any row whose block-mean lag-1 phase exceeds a threshold, so on a coseismic scene it flags
+the earthquake (its own module docstring says so). It also never calls `sys.exit`, and its
+`worst` value only updates above the threshold, so "worst step below T" is unsatisfiable by
+construction. The guided meter locates seams from the GSLC `azimuthCarrierPhase` band's
+row-derivative and measures a trend-removed discontinuity across them, so a smooth fringe
+gradient — however steep — extrapolates identically from both sides and cancels.
+
+Requires a GSLC stack carrying `azimuthCarrierPhase*ref*` (produced with
+`outputPhaseTerms=true`). It cannot run against a classical stack.
 
 ## Expected runtimes
 
