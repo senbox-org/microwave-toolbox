@@ -1,6 +1,6 @@
 """One-slide deck: classical vs GSLC (sign-corrected) wrapped phase at full resolution, side by side.
-Images: docs/gslc-parity/img/full/{classical,GSLC_after}.jpg (from plot_ifg_compare.py 2 8).
-  make_side_by_side_pptx.py <out.pptx>
+Images: <figures>/img/full/{classical,GSLC_after}.jpg (from plot_ifg_compare.py 2 8); figures live outside the repo.
+  make_side_by_side_pptx.py [<figures_dir> [<out.pptx>]]   (default figures dir E:/ESA/gslc-parity-figures)
 """
 import sys
 from pathlib import Path
@@ -10,7 +10,7 @@ from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
 ROOT = Path(__file__).resolve().parents[2]
-IMG = ROOT / "docs/gslc-parity/img/full"
+FIG = Path(r"E:\ESA\gslc-parity-figures")
 INK, MUTED, BG, ACC = RGBColor(0x1A, 0x22, 0x30), RGBColor(0x5B, 0x66, 0x75), RGBColor(0xF3, 0xF5, 0xF7), RGBColor(0x0F, 0x76, 0x6E)
 
 
@@ -23,7 +23,8 @@ def text(slide, x, y, w, h, s, size, bold=False, color=INK):
     return tb
 
 
-def main(out):
+def main(fig, out):
+    IMG = Path(fig) / "img" / "full"
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
     s = prs.slides.add_slide(prs.slide_layouts[6])
@@ -46,4 +47,6 @@ def main(out):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else str(ROOT / "docs/gslc-parity/GSLC_vs_classical_fullres.pptx"))
+    a = sys.argv[1:]
+    fig = a[0] if a else FIG
+    main(fig, a[1] if len(a) > 1 else str(Path(fig) / "GSLC_vs_classical_fullres.pptx"))
