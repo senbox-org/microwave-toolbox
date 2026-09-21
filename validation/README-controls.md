@@ -46,11 +46,15 @@ MAVEN_OPTS="-Xmx20g" mvn -q -pl jlinda/jlinda-nest exec:java \
 
 ### Sentinel-1 TOPS control (single step)
 
+> **TOPSAR-Split is mandatory.** Before 2026-09-18 this graph fed whole IW SLCs to
+> `Back-Geocoding`, which throws `"Split product is expected."`. The graph had never been
+> executed end-to-end, which is why the alias-table verification did not catch it.
+
 ```bash
 MAVEN_OPTS="-Xmx20g" mvn -q -pl sar-op-sentinel1 exec:java \
   -Dexec.mainClass=org.esa.snap.core.gpf.main.GPT \
   -Dexec.classpathScope=compile \
-  '-Dexec.args=validation/graphs/trad_s1_control.xml -Pinput1=/data/S1_ref.zip -Pinput2=/data/S1_sec.zip -Poutput=E:/Output/s1/trad_s1_ifg.dim'
+  '-Dexec.args=validation/graphs/trad_s1_control.xml -Pinput1=E:/Data/Venezuela/S1A_IW_SLC__1SDV_20260623T225050_20260623T225120_065103_0834C8_BAD5.SAFE.zip -Pinput2=E:/Data/Venezuela/S1C_IW_SLC__1SDV_20260624T224958_20260624T225025_008254_010515_304A.SAFE.zip -Psubswath=IW3 -Ppolarisation=VV -PfirstBurstIndex=4 -PlastBurstIndex=6 -Poutput=E:/Output/parity/ven_trad_ccw.dim'
 ```
 
 (`sar-op-sentinel1` is used as the `-pl` module purely to get a reactor classpath that
@@ -99,6 +103,7 @@ Each operator alias used in the two graphs was checked against its
 | `TopoPhaseRemoval` | `SubtRefDemOp` | `jlinda/jlinda-nest` |
 | `Back-Geocoding` | `BackGeocodingOp` | `sar-op-sentinel1` |
 | `Enhanced-Spectral-Diversity` | `SpectralDiversityOp` | `sar-op-sentinel1` |
+| `TOPSAR-Split` | `TOPSARSplitOp` | `sar-op-sentinel1` |
 | `TOPSAR-Deburst` | `TOPSARDeburstOp` | `sar-op-sentinel1` |
 
 No alias mismatches were found; all match the graph XML exactly.

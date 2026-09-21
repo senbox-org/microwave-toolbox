@@ -10,12 +10,15 @@ from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from render_fringes import phase_png
+from render_2x2 import iq
 
 D, out, title = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
 N = int(sys.argv[4]) if len(sys.argv) > 4 else 1200
 
+IQ_HDRS = iq(D)   # matched pair, filtered against the .dim's declared bands
+
 def band(pat):
-    h = next(p for p in sorted(D.glob("*.hdr")) if re.match(pat, p.stem))
+    h = IQ_HDRS[0 if pat == r"^i_" else 1]
     t = h.read_text(errors="replace")
     g = lambda k: int(re.search(rf"^{k}\s*=\s*(-?\d+)", t, re.I | re.M).group(1))
     W, L, dt, bo = g("samples"), g("lines"), g("data type"), g("byte order")

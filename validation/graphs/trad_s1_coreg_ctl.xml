@@ -1,0 +1,43 @@
+<graph id="trad_s1_coreg_ctl">
+  <version>1.0</version>
+  <!--
+    MATCHED-CONFIGURATION coregistration: reproduces, parameter for parameter, the chain that built the
+    FULL-SCENE classical control on disk (E:/Output/trad/..._Stack.dim), read from that product's own
+    Processing_Graph on 2026-09-20: Back-Geocoding only (NO Enhanced-Spectral-Diversity),
+    resamplingType BILINEAR_INTERPOLATION, demResamplingMethod BILINEAR_INTERPOLATION, DEM
+    "Copernicus 30m Global DEM" (auto), maskOutAreaWithoutElevation true.
+    Used ONLY for the crop-validity gate, where the fixture must differ from the full scene by the
+    crop and nothing else. The R5 control (trad_s1_coreg_ven.xml) is a different, stronger chain.
+  -->
+  <node id="Read1">
+    <operator>Read</operator>
+    <parameters><file>${input1}</file></parameters>
+  </node>
+  <node id="Read2">
+    <operator>Read</operator>
+    <parameters><file>${input2}</file></parameters>
+  </node>
+  <node id="Back-Geocoding">
+    <operator>Back-Geocoding</operator>
+    <sources>
+      <sourceProduct refid="Read1"/>
+      <sourceProduct.1 refid="Read2"/>
+    </sources>
+    <parameters>
+      <demName>Copernicus 30m Global DEM</demName>
+      <demResamplingMethod>BILINEAR_INTERPOLATION</demResamplingMethod>
+      <resamplingType>BILINEAR_INTERPOLATION</resamplingType>
+      <maskOutAreaWithoutElevation>true</maskOutAreaWithoutElevation>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Back-Geocoding"/>
+    </sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

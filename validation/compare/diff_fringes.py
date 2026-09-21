@@ -30,6 +30,9 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from render_2x2 import iq  # noqa: E402
+
 
 def die(msg: str) -> "None":
     print(f"DIFF: {msg}", file=sys.stderr)
@@ -45,11 +48,10 @@ def read_envi_pair(dim_data: Path, max_px: int = 0
     with its declared byte order -- SNAP writes big-endian, and a silent endianness flip would look
     like noise rather than an error.
     """
-    hdrs = sorted(dim_data.glob("*.hdr"))
-    ib = next((h for h in hdrs if re.match(r"^i_", h.stem)), None)
-    qb = next((h for h in hdrs if re.match(r"^q_", h.stem)), None)
-    if not ib or not qb:
-        die(f"no i_*/q_* band pair in {dim_data}. Found: {[h.stem for h in hdrs]}")
+    try:
+        ib, qb = iq(dim_data)   # matched pair, filtered against the .dim's declared bands
+    except RuntimeError as e:
+        die(str(e))
 
     def load(h: Path, step: int = 1) -> "tuple[np.ndarray, int, int]":
         t = h.read_text(errors="replace")

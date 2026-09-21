@@ -320,9 +320,22 @@ def concentration(field: np.ndarray, valid: np.ndarray) -> float:
 
 
 def wrapped_rms(field: np.ndarray, valid: np.ndarray) -> float:
+    """RMS of the wrapped residual phase ABOUT ITS CIRCULAR MEAN.
+
+    A constant phase offset between the two chains is an expected datum ambiguity
+    (module docstring), so it must not contribute. Taking RMS about zero — as this
+    did before 2026-09-18 — failed a perfectly-equivalent pair whose only difference
+    was a constant offset. Matches compare/diff_vs_trad.py, which always did it this way.
+    """
     if not valid.any():
         return float("nan")
-    ang = np.angle(field[valid])
+    z = field[valid]
+    mean_phasor = z.sum()
+    if mean_phasor == 0:
+        centred = z
+    else:
+        centred = z * np.conj(mean_phasor / abs(mean_phasor))
+    ang = np.angle(centred)
     return float(np.sqrt(np.mean(ang ** 2)))
 
 
@@ -499,6 +512,22 @@ def _synthetic_noisy_cell_aggregates(ny: int, nx: int, pixel_coherence: float = 
     return G_cell, T_cell, coh_g, coh_t
 
 
+def _selftest_constant_offset() -> bool:
+    """A constant phase offset is an explicitly-allowed datum ambiguity (see module
+    docstring). It must not fail residual-rms-rad."""
+    print("\n=== selftest case 4: constant 1.5 rad datum offset (expect ALL gates PASS) ===")
+    rng = np.random.default_rng(4)
+    ny, nx = 300, 400
+    base = np.exp(1j * rng.uniform(-np.pi, np.pi, size=(ny, nx)))
+    field = base * np.exp(1j * 1.5) * np.conj(base)   # == exp(1.5j) everywhere
+    valid = np.ones((ny, nx), dtype=bool)
+    rms = wrapped_rms(field, valid)
+    print(f"case 4 wrapped_rms = {rms:.6f} rad (threshold 1.0)")
+    ok = rms < 1.0
+    print("case 4 result:", "PASS" if ok else "FAIL")
+    return ok
+
+
 def selftest() -> int:
     ny, nx = 400, 300  # 120,000 cells > the 100,000 common-grid-valid-cells threshold
 
@@ -531,7 +560,8 @@ def selftest() -> int:
           f"{'PASS' if conc3_ok else 'FAIL'}")
     print(f"case 3 result: {'ALL PASS' if ok3 else 'HAS FAILURE(S)'}\n")
 
-    success = ok1 and not ok2 and conc3_ok
+    ok4 = _selftest_constant_offset()
+    success = ok1 and not ok2 and conc3_ok and ok4
     if success:
         print("SELFTEST OK: identical grids passed everything, the perturbed grid "
               "correctly failed phase gates, and noisy-but-unbiased cell aggregates "

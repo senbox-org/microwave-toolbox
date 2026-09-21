@@ -43,7 +43,7 @@ import static org.junit.Assume.assumeTrue;
  * On top of the {@code -Denable.long.tests} gate, this test is skipped (via
  * {@link org.junit.Assume}) unless:
  * <ul>
- *     <li>both fixture products exist on disk ({@link #GSLC_IFG} and {@link #TRAD_IFG_TC}), and</li>
+ *     <li>both fixture products exist on disk ({@link #GSLC_IFG} and {@link #TRAD_IFG}), and</li>
  *     <li>a {@code python} executable is reachable on PATH.</li>
  * </ul>
  * Neither fixture lives in the shared {@code TestData.inputSAR} tree — they are ad-hoc
@@ -51,33 +51,58 @@ import static org.junit.Assume.assumeTrue;
  * {@code E:\ESA\snap_tmp\ers_final_diff.py} and sibling scripts) — so on any machine other
  * than the one that produced them this test cleanly no-ops.
  * <p>
- * <b>Why the pass/fail assertion is configurable.</b> As of this writing the ERS v5 GSLC
- * interferogram is <em>known</em> to fail the harness's phase gates (phase-residual-conc,
- * residual-rms-rad, gx/gy-median-ratio) against the traditional-DInSAR control — that
- * disagreement is exactly the open problem this harness exists to make executable and
- * trackable. So by default ({@code -Dgslc.equivalence.expectPass} unset or {@code false})
- * this test does NOT assert the harness exits 0; it only asserts that the harness ran to
- * completion and printed at least 4 {@code GATE <name> ...} lines (proving the script,
- * its I/O, and its grid-aggregation math all work end-to-end on the real products — a
- * "harness smoke test"). Once the GSLC pipeline bug this harness was built to expose is
- * fixed, re-run with {@code -Dgslc.equivalence.expectPass=true} to assert full parity
- * (exit code 0, i.e. no {@code GATE ... FAIL} lines); flip the default once that holds.
+ * <b>Verdict.</b> By default the exit code must agree with the printed gates
+ * (exit 1 iff a {@code GATE ... FAIL} line was printed) and at least 4 GATE lines must
+ * appear; with {@code -Dgslc.equivalence.expectPass=true} exit 0 (full parity) is required.
+ * See {@link #assertVerdict}. Fixture paths: {@code -Dgslc.equivalence.gslcIfg} and
+ * {@code -Dgslc.equivalence.tradIfg}.
  */
 @RunWith(LongTestRunner.class)
 public class GSLCEquivalenceLongTest {
 
-    private static final File GSLC_IFG = new File("E:/Output/ers/ERS_v5_ifg.dim");
-    private static final File TRAD_IFG_TC = new File("E:/Output/ers/trad_dinsar2_TC.dim");
+    /**
+     * Fixture paths are configurable because the ERS tree these once pointed at
+     * (E:/Output/ers) was deleted during cleanup, leaving this test permanently skipped
+     * while still appearing to guard the parity gates.
+     */
+    private static final File GSLC_IFG = new File(
+            System.getProperty("gslc.equivalence.gslcIfg", "E:/Output/parity/ven_gslc_ifg.dim"));
+    private static final File TRAD_IFG = new File(
+            System.getProperty("gslc.equivalence.tradIfg", "E:/Output/parity/ven_trad_ifg.dim"));
 
     private static final String EXPECT_PASS_PROPERTY = "gslc.equivalence.expectPass";
-    private static final int MIN_EXPECTED_GATE_LINES = 4;
+    static final int MIN_EXPECTED_GATE_LINES = 4;
+
+    /**
+     * Verdict logic, extracted so it can be tested without any fixture (see
+     * GSLCEquivalenceVerdictTest).
+     *
+     * Before 2026-09-18 the non-expectPass branch asserted only the GATE line count, so
+     * this test passed whether every gate FAILed or every gate PASSed - it guarded
+     * nothing while appearing to guard the parity gates.
+     *
+     * @param sawFail whether any {@code GATE ... FAIL} line was printed
+     */
+    static void assertVerdict(final int gateLineCount, final boolean sawFail,
+                              final int exitCode, final boolean expectPass) {
+        assertTrue("Expected at least " + MIN_EXPECTED_GATE_LINES
+                        + " GATE lines, got " + gateLineCount,
+                gateLineCount >= MIN_EXPECTED_GATE_LINES);
+        if (expectPass) {
+            assertEquals("Expected full parity (exit 0) with -D" + EXPECT_PASS_PROPERTY + "=true",
+                    0, exitCode);
+        } else {
+            assertEquals("Exit code must agree with the printed gates (sawFail=" + sawFail + ")",
+                    sawFail ? 1 : 0, exitCode);
+        }
+    }
 
     @Test
     public void testHarnessRunsOnErsPair() throws Exception {
-        assumeTrue(GSLC_IFG + " not found (ad-hoc ERS fixture, not in shared TestData tree)",
+        assumeTrue(GSLC_IFG + " not found (parity fixture, not in shared TestData tree)",
                 GSLC_IFG.isFile());
-        assumeTrue(TRAD_IFG_TC + " not found (ad-hoc ERS fixture, not in shared TestData tree)",
-                TRAD_IFG_TC.isFile());
+        assumeTrue(TRAD_IFG + " not found (parity fixture, not in shared TestData tree)",
+                TRAD_IFG.isFile());
         assumeTrue("python executable not found on PATH", isPythonOnPath());
 
         final File repoRoot = findRepoRoot();
@@ -91,7 +116,7 @@ public class GSLCEquivalenceLongTest {
         command.add("python");
         command.add("validation/gslc_equivalence.py");
         command.add(GSLC_IFG.getAbsolutePath());
-        command.add(TRAD_IFG_TC.getAbsolutePath());
+        command.add(TRAD_IFG.getAbsolutePath());
 
         System.out.println("Running: " + String.join(" ", command) + "  (cwd=" + repoRoot + ")");
 
@@ -120,21 +145,8 @@ public class GSLCEquivalenceLongTest {
         System.out.println("gslc_equivalence.py exit code: " + exitCode
                 + "  (" + gateLineCount + " GATE lines, sawFail=" + sawFail + ")");
 
-        final boolean expectPass = Boolean.parseBoolean(
-                System.getProperty(EXPECT_PASS_PROPERTY, "false"));
-
-        if (expectPass) {
-            assertEquals("Expected the equivalence harness to report full parity "
-                    + "(exit 0) with -D" + EXPECT_PASS_PROPERTY + "=true", 0, exitCode);
-        } else {
-            // Harness-smoke mode: the v5 GSLC product is known to fail the phase gates
-            // today, so we only assert the harness actually ran and produced gate output —
-            // not that it passed. This keeps the long test green while the open problem
-            // (tracked by this very harness) remains unresolved.
-            assertTrue("Expected the harness to print at least " + MIN_EXPECTED_GATE_LINES
-                            + " GATE lines, got " + gateLineCount,
-                    gateLineCount >= MIN_EXPECTED_GATE_LINES);
-        }
+        assertVerdict(gateLineCount, sawFail, exitCode,
+                Boolean.parseBoolean(System.getProperty(EXPECT_PASS_PROPERTY, "false")));
     }
 
     /**
