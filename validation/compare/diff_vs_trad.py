@@ -29,7 +29,7 @@ from pathlib import Path
 
 import numpy as np
 
-from render_2x2 import hdr_info, iq, png
+from render_2x2 import NoPairError, hdr_info, iq, png
 
 
 def i2m(dim: Path):
@@ -47,7 +47,7 @@ class Band:
         data = dim.with_suffix(".data")
         try:
             ib, qb = iq(data)
-        except RuntimeError:
+        except NoPairError:
             # terrain-corrected ifgs often carry only a wrapped Phase_* band (SNAP TC converts
             # complex sources); treat it as unit phasors, exact 0.0 being the TC fill
             ph = sorted(data.glob("Phase_*.hdr"))

@@ -1,0 +1,79 @@
+<graph id="tradStripmapCCWarp">
+  <version>1.0</version>
+
+  <!--
+    Classical stripmap control for the GSLC parity campaign: CreateStack -> Cross-Correlation ->
+    Warp, in ONE graph and ONE gpt invocation.
+
+    CRITICAL (carried over from trad_ers_control.xml, confirmed experimentally in this project):
+    GCPManager is an in-memory singleton keyed by product. Writing the CreateStack output to disk
+    and re-reading it in a second process for Cross-Correlation, or writing the Cross-Correlation
+    output and re-reading it for Warp, silently LOSES the GCPs - they are not persisted with the
+    product. Warp then finds none and writes a ZEROED product with no error and no warning. Do not
+    split this graph.
+
+    The interferogram is deliberately NOT in this graph: it is run as a separate step so that both
+    chains use one identical Interferogram configuration (same DEM, same ground-corrected
+    coherence window), which is what makes the cross-chain comparison a comparison of the
+    coregistration and not of the interferogram settings.
+
+    ${input1} = leg A (reference), ${input2} = leg B (secondary), ${output} = warped stack.
+  -->
+
+  <node id="Read1">
+    <operator>Read</operator>
+    <sources/>
+    <parameters><file>${input1}</file></parameters>
+  </node>
+  <node id="Read2">
+    <operator>Read</operator>
+    <sources/>
+    <parameters><file>${input2}</file></parameters>
+  </node>
+  <node id="CreateStack">
+    <operator>CreateStack</operator>
+    <sources>
+      <sourceProduct refid="Read1"/>
+      <sourceProduct.1 refid="Read2"/>
+    </sources>
+    <parameters>
+      <extent>Master</extent>
+      <initialOffsetMethod>Orbit</initialOffsetMethod>
+      <resamplingType>NONE</resamplingType>
+    </parameters>
+  </node>
+  <node id="CrossCorrelation">
+    <operator>Cross-Correlation</operator>
+    <sources>
+      <sourceProduct refid="CreateStack"/>
+    </sources>
+    <parameters>
+      <numGCPtoGenerate>2000</numGCPtoGenerate>
+      <coarseRegistrationWindowWidth>128</coarseRegistrationWindowWidth>
+      <coarseRegistrationWindowHeight>128</coarseRegistrationWindowHeight>
+      <applyFineRegistration>true</applyFineRegistration>
+      <inSAROptimized>true</inSAROptimized>
+      <coherenceThreshold>0.4</coherenceThreshold>
+    </parameters>
+  </node>
+  <node id="Warp">
+    <operator>Warp</operator>
+    <sources>
+      <sourceProduct refid="CrossCorrelation"/>
+    </sources>
+    <parameters>
+      <warpPolynomialOrder>2</warpPolynomialOrder>
+      <interpolationMethod>Cubic convolution (6 points)</interpolationMethod>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Warp"/>
+    </sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

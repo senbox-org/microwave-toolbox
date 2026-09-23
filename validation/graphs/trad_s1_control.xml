@@ -10,6 +10,7 @@
       Back-Geocoding          sar-op-sentinel1/.../BackGeocodingOp.java
       Enhanced-Spectral-Diversity  sar-op-sentinel1/.../SpectralDiversityOp.java
       Interferogram            sar-op-insar/.../InterferogramOp.java
+      TOPSAR-Split            sar-op-sentinel1/.../TOPSARSplitOp.java
       TOPSAR-Deburst           sar-op-sentinel1/.../TOPSARDeburstOp.java
 
     Unlike the ERS chain (see trad_ers_control.xml), none of these S1 TOPS operators depend
@@ -32,11 +33,42 @@
       <file>${input2}</file>
     </parameters>
   </node>
+  <!--
+    TOPSAR-Split is MANDATORY, not optional: Back-Geocoding rejects a multi-subswath
+    product outright ("Split product is expected.", BackGeocodingOp.java:186-188).
+    Whole bursts only - never SubsetOp, and never a range crop: a range-cropped split
+    makes TOPSAR-Deburst fail ("region must intersect image bounds") and previously drove
+    classical coherence from 0.367 to 0.088 on an Etna fixture.
+  -->
+  <node id="Split1">
+    <operator>TOPSAR-Split</operator>
+    <sources>
+      <sourceProduct refid="Read1"/>
+    </sources>
+    <parameters>
+      <subswath>${subswath}</subswath>
+      <selectedPolarisations>${polarisation}</selectedPolarisations>
+      <firstBurstIndex>${firstBurstIndex}</firstBurstIndex>
+      <lastBurstIndex>${lastBurstIndex}</lastBurstIndex>
+    </parameters>
+  </node>
+  <node id="Split2">
+    <operator>TOPSAR-Split</operator>
+    <sources>
+      <sourceProduct refid="Read2"/>
+    </sources>
+    <parameters>
+      <subswath>${subswath}</subswath>
+      <selectedPolarisations>${polarisation}</selectedPolarisations>
+      <firstBurstIndex>${firstBurstIndex}</firstBurstIndex>
+      <lastBurstIndex>${lastBurstIndex}</lastBurstIndex>
+    </parameters>
+  </node>
   <node id="Back-Geocoding">
     <operator>Back-Geocoding</operator>
     <sources>
-      <sourceProduct refid="Read1"/>
-      <sourceProduct.1 refid="Read2"/>
+      <sourceProduct refid="Split1"/>
+      <sourceProduct.1 refid="Split2"/>
     </sources>
     <parameters>
       <demName>Copernicus 30m Global DEM</demName>

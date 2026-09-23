@@ -1,5 +1,10 @@
 # Microwave Toolbox 14
 
+## 14.0.2
+* GeoCoded SLC 
+* Fix for large Cosmo-Skymed products
+* Support for Iceye opendata products
+
 ## 14.0.0
 * InSAR Phase Linking
 * MuLog (Multi-channel Logarithm) speckle filter
@@ -10,7 +15,6 @@
 * NISAR Reader
 * Support for Sentinel-1D
 * Jupyter Notebook SAR tutorials
-* GeoCoded SLC (Coming soon)
 
 # Microwave Toolbox 13
 

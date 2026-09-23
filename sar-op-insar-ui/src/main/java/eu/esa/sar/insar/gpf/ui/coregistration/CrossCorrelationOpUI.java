@@ -133,9 +133,20 @@ public class CrossCorrelationOpUI extends BaseOperatorUI {
         }
 
         if (isComplex) {
-            applyFineRegistration = (Boolean) paramMap.get("applyFineRegistration");
+            // primitive boolean parameters whose default equals false are never written into a
+            // map-backed parameter map by PropertySet.setDefaultValues(), so the key can be absent
+            final Boolean applyFineRegistrationVal = (Boolean) paramMap.get("applyFineRegistration");
+            if (applyFineRegistrationVal != null) {
+                applyFineRegistration = applyFineRegistrationVal;
+            }
             applyFineRegistrationCheckBox.setSelected(applyFineRegistration);
+
+            final Boolean inSAROptimizedVal = (Boolean) paramMap.get("inSAROptimized");
+            if (inSAROptimizedVal != null) {
+                inSAROptimized = inSAROptimizedVal;
+            }
             crossCorrelationCheckBox.setSelected(inSAROptimized);
+            coherenceCheckBox.setSelected(!inSAROptimized);
 
             fineRegistrationWindowWidth.setSelectedItem(paramMap.get("fineRegistrationWindowWidth"));
             fineRegistrationWindowHeight.setSelectedItem(paramMap.get("fineRegistrationWindowHeight"));

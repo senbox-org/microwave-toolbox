@@ -63,13 +63,49 @@ def read_strided(img: Path, W: int, L: int, d, step: int) -> np.ndarray:
     return a
 
 
-def iq(data_dir: Path):
-    hs = sorted(data_dir.glob("*.hdr"))
-    ib = next((h for h in hs if re.match(r"^i_", h.stem)), None)
-    qb = next((h for h in hs if re.match(r"^q_", h.stem)), None)
-    if not ib or not qb:
-        raise RuntimeError(f"no i_/q_ pair in {data_dir}")
-    return ib, qb
+def declared_bands(dim_path: Path) -> set[str]:
+    """Band names the .dim actually declares — guards against orphaned .img/.hdr files
+    left in the .data dir by earlier runs with different band naming. One such orphan
+    (Intensity_ifg_*) exists in E:/Output/trad/..._TC.data."""
+    txt = dim_path.read_text(encoding="utf-8", errors="replace")
+    return set(re.findall(r"<BAND_NAME>([^<]+)</BAND_NAME>", txt))
+
+
+class NoPairError(RuntimeError):
+    """No matched i_/q_ pair (callers may fall back to a Phase_* band). Ambiguity is a plain
+    RuntimeError on purpose: it must never be swallowed by that fallback."""
+
+
+def iq(data_dir: Path, pol: str | None = None) -> tuple[Path, Path]:
+    """Return the .hdr paths of a MATCHED i_/q_ band pair.
+
+    Matched, not 'first i_ and first q_ independently': on a dual-pol product those can
+    land on different polarisations with no warning. Filtered against the sibling .dim's
+    declared band names so orphaned rasters are never selected.
+    """
+    dim_path = data_dir.with_suffix(".dim")
+    if dim_path.is_file():
+        allowed = declared_bands(dim_path)
+    else:
+        allowed = None
+        print(f"  WARNING: {dim_path.name} not found - orphaned rasters cannot be filtered",
+              file=sys.stderr)
+    stems = sorted(h.stem for h in data_dir.glob("*.hdr"))
+    if allowed is not None:
+        stems = [s for s in stems if s in allowed]
+    pairs = [(s, "q_" + s[2:]) for s in stems
+             if s.startswith("i_") and ("q_" + s[2:]) in stems]
+    if pol:
+        pairs = [p for p in pairs if re.search(rf"_{re.escape(pol)}(_|$)", p[0])]
+    if not pairs:
+        raise NoPairError(f"no matched i_/q_ pair in {data_dir}"
+                           + (f" for pol={pol}" if pol else ""))
+    if len(pairs) > 1:
+        raise RuntimeError(
+            f"ambiguous i_/q_ pairs in {data_dir}: {[p[0] for p in pairs]} — "
+            f"pass pol= to disambiguate")
+    i_stem, q_stem = pairs[0]
+    return data_dir / f"{i_stem}.hdr", data_dir / f"{q_stem}.hdr"
 
 
 def png(z: np.ndarray, out: Path, title: str, sub: str) -> None:
@@ -135,17 +171,13 @@ ARMS = {
     "B_nat_noetad": "B  native anisotropic, no ETAD",
     "C_sq_etad":    "C  square grid, ETAD",
     "D_nat_etad":   "D  native anisotropic, ETAD",
-    "E_nat_noetad_ramp": "E  native anisotropic, no ETAD, residual ramp removed",
-    "F_trad_lattice": "F  TRAD_TC lattice, ETAD, ramp removed",
-    "G_trad_lattice_noetad": "G  TRAD_TC lattice, no ETAD, ramp removed",
+    "F_trad_lattice": "F  TRAD_TC lattice, ETAD",
+    "G_trad_lattice_noetad": "G  TRAD_TC lattice, no ETAD",
 }
 # Each pair changes exactly ONE variable, so the double difference is attributable.
 DIFFS = [("D_nat_etad", "B_nat_noetad", "ETAD effect at NATIVE sampling"),
          ("C_sq_etad", "A_sq_noetad", "ETAD effect at SQUARE sampling"),
          ("B_nat_noetad", "A_sq_noetad", "GRID effect with no ETAD"),
-         # The decisive one for the original question: how much of the GSLC excess fringing is the
-         # known deramp-mismatch residual ramp rather than deformation.
-         ("B_nat_noetad", "E_nat_noetad_ramp", "RESIDUAL RAMP removed by subtractResidualRamp"),
          ("F_trad_lattice", "G_trad_lattice_noetad", "ETAD effect on the TRAD_TC lattice")]
 
 
@@ -199,5 +231,75 @@ def main() -> int:
     return 0
 
 
+def _selftest() -> int:
+    """Band-selection guards: orphan rejection and matched i/q pairing."""
+    import tempfile, shutil
+    ok = True
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        dim = tmp / "p.dim"
+        data = tmp / "p.data"
+        data.mkdir()
+        dim.write_text(
+            "<Dimap><BAND_NAME>i_ifg_VV</BAND_NAME><BAND_NAME>q_ifg_VV</BAND_NAME></Dimap>",
+            encoding="utf-8")
+        for stem in ("i_ifg_VV", "q_ifg_VV", "i_ifg_ORPHAN", "q_ifg_ORPHAN"):
+            (data / f"{stem}.hdr").write_text("samples = 4\nlines = 4\n", encoding="utf-8")
+
+        ib, qb = iq(data)
+        got = (ib.stem, qb.stem)
+        print("orphan rejection ->", got)
+        if got != ("i_ifg_VV", "q_ifg_VV"):
+            print("  FAIL: expected the .dim-declared pair"); ok = False
+
+        dim.write_text(
+            "<Dimap><BAND_NAME>i_ifg_VH</BAND_NAME><BAND_NAME>q_ifg_VH</BAND_NAME>"
+            "<BAND_NAME>i_ifg_VV</BAND_NAME><BAND_NAME>q_ifg_VV</BAND_NAME></Dimap>",
+            encoding="utf-8")
+        for stem in ("i_ifg_VH", "q_ifg_VH"):
+            (data / f"{stem}.hdr").write_text("samples = 4\nlines = 4\n", encoding="utf-8")
+        try:
+            iq(data)
+            print("  FAIL: ambiguous dual-pol pair should have raised"); ok = False
+        except NoPairError:
+            print("  FAIL: ambiguity must not be a NoPairError (fallbacks would swallow it)"); ok = False
+        except RuntimeError as e:
+            print("ambiguity raised ->", str(e)[:60])
+        ib, qb = iq(data, pol="VV")
+        print("explicit pol ->", (ib.stem, qb.stem))
+        if (ib.stem, qb.stem) != ("i_ifg_VV", "q_ifg_VV"):
+            print("  FAIL: explicit pol selection wrong"); ok = False
+
+        # real products carry date suffixes: i_ifg_IW3_VV_23Jun2026_24Jun2026
+        dim.write_text(
+            "<Dimap><BAND_NAME>i_ifg_IW3_VV_23Jun2026_24Jun2026</BAND_NAME>"
+            "<BAND_NAME>q_ifg_IW3_VV_23Jun2026_24Jun2026</BAND_NAME>"
+            "<BAND_NAME>i_ifg_IW3_VH_23Jun2026_24Jun2026</BAND_NAME>"
+            "<BAND_NAME>q_ifg_IW3_VH_23Jun2026_24Jun2026</BAND_NAME></Dimap>", encoding="utf-8")
+        for f in data.glob("*.hdr"):
+            f.unlink()
+        for pl in ("VV", "VH"):
+            for c in "iq":
+                (data / f"{c}_ifg_IW3_{pl}_23Jun2026_24Jun2026.hdr").write_text("x", encoding="utf-8")
+        ib, _ = iq(data, pol="VH")
+        print("date-suffixed pol ->", ib.stem)
+        if "_VH_" not in ib.stem:
+            print("  FAIL: pol match must work with date-suffixed names"); ok = False
+
+        for f in data.glob("*.hdr"):
+            f.unlink()
+        try:
+            iq(data)
+            print("  FAIL: empty dir should raise"); ok = False
+        except NoPairError:
+            print("no pair -> NoPairError")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    print("SELFTEST", "OK" if ok else "FAILED")
+    return 0 if ok else 1
+
+
 if __name__ == "__main__":
+    if "--selftest" in sys.argv:
+        raise SystemExit(_selftest())
     sys.exit(main())

@@ -18,8 +18,15 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from render_2x2 import hdr_info, iq
 
-stack = Path(sys.argv[1])
-ifgs = [Path(p) for p in sys.argv[2:]]
+# --threshold <rad> is optional and defaults to the spec's 0.3 rad seam gate.
+argv = sys.argv[1:]
+THRESHOLD = 0.3
+if "--threshold" in argv:
+    k = argv.index("--threshold")
+    THRESHOLD = float(argv[k + 1])
+    del argv[k:k + 2]
+stack = Path(argv[0])
+ifgs = [Path(p) for p in argv[1:]]
 
 carr = None
 for h in (stack.with_suffix(".data")).glob("azimuthCarrierPhase*ref*.hdr"):
@@ -110,6 +117,7 @@ strip_seams = {x0: seams_for_strip(x0) for x0 in strip_x}
 for x0, s in strip_seams.items():
     print(f"  strip @col {x0}: seams at rows {s}")
 
+failed = False
 for ifg in ifgs:
     print(f"=== {ifg.name} ===")
     worst = 0.0
@@ -126,5 +134,17 @@ for ifg in ifgs:
             parts.append(f"r{seam}:{st:+.2f}")
         print(f"  col {x0}: " + "  ".join(parts))
     if all_steps:
+        worst_abs = max(all_steps)
         print(f"  SEAM STEPS: worst {worst:+.3f} rad, median |step| {np.median(all_steps):.3f} rad, "
               f"n={len(all_steps)}")
+        status = "PASS" if worst_abs <= THRESHOLD else "FAIL"
+        print(f"GATE seam-worst-step {status} {worst_abs:.6g} {THRESHOLD:g}")
+        if status == "FAIL":
+            failed = True
+    else:
+        # No measurable seam anywhere is a measurement failure, not a pass: it means the
+        # carrier band located seams the ifg could not be sampled at.
+        print(f"GATE seam-worst-step FAIL nan {THRESHOLD:g}")
+        failed = True
+
+raise SystemExit(1 if failed else 0)

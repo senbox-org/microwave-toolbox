@@ -1,0 +1,52 @@
+<graph id="snaphuImportDisplacementTC">
+  <version>1.0</version>
+
+  <!--
+    Bring a snaphu-unwrapped phase raster back into a product.
+
+    PhaseToDisplacement is NOT in this graph: its SPI lives in sar-op-insar while SnaphuImport's
+    lives in jlinda-nest, and no single module classpath carries both. It runs as a separate
+    invocation on the written product - safe here, because SnaphuImport only merges the unwrapped
+    band into the product (unlike CreateStack -> Cross-Correlation -> Warp, where the GCPs live in
+    an in-memory singleton and a disk round-trip loses them silently).
+
+    SnaphuImport declares @SourceProducts (an ARRAY): it wants BOTH the wrapped product and the
+    unwrapped .hdr, in that order, in one invocation - the unwrapped raster carries no metadata of
+    its own, so it is the wrapped product that supplies the geometry.
+
+    ${wrapped}   the multilooked+filtered interferogram the export was made from
+    ${unwrapped} the UnwPhase*.snaphu.hdr snaphu wrote
+    ${output}    product carrying the unwrapped phase band
+  -->
+
+  <node id="ReadWrapped">
+    <operator>Read</operator>
+    <sources/>
+    <parameters><file>${wrapped}</file></parameters>
+  </node>
+  <node id="ReadUnwrapped">
+    <operator>Read</operator>
+    <sources/>
+    <parameters><file>${unwrapped}</file></parameters>
+  </node>
+  <node id="SnaphuImport">
+    <operator>SnaphuImport</operator>
+    <sources>
+      <sourceProduct refid="ReadWrapped"/>
+      <sourceProduct.1 refid="ReadUnwrapped"/>
+    </sources>
+    <parameters>
+      <doNotKeepWrapped>false</doNotKeepWrapped>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="SnaphuImport"/>
+    </sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

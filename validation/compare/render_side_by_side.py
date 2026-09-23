@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from render_2x2 import hdr_info, iq
+from render_2x2 import NoPairError, hdr_info, iq
 from diff_vs_trad import i2m
 
 
@@ -26,7 +26,7 @@ def bands_of(data_dir: Path):
     often carries only a Phase_* band (SNAP TC converts complex sources), so accept both forms."""
     try:
         return iq(data_dir)
-    except RuntimeError:
+    except NoPairError:
         ph = sorted(data_dir.glob("Phase_*.hdr"))
         if not ph:
             raise
