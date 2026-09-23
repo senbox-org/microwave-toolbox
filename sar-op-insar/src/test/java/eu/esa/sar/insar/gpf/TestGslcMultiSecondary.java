@@ -14,6 +14,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -90,12 +91,17 @@ public class TestGslcMultiSecondary {
     }
 
     private static Product runIfg(final Product src, final boolean coherence) {
+        return runIfg(src, coherence, false);
+    }
+
+    private static Product runIfg(final Product src, final boolean coherence,
+                                  final boolean seamSteps) {
         final InterferogramOp op = new InterferogramOp();
         op.setSourceProduct(src);
         op.setParameter("subtractFlatEarthPhase", false);
         op.setParameter("subtractTopographicPhase", false);
-        op.setParameter("subtractResidualRamp", false);
         op.setParameter("includeCoherence", coherence);
+        op.setParameter("subtractSeamSteps", seamSteps);
         return op.getTargetProduct();
     }
 
@@ -292,6 +298,40 @@ public class TestGslcMultiSecondary {
         // deep inside the fill there is no valid sample pair => no-data
         for (int x = FILL_FROM + 12; x < SIZE; x++) {
             assertEquals("coherence must be no-data inside the fill at x=" + x, 0.0f, c[x], 1e-6f);
+        }
+    }
+
+    /**
+     * subtractSeamSteps on a product with no burst annotation must be an exact no-op, not a
+     * failure and not a perturbation. A stripmap GSLC (and this synthetic stack) has no burst
+     * seams at all, so the option has nothing to measure: the operator must take the early
+     * "no burst annotation" exit and leave every output pixel untouched.
+     */
+    @Test
+    public void testSeamStepsIsAnExactNoOpWithoutBurstAnnotation() throws Exception {
+        final Product a = newStack();
+        addReference(a, "ref_23Jun2026");
+        addSecondary(a, "sec1_05Jul2026", 1);
+        final Product off = runIfg(a, false, false);
+
+        final Product b = newStack();
+        addReference(b, "ref_23Jun2026");
+        addSecondary(b, "sec1_05Jul2026", 1);
+        final Product on = runIfg(b, false, true);
+
+        final List<String> offBands = namesStartingWith(off, "i_ifg");
+        final List<String> onBands = namesStartingWith(on, "i_ifg");
+        assertEquals("the option must not change the band set", offBands, onBands);
+
+        for (final String iName : offBands) {
+            for (final String name : new String[]{iName, 'q' + iName.substring(1)}) {
+                final float[] vOff = new float[SIZE * SIZE];
+                final float[] vOn = new float[SIZE * SIZE];
+                off.getBand(name).readPixels(0, 0, SIZE, SIZE, vOff);
+                on.getBand(name).readPixels(0, 0, SIZE, SIZE, vOn);
+                assertArrayEquals("seam-step option perturbed " + name + " on a product with "
+                        + "no bursts", vOff, vOn, 0.0f);
+            }
         }
     }
 }

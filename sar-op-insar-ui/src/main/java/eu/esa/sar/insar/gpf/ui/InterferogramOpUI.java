@@ -45,9 +45,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
 
     private final JCheckBox subtractFlatEarthPhaseCheckBox = new JCheckBox("Subtract Flat-Earth Phase");
     private final JCheckBox subtractTopographicPhaseCheckBox = new JCheckBox("Subtract Topographic Phase");
-    private final JCheckBox subtractResidualRampCheckBox = new JCheckBox("Subtract Residual Ramp (GSLC)");
-    private final JCheckBox residualRampRangeProfileCheckBox = new JCheckBox("Subtract Residual Range Profile (GSLC)");
-    private final JCheckBox residualRamp2DCheckBox = new JCheckBox("Subtract 2-D Residual Surface (GSLC)");
+    private final JCheckBox subtractSeamStepsCheckBox = new JCheckBox("Subtract Burst Seam Steps (GSLC)");
     private final JCheckBox includeCoherenceCheckBox = new JCheckBox("Output Coherence");
     private final JCheckBox squarePixelCheckBox = new JCheckBox("Square Pixel");
     private final JCheckBox independentWindowSizeCheckBox = new JCheckBox("Independent Window Sizes");
@@ -59,11 +57,6 @@ public class InterferogramOpUI extends BaseOperatorUI {
 
     private final JTextField cohWinAz = new JTextField("");
     private final JTextField cohWinRg = new JTextField("");
-
-    private final JComboBox<Integer> residualRampDegreeStr = new JComboBox(new Integer[]{2, 3, 4});
-    private static final JLabel residualRampDegreeStrLabel = new JLabel("Residual Ramp Degree");
-    private final JTextField residualRamp2DNodes = new JTextField("0");
-    private static final JLabel residualRamp2DNodesLabel = new JLabel("2-D Surface Nodes (0 = auto)");
 
     private final JComboBox<Integer> srpPolynomialDegreeStr = new JComboBox(new Integer[]{1, 2, 3, 4, 5, 6, 7, 8});
     private final JComboBox<Integer> srpNumberPointsStr = new JComboBox(new Integer[]{301, 401, 501, 601, 701, 801, 901, 1001});
@@ -85,9 +78,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
     private Boolean outputLatLon = false;
 
     private Boolean subtractTopographicPhase = false;
-    private Boolean subtractResidualRamp = false;
-    private Boolean residualRampRangeProfile = false;
-    private Boolean residualRamp2D = false;
+    private Boolean subtractSeamSteps = false;
     private static final String[] demValueSet = DEMFactory.getDEMNameList();
     //    private final JTextField orbitDegree = new JTextField("");
     private final JComboBox<String> demName = new JComboBox<>(demValueSet);
@@ -175,26 +166,10 @@ public class InterferogramOpUI extends BaseOperatorUI {
                 outputTopoPhaseCheckBox.setEnabled(subtractTopographicPhase);
             }
         });
-        subtractResidualRampCheckBox.addItemListener(new ItemListener() {
-            public void itemStateChanged(ItemEvent e) {
-                subtractResidualRamp = (e.getStateChange() == ItemEvent.SELECTED);
-                residualRampDegreeStr.setEnabled(subtractResidualRamp);
-                residualRampRangeProfileCheckBox.setEnabled(subtractResidualRamp);
-                residualRamp2DCheckBox.setEnabled(subtractResidualRamp);
-                residualRamp2DNodes.setEnabled(subtractResidualRamp && residualRamp2D);
-            }
-        });
 
-        residualRampRangeProfileCheckBox.addItemListener(new ItemListener() {
+        subtractSeamStepsCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
-                residualRampRangeProfile = (e.getStateChange() == ItemEvent.SELECTED);
-            }
-        });
-
-        residualRamp2DCheckBox.addItemListener(new ItemListener() {
-            public void itemStateChanged(ItemEvent e) {
-                residualRamp2D = (e.getStateChange() == ItemEvent.SELECTED);
-                residualRamp2DNodes.setEnabled(subtractResidualRamp && residualRamp2D);
+                subtractSeamSteps = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -286,38 +261,11 @@ public class InterferogramOpUI extends BaseOperatorUI {
             subtractTopographicPhaseCheckBox.setSelected(subtractTopographicPhase);
         }
 
-        paramVal = (Boolean) paramMap.get("subtractResidualRamp");
+        paramVal = (Boolean) paramMap.get("subtractSeamSteps");
         if (paramVal != null) {
-            subtractResidualRamp = paramVal;
-            subtractResidualRampCheckBox.setSelected(subtractResidualRamp);
+            subtractSeamSteps = paramVal;
+            subtractSeamStepsCheckBox.setSelected(subtractSeamSteps);
         }
-
-        final Integer rampDegree = (Integer) paramMap.get("residualRampDegree");
-        if (rampDegree != null) {
-            residualRampDegreeStr.setSelectedItem(rampDegree);
-        }
-
-        paramVal = (Boolean) paramMap.get("residualRampRangeProfile");
-        if (paramVal != null) {
-            residualRampRangeProfile = paramVal;
-            residualRampRangeProfileCheckBox.setSelected(residualRampRangeProfile);
-        }
-
-        paramVal = (Boolean) paramMap.get("residualRamp2D");
-        if (paramVal != null) {
-            residualRamp2D = paramVal;
-            residualRamp2DCheckBox.setSelected(residualRamp2D);
-        }
-
-        final Integer rampNodes = (Integer) paramMap.get("residualRamp2DNodes");
-        if (rampNodes != null) {
-            residualRamp2DNodes.setText(String.valueOf(rampNodes));
-        }
-
-        residualRampDegreeStr.setEnabled(subtractResidualRamp);
-        residualRampRangeProfileCheckBox.setEnabled(subtractResidualRamp);
-        residualRamp2DCheckBox.setEnabled(subtractResidualRamp);
-        residualRamp2DNodes.setEnabled(subtractResidualRamp && residualRamp2D);
 
         paramVal = (Boolean) paramMap.get("outputTopoPhase");
         if (paramVal != null) {
@@ -339,7 +287,6 @@ public class InterferogramOpUI extends BaseOperatorUI {
         }
         outputLatLonCheckBox.setSelected(outputLatLon);
         outputLatLonCheckBox.setEnabled(subtractTopographicPhase);
-
 
 //        orbitDegree.setText(String.valueOf(paramMap.get("orbitDegree")));
         final String demNameParam = (String) paramMap.get("demName");
@@ -422,15 +369,9 @@ public class InterferogramOpUI extends BaseOperatorUI {
         }
 
         paramMap.put("subtractTopographicPhase", subtractTopographicPhase);
-        paramMap.put("subtractResidualRamp", subtractResidualRamp);
-        paramMap.put("residualRampDegree", residualRampDegreeStr.getSelectedItem());
-        paramMap.put("residualRampRangeProfile", residualRampRangeProfile);
-        paramMap.put("residualRamp2D", residualRamp2D);
+        paramMap.put("subtractSeamSteps", subtractSeamSteps);
         try {
-            final int nodes = Integer.parseInt(residualRamp2DNodes.getText().trim());
-            paramMap.put("residualRamp2DNodes", Math.max(0, Math.min(64, nodes)));
         } catch (NumberFormatException e) {
-            paramMap.put("residualRamp2DNodes", 0);
         }
         if (subtractTopographicPhase) {
 //          paramMap.put("orbitDegree", Integer.parseInt(orbitDegree.getText()));
@@ -528,56 +469,19 @@ public class InterferogramOpUI extends BaseOperatorUI {
 
         final JPanel gslcPanel = new JPanel(new GridBagLayout());
         final GridBagConstraints gbc5 = DialogUtils.createGridBagConstraints();
-        gslcPanel.setBorder(BorderFactory.createTitledBorder("GSLC Residual Phase"));
+        gslcPanel.setBorder(BorderFactory.createTitledBorder("GSLC Burst Seams"));
 
         gbc.gridy++;
         contentPane.add(gslcPanel, gbc);
 
-        gslcPanel.add(subtractResidualRampCheckBox, gbc5);
-        subtractResidualRampCheckBox.setToolTipText(
-                "GSLC stacks only: estimate and remove the smooth residual phase ramp of " +
-                "cross-acquisition GSLC interferometry (~1 fringe per 80 px). Off by default — " +
-                "like any ramp removal it also absorbs a genuine scene-wide linear gradient.");
-
-        gbc5.gridy++;
-        DialogUtils.addComponent(gslcPanel, gbc5, residualRampDegreeStrLabel, residualRampDegreeStr);
-        residualRampDegreeStr.setEnabled(false);
-        residualRampDegreeStr.setToolTipText(
-                "Polynomial degree of the GSLC residual-ramp fit (stripmap scene-global path " +
-                "only). Degree 2 (default) is the safe choice; degrees 3-4 capture smoothly " +
-                "curved archive annotation-phase surfaces at the cost of absorbing more of any " +
-                "genuine large-scale deformation.");
-
-        gbc5.gridy++;
-        gslcPanel.add(residualRampRangeProfileCheckBox, gbc5);
-        residualRampRangeProfileCheckBox.setEnabled(false);
-        residualRampRangeProfileCheckBox.setToolTipText(
-                "GSLC stripmap only, requires the residual ramp: additionally fit and remove a " +
-                "smooth data-driven 1-D phase profile in slant range (piecewise-linear, ~12 " +
-                "knots), estimated after the polynomial ramp. For archive products whose " +
-                "annotation-phase error is nonlinear in range. Can absorb genuine " +
-                "long-wavelength signal that is range-aligned.");
-
-        gbc5.gridy++;
-        gslcPanel.add(residualRamp2DCheckBox, gbc5);
-        residualRamp2DCheckBox.setEnabled(false);
-        residualRamp2DCheckBox.setToolTipText(
-                "GSLC stripmap only, requires the residual ramp: additionally fit and remove a " +
-                "bounded smooth 2-D residual surface (bilinear node grid) left after the " +
-                "polynomial ramp and optional range profile — the archive-data closure. " +
-                "WARNING: absorbs ALL smooth scene-scale phase, including genuine deformation " +
-                "broader than ~a tenth of the scene. Never enable for wide-area deformation " +
-                "mapping.");
-
-        gbc5.gridy++;
-        DialogUtils.addComponent(gslcPanel, gbc5, residualRamp2DNodesLabel, residualRamp2DNodes);
-        residualRamp2DNodes.setEnabled(false);
-        residualRamp2DNodes.setToolTipText(
-                "Node count per axis of the 2-D residual surface grid; 0 (default) = adaptive " +
-                "(up to 10x10). Higher counts resolve finer archive annotation-phase structure " +
-                "at a directly proportional cost in signal absorption: at N nodes the surface " +
-                "absorbs ALL smooth phase broader than ~1/(N-1) of the scene, deformation " +
-                "included. Shrunk automatically when sampling cannot support it.");
+        gslcPanel.add(subtractSeamStepsCheckBox, gbc5);
+        subtractSeamStepsCheckBox.setToolTipText(
+                "GSLC TOPS stacks only: measure each burst seam's residual phase discontinuity " +
+                "directly (across-seam differences) and subtract it. A continuous field - " +
+                "deformation, atmosphere, an orbital ramp - cancels in that difference to the " +
+                "extent that it is locally linear in azimuth, so unlike a fitted surface this " +
+                "cannot absorb a broad signal wholesale. No effect on stripmap products, which " +
+                "have no burst seams.");
 
         final JPanel coherencePanel = new JPanel(new GridBagLayout());
         final GridBagConstraints gbc4 = DialogUtils.createGridBagConstraints();
@@ -615,7 +519,6 @@ public class InterferogramOpUI extends BaseOperatorUI {
 
         return contentPane;
     }
-
 
     private synchronized void setCohWinAz() {
         if (sourceProducts != null && sourceProducts.length > 0) {

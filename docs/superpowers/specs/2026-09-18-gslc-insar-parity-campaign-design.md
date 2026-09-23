@@ -99,7 +99,7 @@ Grid lock, integer co-lattice, bias estimator, TOPS burst-valid-time lock — al
 |---|---|---|
 | I1 | Reference-phase surface subsampling | **Prediction retracted.** The first draft predicted a live defect. `pixelTopo` defaults **ON** and genuinely applies `dphidh * (hPx - hInterp)` **[verified]** `InterferogramOp.java:3355-3356`, `:3491`. What remains genuinely unmeasured is the **bilinear error of the flat-earth part** of the 10-px node surface, which on a high-`B_perp` pair is bounded by nothing in the tree. And the existing fix has **zero tests** — `GSLCRefPhaseProbeTest` contains no assertions. |
 | I2 | Coherence estimation in map geometry | `cohWinSizeMeters` divides by `range_spacing`, which in radar geometry is **slant** **[verified]** `InterferogramOp.java:700`. 100 m → 43 px → ~150 m on the ground. The operator's own text claims it "yields a window that is square on the ground whatever the geometry" (`:684-686`); it does not. A ~1.5× systematic bias favouring the radar-geometry side. |
-| I3 | `residualRamp` family | All default OFF and genuinely inert when the master switch is off **[verified]** `:139/:159/:174/:184`. **All stay OFF for every headline result.** |
+| I3 | `residualRamp` family | **RESOLVED BY DELETION 2026-09-22.** The smooth surface these models existed to remove was an inverted carrier-difference add-back sign in `InterferogramOp`; with the sign corrected they only removed signal (Venezuela concentration against the classical chain 0.961 off / 0.334 on; ERS-1/2 tandem Etna 0.566 / 0.343 per tile and 0.569 / 0.030 over the scene). `subtractResidualRamp`, `residualRampDegree`, `residualRampRangeProfile`, `residualRamp2D` and `residualRamp2DNodes` were removed from the operator — they had never shipped. See `docs/gslc-parity/etna-ramp-ab.md`. Burst seam-step removal survives as `subtractSeamSteps` (TOPS only, OFF by default, **stays OFF for every headline result**). |
 | I4 | Default parameters | `subtractTopographicPhase` defaults **false** **[verified]** `:129`. Any rung testing topographic removal must set it explicitly or it tests nothing. |
 
 ### Class C — the classical chain
@@ -183,6 +183,7 @@ One Python package, `validation/gslc_parity/`.
 | **R0** Screening sweep | Where we stand | existing | measurement only | ~1 day |
 | **R1** Synthetic, Rung A | The **removal models** are exact | none | RMS of `recovered - phi_true` below **0.05 rad**, no spatial structure | minutes |
 | **R2** Synthetic, Rung B | The **full chain** is exact; deformation retention of **both** chains | none | within **2x the measured generator floor**; retention reported per chain | ~20 min |
+| | *Amended 2026-09-22:* R2's third arm (GSLC with the residual ramp ON) is withdrawn — the parameter was removed. The Venezuela measurement that retired it is kept as a result: retention classical 1.0000, GSLC ramp-off 1.0000, GSLC ramp-on 0.9764. | | | |
 | **R3** Phase closure | GSLC is **self-consistent** | **none** | closure RMS below gate, no spatial structure | ~1 h |
 | **R4** Per-leg cross-chain split | *Which leg* carries any residual | classical stack | per-leg delta below **0.1 px** equivalent, **after removing the modelled bistatic asymmetry** | ~1 h |
 | **R5** Cross-chain equivalence | Numeric parity in radar domain | classical ifg | concentration versus the **measured per-source classical reproducibility floor**; gradient ratios ≤ 2; coherence parity at **ground-corrected** cell size | ~2 h |
@@ -228,7 +229,8 @@ Each source **names its classical control explicitly** (CC+Warp or DEM-Assisted)
 
 Coherence parity uses **ground-range-corrected** window sizing per I2.
 
-All `residualRamp*` options OFF.
+The `residualRamp*` options no longer exist (I3). `subtractSeamSteps` stays OFF for every headline
+result; a rung that enables it must say so and must not be compared against a rung that did not.
 
 ### Targeted closers
 
@@ -244,7 +246,7 @@ All `residualRamp*` options OFF.
 |---|---|---|---|---|
 | **S1 Venezuela** | IW TOPS, C | `TOPSAR-Split` IW3 **bursts 4–6**, full range width, burstId-matched. ETAD explicit option 1 for pairwise; **ETAD-off for the R3 triple**. Cop30 staged GeoTIFF. | R0–R6, incl. **R3 closure** | S1A 23Jun / S1C 24Jun / S1D 30Jun 2026, **all relative orbit 106, all IPF 004.03** [verified]. Coseismic, cross-platform, 1-day. Hosts the crop-validity gate. |
 | **S1 Napa** | Stripmap (S1 beam), C | **Per-leg geometry-derived azimuth windows** — see the constraint below. Full range width. | R0–R2, R4–R6 | 20140807 (abs. orbit 1835) x 20140831 (abs. orbit 2185), **both relative orbit 15, both IPF 002.34, B_perp ≈ 127 m** [verified]. Brackets the 24 Aug 2014 South Napa M6.0 event. |
-| **ASAR Bam** | Stripmap, C | Full range width, azimuth window over Bam. **`CreateStack` auto path mandatory.** | R0–R2, R4–R6 | `1PNUPA` 03Dec2003 x `1PXPDE` 11Feb2004, **both REL_ORBIT 00120, both IMS/COMPLEX, IS2, V/V, descending** [verified]. Brackets the 26 Dec 2003 M6.6 event. |
+| **ASAR Bam** *(RUN 2026-09-22 — R5 measured, see the scorecard; the block-CC cross-check guard FAILED as this spec predicted)* | Stripmap, C | Full range width, azimuth window over Bam. **`CreateStack` auto path mandatory.** | R0–R2, R4–R6 | `1PNUPA` 03Dec2003 x `1PXPDE` 11Feb2004, **both REL_ORBIT 00120, both IMS/COMPLEX, IS2, V/V, descending** [verified]. Brackets the 26 Dec 2003 M6.6 event. |
 | **Synthetic** | both | derived from the Venezuela and Napa fixtures | R1, R2, plus a synthetic triple as a closure harness self-test | Known truth; one TOPS and one stripmap synthetic, both from S1A. |
 
 ### Tier L — later, breadth confirmation only

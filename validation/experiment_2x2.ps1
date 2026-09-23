@@ -110,22 +110,21 @@ foreach ($k in @('A', 'C')) {
 }
 
 # --- the four arms ---------------------------------------------------------------------------
+# The former arm E (B + subtractResidualRamp) was DELETED with the parameter itself: with the
+# carrier-sign fix the data-driven ramp models only removed signal, so they no longer exist
+# (docs/gslc-parity/etna-ramp-ab.md). Leaving the arm in place would have re-run B under a new
+# name and rendered the all-zero B-E difference as a measurement of the ramp.
 $arms = @(
-    @{ Id = 'A_sq_noetad';   Grid = 'SQUARE_COARSEST';     Etad = $false; Ramp = $false },
-    @{ Id = 'B_nat_noetad';  Grid = 'NATIVE_ANISOTROPIC';  Etad = $false; Ramp = $false },
-    @{ Id = 'C_sq_etad';     Grid = 'SQUARE_COARSEST';     Etad = $true ; Ramp = $false },
-    @{ Id = 'D_nat_etad';    Grid = 'NATIVE_ANISOTROPIC';  Etad = $true ; Ramp = $false },
-    # E differs from B by ONE thing: residual-ramp removal. B vs E therefore isolates exactly how much
-    # of the GSLC excess fringing is the known deramp-mismatch ramp rather than deformation.
-    # StackFrom: E's GSLCs and stack would be bit-identical to B's (same sources, same params), so it
-    # reuses B's stack -- saves ~40 min and makes the one-variable isolation exact by construction.
-    @{ Id = 'E_nat_noetad_ramp'; Grid = 'NATIVE_ANISOTROPIC'; Etad = $false; Ramp = $true; StackFrom = 'B_nat_noetad' },
+    @{ Id = 'A_sq_noetad';   Grid = 'SQUARE_COARSEST';     Etad = $false },
+    @{ Id = 'B_nat_noetad';  Grid = 'NATIVE_ANISOTROPIC';  Etad = $false },
+    @{ Id = 'C_sq_etad';     Grid = 'SQUARE_COARSEST';     Etad = $true  },
+    @{ Id = 'D_nat_etad';    Grid = 'NATIVE_ANISOTROPIC';  Etad = $true  },
     # F: built on the USER's TRAD_TC lattice -- geographic WGS84, SQUARE in degrees at TRAD_TC's own
     # step (1.2566604374770714E-4 deg), ETAD ON to match it. TRAD_TC is geographic while the other
     # arms are UTM 19N, so F is the only arm that can be differenced against it without reprojecting
     # one of them -- and reprojection would inject exactly the interpolation error being measured.
-    @{ Id = 'F_trad_lattice'; Grid = ''; Etad = $true; Ramp = $true; DegSpacing = '1.2566604374770714E-4'; Crs = 'WGS84(DD)' },
-    @{ Id = 'G_trad_lattice_noetad'; Grid = ''; Etad = $false; Ramp = $true; DegSpacing = '1.2566604374770714E-4'; Crs = 'WGS84(DD)' }
+    @{ Id = 'F_trad_lattice'; Grid = ''; Etad = $true; DegSpacing = '1.2566604374770714E-4'; Crs = 'WGS84(DD)' },
+    @{ Id = 'G_trad_lattice_noetad'; Grid = ''; Etad = $false; DegSpacing = '1.2566604374770714E-4'; Crs = 'WGS84(DD)' }
 )
 foreach ($arm in $arms) {
     Log "================ arm $($arm.Id): grid=$($arm.Grid) etad=$($arm.Etad) ================"
@@ -188,14 +187,6 @@ foreach ($arm in $arms) {
         '-PsubtractTopographicPhase=true', '-PdemName=External DEM',
         "-PexternalDEMFile=$DEM", '-PexternalDEMNoDataValue=0.0',
         '-PincludeCoherence=true')
-    if ($arm.Ramp) {
-        # GSLC-only remedy for the residual ramp left by cross-acquisition GSLC interferometry
-        # (annotation-vs-data deramp mismatch, ~1 fringe per 80 px per the operator's own help).
-        # Off by default because a rigid low-order fit also absorbs a genuine scene-wide linear
-        # deformation gradient -- which for a co-seismic pair is a real risk, hence a separate arm
-        # rather than switching it on everywhere.
-        $ifArgs += '-PsubtractResidualRamp=true'
-    }
     $ifArgs += @('-t', $if, '-f', 'BEAM-DIMAP', '-q', '8', $st)
     Step "$($arm.Id)-ifg" $if $ifArgs | Out-Null
 }

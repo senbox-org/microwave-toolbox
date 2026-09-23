@@ -1147,6 +1147,12 @@ public class CreateStackOp extends Operator {
             return null;
         }
         final String name = band.getName();
+        // CEOS products - ERS and ENVISAT ASAR - name the i/q pair with the bare letters, so there
+        // is no suffix to key on. Without this case the pair keys were both null, the partner test
+        // failed, and the imaginary band was given its own _secN tag (i_sec1_.. with q_sec2_..).
+        if (name.equals("i") || name.equals("q")) {
+            return "iq";
+        }
         if (name.startsWith("i_") || name.startsWith("q_")) {
             return name.substring(2);
         }
@@ -2243,7 +2249,7 @@ public class CreateStackOp extends Operator {
         // (residual-vs-classical concentration unchanged, ramp/profile estimators chasing the
         // injected surface). The affine field is what block-CC precision genuinely supports;
         // anything beyond it must come from the PHASE-side data-driven models
-        // (subtractResidualRamp / residualRampRangeProfile), not the registration field.
+        // (the interferogram's own phase models), not the registration field.
         // The higher-degree machinery stays for the explicit rangeOffsetPoly/azimuthOffsetPoly
         // parameters (6/10-term expert use).
         final int wantDegree = 1;

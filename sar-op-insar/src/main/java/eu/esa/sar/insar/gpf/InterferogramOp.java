@@ -132,59 +132,6 @@ public class InterferogramOp extends Operator {
     @Parameter(defaultValue="false", label="Subtract topographic phase")
     private boolean subtractTopographicPhase = false;
 
-    @Parameter(description = "GSLC mode only: estimate and remove the smooth residual phase ramp " +
-            "left by cross-acquisition GSLC interferometry (annotation-vs-data deramp mismatch, " +
-            "typically ~1 fringe per 80 px). The estimate is a low-order (quadratic) polynomial " +
-            "fitted robustly to block-wise fringe gradients — deliberately too rigid to absorb " +
-            "localized deformation signals. Like any ramp removal it will also absorb a genuine " +
-            "scene-wide linear deformation gradient, so it is off by default.",
-            defaultValue = "false", label = "Subtract residual ramp (GSLC)")
-    private boolean subtractResidualRamp = false;
-
-    @Parameter(description = "Polynomial degree of the GSLC residual-ramp fit (stripmap scene-" +
-            "global path only; the TOPS per-burst model is unaffected). Degree 2 (default) is " +
-            "the safe choice. Some archive products carry a smoothly CURVED annotation-phase " +
-            "surface a quadratic cannot represent (measured on a 1995 ERS-1/ERS-2 tandem VMP " +
-            "pair: ~150 rad of smooth arcs remained at degree 2); degrees 3-4 capture it, at " +
-            "the cost of absorbing more of any genuine large-scale deformation.",
-            defaultValue = "2", interval = "[2, 4]", label = "Residual ramp degree (GSLC)")
-    private int residualRampDegree = 2;
-
-    @Parameter(description = "GSLC only, requires subtractResidualRamp: additionally fit and " +
-            "remove a smooth data-driven 1-D phase profile in SLANT RANGE (piecewise-linear, " +
-            "~12 knots), estimated from the block gradients AFTER the polynomial ramp — and, on " +
-            "TOPS, after the per-burst model — so the components cannot double-remove. Some " +
-            "products carry an annotation-phase error that is NONLINEAR in range and beyond any " +
-            "low-order polynomial (measured on a 1995 ERS-1/ERS-2 tandem VMP pair: −58 rad over " +
-            "21 km of slant range). Off by default; like all data-driven ramp removal it can " +
-            "absorb genuine long-wavelength signal that is range-aligned.",
-            defaultValue = "false", label = "Subtract residual range profile (GSLC)")
-    private boolean residualRampRangeProfile = false;
-
-    @Parameter(description = "GSLC only, requires subtractResidualRamp: additionally fit and " +
-            "remove a smooth 2-D residual phase surface (bilinear node grid, ridge-regularised) " +
-            "from the interferogram's own fringe gradients — after the polynomial ramp and " +
-            "optional range profile, and on TOPS after the per-burst model, so the components " +
-            "cannot double-remove. Closes what those models cannot express: curved archive " +
-            "annotation-phase surfaces (pre-2000 ERS) and the higher-order cross-acquisition " +
-            "annotation remainder of TOPS pairs (measured on S1A x S1C: ~200 rad of smooth " +
-            "range-growing azimuth drift beyond the quadratic). WARNING: the surface absorbs ALL " +
-            "smooth scene-scale phase, including genuine deformation broader than ~1/(N-1) of " +
-            "the scene — see TestGslcResidualRamp for the pinned absorption bound. Never enable " +
-            "for wide-area deformation mapping; intended for annotation-residual cleanup and " +
-            "coherence/DEM work.",
-            defaultValue = "false", label = "Subtract 2-D residual surface (GSLC)")
-    private boolean residualRamp2D = false;
-
-    @Parameter(description = "Node count per axis of the 2-D residual surface grid; 0 (default) = " +
-            "adaptive (up to 10x10, shrunk for sparse sampling). Higher counts resolve finer " +
-            "archive annotation-phase structure (the ERS north arc field needs ~24+), at a " +
-            "directly proportional cost in signal absorption: at N nodes the surface absorbs ALL " +
-            "smooth phase broader than ~1/(N-1) of the scene, deformation included. The count is " +
-            "still shrunk automatically when block sampling cannot support it. Only meaningful " +
-            "with residualRamp2D.",
-            defaultValue = "0", interval = "[0, 64]", label = "2-D residual surface nodes (GSLC)")
-    private int residualRamp2DNodes = 0;
     /*
         @Parameter(interval = "(1, 10]",
                 description = "Degree of orbit interpolation polynomial",
@@ -192,6 +139,16 @@ public class InterferogramOp extends Operator {
                 label = "Orbit Interpolation Degree")
         private int orbitDegree = 3;
     */
+    @Parameter(description = "GSLC TOPS only: measure each burst seam's residual phase " +
+            "discontinuity directly (across-seam multilooked differences) and subtract it. This is " +
+            "NOT a smooth-surface model: anything continuous across a seam - deformation, " +
+            "atmosphere, orbital ramps - cancels in the across-seam difference to the extent that " +
+            "it is locally LINEAR in azimuth, so unlike a fitted surface this cannot absorb a " +
+            "broad signal wholesale; azimuth curvature does leak, and cumulatively with burst " +
+            "index. No effect on stripmap products, which have no burst seams.",
+            defaultValue = "false", label = "Subtract burst seam steps (GSLC)")
+    private boolean subtractSeamSteps = false;
+
     @Parameter(description = "The digital elevation model.",
             defaultValue = "Copernicus 30m Global DEM",
             label = "Digital Elevation Model")
@@ -277,41 +234,24 @@ public class InterferogramOp extends Operator {
     private final Map<Band, Orbit> gslcSecOrbitMap = new HashMap<>();
     private static final int GSLC_REFPHASE_SUBSAMPLE = 10; // px grid step for the smooth reference-phase surface
 
-    // GSLC residual-ramp removal: per-pair quadratic phase polynomial
-    // phi(x,y) = c0*x + c1*y + c2*x^2 + c3*x*y + c4*y^2   (x, y normalised by GSLC_RAMP_NORM)
-    private volatile boolean gslcRampEstimated = false;
-    private final Object gslcRampLock = new Object();
-    private double[][] gslcRampCoef;                        // [pair][terms], null row = estimation failed
-    private GslcRangeProfile[] gslcRangeProfilePerPair;     // [pair], null = profile off/failed
-    private GslcSurface2D[] gslcSurface2DPerPair;           // [pair], null = 2-D surface off/failed
-    static final double GSLC_RAMP_NORM = 1000.0;          // package-visible: tests must use THIS value    // px, conditioning for the LS fit
-    private static final int GSLC_RAMP_BLOCK = 384;         // px, estimation block size
-    // Fix round 2: the 2-D surface stage needs a denser, decoupled sampling pass than the
-    // polynomial ramp's own GSLC_RAMP_BLOCK grid — see the residualRamp2D block in
-    // estimateGslcResidualRampOnce and fitGslcSurface2D's javadoc.
-    private static final int GSLC_SURF_BLOCK = 160;         // px, surface-stage estimation block size
-    private static final int GSLC_RAMP_ML = 8;              // multilook factor inside a block
+    private volatile boolean gslcSeamStepsEstimated = false;
+    private final Object gslcSeamLock = new Object();
+    static final double GSLC_RAMP_NORM = 1000.0;            // px, range normalisation of the seam profiles
 
-    // Per-burst extension of the residual ramp. The TOPS deramp-annotation error differs per burst
-    // (each burst has its own DC/FM annotation), so across two acquisitions the residual is a
-    // per-burst quadratic-in-azimuth with genuine discontinuities at burst seams — measured on the
-    // 2026 Venezuela S1A x S1C pair as ~6 rad/burst around mid-scene and far larger in the northern
-    // bursts, where a single scene-wide quadratic leaves dense fringes. Burst intervals are read
-    // from the reference's Original_Product_Metadata annotation (a plain metadata walk: this module
-    // must not depend on sar-op-sentinel1, and the walk also works on stacks that predate any
-    // stamping). When the walk fails (stripmap GSLC, pruned metadata) the global fit applies.
+    // Burst geometry for the seam-step correction. Burst intervals are read from the reference's
+    // Original_Product_Metadata annotation (a plain metadata walk: this module must not depend on
+    // sar-op-sentinel1, and the walk also works on stacks that predate any stamping). Without the
+    // annotation there are no seams to correct - stripmap products have none.
     private double[] gslcBurstStartSod;                     // reference-burst azimuth start, seconds of day
     private double[] gslcBurstEndSod;                       // reference-burst azimuth end, seconds of day
-    private GslcPerBurstRamp[] gslcRampPerBurst;            // [pair], null entry = global fallback
     private GslcSeamSteps[] gslcSeamStepsPerPair;           // [pair], null = seam steps unmeasured
-
+    private GslcPerBurstRamp[] gslcBurstLabelling;          // [pair], burst labelling for the seam term
     // Exact carrier-difference subtraction: when both legs carry the GSLC deramp-model band
     // (GSLCGeocodingOp outputPhaseTerms, propagated by CreateStack), the interferogram subtracts
-    // the models' leg difference EXACTLY — the deterministic ~70% of the cross-acquisition
-    // annotation mismatch, including its full range and azimuth structure within every burst,
-    // which no low-order fit can represent. subtractResidualRamp then only fits the smooth
-    // annotation-ERROR remainder. (The "~70%" is historic: it was measured while the add-back
-    // carried the wrong sign, see CARRIER_DIFF_SIGN; re-measure the ramp's remit with the corrected sign.)
+    // the models' leg difference EXACTLY — full range and azimuth structure within every burst.
+    // With the add-back sign corrected (CARRIER_DIFF_SIGN) this is the whole of the cross-
+    // acquisition annotation correction; the data-driven smooth-surface models that used to
+    // follow it were removed, see docs/gslc-parity/etna-ramp-ab.md.
     private static final String GSLC_CARRIER_MODEL_BAND = "azimuthCarrierPhase";
 
     /**
@@ -340,20 +280,22 @@ public class InterferogramOp extends Operator {
 
     private Band[] gslcRefCarrierBand;                      // [pair], null = band not available
     private Band[] gslcSecCarrierBand;
-    private static final int GSLC_RAMP_MIN_BURST_BLOCKS = 4; // fewer -> burst inherits neighbours
 
     /**
-     * Per-burst residual-ramp model, parameterised in AZIMUTH TIME. Within burst {@code k}:
-     * {@code phi_k(x, eta) = dk[k] + aN*(x/N) + c2N*(x/N)^2 + bk[k]*(eta-etaK[k]) + qk[k]*(eta-etaK[k])^2}
-     * with {@code eta} the reference-orbit azimuth time (seconds of day) of the ground point.
+     * Burst labelling in AZIMUTH TIME, plus the (now always zero) per-burst phase terms that
+     * {@link #phaseAt} evaluates.
      * <p>
-     * Azimuth time — not map row — is the physical axis of the deramp-annotation error, and
-     * iso-eta lines are TILTED ~10-12° in map space. A map-row parameterisation leaks each burst's
-     * azimuth rate into a per-burst x-gradient (rate difference × tilt ≈ 19 rad across a swath,
-     * measured), which a shared range slope cannot hold; in eta the tilt is exact. The shared x
-     * terms then carry only the genuine range-direction gradient. {@code dk} are per-burst
-     * constants, unobservable from gradients, estimated from the phase itself — burst seams are
-     * genuine discontinuities, so no continuity is imposed across them.
+     * This used to be a FITTED per-burst residual-ramp model. That model was removed: the smooth
+     * surface it existed to remove turned out to be an inverted carrier-difference add-back sign,
+     * and with the sign corrected the fit only removed signal (docs/gslc-parity/etna-ramp-ab.md).
+     * What survives is the part the seam-step correction needs — {@link #burstOfSod}, which says
+     * which burst a ground point belongs to. Instances are built with zeroed coefficient arrays,
+     * so {@code phaseAt} contributes nothing; the coefficient fields are kept because they define
+     * the evaluation shape and because a future per-burst model would populate them.
+     * <p>
+     * Azimuth time — not map row — is the physical axis: iso-eta lines are TILTED ~10-12° in map
+     * space, so a map-row parameterisation would mislabel points near a seam by several rows
+     * across a swath. In eta the burst boundary is exact.
      */
     static final class GslcPerBurstRamp {
         final double[] ak, ck;               // range terms, rad/(N px) and rad/(N px)^2 — arrays
@@ -396,16 +338,20 @@ public class InterferogramOp extends Operator {
         double rateAt(final double etaSod, final int k) {
             return bk[k] + 2.0 * qk[k] * (etaSod - etaK[k]);
         }
+
     }
 
     /**
      * Per-seam residual step profiles s_k(x): what remains DISCONTINUOUS at each burst seam after
-     * the carrier difference and the per-burst ramp — measured on S1A x S1C as a smooth
-     * range-quadratic step of 3-6 rad per seam, wrapping along the swath (the annotation-error
-     * difference carries per-burst range structure no shared range fit can express). Fitted from
-     * ACROSS-SEAM multilooked phase differences, out of which anything continuous across the seam
-     * (deformation, atmosphere, residual topography) cancels — unlike per-burst absolute range
-     * terms, which were measured absorbing the coseismic deformation fan. Applied cumulatively:
+     * the carrier difference — measured on S1A x S1C as a smooth range-quadratic step of 3-6 rad
+     * per seam, wrapping along the swath. (It was formerly measured after a fitted per-burst ramp
+     * as well; that model no longer exists, so the ambient gradient this measurement has to
+     * subtract for itself is correspondingly larger.) Fitted from ACROSS-SEAM multilooked phase
+     * differences, out of which a continuous field (deformation, atmosphere, residual topography)
+     * cancels TO THE EXTENT THAT IT IS LOCALLY LINEAR in azimuth over the 72-row stencil: the
+     * measurement is cross minus a scaled ambient gradient, not a pure difference, so azimuth
+     * CURVATURE in genuine signal does leak — and because the model is applied cumulatively that
+     * leak accumulates with burst index. Applied cumulatively:
      * burst m carries the sum of all seam steps below it, so the modeled surface reproduces every
      * measured discontinuity and the subtraction leaves the interferogram seam-free.
      * Each seam's profile is a TABLE of (xn, step) nodes — the unwrapped, outlier-filtered,
@@ -1068,7 +1014,7 @@ public class InterferogramOp extends Operator {
                 return new double[][]{start, end};
             }
         } catch (Throwable t) {
-            SystemUtils.LOG.fine("GSLC residual ramp: burst-table walk failed: " + t.getMessage());
+            SystemUtils.LOG.fine("GSLC seam steps: burst-table walk failed: " + t.getMessage());
         }
         return null;
     }
@@ -1136,7 +1082,7 @@ public class InterferogramOp extends Operator {
                 SystemUtils.LOG.warning("GSLC carrier-difference: only ONE leg of pair " + p
                         + " carries the '" + GSLC_CARRIER_MODEL_BAND + "' band — regenerate both "
                         + "GSLCs with outputPhaseTerms=true to enable exact model subtraction. "
-                        + "Falling back to data-driven ramp removal only.");
+                        + "Without it NO cross-acquisition annotation correction is applied.");
             }
         }
     }
@@ -1181,730 +1127,6 @@ public class InterferogramOp extends Operator {
         return m.find() ? m.group(1) : null;
     }
 
-    /** Reference-orbit one-way slant range (metres) of a map pixel, via geocoding + DEM height. */
-    private double refSlantRangeMetersAt(final double px, final double py) {
-        final GeoPos geo = new GeoPos();
-        gslcGeoCoding.getGeoPos(new PixelPos(px + 0.5, py + 0.5), geo);
-        double height = 0.0;
-        if (subtractTopographicPhase && dem != null) {
-            try {
-                final double e = dem.getElevation(geo);
-                if (!Double.isNaN(e) && e != demNoDataValue) height = e;
-            } catch (Exception ignore) {
-                height = 0.0;
-            }
-        }
-        final Point xyz = Ellipsoid.ell2xyz(FastMath.toRadians(geo.lat), FastMath.toRadians(geo.lon), height);
-        return gslcRefOrbit.xyz2t(xyz, gslcRefSLC).x * Constants.lightSpeed;
-    }
-
-    /**
-     * Geometry hook for the range-profile stage of {@link #estimateGslcResidualModel}: returns
-     * {@code {R (slant range, m), dR/dx, dR/dy}} at an absolute raster coordinate, or {@code null}
-     * when the geometry is unavailable/non-finite there. Production supplies a lambda over
-     * {@link #refSlantRangeMetersAt}; tests supply an analytic geometry. Package-visible for tests.
-     */
-    interface GslcProfileGeom {
-        double[] rAndGrad(double x, double y);
-    }
-
-    /**
-     * Fix round 3 (kept in round 4): total (fx, fy) gradient of the CURRENT residual model —
-     * polynomial + range profile (if fitted) + 2-D surface (if fitted) — at an absolute raster
-     * coordinate. Round 4: static, geometry via {@link GslcProfileGeom}, and the SINGLE shared
-     * code path every sampling site in {@link #estimateGslcResidualModel} routes through, so no
-     * stage can ever subtract a different model than another stage fitted. Package-visible for
-     * tests.
-     */
-    static double[] currentModelGradientAt(final double[] polyCoef, final GslcRangeProfile profile,
-                                           final GslcSurface2D surface, final GslcProfileGeom geom,
-                                           final double x, final double y) {
-        double gx = gslcRampFx(polyCoef, x, y);
-        double gy = gslcRampFy(polyCoef, x, y);
-        if (profile != null && geom != null) {
-            final double[] rg = geom.rAndGrad(x, y);
-            if (rg != null) {
-                final double sPrime = profile.derivativeAt(rg[0]);
-                gx += sPrime * rg[1];
-                gy += sPrime * rg[2];
-            }
-        }
-        if (surface != null) {
-            final double[] g = surface.gradientAt(x, y);
-            gx += g[0];
-            gy += g[1];
-        }
-        return new double[]{gx, gy};
-    }
-
-    /**
-     * Result of {@link #estimateGslcResidualModel}: the fitted polynomial coefficients plus the
-     * optional range profile and 2-D surface. Package-visible for tests.
-     */
-    static final class GslcResidualFit {
-        final double[] polyCoef;
-        final GslcRangeProfile profile;
-        final GslcSurface2D surface;
-        final int polyIterations;
-
-        GslcResidualFit(final double[] polyCoef, final GslcRangeProfile profile,
-                        final GslcSurface2D surface, final int polyIterations) {
-            this.polyCoef = polyCoef;
-            this.profile = profile;
-            this.surface = surface;
-            this.polyIterations = polyIterations;
-        }
-    }
-
-    /**
-     * The complete GSLC stripmap residual estimation — polynomial ramp, optional slant-range
-     * profile, optional 2-D surface — extracted (fix round 4) as a pure static method so the
-     * production path itself is unit-testable end to end.
-     * <p>
-     * <b>Fix round 4 — stage-SEQUENTIAL, not interleaved.</b> Round 3 interleaved all three
-     * stages inside one accumulate-increments loop (each stage fitting a ridge-regularised
-     * increment against the residual after the full accumulated model, merged into a running
-     * total). On the ERS acceptance pair that loop's profile/surface increments did NOT decay
-     * (~30 rad profile and ~150-230 rad surface EVERY iteration; cumulative surface 650 rad vs
-     * a ~160-200 rad true field) even though every stage correctly subtracted the full
-     * accumulated model — verified, so this was NOT a missing-subtraction bug. Two mechanisms,
-     * both reproduced in a numerical replica and in
-     * {@code TestGslcResidualRamp#residualRampIterationIncrementsDecay}:
-     * <ol>
-     * <li><b>Accumulating ridge-regularised increments iterates the ridge away.</b> Adding
-     * successive shrunken fits of the remaining residual is Landweber-style iteration whose
-     * fixed point is the UNREGULARISED fit — the very oscillating solution round 2's
-     * ridge/adaptive-node-count/clamp machinery exists to prevent. In the weakly-constrained
-     * directions (sparse cells, scene-edge extrapolation) the per-iteration gain is ~1, so the
-     * increments never decay and the accumulated model grows towards the pathological limit.</li>
-     * <li><b>Cross-stage feedback between fits on DIFFERENT sample sets.</b> The poly (coarse
-     * blocks), profile (coarse blocks) and surface (dense decoupled pass) optimise different
-     * objectives over different samples with mutually overlapping bases (a profile is a
-     * function of x; the surface can express any function of x); there is no joint objective,
-     * so the stages partially undo each other every iteration — the replica shows the loop is
-     * stable with the poly frozen and divergent with it in the loop.</li>
-     * </ol>
-     * The round-4 design removes both channels: the polynomial iterates ALONE with the
-     * progressively-narrowing MAD trim (round 3's genuine, verified benefit against
-     * contaminated blocks — its convergence comes from row-set narrowing, not from residual
-     * re-fitting, so it needs no other stage inside its loop); the profile is then fitted ONCE
-     * on the residual after the poly; the surface ONCE on the residual after poly + profile.
-     * Each regularised fit is applied exactly once, so the ridge is respected, the total model
-     * is bounded by construction, and any content one stage leaves behind is measured by the
-     * next through the single shared residual path {@link #currentModelGradientAt}. The
-     * poly's centre gradient can read ~10% below the independently-measured ramp when a large
-     * smooth surface coexists (the leftover plane is exactly representable by — and absorbed
-     * into — the bilinear surface); the SUM of the stages is what the interferogram subtracts,
-     * so this attribution shift is expected and harmless.
-     *
-     * @param polySamples raw block gradients {@code {x, y, fx, fy, weight}} from the polynomial
-     *                    stage's block grid (coarse, high-quality blocks)
-     * @param surfSamples raw block gradients from the surface stage's denser decoupled sampling
-     *                    pass (fix round 2); empty list = surface stage off
-     * @param geom        slant-range geometry for the profile stage, or null (profile skipped)
-     * @param wantProfile fit the range profile (requires {@code geom != null})
-     * @param iterLog     optional (may be null) diagnostic sink: one row per estimation step,
-     *                    {@code {polyIncCentreGradMag, profileIncExcursion, surfaceIncExcursion}}
-     *                    — poly iterations log {mag, 0, 0}, the profile fit {0, exc, 0}, the
-     *                    surface fit {0, 0, exc}
-     */
-    static GslcResidualFit estimateGslcResidualModel(final java.util.List<double[]> polySamples,
-                                                     final java.util.List<double[]> surfSamples,
-                                                     final GslcProfileGeom geom,
-                                                     final boolean wantProfile,
-                                                     final int w, final int h, final int degree,
-                                                     final int maxIterations, final String tag,
-                                                     final java.util.List<double[]> iterLog) {
-        return estimateGslcResidualModel(polySamples, surfSamples, geom, wantProfile,
-                w, h, degree, maxIterations, tag, iterLog, 0);
-    }
-
-    /** As above with an explicit surface node count per axis (0 = adaptive default). */
-    static GslcResidualFit estimateGslcResidualModel(final java.util.List<double[]> polySamples,
-                                                     final java.util.List<double[]> surfSamples,
-                                                     final GslcProfileGeom geom,
-                                                     final boolean wantProfile,
-                                                     final int w, final int h, final int degree,
-                                                     final int maxIterations, final String tag,
-                                                     final java.util.List<double[]> iterLog,
-                                                     final int surfaceNodes) {
-        final double[] cAccum = new double[gslcRampTerms(degree).length];
-        int iterationsUsed = 0;
-        java.util.List<double[]> workingSamples = polySamples;
-
-        // --- Stage 1: closed-loop polynomial fit (fix round 3, kept): fit, MAD-trim, refit,
-        // permanently narrowing the working sample set each round so later rounds' trims
-        // discriminate junk from clean more sharply. No other stage participates. ---
-        for (int iter = 0; iter < maxIterations; iter++) {
-            iterationsUsed = iter + 1;
-
-            final java.util.List<double[]> polyResid = new java.util.ArrayList<>(workingSamples.size());
-            for (final double[] s : workingSamples) {
-                final double[] g = currentModelGradientAt(cAccum, null, null, geom, s[0], s[1]);
-                polyResid.add(new double[]{s[0], s[1], s[2] - g[0], s[3] - g[1], s[4]});
-            }
-            double sumSqBefore = 0;
-            for (final double[] s : polyResid) sumSqBefore += s[2] * s[2] + s[3] * s[3];
-            final double rmsBefore = Math.sqrt(sumSqBefore / Math.max(1, 2 * polyResid.size()));
-
-            final double[] c0 = fitGslcRamp(polyResid, degree);
-            final java.util.List<double[]> polyTrimmed = trimGslcRampOutliers(polyResid, c0);
-            final double[] cInc = fitGslcRamp(polyTrimmed, degree);
-            for (int k = 0; k < cAccum.length; k++) cAccum[k] += cInc[k];
-
-            // narrow the working sample set to whatever survived this round's trim
-            // (identity-preserving filter, never re-admitting a trimmed-out block)
-            if (polyTrimmed.size() < polyResid.size()) {
-                final java.util.Set<double[]> keptRows = new java.util.HashSet<>(polyTrimmed);
-                final java.util.List<double[]> narrowed = new java.util.ArrayList<>(polyTrimmed.size());
-                for (int idx = 0; idx < workingSamples.size(); idx++) {
-                    if (keptRows.contains(polyResid.get(idx))) narrowed.add(workingSamples.get(idx));
-                }
-                workingSamples = narrowed;
-            }
-
-            double sumSqAfter = 0;
-            for (final double[] s : polyResid) {
-                final double rx = s[2] - gslcRampFx(cInc, s[0], s[1]);
-                final double ry = s[3] - gslcRampFy(cInc, s[0], s[1]);
-                sumSqAfter += rx * rx + ry * ry;
-            }
-            final double rmsAfter = Math.sqrt(sumSqAfter / Math.max(1, 2 * polyResid.size()));
-            final double incPolyCentreGradMag = Math.hypot(
-                    gslcRampFx(cInc, w / 2.0, h / 2.0), gslcRampFy(cInc, w / 2.0, h / 2.0));
-
-            SystemUtils.LOG.info(String.format(
-                    "GSLC residual estimation (%s) poly iter %d/%d: increment centre gradient " +
-                            "(%.5f, %.5f) rad/px [mag %.5f], sample RMS %.5f -> %.5f rad/px, " +
-                            "%d/%d blocks in play; cumulative centre gradient (%.4f, %.4f) rad/px.",
-                    tag, iter + 1, maxIterations,
-                    gslcRampFx(cInc, w / 2.0, h / 2.0), gslcRampFy(cInc, w / 2.0, h / 2.0),
-                    incPolyCentreGradMag, rmsBefore, rmsAfter,
-                    workingSamples.size(), polySamples.size(),
-                    gslcRampFx(cAccum, w / 2.0, h / 2.0), gslcRampFy(cAccum, w / 2.0, h / 2.0)));
-
-            if (iterLog != null) {
-                iterLog.add(new double[]{incPolyCentreGradMag, 0.0, 0.0});
-            }
-
-            if (incPolyCentreGradMag < 0.0005) {
-                break;
-            }
-        }
-
-        // --- Stage 2: slant-range profile, fitted ONCE on the residual after the poly. ---
-        GslcRangeProfile profile = null;
-        if (wantProfile && geom != null) {
-            try {
-                final java.util.List<double[]> pSamples = new java.util.ArrayList<>(polySamples.size());
-                for (final double[] s : polySamples) {
-                    final double[] rg = geom.rAndGrad(s[0], s[1]);
-                    if (rg == null) continue;
-                    final double[] g = currentModelGradientAt(cAccum, null, null, geom, s[0], s[1]);
-                    pSamples.add(new double[]{rg[0], rg[1], rg[2], s[2] - g[0], s[3] - g[1], s[4]});
-                }
-                profile = fitGslcRangeProfile(pSamples, 12);
-                if (profile != null && iterLog != null) {
-                    iterLog.add(new double[]{0.0, profile.excursion(), 0.0});
-                }
-            } catch (Throwable t) {
-                SystemUtils.LOG.warning("GSLC residual range profile failed: " + t.getMessage());
-            }
-        }
-
-        // --- Stage 3: 2-D surface, fitted ONCE on the residual after poly + profile. ---
-        GslcSurface2D surface = null;
-        if (!surfSamples.isEmpty()) {
-            try {
-                final java.util.List<double[]> sSamples = new java.util.ArrayList<>(surfSamples.size());
-                for (final double[] s : surfSamples) {
-                    final double[] g = currentModelGradientAt(cAccum, profile, null, geom, s[0], s[1]);
-                    sSamples.add(new double[]{s[0], s[1], s[2] - g[0], s[3] - g[1], s[4]});
-                }
-                surface = fitGslcSurface2D(sSamples, w, h, surfaceNodes);
-                if (surface != null && iterLog != null) {
-                    iterLog.add(new double[]{0.0, 0.0, surface.maxNode() - surface.minNode()});
-                }
-            } catch (Throwable t) {
-                SystemUtils.LOG.warning("GSLC residual 2-D surface failed: " + t.getMessage());
-            }
-        }
-
-        return new GslcResidualFit(cAccum, profile, surface, iterationsUsed);
-    }
-
-    /**
-     * Data-driven smooth 1-D phase profile in slant range: piecewise-linear S(R) on uniform
-     * knots, clamped outside the fitted span. Fitted from block fringe-gradient RESIDUALS
-     * (after the polynomial ramp) so the two models cannot double-remove; see the
-     * {@code residualRampRangeProfile} parameter. Package-visible for tests.
-     */
-    static final class GslcRangeProfile {
-        final double[] knotR;   // metres, ascending, uniform
-        final double[] s;       // phase value at each knot, rad (s[0] = 0 by construction)
-
-        GslcRangeProfile(final double[] knotR, final double[] s) {
-            this.knotR = knotR;
-            this.s = s;
-        }
-
-        double valueAt(final double rMeters) {
-            final int n = knotR.length;
-            if (rMeters <= knotR[0]) return s[0];
-            if (rMeters >= knotR[n - 1]) return s[n - 1];
-            final double t = (rMeters - knotR[0]) / (knotR[1] - knotR[0]);
-            final int k = Math.min(n - 2, (int) t);
-            final double f = t - k;
-            return s[k] * (1.0 - f) + s[k + 1] * f;
-        }
-
-        /** Piecewise-constant derivative S'(R) of the fitted profile (segment slope). */
-        double derivativeAt(final double rMeters) {
-            final int n = knotR.length;
-            if (rMeters <= knotR[0]) return (s[1] - s[0]) / (knotR[1] - knotR[0]);
-            if (rMeters >= knotR[n - 1]) return (s[n - 1] - s[n - 2]) / (knotR[n - 1] - knotR[n - 2]);
-            final double t = (rMeters - knotR[0]) / (knotR[1] - knotR[0]);
-            final int k = Math.min(n - 2, (int) t);
-            return (s[k + 1] - s[k]) / (knotR[k + 1] - knotR[k]);
-        }
-
-        double excursion() {
-            double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
-            for (final double v : s) {
-                min = Math.min(min, v);
-                max = Math.max(max, v);
-            }
-            return max - min;
-        }
-    }
-
-    /**
-     * Fit the slant-range profile's DERIVATIVE S'(R) (hat basis on uniform knots, small
-     * second-difference ridge for smoothness where blocks are sparse) to per-block gradient
-     * residuals, then integrate to S(R) with S(knot0) = 0.
-     * Samples: {R, dRdx, dRdy, residFx, residFy, weight}; each contributes two equations:
-     * residFx = S'(R)*dRdx and residFy = S'(R)*dRdy. Returns null when the blocks cannot
-     * support the fit. Package-visible for tests.
-     */
-    static GslcRangeProfile fitGslcRangeProfile(final java.util.List<double[]> samples,
-                                                final int nKnots) {
-        final int MIN_BLOCKS = 24;
-        if (samples.size() < MIN_BLOCKS || nKnots < 4) {
-            return null;
-        }
-        double rMin = Double.POSITIVE_INFINITY, rMax = Double.NEGATIVE_INFINITY;
-        for (final double[] s : samples) {
-            rMin = Math.min(rMin, s[0]);
-            rMax = Math.max(rMax, s[0]);
-        }
-        if (!(rMax - rMin > 1000.0)) {
-            return null;
-        }
-        // S' is piecewise-linear on nKnots knots; hat-basis coefficients d_k = S'(knot_k)
-        final int n = nKnots;
-        final double dr = (rMax - rMin) / (n - 1);
-        final double[][] ata = new double[n][n];
-        final double[] atb = new double[n];
-        for (final double[] smp : samples) {
-            final double t = (smp[0] - rMin) / dr;
-            final int k = Math.max(0, Math.min(n - 2, (int) t));
-            final double f = Math.max(0.0, Math.min(1.0, t - k));
-            final double wgt = Math.sqrt(smp[5]);
-            for (int eq = 0; eq < 2; eq++) {
-                final double g = (eq == 0) ? smp[1] : smp[2];   // dR/dx or dR/dy
-                final double v = (eq == 0) ? smp[3] : smp[4];   // residual fx or fy
-                final double a0 = wgt * (1.0 - f) * g;
-                final double a1 = wgt * f * g;
-                final double b = wgt * v;
-                ata[k][k] += a0 * a0;
-                ata[k][k + 1] += a0 * a1;
-                ata[k + 1][k] += a0 * a1;
-                ata[k + 1][k + 1] += a1 * a1;
-                atb[k] += a0 * b;
-                atb[k + 1] += a1 * b;
-            }
-        }
-        // second-difference ridge: lambda * (d_{k-1} - 2 d_k + d_{k+1})^2, scaled to the
-        // typical diagonal so it only matters where knots are data-starved
-        double diagMean = 0;
-        for (int i = 0; i < n; i++) diagMean += ata[i][i];
-        diagMean /= n;
-        final double lambda = Math.max(diagMean, 1e-12) * 0.05;
-        for (int k = 1; k < n - 1; k++) {
-            ata[k - 1][k - 1] += lambda;      ata[k - 1][k] += -2 * lambda;  ata[k - 1][k + 1] += lambda;
-            ata[k][k - 1] += -2 * lambda;     ata[k][k] += 4 * lambda;       ata[k][k + 1] += -2 * lambda;
-            ata[k + 1][k - 1] += lambda;      ata[k + 1][k] += -2 * lambda;  ata[k + 1][k + 1] += lambda;
-        }
-        // solve
-        final double[][] m = new double[n][n + 1];
-        for (int i = 0; i < n; i++) {
-            System.arraycopy(ata[i], 0, m[i], 0, n);
-            m[i][n] = atb[i];
-        }
-        for (int col = 0; col < n; col++) {
-            int piv = col;
-            for (int rr = col + 1; rr < n; rr++) {
-                if (Math.abs(m[rr][col]) > Math.abs(m[piv][col])) piv = rr;
-            }
-            final double[] tmp = m[col]; m[col] = m[piv]; m[piv] = tmp;
-            final double d = m[col][col];
-            if (Math.abs(d) < 1e-20) return null;
-            for (int j = col; j < n + 1; j++) m[col][j] /= d;
-            for (int rr = 0; rr < n; rr++) {
-                if (rr == col) continue;
-                final double f2 = m[rr][col];
-                for (int j = col; j < n + 1; j++) m[rr][j] -= f2 * m[col][j];
-            }
-        }
-        final double[] dPrime = new double[n];
-        for (int i = 0; i < n; i++) dPrime[i] = m[i][n];
-        // integrate S' (trapezoid) to S with S[0] = 0
-        final double[] knotR = new double[n];
-        final double[] s = new double[n];
-        for (int k = 0; k < n; k++) knotR[k] = rMin + k * dr;
-        for (int k = 1; k < n; k++) {
-            s[k] = s[k - 1] + 0.5 * (dPrime[k - 1] + dPrime[k]) * dr;
-        }
-        return new GslcRangeProfile(knotR, s);
-    }
-
-    /**
-     * Bounded smooth 2-D residual phase surface: a bilinear node grid spanning the whole scene,
-     * fitted (ridge-regularised) to fringe-gradient residuals left after the polynomial ramp
-     * and, when active, the range profile. See the {@code residualRamp2D} parameter.
-     * <p>
-     * The node count is nominally 10x10 but is chosen adaptively by {@link #fitGslcSurface2D}
-     * (down to a 5x5 floor) when samples are too sparse to constrain a full 10x10 grid — see
-     * that method's javadoc. {@code NX}/{@code NY} are therefore instance fields, not
-     * constants. Package-visible for tests.
-     */
-    static final class GslcSurface2D {
-        final int NX;
-        final int NY;
-
-        final double[][] node;        // [NY][NX] node phase values, rad
-        final double sceneW, sceneH;  // scene extent (px) the node grid spans: [0, sceneW-1] etc.
-        final double dx, dy;          // node spacing, px
-        int[][] cellSampleCounts;     // [NY-1][NX-1] valid-sample count per cell, for diagnostics/logging
-
-        GslcSurface2D(final double[][] node, final double sceneW, final double sceneH,
-                      final int nx, final int ny) {
-            this.node = node;
-            this.sceneW = sceneW;
-            this.sceneH = sceneH;
-            this.NX = nx;
-            this.NY = ny;
-            this.dx = (sceneW - 1) / (NX - 1);
-            this.dy = (sceneH - 1) / (NY - 1);
-        }
-
-        private static double clamp(final double v, final double lo, final double hi) {
-            return v < lo ? lo : (v > hi ? hi : v);
-        }
-
-        /** Clamped cell index along one axis (floor, pinned to the last interior cell). */
-        private static int cellIndex(final double vClamped, final double spacing, final int n) {
-            int idx = (int) (vClamped / spacing);
-            if (idx < 0) idx = 0;
-            if (idx > n - 2) idx = n - 2;
-            return idx;
-        }
-
-        /** Bilinear value at an arbitrary map coordinate; clamped outside the node grid. */
-        double valueAt(final double x, final double y) {
-            final double xc = clamp(x, 0, sceneW - 1);
-            final double yc = clamp(y, 0, sceneH - 1);
-            final int i = cellIndex(xc, dx, NX);
-            final int j = cellIndex(yc, dy, NY);
-            final double u = clamp((xc - i * dx) / dx, 0, 1);
-            final double v = clamp((yc - j * dy) / dy, 0, 1);
-            final double v00 = node[j][i], v10 = node[j][i + 1], v01 = node[j + 1][i], v11 = node[j + 1][i + 1];
-            return v00 * (1 - u) * (1 - v) + v10 * u * (1 - v) + v01 * (1 - u) * v + v11 * u * v;
-        }
-
-        /**
-         * Gradient at an arbitrary map coordinate: the exact analytic partial derivatives of the
-         * bilinear form in the cell containing (x, y) — {@code d/dx = ((v10-v00)*(1-v) +
-         * (v11-v01)*v)/dx} (piecewise-constant along x, linear along y within the cell) and the
-         * symmetric {@code d/dy}. Linear in the 4 surrounding node values, which is exactly what
-         * {@link #fitGslcSurface2D} inverts.
-         */
-        double[] gradientAt(final double x, final double y) {
-            final double xc = clamp(x, 0, sceneW - 1);
-            final double yc = clamp(y, 0, sceneH - 1);
-            final int i = cellIndex(xc, dx, NX);
-            final int j = cellIndex(yc, dy, NY);
-            final double u = clamp((xc - i * dx) / dx, 0, 1);
-            final double v = clamp((yc - j * dy) / dy, 0, 1);
-            final double v00 = node[j][i], v10 = node[j][i + 1], v01 = node[j + 1][i], v11 = node[j + 1][i + 1];
-            final double ddx = ((v10 - v00) * (1 - v) + (v11 - v01) * v) / dx;
-            final double ddy = ((v01 - v00) * (1 - u) + (v11 - v10) * u) / dy;
-            return new double[]{ddx, ddy};
-        }
-
-        double minNode() {
-            double m = Double.POSITIVE_INFINITY;
-            for (final double[] row : node) for (final double vv : row) m = Math.min(m, vv);
-            return m;
-        }
-
-        double maxNode() {
-            double m = Double.NEGATIVE_INFINITY;
-            for (final double[] row : node) for (final double vv : row) m = Math.max(m, vv);
-            return m;
-        }
-    }
-
-    /** Nominal (maximum) node-grid size; shrunk adaptively by {@link #fitGslcSurface2D}. */
-    private static final int GSLC_SURF_MAX_N = 10;
-    /** Floor below which the node grid is never shrunk further, however sparse the samples. */
-    private static final int GSLC_SURF_MIN_N = 5;
-    /** Minimum sample-to-node oversampling ratio the adaptive node count aims for. */
-    private static final int GSLC_SURF_MIN_SAMPLES_PER_NODE = 4;
-
-    /**
-     * Fit the bilinear-node residual phase surface to per-block fringe-gradient residuals (after
-     * the polynomial ramp and, when active, the range profile). Each sample contributes two
-     * equations — its cell's exact bilinear d/dx and d/dy, linear in the 4 surrounding node
-     * values — assembled into weighted normal equations. Ridge: lambda times second differences
-     * of node values in x and y (as {@link #fitGslcRangeProfile}'s ridge, scaled to the mean
-     * diagonal). The mean node value is unobservable from gradients alone; pinned with one
-     * equation {@code mean(nodes) = 0}, weight 1. Requires >= 40 samples spanning >= half the
-     * scene in both x and y, else null (warn).
-     * <p>
-     * <b>Node count is adaptive</b> (fix round 2 — see {@code task-A-report.md}): a fixed 10x10
-     * grid fitted from as few as ~40-60 real samples (a genuine production count — coherent
-     * fringe blocks are gated by a dominant-fringe weight threshold and easily 1/3 of a scene can
-     * fail it) is underdetermined enough that measurement noise on the surviving samples produces
-     * node-to-node oscillation of ~10x the true field's own smoothness, which then shows up in
-     * the interferogram as ADDED fringes rather than removed arcs. The grid shrinks from 10x10
-     * towards a 5x5 floor until {@code samples.size() >= 4 * NX * NY} — cutting the free node
-     * count is a direct, verifiable lever on conditioning (confirmed empirically: at the reported
-     * production sample count the shrink lands on 5x5, and the resulting fit's adjacent-node
-     * oscillation on a synthetic reproduction of the same sampling pattern drops from ~3x the
-     * true field's own smoothness to ~1.3x — see {@code TestGslcResidualRamp
-     * #surface2DSparseFitDoesNotOscillate}). This trades some fidelity for stability, which is
-     * the correct trade here: an oscillating "high-resolution" surface is actively harmful
-     * (it manufactures fringes), while a coarser-but-smooth one degrades gracefully towards "the
-     * polynomial ramp's constant term," never worse than not fitting a surface at all.
-     * <p>
-     * <b>Coverage rule</b>: nodes whose 4 (or fewer, at the scene border) touching cells are all
-     * empty of samples are pure ridge/pin extrapolation with no data backing at all — e.g. the
-     * scene-easternmost node column when coherent fringes only survive over the western 60% of a
-     * scene. Rather than trust the ridge to extrapolate a plausible value there (it will, but
-     * with no way to know if that value means anything), such nodes are clamped in a
-     * post-processing pass to the value of the nearest node that DOES have local sample support —
-     * a flat but honest extrapolation, rather than a smooth-looking but unsupported one.
-     *
-     * @param samples rows of {@code {xc, yc, residFx, residFy, weight}}
-     */
-    static GslcSurface2D fitGslcSurface2D(final java.util.List<double[]> samples, final int w, final int h) {
-        return fitGslcSurface2D(samples, w, h, 0);
-    }
-
-    /**
-     * As {@link #fitGslcSurface2D(java.util.List, int, int)} but with an explicit requested
-     * node count per axis ({@code residualRamp2DNodes}); {@code 0} keeps the default adaptive
-     * behaviour (nominal {@value #GSLC_SURF_MAX_N}, shrunk towards the {@value #GSLC_SURF_MIN_N}
-     * floor). A requested count is still shrunk when the samples cannot support it at the
-     * {@value #GSLC_SURF_MIN_SAMPLES_PER_NODE}-samples-per-node rule (warn) — an underdetermined
-     * dense grid oscillates and ADDS fringes, which is never acceptable however explicit the
-     * request.
-     */
-    static GslcSurface2D fitGslcSurface2D(final java.util.List<double[]> samples, final int w, final int h,
-                                          final int requestedNodes) {
-        final int MIN_SAMPLES = 40;
-        if (samples.size() < MIN_SAMPLES) {
-            SystemUtils.LOG.warning("GSLC residual 2-D surface: only " + samples.size() +
-                    " samples (need >= " + MIN_SAMPLES + ") — surface fit skipped.");
-            return null;
-        }
-        double xMin = Double.POSITIVE_INFINITY, xMax = Double.NEGATIVE_INFINITY;
-        double yMin = Double.POSITIVE_INFINITY, yMax = Double.NEGATIVE_INFINITY;
-        for (final double[] s : samples) {
-            xMin = Math.min(xMin, s[0]); xMax = Math.max(xMax, s[0]);
-            yMin = Math.min(yMin, s[1]); yMax = Math.max(yMax, s[1]);
-        }
-        if (!((xMax - xMin) >= 0.5 * w && (yMax - yMin) >= 0.5 * h)) {
-            SystemUtils.LOG.warning(String.format(
-                    "GSLC residual 2-D surface: sample span %.0fx%.0f px too small for a %dx%d " +
-                            "scene — surface fit skipped.", xMax - xMin, yMax - yMin, w, h));
-            return null;
-        }
-
-        // Adaptive node count: shrink from the nominal (or explicitly requested) count towards
-        // the 5x5 floor until the sample count gives at least GSLC_SURF_MIN_SAMPLES_PER_NODE-fold
-        // oversampling. Depends only on samples.size(), so it is decided before any per-sample
-        // cell assignment.
-        // Explicit requests demand 16 samples/node, not the default 4: an explicitly dense grid
-        // exists to resolve node-scale oscillation, and gradient-only recovery of node-scale
-        // structure is measured (NumPy replica, 6-cycle field at 24 nodes) to need ~16-25
-        // samples/node to reach the bilinear representation floor — at 4/node it leaves 2.5x
-        // the floor error. The default adaptive path keeps the validated 4/node rule.
-        final int perNode = requestedNodes > 0 ? 16 : GSLC_SURF_MIN_SAMPLES_PER_NODE;
-        final int startN = requestedNodes > 0 ? Math.min(requestedNodes, 64) : GSLC_SURF_MAX_N;
-        int N = startN;
-        while (N > GSLC_SURF_MIN_N && samples.size() < perNode * N * N) {
-            N--;
-        }
-        if (requestedNodes > 0 && N < startN) {
-            SystemUtils.LOG.warning(String.format(
-                    "GSLC residual 2-D surface: requested %d nodes/axis but only %d samples " +
-                            "support %d (at %d samples per node) — using %dx%d.",
-                    requestedNodes, samples.size(), N, perNode, N, N));
-        }
-        final int NX = N, NY = N;
-        final int nNodes = NX * NY;
-        final double dx = (w - 1) / (double) (NX - 1);
-        final double dy = (h - 1) / (double) (NY - 1);
-        final double[][] ata = new double[nNodes][nNodes];
-        final double[] atb = new double[nNodes];
-        final int[][] cellSampleCounts = new int[NY - 1][NX - 1];
-
-        for (final double[] smp : samples) {
-            final double xc = Math.max(0, Math.min(w - 1, smp[0]));
-            final double yc = Math.max(0, Math.min(h - 1, smp[1]));
-            int i = (int) (xc / dx); if (i < 0) i = 0; if (i > NX - 2) i = NX - 2;
-            int j = (int) (yc / dy); if (j < 0) j = 0; if (j > NY - 2) j = NY - 2;
-            final double u = Math.max(0, Math.min(1, (xc - i * dx) / dx));
-            final double v = Math.max(0, Math.min(1, (yc - j * dy) / dy));
-            cellSampleCounts[j][i]++;
-            final int i00 = j * NX + i, i10 = j * NX + i + 1, i01 = (j + 1) * NX + i, i11 = (j + 1) * NX + i + 1;
-            final int[] idx = {i00, i10, i01, i11};
-            final double wgt = Math.max(smp[4], 0.0);
-            // Equations rescaled by dx/dy so the coefficients are O(1) instead of O(1/dx):
-            // ddx = ((v10-v00)*(1-v)+(v11-v01)*v)/dx == residFx  <=>  (v10-v00)*(1-v) +
-            // (v11-v01)*v == residFx*dx (exact analytic gradient of GslcSurface2D.gradientAt,
-            // position-dependent within the cell rather than a cell-average approximation — with
-            // only a handful of samples per cell the position dependence carries real information
-            // that a cell-averaged model would throw away). Un-rescaled (coefficients ~1/dx,
-            // target ~residFx) the sample equations' natural magnitude would be orders of
-            // magnitude below the mean-pin equation's, which would then silently dominate the
-            // solve and wash out the fit.
-            addNormalEq(ata, atb, idx, new double[]{-(1 - v), (1 - v), -v, v}, smp[2] * dx, wgt);
-            addNormalEq(ata, atb, idx, new double[]{-(1 - u), -u, (1 - u), u}, smp[3] * dy, wgt);
-        }
-
-        double diagMean = 0;
-        for (int k = 0; k < nNodes; k++) diagMean += ata[k][k];
-        diagMean /= nNodes;
-        // The 0.05 ridge factor is calibrated for the default (<= 10-node) grid. A physical
-        // field of fixed wavelength has per-cell second differences ~ (cell size)^2, so on an
-        // explicitly-requested denser grid an unscaled ridge penalizes exactly the structure
-        // the dense grid exists to resolve (measured: a 6-cycle 30-rad field fitted at 24
-        // nodes recovered NOTHING at scale 1.0). Scale the ridge with the cell-area ratio;
-        // never above 1 (a coarser-than-default explicit grid keeps the default ridge).
-        final double ridgeScale = requestedNodes > 0
-                ? Math.min(1.0, Math.pow((double) (GSLC_SURF_MAX_N - 1) / (N - 1), 2)) : 1.0;
-        final double lambda = Math.max(diagMean, 1e-12) * 0.05 * ridgeScale;
-
-        // second-difference ridge in x (per row) and y (per column)
-        for (int j = 0; j < NY; j++) {
-            for (int i = 1; i < NX - 1; i++) {
-                addNormalEq(ata, atb, new int[]{j * NX + i - 1, j * NX + i, j * NX + i + 1},
-                        new double[]{1, -2, 1}, 0.0, lambda);
-            }
-        }
-        for (int i = 0; i < NX; i++) {
-            for (int j = 1; j < NY - 1; j++) {
-                addNormalEq(ata, atb, new int[]{(j - 1) * NX + i, j * NX + i, (j + 1) * NX + i},
-                        new double[]{1, -2, 1}, 0.0, lambda);
-            }
-        }
-
-        // mean(nodes) = 0, weight 1 — pins the otherwise-unobservable constant
-        final int[] allIdx = new int[nNodes];
-        final double[] allCoef = new double[nNodes];
-        for (int k = 0; k < nNodes; k++) { allIdx[k] = k; allCoef[k] = 1.0 / nNodes; }
-        addNormalEq(ata, atb, allIdx, allCoef, 0.0, 1.0);
-
-        // solve via Gaussian elimination with partial pivoting (same idiom as fitGslcRamp)
-        final double[][] m = new double[nNodes][nNodes + 1];
-        for (int i = 0; i < nNodes; i++) {
-            System.arraycopy(ata[i], 0, m[i], 0, nNodes);
-            m[i][nNodes] = atb[i];
-        }
-        for (int col = 0; col < nNodes; col++) {
-            int piv = col;
-            for (int rr = col + 1; rr < nNodes; rr++) {
-                if (Math.abs(m[rr][col]) > Math.abs(m[piv][col])) piv = rr;
-            }
-            final double[] tmp = m[col]; m[col] = m[piv]; m[piv] = tmp;
-            final double d = m[col][col];
-            if (Math.abs(d) < 1e-20) return null;
-            for (int jj = col; jj < nNodes + 1; jj++) m[col][jj] /= d;
-            for (int rr = 0; rr < nNodes; rr++) {
-                if (rr == col) continue;
-                final double f = m[rr][col];
-                for (int jj = col; jj < nNodes + 1; jj++) m[rr][jj] -= f * m[col][jj];
-            }
-        }
-        final double[][] nodeVals = new double[NY][NX];
-        for (int j = 0; j < NY; j++) {
-            for (int i = 0; i < NX; i++) {
-                nodeVals[j][i] = m[j * NX + i][nNodes];
-            }
-        }
-
-        clampUnconstrainedNodes(nodeVals, cellSampleCounts, NX, NY);
-
-        final GslcSurface2D surf = new GslcSurface2D(nodeVals, w, h, NX, NY);
-        surf.cellSampleCounts = cellSampleCounts;
-        return surf;
-    }
-
-    /**
-     * Coverage rule (fix round 2): a node whose 4 (fewer at the scene border) touching cells are
-     * ALL empty of samples has no data support at all — its solved value is pure ridge/pin
-     * extrapolation. Overwrite it with the value of the nearest node that DOES touch a
-     * sample-bearing cell (grid distance, brute-force nearest search — the node grid is at most
-     * 10x10, so this is at most 10000 comparisons). Modifies {@code nodeVals} in place.
-     */
-    private static void clampUnconstrainedNodes(final double[][] nodeVals, final int[][] cellSampleCounts,
-                                                  final int NX, final int NY) {
-        final boolean[][] constrained = new boolean[NY][NX];
-        for (int J = 0; J < NY; J++) {
-            for (int I = 0; I < NX; I++) {
-                for (int di = -1; di <= 0 && !constrained[J][I]; di++) {
-                    final int ci = I + di;
-                    if (ci < 0 || ci > NX - 2) continue;
-                    for (int dj = -1; dj <= 0; dj++) {
-                        final int cj = J + dj;
-                        if (cj < 0 || cj > NY - 2) continue;
-                        if (cellSampleCounts[cj][ci] > 0) { constrained[J][I] = true; break; }
-                    }
-                }
-            }
-        }
-        final double[][] original = new double[NY][];
-        for (int J = 0; J < NY; J++) original[J] = nodeVals[J].clone();
-        for (int J = 0; J < NY; J++) {
-            for (int I = 0; I < NX; I++) {
-                if (constrained[J][I]) continue;
-                int bestJ = -1, bestI = -1, bestD = Integer.MAX_VALUE;
-                for (int J2 = 0; J2 < NY; J2++) {
-                    for (int I2 = 0; I2 < NX; I2++) {
-                        if (!constrained[J2][I2]) continue;
-                        final int d = (I - I2) * (I - I2) + (J - J2) * (J - J2);
-                        if (d < bestD) { bestD = d; bestJ = J2; bestI = I2; }
-                    }
-                }
-                if (bestJ >= 0) nodeVals[J][I] = original[bestJ][bestI];
-            }
-        }
-    }
-
-    /** Accumulate the normal-equation contribution of {@code weight * (coef . x[idx] - target)}. */
-    private static void addNormalEq(final double[][] ata, final double[] atb, final int[] idx,
-                                     final double[] coef, final double target, final double weight) {
-        final int n = idx.length;
-        for (int a = 0; a < n; a++) {
-            for (int b = 0; b < n; b++) {
-                ata[idx[a]][idx[b]] += weight * coef[a] * coef[b];
-            }
-            atb[idx[a]] += weight * coef[a] * target;
-        }
-    }
 
     /** Reference-orbit azimuth time (seconds of day) of a map pixel, via geocoding + DEM height. */
     private double refAzTimeSodAt(final double px, final double py) {
@@ -1923,693 +1145,91 @@ public class InterferogramOp extends Operator {
         return gslcRefOrbit.xyz2t(xyz, gslcRefSLC).y;
     }
 
-    /** One estimation block: fringe gradient plus the multilooked field it was measured on, kept so
-     *  the per-burst constants can be estimated afterwards without re-reading any tile. The local
-     *  azimuth-time frame (eta at the centre plus its map gradients) is filled during burst
-     *  labelling; the gradients carry the iso-eta TILT that maps azimuth rate into both fx and fy. */
-    private static final class GslcRampBlock {
-        final double xc, yc, fx, fy, weight;
-        final double[] mlRe, mlIm;
-        final int mw, mh, x0, y0;
-        int burst = -1;
-        double tSod = Double.NaN;      // reference azimuth time at (xc, yc), seconds of day
-        double dEtaDx = Double.NaN;    // d(eta)/dx, s/px
-        double dEtaDy = Double.NaN;    // d(eta)/dy, s/px
-
-        GslcRampBlock(final double xc, final double yc, final double fx, final double fy,
-                      final double weight, final double[] mlRe, final double[] mlIm,
-                      final int mw, final int mh, final int x0, final int y0) {
-            this.xc = xc; this.yc = yc; this.fx = fx; this.fy = fy; this.weight = weight;
-            this.mlRe = mlRe; this.mlIm = mlIm; this.mw = mw; this.mh = mh; this.x0 = x0; this.y0 = y0;
-        }
-
-        /** Azimuth time of an arbitrary pixel, from the block's local linear eta frame. */
-        double etaAt(final double x, final double y) {
-            return tSod + dEtaDx * (x - xc) + dEtaDy * (y - yc);
-        }
-    }
-
     /**
-     * Weighted segmented fit in AZIMUTH TIME, two decoupled stages. Stage 1, per burst: every
-     * sample's {@code fy/dEtaDy} is a direct measurement of the within-burst azimuth phase rate
-     * (rad/s); fit rate(eta) linear per burst (i.e. phase quadratic in eta), with a per-burst
-     * outlier-trim pass — trimming against a global fit would discard exactly the
-     * strongly-deviating bursts this model exists for. Stage 2, shared: subtract each sample's
-     * azimuth-rate leakage {@code rate*dEtaDx} from {@code fx} (the iso-eta tilt maps azimuth rate
-     * into fx, per burst); what remains is the genuine range-direction gradient, fitted as
-     * {@code aN/N + 2*c2N*x/N^2} with its own trim pass. Bursts with too few samples inherit
-     * neighbours by linear interpolation over burst index. {@code dk} is left at zero — constants
-     * are unobservable from gradients and are filled from the phase by the caller.
-     * Package-visible and pure, for unit tests.
-     *
-     * @param samples rows of {@code {x, etaSod, fx, fy, weight, burstIndex, dEtaDx, dEtaDy}}
+     * Measure the per-burst seam steps once, for every pair. Seam steps are the only GSLC
+     * residual model left: they are measured as the DISCONTINUITY across each burst seam, so
+     * anything continuous across it - deformation, atmosphere, orbital ramps - cancels in the
+     * difference and cannot be absorbed. (The data-driven smooth-surface models that used to
+     * live here were removed: the surface they targeted was an inverted carrier-difference
+     * add-back sign, and with that corrected they only removed signal - see
+     * docs/gslc-parity/etna-ramp-ab.md.)
      */
-    static GslcPerBurstRamp fitGslcPerBurstRamp(final java.util.List<double[]> samples,
-                                                final double[] startSod, final double[] endSod) {
-        final int nB = startSod.length;
-        final double N = GSLC_RAMP_NORM;
-
-        // stage 1: per-burst rate(eta) = bk + 2*qk*(eta - etaK)
-        final double[] etaK = new double[nB], bk = new double[nB], qk = new double[nB];
-        final boolean[] fitted = new boolean[nB];
-        for (int k = 0; k < nB; k++) {
-            etaK[k] = 0.5 * (startSod[k] + endSod[k]);
-            java.util.List<double[]> in = new java.util.ArrayList<>();
-            for (final double[] s : samples) {
-                if ((int) s[5] == k && Math.abs(s[7]) > 1e-12) in.add(s);
-            }
-            for (int pass = 0; pass < 2 && in.size() >= GSLC_RAMP_MIN_BURST_BLOCKS; pass++) {
-                double t11 = 0, t12 = 0, t22 = 0, u1 = 0, u2 = 0;
-                for (final double[] s : in) {
-                    final double wgt = Math.sqrt(s[4]);
-                    final double rate = s[3] / s[7];
-                    final double j1 = 2.0 * (s[1] - etaK[k]);
-                    t11 += wgt; t12 += wgt * j1; t22 += wgt * j1 * j1;
-                    u1 += wgt * rate; u2 += wgt * j1 * rate;
-                }
-                final double d2 = t11 * t22 - t12 * t12;
-                if (Math.abs(d2) > 1e-30) {
-                    bk[k] = (u1 * t22 - u2 * t12) / d2;
-                    qk[k] = (t11 * u2 - t12 * u1) / d2;
-                } else {
-                    bk[k] = (t11 > 1e-30) ? u1 / t11 : 0.0;
-                    qk[k] = 0.0;
-                }
-                fitted[k] = true;
-                if (pass == 0) {   // per-burst trim, then refit once
-                    final double[] resid = new double[in.size()];
-                    for (int i = 0; i < in.size(); i++) {
-                        final double[] s = in.get(i);
-                        resid[i] = Math.abs(s[3] / s[7] - (bk[k] + 2.0 * qk[k] * (s[1] - etaK[k])));
-                    }
-                    final double[] sorted = resid.clone();
-                    java.util.Arrays.sort(sorted);
-                    final double thr = 3.0 * Math.max(sorted[sorted.length / 2], 1e-3);
-                    final java.util.List<double[]> kept = new java.util.ArrayList<>();
-                    for (int i = 0; i < in.size(); i++) {
-                        if (resid[i] <= thr) kept.add(in.get(i));
-                    }
-                    if (kept.size() < GSLC_RAMP_MIN_BURST_BLOCKS || kept.size() == in.size()) break;
-                    in = kept;
-                }
-            }
-        }
-        // bursts without a fit inherit by linear interpolation over burst index; their eta centre
-        // stays the burst-table midpoint, which is always defined.
-        for (int k = 0; k < nB; k++) {
-            if (fitted[k]) continue;
-            int lo = -1, hi = -1;
-            for (int i = k - 1; i >= 0; i--) if (fitted[i]) { lo = i; break; }
-            for (int i = k + 1; i < nB; i++) if (fitted[i]) { hi = i; break; }
-            if (lo < 0 && hi < 0) { bk[k] = 0; qk[k] = 0; continue; }
-            if (lo < 0) { bk[k] = bk[hi]; qk[k] = qk[hi]; continue; }
-            if (hi < 0) { bk[k] = bk[lo]; qk[k] = qk[lo]; continue; }
-            final double t = (k - lo) / (double) (hi - lo);
-            bk[k] = bk[lo] + t * (bk[hi] - bk[lo]);
-            qk[k] = qk[lo] + t * (qk[hi] - qk[lo]);
-        }
-
-        // stage 2: SHARED range terms from the tilt-corrected fx residuals. Deliberately NOT
-        // per-burst: per-burst absolute range slopes are degenerate with real geophysical signal
-        // (measured on the Venezuela coseismic pair: the southern bursts' fit absorbed the
-        // deformation fan, a=+12 rad/Npx vs ~0 elsewhere, manufacturing seam steps). The genuine
-        // per-burst range structure of the annotation error is removed downstream by the
-        // seam-step corrector, which measures the DISCONTINUITY itself — smooth signal cancels
-        // across a seam by continuity, so it cannot absorb deformation.
-        final java.util.List<double[]> fxAll = new java.util.ArrayList<>();
-        for (final double[] s : samples) {
-            final int k = (int) s[5];
-            if (k >= 0 && k < nB) fxAll.add(s);
-        }
-        final double[] pooled = fitRangeTerms(fxAll, bk, qk, etaK, 3);
-        final double[] ak = new double[nB], ck = new double[nB];
-        if (pooled != null) {
-            java.util.Arrays.fill(ak, pooled[0]);
-            java.util.Arrays.fill(ck, pooled[1]);
-        }
-        return new GslcPerBurstRamp(ak, ck, etaK, bk, qk, new double[nB], startSod, endSod);
-    }
-
-    /**
-     * Weighted LS of {@code fxResid = a/N + 2c*x/N^2} on tilt-corrected range gradients (one
-     * outlier-trim pass), for one burst's samples or the pooled fallback. Returns {@code {a, c}}
-     * or null below {@code minSamples}.
-     */
-    private static double[] fitRangeTerms(java.util.List<double[]> fxIn, final double[] bk,
-                                          final double[] qk, final double[] etaK,
-                                          final int minSamples) {
-        final double N = GSLC_RAMP_NORM;
-        double a = 0.0, c = 0.0;
-        if (fxIn.size() < minSamples) return null;
-        for (int pass = 0; pass < 2; pass++) {
-            double s11 = 0, s12 = 0, s22 = 0, r1 = 0, r2 = 0;
-            for (final double[] s : fxIn) {
-                final int k = (int) s[5];
-                final double rate = bk[k] + 2.0 * qk[k] * (s[1] - etaK[k]);
-                final double fxResid = s[2] - rate * s[6];
-                final double wgt = Math.sqrt(s[4]);
-                final double j0 = 1.0 / N, j1 = 2.0 * s[0] / (N * N);
-                s11 += wgt * j0 * j0; s12 += wgt * j0 * j1; s22 += wgt * j1 * j1;
-                r1 += wgt * j0 * fxResid; r2 += wgt * j1 * fxResid;
-            }
-            final double det = s11 * s22 - s12 * s12;
-            if (Math.abs(det) > 1e-30) {
-                a = (r1 * s22 - r2 * s12) / det;
-                c = (s11 * r2 - s12 * r1) / det;
-            } else {
-                a = (s11 > 1e-30) ? r1 / s11 : 0.0;
-                c = 0.0;
-            }
-            if (pass == 0) {
-                final double[] resid = new double[fxIn.size()];
-                for (int i = 0; i < fxIn.size(); i++) {
-                    final double[] s = fxIn.get(i);
-                    final int k = (int) s[5];
-                    final double rate = bk[k] + 2.0 * qk[k] * (s[1] - etaK[k]);
-                    resid[i] = Math.abs(s[2] - rate * s[6] - (a / N + 2.0 * c * s[0] / (N * N)));
-                }
-                final double[] sorted = resid.clone();
-                java.util.Arrays.sort(sorted);
-                final double thr = 3.0 * Math.max(sorted[sorted.length / 2], 1e-4);
-                final java.util.List<double[]> kept = new java.util.ArrayList<>();
-                for (int i = 0; i < fxIn.size(); i++) {
-                    if (resid[i] <= thr) kept.add(fxIn.get(i));
-                }
-                if (kept.size() < minSamples || kept.size() == fxIn.size()) break;
-                fxIn = kept;
-            }
-        }
-        return new double[]{a, c};
-    }
-
-    /**
-     * Estimate the per-pair residual phase ramp of the (reference-phase-removed) GSLC
-     * interferogram as a quadratic phase polynomial, from block-wise fringe gradients.
-     * <p>
-     * Per block: form the conjugate product, remove the flat-earth/topo reference phase (when
-     * enabled), multilook, and take the lag-1 phase gradient — a robust dominant-fringe estimator
-     * on speckle. The (fx, fy) samples are then fitted (weighted, with one outlier-trim pass) to
-     * the gradient of {@code phi = c0*x + c1*y + c2*x^2 + c3*xy + c4*y^2} — curl-free by
-     * construction. Five global parameters cannot absorb localized deformation; a genuine
-     * scene-wide linear gradient would be absorbed, which is why the option is off by default.
-     */
-    private void estimateGslcResidualRampOnce() {
-        if (gslcRampEstimated) return;
-        synchronized (gslcRampLock) {
-            if (gslcRampEstimated) return;
-            gslcRampCoef = new double[gslcReferenceI.length][];
-            gslcRampPerBurst = new GslcPerBurstRamp[gslcReferenceI.length];
+    private void estimateGslcSeamStepsOnce() {
+        if (gslcSeamStepsEstimated) return;
+        synchronized (gslcSeamLock) {
+            if (gslcSeamStepsEstimated) return;
             gslcSeamStepsPerPair = new GslcSeamSteps[gslcReferenceI.length];
-            gslcRangeProfilePerPair = new GslcRangeProfile[gslcReferenceI.length];
-            gslcSurface2DPerPair = new GslcSurface2D[gslcReferenceI.length];
-            final int w = sourceProduct.getSceneRasterWidth();
-            final int h = sourceProduct.getSceneRasterHeight();
-            final int n = GSLC_RAMP_BLOCK;
+            gslcBurstLabelling = new GslcPerBurstRamp[gslcReferenceI.length];
             final boolean perBurst = gslcBurstStartSod != null && gslcBurstStartSod.length >= 2
                     && gslcRefOrbit != null && gslcRefSLC != null && gslcGeoCoding != null;
-            if (!perBurst && gslcBurstStartSod == null
-                    && extractGslcBurstTableSod(sourceProduct) != null) {
-                // The burst table is only harvested by setupGSLCReferencePhase, which runs when
-                // flat-earth or topographic phase removal is on — without either, a TOPS stack
-                // silently degrades to the scene-global fit. Say why, not just "no annotation".
-                SystemUtils.LOG.warning("GSLC residual ramp: TOPS burst annotation is present but "
-                        + "per-burst fitting needs the reference geometry — enable "
-                        + "subtractFlatEarthPhase or subtractTopographicPhase to activate the "
-                        + "per-burst model and seam-step correction; using the scene-global fit.");
+            if (!perBurst) {
+                if (gslcBurstStartSod == null && extractGslcBurstTableSod(sourceProduct) != null) {
+                    // The burst table is only harvested by setupGSLCReferencePhase, which runs when
+                    // flat-earth or topographic phase removal is on.
+                    SystemUtils.LOG.warning("GSLC seam steps: TOPS burst annotation is present but "
+                            + "the correction needs the reference geometry - enable "
+                            + "subtractFlatEarthPhase or subtractTopographicPhase.");
+                } else {
+                    SystemUtils.LOG.info("GSLC seam steps: no burst annotation - nothing to correct "
+                            + "(stripmap products have no burst seams).");
+                }
+                gslcSeamStepsEstimated = true;
+                return;
             }
-            final int nB = perBurst ? gslcBurstStartSod.length : 0;
-            final int stepX = Math.max(n + 64, Math.min(w, h) / 10);
-            // Per-burst fitting needs several block rows PER BURST; the global grid gives ~10 rows
-            // for the whole scene (~1 per burst). Overlapping blocks are statistically fine here —
-            // each contributes an independent local gradient estimate to a weighted LS.
-            final int stepY = perBurst ? Math.max(n / 2, h / (nB * 5)) : stepX;
+            final int nB = gslcBurstStartSod.length;
             for (int p = 0; p < gslcReferenceI.length; p++) {
                 try {
-                    final java.util.List<GslcRampBlock> blocks = new java.util.ArrayList<>();
-                    for (int y0 = 64; y0 + n < h - 64; y0 += stepY) {
-                        for (int x0 = 64; x0 + n < w - 64; x0 += stepX) {
-                            final GslcRampBlock b = gslcRampBlockGradient(p, new Rectangle(x0, y0, n, n));
-                            if (b != null) blocks.add(b);
-                        }
+                    // Burst LABELLING only: the seam term is applied per burst, so it needs
+                    // burstOfSod, but no phase is modelled here.
+                    final double[] etaK = new double[nB];
+                    for (int k = 0; k < nB; k++) {
+                        etaK[k] = 0.5 * (gslcBurstStartSod[k] + gslcBurstEndSod[k]);
                     }
-                    if (blocks.size() < 10) {
-                        SystemUtils.LOG.warning("GSLC residual ramp: only " + blocks.size() +
-                                " usable blocks for pair " + p + " — ramp removal skipped.");
-                        continue;
-                    }
-                    final java.util.List<double[]> samples = new java.util.ArrayList<>(blocks.size());
-                    for (final GslcRampBlock b : blocks) {
-                        if (perBurst) {
-                            labelGslcBlockBurst(b);
-                        }
-                        samples.add(new double[]{b.xc, b.yc, b.fx, b.fy, b.weight, b.burst});
-                    }
-                    // per-burst TOPS fitting has its own azimuth-time model; the configurable
-                    // degree applies to the scene-global (stripmap) polynomial only.
-                    final int rampDegree = Math.max(2, Math.min(4, residualRampDegree));
-
-                    if (perBurst) {
-                        // Unchanged single-pass global fit, kept only as gslcRampPerBurst's own
-                        // fallback (used when per-burst fitting itself doesn't have enough
-                        // burst-labelled blocks). The closed-loop iteration below (fix round 3)
-                        // targets the stripmap diagnosis specifically and doesn't apply to TOPS.
-                        double[] c = fitGslcRamp(samples, rampDegree);
-                        final double[] resid = new double[samples.size()];
-                        for (int i = 0; i < samples.size(); i++) {
-                            resid[i] = gslcRampGradResidual(samples.get(i), c);
-                        }
-                        final double[] sorted = resid.clone();
-                        java.util.Arrays.sort(sorted);
-                        final double thr = 3.0 * Math.max(sorted[sorted.length / 2], 1e-4);
-                        final java.util.List<double[]> keptLocal = new java.util.ArrayList<>();
-                        for (int i = 0; i < samples.size(); i++) {
-                            if (resid[i] <= thr) keptLocal.add(samples.get(i));
-                        }
-                        if (keptLocal.size() >= 10) {
-                            c = fitGslcRamp(keptLocal, rampDegree);
-                        }
-                        gslcRampCoef[p] = c;
-                        final StringBuilder coefStr = new StringBuilder();
-                        for (final double cc : c) coefStr.append(String.format("%.5g ", cc));
-                        SystemUtils.LOG.info(String.format(
-                                "GSLC residual ramp (pair %d, %d/%d blocks, degree %d): centre gradient " +
-                                        "(%.4f, %.4f) rad/px; coef [%s] (x,y in px/%.0f)",
-                                p, keptLocal.size(), samples.size(), rampDegree,
-                                gslcRampFx(c, w / 2.0, h / 2.0), gslcRampFy(c, w / 2.0, h / 2.0),
-                                coefStr.toString().trim(), GSLC_RAMP_NORM));
-                    } else {
-                        // Fix round 3 introduced closed-loop iteration (a single weighted-LS-plus-
-                        // trim poly pass undershoots against contaminated block gradients); fix
-                        // round 4 moved the whole estimation into the pure static
-                        // estimateGslcResidualModel (see its javadoc for the round-4 stability
-                        // analysis) — this caller only collects the raw block gradients and the
-                        // geometry callback, then logs the result.
-                        final boolean haveGeom = gslcRefOrbit != null && gslcRefSLC != null
-                                && gslcGeoCoding != null;
-                        final boolean wantProfile = residualRampRangeProfile && haveGeom;
-                        final boolean wantSurface = residualRamp2D;
-                        if (residualRampRangeProfile && !haveGeom) {
-                            SystemUtils.LOG.warning("GSLC residual range profile: reference " +
-                                    "geometry unavailable — profile skipped.");
-                        }
-
-                        // The surface's own denser, decoupled sampling pass (fix round 2) —
-                        // collected once; only the raw gradients are needed here.
-                        final java.util.List<double[]> surfSamples = new java.util.ArrayList<>();
-                        if (wantSurface) {
-                            try {
-                                for (final GslcRampBlock b : collectGslcSurfaceBlocks(p, w, h, false)) {
-                                    surfSamples.add(new double[]{b.xc, b.yc, b.fx, b.fy, b.weight});
-                                }
-                            } catch (Throwable t) {
-                                surfSamples.clear();
-                                SystemUtils.LOG.warning("GSLC residual 2-D surface: block " +
-                                        "sampling failed: " + t.getMessage() + " — surface skipped.");
-                            }
-                        }
-
-                        final java.util.List<double[]> polySamples = new java.util.ArrayList<>(blocks.size());
-                        for (final GslcRampBlock b : blocks) {
-                            polySamples.add(new double[]{b.xc, b.yc, b.fx, b.fy, b.weight});
-                        }
-
-                        final GslcProfileGeom geom = haveGeom ? (x, y) -> {
-                            try {
-                                final double D = 96.0;
-                                final double R = refSlantRangeMetersAt(x, y);
-                                final double dRdx = (refSlantRangeMetersAt(x + D, y) - R) / D;
-                                final double dRdy = (refSlantRangeMetersAt(x, y + D) - R) / D;
-                                if (!Double.isFinite(R) || !Double.isFinite(dRdx) || !Double.isFinite(dRdy)) {
-                                    return null;
-                                }
-                                return new double[]{R, dRdx, dRdy};
-                            } catch (Throwable t) {
-                                return null;
-                            }
-                        } : null;
-
-                        final GslcResidualFit fit = estimateGslcResidualModel(polySamples, surfSamples,
-                                geom, wantProfile, w, h, rampDegree, 4, "pair " + p, null,
-                                residualRamp2DNodes);
-                        final double[] cAccum = fit.polyCoef;
-                        final GslcRangeProfile profileAccum = fit.profile;
-                        final GslcSurface2D surfaceAccum = fit.surface;
-                        final int iterationsUsed = fit.polyIterations;
-
-                        gslcRampCoef[p] = cAccum;
-                        gslcRangeProfilePerPair[p] = profileAccum;
-                        gslcSurface2DPerPair[p] = surfaceAccum;
-
-                        final StringBuilder coefStr = new StringBuilder();
-                        for (final double cc : cAccum) coefStr.append(String.format("%.5g ", cc));
-                        SystemUtils.LOG.info(String.format(
-                                "GSLC residual ramp (pair %d, %d blocks, degree %d, %d iteration%s): " +
-                                        "centre gradient (%.4f, %.4f) rad/px; coef [%s] (x,y in px/%.0f)",
-                                p, blocks.size(), rampDegree, iterationsUsed, iterationsUsed == 1 ? "" : "s",
-                                gslcRampFx(cAccum, w / 2.0, h / 2.0), gslcRampFy(cAccum, w / 2.0, h / 2.0),
-                                coefStr.toString().trim(), GSLC_RAMP_NORM));
-
-                        if (profileAccum != null) {
-                            SystemUtils.LOG.info(String.format(
-                                    "GSLC residual range profile (pair %d, 12 knots): span %.1f-%.1f km " +
-                                            "slant, excursion %.1f rad beyond the polynomial.",
-                                    p, profileAccum.knotR[0] / 1000.0,
-                                    profileAccum.knotR[profileAccum.knotR.length - 1] / 1000.0,
-                                    profileAccum.excursion()));
-                        } else if (residualRampRangeProfile && haveGeom) {
-                            SystemUtils.LOG.warning("GSLC residual range profile: not fitted (too " +
-                                    "few usable blocks) — polynomial ramp still applies.");
-                        }
-
-                        if (surfaceAccum != null) {
-                            SystemUtils.LOG.info(String.format(
-                                    "GSLC residual 2-D surface (pair %d, %dx%d nodes): node values " +
-                                            "%.2f..%.2f rad, excursion %.2f rad beyond the " +
-                                            "polynomial%s.",
-                                    p, surfaceAccum.NX, surfaceAccum.NY, surfaceAccum.minNode(),
-                                    surfaceAccum.maxNode(), surfaceAccum.maxNode() - surfaceAccum.minNode(),
-                                    profileAccum != null ? " and range profile" : ""));
-                            final StringBuilder nodeStr = new StringBuilder(
-                                    "GSLC residual 2-D surface (pair " + p + ") node matrix (rad):");
-                            for (int jj = 0; jj < surfaceAccum.NY; jj++) {
-                                nodeStr.append('\n');
-                                for (int ii = 0; ii < surfaceAccum.NX; ii++) {
-                                    nodeStr.append(String.format("%8.2f", surfaceAccum.node[jj][ii]));
-                                }
-                            }
-                            SystemUtils.LOG.info(nodeStr.toString());
-                            if (surfaceAccum.cellSampleCounts != null) {
-                                final StringBuilder cntStr = new StringBuilder(
-                                        "GSLC residual 2-D surface (pair " + p + ") per-cell sample counts:");
-                                for (int jj = 0; jj < surfaceAccum.NY - 1; jj++) {
-                                    cntStr.append('\n');
-                                    for (int ii = 0; ii < surfaceAccum.NX - 1; ii++) {
-                                        cntStr.append(String.format("%5d", surfaceAccum.cellSampleCounts[jj][ii]));
-                                    }
-                                }
-                                SystemUtils.LOG.info(cntStr.toString());
-                            }
-                        } else if (residualRamp2D) {
-                            SystemUtils.LOG.warning("GSLC residual 2-D surface: not fitted (too " +
-                                    "few/too clustered samples) — polynomial ramp/profile still apply.");
-                        }
-                    }
-
-                    if (perBurst) {
-                        final java.util.List<double[]> pbSamples = new java.util.ArrayList<>(blocks.size());
-                        for (final GslcRampBlock b : blocks) {
-                            if (b.burst >= 0 && !Double.isNaN(b.dEtaDy) && Math.abs(b.dEtaDy) > 1e-12) {
-                                pbSamples.add(new double[]{b.xc, b.tSod, b.fx, b.fy, b.weight,
-                                        b.burst, b.dEtaDx, b.dEtaDy});
-                            }
-                        }
-                        if (pbSamples.size() >= 10) {
-                            gslcRampPerBurst[p] = fitGslcPerBurstConstants(
-                                    fitGslcPerBurstRamp(pbSamples, gslcBurstStartSod, gslcBurstEndSod),
-                                    blocks, p);
-                            // INVARIANT (by construction, not statement order): the moment a
-                            // per-burst model exists, the full-magnitude fallback polynomial must
-                            // never apply on top of it — clear it HERE; the residual fit below
-                            // re-populates it with the (small) post-burst polynomial on success.
-                            gslcRampCoef[p] = null;
-
-                            // Smooth models on TOP of the per-burst model, fitted on the
-                            // RESIDUAL gradients (per-burst model subtracted so nothing is
-                            // double-counted): the annotation-error difference carries smooth
-                            // structure beyond quadratic — measured on S1A x S1C as a range-
-                            // growing azimuth drift reaching ~200 rad at the far swath edge that
-                            // the global quadratic provably cannot hold. Previously the range
-                            // profile / 2-D surface were only fitted on the stripmap path, so
-                            // residualRampRangeProfile/residualRamp2D were silent no-ops for TOPS.
-                            try {
-                                final boolean haveGeomPB = gslcRefOrbit != null && gslcRefSLC != null
-                                        && gslcGeoCoding != null;
-                                final GslcPerBurstRamp pb = gslcRampPerBurst[p];
-                                final java.util.List<double[]> residSamples =
-                                        gslcPerBurstResidualSamples(blocks, pb);
-                                final boolean wantProfilePB = residualRampRangeProfile && haveGeomPB;
-                                final boolean wantSurfacePB = residualRamp2D;
-
-                                // The 2-D surface needs its own DENSE sampling pass, exactly like
-                                // the stripmap path: the coarse ramp grid (~36 x-columns) is the
-                                // under-constrained regime the round-2 surface analysis documents
-                                // as fringe-manufacturing, and it silently shrinks any explicit
-                                // residualRamp2DNodes request to the node floor. Blocks are burst-
-                                // labelled and per-burst-model-subtracted like the main samples.
-                                final java.util.List<double[]> surfResid = wantSurfacePB
-                                        ? gslcPerBurstResidualSamples(
-                                                collectGslcSurfaceBlocks(p, w, h, true), pb)
-                                        : java.util.Collections.emptyList();
-                                final GslcProfileGeom geomPB = haveGeomPB ? (x, y) -> {
-                                    try {
-                                        final double D = 96.0;
-                                        final double R = refSlantRangeMetersAt(x, y);
-                                        final double dRdx = (refSlantRangeMetersAt(x + D, y) - R) / D;
-                                        final double dRdy = (refSlantRangeMetersAt(x, y + D) - R) / D;
-                                        if (!Double.isFinite(R) || !Double.isFinite(dRdx)
-                                                || !Double.isFinite(dRdy)) return null;
-                                        return new double[]{R, dRdx, dRdy};
-                                    } catch (Throwable t) {
-                                        return null;
-                                    }
-                                } : null;
-                                final GslcResidualFit fitPB = estimateGslcResidualModel(
-                                        residSamples, surfResid, geomPB, wantProfilePB, w, h,
-                                        2, 4, "pair " + p + " (post-burst residual)", null,
-                                        residualRamp2DNodes);
-                                // Residual polynomial COMPOSES with the per-burst model (the
-                                // full-magnitude fallback poly it replaces here must never be
-                                // applied on top of the per-burst model).
-                                gslcRampCoef[p] = fitPB.polyCoef;
-                                gslcRangeProfilePerPair[p] = wantProfilePB ? fitPB.profile : null;
-                                gslcSurface2DPerPair[p] = wantSurfacePB ? fitPB.surface : null;
-                                SystemUtils.LOG.info(String.format(
-                                        "GSLC residual models on per-burst remainder (pair %d): "
-                                                + "poly centre gradient (%.4f, %.4f) rad/px%s%s.",
-                                        p, gslcRampFx(fitPB.polyCoef, w / 2.0, h / 2.0),
-                                        gslcRampFy(fitPB.polyCoef, w / 2.0, h / 2.0),
-                                        fitPB.profile != null && wantProfilePB
-                                                ? String.format("; range profile excursion %.1f rad",
-                                                        fitPB.profile.excursion()) : "",
-                                        fitPB.surface != null && wantSurfacePB
-                                                ? String.format("; 2-D surface %dx%d nodes span %.1f rad",
-                                                        fitPB.surface.NX, fitPB.surface.NY,
-                                                        fitPB.surface.maxNode() - fitPB.surface.minNode())
-                                                : ""));
-                            } catch (Throwable t) {
-                                gslcRampCoef[p] = null;   // never apply the fallback poly on top
-                                SystemUtils.LOG.warning("GSLC residual models on per-burst "
-                                        + "remainder failed for pair " + p + ": " + t.getMessage()
-                                        + " — per-burst model and seam steps still apply.");
-                            }
-
-                            // What stays discontinuous at the seams after the carrier difference
-                            // and the per-burst ramp is measured directly and folded into the
-                            // reference-phase surface — see GslcSeamSteps. (Smooth models cancel
-                            // in the across-seam difference, so ordering does not bias the steps.)
-                            gslcSeamStepsPerPair[p] = measureGslcSeamSteps(p, gslcRampPerBurst[p]);
-                        } else {
-                            SystemUtils.LOG.warning("GSLC residual ramp: only " + pbSamples.size()
-                                    + " burst-labelled blocks — falling back to the global fit.");
-                        }
-                    }
+                    final GslcPerBurstRamp labelling = new GslcPerBurstRamp(
+                            new double[nB], new double[nB], etaK, new double[nB], new double[nB],
+                            new double[nB], gslcBurstStartSod, gslcBurstEndSod);
+                    gslcBurstLabelling[p] = labelling;
+                    gslcSeamStepsPerPair[p] = measureGslcSeamSteps(p, labelling);
                 } catch (Throwable t) {
-                    SystemUtils.LOG.warning("GSLC residual ramp estimation failed for pair " + p +
-                            " (" + t + ") — per-burst/seam corrections skipped"
-                            + (gslcRampCoef[p] != null
-                                    ? "; the already-fitted global polynomial still applies."
-                                    : "; no ramp removal for this pair."));
+                    SystemUtils.LOG.warning("GSLC seam steps: measurement failed for pair " + p
+                            + " (" + t + ") - seam correction skipped for this pair.");
                 }
             }
-            gslcRampEstimated = true;
+            gslcSeamStepsEstimated = true;
         }
     }
+
 
     /**
-     * Fringe gradient of a block MINUS the per-burst model's gradient at it — the residual the
-     * range profile / 2-D surface / residual polynomial are fitted on when the per-burst model is
-     * active, so the smooth models never double-count what the per-burst model already removes.
-     * Model gradients: d(phi)/dx = a_k/N + 2 c_k x/N^2 + rate*dEtaDx (iso-eta tilt leaks the
-     * azimuth rate into map-x), d(phi)/dy = rate*dEtaDy. Package-visible for tests.
+     * Is the measured ambient azimuth gradient safe to extrapolate from the outer-band span to the
+     * across-seam span?
+     * <p>
+     * The ambient gradient is measured as a wrapped angle over {@code spanAmb} rows and scaled by
+     * {@code spanCross / spanAmb} (46/32 = 1.4375) to predict the gradient contribution over the
+     * across-seam span. {@code atan2} is confined to (-pi, pi], so once the TRUE gradient over
+     * spanAmb passes pi the measurement aliases and the scaled correction is wrong by
+     * {@code (spanCross / spanAmb) * 2*pi} - about 9 rad, which lands whole in the reported step.
+     * A single measurement cannot tell an aliased angle from a genuine one, so the only sound
+     * response is to refuse the window rather than extrapolate it.
+     * <p>
+     * The bound is the angle at which the extrapolated correction itself reaches pi
+     * ({@code pi * spanAmb / spanCross}, about 2.19 rad): beyond it the corrected step cannot be
+     * distinguished from its own alias even if the ambient measurement were exact.
      */
-    static double[] perBurstResidualGradient(final double x, final double etaSod,
-                                             final double fx, final double fy,
-                                             final double dEtaDx, final double dEtaDy,
-                                             final int burst, final GslcPerBurstRamp ramp) {
-        final double rate = ramp.rateAt(etaSod, burst);
-        final double gx = ramp.ak[burst] / GSLC_RAMP_NORM
-                + 2.0 * ramp.ck[burst] * x / (GSLC_RAMP_NORM * GSLC_RAMP_NORM)
-                + rate * dEtaDx;
-        final double gy = rate * dEtaDy;
-        return new double[]{fx - gx, fy - gy};
+    static boolean ambientIsExtrapolable(final double ambAngle, final double spanCross,
+                                         final double spanAmb) {
+        if (!Double.isFinite(ambAngle)) {
+            return false;
+        }
+        return Math.abs(ambAngle) <= Math.PI * spanAmb / spanCross;
     }
 
-    /** Fill a block's azimuth-time frame (value + map gradients carrying the iso-eta tilt) and
-     *  its burst index; failure marks the block burst -1 (excluded from per-burst fitting). */
-    private void labelGslcBlockBurst(final GslcRampBlock b) {
-        try {
-            final double D = 96.0;
-            b.tSod = refAzTimeSodAt(b.xc, b.yc);
-            b.dEtaDx = (refAzTimeSodAt(b.xc + D, b.yc) - b.tSod) / D;
-            b.dEtaDy = (refAzTimeSodAt(b.xc, b.yc + D) - b.tSod) / D;
-            b.burst = gslcBurstIndexOfSod(b.tSod);
-        } catch (Throwable t) {
-            b.burst = -1;
-        }
-    }
-
-    /**
-     * The 2-D surface's dense, decoupled sampling pass — shared by the stripmap and TOPS
-     * per-burst branches (they must never drift apart). Sampling density follows the requested
-     * node count: an explicitly-requested N-node grid needs >= 16*N*N samples
-     * (fitGslcSurface2D's oversampling rule) or it shrinks right back down; overlapping blocks
-     * (step down to half a block) are fine for the LS fit; the 20000-block cap bounds the cost
-     * and the shrink rule adapts the node count to whatever the cap allowed.
-     */
-    private java.util.List<GslcRampBlock> collectGslcSurfaceBlocks(
-            final int p, final int w, final int h, final boolean labelBursts) throws Exception {
-        int surfStep;
-        if (residualRamp2DNodes > 0) {
-            surfStep = Math.max(GSLC_SURF_BLOCK / 2, Math.min(w, h) / (5 * residualRamp2DNodes));
-            final long nBlocks = ((long) Math.max(1, w / surfStep)) * Math.max(1, h / surfStep);
-            if (nBlocks > 20000) {
-                surfStep = (int) Math.ceil(Math.sqrt((double) w * h / 20000));
-            }
-        } else {
-            surfStep = Math.max(GSLC_SURF_BLOCK + 32, Math.min(w, h) / 20);
-        }
-        final java.util.List<GslcRampBlock> out = new java.util.ArrayList<>();
-        for (int y0 = 64; y0 + GSLC_SURF_BLOCK < h - 64; y0 += surfStep) {
-            for (int x0 = 64; x0 + GSLC_SURF_BLOCK < w - 64; x0 += surfStep) {
-                final GslcRampBlock b = gslcRampBlockGradient(p,
-                        new Rectangle(x0, y0, GSLC_SURF_BLOCK, GSLC_SURF_BLOCK));
-                if (b != null) {
-                    if (labelBursts) {
-                        labelGslcBlockBurst(b);
-                    }
-                    out.add(b);
-                }
-            }
-        }
-        return out;
-    }
-
-    /** 5-field {x, y, fxResid, fyResid, weight} rows for burst-labelled blocks with the per-burst
-     *  model's gradients subtracted — the input for the smooth residual models on the TOPS path. */
-    private static java.util.List<double[]> gslcPerBurstResidualSamples(
-            final java.util.List<GslcRampBlock> blocks, final GslcPerBurstRamp pb) {
-        final java.util.List<double[]> out = new java.util.ArrayList<>(blocks.size());
-        for (final GslcRampBlock b : blocks) {
-            if (b.burst < 0 || Double.isNaN(b.dEtaDy) || Math.abs(b.dEtaDy) <= 1e-12) continue;
-            final double[] r = perBurstResidualGradient(b.xc, b.tSod, b.fx, b.fy,
-                    b.dEtaDx, b.dEtaDy, b.burst, pb);
-            out.add(new double[]{b.xc, b.yc, r[0], r[1], b.weight});
-        }
-        return out;
-    }
-
-    /** Burst index for a reference azimuth time; overlap resolved at the midpoint. */
-    private int gslcBurstIndexOfSod(final double tSod) {
-        for (int k = 0; k < gslcBurstStartSod.length - 1; k++) {
-            if (tSod < 0.5 * (gslcBurstStartSod[k + 1] + gslcBurstEndSod[k])) return k;
-        }
-        return gslcBurstStartSod.length - 1;
-    }
-
-    /**
-     * Fill the per-burst constants {@code dk} from the phase itself: rotate every retained
-     * multilooked cell by the slope-only model and take the circular mean per burst. Referenced to
-     * the strongest burst so the interferogram keeps its overall constant. Bursts with no coherent
-     * cells copy the nearest estimated neighbour (index distance; angles are not interpolated
-     * across the wrap).
-     */
-    private GslcPerBurstRamp fitGslcPerBurstConstants(final GslcPerBurstRamp slopes,
-                                                      final java.util.List<GslcRampBlock> blocks,
-                                                      final int pairIndex) {
-        final int nB = slopes.burstStartSod.length;
-        final double[] sr = new double[nB], si = new double[nB];
-        final int[] nCells = new int[nB];
-        final int ml = GSLC_RAMP_ML;
-        for (final GslcRampBlock b : blocks) {
-            if (b.burst < 0 || Double.isNaN(b.tSod)) continue;
-            for (int my = 0; my < b.mh; my++) {
-                final double yy = b.y0 + (my + 0.5) * ml;
-                for (int mx = 0; mx < b.mw; mx++) {
-                    final double ar = b.mlRe[my * b.mw + mx], ai = b.mlIm[my * b.mw + mx];
-                    if (ar == 0 && ai == 0) continue;
-                    final double xx = b.x0 + (mx + 0.5) * ml;
-                    // eta from the block's local linear frame; the cell's own burst, so cells on
-                    // the far side of a seam inside a block accumulate into the right constant
-                    final double eta = b.etaAt(xx, yy);
-                    final int kCell = slopes.burstOfSod(eta);
-                    final double model = slopes.phaseAt(xx, eta, kCell);
-                    final double cs = FastMath.cos(model), sn = FastMath.sin(model);
-                    sr[kCell] += ar * cs + ai * sn;
-                    si[kCell] += ai * cs - ar * sn;
-                    nCells[kCell]++;
-                }
-            }
-        }
-        final double[] dk = new double[nB];
-        final boolean[] have = new boolean[nB];
-        int kStrong = -1;
-        double best = 0;
-        for (int k = 0; k < nB; k++) {
-            final double mag = Math.hypot(sr[k], si[k]);
-            if (nCells[k] > 0 && mag > 0) {
-                dk[k] = Math.atan2(si[k], sr[k]);
-                have[k] = true;
-                if (mag > best) { best = mag; kStrong = k; }
-            }
-        }
-        if (kStrong >= 0) {
-            final double ref = dk[kStrong];
-            for (int k = 0; k < nB; k++) {
-                if (have[k]) dk[k] = Math.atan2(Math.sin(dk[k] - ref), Math.cos(dk[k] - ref));
-            }
-        }
-        for (int k = 0; k < nB; k++) {
-            if (have[k]) continue;
-            int nearest = -1, bestDist = Integer.MAX_VALUE;
-            for (int i = 0; i < nB; i++) {
-                if (have[i] && Math.abs(i - k) < bestDist) { bestDist = Math.abs(i - k); nearest = i; }
-            }
-            dk[k] = nearest >= 0 ? dk[nearest] : 0.0;
-        }
-        final StringBuilder sb = new StringBuilder();
-        sb.append(String.format("GSLC residual ramp per-burst (pair %d, %d bursts, shared range terms):",
-                pairIndex, nB));
-        for (int k = 0; k < nB; k++) {
-            sb.append(String.format(" [b%d n=%d rate=%.3f rad/s q=%.3g a=%.3f c=%.3g d=%.3f]",
-                    k, nCells[k], slopes.bk[k], slopes.qk[k],
-                    slopes.ak[k], slopes.ck[k], dk[k]));
-        }
-        SystemUtils.LOG.info(sb.toString());
-        return new GslcPerBurstRamp(slopes.ak, slopes.ck, slopes.etaK, slopes.bk, slopes.qk, dk,
-                slopes.burstStartSod, slopes.burstEndSod);
-    }
-
-    /** Dominant fringe gradient (rad/px) of one block, or null if the block is unusable. */
-    /**
-     * Measure the residual step profile s_k(x) of every burst seam on the CORRECTED interferogram
-     * (carrier difference + per-burst ramp + range profile/2-D surface as configured — the very
-     * surface the tiles will subtract, minus the seam steps themselves). Per seam and column
-     * window: multilooked 8-col-block phasors of two row bands straddling the seam are paired per
-     * block column (common range phase cancels), and the ambient azimuth gradient is removed with
-     * equally-spaced same-side pairs — smooth signal is continuous across the seam and drops out,
-     * so the estimate is a pure discontinuity meter. The wrapped per-window steps are unwrapped
-     * along range and fitted as a quadratic ({@link #fitSeamStepPoly}).
-     */
     private GslcSeamSteps measureGslcSeamSteps(final int p, final GslcPerBurstRamp ramp) {
         try {
             final int w = sourceProduct.getSceneRasterWidth();
             final int h = sourceProduct.getSceneRasterHeight();
             final int nSeams = ramp.burstStartSod.length - 1;
             if (nSeams < 1) return null;
-            final GslcRangeProfile rangeProf = (residualRampRangeProfile
-                    && gslcRangeProfilePerPair != null) ? gslcRangeProfilePerPair[p] : null;
-            final GslcSurface2D surf2D = (residualRamp2D
-                    && gslcSurface2DPerPair != null) ? gslcSurface2DPerPair[p] : null;
 
             final int NXW = 16;        // column windows across the swath
             final int NSUB = 8;        // sub-chunks per window (seam row re-solved per chunk: tilt)
@@ -2652,6 +1272,7 @@ public class InterferogramOp extends Operator {
                 return null;
             }
 
+            int ambRejected = 0;
             final double[][][] tabs = new double[nSeams][][];
             final StringBuilder lg = new StringBuilder(String.format(
                     "GSLC seam steps (pair %d): measured residual discontinuities:", p));
@@ -2674,8 +1295,8 @@ public class InterferogramOp extends Operator {
                             final int r = findGslcSeamRow(cx0 + CHW / 2.0, k, ramp, h);
                             if (r < B_FAR + 8 || r > h - B_FAR - 8) continue;
                             final Rectangle rect = new Rectangle(cx0, r - B_FAR, CHW, 2 * B_FAR);
-                            final double[][] bands = gslcSeamBandPhasors(p, rect, ramp, rangeProf,
-                                    surf2D, B_FAR, B_IN, B_OUT, BL);
+                            final double[][] bands = gslcSeamBandPhasors(p, rect, ramp,
+                                    B_FAR, B_IN, B_OUT, BL);
                             if (bands == null) continue;
                             final int nb = CHW / BL;
                             int nBefore = nBlocks;
@@ -2710,10 +1331,15 @@ public class InterferogramOp extends Operator {
                         }
                         final double conc = Math.hypot(crossRe, crossIm) / nBlocks;
                         if (conc < 0.12) continue;   // below this the step angle is unreliable
+                        final double amb = Math.atan2(ambIm, ambRe);
+                        if (!ambientIsExtrapolable(amb, spanCross, spanAmb)) {
+                            ambRejected++;
+                            continue;
+                        }
                         // north-minus-south, ambient gradient removed; flipped to the declared
                         // phase(k+1)-phase(k) convention when the later burst is SOUTH (descending)
                         double raw = Math.atan2(crossIm, crossRe)
-                                - (spanCross / spanAmb) * Math.atan2(ambIm, ambRe);
+                                - (spanCross / spanAmb) * amb;
                         if (descending) raw = -raw;
                         xn[wdx] = (xSum / nSub) / GSLC_RAMP_NORM;
                         st[wdx] = Math.atan2(Math.sin(raw), Math.cos(raw));
@@ -2734,6 +1360,10 @@ public class InterferogramOp extends Operator {
                     lg.append(String.format(" [s%d %d win: unmeasured]", k, used));
                 }
             }
+            if (ambRejected > 0) {
+                lg.append(String.format(" [%d window(s) refused: ambient azimuth gradient too "
+                        + "steep to extrapolate without aliasing]", ambRejected));
+            }
             SystemUtils.LOG.info(lg.toString());
             return new GslcSeamSteps(tabs);
         } catch (Throwable t) {
@@ -2753,8 +1383,6 @@ public class InterferogramOp extends Operator {
      */
     private double[][] gslcSeamBandPhasors(final int p, final Rectangle rect,
                                            final GslcPerBurstRamp ramp,
-                                           final GslcRangeProfile rangeProf,
-                                           final GslcSurface2D surf2D,
                                            final int bFar, final int bIn, final int bOut,
                                            final int bl) throws Exception {
         final Tile ti = getSourceTile(gslcReferenceI[p], rect);
@@ -2764,8 +1392,8 @@ public class InterferogramOp extends Operator {
         double[][] refPhase = gslcRemoveRefPhase
                 ? computeGslcReferencePhase(rect,
                         gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]),
-                        ramp, rangeProf, surf2D, null, true)
-                : computeGslcReferencePhase(rect, null, null, ramp, rangeProf, surf2D, null, false);
+                        ramp, null, true)
+                : computeGslcReferencePhase(rect, null, null, ramp, null, false);
         if (gslcCarrierDiffAvailable(p)) {
             if (refPhase == null) {
                 refPhase = new double[rect.height][rect.width];
@@ -2880,295 +1508,10 @@ public class InterferogramOp extends Operator {
         return ramp.burstOfSod(refAzTimeSodAt(x, y));
     }
 
-    private GslcRampBlock gslcRampBlockGradient(final int p, final Rectangle rect) throws Exception {
-        final Tile ti = getSourceTile(gslcReferenceI[p], rect);
-        final Tile tq = getSourceTile(gslcReferenceQ[p], rect);
-        final Tile si = getSourceTile(gslcSecondaryI[p], rect);
-        final Tile sq = getSourceTile(gslcSecondaryQ[p], rect);
-        double[][] refPhase = gslcRemoveRefPhase
-                ? computeGslcReferencePhase(rect,
-                        gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]),
-                        null, null, null, null, true)
-                : null;
-        // The estimator must see the same surface the interferogram will subtract: with the exact
-        // model difference included, the fit measures only the annotation-error remainder.
-        if (gslcCarrierDiffAvailable(p)) {
-            if (refPhase == null) {
-                refPhase = new double[rect.height][rect.width];
-            }
-            addGslcCarrierModelDiff(refPhase, rect, p);
-        }
-
-        final int ml = GSLC_RAMP_ML;
-        final int mw = rect.width / ml, mh = rect.height / ml;
-        final double[] mlRe = new double[mh * mw];
-        final double[] mlIm = new double[mh * mw];
-        int invalid = 0;
-        for (int y = 0; y < rect.height; y++) {
-            for (int x = 0; x < rect.width; x++) {
-                final double mI = ti.getSampleDouble(rect.x + x, rect.y + y);
-                final double mQ = tq.getSampleDouble(rect.x + x, rect.y + y);
-                final double sI = si.getSampleDouble(rect.x + x, rect.y + y);
-                final double sQ = sq.getSampleDouble(rect.x + x, rect.y + y);
-                if ((mI == 0 && mQ == 0) || (sI == 0 && sQ == 0)) {
-                    invalid++;
-                    continue;
-                }
-                double re = mI * sI + mQ * sQ;
-                double im = mQ * sI - mI * sQ;
-                if (refPhase != null) {
-                    final double ang = refPhase[y][x];
-                    final double cs = FastMath.cos(ang), sn = FastMath.sin(ang);
-                    final double r2 = re * cs + im * sn;
-                    im = -re * sn + im * cs;
-                    re = r2;
-                }
-                final double mag = Math.hypot(re, im);
-                if (mag <= 0) continue;
-                final int my = y / ml, mx = x / ml;
-                if (my >= mh || mx >= mw) continue;
-                mlRe[my * mw + mx] += re / mag;
-                mlIm[my * mw + mx] += im / mag;
-            }
-        }
-        if (invalid > rect.width * rect.height / 5) return null;
-
-        // lag-1 phase gradient of the multilooked field, in x and y
-        double gxr = 0, gxi = 0, gyr = 0, gyi = 0, pw = 0;
-        for (int my = 0; my < mh; my++) {
-            for (int mx = 0; mx < mw; mx++) {
-                final double ar = mlRe[my * mw + mx], ai = mlIm[my * mw + mx];
-                pw += ar * ar + ai * ai;
-                if (mx + 1 < mw) {
-                    final double br = mlRe[my * mw + mx + 1], bi = mlIm[my * mw + mx + 1];
-                    gxr += br * ar + bi * ai;
-                    gxi += bi * ar - br * ai;
-                }
-                if (my + 1 < mh) {
-                    final double br = mlRe[(my + 1) * mw + mx], bi = mlIm[(my + 1) * mw + mx];
-                    gyr += br * ar + bi * ai;
-                    gyi += bi * ar - br * ai;
-                }
-            }
-        }
-        final double weight = Math.sqrt(gxr * gxr + gxi * gxi) / Math.max(pw, 1e-30);
-        if (weight < 0.05) return null;   // no dominant fringe in this block
-        final double fx = Math.atan2(gxi, gxr) / ml;
-        final double fy = Math.atan2(gyi, gyr) / ml;
-        return new GslcRampBlock(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0, fx, fy, weight,
-                mlRe, mlIm, mw, mh, rect.x, rect.y);
-    }
-
-    /** Weighted LS fit of the 5 ramp coefficients from (x, y, fx, fy, w) gradient samples. */
-    /**
-     * Monomial exponent pairs (i, j) for {@code x^i * y^j}, 1 <= i+j <= degree, in a fixed
-     * order whose degree-2 prefix matches the historical layout {x, y, x², xy, y²}.
-     * No constant term — the gradient-based estimator cannot see one and the interferometric
-     * use never needs one. Package-visible for tests.
-     */
-    static int[][] gslcRampTerms(final int degree) {
-        final java.util.List<int[]> t = new java.util.ArrayList<>();
-        for (int d = 1; d <= degree; d++) {
-            for (int i = d; i >= 0; i--) {
-                t.add(new int[]{i, d - i});
-            }
-        }
-        return t.toArray(new int[0][]);
-    }
-
-    static double[] fitGslcRamp(final java.util.List<double[]> samples, final int degree) {
-        // gradient model per sample: (fx, fy) = grad of sum c_k * xn^i * yn^j  (xn = x/N)
-        final double N = GSLC_RAMP_NORM;
-        final int[][] terms = gslcRampTerms(degree);
-        final int nT = terms.length;
-        final double[][] ata = new double[nT][nT];
-        final double[] atb = new double[nT];
-        final double[] rowX = new double[nT];
-        final double[] rowY = new double[nT];
-        for (final double[] s : samples) {
-            final double x = s[0] / N, y = s[1] / N, wgt = Math.sqrt(s[4]);
-            for (int k = 0; k < nT; k++) {
-                final int i = terms[k][0], j = terms[k][1];
-                rowX[k] = (i == 0) ? 0.0 : i * Math.pow(x, i - 1) * Math.pow(y, j) / N;
-                rowY[k] = (j == 0) ? 0.0 : j * Math.pow(x, i) * Math.pow(y, j - 1) / N;
-            }
-            final double[][] rows = {rowX, rowY};
-            final double[] vals = {s[2], s[3]};
-            for (int r = 0; r < 2; r++) {
-                for (int i = 0; i < nT; i++) {
-                    for (int j = 0; j < nT; j++) {
-                        ata[i][j] += wgt * rows[r][i] * rows[r][j];
-                    }
-                    atb[i] += wgt * rows[r][i] * vals[r];
-                }
-            }
-        }
-        // solve via Gaussian elimination with partial pivoting
-        final double[][] m = new double[nT][nT + 1];
-        for (int i = 0; i < nT; i++) {
-            System.arraycopy(ata[i], 0, m[i], 0, nT);
-            m[i][nT] = atb[i];
-        }
-        for (int col = 0; col < nT; col++) {
-            int piv = col;
-            for (int rr = col + 1; rr < nT; rr++) {
-                if (Math.abs(m[rr][col]) > Math.abs(m[piv][col])) piv = rr;
-            }
-            final double[] tmp = m[col]; m[col] = m[piv]; m[piv] = tmp;
-            final double d = m[col][col];
-            if (Math.abs(d) < 1e-20) return new double[nT];
-            for (int j = col; j < nT + 1; j++) m[col][j] /= d;
-            for (int rr = 0; rr < nT; rr++) {
-                if (rr == col) continue;
-                final double f = m[rr][col];
-                for (int j = col; j < nT + 1; j++) m[rr][j] -= f * m[col][j];
-            }
-        }
-        final double[] c = new double[nT];
-        for (int i = 0; i < nT; i++) c[i] = m[i][nT];
-        return c;
-    }
-
-    /** Degree implied by a coefficient vector length (5 -> 2, 9 -> 3, 14 -> 4). */
-    private static int gslcRampDegreeOf(final double[] c) {
-        int d = 1, n = 0;
-        while (true) {
-            n += d + 1;
-            if (n >= c.length) return d;
-            d++;
-        }
-    }
-
-    static double gslcRampFx(final double[] c, final double x, final double y) {
-        final double N = GSLC_RAMP_NORM;
-        final int[][] terms = gslcRampTerms(gslcRampDegreeOf(c));
-        final double xn = x / N, yn = y / N;
-        double v = 0;
-        for (int k = 0; k < terms.length; k++) {
-            final int i = terms[k][0], j = terms[k][1];
-            if (i > 0) v += c[k] * i * Math.pow(xn, i - 1) * Math.pow(yn, j) / N;
-        }
-        return v;
-    }
-
-    static double gslcRampFy(final double[] c, final double x, final double y) {
-        final double N = GSLC_RAMP_NORM;
-        final int[][] terms = gslcRampTerms(gslcRampDegreeOf(c));
-        final double xn = x / N, yn = y / N;
-        double v = 0;
-        for (int k = 0; k < terms.length; k++) {
-            final int i = terms[k][0], j = terms[k][1];
-            if (j > 0) v += c[k] * j * Math.pow(xn, i) * Math.pow(yn, j - 1) / N;
-        }
-        return v;
-    }
-
-    private static double gslcRampGradResidual(final double[] s, final double[] c) {
-        return Math.hypot(s[2] - gslcRampFx(c, s[0], s[1]), s[3] - gslcRampFy(c, s[0], s[1]));
-    }
-
-    /**
-     * Two-step MAD (median absolute deviation) outlier trim, fix round 3: drop samples whose
-     * gradient residual against {@code coef} exceeds {@code median + 3 * 1.4826 * MAD}
-     * (1.4826 is the standard scale factor making MAD a consistent estimator of the standard
-     * deviation for Gaussian-ish residuals) — same idiom as {@code CreateStackOp}'s
-     * {@code TrimMode.MAD}. Falls back to returning {@code samples} unchanged if fewer than 10
-     * would survive (an overly aggressive trim is worse than none). Refitting on the returned
-     * list is the caller's job (so the trim itself is independently unit-testable). Package-
-     * visible for tests.
-     */
-    static java.util.List<double[]> trimGslcRampOutliers(final java.util.List<double[]> samples,
-                                                          final double[] coef) {
-        final double[] resid = new double[samples.size()];
-        for (int i = 0; i < samples.size(); i++) resid[i] = gslcRampGradResidual(samples.get(i), coef);
-        final double[] sortedResid = resid.clone();
-        java.util.Arrays.sort(sortedResid);
-        final double median = sortedResid[sortedResid.length / 2];
-        final double[] absDev = new double[resid.length];
-        for (int i = 0; i < resid.length; i++) absDev[i] = Math.abs(resid[i] - median);
-        final double[] sortedDev = absDev.clone();
-        java.util.Arrays.sort(sortedDev);
-        final double mad = Math.max(sortedDev[sortedDev.length / 2], 1e-6);
-        final double cutoff = median + 3.0 * 1.4826 * mad;
-        final java.util.List<double[]> kept = new java.util.ArrayList<>();
-        for (int i = 0; i < samples.size(); i++) {
-            if (resid[i] <= cutoff) kept.add(samples.get(i));
-        }
-        if (kept.size() < 10) return samples;
-        return kept;
-    }
-
-    /** Fit, MAD-trim once, refit — the single-pass robust step iterated by {@link
-     * #fitGslcRampIterative}. Package-visible for tests. */
-    static double[] fitGslcRampOneRobustStep(final java.util.List<double[]> samples, final int degree) {
-        final double[] c0 = fitGslcRamp(samples, degree);
-        final java.util.List<double[]> trimmed = trimGslcRampOutliers(samples, c0);
-        return fitGslcRamp(trimmed, degree);
-    }
-
-    /**
-     * Closed-loop (fix round 3) iterative polynomial fit: a single weighted-LS-plus-one-trim
-     * pass against block gradients contaminated by junk/noise can systematically UNDERSHOOT the
-     * true residual — confirmed on the ERS acceptance pair, where one pass captured only 57% of
-     * the true y-gradient despite the degree-2 model being fully capable of expressing it (an
-     * estimation problem, not a model-capacity one).
-     * <p>
-     * <b>Why re-trimming against the SAME (fixed) sample set doesn't help</b>: because ordinary
-     * least squares is linear, subtracting the current fit's own gradient and re-fitting on
-     * that residual (over the SAME rows) always reproduces exactly the same trim decision and
-     * the same answer — trimming against a "shifted" local fit is provably invariant to the
-     * shift itself (a one-line algebra fact: fitting {@code Y - A*c} against a fresh local
-     * intercept and computing ITS OWN residual reduces to the residual of {@code Y} against the
-     * ORIGINAL unshifted fit, every time). Confirmed both by derivation and empirically (a
-     * throwaway sweep during development: every "residual re-fit" iteration reproduced the
-     * single-pass answer to machine precision, regardless of contamination pattern).
-     * <p>
-     * <b>What actually works</b>: progressively NARROWING which samples are even considered,
-     * never re-admitting a trimmed-out sample. Each round fits the CURRENT working set, trims
-     * outliers against that fresh fit (via {@link #trimGslcRampOutliers}), and the trimmed
-     * result becomes next round's working set. This is not scale-invariant like the residual
-     * trick above — removing rows genuinely changes the regression problem — so as the fit
-     * improves round over round, its residuals discriminate junk from clean more sharply, and
-     * junk that survived an earlier round's coarser threshold gets caught by a later one.
-     * Stops when the fitted centre-ish gradient changes by less than {@code
-     * convergenceThreshold} between rounds, or after {@code maxIterations} rounds. Package-
-     * visible for tests (the "test seam" for {@code residualRampIterationConvergesOnUndershoot}).
-     *
-     * @param samples rows of {@code {x, y, fx, fy, weight}} — raw block gradients.
-     */
-    static double[] fitGslcRampIterative(final java.util.List<double[]> samples, final int degree,
-                                         final int maxIterations, final double convergenceThreshold) {
-        java.util.List<double[]> working = samples;
-        double[] cPrev = new double[gslcRampTerms(degree).length];
-        for (int iter = 0; iter < maxIterations; iter++) {
-            final double[] c0 = fitGslcRamp(working, degree);
-            final java.util.List<double[]> trimmed = trimGslcRampOutliers(working, c0);
-            final double[] cNew = fitGslcRamp(trimmed, degree);
-            working = trimmed;
-            final double dMag = Math.hypot(
-                    gslcRampFx(cNew, GSLC_RAMP_NORM, GSLC_RAMP_NORM) - gslcRampFx(cPrev, GSLC_RAMP_NORM, GSLC_RAMP_NORM),
-                    gslcRampFy(cNew, GSLC_RAMP_NORM, GSLC_RAMP_NORM) - gslcRampFy(cPrev, GSLC_RAMP_NORM, GSLC_RAMP_NORM));
-            cPrev = cNew;
-            if (dMag < convergenceThreshold) break;
-        }
-        return cPrev;
-    }
-
-    /** Ramp phase value at pixel (x, y). Package-visible for tests. */
-    static double gslcRampPhase(final double[] c, final double x, final double y) {
-        final double xn = x / GSLC_RAMP_NORM, yn = y / GSLC_RAMP_NORM;
-        final int[][] terms = gslcRampTerms(gslcRampDegreeOf(c));
-        double v = 0;
-        for (int k = 0; k < terms.length; k++) {
-            v += c[k] * Math.pow(xn, terms[k][0]) * Math.pow(yn, terms[k][1]);
-        }
-        return v;
-    }
-
     private void computeTileStackForGSLC(final Map<Band, Tile> targetTileMap, final Rectangle targetRectangle) {
         try {
-            if (subtractResidualRamp && !gslcRampEstimated) {
-                estimateGslcResidualRampOnce();
+            if (subtractSeamSteps && !gslcSeamStepsEstimated) {
+                estimateGslcSeamStepsOnce();
             }
             final int x0 = targetRectangle.x;
             final int y0 = targetRectangle.y;
@@ -3210,26 +1553,20 @@ public class InterferogramOp extends Operator {
                 final boolean cohOn = includeCoherence && gslcTargetCoh != null
                         && targetTileMap.get(gslcTargetCoh[p]) != null;
                 final Rectangle refRect = cohOn ? cohRect : targetRectangle;
-                final GslcPerBurstRamp rampPB = (subtractResidualRamp && gslcRampPerBurst != null
-                        && p < gslcRampPerBurst.length) ? gslcRampPerBurst[p] : null;
-                final GslcRangeProfile rangeProf = (subtractResidualRamp && residualRampRangeProfile
-                        && gslcRangeProfilePerPair != null && p < gslcRangeProfilePerPair.length)
-                        ? gslcRangeProfilePerPair[p] : null;
-                final GslcSurface2D surf2D = (subtractResidualRamp && residualRamp2D
-                        && gslcSurface2DPerPair != null && p < gslcSurface2DPerPair.length)
-                        ? gslcSurface2DPerPair[p] : null;
+                // Burst labelling carries no phase of its own; it is what locates the seam term.
+                final GslcPerBurstRamp rampPB = (subtractSeamSteps && gslcBurstLabelling != null
+                        && p < gslcBurstLabelling.length) ? gslcBurstLabelling[p] : null;
                 final GslcSeamSteps seamSt = (rampPB != null && gslcSeamStepsPerPair != null
                         && p < gslcSeamStepsPerPair.length) ? gslcSeamStepsPerPair[p] : null;
                 double[][] refPhase = gslcRemoveRefPhase
                         ? computeGslcReferencePhase(refRect,
                                 gslcSecSLCMap.get(gslcSecondaryI[p]), gslcSecOrbitMap.get(gslcSecondaryI[p]),
-                                rampPB, rangeProf, surf2D, seamSt, true)
+                                rampPB, seamSt, true)
                         : null;
-                if (refPhase == null && (rampPB != null || rangeProf != null || surf2D != null)) {
-                    // Reference-phase removal off but a node-borne ramp model on: model-only
-                    // surface through the same node machinery.
-                    refPhase = computeGslcReferencePhase(refRect, null, null, rampPB, rangeProf, surf2D,
-                            seamSt, false);
+                if (refPhase == null && seamSt != null) {
+                    // Reference-phase removal off but seam steps on: model-only surface through the
+                    // same node machinery.
+                    refPhase = computeGslcReferencePhase(refRect, null, null, rampPB, seamSt, false);
                 }
 
                 // Exact deramp-model difference rides the same surface, so interferogram and
@@ -3239,26 +1576,6 @@ public class InterferogramOp extends Operator {
                         refPhase = new double[refRect.height][refRect.width];
                     }
                     addGslcCarrierModelDiff(refPhase, refRect, p);
-                }
-
-                // Residual-ramp removal rides on the same reference-phase surface so the
-                // interferogram and the coherence estimator stay mutually consistent. With a
-                // per-burst model active, gslcRampCoef holds the polynomial REFIT ON THE
-                // PER-BURST RESIDUAL (or null) — never the full-magnitude fallback — so the two
-                // always compose without double-counting; without one it is the full global fit.
-                final double[] rampC = (subtractResidualRamp && gslcRampCoef != null
-                        && p < gslcRampCoef.length) ? gslcRampCoef[p] : null;
-                if (rampC != null) {
-                    if (refPhase == null) {
-                        refPhase = new double[refRect.height][refRect.width];
-                    }
-                    for (int j = 0; j < refRect.height; j++) {
-                        final double[] row = refPhase[j];
-                        final double yy = refRect.y + j;
-                        for (int i = 0; i < refRect.width; i++) {
-                            row[i] += gslcRampPhase(rampC, refRect.x + i, yy);
-                        }
-                    }
                 }
 
                 // Interferogram: primary * conj(secondary)
@@ -3335,16 +1652,16 @@ public class InterferogramOp extends Operator {
         gslcRefSLC = new SLCImage(refAbs, sourceProduct);
         gslcRefOrbit = new Orbit(refAbs, orbitDegree);
 
-        if (subtractResidualRamp) {
+        if (subtractSeamSteps) {
             final double[][] burstTable = extractGslcBurstTableSod(sourceProduct);
             if (burstTable != null) {
                 gslcBurstStartSod = burstTable[0];
                 gslcBurstEndSod = burstTable[1];
-                SystemUtils.LOG.info("GSLC residual ramp: reference burst table with "
-                        + gslcBurstStartSod.length + " bursts — per-burst ramp fitting enabled.");
+                SystemUtils.LOG.info("GSLC seam steps: reference burst table with "
+                        + gslcBurstStartSod.length + " bursts — seam-step correction enabled.");
             } else {
-                SystemUtils.LOG.info("GSLC residual ramp: no burst annotation found — "
-                        + "using the scene-global quadratic fit.");
+                SystemUtils.LOG.info("GSLC seam steps: no burst annotation found — nothing to "
+                        + "correct (stripmap products have no burst seams).");
             }
         }
 
@@ -3400,8 +1717,6 @@ public class InterferogramOp extends Operator {
      */
     private double[][] computeGslcReferencePhase(final Rectangle rect, final SLCImage secSLC,
                                                  final Orbit secOrbit, final GslcPerBurstRamp ramp,
-                                                 final GslcRangeProfile rangeProfile,
-                                                 final GslcSurface2D surface,
                                                  final GslcSeamSteps seamSteps,
                                                  final boolean includeRefTerm) throws Exception {
         if (includeRefTerm && (secSLC == null || secOrbit == null)) {
@@ -3432,13 +1747,10 @@ public class InterferogramOp extends Operator {
         final PixelPos pix = new PixelPos();
         // The reference-orbit geometry solve (geocoding -> ECEF -> orbit range/azimuth time) is
         // only needed by the flat-earth/topo term, the per-burst ramp, and the range profile —
-        // NOT by the 2-D surface, which is a pure raster-coordinate function. gslcGeoCoding/
-        // gslcRefOrbit/gslcRefSLC are populated by setupGSLCReferencePhase() only when reference-
-        // phase removal is actually requested (flat-earth or topo on); calling into them
-        // unconditionally NPE's the surface-only path (subtractFlatEarthPhase=false,
-        // subtractTopographicPhase=false, residualRamp2D=true, no per-burst ramp/profile) —
-        // caught here as an operator-level test gap, not on the ERS chain's own settings.
-        final boolean needsGeo = includeRefTerm || ramp != null || rangeProfile != null;
+        // gslcGeoCoding/gslcRefOrbit/gslcRefSLC are populated by setupGSLCReferencePhase() only
+        // when reference-phase removal is actually requested (flat-earth or topo on), so a path
+        // that needs neither must not call into them.
+        final boolean needsGeo = includeRefTerm || ramp != null;
 
         // Nodes are evaluated at their exact uniform-grid positions, including the last node of
         // each tile which may lie past the tile edge — the bilinear interpolation below assumes
@@ -3486,9 +1798,12 @@ public class InterferogramOp extends Operator {
                         }
                     }
                     if (ramp != null) {
-                        // Per-burst residual ramp, evaluated in azimuth time (.y of the same solve) —
-                        // exact under the iso-eta tilt. Folding it in at the nodes keeps burst seams
-                        // sharp to within one interpolation cell (~GSLC_REFPHASE_SUBSAMPLE px).
+                        // Burst labelling in azimuth time (.y of the same solve) — exact under the
+                        // iso-eta tilt. phaseAt contributes nothing (the fitted per-burst model was
+                        // removed); kb is what locates the seam term below. Folding it in at the
+                        // nodes keeps burst seams sharp to within one interpolation cell
+                        // (~GSLC_REFPHASE_SUBSAMPLE px), so the step is rendered as a ramp that
+                        // wide.
                         final int kb = ramp.burstOfSod(tpRef.y);
                         v += ramp.phaseAt(xx, tpRef.y, kb);
                         if (seamSteps != null) {
@@ -3497,18 +1812,6 @@ public class InterferogramOp extends Operator {
                             v += seamSteps.cumAt(kb, xx);
                         }
                     }
-                    if (rangeProfile != null) {
-                        // Data-driven slant-range profile, evaluated on the same solve (.x is the
-                        // one-way range time); rides this surface so interferogram and coherence
-                        // derotation stay mutually consistent.
-                        v += rangeProfile.valueAt(tpRef.x * Constants.lightSpeed);
-                    }
-                }
-                if (surface != null) {
-                    // Data-driven smooth 2-D residual phase surface, a pure map-coordinate
-                    // function evaluated at this node's absolute raster position; rides the same
-                    // node grid so interferogram and coherence derotation stay consistent.
-                    v += surface.valueAt(xx, yy);
                 }
                 node[j][i] = v;
             }

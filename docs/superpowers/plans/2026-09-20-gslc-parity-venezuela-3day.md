@@ -23,7 +23,7 @@ Copied from the spec and from the working rules; every task's requirements inclu
 - **ETAD must be option 1** (`resamplingImage=true` + `outputPhaseCorrections=true`); option 2 is a silent no-op for the GSLC chain. ETAD is passed with an explicit `-PetadFile` (auto-search matches nothing on a burst subset), and the source product **name must keep the original S1 stem**.
 - **Pairwise rungs use ETAD option 1 (S1A × S1C). The R3 closure triple runs ETAD-off on all three legs** (no S1D ETAD product exists) and is labelled as a different configuration everywhere.
 - **`CreateStack` auto path** (GSLC reference + raw secondary SLC) for every GSLC pair. Assert the log line `locked to the reference (N of M seam(s)` — without it the run is not a valid GSLC result.
-- **All `residualRamp*` options OFF** for R5. (R2-lite deliberately measures ramp ON versus OFF.)
+- **The `residualRamp*` options were REMOVED from the operator on 2026-09-22** (`docs/gslc-parity/etna-ramp-ab.md`). The R2-lite ramp-ON arm and the R5b ramp-ON variant below are **historical rows, not reproducible** — the driver switches that produced them now throw. `subtractSeamSteps` (TOPS only) stays OFF for every headline result.
 - **Coherence parity uses ground-corrected windows:** `cohWinSizeMeters=100` in **both** chains, and the log line `cohWinSizeMeters=100.0 m -> cohWinAz=…, cohWinRg=…` is asserted.
 - **Materialise the stack to disk before `Interferogram`.** Chaining `Interferogram` onto an in-memory `CreateStack → GSLC` graph livelocks.
 - **Maven runs start from `E:\ESA\microwave-toolbox`, offline (`-o`).** A `sar-op-insar` change is invisible to a run launched from another module until `mvn -o -pl sar-op-insar install -DskipTests`.
