@@ -6,16 +6,14 @@
       -Ref  <dim>   reference SLC (already split + orbit [+ ETAD])   -> GSLC-Terrain-Correction
       -Sec  <dim>   secondary SLC, RAW (the stack builds its GSLC itself)
       -Tag  <name>  output prefix in E:\Output\parity\ven
-      -Ramp         switch subtractResidualRamp ON (default OFF: R5 requires all residualRamp* off)
       -Diag         run with -Dgslc.diagGeometry=true (adds diag_rangeIndex etc. for the synthetic rungs)
 
-    Products:  <Tag>_gslc.dim   <Tag>_stack.dim   <Tag>_ifg.dim   (+ <Tag>_ifg_ramp.dim with -Ramp)
+    Products:  <Tag>_gslc.dim   <Tag>_stack.dim   <Tag>_ifg.dim
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Ref,
     [Parameter(Mandatory = $true)][string]$Sec,
     [Parameter(Mandatory = $true)][string]$Tag,
-    [switch]$Ramp,
     [switch]$Diag
 )
 $ErrorActionPreference = 'Continue'
@@ -26,7 +24,7 @@ $extra = if ($Diag) { '-Dgslc.diagGeometry=true' } else { '' }
 
 $gslc  = "$D\$Tag`_gslc.dim"
 $stack = "$D\$Tag`_stack.dim"
-$ifg   = if ($Ramp) { "$D\$Tag`_ifg_ramp.dim" } else { "$D\$Tag`_ifg.dim" }
+$ifg   = "$D\$Tag`_ifg.dim"
 
 $pg = New-ParamFile "$D\$Tag`_gslc_params.xml" ([ordered]@{
     externalDEMFile = $script:DEM; externalDEMNoDataValue = '0.0';
@@ -34,10 +32,10 @@ $pg = New-ParamFile "$D\$Tag`_gslc_params.xml" ([ordered]@{
     mapProjection = 'WGS84(DD)'; outputFlattened = 'false'; outputAzimuthCarrier = 'false';
     outputPhaseTerms = 'true'; nodataValueAtSea = 'false' })
 
-$pi = New-ParamFile "$D\$Tag`_ifg_params$(if ($Ramp) { '_ramp' }).xml" ([ordered]@{
+$pi = New-ParamFile "$D\$Tag`_ifg_params.xml" ([ordered]@{
     subtractFlatEarthPhase = 'true'; subtractTopographicPhase = 'true'; demName = 'External DEM';
     externalDEMFile = $script:DEM; externalDEMNoDataValue = '0.0'; includeCoherence = 'true';
-    cohWinSizeMeters = '100'; subtractResidualRamp = $(if ($Ramp) { 'true' } else { 'false' }) })
+    cohWinSizeMeters = '100' })
 
 $ok = Step "$Tag-gslc" $gslc {
     Invoke-MvnGpt 'sar-op-sar-processing' 'test' @('GSLC-Terrain-Correction', "-Ssource=$Ref", '-p', $pg,

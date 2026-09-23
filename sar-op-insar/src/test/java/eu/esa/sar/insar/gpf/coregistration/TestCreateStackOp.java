@@ -584,6 +584,46 @@ public class TestCreateStackOp extends ProcessorTest {
     }
 
     /**
+     * ERS and ENVISAT ASAR CEOS products name the complex pair with the bare letters 'i' and 'q'.
+     * complexPairKey() only recognised an 'i_'/'q_' prefix or a '_real'/'_imag' suffix, so both
+     * keys came back null, the partner test failed and the secondary's q band was given a tag of
+     * its own - i_sec1_01Aug1995 alongside q_sec2_01Aug1995. Every downstream lookup that pairs a
+     * band with its partner through the shared _secN tag then misses.
+     */
+    @Test
+    public void testCreateStackBareIQPairSharesOneSecondaryTag() throws Exception {
+        final Product refProduct = createBareIQProduct("date1", 20, 20);
+        final Product secProduct = createBareIQProduct("date2", 20, 20);
+
+        final CreateStackOp op = (CreateStackOp) spi.createOperator();
+        op.setSourceProducts(refProduct, secProduct);
+        op.setTestParameters(CreateStackOp.MASTER_EXTENT, CreateStackOp.INITIAL_OFFSET_GEOLOCATION);
+
+        final Product targetProduct = op.getTargetProduct();
+
+        final Band iBand = findBandStartingWith(targetProduct, "i_sec");
+        final Band qBand = findBandStartingWith(targetProduct, "q_sec");
+        assertNotNull("i of the second acquisition was dropped", iBand);
+        assertNotNull("q of the second acquisition was dropped", qBand);
+        assertEquals("the i/q pair must share one secondary tag",
+                StackUtils.getBandSuffix(iBand.getName()),
+                StackUtils.getBandSuffix(qBand.getName()));
+    }
+
+    private static Product createBareIQProduct(final String name, final int w, final int h) {
+        final Product p = TestUtils.createProduct("SLC", w, h);
+        for (final Band b : p.getBands().clone()) {
+            p.removeBand(b);
+        }
+        p.setName(name);
+        TestUtils.createBand(p, "i", ProductData.TYPE_FLOAT32, Unit.REAL, w, h, true);
+        TestUtils.createBand(p, "q", ProductData.TYPE_FLOAT32, Unit.IMAGINARY, w, h, true);
+        AbstractMetadata.setAttribute(AbstractMetadata.getAbstractedMetadata(p),
+                AbstractMetadata.SAMPLE_TYPE, "COMPLEX");
+        return p;
+    }
+
+    /**
      * Bypassing the reference-unit filter for polarimetric matrix products must admit the matrix
      * elements, not every band whose name merely contains an element token. Sigma0_C11_db and
      * coh_C11_win both `contains("C11")`, neither is a VirtualBand and neither carries a PHASE

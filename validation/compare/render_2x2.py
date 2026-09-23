@@ -171,17 +171,13 @@ ARMS = {
     "B_nat_noetad": "B  native anisotropic, no ETAD",
     "C_sq_etad":    "C  square grid, ETAD",
     "D_nat_etad":   "D  native anisotropic, ETAD",
-    "E_nat_noetad_ramp": "E  native anisotropic, no ETAD, residual ramp removed",
-    "F_trad_lattice": "F  TRAD_TC lattice, ETAD, ramp removed",
-    "G_trad_lattice_noetad": "G  TRAD_TC lattice, no ETAD, ramp removed",
+    "F_trad_lattice": "F  TRAD_TC lattice, ETAD",
+    "G_trad_lattice_noetad": "G  TRAD_TC lattice, no ETAD",
 }
 # Each pair changes exactly ONE variable, so the double difference is attributable.
 DIFFS = [("D_nat_etad", "B_nat_noetad", "ETAD effect at NATIVE sampling"),
          ("C_sq_etad", "A_sq_noetad", "ETAD effect at SQUARE sampling"),
          ("B_nat_noetad", "A_sq_noetad", "GRID effect with no ETAD"),
-         # The decisive one for the original question: how much of the GSLC excess fringing is the
-         # known deramp-mismatch residual ramp rather than deformation.
-         ("B_nat_noetad", "E_nat_noetad_ramp", "RESIDUAL RAMP removed by subtractResidualRamp"),
          ("F_trad_lattice", "G_trad_lattice_noetad", "ETAD effect on the TRAD_TC lattice")]
 
 

@@ -18,15 +18,16 @@ package eu.esa.sar.insar.gpf;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
  * The seam-step corrector removes the burst-seam DISCONTINUITY that survives the carrier
- * difference and the per-burst azimuth ramp: measured on S1A x S1C as a smooth range-quadratic
+ * difference and, formerly, a fitted per-burst azimuth ramp that no longer exists: measured on S1A x S1C as a smooth range-quadratic
  * step of 3-6 rad per seam that wraps along the swath. It is fitted from ACROSS-SEAM multilooked
  * phase differences — smooth signal (deformation, atmosphere, residual topography) is continuous
- * across a seam and cancels out of that difference, so unlike per-burst absolute range terms
+ * across a seam and cancels out of that difference, so unlike the per-burst absolute range terms that were tried
  * (measured absorbing the coseismic fan) this correction cannot eat geophysical signal.
  * <p>
  * Measured steps are WRAPPED samples of a smooth function of range: the fitter must unwrap
@@ -232,5 +233,80 @@ public class TestGslcSeamSteps {
         assertEquals("null seam adds nothing", steps.cumAt(2, 20.0 * N), steps.cumAt(3, 20.0 * N), 0.0);
         assertEquals("burst index past the table clamps",
                 steps.cumAt(2, 20.0 * N), steps.cumAt(9, 20.0 * N), 0.0);
+    }
+
+    /**
+     * The seam term is applied per burst, so it needs a burst LABELLING — which since the
+     * data-driven ramp models were removed carries no phase of its own. Labelling is built
+     * straight from the reference burst table: zeroed terms, overlap resolved at the midpoint.
+     */
+    @Test
+    public void burstLabellingCarriesNoPhaseAndSplitsAtTheMidpoint() {
+        final int n = 3;
+        // bursts [5,12], [10,18], [16,25] -> overlaps 10..12 and 16..18, midpoints 11 and 17
+        final double[] startSod = {5.0, 10.0, 16.0};
+        final double[] endSod = {12.0, 18.0, 25.0};
+        final double[] etaK = {8.5, 14.0, 20.5};
+        final InterferogramOp.GslcPerBurstRamp labelling = new InterferogramOp.GslcPerBurstRamp(
+                new double[n], new double[n], etaK, new double[n], new double[n], new double[n],
+                startSod, endSod);
+
+        assertEquals(0, labelling.burstOfSod(6.0));
+        assertEquals(0, labelling.burstOfSod(10.9));
+        assertEquals(1, labelling.burstOfSod(11.1));
+        assertEquals(1, labelling.burstOfSod(16.9));
+        assertEquals(2, labelling.burstOfSod(17.1));
+        assertEquals(2, labelling.burstOfSod(24.0));
+
+        for (int k = 0; k < n; k++) {
+            for (final double x : new double[]{0.0, 1000.0, 20000.0}) {
+                assertEquals("labelling must contribute no phase",
+                        0.0, labelling.phaseAt(x, etaK[k] + 1.0, k), 0.0);
+            }
+            assertEquals("labelling must contribute no rate", 0.0, labelling.rateAt(etaK[k], k), 0.0);
+        }
+    }
+
+    /** Burst m carries the sum of every seam below it - that is what makes the model seam-free. */
+    @Test
+    public void cumulativeCorrectionSumsTheSeamsBelowEachBurst() {
+        final double[][][] tab = {
+                {{0.0, 1.0}, {2.0, 2.0}},      // seam 0: constant +2
+                {{0.0, 1.0}, {-0.5, -0.5}},    // seam 1: constant -0.5
+        };
+        final InterferogramOp.GslcSeamSteps steps = new InterferogramOp.GslcSeamSteps(tab);
+        assertEquals(0.0, steps.cumAt(0, 0.0), 1e-12);
+        assertEquals(2.0, steps.cumAt(1, 0.0), 1e-12);
+        assertEquals(1.5, steps.cumAt(2, 0.0), 1e-12);
+        assertEquals("bursts beyond the table keep the last cumulative value",
+                1.5, steps.cumAt(7, 0.0), 1e-12);
+    }
+
+    /**
+     * The ambient azimuth gradient is measured as a WRAPPED angle over 32 rows and scaled by
+     * 46/32 to predict the across-seam span. Past the point where the scaled correction reaches
+     * pi, an aliased measurement is indistinguishable from a genuine one and the error lands
+     * whole in the reported step (~9 rad), so the window must be refused, not extrapolated.
+     */
+    @Test
+    public void ambientGradientIsRefusedOnceExtrapolationCouldAlias() {
+        final double spanCross = 46.0, spanAmb = 32.0;
+        final double bound = Math.PI * spanAmb / spanCross;      // ~2.187 rad
+
+        assertTrue("a flat ambient gradient must be usable",
+                InterferogramOp.ambientIsExtrapolable(0.0, spanCross, spanAmb));
+        assertTrue("just inside the bound must be usable",
+                InterferogramOp.ambientIsExtrapolable(bound - 1e-9, spanCross, spanAmb));
+        assertTrue("the bound is symmetric",
+                InterferogramOp.ambientIsExtrapolable(-(bound - 1e-9), spanCross, spanAmb));
+        assertFalse("just outside the bound must be refused",
+                InterferogramOp.ambientIsExtrapolable(bound + 1e-9, spanCross, spanAmb));
+        assertFalse("an angle near the atan2 wrap must be refused",
+                InterferogramOp.ambientIsExtrapolable(Math.PI - 1e-9, spanCross, spanAmb));
+        assertFalse("NaN is not a measurement",
+                InterferogramOp.ambientIsExtrapolable(Double.NaN, spanCross, spanAmb));
+
+        // the bound is exactly where the extrapolated correction reaches pi
+        assertEquals(Math.PI, (spanCross / spanAmb) * bound, 1e-12);
     }
 }

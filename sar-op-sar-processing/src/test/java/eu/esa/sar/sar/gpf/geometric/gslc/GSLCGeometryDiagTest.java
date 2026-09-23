@@ -226,9 +226,10 @@ public class GSLCGeometryDiagTest {
     }
 
     /**
-     * Carrier-free legs + {@code subtractResidualRamp=true}: the interferogram should come out
-     * with the annotation-mismatch ramp removed by the operator itself — matching classical with
-     * no external deramp step. Requires mgcf/sgcf from {@link #geocodeCarrierFreeLegsAndBuildIfg}.
+     * Carrier-free legs: the interferogram should match classical with no external deramp step —
+     * the exact deramp-model difference is subtracted by the operator itself whenever both legs
+     * carry the {@code azimuthCarrierPhase} band. Requires mgcf/sgcf from
+     * {@link #geocodeCarrierFreeLegsAndBuildIfg}.
      */
     @Test
     public void buildGslcInterferogramRampRemoved() throws Exception {
@@ -253,7 +254,6 @@ public class GSLCGeometryDiagTest {
             ig.put("includeCoherence", true);
             ig.put("cohWinAz", 10);
             ig.put("cohWinRg", 10);
-            ig.put("subtractResidualRamp", true);
             final Product ifg = GPF.createProduct("Interferogram", ig, stack);
 
             final File out = new File(DIR, "gslc_ifg_cfr.dim");
