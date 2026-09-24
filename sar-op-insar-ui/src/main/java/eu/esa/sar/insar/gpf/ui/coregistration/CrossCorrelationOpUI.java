@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.insar.gpf.ui.coregistration;
 
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.graphbuilder.gpf.ui.BaseOperatorUI;
 import org.esa.snap.graphbuilder.gpf.ui.UIValidation;
@@ -64,7 +65,14 @@ public class CrossCorrelationOpUI extends BaseOperatorUI {
     private final JCheckBox useSlidingWindowCheckBox = new JCheckBox("Use Coherence Sliding Window");
     private boolean useSlidingWindow = false;
 
-    private boolean isComplex = false;
+    /**
+     * Whether the source product is complex. {@code null} means no source product has been
+     * pushed into this tab yet, which is NOT the same as "detected": the multi-tab Coregistration
+     * dialog only calls setSourceProducts() once GraphExecuter.initGraph() succeeds, so
+     * initParameters() routinely runs before any product is known. Graying the SLC controls on
+     * that state made complex data look like it had been misdetected.
+     */
+    private Boolean isComplex = null;
     private boolean applyFineRegistration = true;
     private boolean inSAROptimized = true;
 
@@ -130,9 +138,21 @@ public class CrossCorrelationOpUI extends BaseOperatorUI {
         if (sourceProducts != null && sourceProducts.length > 0) {
             final InputProductValidator validator = new InputProductValidator(sourceProducts[0]);
             isComplex = validator.isComplex();
+            if (!isComplex) {
+                SystemUtils.LOG.info("Cross-Correlation: SLC controls disabled, " +
+                        sourceProducts[0].getName() + " is not complex (SAMPLE_TYPE is not COMPLEX)");
+            }
+        } else {
+            // back to "unknown" - NOT the stale answer for a product that is no longer the source.
+            // BaseOperatorUI.setSourceProducts() accepts null/empty and re-enters initParameters(),
+            // so without this reset a previously seen detected product would keep the SLC controls
+            // grayed (and keep updateParameters() dropping their entries) for good.
+            isComplex = null;
+            SystemUtils.LOG.info("Cross-Correlation: no source product yet; " +
+                    "leaving the SLC controls enabled until one arrives");
         }
 
-        if (isComplex) {
+        if (isComplexOrUnknown()) {
             // primitive boolean parameters whose default equals false are never written into a
             // map-backed parameter map by PropertySet.setDefaultValues(), so the key can be absent
             final Boolean applyFineRegistrationVal = (Boolean) paramMap.get("applyFineRegistration");
@@ -194,7 +214,7 @@ public class CrossCorrelationOpUI extends BaseOperatorUI {
         paramMap.put("maxIteration", Integer.parseInt(maxIteration.getText()));
         paramMap.put("gcpTolerance", Double.parseDouble(gcpTolerance.getText()));
 
-        if (isComplex) {
+        if (isComplexOrUnknown()) {
             paramMap.put("applyFineRegistration", applyFineRegistration);
 
             if (applyFineRegistration) {
@@ -299,18 +319,29 @@ public class CrossCorrelationOpUI extends BaseOperatorUI {
         return contentPane;
     }
 
+    /**
+     * Gray the SLC controls only when the source product is known NOT to be complex. With no
+     * source product the answer is unknown, and the operator re-derives it from the product at
+     * initialize() anyway (CrossCorrelationOp forces applyFineRegistration for complex input),
+     * so leaving them enabled cannot produce a wrong result.
+     */
+    private boolean isComplexOrUnknown() {
+        return isComplex == null || isComplex;
+    }
+
     private void enableComplexFields() {
-        applyFineRegistrationCheckBox.setEnabled(isComplex);
-        crossCorrelationCheckBox.setEnabled(isComplex && applyFineRegistration);
+        final boolean complex = isComplexOrUnknown();
+        applyFineRegistrationCheckBox.setEnabled(complex);
+        crossCorrelationCheckBox.setEnabled(complex && applyFineRegistration);
 
-        fineRegistrationWindowWidth.setEnabled(isComplex && applyFineRegistration);
-        fineRegistrationWindowHeight.setEnabled(isComplex && applyFineRegistration);
-        fineRegistrationWindowAccAzimuth.setEnabled(isComplex && applyFineRegistration && inSAROptimized);
-        fineRegistrationWindowAccRange.setEnabled(isComplex && applyFineRegistration && inSAROptimized);
-        fineRegistrationOversampling.setEnabled(isComplex && applyFineRegistration && inSAROptimized);
+        fineRegistrationWindowWidth.setEnabled(complex && applyFineRegistration);
+        fineRegistrationWindowHeight.setEnabled(complex && applyFineRegistration);
+        fineRegistrationWindowAccAzimuth.setEnabled(complex && applyFineRegistration && inSAROptimized);
+        fineRegistrationWindowAccRange.setEnabled(complex && applyFineRegistration && inSAROptimized);
+        fineRegistrationOversampling.setEnabled(complex && applyFineRegistration && inSAROptimized);
 
-        coherenceWindowSize.setEnabled(isComplex && applyFineRegistration && useSlidingWindow && !inSAROptimized);
-        coherenceThreshold.setEnabled(isComplex && applyFineRegistration);
-        useSlidingWindowCheckBox.setEnabled(isComplex && applyFineRegistration && !inSAROptimized);
+        coherenceWindowSize.setEnabled(complex && applyFineRegistration && useSlidingWindow && !inSAROptimized);
+        coherenceThreshold.setEnabled(complex && applyFineRegistration);
+        useSlidingWindowCheckBox.setEnabled(complex && applyFineRegistration && !inSAROptimized);
     }
 }
