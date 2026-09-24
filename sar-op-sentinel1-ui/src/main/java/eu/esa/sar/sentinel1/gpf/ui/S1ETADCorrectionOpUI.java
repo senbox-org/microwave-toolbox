@@ -382,29 +382,29 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
 
         resamplingType.setSelectedItem(paramMap.get("resamplingType"));
         resamplingImage = (Boolean)paramMap.get("resamplingImage");
-        outputPhaseCorrections = (Boolean)paramMap.get("outputPhaseCorrections");
+        outputPhaseCorrections = booleanParam("outputPhaseCorrections", outputPhaseCorrections);
         if(resamplingImage != null) {
             resamplingImageCheckBox.setSelected(resamplingImage);
         }
         if(outputPhaseCorrections != null) {
             outputPhaseCorrectionsCheckBox.setSelected(outputPhaseCorrections);
         }
-        outputETADPhaseBand = (Boolean)paramMap.get("outputETADPhaseBand");
+        outputETADPhaseBand = booleanParam("outputETADPhaseBand", outputETADPhaseBand);
         if(outputETADPhaseBand != null) {
             outputETADPhaseBandCheckBox.setSelected(outputETADPhaseBand);
         }
         // Only meaningful when a phase correction is actually applied.
         outputETADPhaseBandCheckBox.setEnabled(Boolean.TRUE.equals(outputPhaseCorrections));
 
-        troposphericCorrectionRg = (Boolean)paramMap.get("troposphericCorrectionRg");
-        ionosphericCorrectionRg = (Boolean)paramMap.get("ionosphericCorrectionRg");
-        geodeticCorrectionRg = (Boolean)paramMap.get("geodeticCorrectionRg");
-        dopplerShiftCorrectionRg = (Boolean)paramMap.get("dopplerShiftCorrectionRg");
-        geodeticCorrectionAz = (Boolean)paramMap.get("geodeticCorrectionAz");
-        bistaticShiftCorrectionAz = (Boolean)paramMap.get("bistaticShiftCorrectionAz");
-        fmMismatchCorrectionAz = (Boolean)paramMap.get("fmMismatchCorrectionAz");
-        sumOfAzimuthCorrections = (Boolean)paramMap.get("sumOfAzimuthCorrections");
-        sumOfRangeCorrections = (Boolean)paramMap.get("sumOfRangeCorrections");
+        troposphericCorrectionRg = booleanParam("troposphericCorrectionRg", troposphericCorrectionRg);
+        ionosphericCorrectionRg = booleanParam("ionosphericCorrectionRg", ionosphericCorrectionRg);
+        geodeticCorrectionRg = booleanParam("geodeticCorrectionRg", geodeticCorrectionRg);
+        dopplerShiftCorrectionRg = booleanParam("dopplerShiftCorrectionRg", dopplerShiftCorrectionRg);
+        geodeticCorrectionAz = booleanParam("geodeticCorrectionAz", geodeticCorrectionAz);
+        bistaticShiftCorrectionAz = booleanParam("bistaticShiftCorrectionAz", bistaticShiftCorrectionAz);
+        fmMismatchCorrectionAz = booleanParam("fmMismatchCorrectionAz", fmMismatchCorrectionAz);
+        sumOfAzimuthCorrections = booleanParam("sumOfAzimuthCorrections", sumOfAzimuthCorrections);
+        sumOfRangeCorrections = booleanParam("sumOfRangeCorrections", sumOfRangeCorrections);
 
         if(troposphericCorrectionRg != null) {
             troposphericCorrectionRgCheckBox.setSelected(troposphericCorrectionRg);
@@ -578,5 +578,20 @@ public class S1ETADCorrectionOpUI extends BaseOperatorUI {
         DialogUtils.fillPanel(contentPane, gbc);
 
         return contentPane;
+    }
+
+    /**
+     * Reads a boolean parameter, keeping the declared default when the key is absent.
+     *
+     * <p>A primitive parameter whose default equals {@code false} is NEVER written into a
+     * map-backed parameter map by {@code PropertySet.setDefaultValues()}, so reading it straight
+     * out yields {@code null}. Assigning that null to the field and putting it back in
+     * {@code updateParameters()} wrote an explicit null over the parameter - the entry silently
+     * vanished from the generated graph. The surrounding {@code != null} branches are kept: they
+     * are now always taken, and they carry the checkbox enable/disable side effects.</p>
+     */
+    private Boolean booleanParam(final String key, final Boolean fallback) {
+        final Object value = paramMap.get(key);
+        return value instanceof Boolean ? (Boolean) value : fallback;
     }
 }
