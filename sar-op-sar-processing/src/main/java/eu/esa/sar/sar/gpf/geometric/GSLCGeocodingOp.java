@@ -1342,6 +1342,18 @@ public class GSLCGeocodingOp extends Operator {
      * to the slant spacing when the incidence angle is unavailable, which only ever makes the derived
      * grid finer (never coarser), so it cannot silently discard resolution.
      */
+    /**
+     * Ground spacing in metres {east, north} of a geographic (WGS84 degree) output grid at the given
+     * scene-centre latitude. The degree steps are the ones the grid really uses; converting them back
+     * with the same equatorial radius as {@link SARGeocoding#getPixelSpacingInDegree} and the local
+     * cos(latitude) gives the true step on the ground (east shrinks with latitude, north does not).
+     */
+    static double[] outputGroundSpacing(final double delLonDeg, final double delLatDeg, final double centreLatDeg) {
+        final double metresPerDegree = Constants.semiMajorAxis * Constants.DTOR;
+        return new double[]{delLonDeg * metresPerDegree * FastMath.cos(centreLatDeg * Constants.DTOR),
+                delLatDeg * metresPerDegree};
+    }
+
     /** Slant range spacing, or 0 when unavailable. Never throws — for use in log messages. */
     private double safeRangeSpacing() {
         try {
@@ -1580,7 +1592,9 @@ public class GSLCGeocodingOp extends Operator {
                 pixelSpacingInDegreeY = SARGeocoding.getPixelSpacingInDegree(pixelSpacingInMeterY);
             }
             SystemUtils.LOG.info(String.format(
-                    "GSLC: rectangular output cells %.4f m (E) x %.4f m (N). Native sampling of "
+                    "GSLC: rectangular output cells, nominal lattice step %.4f m (E) x %.4f m (N) - the "
+                            + "true east step on the ground is this x cos(latitude); range_spacing/azimuth_spacing "
+                            + "in the output metadata carry the true ground steps. Native sampling of "
                             + "the source: ~%.2f m ground range x ~%.2f m azimuth.",
                     pixelSpacingInMeter, pixelSpacingInMeterY,
                     // Via the guarded helper: this read used to be unguarded, and
@@ -1789,17 +1803,21 @@ public class GSLCGeocodingOp extends Operator {
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.lat_pixel_res, delLat);
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.lon_pixel_res, delLon);
 
-        if (pixelSpacingInMeter > 0.0 &&
-                (Double.compare(pixelSpacingInMeter, SARGeocoding.getPixelSpacing(sourceProduct)) != 0
-                        || Double.compare(pixelSpacingInMeterY, pixelSpacingInMeter) != 0)) {
-            // Per-axis: X (easting/longitude) is closest to range, Y (northing/latitude) to
-            // azimuth for near-polar orbits. InterferogramOp's metre-based coherence window
-            // reads these two attributes per direction, so rectangular cells get correctly
-            // rectangular windows.
-            AbstractMetadata.setAttribute(absTgt, AbstractMetadata.range_spacing, pixelSpacingInMeter);
-            AbstractMetadata.setAttribute(absTgt, AbstractMetadata.azimuth_spacing,
-                    pixelSpacingInMeterY > 0.0 ? pixelSpacingInMeterY : pixelSpacingInMeter);
-        }
+        // Per-axis ground spacing of the OUTPUT grid: X (easting/longitude) is closest to range, Y
+        // (northing/latitude) to azimuth for near-polar orbits. Metre-based consumers
+        // (InterferogramOp's cohWinSizeMeters, GoldsteinFilterOp, CoherenceOp) read these two attributes
+        // per direction as GROUND spacings, so they must be the real step on the ground.
+        //
+        // Always written, and always from the degree steps actually used. pixelSpacingInMeter is the
+        // NOMINAL step that defines the global lattice; its degree step is that value converted at the
+        // equator, so the true east-west step at the scene is pixelSpacingInMeter * cos(latitude)
+        // (2.35 m nominal -> 1.78 m at 40.8 N). Writing the nominal value made a "100 m" coherence window
+        // ~76 m east-west at Campi Flegrei. Writing nothing left the SLC's SLANT range spacing in place.
+        final double[] groundSpacing = outputGroundSpacing(delLon, delLat,
+                0.25 * (geoPosFirstNear.getLat() + geoPosFirstFar.getLat()
+                        + geoPosLastNear.getLat() + geoPosLastFar.getLat()));
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.range_spacing, groundSpacing[0]);
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.azimuth_spacing, groundSpacing[1]);
 
         // Stamp the source SLC's file path so downstream operators (notably CreateStackOp)
         // can reload the slant-range master when it needs to cross-correlate against a raw

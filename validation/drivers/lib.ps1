@@ -46,13 +46,14 @@ function Invoke-Gpt([string[]]$GptArgs, [string]$StepLog = $null) {
 #   Interferogram                         -> sar-op-insar          , compile
 #   classical graphs (Back-Geocoding, ESD, Interferogram, Deburst) -> sar-op-sentinel1 , compile
 function Invoke-MvnGpt([string]$Module, [string]$Scope, [string[]]$GptArgs, [string]$StepLog,
-                       [string]$Xmx = '24g', [string]$ExtraOpts = '') {
+                       [string]$Xmx = '12g', [string]$ExtraOpts = '') {
     foreach ($a in $GptArgs) {
         if ($a -match '\s') { throw "argument contains whitespace (use a -p parameter file): '$a'" }
     }
     $argStr = ($GptArgs | ForEach-Object { $_.Replace('\', '/') }) -join ' '
     $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
     Push-Location $script:REPO
+    $prevOpts = $env:MAVEN_OPTS
     try {
         $env:MAVEN_OPTS = ("-Xmx$Xmx $ExtraOpts").Trim()
         $mvnArgs = @('-o', '-q', '-pl', $Module, 'exec:java', '-Dexec.mainClass=org.esa.snap.core.gpf.main.GPT',
@@ -74,7 +75,7 @@ function Invoke-MvnGpt([string]$Module, [string]$Scope, [string[]]$GptArgs, [str
             return 97
         }
         return $rc
-    } finally { Pop-Location; $ErrorActionPreference = $prev }
+    } finally { Pop-Location; $ErrorActionPreference = $prev; $env:MAVEN_OPTS = $prevOpts }
 }
 
 # Operator parameters go in a file (-p) so no argument ever needs a space or a quote.
@@ -91,23 +92,41 @@ function Remove-Partial([string]$Dim) {
     $d = [IO.Path]::ChangeExtension($Dim, '.data')
     if (Test-Path $Dim) { Remove-Item $Dim -Force }
     if (Test-Path $d)   { Remove-Item $d -Recurse -Force }
+    if (Test-Path "$Dim.ok") { Remove-Item "$Dim.ok" -Force }
 }
 
-# $Run returns the process exit code. Skips when the target exists; deletes a partial on failure
-# (a half-written product must never be mistaken for a finished one on the next run).
+# $Run returns the process exit code. A step counts as DONE only when its completion sentinel
+# "<Target>.ok" exists; the sentinel is written after a verified-successful run. A product WITHOUT a
+# sentinel is a partial - most often from a run killed from outside (memory reaper, closed terminal),
+# where no exit code ever reaches this script and the DIMAP writer has already written a well-formed
+# .dim header - so it is deleted and the step re-run. (Before 2026-09-26 Step skipped on "the .dim
+# exists", and killed runs were only recovered by deleting the partial by hand.)
+function Test-StepDone([string]$Target) { return (Test-Path "$Target.ok") }
+
+function Set-StepDone([string]$Target, [string]$Note = '') {
+    [IO.File]::WriteAllText("$Target.ok", ("{0:o} {1}" -f (Get-Date), $Note))
+}
+
 function Step([string]$Name, [string]$Target, [scriptblock]$Run) {
-    if (Test-Path $Target) { Log "SKIP $Name (exists)"; return $true }
+    if (Test-StepDone $Target) { Log "SKIP $Name (done)"; return $true }
+    if (Test-Path $Target) {
+        Log "PARTIAL $Name`: '$Target' exists without a completion sentinel - deleting and re-running"
+        Remove-Partial $Target
+    }
     Log "RUN  $Name"
     $rc = [int](& $Run | Select-Object -Last 1)
     if ($rc -eq 97) {
         # heuristic verdict: set the product aside rather than destroy it, and never leave it where
-        # a later run would treat it as finished
+        # a later run would treat it as finished (the .data directory goes with it)
+        $d = [IO.Path]::ChangeExtension($Target, '.data')
         if (Test-Path $Target) { Move-Item $Target "$Target.incomplete" -Force }
+        if (Test-Path $d) { Move-Item $d "$d.incomplete" -Force }
         Log "FAIL $Name incomplete (no completion marker); product renamed to $Target.incomplete"
         return $false
     }
     if ($rc -ne 0) { Log "FAIL $Name exit $rc"; Remove-Partial $Target; return $false }
     if (-not (Test-Path $Target)) { Log "FAIL $Name exit 0 but '$Target' absent"; return $false }
+    Set-StepDone $Target $Name
     Log "OK   $Name"
     return $true
 }
