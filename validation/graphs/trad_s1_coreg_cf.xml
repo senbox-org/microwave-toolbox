@@ -1,0 +1,45 @@
+<graph id="trad_s1_coreg_cf">
+  <version>1.0</version>
+  <!--
+    Classical S1 TOPS coregistration for the Campi Flegrei comparison (ESA 2026-09-25). Inputs are
+    ALREADY-SPLIT, precise-orbit products (no ETAD - neither chain gets it), so there is no TOPSAR-Split
+    node here. The DEM is the auto-downloaded Copernicus 30 m that the GSLC chain also uses.
+    ${resampling} is BISINC_5_POINT_INTERPOLATION, matching the GSLC kernel.
+  -->
+  <node id="Read1">
+    <operator>Read</operator>
+    <parameters><file>${input1}</file></parameters>
+  </node>
+  <node id="Read2">
+    <operator>Read</operator>
+    <parameters><file>${input2}</file></parameters>
+  </node>
+  <node id="Back-Geocoding">
+    <operator>Back-Geocoding</operator>
+    <sources>
+      <sourceProduct refid="Read1"/>
+      <sourceProduct.1 refid="Read2"/>
+    </sources>
+    <parameters>
+      <demName>Copernicus 30m Global DEM</demName>
+      <resamplingType>${resampling}</resamplingType>
+    </parameters>
+  </node>
+  <node id="Enhanced-Spectral-Diversity">
+    <operator>Enhanced-Spectral-Diversity</operator>
+    <sources>
+      <sourceProduct refid="Back-Geocoding"/>
+    </sources>
+    <parameters/>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Enhanced-Spectral-Diversity"/>
+    </sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

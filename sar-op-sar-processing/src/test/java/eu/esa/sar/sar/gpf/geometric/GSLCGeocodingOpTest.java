@@ -47,6 +47,34 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
         op.initialize();
     }
 
+    /**
+     * The output grid's metadata spacing must be the real GROUND step. The Campi Flegrei GSLC used
+     * 2.1110409e-5 deg x 1.2531498e-4 deg at 40.80 N: 1.779 m east x 13.95 m north. The nominal lattice
+     * step (2.35 m, i.e. the east step converted at the equator) was written instead, which made a
+     * "100 m" coherence window ~76 m east-west.
+     */
+    @Test
+    public void testOutputGroundSpacingAtSceneLatitude() {
+        final double[] cf = GSLCGeocodingOp.outputGroundSpacing(2.1110409176808754E-5, 1.2531498213467324E-4, 40.7977);
+        assertEquals(1.779, cf[0], 0.001);
+        assertEquals(13.950, cf[1], 0.001);
+        final double[] eq = GSLCGeocodingOp.outputGroundSpacing(2.1110409176808754E-5, 1.2531498213467324E-4, 0.0);
+        assertEquals(2.350, eq[0], 0.001);                 // at the equator east equals the nominal step
+        final double[] south = GSLCGeocodingOp.outputGroundSpacing(2.1110409176808754E-5, 1.2531498213467324E-4, -40.7977);
+        assertEquals(cf[0], south[0], 1e-12);              // symmetric in latitude
+    }
+
+    /** East/north ground step of a map product measured from its own geocoding at the image centre. */
+    private static double[] measuredGroundStep(final Product p) {
+        final double x = p.getSceneRasterWidth() / 2.0 + 0.5, y = p.getSceneRasterHeight() / 2.0 + 0.5;
+        final GeoPos c = p.getSceneGeoCoding().getGeoPos(new PixelPos(x, y), null);
+        final GeoPos e = p.getSceneGeoCoding().getGeoPos(new PixelPos(x + 1, y), null);
+        final GeoPos n = p.getSceneGeoCoding().getGeoPos(new PixelPos(x, y + 1), null);
+        final double mPerDeg = org.esa.snap.engine_utilities.eo.Constants.semiMajorAxis * Math.PI / 180.0;
+        return new double[]{Math.abs(e.lon - c.lon) * mPerDeg * Math.cos(Math.toRadians(c.lat)),
+                Math.abs(n.lat - c.lat) * mPerDeg};
+    }
+
     @Test
     public void testProcessS1Stripmap() throws Exception {
         assumeTrue(inputFile1 + " not found", inputFile1.exists());
@@ -61,6 +89,14 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
             // get targetProduct: execute initialize()
             final Product targetProduct = op.getTargetProduct();
             TestUtils.verifyProduct(targetProduct, true, true, true);
+
+            // metadata spacing = the real ground step of the output grid (1% for the scene-centre
+            // latitude vs the image-centre latitude)
+            final org.esa.snap.core.datamodel.MetadataElement abs =
+                    org.esa.snap.engine_utilities.datamodel.AbstractMetadata.getAbstractedMetadata(targetProduct);
+            final double[] step = measuredGroundStep(targetProduct);
+            assertEquals(step[0], abs.getAttributeDouble("range_spacing"), 0.01 * step[0]);
+            assertEquals(step[1], abs.getAttributeDouble("azimuth_spacing"), 0.01 * step[1]);
 
             // Check if complex bands are present (ASAR IMS typically has 'i' and 'q' bands)
             Band iBand = targetProduct.getBand("i");
@@ -91,6 +127,14 @@ public class GSLCGeocodingOpTest extends ProcessorTest {
             // get targetProduct: execute initialize()
             final Product targetProduct = op.getTargetProduct();
             TestUtils.verifyProduct(targetProduct, true, true, true);
+
+            // metadata spacing = the real ground step of the output grid (1% for the scene-centre
+            // latitude vs the image-centre latitude)
+            final org.esa.snap.core.datamodel.MetadataElement abs =
+                    org.esa.snap.engine_utilities.datamodel.AbstractMetadata.getAbstractedMetadata(targetProduct);
+            final double[] step = measuredGroundStep(targetProduct);
+            assertEquals(step[0], abs.getAttributeDouble("range_spacing"), 0.01 * step[0]);
+            assertEquals(step[1], abs.getAttributeDouble("azimuth_spacing"), 0.01 * step[1]);
 
             // Check if complex bands are present (ASAR IMS typically has 'i' and 'q' bands)
             Band iBand = targetProduct.getBand("i_HH");
