@@ -11,6 +11,7 @@ import org.junit.Test;
 import ucar.nc2.NetcdfFile;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
@@ -25,48 +26,37 @@ public class CimrL1BProductReaderTest {
     public void testReadBandRasterDataImplCopiesFromSourceImage() throws Exception {
         int width = 4;
         int height = 3;
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        int value = 1;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                image.setRGB(x, y, value++);
-            }
-        }
-
-        MultiLevelSource source = new DefaultMultiLevelSource(image, 1);
-        MultiLevelImage multiLevelImage = new DefaultMultiLevelImage(source);
-
-        Band band = new TestBand(multiLevelImage);
+        BufferedImage image = createSampleImage(width, height);
+        Band band = new TestBand(createMultiLevelImage(image));
         CimrL1BProductReader reader = new CimrL1BProductReader( null);
 
-        int destOffsetX = 1;
-        int destOffsetY = 1;
+        int sourceOffsetX = 1;
+        int sourceOffsetY = 1;
+        int sourceWidth = 2;
+        int sourceHeight = 2;
         int destWidth = 2;
         int destHeight = 2;
 
-        ProductData destBuffer = ProductData.createInstance(ProductData.TYPE_INT32,
-                destWidth * destHeight);
+        ProductData destBuffer = ProductData.createInstance(ProductData.TYPE_FLOAT64, destWidth * destHeight);
+        reader.readBandRasterDataImpl(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight, 1, 1, band, 0, 0, destWidth, destHeight, destBuffer, ProgressMonitor.NULL);
 
-        reader.readBandRasterDataImpl(
-                destOffsetX, destOffsetY,
-                destWidth, destHeight,
-                1, 1,
-                band,
-                destOffsetX, destOffsetY,
-                destWidth, destHeight,
-                destBuffer,
-                ProgressMonitor.NULL
-        );
+        double[] expected = {sampleValue(1, 1), sampleValue(2, 1), sampleValue(1, 2), sampleValue(2, 2)};
+        assertArrayEquals(expected, (double[]) destBuffer.getElems(), 1e-8);
+    }
 
-        int[] expected = new int[destWidth * destHeight];
-        int idx = 0;
-        for (int y = destOffsetY; y < destOffsetY + destHeight; y++) {
-            for (int x = destOffsetX; x < destOffsetX + destWidth; x++) {
-                expected[idx++] = image.getRGB(x, y);
-            }
-        }
+    @Test
+    public void testReadBandRasterDataImplUsesSourceOffsetsAndSteps() throws Exception {
+        int width = 6;
+        int height = 5;
+        BufferedImage image = createSampleImage(width, height);
+        Band band = new TestBand(createMultiLevelImage(image));
+        CimrL1BProductReader reader = new CimrL1BProductReader(null);
 
-        assertArrayEquals(expected, (int[]) destBuffer.getElems());
+        ProductData destBuffer = ProductData.createInstance(ProductData.TYPE_FLOAT64, 4);
+        reader.readBandRasterDataImpl(1, 1, 4, 4, 2, 2, band, 7, 9, 2, 2, destBuffer, ProgressMonitor.NULL);
+
+        double[] expected = {sampleValue(1, 1), sampleValue(3, 1), sampleValue(1, 3), sampleValue(3, 3)};
+        assertArrayEquals(expected, (double[]) destBuffer.getElems(), 1e-8);
     }
 
     @Test
@@ -112,6 +102,26 @@ public class CimrL1BProductReaderTest {
         public MultiLevelImage getSourceImage() {
             return sourceImage;
         }
+    }
+
+    private static MultiLevelImage createMultiLevelImage(BufferedImage image) {
+        MultiLevelSource source = new DefaultMultiLevelSource(image, 1);
+        return new DefaultMultiLevelImage(source);
+    }
+
+    private static BufferedImage createSampleImage(int width, int height) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+        WritableRaster raster = image.getRaster();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                raster.setSample(x, y, 0, sampleValue(x, y));
+            }
+        }
+        return image;
+    }
+
+    private static int sampleValue(int x, int y) {
+        return y * 10 + x;
     }
 
     private static void setField(Object target, String name, Object value) throws NoSuchFieldException, IllegalAccessException {

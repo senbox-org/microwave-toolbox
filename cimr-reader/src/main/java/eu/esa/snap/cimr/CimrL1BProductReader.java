@@ -59,10 +59,17 @@ public class CimrL1BProductReader extends AbstractProductReader {
 
     @Override
     protected void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight, int sourceStepX, int sourceStepY, Band destBand, int destOffsetX, int destOffsetY, int destWidth, int destHeight, ProductData destBuffer, ProgressMonitor pm) throws IOException {
-        // TODO BL handle destination offsets
         final RenderedImage image = destBand.getSourceImage();
-        final Raster data = image.getData(new Rectangle(destOffsetX, destOffsetY, destWidth, destHeight));
-        data.getDataElements(destOffsetX, destOffsetY, destWidth, destHeight, destBuffer.getElems());
+        final Raster data = image.getData(new Rectangle(sourceOffsetX, sourceOffsetY, sourceWidth, sourceHeight));
+
+        int destIndex = 0;
+        for (int destY = 0; destY < destHeight; destY++) {
+            final int sourceY = sourceOffsetY + destY * sourceStepY;
+            for (int destX = 0; destX < destWidth; destX++) {
+                final int sourceX = sourceOffsetX + destX * sourceStepX;
+                destBuffer.setElemDoubleAt(destIndex++, data.getSampleDouble(sourceX, sourceY, 0));
+            }
+        }
     }
 
     @Override
