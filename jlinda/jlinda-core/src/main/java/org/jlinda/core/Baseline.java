@@ -142,14 +142,14 @@ public class Baseline {
         return point.angle(r1);
     }
 
-    public void model(final SLCImage master, final SLCImage slave, Orbit masterOrbit, Orbit slaveOrbit) throws Exception {
+    public void model(final SLCImage master, final SLCImage slave, Orbit refOrbit, Orbit secOrbit) throws Exception {
 
-        if (!masterOrbit.isInterpolated()) {
-            logger.info("Baseline cannot be computed, master orbit not initialized.");
-            throw new Exception("Baseline.model_parameters: master orbit not initialized");
-        } else if (!slaveOrbit.isInterpolated()) {
-            logger.info("Baseline cannot be computed, slave orbit not initialized.");
-            throw new Exception("Baseline.model_parameters: slave orbit not initialized");
+        if (!refOrbit.isInterpolated()) {
+            logger.info("Baseline cannot be computed, reference orbit not initialized.");
+            throw new Exception("Baseline.model_parameters: reference orbit not initialized");
+        } else if (!secOrbit.isInterpolated()) {
+            logger.info("Baseline cannot be computed, secondary orbit not initialized.");
+            throw new Exception("Baseline.model_parameters: secondary orbit not initialized");
         }
 
         if (isInitialized) {
@@ -214,7 +214,7 @@ public class Baseline {
                 final double mTazi = master.line2ta(line);
 
                 // xyz for master satellite from time
-                final Point pointOnMasterOrb = masterOrbit.getXYZ(mTazi);
+                final Point pointOnMasterOrb = refOrbit.getXYZ(mTazi);
 
                 // Continue looping in range direction
                 for (long j = 0; j < N_POINTS_RNG; ++j) {
@@ -223,19 +223,19 @@ public class Baseline {
 
                     // ______ Range time for this pixel ______
                     //final double m_trange = master.pix2tr(pixel);
-                    pointOnEllips = masterOrbit.lph2xyz(line, pixel, height, master);
+                    pointOnEllips = refOrbit.lph2xyz(line, pixel, height, master);
 
                     // Compute xyz for slave satellite from pointOnEllips
-                    Point pointTime = slaveOrbit.xyz2t(pointOnEllips, slave);
+                    Point pointTime = secOrbit.xyz2t(pointOnEllips, slave);
                     sTazi = pointTime.y;
                     sTrange = pointTime.x;
 
                     // Slave position
-                    final Point pointOnSlaveOrb = slaveOrbit.getXYZ(sTazi);
+                    final Point pointOnSlaveOrb = secOrbit.getXYZ(sTazi);
 
                     // Compute angle between near parallel orbits
-                    final Point velOnMasterOrb = masterOrbit.getXYZDot(mTazi);
-                    final Point velOnSlaveOrb = slaveOrbit.getXYZDot(sTazi);
+                    final Point velOnMasterOrb = refOrbit.getXYZDot(mTazi);
+                    final Point velOnSlaveOrb = secOrbit.getXYZDot(sTazi);
                     final double angleOrbits = velOnMasterOrb.angle(velOnSlaveOrb);
 
                     //logger.info("Angle between orbits master-slave (at l,p= " + line + ',' + pixel + ") = " +

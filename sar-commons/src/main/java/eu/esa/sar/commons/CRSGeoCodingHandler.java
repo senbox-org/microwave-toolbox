@@ -51,17 +51,34 @@ public class CRSGeoCodingHandler {
                                final double pixelSpacingInDegree, final double pixelSpacingInMeter,
                                final boolean alignToStandardGrid, final double standardGridOriginX,
                                final double standardGridOriginY) throws Exception {
+        this(sourceProduct, mapProjection, pixelSpacingInDegree, pixelSpacingInMeter,
+                pixelSpacingInDegree, pixelSpacingInMeter, alignToStandardGrid,
+                standardGridOriginX, standardGridOriginY);
+    }
+
+    /**
+     * Rectangular-pixel variant: independent X (easting/longitude) and Y (northing/latitude)
+     * sampling steps. A map projection fixes the axis directions and units, not the cell aspect
+     * ratio — non-square cells let a geocoded SLC preserve the source's anisotropic resolution
+     * (e.g. S1 IW ~3.4 m ground range × ~14 m azimuth) without oversampling one axis.
+     * Standard-grid alignment snaps each axis to its own lattice.
+     */
+    public CRSGeoCodingHandler(final Product sourceProduct, final String mapProjection,
+                               final double pixelSpacingInDegreeX, final double pixelSpacingInMeterX,
+                               final double pixelSpacingInDegreeY, final double pixelSpacingInMeterY,
+                               final boolean alignToStandardGrid, final double standardGridOriginX,
+                               final double standardGridOriginY) throws Exception {
 
         targetCRS = getCRS(sourceProduct, mapProjection);
 
         final OperatorUtils.ImageGeoBoundary srcImageBoundary = OperatorUtils.computeImageGeoBoundary(sourceProduct);
 
-        double pixelSizeX = pixelSpacingInMeter;
-        double pixelSizeY = pixelSpacingInMeter;
+        double pixelSizeX = pixelSpacingInMeterX;
+        double pixelSizeY = pixelSpacingInMeterY;
         if (targetCRS.getName().getCode().equals("WGS84(DD)") ||
                 isDegree(targetCRS.getCoordinateSystem().getAxis(0).getUnit())) {
-            pixelSizeX = pixelSpacingInDegree;
-            pixelSizeY = pixelSpacingInDegree;
+            pixelSizeX = pixelSpacingInDegreeX;
+            pixelSizeY = pixelSpacingInDegreeY;
         }
 
         final Rectangle2D bounds = new Rectangle2D.Double();

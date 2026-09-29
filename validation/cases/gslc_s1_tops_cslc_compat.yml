@@ -1,0 +1,57 @@
+# GSLC: Microwave Toolbox vs ISCE3/COMPASS on the same S1 IW burst.
+#
+# Conventions are set to CSLC-compatible (flattened + carrier restored) because that is what COMPASS
+# produces and hardcodes: s1_geocode_slc.py:215 passes reramp=True, and defaults/s1_cslc_geo.yaml:50
+# sets flatten: True. The toolbox defaults to the OPPOSITE on both axes, so this case must override
+# them explicitly — comparing defaults would compare incompatible products.
+case: gslc_s1_tops_cslc_compat
+feature: GSLC
+
+scene:
+  mission: S1B
+  mode: IW
+  subswath: IW1
+  polarisation: VV
+  bursts: [1, 2]
+  slc: /data/s1tbx/SAR/S1/ETAD/IW/InSAR/S1B_IW_SLC__1SDV_20200815T173048_20200815T173116_022937_02B897_F7CF.SAFE.zip
+
+# ONE staged file, handed to every engine. Not a DEM name — a path.
+dem: /data/dem/copernicus30_iw1_20200815.tif
+
+grid:
+  crs: EPSG:32633
+  spacing: [5.0, 10.0]     # east, north (m) — matches OPERA CSLC-S1 posting
+  # origin omitted: derived from the scene and shared by all engines via the runner
+
+conventions:
+  flattened: true          # ISCE3 flatten / SNAP outputFlattened
+  azimuth_carrier: restored  # ISCE3 reramp / SNAP outputAzimuthCarrier
+
+engine_params:
+  snap:
+    operator: GSLC-Terrain-Correction
+    outputFlattened: true
+    outputAzimuthCarrier: true
+    outputPhaseTerms: true       # emits azimuthCarrierPhase + flatteningPhase for the term-by-term test
+    imgResamplingMethod: BISINC_5_POINT_INTERPOLATION
+  isce3:
+    workflow: s1_geocode_slc
+    flatten: true
+    reramp: true
+    output_phase_screens: true   # COMPASS azimuth_carrier_phase + flattening_phase datasets
+
+engines: [snap, isce3]
+
+metrics:
+  - amplitude_ratio
+  - phase_difference_smoothness
+  - rms_difference
+
+tolerances:
+  # Justification is required for each number, per the spec.
+  amplitude_ratio: 0.02
+    # 2%: both resample with a sinc-family kernel from the same source samples, so amplitude should
+    # agree closely; a larger gap indicates a geolocation or radiometric difference, not noise.
+  phase_difference_smoothness: 0.10
+    # rad/px. A random difference reads ~1.571 (pi/2). 0.10 admits a smooth ramp (different absolute
+    # phase datum is expected and not an error) while rejecting a noise-like difference.

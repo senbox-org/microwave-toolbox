@@ -107,8 +107,8 @@ public class RangeDopplerGeocodingOp extends Operator {
     private String[] sourceBandNames = null;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec", label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(label = "External DEM")
     private File externalDEMFile = null;
@@ -215,17 +215,21 @@ public class RangeDopplerGeocodingOp extends Operator {
             description = "The auxiliary file", defaultValue = CalibrationOp.LATEST_AUX, label = "Auxiliary File")
     private String auxFile = CalibrationOp.LATEST_AUX;
 
+    @Parameter(defaultValue = "false", label = "Apply Atmospheric Path Delay Correction",
+            description = "Correct for tropospheric path delay (~3 m range improvement) using a standard atmosphere model")
+    private boolean applyAPDCorrection = false;
+
     @Parameter(description = "The antenne elevation pattern gain auxiliary data file.", label = "External Aux File")
     private File externalAuxFile = null;
 
     private MetadataElement absRoot = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private Band elevationBand = null;
     private double demNoDataValue = 0.0f; // no data value for DEM
     private GeoCoding targetGeoCoding = null;
 
     private boolean srgrFlag = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
     private boolean usePreCalibrationOp = false;
 
     private int sourceImageWidth = 0;
@@ -259,13 +263,14 @@ public class RangeDopplerGeocodingOp extends Operator {
 
     boolean useAvgSceneHeight = false;
     private Calibrator calibrator = null;
-    private boolean orthoDataProduced = false;  // check if any ortho data is actually produced
-    private boolean processingStarted = false;
+    private volatile boolean orthoDataProduced = false;  // check if any ortho data is actually produced
+    private volatile boolean processingStarted = false;
     private boolean isPolsar = false;
 
     private boolean nearRangeOnLeft = true; // temp fix for descending Radarsat2
     private String mission = null;
     private boolean skipBistaticCorrection = false;
+    private double bistaticCorrectionRefRange = 0.0; // reference slant range used by IPF for bistatic correction
 
     private boolean isLayoverShadowMaskAvailable = false;
     private byte[][] layoverShadowMask = null;
@@ -435,7 +440,7 @@ public class RangeDopplerGeocodingOp extends Operator {
 
         orbitStateVectors = AbstractMetadata.getOrbitStateVectors(absRoot);
         if (orbitStateVectors == null || orbitStateVectors.length == 0) {
-            throw new OperatorException("Invalid Obit State Vectors");
+            throw new OperatorException("Invalid Orbit State Vectors");
         }
 
         if (srgrFlag) {
@@ -445,6 +450,15 @@ public class RangeDopplerGeocodingOp extends Operator {
             }
         } else {
             nearEdgeSlantRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        }
+
+        // Bistatic residual correction applies only to Sentinel-1 (Section 4.7.3 of UZH-S1-GC-AD v1.12).
+        // The S-1 IPF applies a bulk bistatic correction using a near-range reference; the residual
+        // accounts for the range-dependent variation not covered by the bulk correction.
+        // Other missions (TerraSAR-X, COSMO, RCM, etc.) apply a full per-sample correction,
+        // so no residual is needed.
+        if (skipBistaticCorrection && mission != null && mission.startsWith("SENTINEL-1")) {
+            bistaticCorrectionRefRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
         }
 
         // used for retro-calibration or when useAvgSceneHeight is true
@@ -469,6 +483,47 @@ public class RangeDopplerGeocodingOp extends Operator {
         nearRangeOnLeft = SARGeocoding.isNearRangeOnLeft(incidenceAngle, sourceImageWidth);
 
         isPolsar = absRoot.getAttributeInt(AbstractMetadata.polsarData, 0) == 1;
+
+        // InSAR results must not degrade to intensity by default: with no explicit band selection
+        // the complex-pair collapse below would geocode an interferogram to Intensity + coherence,
+        // silently discarding the interferometric phase — the very content being terrain-corrected.
+        // Geocode complex instead: i and q resampled per component IS complex interpolation, the
+        // only faithful way to move wrapped phase between grids (interpolating a wrapped Phase band
+        // averages across the ±pi boundary along every fringe). The source's virtual Phase/Intensity
+        // bands are re-created over the geocoded pair. Explicit band selection still overrides.
+        if ((sourceBandNames == null || sourceBandNames.length == 0)
+                && !outputComplex && !isPolsar && isInSARProduct(absRoot, sourceProduct)) {
+            outputComplex = true;
+            SystemUtils.LOG.info("Terrain-Correction: InSAR source detected (coregistered stack / "
+                    + "coherence band with complex pairs) — geocoding complex data as complex and "
+                    + "carrying the Phase band, instead of collapsing to Intensity. Select bands "
+                    + "explicitly to override.");
+        }
+    }
+
+    /**
+     * An interferometric-processing result: a coregistered stack (or a product carrying a
+     * coherence-unit band) whose data is complex. These are the products for which the intensity
+     * collapse silently destroys the purpose of the terrain correction.
+     */
+    static boolean isInSARProduct(final MetadataElement absRoot, final Product product) {
+        boolean hasComplexPair = false;
+        boolean hasCoherence = false;
+        for (final Band b : product.getBands()) {
+            final String unit = b.getUnit();
+            if (unit == null) continue;
+            if (!(b instanceof VirtualBand) && (unit.equals(Unit.REAL) || unit.equals(Unit.IMAGINARY))) {
+                hasComplexPair = true;
+            } else if (unit.contains(Unit.COHERENCE)) {
+                hasCoherence = true;
+            }
+        }
+        if (!hasComplexPair) {
+            return false;
+        }
+        final boolean coregisteredStack =
+                absRoot != null && absRoot.getAttributeInt(AbstractMetadata.coregistered_stack, 0) == 1;
+        return hasCoherence || coregisteredStack;
     }
 
     /**
@@ -699,11 +754,20 @@ public class RangeDopplerGeocodingOp extends Operator {
 
                     if (outputComplex && noBandsSelected && srcBand.getUnit().equals(Unit.IMAGINARY)) { // add virtual bands
 
-                        int idx = sourceProduct.getBandIndex(srcBand.getName());
-                        Band band = sourceProduct.getBandAt(idx + 1);
-                        if (band != null && band instanceof VirtualBand) {
-                            VirtualBand srcVirtBand = (VirtualBand) band;
-
+                        // Copy ALL consecutive virtual bands that follow the pair, not just the
+                        // first: an interferogram carries Intensity AND Phase virtuals after q, and
+                        // stopping at idx+1 dropped the Phase — the band this mode exists to keep.
+                        // Their expressions reference the i/q names, which are preserved above.
+                        final int idx = sourceProduct.getBandIndex(srcBand.getName());
+                        for (int v = idx + 1; v < sourceProduct.getNumBands(); v++) {
+                            final Band band = sourceProduct.getBandAt(v);
+                            if (!(band instanceof VirtualBand)) {
+                                break;
+                            }
+                            final VirtualBand srcVirtBand = (VirtualBand) band;
+                            if (targetProduct.containsBand(srcVirtBand.getName())) {
+                                continue;
+                            }
                             final VirtualBand virtBand = new VirtualBand(srcVirtBand.getName(), srcVirtBand.getDataType(),
                                                                          targetImageWidth, targetImageHeight, srcVirtBand.getExpression());
                             virtBand.setUnit(srcVirtBand.getUnit());
@@ -985,17 +1049,24 @@ public class RangeDopplerGeocodingOp extends Operator {
 
             final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
 
-            final GeoPos posFirst = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0,0), null);
-            final GeoPos posLast = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0,targetImageHeight), null);
-            int diffLat = (int)Math.abs(posFirst.lat - posLast.lat);
+            final GeoPos posFirst = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0, 0), null);
+            // Use targetImageHeight - 1 (the last valid row), not targetImageHeight (one past).
+            final GeoPos posLast = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0, targetImageHeight - 1), null);
+            // Ceil instead of truncate so small scenes (<1°) get diffLat >= 1 and the boundary
+            // check in isValidCell sees a non-zero latitude span.
+            int diffLat = (int) Math.ceil(Math.abs(posFirst.lat - posLast.lat));
+            if (diffLat < 1) {
+                diffLat = 1;
+            }
 
             for (int y = y0; y < maxY; y++) {
                 final int yy = y - y0 + 1;
                 for (int x = x0; x < maxX; x++) {
                     final int index = tgtTiles[0].targetTile.getDataBufferIndex(x, y);
 
-                    Double alt = localDEM[yy][x - x0 + 1];
-                    if (alt.equals(demNoDataValue) && !useAvgSceneHeight) {
+                    double alt = localDEM[yy][x - x0 + 1];
+                    final boolean altIsNoData = Double.isNaN(alt) || alt == demNoDataValue;
+                    if (altIsNoData && !useAvgSceneHeight) {
                         if (nodataValueAtSea) {
                             saveNoDataValueToTarget(index, tgtTiles, demBuffer);
                             continue;
@@ -1009,8 +1080,8 @@ public class RangeDopplerGeocodingOp extends Operator {
                         lon -= 360.0;
                     }
 
-                    if (alt.equals(demNoDataValue) && !nodataValueAtSea) { // get corrected elevation for 0
-                        alt = (double) egm.getEGM(lat, lon);
+                    if (altIsNoData && !nodataValueAtSea) { // get corrected elevation for 0
+                        alt = egm.getEGM(lat, lon);
                     }
 
                     if (!getPosition(lat, lon, alt, posData)) {
@@ -1176,8 +1247,8 @@ public class RangeDopplerGeocodingOp extends Operator {
 
                             for (int x = x0; x < xMax; ++x) {
                                 final int xx = x - x0;
-                                Double alt = localDEM[yy + 1][xx + 1];
-                                if (alt.equals(demNoDataValue))
+                                double alt = localDEM[yy + 1][xx + 1];
+                                if (Double.isNaN(alt) || alt == demNoDataValue)
                                     continue;
 
                                 tileGeoRef.getGeoPos(x, y, geoPos);
@@ -1424,8 +1495,8 @@ public class RangeDopplerGeocodingOp extends Operator {
 
                 tileGeoRef.getGeoPos(new PixelPos(x, y), geoPos);
 
-                final Double alt = localDEM[y - y0 + 1][x - x0 + 1];
-                if (alt.equals(demNoDataValue)) {
+                final double alt = localDEM[y - y0 + 1][x - x0 + 1];
+                if (Double.isNaN(alt) || alt == demNoDataValue) {
                     continue;
                 }
 
@@ -1495,11 +1566,26 @@ public class RangeDopplerGeocodingOp extends Operator {
             return false;
         }
 
-        data.slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, data.earthPoint, data.sensorPos);
+        data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                zeroDopplerTime, data.earthPoint, data.sensorPos);
 
-        if (!skipBistaticCorrection) { // skip bistatic correction for COSMO, TerraSAR-X and RadarSAT-2
+        if (!skipBistaticCorrection) {
+            // Full bistatic correction: product has no bulk correction applied
             zeroDopplerTime += data.slantRange / Constants.lightSpeedInMetersPerDay;
-            data.slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, data.earthPoint, data.sensorPos);
+            data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    zeroDopplerTime, data.earthPoint, data.sensorPos);
+        } else if (bistaticCorrectionRefRange > 0.0) {
+            // Bistatic residual correction (Section 4.7.3 of UZH-S1-GC-AD v1.12):
+            // IPF applied bulk correction using a reference range; apply the range-dependent residual.
+            zeroDopplerTime += (data.slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
+            data.slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                    zeroDopplerTime, data.earthPoint, data.sensorPos);
+        }
+
+        if (applyAPDCorrection) {
+            // Add atmospheric path delay to geometric slant range to match the product range axis
+            // which includes the tropospheric delay (Section 4.6.1 of UZH-S1-GC-AD v1.12).
+            data.slantRange += SARGeocoding.computeAtmosphericPathDelay(data.earthPoint, data.sensorPos, lat, alt);
         }
 
         data.rangeIndex = SARGeocoding.computeRangeIndex(srgrFlag, sourceImageWidth, firstLineUTC, lastLineUTC,
@@ -1701,7 +1787,7 @@ public class RangeDopplerGeocodingOp extends Operator {
 
                     final int index = sourceTileI.getDataBufferIndex(x[j], y[i]);
                     double v = dataBufferI.getElemDoubleAt(index);
-                    if (tileData.noDataValue != 0 && (v == tileData.noDataValue)) {
+                    if (Double.isNaN(v) || v == tileData.noDataValue) {
                         samples[i][j] = tileData.noDataValue;
                         allValid = false;
                         continue;
@@ -1712,7 +1798,7 @@ public class RangeDopplerGeocodingOp extends Operator {
                     if (tileData.computeIntensity) {
 
                         final double vq = dataBufferQ.getElemDoubleAt(index);
-                        if (tileData.noDataValue != 0 && vq == tileData.noDataValue) {
+                        if (Double.isNaN(vq) || vq == tileData.noDataValue) {
                             samples[i][j] = tileData.noDataValue;
                             allValid = false;
                             continue;

@@ -73,6 +73,7 @@ public class TestCapellaStripProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Sigma0_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -83,6 +84,7 @@ public class TestCapellaStripProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Sigma0_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -93,6 +95,7 @@ public class TestCapellaStripProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Sigma0_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -103,6 +106,7 @@ public class TestCapellaStripProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"i_HH", "q_HH", "Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -113,6 +117,7 @@ public class TestCapellaStripProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test
@@ -123,6 +128,7 @@ public class TestCapellaStripProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test

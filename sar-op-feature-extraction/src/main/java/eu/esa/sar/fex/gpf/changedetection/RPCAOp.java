@@ -287,7 +287,7 @@ public class RPCAOp extends Operator {
                 n2 += dataArray[r][c] * dataArray[r][c];
             }
         }
-        return n2;
+        return Math.sqrt(n2);
     }
 
     private Matrix shrink(final Matrix A, final double threshold) {

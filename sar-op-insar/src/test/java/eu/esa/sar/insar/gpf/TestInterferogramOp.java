@@ -20,15 +20,20 @@ import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -51,10 +56,45 @@ public class TestInterferogramOp {
 
     private final static OperatorSpi spi = new InterferogramOp.Spi();
 
+    private final static Map<String, Product> productCache = new HashMap<>();
+
+    private static synchronized Product loadCached(final File file) throws IOException {
+        final String key = file.getAbsolutePath();
+        Product product = productCache.get(key);
+        if (product == null) {
+            product = TestUtils.readSourceProduct(file);
+            productCache.put(key, product);
+        }
+        return product;
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        for (Product p : productCache.values()) {
+            if (p != null) {
+                p.dispose();
+            }
+        }
+        productCache.clear();
+    }
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final InterferogramOp op = (InterferogramOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = InterferogramOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Interferogram", md.alias());
+    }
+
     @Test
     @STTM("SNAP-3687")
     public void testProcessingInterferogram() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile1);
+        final Product sourceProduct = loadCached(inputFile1);
 
         final InterferogramOp op = (InterferogramOp) spi.createOperator();
         assertNotNull(op);
@@ -69,7 +109,7 @@ public class TestInterferogramOp {
     @Test
     @STTM("SNAP-3723")
     public void testProcessingInterferogramFlatEarthPhase() throws Exception {
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile1);
+        final Product sourceProduct = loadCached(inputFile1);
 
         final InterferogramOp op = (InterferogramOp) spi.createOperator();
         assertNotNull(op);
@@ -122,10 +162,10 @@ public class TestInterferogramOp {
     private Product createStackProduct() throws IOException {
         int size = 10;
         Product srcProduct = TestUtils.createProduct("stackProduct", size, size);
-        TestUtils.createBand(srcProduct, "i_IW2_VV_mst_14Sep2020", size, size);
-        TestUtils.createBand(srcProduct, "q_IW2_VV_mst_14Sep2020", size, size);
-        TestUtils.createBand(srcProduct, "i_IW2_VV_slv1_27Aug2020", size, size);
-        TestUtils.createBand(srcProduct, "q_IW2_VV_slv1_27Aug2020", size, size);
+        TestUtils.createBand(srcProduct, "i_IW2_VV_ref_14Sep2020", size, size);
+        TestUtils.createBand(srcProduct, "q_IW2_VV_ref_14Sep2020", size, size);
+        TestUtils.createBand(srcProduct, "i_IW2_VV_sec1_27Aug2020", size, size);
+        TestUtils.createBand(srcProduct, "q_IW2_VV_sec1_27Aug2020", size, size);
 
         MetadataElement elem = new MetadataElement("ETAD_Product_Metadata");
         srcProduct.getMetadataRoot().addElement(elem);

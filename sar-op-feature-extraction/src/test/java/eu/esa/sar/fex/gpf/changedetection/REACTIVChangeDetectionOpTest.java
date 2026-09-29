@@ -21,6 +21,7 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -29,9 +30,23 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 public class REACTIVChangeDetectionOpTest {
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final ReactivOp op = (ReactivOp) new ReactivOp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = ReactivOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("REACTIV-Change-Detection", md.alias());
+    }
 
     @STTM("SNAP-3900")
     @Test
@@ -192,20 +207,20 @@ public class REACTIVChangeDetectionOpTest {
         absRoot.setAttributeDouble(AbstractMetadata.radar_frequency, 5405.000454334349);
         absRoot.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
 
-        createBand(srcProduct, "Amplitude_POL_mst_01Mar2024", txRxPolar, 3.0f);
-        createBand(srcProduct, "Amplitude_POL_slv1_01May2024", txRxPolar,  1.0f);
-        createBand(srcProduct, "Amplitude_POL_slv3_01Jul2024", txRxPolar, 4.0f);
-        createBand(srcProduct, "Amplitude_POL_slv5_01Sep2024", txRxPolar, 1.0f);
-        createBand(srcProduct, "Amplitude_POL_slv7_01Nov2024", txRxPolar, 5.0f);
+        createBand(srcProduct, "Amplitude_POL_ref_01Mar2024", txRxPolar, 3.0f);
+        createBand(srcProduct, "Amplitude_POL_sec1_01May2024", txRxPolar,  1.0f);
+        createBand(srcProduct, "Amplitude_POL_sec3_01Jul2024", txRxPolar, 4.0f);
+        createBand(srcProduct, "Amplitude_POL_sec5_01Sep2024", txRxPolar, 1.0f);
+        createBand(srcProduct, "Amplitude_POL_sec7_01Nov2024", txRxPolar, 5.0f);
 
         if(txRxPolar2 != null) {
             absRoot.setAttributeString(AbstractMetadata.mds2_tx_rx_polar, txRxPolar2);
 
-            createBand(srcProduct, "Amplitude_POL_mst_01Mar2024", txRxPolar2, 2.0f);
-            createBand(srcProduct, "Amplitude_POL_slv2_01May2024", txRxPolar2,7.0f);
-            createBand(srcProduct, "Amplitude_POL_slv4_01Jul2024", txRxPolar2,1.0f);
-            createBand(srcProduct, "Amplitude_POL_slv6_01Sep2024", txRxPolar2, 8.0f);
-            createBand(srcProduct, "Amplitude_POL_slv8_01Nov2024", txRxPolar2,2.0f);
+            createBand(srcProduct, "Amplitude_POL_ref_01Mar2024", txRxPolar2, 2.0f);
+            createBand(srcProduct, "Amplitude_POL_sec2_01May2024", txRxPolar2,7.0f);
+            createBand(srcProduct, "Amplitude_POL_sec4_01Jul2024", txRxPolar2,1.0f);
+            createBand(srcProduct, "Amplitude_POL_sec6_01Sep2024", txRxPolar2, 8.0f);
+            createBand(srcProduct, "Amplitude_POL_sec8_01Nov2024", txRxPolar2,2.0f);
         }
 
         return srcProduct;

@@ -33,7 +33,6 @@ import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -53,19 +52,8 @@ public class TestRangeDopplerOp extends ProcessorTest {
     private final static File inputFile3 = TestData.inputASAR_IMS;
     private final static File inputFile4 = TestData.inputASAR_APM;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If any of the file does not exist: the test will be ignored
-            assumeTrue(inputFile1 + " not found", inputFile1.exists());
-            assumeTrue(inputFile2 + " not found", inputFile2.exists());
-            assumeTrue(inputFile3 + " not found", inputFile3.exists());
-            assumeTrue(inputFile4 + " not found", inputFile4.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // Per-test methods gate themselves on the specific inputFile they use;
+    // testProcessAll* scan their own roots and skip via TestProcessor.
 
     private final static OperatorSpi spi = new RangeDopplerGeocodingOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
@@ -82,6 +70,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessWSM() throws Exception {
+        assumeTrue(inputFile1 + " not found", inputFile1.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
 
             final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
@@ -104,13 +93,14 @@ public class TestRangeDopplerOp extends ProcessorTest {
             band.readPixels(200, 200, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.12189214f, 0.12721543f, 0.13359734f, 0.12150828f};
+            final float[] expected = new float[]{0.15872392f, 0.11773925f, 0.12842435f, 0.130156f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }
 
     @Test
     public void testGetLocalDEM() throws Exception {
+        assumeTrue(inputFile2 + " not found", inputFile2.exists());
 
         final ProductReader reader = ProductIO.getProductReaderForInput(inputFile2);
         try(final Product sourceProduct = reader.readProductNodes(inputFile2, null)) {
@@ -142,6 +132,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessIMS() throws Exception {
+        assumeTrue(inputFile3 + " not found", inputFile3.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile3)) {
 
             final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
@@ -163,7 +154,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
             band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.050986305f, 0.15979816f, 0.017083498f, 0.10548973f};
+            final float[] expected = new float[]{0.056213267f, 0.12311943f, 0.07303023f, 0.051143993f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }
@@ -175,6 +166,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
      */
     @Test
     public void testProcessAPM() throws Exception {
+        assumeTrue(inputFile4 + " not found", inputFile4.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile4)) {
 
             final RangeDopplerGeocodingOp op = (RangeDopplerGeocodingOp) spi.createOperator();
@@ -196,7 +188,7 @@ public class TestRangeDopplerOp extends ProcessorTest {
             band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.26883528f, 0.22659998f, 0.18019523f, 0.17243087f};
+            final float[] expected = new float[]{0.27502492f, 0.2549157f, 0.23757976f, 0.21083903f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }

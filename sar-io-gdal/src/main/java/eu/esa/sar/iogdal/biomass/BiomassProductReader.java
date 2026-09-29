@@ -17,6 +17,7 @@ package eu.esa.sar.iogdal.biomass;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.io.SARProductReaderPlugIn;
+import eu.esa.sar.commons.io.XMLProductDirectory;
 import eu.esa.sar.commons.io.SARReader;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
@@ -31,12 +32,17 @@ import java.nio.file.Path;
 
 
 /**
- * The product reader for Sentinel1 products.
+ * The product reader for BIOMASS products. Routes to the appropriate product-directory
+ * class based on the file prefix:
+ * <ul>
+ *     <li>{@code BIO_S} → L1 (SCS, DGM, STA) via {@link BiomassProductDirectory}</li>
+ *     <li>{@code BIO_FP} → L2 (FH, FD, GN, AGB) via {@link BiomassL2ProductDirectory}</li>
+ * </ul>
  */
 public class BiomassProductReader extends SARReader {
 
-    private BiomassProductDirectory dataDir;
-    private SARProductReaderPlugIn readerPlugIn;
+    private XMLProductDirectory dataDir;
+    private final SARProductReaderPlugIn readerPlugIn;
 
     /**
      * Constructs a new abstract product reader.
@@ -69,22 +75,47 @@ public class BiomassProductReader extends SARReader {
     @Override
     protected Product readProductNodesImpl() throws IOException {
         try {
-            Path inputPath = getPathFromInput(getInput());
-            if(Files.isDirectory(inputPath)) {
-                inputPath = readerPlugIn.findMetadataFile(inputPath.toAbsolutePath()).toPath();
-            }
-            if(!Files.exists(inputPath)) {
-                throw new IOException(inputPath + " not found");
+            final Path inputPath = getPathFromInput(getInput());
+            final boolean biopalEnabled = Boolean.getBoolean(BiomassProductReaderPlugIn.BIOPAL_READER_PROPERTY);
+
+            final File metadataFile;
+            if (Files.isDirectory(inputPath)) {
+                final File found = readerPlugIn.findMetadataFile(inputPath.toAbsolutePath());
+                if (found != null) {
+                    metadataFile = found;
+                } else if (biopalEnabled) {
+                    // BioPAL output has no ESA header; the directory itself is the entry point.
+                    metadataFile = inputPath.toFile();
+                } else {
+                    throw new IOException("No BIOMASS product metadata file found in " + inputPath);
+                }
+            } else {
+                if (!Files.exists(inputPath)) {
+                    throw new IOException(inputPath + " not found");
+                }
+                metadataFile = inputPath.toFile();
             }
 
-            File metadataFile = inputPath.toFile();
-
-            dataDir = new BiomassProductDirectory(metadataFile);
+            // Route to the correct directory class based on the product prefix.
+            // BIO_FP = Level 2 geophysical (Forest Height / Disturbance / Ground Notch / AGB);
+            // BIO_S  = Level 1 SAR (SCS, DGM, STA); anything else (only when opted in) = BioPAL.
+            final String fname = metadataFile.getName().toLowerCase();
+            if (fname.startsWith("bio_fp_")) {
+                dataDir = new BiomassL2ProductDirectory(metadataFile);
+            } else if (biopalEnabled && !fname.startsWith("bio_s")) {
+                dataDir = new BiomassBioPALProductDirectory(metadataFile);
+            } else {
+                dataDir = new BiomassProductDirectory(metadataFile);
+            }
             dataDir.readProductDirectory();
             final Product product = dataDir.createProduct();
 
+            // Match resolution levels for COG pyramid compatibility with virtual bands
+            if (product.getNumBands() > 0 && product.getBandAt(0).isSourceImageSet()) {
+                product.setNumResolutionsMax(product.getBandAt(0).getSourceImage().getModel().getLevelCount());
+            }
+
             addCommonSARMetadata(product);
-            product.getGcpGroup();
             product.setFileLocation(metadataFile);
             product.setProductReader(this);
 
@@ -101,22 +132,61 @@ public class BiomassProductReader extends SARReader {
 
     private File getQuicklookFile() {
         try {
-            if (dataDir.exists(dataDir.getRootFolder() + "preview/quick-look.png")) {
-                return dataDir.getFile(dataDir.getRootFolder() + "preview/quick-look.png");
+            final String previewFolder = dataDir.getRootFolder() + "preview/";
+
+            // L1 ships a single fixed-name quicklook.
+            final String l1 = previewFolder + "quick-look.png";
+            if (dataDir.exists(l1)) {
+                return dataDir.getFile(l1);
+            }
+
+            // L2 ships per-layer quicklooks named *_<layer>_ql.png. Prefer the primary
+            // geophysical layer over the secondary quality / mask / probability overlays.
+            String[] files = null;
+            try {
+                files = dataDir.listFiles(previewFolder);
+            } catch (IOException ignore) {
+                // no preview/ folder in this layout
+            }
+            if (files != null) {
+                String fallback = null;
+                for (final String name : files) {
+                    final String lower = name.toLowerCase();
+                    if (!lower.endsWith("_ql.png")) {
+                        continue;
+                    }
+                    if (fallback == null) {
+                        fallback = name;
+                    }
+                    if (!lower.contains("quality") && !lower.contains("cfm") && !lower.contains("probability")) {
+                        return dataDir.getFile(previewFolder + name);
+                    }
+                }
+                if (fallback != null) {
+                    return dataDir.getFile(previewFolder + fallback);
+                }
             }
         } catch (IOException e) {
-            SystemUtils.LOG.severe("Unable to load quicklook " + dataDir.getProductName());
+            SystemUtils.LOG.severe("Unable to load BIOMASS quicklook: " + e.getMessage());
         }
         return null;
     }
 
     /**
-     * {@inheritDoc}
+     * BIOMASS bands are wired directly to GDAL-backed source images in the directory
+     * class ({@link BiomassProductDirectory#addBands}), so JAI tile reads come from the
+     * source-image path and never enter this method. Anyone calling
+     * {@code band.readRasterData()} on a band that lacks a wired source image is asking
+     * for uninitialised data — fail loudly instead.
      */
     @Override
     protected void readBandRasterDataImpl(int sourceOffsetX, int sourceOffsetY, int sourceWidth, int sourceHeight,
                                           int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
                                           int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
                                           ProgressMonitor pm) {
+        throw new UnsupportedOperationException(
+                "BiomassProductReader.readBandRasterDataImpl was invoked for band '" + destBand.getName() +
+                "'. BIOMASS bands should be read via their wired source image; this code path indicates a " +
+                "configuration problem (missing setSourceImage in the directory's addBands).");
     }
 }

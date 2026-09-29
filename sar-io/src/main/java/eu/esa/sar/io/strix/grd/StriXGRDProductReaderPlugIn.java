@@ -53,7 +53,7 @@ public class StriXGRDProductReaderPlugIn implements SARProductReaderPlugIn {
                     return DecodeQualification.INTENDED;
                 }
             } catch (Exception e) {
-                System.out.println(e);
+                org.esa.snap.core.util.SystemUtils.LOG.fine("StriX GRD qualification check: " + e.getMessage());
             }
         }
         return DecodeQualification.UNABLE;

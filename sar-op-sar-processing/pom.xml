@@ -20,7 +20,7 @@
     <parent>
         <groupId>eu.esa.microwavetbx</groupId>
         <artifactId>microwave-toolbox</artifactId>
-        <version>14.0.0-SNAPSHOT</version>
+        <version>15.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>sar-op-sar-processing</artifactId>
@@ -87,6 +87,27 @@
             <artifactId>sar-io</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io-gdal</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-op-sentinel1</artifactId>
+            <version>${microwavetbx.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- com.bc.ceres.test.LongTestRunner, for tests gated on -Denable.long.tests=true -->
+        <dependency>
+            <groupId>org.esa.snap</groupId>
+            <artifactId>ceres-core</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
     </dependencies>
 
     <build>
@@ -113,6 +134,76 @@
                     </archive>
                 </configuration>
             </plugin>
+            <!--
+                TestTerrainFlatteningOp is isolated into its own surefire fork
+                because of an unresolved state leak in snap-engine: when
+                TestRangeDopplerOp or TestSARSimulationOp run earlier in the
+                same JVM, the subsequent TerrainFlattening pixel output drifts
+                by ~0.016 absolute (5-13%). Output is bit-identical across
+                runs, so it's deterministic JVM-state contamination, not
+                flakiness. The default-test execution excludes this class;
+                the terrain-flattening-isolated execution (in the profile
+                below, active only when no -Dtest is given) runs only this
+                class with reuseForks=false so it gets a fresh JVM.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/TestTerrainFlatteningOp.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            The isolated TerrainFlattening execution lives in a profile that is
+            active only when the `test` property is NOT set. Reason: a CLI
+            -Dtest=X overrides the <includes>/<excludes> of EVERY surefire
+            execution, so with two unconditional executions any targeted run
+            executed X TWICE (doubling multi-hour long-test runs) and the second
+            execution truncated the first's surefire -output.txt. With this
+            profile, `mvn test` still runs both executions exactly as before,
+            while `mvn test -Dtest=X` runs X once in default-test only.
+        -->
+        <profile>
+            <id>terrain-flattening-isolated</id>
+            <activation>
+                <property>
+                    <name>!test</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>terrain-flattening-isolated</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <configuration>
+                                    <reuseForks>false</reuseForks>
+                                    <includes>
+                                        <include>**/TestTerrainFlatteningOp.java</include>
+                                    </includes>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

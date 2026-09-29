@@ -1,0 +1,77 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Gabor Filter</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Gabor Filter</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Gabor Filter Texture Operator</h3>
+
+<p class="MsoNormal">
+    Convolves the source image with a 2-D Gabor kernel to extract orientation- and
+    scale-tuned texture features. A Gabor kernel is a Gaussian envelope modulated by
+    a complex sinusoid; rotating and re-scaling the kernel produces a bank of filters
+    that respond preferentially to image structure at the chosen orientation,
+    wavelength and aspect ratio. In SAR analysis, Gabor responses are commonly used
+    as input features for classification (urban, agricultural field boundaries,
+    sea-ice texture).
+</p>
+
+<h4>Algorithm</h4>
+<p class="MsoNormal">
+    For each source band, the operator builds a single 2-D Gabor kernel with the
+    parameters listed below and convolves it with the band. The output is a real
+    band whose magnitude at each pixel measures the local response of that
+    orientation / scale combination.
+</p>
+<p class="MsoNormal">
+    Kernel definition (real part):<br>
+    g(x,y) = exp(-(x'<sup>2</sup> + &gamma;<sup>2</sup> y'<sup>2</sup>) / (2 &sigma;<sup>2</sup>)) &middot; cos(2&pi;x' / &lambda;)<br>
+    where (x', y') = (x cos&theta; + y sin&theta;, &minus;x sin&theta; + y cos&theta;).
+</p>
+
+<h4>Input</h4>
+<p class="MsoNormal">
+    Any SAR product. Typically run on a calibrated, multilooked, terrain-corrected
+    intensity image (sigma-nought or gamma-nought).
+</p>
+
+<h4>Output</h4>
+<p class="MsoNormal">
+    One real-valued response band per selected source band. To build a multi-feature
+    Gabor bank, run the operator multiple times with different <i>theta</i> values
+    and stack the outputs (e.g., 4 orientations × 2 scales = 8 features).
+</p>
+
+<h4>Parameters</h4>
+<ul>
+    <li><b>Source bands:</b> bands to filter.</li>
+    <li><b>theta:</b> kernel orientation in radians (default 0.6 rad &asymp; 34&deg;). Build
+        a multi-orientation feature bank by re-running with theta = 0, &pi;/4, &pi;/2, 3&pi;/4.</li>
+</ul>
+
+<p class="MsoNormal">
+    The remaining Gabor parameters are fixed in the current implementation:
+    standard deviation &sigma; = 4.0, wavelength &lambda; = 1.0, kernel aspect
+    ratio &gamma; = 2.0, phase offset &psi; = 0.3.
+</p>
+
+<h4>References</h4>
+<ol>
+    <li>Daugman, J. G. (1985). <i>Uncertainty relation for resolution in space, spatial
+        frequency, and orientation optimized by two-dimensional visual cortical filters.</i>
+        Journal of the Optical Society of America A, 2(7).</li>
+    <li>Manjunath, B. S., Ma, W. Y. (1996). <i>Texture features for browsing and retrieval
+        of image data.</i> IEEE Transactions on Pattern Analysis and Machine Intelligence
+        18(8), 837&ndash;842.</li>
+</ol>
+
+</body>
+</html>

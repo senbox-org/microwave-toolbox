@@ -37,6 +37,7 @@ public class CloudePottier extends PolClassifierBase implements PolClassifier, Q
 
     private static final String H_ALPHA_CLASS = "H_alpha_class";
     private final boolean useLeeHAlphaPlaneDefinition;
+    private final boolean useAnisotropy;
 
     public CloudePottier(final PolBandUtils.MATRIX sourceProductType,
                          final int sourceWidth, final int sourceHeight, final int winSize,
@@ -46,6 +47,7 @@ public class CloudePottier extends PolClassifierBase implements PolClassifier, Q
 
         useLeeHAlphaPlaneDefinition = Boolean.getBoolean(SystemUtils.getApplicationContextId() +
                 ".useLeeHAlphaPlaneDefinition");
+        useAnisotropy = Boolean.getBoolean(SystemUtils.getApplicationContextId() + ".useAnisotropy");
     }
 
     /**
@@ -63,7 +65,7 @@ public class CloudePottier extends PolClassifierBase implements PolClassifier, Q
      * @return num classes
      */
     public int getNumClasses() {
-        return 9;
+        return useAnisotropy ? 18 : 9;
     }
 
     /**
@@ -109,8 +111,10 @@ public class CloudePottier extends PolClassifierBase implements PolClassifier, Q
                 final hAAlpha.HAAlpha data = hAAlpha.computeHAAlpha(Tr, Ti);
 
                 if (!Double.isNaN(data.entropy) && !Double.isNaN(data.anisotropy) && !Double.isNaN(data.alpha)) {
-                    targetData.setElemIntAt(trgIndex.getIndex(x),
-                            HaAlphaDescriptor.getZoneIndex(data.entropy, data.alpha, useLeeHAlphaPlaneDefinition));
+                    final int zone = useAnisotropy
+                            ? HaAlphaDescriptor.getZoneIndex(data.entropy, data.alpha, data.anisotropy, useLeeHAlphaPlaneDefinition)
+                            : HaAlphaDescriptor.getZoneIndex(data.entropy, data.alpha, useLeeHAlphaPlaneDefinition);
+                    targetData.setElemIntAt(trgIndex.getIndex(x), zone);
                 } else {
                     targetData.setElemIntAt(trgIndex.getIndex(x), noDataValue);
                 }

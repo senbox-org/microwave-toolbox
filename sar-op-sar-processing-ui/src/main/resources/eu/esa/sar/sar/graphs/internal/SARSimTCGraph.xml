@@ -14,7 +14,7 @@
     </sources>
     <parameters>
       <sourceBands>Amplitude</sourceBands>
-      <demName>SRTM 3Sec</demName>
+      <demName>Copernicus 30m Global DEM</demName>
       <demResamplingMethod>BICUBIC_INTERPOLATION</demResamplingMethod>
       <externalDEMFile/>
       <externalDEMNoDataValue>0.0</externalDEMNoDataValue>

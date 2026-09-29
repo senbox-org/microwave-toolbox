@@ -93,7 +93,7 @@ public class BandSelectOpUI extends BaseOperatorUI {
             });
         }
 
-        OperatorUIUtils.initParamList(bandList, getBandNames());
+        OperatorUIUtils.initParamList(bandList, getBandNames(), (Object[])paramMap.get("sourceBands"));
 
         bandNamePattern.setText((String)paramMap.get("bandNamePattern"));
 
@@ -141,7 +141,7 @@ public class BandSelectOpUI extends BaseOperatorUI {
         OperatorUIUtils.updateParamList(polList, paramMap, "selectedPolarisations");
         OperatorUIUtils.updateParamList(subImageList, paramMap, "selectedSubImages");
         OperatorUIUtils.updateParamList(bandList, paramMap, OperatorUIUtils.SOURCE_BAND_NAMES);
-        OperatorUIUtils.updateParamList(maskList, paramMap, "sourceMasks");
+        OperatorUIUtils.updateParamList(maskList, paramMap, "sourceMaskNames");
 
         paramMap.put("bandNamePattern", bandNamePattern.getText());
     }

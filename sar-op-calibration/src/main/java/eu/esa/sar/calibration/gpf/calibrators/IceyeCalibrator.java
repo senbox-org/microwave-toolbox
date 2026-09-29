@@ -46,7 +46,6 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
     private TiePointGrid incidenceAngle = null;
 
     private static final String USE_INCIDENCE_ANGLE_FROM_DEM = "Use projected local incidence angle from DEM";
-    private static final String CALIBRATION_FACTOR = "calibration_factor";
 
     /**
      * Default constructor. The graph processing framework
@@ -119,7 +118,7 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
      */
     private void getCalibrationFactor() {
 
-        calibrationFactor = origMetadataRoot.getAttributeDouble(CALIBRATION_FACTOR);
+        calibrationFactor = absRoot.getAttributeDouble(AbstractMetadata.calibration_factor);
     }
 
     /**
@@ -193,6 +192,14 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
         final TileIndex srcIndex = new TileIndex(sourceRaster1);
         final TileIndex tgtIndex = new TileIndex(targetTile);
 
+        // The raw tile buffer is read directly for speed, so any band scaling has
+        // to be applied by hand. The ICEYE Open Data GRD stores quantised DN with
+        // a GDAL SCALE item; without this the calibration silently runs on DN and
+        // disagrees with every other consumer of the same band.
+        final boolean scaled1 = sourceBand1.isScalingApplied();
+        final Band scalingBand2 = srcBandNames.length > 1 ? sourceProduct.getBand(srcBandNames[1]) : null;
+        final boolean scaled2 = scalingBand2 != null && scalingBand2.isScalingApplied();
+
         double sigma, dn, i, q, phaseTerm = 0.0;
         int srcIdx, tgtIdx;
 
@@ -205,6 +212,9 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
                 tgtIdx = tgtIndex.getIndex(x);
 
                 dn = srcData1.getElemDoubleAt(srcIdx);
+                if (scaled1) {
+                    dn = sourceBand1.scale(dn);
+                }
                 if (srcBandUnit == Unit.UnitType.AMPLITUDE) {
                     dn *= dn;
                 } else if (srcBandUnit == Unit.UnitType.INTENSITY) {
@@ -212,6 +222,9 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
                 } else if (srcBandUnit == Unit.UnitType.REAL) {
                     i = dn;
                     q = srcData2.getElemDoubleAt(srcIdx);
+                    if (scaled2) {
+                        q = scalingBand2.scale(q);
+                    }
                     dn = i * i + q * q;
                     if (dn > 0.0) {
                         if (tgtBandUnit == Unit.UnitType.REAL) {

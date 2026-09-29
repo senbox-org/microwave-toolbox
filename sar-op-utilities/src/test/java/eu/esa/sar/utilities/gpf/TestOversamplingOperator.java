@@ -23,6 +23,7 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -33,6 +34,7 @@ import java.io.File;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -44,6 +46,19 @@ public class TestOversamplingOperator extends ProcessorTest {
     private final static File inputFile = TestData.inputStackIMS;
 
     private OperatorSpi spi = new OversamplingOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final OversamplingOp op = (OversamplingOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = OversamplingOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Oversample", md.alias());
+    }
 
     @Before
     public void setUp() throws Exception {

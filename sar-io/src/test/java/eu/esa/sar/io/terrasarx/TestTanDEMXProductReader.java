@@ -59,8 +59,9 @@ public class TestTanDEMXProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {
-                "i_HH_mst_29Aug2011","q_HH_mst_29Aug2011","Intensity_HH_mst_29Aug2011",
-                "i_HH_slv1_29Aug2011","q_HH_slv1_29Aug2011","Intensity_HH_slv1_29Aug2011"});
+                "i_HH_ref_29Aug2011","q_HH_ref_29Aug2011","Intensity_HH_ref_29Aug2011",
+                "i_HH_sec1_29Aug2011","q_HH_sec1_29Aug2011","Intensity_HH_sec1_29Aug2011"});
+        validator.validateBandData();
     }
 
     /**

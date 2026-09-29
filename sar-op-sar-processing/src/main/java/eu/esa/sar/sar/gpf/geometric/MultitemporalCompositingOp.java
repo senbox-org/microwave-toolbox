@@ -59,8 +59,8 @@ public class MultitemporalCompositingOp extends Operator {
 
 
     private static final String PRODUCT_SUFFIX = "_MC";
-    private static final String MASTER_TAG = "_mst";
-    private static final String SLAVE_TAG = "_slv";
+    private static final String REFERENCE_TAG = "_ref";
+    private static final String SECONDARY_TAG = "_sec";
     private static final String SIMULATED_IMAGE = "simulatedImage";
 
     /**
@@ -81,7 +81,7 @@ public class MultitemporalCompositingOp extends Operator {
         try {
             final InputProductValidator validator = new InputProductValidator(sourceProduct);
             validator.checkIfSARProduct();
-            validator.checkIfCollocatedStack();
+            validator.checkIfCoregisteredStack();
             validator.checkIfCalibrated(true);
             validator.checkIfMapProjected(true);
 
@@ -103,10 +103,10 @@ public class MultitemporalCompositingOp extends Operator {
 
         final String[] sourceBandNames = sourceProduct.getBandNames();
         for (String srcBandName : sourceBandNames) {
-            if (srcBandName.contains(SLAVE_TAG) || srcBandName.contains(SIMULATED_IMAGE)) {
+            if (srcBandName.contains(SECONDARY_TAG) || srcBandName.contains(SIMULATED_IMAGE)) {
                 continue;
             }
-            final String tgtBandName = srcBandName.substring(0, srcBandName.indexOf(MASTER_TAG));
+            final String tgtBandName = srcBandName.substring(0, srcBandName.indexOf(REFERENCE_TAG));
             targetProduct.addBand(tgtBandName, ProductData.TYPE_FLOAT32);
         }
     }
@@ -183,11 +183,18 @@ public class MultitemporalCompositingOp extends Operator {
 
                     final double[] area = new double[numSourceBands];
                     final double[] gamma0 = new double[numSourceBands];
+                    final boolean[] valid = new boolean[numSourceBands];
                     double totalWeight = 0.0;
                     for (int i = 0; i < numSourceBands; ++i) {
                         area[i] = simImgData[i].getElemDoubleAt(simIdx);
                         gamma0[i] = sourceData[i].getElemDoubleAt(srcIdx);
-                        if (area[i] != simNoDataValue && area[i] > 0.0 && gamma0[i] != srcNoDataValue) {
+                        // Both `area` and `gamma0` must be valid for the sample to count;
+                        // also reject TerrainFlatteningOp's "foreshortening fallback 0.0"
+                        // sentinel collision.
+                        valid[i] = area[i] != simNoDataValue && area[i] > 0.0
+                                && gamma0[i] != srcNoDataValue && gamma0[i] != 0.0
+                                && !Double.isNaN(gamma0[i]);
+                        if (valid[i]) {
                             totalWeight += 1.0 / area[i];
                         }
                     }
@@ -195,7 +202,8 @@ public class MultitemporalCompositingOp extends Operator {
                     if (totalWeight > 0.0) {
                         double sum = 0.0;
                         for (int i = 0; i < numSourceBands; ++i) {
-                            if (area[i] != simNoDataValue && area[i] > 0.0) {
+                            // Symmetric gating: only include samples that contributed to totalWeight.
+                            if (valid[i]) {
                                 sum += gamma0[i] / (area[i] * totalWeight);
                             }
                         }

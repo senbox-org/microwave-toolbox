@@ -1,0 +1,54 @@
+<graph id="trad_s1_ifgdeb_ctl">
+  <version>1.0</version>
+  <!--
+    MATCHED-CONFIGURATION interferogram + deburst: the parameters recorded in the full-scene control's
+    own Processing_Graph (2026-09-20): flat-earth and topographic phase subtracted,
+    coherence window cohWinAz=2 x cohWinRg=10 pixels (cohWinSizeMeters 0), srpPolynomialDegree 5,
+    srpNumberPoints 501, orbitDegree 3. Unfiltered. Crop-validity gate ONLY (see trad_s1_coreg_ctl.xml).
+    ONE DELIBERATE DEVIATION: the control used the auto-downloaded "Copernicus 30m Global DEM"; here the
+    staged Copernicus 30 m GeoTIFF is passed as ${dem}. Same data, different reader. The auto path is
+    serialised by a synchronised CopernicusDirectElevationTile.getSample (every worker thread queued on
+    one lock in a thread dump; 27 min with no output where the staged tile takes ~4 min), so a matched
+    run on it is impractical. Residual difference to be reported with the gate result.
+  -->
+  <node id="Read1">
+    <operator>Read</operator>
+    <parameters><file>${input1}</file></parameters>
+  </node>
+  <node id="Interferogram">
+    <operator>Interferogram</operator>
+    <sources>
+      <sourceProduct refid="Read1"/>
+    </sources>
+    <parameters>
+      <subtractFlatEarthPhase>true</subtractFlatEarthPhase>
+      <subtractTopographicPhase>true</subtractTopographicPhase>
+      <demName>External DEM</demName>
+      <externalDEMFile>${dem}</externalDEMFile>
+      <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
+      <includeCoherence>true</includeCoherence>
+      <cohWinAz>2</cohWinAz>
+      <cohWinRg>10</cohWinRg>
+      <srpPolynomialDegree>5</srpPolynomialDegree>
+      <srpNumberPoints>501</srpNumberPoints>
+      <orbitDegree>3</orbitDegree>
+    </parameters>
+  </node>
+  <node id="TOPSAR-Deburst">
+    <operator>TOPSAR-Deburst</operator>
+    <sources>
+      <sourceProduct refid="Interferogram"/>
+    </sources>
+    <parameters/>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="TOPSAR-Deburst"/>
+    </sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

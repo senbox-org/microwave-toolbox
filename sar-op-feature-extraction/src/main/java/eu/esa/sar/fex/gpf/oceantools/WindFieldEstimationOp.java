@@ -126,7 +126,7 @@ public class WindFieldEstimationOp extends Operator {
 
     private MetadataElement absRoot = null;
     private File windFieldReportFile = null;
-    private boolean windFieldEstimated = false;
+    private volatile boolean windFieldEstimated = false;
     private final HashMap<String, List<WindFieldRecord>> bandWindFieldRecord = new HashMap<>();
     private SimpleFeatureType windFeatureType;
 
@@ -279,7 +279,11 @@ public class WindFieldEstimationOp extends Operator {
         final String pol = OperatorUtils.getBandPolarization(targetBandName, absRoot);
         Tile sourceTile;
 
-        if (pol != null && !pol.contains("hh") && !pol.contains("vv")) {
+        if (pol == null) {
+            throw new OperatorException("Could not determine polarization for band " + targetBandName
+                    + ". The wind field estimator requires an HH or VV polarized band.");
+        }
+        if (!pol.contains("hh") && !pol.contains("vv")) {
             throw new OperatorException("Polarization " + pol + " is not supported. Please select HH or VV.");
         }
 
@@ -1040,11 +1044,14 @@ public class WindFieldEstimationOp extends Operator {
         private final static double c21 = 8.39;
         private final static double c8 = 0.0162;
         private final static double c22 = -3.44;
-        private final static double c9 = 6.34;
+        // CMOD5 gamma-term coefficients per Hersbach (2003) "CMOD5, An Improved
+        // Geophysical Model Function for ERS C-Band Scatterometry", ECMWF Tech Memo 395.
+        // The previous values (6.34, 2.57, -2.18) did not match the published CMOD5 table.
+        private final static double c9 = 6.7329;
         private final static double c23 = 1.36;
-        private final static double c10 = 2.57;
+        private final static double c10 = 2.7541;
         private final static double c24 = 5.35;
-        private final static double c11 = -2.18;
+        private final static double c11 = -2.2918;
         private final static double c25 = 1.99;
         private final static double c12 = 0.4;
         private final static double c26 = 0.29;

@@ -22,10 +22,21 @@
 <h4>Input<br>
 </h4>
 <ul>
-    <li>The input to this operator should be a stack product with an elevation band (whose name is prefixed by "elevation").
-        In the case of TOPS mode, the input product should have been previously deburst using the TOPSAR-Deburst operator.<br>
+    <li>The input to this operator should be a coregistered stack product. In the case of TOPS mode, the input
+        product should have been previously deburst using the TOPSAR-Deburst operator.<br>
+    </li>
+    <li><b>Elevation band (required).</b> The operator removes the reference/topographic phase from every
+        interferogram, which requires an elevation band (a band whose name is prefixed by "elevation"). By default
+        the <b>Add elevation band</b> option is enabled, so when the stack does not already contain one the operator
+        adds it automatically from the selected DEM &mdash; there is no need to run the Add Elevation Band operator
+        first. If you disable that option and no elevation band is present, the operator reports an error.<br>
     </li>
 </ul>
+
+<p class="MsoNormal"><b>Note on topographic phase removal.</b> Unlike the Interferogram Formation operator, this
+    operator does not expose a separate "subtract topographic phase" parameter. Reference and topographic phase
+    removal is intrinsic &mdash; it is always performed from the elevation band &mdash; which is why the elevation
+    band is mandatory.</p>
 
 <h4>Output<br>
 </h4>
@@ -91,6 +102,13 @@
     <li>Include wavenumber: if True, the corresponding band will be created.
     </li>
     <li>Include incidence angle: if True, the corresponding band will be created.
+    </li>
+    <li>Add elevation band: if True (default), an elevation band is added automatically from the selected DEM
+        when the input stack does not already contain one. Required for reference/topographic phase removal.
+    </li>
+    <li>Digital Elevation Model: the DEM used when an elevation band is added automatically.
+    </li>
+    <li>DEM Resampling Method: resampling method used when reading the DEM.
     </li>
 
     <h5>Pair selection</h5>

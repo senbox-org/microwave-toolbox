@@ -64,8 +64,8 @@ public final class DeburstWSSOp extends Operator {
     private final Vector<Integer> startLine = new Vector<>(5);
     private static final double zeroThreshold = 1000;
     private static final double zeroThresholdSmall = 500;
-    private LineTime[] lineTimes = null;
-    private boolean lineTimesSorted = false;
+    private volatile LineTime[] lineTimes = null;
+    private volatile boolean lineTimesSorted = false;
     private int margin = 50; // edge of target band where not to write
     private double nodatavalue = 0;
     private double lineTimeInterval = 0;
@@ -464,57 +464,56 @@ public final class DeburstWSSOp extends Operator {
             final double interval = (end - start) / targetHeight;
             final Vector<Integer> burstLines = new Vector<>(4);
 
-            for (int y = targetRectangle.y; y < maxY; ++y) {
-                double startTime = start + (y * interval);
+            // Atomically claim the three nearest unvisited burst lines per target row.
+            // The previous demotion logic was broken (the inner `if (min1 < min2)` guard
+            // never demoted on the first iteration, leaving i2 / i3 = 0) and the
+            // unsynchronized read of `lineTimes[i].visited` raced the synchronized writes,
+            // letting two tile threads claim the same line.
+            synchronized (lineTimes) {
+                for (int y = targetRectangle.y; y < maxY; ++y) {
+                    double startTime = start + (y * interval);
 
-                burstLines.clear();
-                double min1 = Float.MAX_VALUE;
-                double min2 = Float.MAX_VALUE;
-                double min3 = Float.MAX_VALUE;
-                int i1 = 0, i2 = 0, i3 = 0;
-                for (int i = 0; i < lineTimes.length; ++i) {
-                    if (lineTimes[i].visited || lineTimes[i].time < 1)
-                        continue;
+                    burstLines.clear();
+                    double min1 = Double.POSITIVE_INFINITY;
+                    double min2 = Double.POSITIVE_INFINITY;
+                    double min3 = Double.POSITIVE_INFINITY;
+                    int i1 = -1, i2 = -1, i3 = -1;
+                    for (int i = 0; i < lineTimes.length; ++i) {
+                        if (lineTimes[i].visited || lineTimes[i].time < 1)
+                            continue;
 
-                    double t = lineTimes[i].time;
-                    final double diff = Math.abs(t - startTime);
-                    if (diff < min1) {
-                        if (min1 < min2) {
-                            if (min2 < min3) {
-                                min3 = min2;
-                                i3 = i2;
-                            }
-                            min2 = min1;
-                            i2 = i1;
+                        final double diff = Math.abs(lineTimes[i].time - startTime);
+                        if (diff < min1) {
+                            min3 = min2; i3 = i2;
+                            min2 = min1; i2 = i1;
+                            min1 = diff; i1 = i;
+                        } else if (diff < min2) {
+                            min3 = min2; i3 = i2;
+                            min2 = diff;  i2 = i;
+                        } else if (diff < min3) {
+                            min3 = diff;  i3 = i;
                         }
-                        min1 = diff;
-                        i1 = i;
-                    } else if (diff < min2) {
-                        if (min2 < min3) {
-                            min3 = min2;
-                            i3 = i2;
-                        }
-                        min2 = diff;
-                        i2 = i;
-                    } else if (diff < min3) {
-                        min3 = diff;
-                        i3 = i;
                     }
-                }
 
-                burstLines.add(lineTimes[i1].line);
-                setVisited(i1);
-                burstLines.add(lineTimes[i2].line);
-                setVisited(i2);
-                burstLines.add(lineTimes[i3].line);
-                setVisited(i3);
+                    if (i1 >= 0) {
+                        burstLines.add(lineTimes[i1].line);
+                        lineTimes[i1].visited = true;
+                    }
+                    if (i2 >= 0) {
+                        burstLines.add(lineTimes[i2].line);
+                        lineTimes[i2].visited = true;
+                    }
+                    if (i3 >= 0) {
+                        burstLines.add(lineTimes[i3].line);
+                        lineTimes[i3].visited = true;
+                    }
 
-                if (!burstLines.isEmpty()) {
-
-                    final boolean ok = deburstTile(burstLines, y, targetRectangle.x, maxX, cBand.i, cBand.q,
-                                                   targetTileI, targetTileQ, targetTileIntensity);
-                    if (!ok)
-                        System.out.println("not ok " + y);
+                    if (!burstLines.isEmpty()) {
+                        final boolean ok = deburstTile(burstLines, y, targetRectangle.x, maxX, cBand.i, cBand.q,
+                                                       targetTileI, targetTileQ, targetTileIntensity);
+                        if (!ok)
+                            System.out.println("not ok " + y);
+                    }
                 }
             }
 
@@ -710,7 +709,7 @@ public final class DeburstWSSOp extends Operator {
         for (Integer y : burstLineList) {
             if (y > srcBandHeight) continue;
 
-            final Rectangle sourceRectangle = new Rectangle(startX, y, endX, 1);
+            final Rectangle sourceRectangle = new Rectangle(startX, y, endX - startX, 1);
             sourceRasterI = getSourceTile(srcBandI, sourceRectangle);
             final short[] srcDataI = (short[]) sourceRasterI.getRawSamples().getElems();
             sourceRasterQ = getSourceTile(srcBandQ, sourceRectangle);

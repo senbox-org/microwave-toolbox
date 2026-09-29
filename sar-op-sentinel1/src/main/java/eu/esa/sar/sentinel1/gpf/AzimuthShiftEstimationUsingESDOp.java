@@ -51,7 +51,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The operator estimates the global azimuth offset between master and slave images using the Enhanced Spectral
+ * The operator estimates the global azimuth offset between reference and secondary images using the Enhanced Spectral
  * Diversity (ESD) approach. The estimation is done for a given sub-swath of a TOPS SLC product. Here it is assumed
  * that the source product is coregistered split product, i.e. the output of the S-1 Back Geocoding operator.
  * The estimation result is saved in a text file and will be used later in azimuth offset correction in the S-1
@@ -69,7 +69,7 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
     @SourceProduct(alias = "source")
     private Product sourceProduct;
 
-    @TargetProduct(description = "The target product which will use the master's grid.")
+    @TargetProduct(description = "The target product which will use the reference's grid.")
     private Product targetProduct = null;
 
     @Parameter(description = "The coherence threshold for outlier removal", interval = "(0, 1]", defaultValue = "0.15",
@@ -89,8 +89,8 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
     private String[] subSwathNames = null;
     private String[] polarizations = null;
 
-    private Map<String, CplxContainer> masterMap = new HashMap<>();
-    private Map<String, CplxContainer> slaveMap = new HashMap<>();
+    private Map<String, CplxContainer> referenceMap = new HashMap<>();
+    private Map<String, CplxContainer> secondaryMap = new HashMap<>();
     private Map<String, ProductContainer> targetMap = new HashMap<>();
     private Map<String, AzRgOffsets> targetOffsetMap = new HashMap<>();
 
@@ -151,22 +151,21 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
 
     private void constructSourceMetadata() throws Exception {
 
-        MetadataElement mstRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        metaMapPut(StackUtils.MST, mstRoot, sourceProduct, masterMap);
+        MetadataElement refRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        metaMapPut(StackUtils.REF, refRoot, sourceProduct, referenceMap);
 
-        final String slaveMetadataRoot = AbstractMetadata.SLAVE_METADATA_ROOT;
-        MetadataElement slaveElem = sourceProduct.getMetadataRoot().getElement(slaveMetadataRoot);
-        if (slaveElem == null) {
-            slaveElem = sourceProduct.getMetadataRoot().getElement("Slave Metadata");
+        MetadataElement secondaryElem = StackUtils.findSecondaryMetadataRoot(sourceProduct);
+        if (secondaryElem == null) {
+            secondaryElem = sourceProduct.getMetadataRoot().getElement("Slave Metadata");
         }
-        if (slaveElem == null) {
+        if (secondaryElem == null) {
             throw new OperatorException("Product must be coregistered (missing Slave_Metadata in Metadata)");
         }
 
-        MetadataElement[] slaveRoot = slaveElem.getElements();
-        for (MetadataElement meta : slaveRoot) {
+        MetadataElement[] secondaryRoot = secondaryElem.getElements();
+        for (MetadataElement meta : secondaryRoot) {
             if (!meta.getName().equals(AbstractMetadata.ORIGINAL_PRODUCT_METADATA))
-                metaMapPut(StackUtils.SLV, meta, sourceProduct, slaveMap);
+                metaMapPut(StackUtils.SEC, meta, sourceProduct, secondaryMap);
         }
     }
 
@@ -215,13 +214,13 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
 
     private void constructTargetMetadata() {
 
-        for (String keyMaster : masterMap.keySet()) {
-            CplxContainer master = masterMap.get(keyMaster);
-            for (String keySlave : slaveMap.keySet()) {
-                final CplxContainer slave = slaveMap.get(keySlave);
-                if (master.polarisation == null || master.polarisation.equals(slave.polarisation)) {
-                    final String productName = keyMaster + '_' + keySlave;
-                    final ProductContainer product = new ProductContainer(productName, master, slave, true);
+        for (String keyReference : referenceMap.keySet()) {
+            CplxContainer reference = referenceMap.get(keyReference);
+            for (String keySecondary : secondaryMap.keySet()) {
+                final CplxContainer secondary = secondaryMap.get(keySecondary);
+                if (reference.polarisation == null || reference.polarisation.equals(secondary.polarisation)) {
+                    final String productName = keyReference + '_' + keySecondary;
+                    final ProductContainer product = new ProductContainer(productName, reference, secondary, true);
                     targetMap.put(productName, product);
                 }
             }
@@ -276,35 +275,35 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
         MetadataElement ESDMeasurement = new MetadataElement("ESD Measurement");
 
         for (String key : targetMap.keySet()) {
-            final CplxContainer master = targetMap.get(key).sourceMaster;
-            final CplxContainer slave = targetMap.get(key).sourceSlave;
-            final String mstSlvTag = getMasterSlavePairTag(master, slave);
-            //System.out.println("SpectralDiversityOp.updateTargetMetadata: mstSlvTag = " + mstSlvTag);
+            final CplxContainer reference = targetMap.get(key).sourceRef;
+            final CplxContainer secondary = targetMap.get(key).sourceSec;
+            final String refSecTag = getReferenceSecondaryPairTag(reference, secondary);
+            //System.out.println("SpectralDiversityOp.updateTargetMetadata: refSecTag = " + refSecTag);
 
-            final MetadataElement mstSlvTagElem = new MetadataElement(mstSlvTag);
+            final MetadataElement refSecTagElem = new MetadataElement(refSecTag);
             final MetadataElement OverallRgAzShiftElem = new MetadataElement("Overall_Azimuth_Shift");
             OverallRgAzShiftElem.addElement(new MetadataElement(subSwathNames[0]));
-            mstSlvTagElem.addElement(OverallRgAzShiftElem);
+            refSecTagElem.addElement(OverallRgAzShiftElem);
 
             final MetadataElement AzShiftPerOverlapElem = new MetadataElement("Azimuth_Shift_Per_Overlap");
             AzShiftPerOverlapElem.addElement(new MetadataElement(subSwathNames[0]));
-            mstSlvTagElem.addElement(AzShiftPerOverlapElem);
+            refSecTagElem.addElement(AzShiftPerOverlapElem);
 
             final MetadataElement AzShiftPerBlockElem = new MetadataElement("Azimuth_Shift_Per_Block");
             AzShiftPerBlockElem.addElement(new MetadataElement(subSwathNames[0]));
-            mstSlvTagElem.addElement(AzShiftPerBlockElem);
+            refSecTagElem.addElement(AzShiftPerBlockElem);
 
-            ESDMeasurement.addElement(mstSlvTagElem);
+            ESDMeasurement.addElement(refSecTagElem);
         }
         absTgt.addElement(ESDMeasurement);
     }
 
-    private String getMasterSlavePairTag(final CplxContainer master, final CplxContainer slave) {
-        final String mstBandName = master.realBand.getName();
-        final String slvBandName = slave.realBand.getName();
-        final String mstTag = mstBandName.substring(mstBandName.indexOf("i_") + 2);
-        final String slvTag = slvBandName.substring(slvBandName.indexOf("i_") + 2);
-        return mstTag + "_" + slvTag;
+    private String getReferenceSecondaryPairTag(final CplxContainer reference, final CplxContainer secondary) {
+        final String refBandName = reference.realBand.getName();
+        final String secBandName = secondary.realBand.getName();
+        final String refTag = refBandName.substring(refBandName.indexOf("i_") + 2);
+        final String secTag = secBandName.substring(secBandName.indexOf("i_") + 2);
+        return refTag + "_" + secTag;
     }
 
     /**
@@ -359,13 +358,13 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
             for (String key : targetMap.keySet()) {
 
                 final ProductContainer container = targetMap.get(key);
-                final CplxContainer master = container.sourceMaster;
-                final CplxContainer slave = container.sourceSlave;
+                final CplxContainer reference = container.sourceRef;
+                final CplxContainer secondary = container.sourceSec;
 
-                final Band mBandI = master.realBand;
-                final Band mBandQ = master.imagBand;
-                final Band sBandI = slave.realBand;
-                final Band sBandQ = slave.imagBand;
+                final Band mBandI = reference.realBand;
+                final Band mBandQ = reference.imagBand;
+                final Band sBandI = secondary.realBand;
+                final Band sBandQ = secondary.imagBand;
 
                 final List<AzimuthShiftData> azShiftArray = new ArrayList<>(numShifts);
                 final double[][] shiftLUT = new double[numOverlaps][numBlocksPerOverlap];
@@ -421,24 +420,29 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
                 status.done();
                 executor.complete();
 
+                // Workers that threw exceptions skip the azShiftArray.add(...) — iterate over what's actually present
+                // rather than indexing 0..numShifts.
                 // todo The following simple average should be replaced by weighted average using coherence as weight
                 final double[] averagedAzShiftArray = new double[numOverlaps];
+                final int[] perOverlapCount = new int[numOverlaps];
                 double totalOffset = 0.0;
-                for (int i = 0; i < numOverlaps; i++) {
-                    double sumAzOffset = 0.0;
-                    for (int j = 0; j < numShifts; j++) {
-                        if (azShiftArray.get(j).overlapIndex == i) {
-                            sumAzOffset += azShiftArray.get(j).shift;
-                        }
+                int totalCount = 0;
+                for (AzimuthShiftData d : azShiftArray) {
+                    if (d.overlapIndex >= 0 && d.overlapIndex < numOverlaps) {
+                        averagedAzShiftArray[d.overlapIndex] += d.shift;
+                        perOverlapCount[d.overlapIndex]++;
+                        totalOffset += d.shift;
+                        totalCount++;
                     }
-                    averagedAzShiftArray[i] = sumAzOffset / numBlocksPerOverlap;
-                    totalOffset += sumAzOffset;
-
+                }
+                for (int i = 0; i < numOverlaps; i++) {
+                    averagedAzShiftArray[i] = perOverlapCount[i] == 0
+                            ? 0.0 : averagedAzShiftArray[i] / perOverlapCount[i];
                     SystemUtils.LOG.fine(
                             "AzimuthShiftOp: overlap area = " + i + ", azimuth offset = " + averagedAzShiftArray[i]);
                 }
 
-                final double azOffset = -totalOffset / numShifts;
+                final double azOffset = totalCount == 0 ? 0.0 : -totalOffset / totalCount;
                 SystemUtils.LOG.fine("AzimuthShiftOp: Overall azimuth shift = " + azOffset);
 
                 if (targetOffsetMap.get(key) == null) {
@@ -447,16 +451,16 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
                     targetOffsetMap.get(key).setAzOffset(azOffset);
                 }
 
-                final String mstSlvTag = getMasterSlavePairTag(master, slave);
+                final String refSecTag = getReferenceSecondaryPairTag(reference, secondary);
 
-                saveOverallAzimuthShift(mstSlvTag, azOffset);
+                saveOverallAzimuthShift(refSecTag, azOffset);
 
-                saveAzimuthShiftPerOverlap(mstSlvTag, averagedAzShiftArray);
+                saveAzimuthShiftPerOverlap(refSecTag, averagedAzShiftArray);
 
-                saveAzimuthShiftPerBlock(mstSlvTag, azShiftArray);
+                saveAzimuthShiftPerBlock(refSecTag, azShiftArray);
 
                 if (outputESDEstimationToFile) {
-                    final String fileName = mstSlvTag + "_azimuth_shift.txt";
+                    final String fileName = refSecTag + "_azimuth_shift.txt";
                     outputESDEstimationToFile(fileName, shiftLUT, -azOffset);
                 }
             }
@@ -470,17 +474,21 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
 
     private double computeSpectralSeparation () {
 
-        final double tCycle =
-                subSwath[subSwathIndex - 1].linesPerBurst * subSwath[subSwathIndex - 1].azimuthTimeInterval;
-
+        // Burst cycle time is the burst length minus the overlap, not the full burst length.
+        // Matches SpectralDiversityOp.computeSpectralSeparation.
         double sumSpectralSeparation = 0.0;
+        long sampleCount = 0;
         for (int b = 0; b < subSwath[subSwathIndex - 1].numOfBursts; b++) {
+            final int overlapIdx = Math.min(b, subSwath[subSwathIndex - 1].numOfBursts - 2);
+            final int numOverlappedLines = overlapIdx >= 0 ? computeBurstOverlapSize(overlapIdx) : 0;
+            final double tCycle = (subSwath[subSwathIndex - 1].linesPerBurst - numOverlappedLines)
+                    * subSwath[subSwathIndex - 1].azimuthTimeInterval;
             for (int p = 0; p < subSwath[subSwathIndex - 1].samplesPerBurst; p++) {
                 sumSpectralSeparation += subSwath[subSwathIndex - 1].dopplerRate[b][p] * tCycle;
+                sampleCount++;
             }
         }
-        return sumSpectralSeparation / (subSwath[subSwathIndex - 1].numOfBursts *
-                subSwath[subSwathIndex - 1].samplesPerBurst);
+        return sampleCount == 0 ? 0.0 : sumSpectralSeparation / sampleCount;
     }
 
     private void getOverlappedRectangles(final int overlapIndex,
@@ -548,7 +556,7 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
         return blockCoherence;
     }
 
-    private void saveOverallAzimuthShift(final String mstSlvPairTag, final double azimuthShift) {
+    private void saveOverallAzimuthShift(final String refSecPairTag, final double azimuthShift) {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if (absTgt == null) {
@@ -556,8 +564,8 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
         }
 
         final MetadataElement ESDMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = ESDMeasurement.getElement(mstSlvPairTag);
-        final MetadataElement OverallRgAzShiftElem = mstSlvPairElem.getElement("Overall_Azimuth_Shift");
+        final MetadataElement refSecPairElem = ESDMeasurement.getElement(refSecPairTag);
+        final MetadataElement OverallRgAzShiftElem = refSecPairElem.getElement("Overall_Azimuth_Shift");
         final MetadataElement swathElem = OverallRgAzShiftElem.getElement(subSwathNames[0]);
 
         final MetadataAttribute azimuthShiftAttr = new MetadataAttribute("azimuthShift", ProductData.TYPE_FLOAT32);
@@ -566,7 +574,7 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
         swathElem.setAttributeDouble("azimuthShift", azimuthShift);
     }
 
-    private void saveAzimuthShiftPerOverlap(final String mstSlvPairTag, final double[] averagedAzShiftArray) {
+    private void saveAzimuthShiftPerOverlap(final String refSecPairTag, final double[] averagedAzShiftArray) {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if (absTgt == null) {
@@ -574,8 +582,8 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
         }
 
         final MetadataElement ESDMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = ESDMeasurement.getElement(mstSlvPairTag);
-        final MetadataElement AzShiftPerOverlapElem = mstSlvPairElem.getElement("Azimuth_Shift_Per_Overlap");
+        final MetadataElement refSecPairElem = ESDMeasurement.getElement(refSecPairTag);
+        final MetadataElement AzShiftPerOverlapElem = refSecPairElem.getElement("Azimuth_Shift_Per_Overlap");
         final MetadataElement swathElem = AzShiftPerOverlapElem.getElement(subSwathNames[0]);
 
         swathElem.addAttribute(new MetadataAttribute("count", ProductData.TYPE_INT16));
@@ -593,7 +601,7 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
         }
     }
 
-    private void saveAzimuthShiftPerBlock(final String mstSlvPairTag, final List<AzimuthShiftData> azShiftArray) {
+    private void saveAzimuthShiftPerBlock(final String refSecPairTag, final List<AzimuthShiftData> azShiftArray) {
 
         final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(targetProduct);
         if (absTgt == null) {
@@ -601,8 +609,8 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
         }
 
         final MetadataElement ESDMeasurement = absTgt.getElement("ESD Measurement");
-        final MetadataElement mstSlvPairElem = ESDMeasurement.getElement(mstSlvPairTag);
-        final MetadataElement AzShiftPerBlockElem = mstSlvPairElem.getElement("Azimuth_Shift_Per_Block");
+        final MetadataElement refSlvPairElem = ESDMeasurement.getElement(refSecPairTag);
+        final MetadataElement AzShiftPerBlockElem = refSlvPairElem.getElement("Azimuth_Shift_Per_Block");
         final MetadataElement swathElem = AzShiftPerBlockElem.getElement(subSwathNames[0]);
 
         swathElem.addAttribute(new MetadataAttribute("count", ProductData.TYPE_INT16));
@@ -726,22 +734,22 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
         final int halfWindowSize = cohWin / 2;
         final double[][] coherence = new double[h][w];
 
-        final Tile mstTileI = getSourceTile(mBandI, rectangle);
-        final Tile mstTileQ = getSourceTile(mBandQ, rectangle);
-        final ProductData mstDataBufferI = mstTileI.getDataBuffer();
-        final ProductData mstDataBufferQ = mstTileQ.getDataBuffer();
+        final Tile refTileI = getSourceTile(mBandI, rectangle);
+        final Tile refTileQ = getSourceTile(mBandQ, rectangle);
+        final ProductData refDataBufferI = refTileI.getDataBuffer();
+        final ProductData refDataBufferQ = refTileQ.getDataBuffer();
 
-        final Tile slvTileI = getSourceTile(sBandI, rectangle);
-        final Tile slvTileQ = getSourceTile(sBandQ, rectangle);
-        final ProductData slvDataBufferI = slvTileI.getDataBuffer();
-        final ProductData slvDataBufferQ = slvTileQ.getDataBuffer();
+        final Tile secTileI = getSourceTile(sBandI, rectangle);
+        final Tile secTileQ = getSourceTile(sBandQ, rectangle);
+        final ProductData secDataBufferI = secTileI.getDataBuffer();
+        final ProductData secDataBufferQ = secTileQ.getDataBuffer();
 
-        final TileIndex srcIndex = new TileIndex(mstTileI);
+        final TileIndex srcIndex = new TileIndex(refTileI);
 
         final double[][] cohReal = new double[h][w];
         final double[][] cohImag = new double[h][w];
-        final double[][] mstPower = new double[h][w];
-        final double[][] slvPower = new double[h][w];
+        final double[][] refPower = new double[h][w];
+        final double[][] secPower = new double[h][w];
         for (int y = y0; y < yMax; ++y) {
             srcIndex.calculateStride(y);
             final int yy = y - y0;
@@ -749,15 +757,15 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
                 final int srcIdx = srcIndex.getIndex(x);
                 final int xx = x - x0;
 
-                final float mI = mstDataBufferI.getElemFloatAt(srcIdx);
-                final float mQ = mstDataBufferQ.getElemFloatAt(srcIdx);
-                final float sI = slvDataBufferI.getElemFloatAt(srcIdx);
-                final float sQ = slvDataBufferQ.getElemFloatAt(srcIdx);
+                final float mI = refDataBufferI.getElemFloatAt(srcIdx);
+                final float mQ = refDataBufferQ.getElemFloatAt(srcIdx);
+                final float sI = secDataBufferI.getElemFloatAt(srcIdx);
+                final float sQ = secDataBufferQ.getElemFloatAt(srcIdx);
 
                 cohReal[yy][xx] = mI * sI + mQ * sQ;
                 cohImag[yy][xx] = mQ * sI - mI * sQ;
-                mstPower[yy][xx] = mI * mI + mQ * mQ;
-                slvPower[yy][xx] = sI * sI + sQ * sQ;
+                refPower[yy][xx] = mI * mI + mQ * mQ;
+                secPower[yy][xx] = sI * sI + sQ * sQ;
             }
         }
 
@@ -771,25 +779,25 @@ public class AzimuthShiftEstimationUsingESDOp extends Operator {
                 final int colSt = Math.max(xx - halfWindowSize, 0);
                 final int colEd = Math.min(xx + halfWindowSize, w - 1);
 
-                double cohRealSum = 0.0f, cohImagSum = 0.0f, mstPowerSum = 0.0f, slvPowerSum = 0.0f;
+                double cohRealSum = 0.0f, cohImagSum = 0.0f, refPowerSum = 0.0f, secPowerSum = 0.0f;
                 int count = 0;
                 for (int r = rowSt; r <= rowEd; r++) {
                     for (int c = colSt; c <= colEd; c++) {
                         cohRealSum += cohReal[r][c];
                         cohImagSum += cohImag[r][c];
-                        mstPowerSum += mstPower[r][c];
-                        slvPowerSum += slvPower[r][c];
+                        refPowerSum += refPower[r][c];
+                        secPowerSum += secPower[r][c];
                         count++;
                     }
                 }
 
-                if (count > 0 && mstPowerSum != 0.0 && slvPowerSum != 0.0) {
+                if (count > 0 && refPowerSum != 0.0 && secPowerSum != 0.0) {
                     final double cohRealMean = cohRealSum / (double)count;
                     final double cohImagMean = cohImagSum / (double)count;
-                    final double mstPowerMean = mstPowerSum / (double)count;
-                    final double slvPowerMean = slvPowerSum / (double)count;
+                    final double refPowerMean = refPowerSum / (double)count;
+                    final double secPowerMean = secPowerSum / (double)count;
                     coherence[yy][xx] = Math.sqrt((cohRealMean * cohRealMean + cohImagMean * cohImagMean) /
-                            (mstPowerMean * slvPowerMean));
+                            (refPowerMean * secPowerMean));
                 }
             }
         }

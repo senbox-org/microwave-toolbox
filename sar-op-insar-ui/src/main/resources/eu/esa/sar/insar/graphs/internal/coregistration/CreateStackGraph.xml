@@ -16,7 +16,7 @@
       <masterBands/>
       <sourceBands/>
       <resamplingType>NONE</resamplingType>
-	  <initialOffsetMethod>ORBIT</initialOffsetMethod>
+	  <initialOffsetMethod>Orbit</initialOffsetMethod>
 	  <extent>Master</extent>
 	  <includeMaster>true</includeMaster>
     </parameters>

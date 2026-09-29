@@ -15,10 +15,12 @@
  */
 package eu.esa.sar.commons.test;
 
+import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.TiePointGrid;
+import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
@@ -257,6 +259,61 @@ public class ProductValidator {
             if(!band.isNoDataValueUsed()) {
                 throw new Exception("Band "+ bandName +" is not using a nodata value");
             }
+        }
+    }
+
+    /**
+     * Validates that raster data can be read from all bands and contains valid pixels.
+     * Reads a small tile from the center of each band and checks that:
+     * - The read operation succeeds without exceptions
+     * - Not all pixels are zero
+     * - Not all pixels are NaN
+     */
+    public void validateBandData() throws Exception {
+        if (product == null) {
+            throw new Exception("Product is null");
+        }
+        for (Band band : product.getBands()) {
+            if (band instanceof VirtualBand) {
+                continue;
+            }
+            validateBandRasterData(band);
+        }
+    }
+
+    private void validateBandRasterData(final Band band) throws Exception {
+        final int w = band.getRasterWidth();
+        final int h = band.getRasterHeight();
+
+        if(!band.isStxSet()) {
+            SystemUtils.LOG.warning("Band "+ band.getName() +" Stx not set");
+        }
+
+        // Read a small tile from the center of the band
+        final int tileSize = Math.min(10, Math.min(w, h));
+        final int x0 = Math.max(0, w / 2 - tileSize / 2);
+        final int y0 = Math.max(0, h / 2 - tileSize / 2);
+        final int tw = Math.min(tileSize, w - x0);
+        final int th = Math.min(tileSize, h - y0);
+
+        final float[] pixels = new float[tw * th];
+        try {
+            band.readPixels(x0, y0, tw, th, pixels, ProgressMonitor.NULL);
+        } catch (Exception e) {
+            throw new Exception("Failed to read raster data from band " + band.getName() + ": " + e.getMessage(), e);
+        }
+
+        // Check that not all values are NaN
+        boolean allNaN = true;
+        for (float pixel : pixels) {
+            if (!Float.isNaN(pixel)) {
+                allNaN = false;
+                break;
+            }
+        }
+        if (allNaN) {
+            throw new Exception("Band " + band.getName() + " contains all NaN values at center tile (" +
+                    x0 + "," + y0 + " " + tw + "x" + th + ")");
         }
     }
 }

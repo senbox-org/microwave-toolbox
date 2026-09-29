@@ -16,53 +16,89 @@
 package eu.esa.sar.io.binary;
 
 /**
- * Created by luis on 08/02/2015.
+ * Tight-loop array copy helpers used by the SAR readers when materializing
+ * sub-sampled tiles. All methods are static; the {@code sourceStepX == 1}
+ * case is dispatched to {@link System#arraycopy} (an intrinsic) for a
+ * significant speed-up on the read-full-line common path.
  */
-public class ArrayCopy {
+public final class ArrayCopy {
+
+    private ArrayCopy() {
+        // utility class
+    }
 
     public static void copyLine(final byte[] srcLine, final byte[] destLine, final int sourceStepX) {
+        if (sourceStepX == 1) {
+            System.arraycopy(srcLine, 0, destLine, 0, destLine.length);
+            return;
+        }
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = srcLine[i];
         }
     }
 
     public static void copyLine(final short[] srcLine, final short[] destLine, final int sourceStepX) {
+        if (sourceStepX == 1) {
+            System.arraycopy(srcLine, 0, destLine, 0, destLine.length);
+            return;
+        }
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = srcLine[i];
         }
     }
 
     public static void copyLine(final char[] srcLine, final char[] destLine, final int sourceStepX) {
+        if (sourceStepX == 1) {
+            System.arraycopy(srcLine, 0, destLine, 0, destLine.length);
+            return;
+        }
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = srcLine[i];
         }
     }
 
     public static void copyLine(final char[] srcLine, final short[] destLine, final int sourceStepX) {
+        // char→short requires per-element cast; no arraycopy fast path.
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = (short) srcLine[i];
         }
     }
 
     public static void copyLine(final int[] srcLine, final int[] destLine, final int sourceStepX) {
+        if (sourceStepX == 1) {
+            System.arraycopy(srcLine, 0, destLine, 0, destLine.length);
+            return;
+        }
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = srcLine[i];
         }
     }
 
     public static void copyLine(final long[] srcLine, final long[] destLine, final int sourceStepX) {
+        if (sourceStepX == 1) {
+            System.arraycopy(srcLine, 0, destLine, 0, destLine.length);
+            return;
+        }
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = srcLine[i];
         }
     }
 
     public static void copyLine(final float[] srcLine, final float[] destLine, final int sourceStepX) {
+        if (sourceStepX == 1) {
+            System.arraycopy(srcLine, 0, destLine, 0, destLine.length);
+            return;
+        }
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = srcLine[i];
         }
     }
 
     public static void copyLine(final double[] srcLine, final double[] destLine, final int sourceStepX) {
+        if (sourceStepX == 1) {
+            System.arraycopy(srcLine, 0, destLine, 0, destLine.length);
+            return;
+        }
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = srcLine[i];
         }
@@ -93,6 +129,8 @@ public class ArrayCopy {
     }
 
     public static void copyLine1Of2(final float[] srcLine, final float[] destLine, final int sourceStepX) {
+        // NOTE: the (int) cast truncates the float value before storing it back as float
+        // — historical behaviour, retained for compatibility with existing callers.
         for (int x = 0, i = 0; x < destLine.length; ++x, i += sourceStepX) {
             destLine[x] = (int) srcLine[i << 1];
         }
@@ -127,6 +165,7 @@ public class ArrayCopy {
     }
 
     public static void copyLine2Of2(final float[] srcLine, final float[] destLine, final int sourceStepX) {
+        // See note on copyLine1Of2(float[],...): the int truncation is intentional.
         final int length = destLine.length;
         for (int x = 0, i = 0; x < length; ++x, i += sourceStepX) {
             destLine[x] = (int) srcLine[(i << 1) + 1];
@@ -141,17 +180,15 @@ public class ArrayCopy {
         int e = (halfFloat >> 10) & 0x0000001f; // exponent
         int f =  halfFloat        & 0x000003ff; // fraction
 
-        //System.out.println("s = " + s + " e = " + e + " f = " + f);
-
         // need to handle 7c00 INF and fc00 -INF?
         if (e == 0) {
             // need to handle +-0 case f==0 or f=0x8000?
             if (f == 0) // Plus or minus zero
                 return Float.intBitsToFloat(s << 31);
             else { // Denormalized number -- renormalize it
-                while ((f & 0x00000400)==0) {
+                while ((f & 0x00000400) == 0) {
                     f <<= 1;
-                    e -=  1;
+                    e -= 1;
                 }
                 e += 1;
                 f &= ~0x00000400;
@@ -201,8 +238,6 @@ public class ArrayCopy {
 
         final int f32r = a1 | e_o | a2;
 
-        final float f = Float.intBitsToFloat(f32r);
-
-        return f;
+        return Float.intBitsToFloat(f32r);
     }
 }

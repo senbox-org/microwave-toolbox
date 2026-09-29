@@ -59,15 +59,18 @@ public class TestSeaSatProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 
     @Test
     public void testOpenZip() throws Exception {
+        assumeTrue(zipFile + " not found", zipFile.exists());
         Product prod = testReader(zipFile.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+        validator.validateBandData();
     }
 }

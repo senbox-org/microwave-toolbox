@@ -54,10 +54,14 @@ import org.opengis.feature.type.AttributeDescriptor;
 import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The ship detection discrimination operator. False ship detections are eliminated based on simple target
@@ -91,7 +95,7 @@ public class ObjectDiscriminationOp extends Operator {
     private double rangeSpacing = 0;
     private double azimuthSpacing = 0;
 
-    private final Map<String, List<ShipRecord>> bandClusterLists = new HashMap<>();
+    private final Map<String, List<ShipRecord>> bandClusterLists = new ConcurrentHashMap<>();
     private File targetReportFile = null;
     private SimpleFeatureType shipFeatureType;
 
@@ -204,10 +208,12 @@ public class ObjectDiscriminationOp extends Operator {
             final int th = targetTileRectangle.height;
             //System.out.println("tx0 = " + tx0 + ", ty0 = " + ty0 + ", tw = " + tw + ", th = " + th);
 
+            final int rasterW = targetBand.getRasterWidth();
+            final int rasterH = targetBand.getRasterHeight();
             final int x0 = Math.max(tx0 - 10, 0);
             final int y0 = Math.max(ty0 - 10, 0);
-            final int w = Math.min(tw + 20, targetBand.getRasterWidth());
-            final int h = Math.min(th + 20, targetBand.getRasterHeight());
+            final int w = Math.min(tx0 + tw + 10, rasterW) - x0;
+            final int h = Math.min(ty0 + th + 10, rasterH) - y0;
             final Rectangle sourceTileRectangle = new Rectangle(x0, y0, w, h);
             //System.out.println("x0 = " + x0 + ", y0 = " + y0 + ", w = " + w + ", h = " + h);
 
@@ -248,11 +254,8 @@ public class ObjectDiscriminationOp extends Operator {
                 AddShipRecordsAsVectors(clusterList);
             }
 
-            List<ShipRecord> shipRecordList = bandClusterLists.get(targetBand.getName());
-            if (shipRecordList == null) {
-                shipRecordList = new ArrayList<>();
-                bandClusterLists.put(targetBand.getName(), shipRecordList);
-            }
+            final List<ShipRecord> shipRecordList = bandClusterLists.computeIfAbsent(
+                    targetBand.getName(), k -> Collections.synchronizedList(new ArrayList<>()));
             shipRecordList.addAll(clusterList);
 
             targetTile.setRawSamples(getSourceTile(sourceBand, targetTileRectangle).getRawSamples());
@@ -281,19 +284,29 @@ public class ObjectDiscriminationOp extends Operator {
                                    final ProductData bitMaskData, final Tile bitMaskTile,
                                    final int[][] pixelsScanned, List<PixelPos> clusterPixels) {
 
+        final Deque<PixelPos> stack = new ArrayDeque<>();
+        stack.push(new PixelPos(xc, yc));
         pixelsScanned[yc - y0][xc - x0] = 1;
-        clusterPixels.add(new PixelPos(xc, yc));
 
-        final int[] x = {xc - 1, xc, xc + 1, xc - 1, xc + 1, xc - 1, xc, xc + 1};
-        final int[] y = {yc - 1, yc - 1, yc - 1, yc, yc, yc + 1, yc + 1, yc + 1};
+        while (!stack.isEmpty()) {
+            final PixelPos seed = stack.pop();
+            final int sx = (int) seed.x;
+            final int sy = (int) seed.y;
+            clusterPixels.add(seed);
 
-        for (int i = 0; i < 8; i++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                final int ny = sy + dy;
+                if (ny < y0 || ny >= y0 + h) continue;
+                for (int dx = -1; dx <= 1; dx++) {
+                    if (dx == 0 && dy == 0) continue;
+                    final int nx = sx + dx;
+                    if (nx < x0 || nx >= x0 + w) continue;
+                    if (pixelsScanned[ny - y0][nx - x0] != 0) continue;
+                    if (bitMaskData.getElemIntAt(bitMaskTile.getDataBufferIndex(nx, ny)) != 1) continue;
 
-            if (x[i] >= x0 && x[i] < x0 + w && y[i] >= y0 && y[i] < y0 + h &&
-                    pixelsScanned[y[i] - y0][x[i] - x0] == 0 &&
-                    bitMaskData.getElemIntAt(bitMaskTile.getDataBufferIndex(x[i], y[i])) == 1) {
-
-                clustering(x[i], y[i], x0, y0, w, h, bitMaskData, bitMaskTile, pixelsScanned, clusterPixels);
+                    pixelsScanned[ny - y0][nx - x0] = 1;
+                    stack.push(new PixelPos(nx, ny));
+                }
             }
         }
     }

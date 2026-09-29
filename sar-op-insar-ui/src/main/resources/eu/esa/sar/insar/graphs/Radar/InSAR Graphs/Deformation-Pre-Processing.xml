@@ -121,7 +121,7 @@
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <orbitDegree>3</orbitDegree>
-      <demName>SRTM 3Sec</demName>
+      <demName>Copernicus 30m Global DEM</demName>
       <externalDEMFile/>
       <externalDEMNoDataValue>0.0</externalDEMNoDataValue>
       <tileExtensionPercent>100</tileExtensionPercent>

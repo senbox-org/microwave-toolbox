@@ -19,6 +19,7 @@ import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Test;
 
@@ -34,6 +35,19 @@ import static org.junit.Assert.assertNotNull;
 public class TestSetNoDataValueOp {
 
     private final static OperatorSpi spi = new SetNoDataValueOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final SetNoDataValueOp op = (SetNoDataValueOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = SetNoDataValueOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("SetNoDataValue", md.alias());
+    }
 
     @Test
     public void testSetNoData() throws Exception {

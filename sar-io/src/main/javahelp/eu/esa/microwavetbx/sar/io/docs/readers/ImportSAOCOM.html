@@ -2,89 +2,67 @@
 <html><head><title>Help - Import SAOCOM</title>
 
 
-  
 
-  
-  
-  <link rel="stylesheet" href="../style.css"></head><body>
+    <link rel="stylesheet" href="../style.css"></head><body>
 <table class="header">
-
-  <tbody>
+    <tbody>
     <tr class="header">
-      <td class="header">&nbsp; Import SAOCOM</td>
-      <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header">&nbsp; Import SAOCOM</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
-  </tbody>
+    </tbody>
 </table>
 
 <h3>Import SAOCOM Product</h3>
 
-<p class="MsoNormal"><b style="">Operational:</b>
-2019 to present<br>
-</p>
+<p class="MsoNormal">SAOCOM is an Argentine L-band SAR mission operated by CONAE, consisting of two satellites
+forming part of the Italian-Argentine SIASGE constellation (together with COSMO-SkyMed).</p>
 
+<p class="MsoNormal"><b>Satellites:</b></p>
+<ul>
+    <li>SAOCOM-1A (launched 2018-10-07, operational)</li>
+    <li>SAOCOM-1B (launched 2020-08-30, operational)</li>
+</ul>
 
-<p class="MsoNormal"><b style="">Frequency Band:</b> L-band</p>
+<p class="MsoNormal"><b style="">Frequency Band:</b> L-band (1.275 GHz)</p>
 
 
 <p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, TOPSAR Narrow, TOPSAR Wide<br>
-</p>
+Stripmap, TopSAR Narrow, TopSAR Wide, TopSAR Full, Spotlight</p>
 
 
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
+<p class="MsoNormal"><b style="">Product Types:</b></p>
 
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SLC Single Look Complex<br>
-</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->DI Detected Image<br>
-</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GEC Ground Ellipsoid Corrected<br>
-</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GTC Ground Terrain Corrected<br>
-</li>
-  
+    <li>SLC (L1A) Single Look Complex - complex data in slant range</li>
+    <li>DI (L1B) Detected Image - multi-looked, slant range</li>
+    <li>GEC (L1C) Ground Ellipsoid Corrected - map projected</li>
+    <li>GTC (L1D) Ground Terrain Corrected - terrain corrected, map projected</li>
 </ul>
 
+<p class="MsoNormal"><b style="">File Format:</b> XEMT metadata (.xemt XML) with GeoTIFF imagery (one .tif per polarization channel).
+Products may include calibration LUTs and noise annotations in the Calibration/ directory.</p>
 
+<p class="MsoNormal"><b style="">Polarizations:</b> Single Pol, Dual Pol (HH+HV, VV+VH),
+Full Pol (HH+HV+VV+VH, Stripmap only), Compact Pol (RH+RV, LH+LV)</p>
 
+<p class="MsoNormal"><b style="">Opening products:</b>
+Products can be opened by selecting the .xemt metadata file, the product directory, or a ZIP archive.
+The reader supports both Stripmap and TopSAR burst products.</p>
 
-
-
-
-
-
-
-<p class="MsoNormal"><b style="">Polarizations: <span style="">&nbsp;</span></b>Single Pol, Dual Pol (HH+HV, VV+VH) and<b style=""> </b>Full Pol (HH+HV+VV+VH), Compact Pol
-(RH+RV, LH+LV)</p>
-<p class="MsoNormal"><span style="font-weight: bold;">Constellation Size:</span> 2</p>
-<p class="MsoNormal"><br>
-</p>
-
-
+<p class="MsoNormal"><b style="">Data Access:</b></p>
+<ul>
+    <li>CONAE Catalogue: <a href="https://catalogos.conae.gov.ar">https://catalogos.conae.gov.ar</a></li>
+    <li>ESA Third Party Mission programme</li>
+    <li>ASF DAAC: <a href="https://search.asf.alaska.edu">https://search.asf.alaska.edu</a></li>
+</ul>
 
 <p class="MsoNormal"><b style="">Further Information: </b></p>
 
-
 <p class="MsoNormal"><a href="https://www.argentina.gob.ar/ciencia/conae/misiones-espaciales/saocom">https://www.argentina.gob.ar/ciencia/conae/misiones-espaciales/saocom</a></p>
-
 
 <p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/s/saocom">https://directory.eoportal.org/web/eoportal/satellite-missions/s/saocom</a></p>
 
-
-
-
-<ul>
-</ul>
-
-<ul>
-
-</ul>
 
 <hr>
 </body></html>

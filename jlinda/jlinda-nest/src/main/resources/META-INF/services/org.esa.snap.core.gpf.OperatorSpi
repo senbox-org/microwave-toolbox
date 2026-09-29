@@ -1,7 +1,6 @@
 org.jlinda.nest.gpf.RangeFilterOp$Spi
 org.jlinda.nest.gpf.AzimuthFilterOp$Spi
 org.jlinda.nest.gpf.SubtRefDemOp$Spi
-org.jlinda.nest.gpf.SimulateAmplitudeOp$Spi
 org.jlinda.nest.gpf.DInSAROp$Spi
 org.jlinda.nest.gpf.Slant2HeightOp$Spi
 org.jlinda.nest.dataio.SnaphuImportOp$Spi

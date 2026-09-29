@@ -40,7 +40,7 @@ public class Sentinel1OrbitFileReader {
     private final File orbitFile;
     private List<Orbits.OrbitVector> osvList = new ArrayList<>();
 
-    Sentinel1OrbitFileReader(final File file) {
+    public Sentinel1OrbitFileReader(final File file) {
         this.orbitFile = file;
     }
 
@@ -48,7 +48,7 @@ public class Sentinel1OrbitFileReader {
         return osvList;
     }
 
-    void read() throws Exception {
+    public void read() throws Exception {
 
         final Document doc;
         if (orbitFile.getName().toLowerCase().endsWith(".zip")) {
@@ -160,7 +160,7 @@ public class Sentinel1OrbitFileReader {
         return null;
     }
 
-    static boolean isWithinRange(final String filename, final ProductData.UTC stateVectorTime) {
+    public static boolean isWithinRange(final String filename, final ProductData.UTC stateVectorTime) {
         try {
             final ProductData.UTC utcStart = Sentinel1OrbitFileReader.getValidityStartFromFilenameUTC(filename);
             final ProductData.UTC utcEnd = Sentinel1OrbitFileReader.getValidityStopFromFilenameUTC(filename);

@@ -125,28 +125,28 @@ public class FloodDetectionOp extends Operator {
             ProductUtils.copyBand(srcBandNames, sourceProduct, targetProduct, true);
         }
 
-        final Band mstBand = targetProduct.getBandAt(0);
-        final Band slvBand = targetProduct.getNumBands() > 1 ? targetProduct.getBandAt(1) : null;
+        final Band refBand = targetProduct.getBandAt(0);
+        final Band secBand = targetProduct.getNumBands() > 1 ? targetProduct.getBandAt(1) : null;
         final Band terrainMask = getFeatureBand(targetProduct, "Terrain_Mask");
         final Band globCover = getFeatureBand(targetProduct, "GlobCover");
         final Band homogeneity = getFeatureBand(targetProduct, "Homogeneity");
         final Band energy = getFeatureBand(targetProduct, "Energy");
 
-        final boolean isdB = mstBand.getUnit().contains(Unit.DB);
+        final boolean isdB = refBand.getUnit().contains(Unit.DB);
 
         //create Mask
         String expression;
         if(isdB) {
-            expression = "(" + mstBand.getName() + " < -13 )";
-            if (slvBand != null) {
-                expression = "!(" + mstBand.getName() + " < -13 )" +
-                        " && (" + slvBand.getName() + " < -13 )";
+            expression = "(" + refBand.getName() + " < -13 )";
+            if (secBand != null) {
+                expression = "!(" + refBand.getName() + " < -13 )" +
+                        " && (" + secBand.getName() + " < -13 )";
             }
         } else {
-            expression = "(" + mstBand.getName() + " < 0.05 && " + mstBand.getName() + " > 0)";
-            if (slvBand != null) {
-                expression = "!(" + mstBand.getName() + " < 0.05 && " + mstBand.getName() + " > 0)" +
-                        " && (" + slvBand.getName() + " < 0.05 && " + slvBand.getName() + " > 0)";
+            expression = "(" + refBand.getName() + " < 0.05 && " + refBand.getName() + " > 0)";
+            if (secBand != null) {
+                expression = "!(" + refBand.getName() + " < 0.05 && " + refBand.getName() + " > 0)" +
+                        " && (" + secBand.getName() + " < 0.05 && " + secBand.getName() + " > 0)";
             }
         }
 
@@ -163,9 +163,9 @@ public class FloodDetectionOp extends Operator {
          //   expression += " && " + homogeneity.getName() + " > 0.6";
         }
 
-        final Mask mask = new Mask(mstBand.getName() + "_flood",
-                mstBand.getRasterWidth(),
-                mstBand.getRasterHeight(),
+        final Mask mask = new Mask(refBand.getName() + "_flood",
+                refBand.getRasterWidth(),
+                refBand.getRasterHeight(),
                 Mask.BandMathsType.INSTANCE);
 
         mask.setDescription("Flood");

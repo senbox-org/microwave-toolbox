@@ -55,7 +55,7 @@ public class DEMAssistedCoregistrationOpUI extends BaseOperatorUI {
     private final JLabel tileExtensionPercentLabel = new JLabel("Tile Extension [%]:");
     private static final String externalDEMStr = "External DEM";
     private Double extNoDataValue = 0.0;
-    private Boolean maskOutAreaWithoutElevation = false;
+    private Boolean maskOutAreaWithoutElevation = true;   // matches DEMAssistedCoregistrationOp
     private Boolean outputRangeAzimuthOffset = false;
 
     private final boolean includeOutputRangeAzimuthOffset = false;
@@ -136,16 +136,27 @@ public class DEMAssistedCoregistrationOpUI extends BaseOperatorUI {
 
         tileExtensionPercent.setText(String.valueOf(paramMap.get("tileExtensionPercent")));
 
-        maskOutAreaWithoutElevation = (Boolean)paramMap.get("maskOutAreaWithoutElevation");
-        outputRangeAzimuthOffset = (Boolean)paramMap.get("outputRangeAzimuthOffset");
+        maskOutAreaWithoutElevation = booleanParam("maskOutAreaWithoutElevation", maskOutAreaWithoutElevation);
+        outputRangeAzimuthOffset = booleanParam("outputRangeAzimuthOffset", outputRangeAzimuthOffset);
 
-        if(maskOutAreaWithoutElevation != null) {
-            maskOutAreaWithoutElevationCheckBox.setSelected(maskOutAreaWithoutElevation);
-        }
-        if(outputRangeAzimuthOffset != null) {
-            outputRangeAzimuthOffsetCheckBox.setSelected(outputRangeAzimuthOffset);
-        }
+        maskOutAreaWithoutElevationCheckBox.setSelected(maskOutAreaWithoutElevation);
+        outputRangeAzimuthOffsetCheckBox.setSelected(outputRangeAzimuthOffset);
     }
+
+    /**
+     * Reads a boolean parameter, keeping the declared default when the key is absent.
+     *
+     * <p>A primitive parameter whose default equals the type's zero value ({@code boolean false})
+     * is NEVER written into a map-backed parameter map by {@code PropertySet.setDefaultValues()},
+     * so reading it straight out yields {@code null}. Assigning that null to the field and then
+     * putting it back in {@code updateParameters()} wrote an explicit null over the parameter -
+     * i.e. the entry silently vanished from the generated graph.</p>
+     */
+    private Boolean booleanParam(final String key, final Boolean fallback) {
+        final Object value = paramMap.get(key);
+        return value instanceof Boolean ? (Boolean) value : fallback;
+    }
+
 
     @Override
     public UIValidation validateParameters() {

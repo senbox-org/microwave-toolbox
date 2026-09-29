@@ -18,7 +18,9 @@ package eu.esa.sar.commons.io;
 import com.bc.ceres.core.VirtualDir;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.util.Guardian;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
+import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -59,8 +61,8 @@ public abstract class AbstractProductDirectory {
 
     protected void createProductDir(final File inputFile) {
         if (ZipUtils.isZip(inputFile)) {
-            baseDir = inputFile;
-            productDir = VirtualDir.create(baseDir);
+            baseDir = FileUtils.getCachedFile(inputFile);
+            productDir = ProductUtils.getProductVirtualDir(baseDir);
             baseName = baseDir.getName();
             if(baseName.endsWith(".zip")) {
                 baseName = baseName.substring(0, baseName.lastIndexOf(".zip"));
@@ -71,7 +73,7 @@ public abstract class AbstractProductDirectory {
             } else {
                 baseDir = inputFile.getParentFile();
             }
-            productDir = VirtualDir.create(baseDir);
+            productDir = ProductUtils.getProductVirtualDir(baseDir);
             baseName = baseDir.getName();
         }
     }
@@ -289,11 +291,10 @@ public abstract class AbstractProductDirectory {
                 int dotIndex = path.lastIndexOf('.');
                 return dotIndex < sepIndex;
             } else {
-                final ZipFile productZip = new ZipFile(baseDir, ZipFile.OPEN_READ);
-
-                final Optional result = productZip.stream()
-                        .filter(ze -> ze.isDirectory()).filter(ze -> ze.getName().equals(path)).findFirst();
-                return result.isPresent();
+                try (ZipFile productZip = new ZipFile(baseDir, ZipFile.OPEN_READ)) {
+                    return productZip.stream()
+                            .anyMatch(ze -> ze.isDirectory() && ze.getName().equals(path));
+                }
             }
         } else {
             return productDir.getFile(path).isDirectory();

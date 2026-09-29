@@ -760,6 +760,8 @@ public class ASARCalibrator extends BaseCalibrator implements Calibrator {
 
         } catch (IOException e) {
             throw new OperatorException(e);
+        } finally {
+            try { reader.close(); } catch (IOException ignored) { }
         }
     }
 
@@ -811,6 +813,8 @@ public class ASARCalibrator extends BaseCalibrator implements Calibrator {
             }
         } catch (IOException e) {
             throw new OperatorException(e);
+        } finally {
+            try { reader.close(); } catch (IOException ignored) { }
         }
     }
 

@@ -128,8 +128,10 @@ public final class DecisionTreeOp extends Operator {
         final IndexCoding indexCoding = createIndexCoding();
         targetProduct.getIndexCodingGroup().add(indexCoding);
 
+        // Use INT16 so that class label values up to 32767 (e.g. GlobCover 11-230, etc.)
+        // round-trip through the band without silent overflow on cast.
         final Band targetBand = new Band(targetBandName,
-                ProductData.TYPE_INT8,
+                ProductData.TYPE_INT16,
                 targetProduct.getSceneRasterWidth(),
                 targetProduct.getSceneRasterHeight());
 

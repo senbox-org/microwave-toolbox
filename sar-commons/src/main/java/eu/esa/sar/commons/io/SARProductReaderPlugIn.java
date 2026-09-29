@@ -61,7 +61,7 @@ public interface SARProductReaderPlugIn extends ProductReaderPlugIn {
                     final File file = folderPath.toRealPath().toFile();
                     final String fileName = FileUtils.getFilenameWithoutExtension(file.getName());
                     for(String ext : getProductMetadataFileExtensions()) {
-                        File metadataFile = new File(file.getParentFile(), fileName+ext);
+                        File metadataFile = file.getParentFile().toPath().resolve(fileName+ext).toFile();
                         if (metadataFile.exists() && isPrimaryMetadataFileName(metadataFile.getName())) {
                             return metadataFile;
                         }

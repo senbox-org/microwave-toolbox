@@ -65,7 +65,7 @@ public class Sentinel1ETADDirectory extends XMLProductDirectory implements Senti
             if (etadReader == null) {
                 etadReader = new Sentinel1ETADNetCDFReader();
             }
-            File file = new File(getBaseDir(), imgPath);
+            File file = getBaseDir().toPath().resolve(imgPath).toFile();
             if(isCompressed()) {
                 file = getFile(imgPath);
             }

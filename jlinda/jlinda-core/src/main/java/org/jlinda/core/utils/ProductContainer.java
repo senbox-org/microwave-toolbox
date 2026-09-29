@@ -11,8 +11,8 @@ import java.util.Map;
 public class ProductContainer {
 
     public String name;
-    public CplxContainer sourceMaster;
-    public CplxContainer sourceSlave;
+    public CplxContainer sourceRef;
+    public CplxContainer sourceSec;
     public String targetBandName_I;
     public String targetBandName_Q;
     private final Map<String,String> bandNameMap = new HashMap<>(3);
@@ -24,11 +24,11 @@ public class ProductContainer {
     // TODO: put baselines in the structure
     // Baseline baseline = new Baseline();
 
-    public ProductContainer(String name, CplxContainer sourceMaster, CplxContainer sourceSlave, boolean subProductsFlag) {
+    public ProductContainer(String name, CplxContainer sourceRef, CplxContainer sourceSlave, boolean subProductsFlag) {
 
         this.name = name;
-        this.sourceMaster = sourceMaster;
-        this.sourceSlave = sourceSlave;
+        this.sourceRef = sourceRef;
+        this.sourceSec = sourceSlave;
 
         this.subProductsFlag = subProductsFlag;
         if (subProductsFlag) {

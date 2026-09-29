@@ -129,6 +129,7 @@ public class HAlphaWishart extends PolClassifierBase implements PolClassifier, Q
                     getMeanCoherencyMatrix(x, y, halfWindowSizeX, halfWindowSizeY, srcWidth, srcHeight,
                             sourceProductType, srcIndex, dataBuffers, Tr, Ti);
 
+                    srcIndex.calculateStride(y);
                     targetData.setElemIntAt(index, findZoneIndex(Tr, Ti, clusterCenters[targetBandIndex]));
                 }
             }
@@ -228,8 +229,12 @@ public class HAlphaWishart extends PolClassifierBase implements PolClassifier, Q
                                 getMeanCoherencyMatrix(x, y, halfWindowSizeX, halfWindowSizeY, srcWidth, srcHeight,
                                         sourceProductType, srcIndex, dataBuffers, Tr, Ti);
 
+                                srcIndex.calculateStride(y);
                                 final hAAlpha.HAAlpha data = hAAlpha.computeHAAlpha(Tr, Ti);
                                 if (!Double.isNaN(data.entropy) && !Double.isNaN(data.anisotropy) && !Double.isNaN(data.alpha)) {
+                                    // TODO 18-zone H/A/α (Lee 1999) requires refactoring the fixed-size [9] arrays
+                                    //      and ClusterInfo[][] across this classifier. Currently uses 2D 9-zone H/α only.
+                                    //      See HaAlphaDescriptor.getZoneIndex(H, alpha, A, useLee) for the 18-zone form.
                                     final int zoneIndex = HaAlphaDescriptor.getZoneIndex(data.entropy, data.alpha,
                                             useLeeHAlphaPlaneDefinition);
                                     localCounter[zoneIndex - 1]++;
@@ -347,6 +352,7 @@ public class HAlphaWishart extends PolClassifierBase implements PolClassifier, Q
                                     getMeanCoherencyMatrix(x, y, halfWindowSizeX, halfWindowSizeY, srcWidth, srcHeight,
                                             sourceProductType, srcIndex, dataBuffers, Tr, Ti);
 
+                                    srcIndex.calculateStride(y);
                                     final int zoneIdx = findZoneIndex(Tr, Ti, clusterCenters[targetBandIndex]);
                                     localCounter[zoneIdx - 1]++;
                                     computeSummationOfT3(zoneIdx, Tr, Ti, localSumRe, localSumIm);

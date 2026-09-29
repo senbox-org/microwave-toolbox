@@ -85,6 +85,12 @@ public class Collocator {
 
                     final int trgIndex = targetTile.getDataBufferIndex(x, y);
                     if (sourcePixelPos != null) {
+                        // sourcePixelPos from ProductUtils.computeSourcePixelCoordinates is
+                        // pixel-center, which is exactly what Resampling.computeIndex expects
+                        // (the bilinear/bicubic implementations compute the sub-pixel weight
+                        // as `x - (i0 + 0.5)`). DEMAssistedCoregistrationOp uses
+                        // computeCornerBasedIndex because its range-Doppler iteration yields
+                        // pixel-corner coordinates — different convention, same correctness.
                         resampling.computeIndex(sourcePixelPos.x, sourcePixelPos.y,
                                 sourceRasterWidth, sourceRasterHeight, resamplingIndex);
                         try {

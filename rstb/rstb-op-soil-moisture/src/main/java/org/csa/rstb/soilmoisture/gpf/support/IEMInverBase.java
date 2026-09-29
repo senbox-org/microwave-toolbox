@@ -192,13 +192,13 @@ public class IEMInverBase extends Operator {
         return (!Double.isNaN(val) && !Double.isInfinite(val));
     }
 
-    // Among the bands, there is a "master" and the rest are "slaves".
-    // The "master" has the highest rank.
-    // The "slaves" are numbered 1, 2, 3 and so on. "Slave m" has higher rank than "Slave n" where m < n.
-    // The band name of the "master" contains "mst".
-    // The band name of a "slave" contains "slvx" where x = 1, 2, 3, ...
+    // Among the bands, there is a "reference" (formerly "master") and the rest are "secondaries" (formerly "slaves").
+    // The "reference" has the highest rank.
+    // The "secondaries" are numbered 1, 2, 3 and so on. "Secondary m" has higher rank than "Secondary n" where m < n.
+    // The band name of the "reference" contains "ref" (or legacy "mst").
+    // The band name of a "secondary" contains "secx" (or legacy "slvx") where x = 1, 2, 3, ...
     // Check if s1 has higher rank then s2.
-    // E.g., Band name "Sigma0_HH_slv2_26Oct2011" has higher rank than band name "Sigma0_HH_slv7_26Oct2911".
+    // E.g., Band name "Sigma0_HH_sec2_26Oct2011" has higher rank than band name "Sigma0_HH_sec7_26Oct2911".
     private static boolean hasHigherRank(final String s1, final String s2) {
 
         if (s1.isEmpty() || s2.isEmpty()) {
@@ -206,79 +206,85 @@ public class IEMInverBase extends Operator {
             return false;
         }
 
-        if (s1.contains("mst")) {
+        if (s1.contains("ref") || s1.contains("mst")) {
 
-            if (s2.contains("mst")) {
-                throw new OperatorException("Both band names contain mst");
+            if (s2.contains("ref") || s2.contains("mst")) {
+                throw new OperatorException("Both band names contain ref/mst");
             }
 
             return true;
         }
 
-        if (s2.contains("mst")) {
+        if (s2.contains("ref") || s2.contains("mst")) {
 
-            if (s1.contains("mst")) {
-                throw new OperatorException("Both band names contain mst");
+            if (s1.contains("ref") || s1.contains("mst")) {
+                throw new OperatorException("Both band names contain ref/mst");
             }
 
             return false;
         }
 
-        // The substring "slv..._" should be in the same location in s1 and s2 but we look for it
-        // separately anyways.
+        // The substring "sec..._" (or legacy "slv..._") should be in the same location in s1 and s2
+        // but we look for it separately anyways.
 
-        final int slvStartIdx1 = s1.indexOf("slv");
-        if (slvStartIdx1 < 0) {
-            throw new OperatorException("Can't find slv in band name 1 " + s1 + ' ' + s2);
+        int secStartIdx1 = s1.indexOf("sec");
+        if (secStartIdx1 < 0) {
+            secStartIdx1 = s1.indexOf("slv");
+        }
+        if (secStartIdx1 < 0) {
+            throw new OperatorException("Can't find sec/slv in band name 1 " + s1 + ' ' + s2);
         }
 
-        final int slvEndIdx1 = s1.indexOf('_', slvStartIdx1);
-        if (slvEndIdx1 < 0) {
-            throw new OperatorException("Can't find _ after slv in band name 1 " + s1 + ' ' + s2);
+        final int secEndIdx1 = s1.indexOf('_', secStartIdx1);
+        if (secEndIdx1 < 0) {
+            throw new OperatorException("Can't find _ after sec/slv in band name 1 " + s1 + ' ' + s2);
         }
 
-        if (slvEndIdx1 <= slvStartIdx1 + 3) {
-            throw new OperatorException("No number after slv 1 " + s1 + ' ' + s2);
+        if (secEndIdx1 <= secStartIdx1 + 3) {
+            throw new OperatorException("No number after sec/slv 1 " + s1 + ' ' + s2);
         }
 
-        final int slvStartIdx2 = s2.indexOf("slv");
-        if (slvStartIdx2 < 0) {
-            throw new OperatorException("Can't find slv in band name 2 " + s1 + ' ' + s2);
+        int secStartIdx2 = s2.indexOf("sec");
+        if (secStartIdx2 < 0) {
+            secStartIdx2 = s2.indexOf("slv");
+        }
+        if (secStartIdx2 < 0) {
+            throw new OperatorException("Can't find sec/slv in band name 2 " + s1 + ' ' + s2);
         }
 
-        final int slvEndIdx2 = s2.indexOf('_', slvStartIdx2);
-        if (slvEndIdx2 < 0) {
-            throw new OperatorException("Can't find _ after slv in band name 2 " + s1 + ' ' + s2);
+        final int secEndIdx2 = s2.indexOf('_', secStartIdx2);
+        if (secEndIdx2 < 0) {
+            throw new OperatorException("Can't find _ after sec/slv in band name 2 " + s1 + ' ' + s2);
         }
 
-        if (slvEndIdx2 <= slvStartIdx2 + 3) {
-            throw new OperatorException("No number after slv 2 " + s1 + ' ' + s2);
+        if (secEndIdx2 <= secStartIdx2 + 3) {
+            throw new OperatorException("No number after sec/slv 2 " + s1 + ' ' + s2);
         }
 
-        final String slvStr1 = s1.substring(slvStartIdx1 + 3, slvEndIdx1);
+        final String secStr1 = s1.substring(secStartIdx1 + 3, secEndIdx1);
 
-        if (!StringUtils.isNumeric(slvStr1)) {
+        if (!StringUtils.isNumeric(secStr1)) {
 
-            throw new OperatorException("Can't extract slave number from band name 1 " + s1 + ' ' + s2);
+            throw new OperatorException("Can't extract secondary number from band name 1 " + s1 + ' ' + s2);
         }
 
-        final int rank1 = Integer.parseInt(slvStr1);
+        final int rank1 = Integer.parseInt(secStr1);
 
-        final String slvStr2 = s2.substring(slvStartIdx2 + 3, slvEndIdx2);
+        final String secStr2 = s2.substring(secStartIdx2 + 3, secEndIdx2);
 
-        if (!StringUtils.isNumeric(slvStr2)) {
+        if (!StringUtils.isNumeric(secStr2)) {
 
-            throw new OperatorException("Can't extract slave number from band name 2 " + s1 + ' ' + s2);
+            throw new OperatorException("Can't extract secondary number from band name 2 " + s1 + ' ' + s2);
         }
 
-        final int rank2 = Integer.parseInt(slvStr2);
+        final int rank2 = Integer.parseInt(secStr2);
 
         if (rank1 == rank2) {
 
             throw new OperatorException("Possible duplicate band names " + s1 + ' ' + s2);
         }
 
-        return rank1 < rank2; // slv1 ranks higher than slv5
+        return rank1 < rank2; // sec1 ranks higher than sec5
     }
 
     private static void swap(String[] a) {
@@ -932,11 +938,11 @@ public class IEMInverBase extends Operator {
 
             // Group the band names according to image so that
             // sigmaHHBandBane[n], sigmaVVBandName[n] and thetaBandBand[n] belong to the same image where n = 1 or 2.
-            // E.g., Band names "Sigma0_HH_slv2_26Oct2011", "Sigma0_VV_mst_26Oct2911" and
-            // "incidenceAngleFromEllipsoid_slv4_26Oct2011"
+            // E.g., Band names "Sigma0_HH_sec2_26Oct2011", "Sigma0_VV_ref_26Oct2911" and
+            // "incidenceAngleFromEllipsoid_sec4_26Oct2011"
             // belong to one image and
-            // Band names "Sigma0_HH_slv7_26Oct2911", "Sigma0_VV_slv5_26Oct2911" and
-            // "incidenceAngleFromEllipsoid_slv9_26Oct2011"
+            // Band names "Sigma0_HH_sec7_26Oct2911", "Sigma0_VV_sec5_26Oct2911" and
+            // "incidenceAngleFromEllipsoid_sec9_26Oct2011"
             // belong to another image.
 
             if (hasHigherRank(sigmaHHBandName[1], sigmaHHBandName[0])) {
@@ -1461,11 +1467,11 @@ public class IEMInverBase extends Operator {
 
             MetadataElement metadata2 = null;
 
-            final MetadataElement slvMetaData = AbstractMetadata.getSlaveMetadata(sourceProduct.getMetadataRoot());
+            final MetadataElement secMetaData = AbstractMetadata.getSecondaryMetadata(sourceProduct.getMetadataRoot());
 
-            if (slvMetaData.getNumElements() > 0) {
+            if (secMetaData.getNumElements() > 0) {
 
-                metadata2 = slvMetaData.getElementAt(0);
+                metadata2 = secMetaData.getElementAt(0);
 
                 if (metadata2 != null) {
 

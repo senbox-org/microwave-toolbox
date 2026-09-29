@@ -35,6 +35,9 @@
  */
 package eu.esa.sar.commons.io;
 
+import com.bc.ceres.util.CleanUpState;
+import com.bc.ceres.util.CleanerRegistry;
+
 import java.io.*;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -91,10 +94,6 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      */
     protected File file;
 
-    /**
-     * The underlying java.io.RandomAccessFile.
-     */
-    protected java.io.RandomAccessFile eraf;
 
     /**
      * The offset in bytes from the eraf start, of the next read or write
@@ -102,16 +101,7 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      */
     protected long filePosition;
 
-    /**
-     * The buffer used to load the data.
-     */
-    protected byte buffer[];
 
-    /**
-     * The offset in bytes of the start of the buffer, from the start of the
-     * eraf.
-     */
-    protected long bufferStart;
 
     /**
      * The offset in bytes of the end of the data in the buffer, from the start
@@ -121,36 +111,20 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      */
     protected long dataEnd;
 
-    /**
-     * The size of the data stored in the buffer, in bytes. This may be less
-     * than the size of the buffer.
-     */
-    protected int dataSize;
 
     /**
      * True if we are at the end of the eraf.
      */
     protected boolean endOfFile;
 
-    /**
-     * The access mode of the eraf.
-     */
-    protected boolean readonly;
 
     /**
      * The current endian (big or little) mode of the eraf.
      */
     protected boolean bigEndian;
 
-    /**
-     * True if the data in the buffer has been modified.
-     */
-    boolean bufferModified = false;
 
-    /**
-     * make sure eraf is this long when closed
-     */
-    protected long minLength = 0;
+    private final EnhancedRandomAccessFileState state;
 
     /**
      * _more_
@@ -158,9 +132,19 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      * @param bufferSize _more_
      */
     protected EnhancedRandomAccessFile(int bufferSize) {
-        eraf = null;
-        readonly = true;
-        init(bufferSize);
+        this.dataEnd = 0;
+        this.filePosition = 0;
+        this.endOfFile = false;
+
+        this.state = new EnhancedRandomAccessFileState(
+                null,
+                new byte[bufferSize],
+                0,
+                0,
+                true,
+                false,
+                0);
+        CleanerRegistry.getInstance().register(this, state);
     }
 
     /**
@@ -186,30 +170,26 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
     public EnhancedRandomAccessFile(File file, String mode, int bufferSize)
             throws IOException {
         this.file = file;
-        this.eraf = new java.io.RandomAccessFile(file, mode);
-        this.readonly = mode.equals("r");
-        init(bufferSize);
+        this.dataEnd = 0;
+        this.filePosition = 0;
+        this.endOfFile = false;
 
+
+        this.state = new EnhancedRandomAccessFileState(
+                new RandomAccessFile(file, mode),
+                new byte[bufferSize],
+                0,
+                0,
+                mode.equals("r"),
+                false,
+                0);
+        CleanerRegistry.getInstance().register(this, state);
     }
 
     public java.io.RandomAccessFile getRandomAccessFile() {
-        return this.eraf;
+        return state.eraf;
     }
 
-    /**
-     * _more_
-     *
-     * @param bufferSize _more_
-     */
-    private void init(int bufferSize) {
-        // Initialise the buffer
-        bufferStart = 0;
-        dataEnd = 0;
-        dataSize = 0;
-        filePosition = 0;
-        buffer = new byte[bufferSize];
-        endOfFile = false;
-    }
 
     /**
      * Close the eraf, and release any associated system resources.
@@ -218,39 +198,34 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      */
     public void close() throws IOException {
 
-        if (eraf == null) {
-            return;
-        }
-
-        // If we are writing and the buffer has been modified, flush the
-        // contents of the buffer.
-        if (!readonly && bufferModified) {
-            eraf.seek(bufferStart);
-            eraf.write(buffer, 0, dataSize);
-        }
-
-        // may need to extend eraf, in case no fill is neing used
-        // may need to truncate eraf in case overwriting a longer eraf
-        // use only if minLength is set (by N3iosp)
-        if (!readonly && (minLength != 0) && (minLength != eraf.length())) {
-            eraf.setLength(minLength);
-            // System.out.println("TRUNCATE!!! minlength="+minLength);
-        }
-
-        // Close the underlying eraf object.
-        eraf.close();
-
-    }
-
-    /**
-     * Close silently the underlying {@link RandomAccessFile}
-     */
-    public void finalize() {
         try {
-            close();
-        } catch (IOException ex) {
+            if (state.eraf == null) {
+                return;
+            }
+
+            // If we are writing and the buffer has been modified, flush the
+            // contents of the buffer.
+            if (!state.readonly && state.bufferModified) {
+                state.eraf.seek(state.bufferStart);
+                state.eraf.write(state.buffer, 0, state.dataSize);
+            }
+
+            // may need to extend eraf, in case no fill is neing used
+            // may need to truncate eraf in case overwriting a longer eraf
+            // use only if minLength is set (by N3iosp)
+            if (!state.readonly && (state.minLength != 0) && (state.minLength != state.eraf.length())) {
+                state.eraf.setLength(state.minLength);
+                // System.out.println("TRUNCATE!!! minlength="+minLength);
+            }
+
+            // Close the underlying eraf object.
+            state.eraf.close();
+
+        } finally {
+            CleanerRegistry.getInstance().cleanup(this);
         }
     }
+
 
     /**
      * Return true if eraf pointer is at end of eraf.
@@ -269,16 +244,16 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      * @return _more_
      */
     public FileChannel getChannel() {
-        if (eraf == null) {
+        if (state.eraf == null) {
             return null;
         }
 
         try {
-            eraf.seek(0);
+            state.eraf.seek(0);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return eraf.getChannel();
+        return state.eraf.getChannel();
     }
 
     /**
@@ -290,39 +265,39 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
     public long seek(long pos) throws IOException {
 
         // If the seek is into the buffer, just update the eraf pointer.
-        if ((pos >= bufferStart) && (pos < dataEnd)) {
+        if ((pos >= state.bufferStart) && (pos < dataEnd)) {
             filePosition = pos;
             return filePosition;
         }
 
         // If the current buffer is modified, write it to disk.
-        if (bufferModified) {
+        if (state.bufferModified) {
             flush();
         }
 
         // need new buffer
-        bufferStart = pos;
+        state.bufferStart = pos;
         filePosition = pos;
 
-        eraf.seek(pos);
+        state.eraf.seek(pos);
         //if(readonly)
         //    dataSize = eraf.read(buffer, 0, buffer.length);
         //else
         //    dataSize = eraf.read(buffer, 0, 1);
-        if (readonly)
-            dataSize = read_(pos, buffer, 0, buffer.length);
+        if (state.readonly)
+            state.dataSize = read_(pos, state.buffer, 0, state.buffer.length);
         else
-            dataSize = read_(pos, buffer, 0, 1);
+            state.dataSize = read_(pos, state.buffer, 0, 1);
 
-        if (dataSize <= 0) {
-            dataSize = 0;
+        if (state.dataSize <= 0) {
+            state.dataSize = 0;
             endOfFile = true;
         } else {
             endOfFile = false;
         }
 
         // Cache the position of the buffer end.
-        dataEnd = bufferStart + dataSize;
+        dataEnd = state.bufferStart + state.dataSize;
         return filePosition;
     }
 
@@ -354,7 +329,7 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      * @throws IOException if an I/O error occurrs.
      */
     public long length() throws IOException {
-        long fileLength = eraf.length();
+        long fileLength = state.eraf.length();
         if (fileLength < dataEnd) {
             return dataEnd;
         } else {
@@ -383,7 +358,7 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      * @throws IOException if an I/O error occurs.
      */
     public FileDescriptor getFD() throws IOException {
-        return (eraf == null) ? null : eraf.getFD();
+        return (state.eraf == null) ? null : state.eraf.getFD();
     }
 
     /**
@@ -392,10 +367,10 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      * @throws IOException if an I/O error occurrs.
      */
     public void flush() throws IOException {
-        if (bufferModified) {
-            eraf.seek(bufferStart);
-            eraf.write(buffer, 0, dataSize);
-            bufferModified = false;
+        if (state.bufferModified) {
+            state.eraf.seek(state.bufferStart);
+            state.eraf.write(state.buffer, 0, state.dataSize);
+            state.bufferModified = false;
         }
 
     }
@@ -407,7 +382,7 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      * @param minLength _more_
      */
     public void setMinLength(long minLength) {
-        this.minLength = minLength;
+        state.minLength = minLength;
     }
 
     // ////////////////////////////////////////////////////////////////////////////////////////////
@@ -424,9 +399,9 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
 
         // If the eraf position is within the data, return the byte...
         if (filePosition < dataEnd) {
-            final int pos = (int) (filePosition - bufferStart);
+            final int pos = (int) (filePosition - state.bufferStart);
             filePosition++;
-            return (buffer[pos] & 0xff);
+            return (state.buffer[pos] & 0xff);
 
             // ...or should we indicate EOF...
         } else if (endOfFile) {
@@ -467,7 +442,7 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
 
         // Copy as much as we can.
         final int copyLength = (bytesAvailable >= len) ? len : bytesAvailable;
-        System.arraycopy(buffer, (int) (filePosition - bufferStart), b, off, copyLength);
+        System.arraycopy(state.buffer, (int) (filePosition - state.bufferStart), b, off, copyLength);
         filePosition += copyLength;
 
         // If there is more to copy...
@@ -476,16 +451,16 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
 
             // If the amount remaining is more than a buffer's length, read it
             // directly from the eraf.
-            if (extraCopy > buffer.length) {
-                eraf.seek(filePosition);
-                extraCopy = eraf.read(b, off + copyLength, len - copyLength);
+            if (extraCopy > state.buffer.length) {
+                state.eraf.seek(filePosition);
+                extraCopy = state.eraf.read(b, off + copyLength, len - copyLength);
 
                 // ...or read a new buffer full, and copy as much as possible...
             } else {
                 seek(filePosition);
                 if (!endOfFile) {
-                    extraCopy = (extraCopy > dataSize) ? dataSize : extraCopy;
-                    System.arraycopy(buffer, 0, b, off + copyLength, extraCopy);
+                    extraCopy = (extraCopy > state.dataSize) ? state.dataSize : extraCopy;
+                    System.arraycopy(state.buffer, 0, b, off + copyLength, extraCopy);
                 } else {
                     extraCopy = -1;
                 }
@@ -516,8 +491,8 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
     private int read_(long pos, byte[] b, int offset, int len)
             throws IOException {
 
-        eraf.seek(pos);
-        return eraf.read(b, offset, len);
+        state.eraf.seek(pos);
+        return state.eraf.read(b, offset, len);
     }
 
     /**
@@ -644,8 +619,8 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
 
         // If the eraf position is within the block of data...
         if (filePosition < dataEnd) {
-            buffer[(int) (filePosition++ - bufferStart)] = (byte) b;
-            bufferModified = true;
+            state.buffer[(int) (filePosition++ - state.bufferStart)] = (byte) b;
+            state.bufferModified = true;
 
             // ...or (assuming that seek will not allow the eraf pointer
             // to move beyond the end of the eraf) get the correct block of
@@ -653,10 +628,10 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
         } else {
 
             // If there is room in the buffer, expand it...
-            if (dataSize != buffer.length) {
-                buffer[(int) (filePosition++ - bufferStart)] = (byte) b;
-                bufferModified = true;
-                dataSize++;
+            if (state.dataSize != state.buffer.length) {
+                state.buffer[(int) (filePosition++ - state.bufferStart)] = (byte) b;
+                state.bufferModified = true;
+                state.dataSize++;
                 dataEnd++;
 
                 // ...or do another seek to get a new buffer, and start again...
@@ -678,24 +653,24 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
     public void writeBytes(byte b[], int off, int len) throws IOException {
 
         // If the amount of data is small (less than a full buffer)...
-        if (len < buffer.length) {
+        if (len < state.buffer.length) {
 
             // If any of the data fits within the buffer...
             int spaceInBuffer = 0;
             int copyLength = 0;
-            if (filePosition >= bufferStart) {
-                spaceInBuffer = (int) ((bufferStart + buffer.length) - filePosition);
+            if (filePosition >= state.bufferStart) {
+                spaceInBuffer = (int) ((state.bufferStart + state.buffer.length) - filePosition);
             }
             if (spaceInBuffer > 0) {
 
                 // Copy as much as possible to the buffer.
                 copyLength = (spaceInBuffer > len) ? len : spaceInBuffer;
-                System.arraycopy(b, off, buffer,
-                        (int) (filePosition - bufferStart), copyLength);
-                bufferModified = true;
+                System.arraycopy(b, off, state.buffer,
+                        (int) (filePosition - state.bufferStart), copyLength);
+                state.bufferModified = true;
                 final long myDataEnd = filePosition + copyLength;
                 dataEnd = (myDataEnd > dataEnd) ? myDataEnd : dataEnd;
-                dataSize = (int) (dataEnd - bufferStart);
+                state.dataSize = (int) (dataEnd - state.bufferStart);
                 filePosition += copyLength;
                 // /System.out.println("--copy to buffer "+copyLength+" "+len);
             }
@@ -707,12 +682,12 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
                 // System.out.println("--need more "+copyLength+" "+len+" space=
                 // "+spaceInBuffer);
                 seek(filePosition); // triggers a flush
-                System.arraycopy(b, off + copyLength, buffer,
-                        (int) (filePosition - bufferStart), len - copyLength);
-                bufferModified = true;
+                System.arraycopy(b, off + copyLength, state.buffer,
+                        (int) (filePosition - state.bufferStart), len - copyLength);
+                state.bufferModified = true;
                 final long myDataEnd = filePosition + (len - copyLength);
                 dataEnd = (myDataEnd > dataEnd) ? myDataEnd : dataEnd;
-                dataSize = (int) (dataEnd - bufferStart);
+                state.dataSize = (int) (dataEnd - state.bufferStart);
                 filePosition += (len - copyLength);
             }
 
@@ -720,13 +695,13 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
         } else {
 
             // Flush the current buffer, and write this data to the eraf.
-            if (bufferModified) {
+            if (state.bufferModified) {
                 flush();
-                bufferStart = dataEnd = dataSize = 0;
+                state.bufferStart = dataEnd = state.dataSize = 0;
                 // eraf.seek(filePosition); // JC added Oct 21, 2004
             }
-            eraf.seek(filePosition); // moved per Steve Cerruti; Jan 14, 2005
-            eraf.write(b, off, len);
+            state.eraf.seek(filePosition); // moved per Steve Cerruti; Jan 14, 2005
+            state.eraf.write(b, off, len);
             // System.out.println("--write at "+filePosition+" "+len);
             filePosition += len;
         }
@@ -1548,9 +1523,9 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
      * @return a string representation of the state of the object.
      */
     public String toString() {
-        return "fp=" + filePosition + ", bs=" + bufferStart + ", de=" + dataEnd
-                + ", ds=" + dataSize + ", bl=" + buffer.length + ", readonly="
-                + readonly + ", bm=" + bufferModified;
+        return "fp=" + filePosition + ", bs=" + state.bufferStart + ", de=" + dataEnd
+                + ", ds=" + state.dataSize + ", bl=" + state.buffer.length + ", readonly="
+                + state.readonly + ", bm=" + state.bufferModified;
     }
 
     /**
@@ -1590,4 +1565,57 @@ public final class EnhancedRandomAccessFile implements DataInput, DataOutput {
         return location;
     }
 
+
+    private static final class EnhancedRandomAccessFileState implements CleanUpState {
+        private java.io.RandomAccessFile eraf;
+        private byte[] buffer;
+        private long bufferStart;
+        private int dataSize;
+        private boolean readonly;
+        private boolean bufferModified;
+        private long minLength;
+
+        private EnhancedRandomAccessFileState(java.io.RandomAccessFile eraf,
+                                              byte[] buffer,
+                                              long bufferStart,
+                                              int dataSize,
+                                              boolean readonly,
+                                              boolean bufferModified,
+                                              long minLength) {
+            this.eraf = eraf;
+            this.buffer = buffer;
+            this.bufferStart = bufferStart;
+            this.dataSize = dataSize;
+            this.readonly = readonly;
+            this.bufferModified = bufferModified;
+            this.minLength = minLength;
+        }
+
+        @Override
+        public synchronized void run() {
+            final RandomAccessFile current = eraf;
+            if (current == null) {
+                return;
+            }
+
+            try {
+                if (!readonly && bufferModified) {
+                    current.seek(bufferStart);
+                    current.write(buffer, 0, dataSize);
+                }
+
+                if (!readonly && minLength != 0 && minLength != current.length()) {
+                    current.setLength(minLength);
+                }
+
+                current.close();
+            } catch (IOException ignore) {
+            } finally {
+                eraf = null;
+                bufferModified = false;
+                dataSize = 0;
+                minLength = 0;
+            }
+        }
+    }
 }

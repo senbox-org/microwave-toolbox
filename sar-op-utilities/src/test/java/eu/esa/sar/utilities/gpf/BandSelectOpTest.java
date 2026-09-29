@@ -17,6 +17,7 @@ package eu.esa.sar.utilities.gpf;
 
 import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.junit.Test;
 
 import java.awt.*;
@@ -27,6 +28,19 @@ import static org.junit.Assert.*;
  * @author Marco Peters
  */
 public class BandSelectOpTest {
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final BandSelectOp op = (BandSelectOp) new BandSelectOp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = BandSelectOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("BandSelect", md.alias());
+    }
 
     @Test
     public void basicTest() {

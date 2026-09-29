@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.orbits.io;
 
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.engine_utilities.datamodel.Orbits;
 
 import java.io.File;
@@ -50,4 +51,11 @@ public interface OrbitFile {
     File getOrbitFile();
 
     default String getVersion() { return null; }
+
+    /**
+     * Returns true when the orbit this provider would supply is already present in the source
+     * product (i.e. applying it would not change the state vectors). Used by ApplyOrbitFileOp
+     * to short-circuit the metadata rewrite. The default implementation returns false.
+     */
+    default boolean isOrbitAlreadyApplied(final MetadataElement productAbsRoot) { return false; }
 }

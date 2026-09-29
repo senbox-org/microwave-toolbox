@@ -135,7 +135,7 @@
 				],
 				"spectralWavelength": "0.0",
 				"spectralBandwidth": "0.0",
-				"name": "Amplitude",
+				"name": "Amplitude_VV",
 				"noDataValue": "0.0",
 				"geophysicalUnit": "amplitude"
 			}, {
@@ -154,7 +154,7 @@
 				],
 				"spectralWavelength": "0.0",
 				"spectralBandwidth": "0.0",
-				"name": "Intensity",
+				"name": "Intensity_VV",
 				"noDataValue": "0.0",
 				"description": "Intensity from complex data",
 				"geophysicalUnit": "intensity"

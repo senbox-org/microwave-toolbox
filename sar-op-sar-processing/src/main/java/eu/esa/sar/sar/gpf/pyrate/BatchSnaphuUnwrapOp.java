@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 
 @OperatorMetadata(alias = "BatchSnaphuUnwrapOp",
@@ -153,15 +154,18 @@ public class BatchSnaphuUnwrapOp extends Operator {
     }
 
     File [] getSnaphuConfigFiles(File directory){
+        final String[] entries = directory.list();
+        if (entries == null) {
+            return new File[0];
+        }
         ArrayList<File> configFiles = new ArrayList<>();
-        for(String file: directory.list()){
+        for(String file: entries){
             File aFile = new File(directory, file);
             if(file.endsWith("snaphu.conf") && ! file.equals("snaphu.conf")){
-                configFiles.add(aFile);            }
+                configFiles.add(aFile);
+            }
         }
-
-        return configFiles.toArray(new File[]{});
-
+        return configFiles.toArray(new File[0]);
     }
 
     File downloadSnaphu(File snaphuInstallLocation) throws IOException {
@@ -204,60 +208,109 @@ public class BatchSnaphuUnwrapOp extends Operator {
 
     void callSnaphuUnwrap(File snaphuBinary, File configFile, File logFile, ProgressMonitor pm, String msgPrefix) throws IOException {
         File workingDir = configFile.getParentFile();
-        String command = null;
-        try(BufferedReader in = new BufferedReader(new FileReader(configFile), 1024)){
-            // SNAPHU command is on the 7th line
-            for(int x = 0; x < 6; x++){
+        // Extract the snaphu args from line 7 of the config file, which has the form:
+        //   "#  snaphu <arg1> <arg2> ..."   (the leading `# ` or `#snaphu ` is comment-prefix).
+        // The previous code did `substring(14)` which assumed an exact comment prefix length
+        // and would throw or capture wrong characters if the template changed; we instead
+        // strip the comment prefix and the literal `snaphu` token defensively.
+        List<String> snaphuArgs = null;
+        try (BufferedReader in = new BufferedReader(new FileReader(configFile), 1024)) {
+            for (int x = 0; x < 6; x++) {
                 in.readLine();
             }
-            // Start at 14th character to get rid of the binary prefix and comment symbol of the command
-            command = in.readLine().substring(14);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            final String line7 = in.readLine();
+            if (line7 == null) {
+                throw new IOException("SNAPHU config file " + configFile + " has fewer than 7 lines");
+            }
+            String stripped = line7;
+            // Drop comment prefix.
+            while (!stripped.isEmpty() && (stripped.charAt(0) == '#' || Character.isWhitespace(stripped.charAt(0)))) {
+                stripped = stripped.substring(1);
+            }
+            // Drop the literal "snaphu" token if present (we substitute our own binary path).
+            if (stripped.toLowerCase().startsWith("snaphu")) {
+                stripped = stripped.substring("snaphu".length()).trim();
+            }
+            snaphuArgs = new ArrayList<>();
+            for (String tok : stripped.split("\\s+")) {
+                if (!tok.isEmpty()) {
+                    snaphuArgs.add(tok);
+                }
+            }
         }
-        if (command != null){
-            Process proc = Runtime.getRuntime().exec(snaphuBinary.toString() + command, null, workingDir);
-            BufferedReader stdInput = new BufferedReader(new
-                    InputStreamReader(proc.getInputStream()));
+        if (snaphuArgs != null && !snaphuArgs.isEmpty()) {
+            // Build the argv list explicitly so paths containing spaces in the binary
+            // location don't get fragmented by string-form whitespace tokenization.
+            final List<String> argv = new ArrayList<>();
+            argv.add(snaphuBinary.toString());
+            argv.addAll(snaphuArgs);
+            final ProcessBuilder pb = new ProcessBuilder(argv);
+            pb.directory(workingDir);
+            pb.redirectErrorStream(true);
+            final Process proc = pb.start();
 
-            BufferedReader stdError = new BufferedReader(new
-                    InputStreamReader(proc.getErrorStream()));
-
-            if (!logFile.exists()){
-                FileUtils.write(logFile, "");
+            try (BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+                 FileWriter logWriter = new FileWriter(logFile, true)) {
+                String s;
+                while ((s = stdInput.readLine()) != null) {
+                    if (pm.isCanceled()) {
+                        proc.destroy();
+                        throw new IOException("SNAPHU unwrap cancelled by user");
+                    }
+                    logWriter.write(s);
+                    logWriter.write(System.lineSeparator());
+                    logWriter.flush();
+                    pm.setTaskName(msgPrefix + s);
+                }
             }
 
-            // Read the output from the command
-            String s = null;
-            while ((s = stdInput.readLine()) != null) {
-                FileUtils.write(logFile, FileUtils.readFileToString(logFile, "utf-8") + "\n" + s);
-                pm.setTaskName(msgPrefix + s);
-
-            }
-            // Read any errors from the attempted command
-            while ((s = stdError.readLine()) != null) {
-
-                FileUtils.write(logFile, FileUtils.readFileToString(logFile, "utf-8") + "\n" + s);
+            try {
+                final int exitCode = proc.waitFor();
+                if (exitCode != 0) {
+                    throw new IOException("SNAPHU exited with code " + exitCode
+                            + " for config " + configFile.getName());
+                }
+            } catch (InterruptedException e) {
+                proc.destroy();
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting for SNAPHU", e);
             }
         }
     }
 
 
-    Product assembleUnwrappedFilesIntoSingularProduct(File directory) throws IOException {
-        Product sourceProduct = getSourceProduct();
+    /**
+     * Copy unwrapped phase bands from each ENVI file directly into the supplied target
+     * product. Previously this method mutated the OPERATOR'S INPUT product (removing
+     * wrapped bands and inserting unwrapped ones), which violates GPF's immutable-source
+     * contract and corrupts any downstream graph node that still holds a reference to
+     * the source. We now write to the target and close each ENVI reader so file handles
+     * don't accumulate.
+     */
+    void assembleUnwrappedFilesIntoSingularProduct(File directory, Product targetProduct) throws IOException {
         File [] fileNames = directory.listFiles((dir, name) -> name.startsWith("UnwPhase") && name.endsWith(".hdr"));
-        EnviProductReaderPlugIn readerPlugIn = new EnviProductReaderPlugIn();
-        ProductReader enviProductReader = readerPlugIn.createReaderInstance();
-        for (File fileName : fileNames){
-            Product enviProduct = enviProductReader.readProductNodes(fileName, null);
-            String unwrappedPhaseBandName = enviProduct.getBands()[0].getName().replace(".snaphu.hdr", "");
-            Band wrappedPhaseBand = sourceProduct.getBand(unwrappedPhaseBandName.substring(3));
-            sourceProduct.removeBand(wrappedPhaseBand);
-            ProductUtils.copyBand(unwrappedPhaseBandName, enviProduct, sourceProduct, true);
+        if (fileNames == null) {
+            throw new IOException("Unable to list SNAPHU output directory: " + directory);
         }
-        return sourceProduct;
+        final EnviProductReaderPlugIn readerPlugIn = new EnviProductReaderPlugIn();
+        for (File fileName : fileNames) {
+            final ProductReader enviProductReader = readerPlugIn.createReaderInstance();
+            Product enviProduct = null;
+            try {
+                enviProduct = enviProductReader.readProductNodes(fileName, null);
+                final String unwrappedPhaseBandName = enviProduct.getBands()[0].getName().replace(".snaphu.hdr", "");
+                ProductUtils.copyBand(unwrappedPhaseBandName, enviProduct, targetProduct, true);
+            } finally {
+                if (enviProduct != null) {
+                    enviProduct.dispose();
+                }
+                try {
+                    enviProductReader.close();
+                } catch (IOException ignore) {
+                    // best-effort close
+                }
+            }
+        }
     }
 
     @Override
@@ -287,18 +340,15 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 callSnaphuUnwrap(snaphuBinary, configFiles[x], snaphuLogFile, pm, prefix);
                 pm.worked(work);
             }
-            // Place all unwrapped bands into a single product.
-            Product assembled = assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation);
-            Band [] emptyTrgProductBands = getTargetProduct().getBands();
 
-            for (Band b : emptyTrgProductBands){
-                getTargetProduct().removeBand(b);
+            // Reset the target product's bands (placeholder bands from initialize), then
+            // copy the assembled unwrapped phase bands directly into the target — no
+            // mutation of the source product.
+            final Product targetProduct = getTargetProduct();
+            for (Band b : targetProduct.getBands()) {
+                targetProduct.removeBand(b);
             }
-
-            for(Band b : assembled.getBands()){
-                b.readRasterDataFully();
-                ProductUtils.copyBand(b.getName(), assembled, getTargetProduct(), true);
-            }
+            assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation, targetProduct);
 
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -1,6 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import RADARSAT-2</title>
-
+<html><head><title>Help - Import RCM</title>
 
 
 
@@ -9,87 +8,90 @@
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import RADARSAT Constellation Mission<br>
-</td>
+        <td class="header">&nbsp; Import RADARSAT Constellation Mission</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import RADARSAT Constellation Mission Product</h3>
+<h3>Import RADARSAT Constellation Mission (RCM) Product</h3>
 
-<p>
-
-</p>
-
-<p class="MsoNormal">Radasat Constellation Mission (RCM) is a SAR constellation
-of 3 satellites by the CSA. Data is acquired based on the observation scenarios
-of the government of Canada and cannot be tasked by the public. Archive data
-will be available free and open.</p>
+<p class="MsoNormal">The RADARSAT Constellation Mission (RCM) is a C-band SAR constellation
+of 3 satellites operated by the Canadian Space Agency (CSA). The constellation provides
+a 4-day revisit at mid-latitudes and daily coverage at high Arctic latitudes.</p>
 
 
 <p class="MsoNormal"><b style="">Operational: </b>2019-06-12
-to present</p>
+to present (3 satellites: RCM-1, RCM-2, RCM-3)</p>
 
 
 <p class="MsoNormal"><b style="">Frequency Band:</b>
-C-band</p>
+C-band (5.405 GHz)</p>
 
 
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, ScanSAR, Spotlight, Ship Detection</p>
-
-
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
-
+<p class="MsoNormal"><b style="">Acquisition Modes:</b></p>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SLC Single Look Complex</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GRC Ground Range Complex</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GCC Ground Range Geocoded</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GRD Ground Range Detected</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GCD Ground Range Geocoded Detected</li>
+    <li>Spotlight (~1 m x 3 m resolution, ~20 km swath)</li>
+    <li>Very High Resolution 3m (~3 m, ~20 km swath)</li>
+    <li>High Resolution 5m (~5 m, ~30 km swath)</li>
+    <li>Medium Resolution 16m (~16 m, ~30-40 km swath)</li>
+    <li>Medium Resolution 30m ScanSAR (~30 m, ~125 km swath)</li>
+    <li>Medium Resolution 50m ScanSAR (~50 m, ~350 km swath)</li>
+    <li>Low Resolution 100m ScanSAR (~100 m, ~500 km swath)</li>
+    <li>Low Noise (~100 m, ~350 km, optimized NESZ)</li>
+    <li>Ship Detection (~40 m, ~350 km)</li>
+    <li>Quad-Pol (~9 m, ~20 km)</li>
 </ul>
 
 
+<p class="MsoNormal"><b style="">Product Types:</b></p>
+
+<ul>
+    <li>SLC Single Look Complex (slant range, complex I/Q data)</li>
+    <li>GRC Ground Range Complex (ground range, complex data)</li>
+    <li>GCC Ground Range Geocoded Complex</li>
+    <li>GRD Ground Range Detected (multi-looked amplitude)</li>
+    <li>GCD Ground Range Geocoded Detected</li>
+    <li>MLC Multi-Look Covariance (covariance matrix: C11, C12, C22)</li>
+</ul>
 
 
+<p class="MsoNormal"><b style="">Polarizations:</b></p>
+<ul>
+    <li>Single Pol (HH or VV)</li>
+    <li>Dual Pol (HH+HV or VV+VH)</li>
+    <li>Compact Polarimetry (RH+RV — circular transmit, linear receive)</li>
+    <li>Full Quad-Pol (HH+HV+VH+VV, dedicated mode only)</li>
+</ul>
+
+<p class="MsoNormal"><b style="">Compact Polarimetry (CP):</b>
+RCM's signature capability. Transmits right-hand circular polarization and receives on H and V linear
+channels simultaneously. Available across all wide-swath modes. Enables Stokes parameter decomposition
+and approximate full-polarimetric analysis.</p>
 
 
-
-
-
-
-<p class="MsoNormal"><b style="">Polarizations: </b>Single
-Pol (HH), Dual Pol and<b style=""> </b>Full Pol (HH+HV+VV+VH),
-Compact Pol (RH+RV)<b style=""></b></p>
+<p class="MsoNormal"><b style="">Calibration:</b>
+Products include per-pixel LUT files (lutSigma.xml, lutBeta.xml, lutGamma.xml) for radiometric
+calibration. Noise floor annotations are provided in noiseLevels.xml.</p>
 
 
 <p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the manifest.safe file. Opening zipped
-products (*.zip) directly is also supported.</p>
+Products can be opened by selecting the manifest.safe file, the product directory, or a ZIP archive.
+The reader supports all product types and polarization modes.</p>
+
+
+<p class="MsoNormal"><b style="">Data Access:</b></p>
+<ul>
+    <li>EODMS: <a href="https://www.eodms-sgdot.nrcan-rncan.gc.ca/">https://www.eodms-sgdot.nrcan-rncan.gc.ca/</a></li>
+    <li>Open Canada: <a href="https://open.canada.ca/">https://open.canada.ca/</a> (select open datasets)</li>
+</ul>
 
 
 <p class="MsoNormal"><b style="">Further Information: </b></p>
 
-
-<p class="MsoNormal"><a href="http://www.asc-csa.gc.ca/eng/satellites/radarsat">http://www.asc-csa.gc.ca/eng/satellites/radarsat</a></p>
-
+<p class="MsoNormal"><a href="https://www.asc-csa.gc.ca/eng/satellites/radarsat/">https://www.asc-csa.gc.ca/eng/satellites/radarsat/</a></p>
 
 <p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/r/rcm">https://directory.eoportal.org/web/eoportal/satellite-missions/r/rcm</a></p>
-<a href="https://directory.eoportal.org/web/eoportal/satellite-missions/r/radarsat-2"></a>
 
-
-<p></p>
-
-
-<p></p>
-
-<p></p>
 
 <hr>
 </body></html>

@@ -95,7 +95,7 @@ public class ChangeDetectionOp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
-            if(!outputRatio && !outputLogRatio && !outputNormalizedRatio) {
+            if (!outputDifference && !outputRatio && !outputLogRatio && !outputNormalizedRatio) {
                 throw new OperatorException("Please select an output");
             }
 
@@ -175,69 +175,44 @@ public class ChangeDetectionOp extends Operator {
         }
 
         Band srcBand1 = sourceProduct.getBand(sourceBandNames[0]);
-        String expression = null;
-        Band targetBand = null;
 
         if (outputDifference) {
-            final Band targetRatioBand = new Band(DIFFERENCE_BAND_NAME, ProductData.TYPE_FLOAT32,
-                    srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
-
-            targetRatioBand.setNoDataValue(0);
-            targetRatioBand.setNoDataValueUsed(true);
-            targetRatioBand.setUnit("diff");
-
-            targetProduct.addBand(targetRatioBand);
-
-            expression = targetRatioBand.getName() + " > "+ maskUpperThreshold+" ? 1 : " + targetRatioBand.getName() + " < "+maskLowerThreshold+" ? -1 : 0";
-            targetBand = targetRatioBand;
+            addOutputBandAndMask(srcBand1, DIFFERENCE_BAND_NAME, "diff",
+                    maskUpperThreshold, maskLowerThreshold);
         }
 
         if (outputRatio) {
-            final Band targetRatioBand = new Band(RATIO_BAND_NAME, ProductData.TYPE_FLOAT32,
-                    srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
-
-            targetRatioBand.setNoDataValue(0);
-            targetRatioBand.setNoDataValueUsed(true);
-            targetRatioBand.setUnit("ratio");
-
-            targetProduct.addBand(targetRatioBand);
-
-            expression = targetRatioBand.getName() + " > "+ maskUpperThreshold+" ? 1 : " + targetRatioBand.getName() + " < "+maskLowerThreshold+" ? -1 : 0";
-            targetBand = targetRatioBand;
+            addOutputBandAndMask(srcBand1, RATIO_BAND_NAME, "ratio",
+                    maskUpperThreshold, maskLowerThreshold);
         }
 
         if (outputLogRatio) {
-            final Band targetRatioBand = new Band(LOG_RATIO_BAND_NAME, ProductData.TYPE_FLOAT32,
-                    srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
-
-            targetRatioBand.setNoDataValue(0);
-            targetRatioBand.setNoDataValueUsed(true);
-            targetRatioBand.setUnit("log_ratio");
-            targetProduct.addBand(targetRatioBand);
-
-            expression = targetRatioBand.getName() + " > "+ maskUpperThreshold+" ? 1 : " + targetRatioBand.getName() + " < "+maskLowerThreshold+" ? -1 : 0";
-            targetBand = targetRatioBand;
+            addOutputBandAndMask(srcBand1, LOG_RATIO_BAND_NAME, "log_ratio",
+                    maskUpperThreshold, maskLowerThreshold);
         }
 
         if (outputNormalizedRatio) {
-            final Band targetRatioBand = new Band(NORMALIZED_RATIO_BAND_NAME, ProductData.TYPE_FLOAT32,
-                    srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
-
-            targetRatioBand.setNoDataValue(0);
-            targetRatioBand.setNoDataValueUsed(true);
-            targetRatioBand.setUnit("ratio");
-            targetProduct.addBand(targetRatioBand);
-
-            expression = targetRatioBand.getName() + " > 0.2 ? 1 : " + targetRatioBand.getName() + " < 0 ? -1 : 0";
-            targetBand = targetRatioBand;
+            addOutputBandAndMask(srcBand1, NORMALIZED_RATIO_BAND_NAME, "ratio",
+                    maskUpperThreshold, maskLowerThreshold);
         }
+    }
 
-        //create Mask
-        final Mask mask = new Mask(targetBand.getName() + MASK_NAME,
-                targetBand.getRasterWidth(),
-                targetBand.getRasterHeight(),
+    private void addOutputBandAndMask(final Band srcBand1, final String bandName, final String unit,
+                                      final double upper, final double lower) {
+        final Band band = new Band(bandName, ProductData.TYPE_FLOAT32,
+                srcBand1.getRasterWidth(), srcBand1.getRasterHeight());
+        band.setNoDataValue(0);
+        band.setNoDataValueUsed(true);
+        band.setUnit(unit);
+        targetProduct.addBand(band);
+
+        final String expression = band.getName() + " > " + upper + " ? 1 : "
+                + band.getName() + " < " + lower + " ? -1 : 0";
+
+        final Mask mask = new Mask(band.getName() + MASK_NAME,
+                band.getRasterWidth(),
+                band.getRasterHeight(),
                 Mask.BandMathsType.INSTANCE);
-
         mask.setDescription("Change");
         mask.getImageConfig().setValue("color", Color.RED);
         mask.getImageConfig().setValue("transparency", 0.7);

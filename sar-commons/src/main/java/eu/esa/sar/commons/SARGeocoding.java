@@ -307,6 +307,40 @@ public final class SARGeocoding {
         return Math.sqrt(xDiff * xDiff + yDiff * yDiff + zDiff * zDiff);
     }
 
+    public static double computeSlantRangeFast(OrbitStateVectors orbit,
+                                               double firstLineUTC, double lineTimeInterval,
+                                               double zeroDopplerTime, PosVector earthPoint, PosVector sensorPos) {
+        double azimuthIndex = (zeroDopplerTime - firstLineUTC) / lineTimeInterval;
+
+        if (azimuthIndex >= 0 && azimuthIndex <= orbit.sensorPosition.length - 1) {
+            getSensorPositionFast(orbit, azimuthIndex, sensorPos);
+        } else {
+            orbit.getPosition(zeroDopplerTime, sensorPos);
+        }
+
+        double xDiff = sensorPos.x - earthPoint.x;
+        double yDiff = sensorPos.y - earthPoint.y;
+        double zDiff = sensorPos.z - earthPoint.z;
+
+        return Math.sqrt(xDiff * xDiff + yDiff * yDiff + zDiff * zDiff);
+    }
+
+    private static void getSensorPositionFast(OrbitStateVectors orbit, double azimuthIndex, PosVector sensorPos) {
+        int i = (int) azimuthIndex;
+        if (i < 0) i = 0;
+        if (i >= orbit.sensorPosition.length - 1) i = orbit.sensorPosition.length - 2;
+
+        double mu = azimuthIndex - i;
+
+        // Linear interpolation of precomputed sensor positions
+        PosVector p0 = orbit.sensorPosition[i];
+        PosVector p1 = orbit.sensorPosition[i+1];
+
+        sensorPos.x = p0.x + mu * (p1.x - p0.x);
+        sensorPos.y = p0.y + mu * (p1.y - p0.y);
+        sensorPos.z = p0.z + mu * (p1.z - p0.z);
+    }
+
     /**
      * Compute range index in source image for earth point with given zero Doppler time and slant range.
      *
@@ -559,7 +593,7 @@ public final class SARGeocoding {
      * @param localIncidenceAngles             The local incidence angle and projected local incidence angle.
      */
     public static void computeLocalIncidenceAngle(
-            final LocalGeometry lg, final Double demNoDataValue, final boolean saveLocalIncidenceAngle,
+            final LocalGeometry lg, final double demNoDataValue, final boolean saveLocalIncidenceAngle,
             final boolean saveProjectedLocalIncidenceAngle, final boolean saveSigmaNought, final int x0,
             final int y0, final int x, final int y, final double[][] localDEM, final double[] localIncidenceAngles) {
 
@@ -572,7 +606,8 @@ public final class SARGeocoding {
         for (int i = 0; i < 3; i++) {
             final int yy = y - y0 + i;
             for (int j = 0; j < 3; j++) {
-                if (demNoDataValue.equals(localDEM[yy][x - x0 + j])) {
+                final double a = localDEM[yy][x - x0 + j];
+                if (Double.isNaN(a) || a == demNoDataValue) {
                     return;
                 }
             }
@@ -661,7 +696,7 @@ public final class SARGeocoding {
         final int maxY = localDEM.length - 1;
         final int numN = 3;
         final GeoPos geo = new GeoPos();
-        Double alt;
+        double alt;
 
         double rightPointHeight = 0, leftPointHeight = 0, upPointHeight = 0, downPointHeight = 0;
 
@@ -673,7 +708,7 @@ public final class SARGeocoding {
             } else {
                 alt = localDEM[yy][xx + n];
             }
-            if (!alt.equals(demNoDataValue)) {
+            if (!Double.isNaN(alt) && alt != demNoDataValue) {
                 rightPointHeight += alt;
                 ++cnt;
             }
@@ -689,7 +724,7 @@ public final class SARGeocoding {
             } else {
                 alt = localDEM[yy][xx - n];
             }
-            if (!alt.equals(demNoDataValue)) {
+            if (!Double.isNaN(alt) && alt != demNoDataValue) {
                 leftPointHeight += alt;
                 ++cnt;
             }
@@ -705,7 +740,7 @@ public final class SARGeocoding {
             } else {
                 alt = localDEM[yy - n][xx];
             }
-            if (!alt.equals(demNoDataValue)) {
+            if (!Double.isNaN(alt) && alt != demNoDataValue) {
                 upPointHeight += alt;
                 ++cnt;
             }
@@ -721,7 +756,7 @@ public final class SARGeocoding {
             } else {
                 alt = localDEM[yy + n][xx];
             }
-            if (!alt.equals(demNoDataValue)) {
+            if (!Double.isNaN(alt) && alt != demNoDataValue) {
                 downPointHeight += alt;
                 ++cnt;
             }
@@ -949,5 +984,133 @@ public final class SARGeocoding {
         lookDirectionElem.setAttributeDouble("tail_lat", geoPosTail.lat);
         lookDirectionElem.setAttributeDouble("tail_lon", geoPosTail.lon);
         lookDirectionListElem.addElement(lookDirectionElem);
+    }
+
+    /**
+     * Validates the consistency of SRGR parameters against the orbit data using a known ground control point (GCP).
+     * <p>
+     * This method performs a "forward-then-reverse" check:
+     * <ol>
+     *     <li>Calculates the "true" slant range to a given ground point (lat, lon, height) using the orbit data.</li>
+     *     <li>Uses the SRGR coefficients to convert this slant range back into a ground range and then a range pixel index.</li>
+     *     <li>Compares this calculated range index with the expected range index from the GCP.</li>
+     * </ol>
+     * A large difference indicates an inconsistency between the orbit data and the SRGR coefficients in the product metadata.
+     *
+     * @param pixelPos         The expected pixel position of the GCP.
+     * @param geoPos           The geographic position of the GCP.
+     * @param height           The height of the GCP above the ellipsoid.
+     * @param orbit            The orbit state vectors.
+     * @param srgrConvParams   The SRGR conversion parameters from the product.
+     * @param rangeSpacing     The range spacing in meters (for ground range products).
+     * @param firstLineUTC     The UTC time of the first image line.
+     * @param lastLineUTC      The UTC time of the last image line.
+     * @param lineTimeInterval The time interval between lines.
+     * @param wavelength       The radar wavelength.
+     * @param sourceImageWidth The width of the source image in pixels.
+     * @return The error in pixels (calculated - expected). Returns a large negative value on failure.
+     * @throws Exception if SRGR coefficients cannot be retrieved.
+     */
+    public static double validateSRGR(
+            final PixelPos pixelPos, final GeoPos geoPos, final double height,
+            final OrbitStateVectors orbit,
+            final AbstractMetadata.SRGRCoefficientList[] srgrConvParams,
+            final double rangeSpacing,
+            final double firstLineUTC, final double lastLineUTC,
+            final double lineTimeInterval, final double wavelength,
+            final int sourceImageWidth) throws Exception {
+
+        // 1. Convert GeoPos to ECEF cartesian coordinates
+        final PosVector earthPoint = new PosVector();
+        GeoUtils.geo2xyzWGS84(geoPos.getLat(), geoPos.getLon(), height, earthPoint);
+
+        // 2. Compute the zero Doppler time for this earth point
+        final double zeroDopplerTime = getZeroDopplerTime(lineTimeInterval, wavelength, earthPoint, orbit);
+        if (zeroDopplerTime == NonValidZeroDopplerTime) {
+            System.err.println("SRGR Validation Failed: Could not compute a valid zero Doppler time for the GCP.");
+            return -9999.0;
+        }
+
+        // 3. Compute the "true" slant range based on orbit data
+        final PosVector sensorPos = new PosVector();
+        final double slantRangeFromOrbit = computeSlantRange(zeroDopplerTime, orbit, earthPoint, sensorPos);
+
+        // 4. Use the SRGR parameters to convert this slant range back to a range index
+        final double calculatedRangeIndex = computeExtendedRangeIndex(
+                true, sourceImageWidth, firstLineUTC, lastLineUTC,
+                rangeSpacing, zeroDopplerTime, slantRangeFromOrbit,
+                0.0, // nearEdgeSlantRange is not used for SRGR
+                srgrConvParams);
+
+        if (calculatedRangeIndex < 0) {
+            System.err.println("SRGR Validation Failed: The slant range calculated from orbit data (" + slantRangeFromOrbit + " m) " +
+                               "appears to be outside the valid range defined by the SRGR conversion polynomial.");
+
+            // For debugging, let's find the SRGR bounds at this time
+            int idx = 0;
+            for (int i = 0; i < srgrConvParams.length && zeroDopplerTime >= srgrConvParams[i].timeMJD; i++) {
+                idx = i;
+            }
+            final double ground_range_origin = srgrConvParams[idx].ground_range_origin;
+            final double[] srgrCoeffs = getSRGRCoefficients(zeroDopplerTime, srgrConvParams);
+            final double lowerSlantRange = Maths.computePolynomialValue(0, srgrCoeffs);
+            final double upperSlantRange = Maths.computePolynomialValue(sourceImageWidth * rangeSpacing, srgrCoeffs);
+            System.err.println("SRGR polynomial slant range bounds for this azimuth time: [" + lowerSlantRange + ", " + upperSlantRange + "]");
+            return -9998.0;
+        }
+
+        // 5. Compare with the known range index from the GCP
+        final double errorInPixels = calculatedRangeIndex - pixelPos.getX();
+        System.out.printf("SRGR Validation: Expected pixel X=%.2f, Calculated pixel X=%.2f, Error=%.2f pixels%n",
+                          pixelPos.getX(), calculatedRangeIndex, errorInPixels);
+        return errorInPixels;
+    }
+
+    /**
+     * Compute one-way atmospheric path delay for a given target using a standard atmosphere model.
+     * <p>
+     * Uses the Saastamoinen dry tropospheric delay model mapped to the slant range direction.
+     * The dry component captures ~90% of the total delay (~2.3 m zenith) and does not require
+     * real-time meteorological data. The wet component (~0.1-0.3 m) is omitted.
+     * <p>
+     * Reference: Section 4.6.1 of UZH-S1-GC-AD v1.12 "Guide to Sentinel-1 Geocoding".
+     *
+     * @param earthPoint The target position in ECEF coordinates (m).
+     * @param sensorPos  The sensor position in ECEF coordinates (m).
+     * @param latitude   The target geodetic latitude in degrees.
+     * @param altitude   The target altitude above the ellipsoid in meters.
+     * @return One-way atmospheric path delay in meters (always positive).
+     */
+    public static double computeAtmosphericPathDelay(
+            final PosVector earthPoint, final PosVector sensorPos,
+            final double latitude, final double altitude) {
+
+        // Zenith dry tropospheric delay using Saastamoinen model:
+        // ZPD_dry = 0.0022768 * P_surface / f(lat, h)
+        // P_surface from standard atmosphere: P = 1013.25 * (1 - 2.2557e-5 * h)^5.2568
+        // f(lat, h) = 1 - 0.00266 * cos(2*lat) - 0.00028 * h_km
+
+        final double h = Math.max(altitude, 0.0);
+        final double pressure = 1013.25 * Math.pow(1.0 - 2.2557e-5 * h, 5.2568);
+        final double latRad = latitude * Constants.DTOR;
+        final double gravityFactor = 1.0 - 0.00266 * Math.cos(2.0 * latRad) - 0.00028 * (h / 1000.0);
+        final double zenithDelay = 0.0022768 * pressure / gravityFactor;
+
+        // Compute incidence angle from geometry: cos(theta) = P_hat . (S - P) / |S - P|
+        final double dx = sensorPos.x - earthPoint.x;
+        final double dy = sensorPos.y - earthPoint.y;
+        final double dz = sensorPos.z - earthPoint.z;
+        final double slantRange = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        final double earthRadius = Math.sqrt(earthPoint.x * earthPoint.x + earthPoint.y * earthPoint.y + earthPoint.z * earthPoint.z);
+
+        // dot product of earth normal (P/|P|) and look direction ((S-P)/|S-P|)
+        final double cosIncAngle = (earthPoint.x * dx + earthPoint.y * dy + earthPoint.z * dz) / (earthRadius * slantRange);
+
+        if (cosIncAngle <= 0.0 || cosIncAngle > 1.0) {
+            return 0.0;
+        }
+
+        // One-way slant path delay = zenith delay / cos(incidence angle)
+        return zenithDelay / cosIncAngle;
     }
 }

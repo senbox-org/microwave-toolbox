@@ -293,7 +293,7 @@ public class Risat1ProductReader extends SARReader {
             }
         }
     } catch (Exception e) {
-        e.printStackTrace();
+        org.esa.snap.core.util.SystemUtils.LOG.severe("Error reading RISAT band raster data: " + e.getMessage());
     }
     }
 

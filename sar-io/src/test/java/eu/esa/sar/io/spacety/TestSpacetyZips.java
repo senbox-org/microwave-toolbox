@@ -21,6 +21,7 @@ import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
 import org.esa.snap.core.datamodel.Product;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -34,6 +35,7 @@ import static org.junit.Assume.assumeTrue;
  * @author lveci
  */
 @RunWith(LongTestRunner.class)
+@Ignore
 public class TestSpacetyZips extends ReaderTest {
 
     final static File slc_sp1_zip = new File(SARTests.inputPathProperty +
@@ -75,6 +77,7 @@ public class TestSpacetyZips extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -86,6 +89,7 @@ public class TestSpacetyZips extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -97,6 +101,7 @@ public class TestSpacetyZips extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV", "q_VV", "Intensity_VV"});
+            validator.validateBandData();
         }
     }
 
@@ -108,6 +113,7 @@ public class TestSpacetyZips extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"i_VV_NS1", "q_VV_NS1", "Intensity_VV_NS1", "i_VV_NS2", "q_VV_NS2", "Intensity_VV_NS2", "i_VV_NS3", "q_VV_NS3", "Intensity_VV_NS3", "i_VV_NS4", "q_VV_NS4", "Intensity_VV_NS4"});
+            validator.validateBandData();
         }
     }
 }

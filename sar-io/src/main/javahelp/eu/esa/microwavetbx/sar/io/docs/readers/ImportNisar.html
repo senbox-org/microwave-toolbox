@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Import NISAR</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Import NISAR</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Import NISAR Product</h3>
+
+<p class="MsoNormal"><b>Mission:</b> NASA-ISRO Synthetic Aperture Radar (NISAR) &mdash; joint NASA/ISRO Earth-observation mission.</p>
+<p class="MsoNormal"><b>Frequency Bands:</b> L-band (LSAR, 1.257&nbsp;GHz) plus S-band (SSAR, 3.20&nbsp;GHz) &mdash; dual-frequency simultaneous acquisition.</p>
+<p class="MsoNormal"><b>Polarizations:</b> Full quad-pol (HH, HV, VH, VV) plus dual-pol and compact-pol modes.</p>
+<p class="MsoNormal"><b>Repeat Cycle:</b> 12 days, with global coverage every 12 days for solid-earth, ecosystems and cryosphere applications.</p>
+<p class="MsoNormal"><b>File Format:</b> HDF5 (NetCDF-4 readable). Plugin auto-detects products with filenames beginning <code>NISAR_*</code> or <code>WINNIP_*</code> (the pre-launch JPL simulation family using the same schema).</p>
+
+<h4>Supported Product Types</h4>
+
+<table border="1" cellpadding="5">
+    <tr>
+        <th>Level</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Bands</th>
+    </tr>
+    <tr>
+        <td rowspan="4">L1</td>
+        <td>RSLC</td>
+        <td>Range-doppler Single-Look Complex (slant-range)</td>
+        <td>i/q + virtual Intensity + virtual Phase per polarisation</td>
+    </tr>
+    <tr>
+        <td>RIFG</td>
+        <td>Wrapped Interferogram (slant-range)</td>
+        <td>i_ifg/q_ifg + Intensity + Phase + coherenceMagnitude + offsets + DEM per pol</td>
+    </tr>
+    <tr>
+        <td>RUNW</td>
+        <td>Unwrapped Interferogram (slant-range)</td>
+        <td>coherenceMagnitude + connectedComponents + unwrappedPhase + LOS deformation + ionospheric phase &amp; uncertainty + offsets per pol</td>
+    </tr>
+    <tr>
+        <td>ROFF</td>
+        <td>Range Pixel Offsets (slant-range)</td>
+        <td>Per-layer (L1/L2/L3): alongTrackOffset/slantRangeOffset + variances + correlationSurfacePeak + SNR + crossOffsetVariance per pol</td>
+    </tr>
+    <tr>
+        <td rowspan="4">L2</td>
+        <td>GSLC</td>
+        <td>Geocoded Single-Look Complex</td>
+        <td>i/q + virtual Intensity + virtual Phase per pol. Stamped with <code>gslc_source_slc_path</code> /
+            <code>gslc_output_flattened</code> metadata so the InSAR pipeline's auto-coregister path picks it up.</td>
+    </tr>
+    <tr>
+        <td>GCOV</td>
+        <td>Geocoded Covariance Matrix</td>
+        <td>Quad-pol covariance terms: HHHH, HVHV, VHVH, VVVV and cross-terms HHHV, HHVH, HHVV, HVVH, HVVV, VHVV</td>
+    </tr>
+    <tr>
+        <td>GUNW</td>
+        <td>Geocoded Unwrapped Interferogram</td>
+        <td>coherenceMagnitude + connectedComponents + unwrappedPhase + LOS deformation + ionospheric phase + wrappedInterferogram + offsets per pol</td>
+    </tr>
+    <tr>
+        <td>GOFF</td>
+        <td>Geocoded Pixel Offsets</td>
+        <td>Per-layer (L1/L2/L3): same offset / variance / correlation bands as ROFF, geocoded</td>
+    </tr>
+    <tr>
+        <td>L3</td>
+        <td>SME2</td>
+        <td>Soil Moisture Estimate (geophysical)</td>
+        <td><code>Waterbody_fraction</code>, <code>Landcover</code>. Marked as already-calibrated so radiometric operators reject it cleanly.</td>
+    </tr>
+</table>
+
+<h4>Frequency Bands (A and B)</h4>
+
+<p class="MsoNormal">NISAR can acquire on two frequency sub-bands simultaneously. When a product carries both, the reader exposes:</p>
+<ul>
+    <li>Frequency A bands with no suffix &mdash; e.g. <code>i_HH</code>, <code>Intensity_HH</code>.</li>
+    <li>Frequency B bands with <code>_S</code> suffix &mdash; e.g. <code>i_HH_S</code>, <code>Intensity_HH_S</code>.</li>
+</ul>
+
+<h4>Compound Complex Decoding</h4>
+
+<p class="MsoNormal">RSLC and GSLC datasets are stored as HDF5 compound types containing real / imaginary
+pairs. NISAR uses both float32 (8&nbsp;byte) and float16 (4&nbsp;byte) compound layouts; the reader
+detects the element size and falls back to manual <code>Float.float16ToFloat(short)</code> conversion when
+ucar.nc2 can't decode the half-precision compound natively.</p>
+
+<h4>Geocoding</h4>
+
+<p class="MsoNormal">L2 (geocoded) products carry coordinate arrays in either geographic
+(lat/lon, EPSG:4326) or UTM-projected coordinates. The reader detects which case applies via the
+<code>units</code> attribute on the coordinate variable and converts UTM to lat/lon as needed for the
+SNAP tie-point geocoding.</p>
+
+<h4>Radiometric Calibration</h4>
+
+<p class="MsoNormal">RSLC products are radiometrically uncalibrated. Apply the SNAP
+<i>Radiometric Calibration</i> operator with the BIOMASS / NISAR profile to convert to sigma-naught,
+beta-naught or gamma-naught using the per-polarisation calibration constants embedded in the HDF5
+<code>calibrationInformation</code> group.</p>
+
+<p class="MsoNormal">GSLC, GCOV, GUNW, GOFF, RIFG, RUNW, ROFF and SME2 are rejected by the calibrator
+&mdash; GCOV is already in calibrated covariance units, GSLC is complex-calibrated by the upstream
+geocoder, the rest are derived interferometric / offset products that don't carry the calibration
+constants, and SME2 is a geophysical product (soil moisture).</p>
+
+<h4>Doppler Centroid</h4>
+
+<p class="MsoNormal">NISAR provides a 2-D Doppler centroid LUT (azimuth-time &times; slant-range) in the
+processing-parameters group. The reader emits one <code>dop_coef_list.N</code> entry per azimuth-time
+sample so downstream operators that interpolate Doppler over the acquisition (e.g. InSAR
+azimuth deramping) have the full time-variation, not just a single representative row.</p>
+
+<h4>Further Information</h4>
+<a href="https://nisar.jpl.nasa.gov/">https://nisar.jpl.nasa.gov/</a><br>
+<a href="https://www.isro.gov.in/NISAR.html">https://www.isro.gov.in/NISAR.html</a><br>
+<a href="https://nisar.jpl.nasa.gov/documents/">NISAR Algorithm Theoretical Basis Documents &amp; Product Format Specs</a><br>
+
+<hr>
+</body></html>

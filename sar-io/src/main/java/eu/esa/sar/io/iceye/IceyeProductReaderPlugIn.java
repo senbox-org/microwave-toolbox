@@ -17,7 +17,7 @@ import java.util.Locale;
  */
 public class IceyeProductReaderPlugIn implements SARProductReaderPlugIn {
 
-    private final String[] FILE_EXTS = { ".TIF", ".H5", ".XML", ".JSON" };
+    private final String[] FILE_EXTS = { ".H5", ".XML" };
 
     private static final String[] PRODUCT_PREFIX = new String[] {"ICEYE_"};
     private static final String PRODUCT_FORMAT = "ICEYE";
@@ -34,8 +34,15 @@ public class IceyeProductReaderPlugIn implements SARProductReaderPlugIn {
     protected DecodeQualification checkProductQualification(final Path path) {
         final String fileName = path.getFileName().toString().toUpperCase();
         if(fileName.startsWith(IceyeConstants.ICEYE_FILE_PREFIX)) {
-            for (String ext : FILE_EXTS) {
-                if (fileName.endsWith(ext)) {
+            if (fileName.endsWith(".H5")) {
+                return DecodeQualification.INTENDED;
+            }
+            // For XML files, only claim if a matching .h5 file exists
+            if (fileName.endsWith(".XML")) {
+                final File xmlFile = path.toFile();
+                final File h5File = new File(xmlFile.getParent(),
+                        xmlFile.getName().substring(0, xmlFile.getName().lastIndexOf('.')) + ".h5");
+                if (h5File.exists()) {
                     return DecodeQualification.INTENDED;
                 }
             }

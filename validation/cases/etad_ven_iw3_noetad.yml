@@ -1,0 +1,90 @@
+# ETAD ablation arm: NOETAD -- Venezuela IW3 VV, S1A/S1C 1-day repeat.
+#
+# ETAD auxiliary data is AUTO-DOWNLOADED by S1-ETAD-Correction (its etadFile parameter is optional),
+# so nothing has to be staged -- an earlier assumption that ETAD was unavailable for these dates was
+# simply wrong, and was based on looking for staged files rather than checking the operator.
+#
+# Applied in PHASE-CORRECTION mode (resamplingImage=false, outputPhaseCorrections=true): that is the
+# only mode the GSLC path consumes. The default geometric-resample mode never reaches the GSLC phase.
+# The individual range terms (tropospheric, ionospheric, geodetic) all default to FALSE, so they are
+# enabled explicitly -- leaving them off yields a ZERO correction, and the ablation would then show
+# no difference and be indistinguishable from an honest null result.
+
+# PRIMARY overnight case: Venezuela IW3 VV, geocode-first InSAR on the NATIVE_ANISOTROPIC grid.
+#
+# NATIVE_ANISOTROPIC is the new build's default for GSLC-Terrain-Correction's `gridSpacing`. Per its
+# own help text it gives "rectangular cells at native sampling on both axes -- nothing discarded,
+# ~4x the pixels of SQUARE_COARSEST". For S1 IW that is roughly 3.5 m ground range x 14 m azimuth.
+#
+# grid.spacing MUST be the literal 'native' here. gridSpacing only applies "when no explicit pixel
+# spacing is given", so passing pixelSpacingInMeter would silently override it and put the product on
+# a different lattice than requested.
+#
+# CONSEQUENCE, recorded because it shapes the whole campaign: an anisotropic derived grid cannot be
+# reproduced by Terrain-Correction, which exposes only pixelSpacingInMeter (square cells). The
+# classic-vs-GSLC comparison therefore CANNOT use this grid and lives in its own square-grid case
+# (insar_ven_iw3_square.yml). Comparing across the two would measure resampling, not the algorithms.
+
+case: etad_ven_iw3_noetad
+feature: ETAD-GSLC-InSAR
+description: >
+  S1A/S1C 1-day repeat, IW3 VV, northern Venezuela, orbit 106. Geocode-first InSAR at native
+  anisotropic sampling, compared between the Microwave Toolbox and ISCE3/COMPASS.
+
+# Both arms are SNAP: the comparison is with-ETAD vs without-ETAD, so a second tool would only add
+# variance. The pair of cases is the experiment; each case alone is one arm.
+engines:
+  - snap
+  - snap-classic
+
+scene:
+  slc: /scenes/Venezuela/S1A_IW_SLC__1SDV_20260623T225050_20260623T225120_065103_0834C8_BAD5.SAFE.zip
+  polarisation: VV
+  subswath: IW3           # S1A has 10 IW3 VV bursts, S1C has 9 -> the ifg forms on the intersection
+secondary:
+  slc: /scenes/Venezuela/S1C_IW_SLC__1SDV_20260624T224958_20260624T225025_008254_010515_304A.SAFE.zip
+  polarisation: VV
+  subswath: IW3
+
+dem: /data/dem/copernicus30_venezuela_orbit106.tif
+orbits: /data/orbits
+
+grid:
+  crs: EPSG:32619
+  spacing: native
+  gridSpacing: NATIVE_ANISOTROPIC
+
+# Carrier-free and unflattened: required for fringes. flattened=true would zero the (R_ref - R_sec)
+# difference, which IS the fringe signal. COMPASS hardcodes reramp=True and cannot geocode
+# carrier-free, so its carrier is removed afterwards from the azimuth_carrier_phase grid it always
+# writes -- exact, since exp(-i*wrap(phi)) == exp(-i*phi).
+conventions:
+  flattened: false
+  azimuth_carrier: removed
+
+engine_params:
+  snap:
+    imgResamplingMethod: BISINC_5_POINT_INTERPOLATION
+    outputPhaseTerms: true
+    applyETAD: false
+  snap-classic:
+    esd: true
+    demResamplingMethod: BILINEAR_INTERPOLATION
+    # posting is filled in by the driver from the grid SNAP actually derives: COMPASS takes explicit
+    # x_posting/y_posting and has no equivalent of NATIVE_ANISOTROPIC, so the only way onto a shared
+    # lattice is to read SNAP's transform first and pass those numbers through.
+
+metrics:
+  - phase_difference_smoothness
+  - rms_difference
+  - residue_density
+  - local_phase_coherence
+  - circular_std_multilooked
+  - safe_multilook_factor
+
+tolerances:
+  rms_difference:
+    max: 0.25          # rad. An interferogram compounds the resampling error of TWO geocoding passes.
+  circular_std_multilooked:
+    max: 0.30          # rad at 32x32 multilook -- the only listed metric that can see smooth,
+                       # scene-scale error, which is exactly what a geocoding difference produces.

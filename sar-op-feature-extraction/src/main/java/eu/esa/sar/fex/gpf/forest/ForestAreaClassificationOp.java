@@ -325,6 +325,10 @@ public final class ForestAreaClassificationOp extends Operator {
 
         double[] center = new double[numSrcBands - 1];
         for (int i = 0; i < numClasses; i++) {
+            if (counter[i] == 0) {
+                throw new OperatorException("Cluster " + i + " has no pixels; adjust T_Ratio_Low / T_Ratio_High "
+                        + "or reduce numClasses so initial cluster intervals cover the input range.");
+            }
             for (int j = 0; j < numSrcBands - 1; j++) {
                 center[j] = clusterSum[i][j] / counter[i];
             }
@@ -337,8 +341,13 @@ public final class ForestAreaClassificationOp extends Operator {
         final Band ratio = sourceProduct.getBand(srcBandNames[0]);
         final double bandMin = ratio.getStx(true, ProgressMonitor.NULL).getMinimum();
         final double bandMax = ratio.getStx(true, ProgressMonitor.NULL).getMaximum();
-        final int numLowerClasses = Math.max(1, (int) Math.round((T_Ratio_Low - bandMin) / (bandMax - bandMin -
-                T_Ratio_High + T_Ratio_Low) * (numClasses - 1)));
+        if (bandMin >= T_Ratio_Low || bandMax <= T_Ratio_High) {
+            throw new OperatorException("Ratio band range [" + bandMin + ", " + bandMax + "] does not "
+                    + "straddle the configured forest thresholds [" + T_Ratio_Low + ", " + T_Ratio_High + "].");
+        }
+        final double denom = (bandMax - bandMin) - (T_Ratio_High - T_Ratio_Low);
+        final int numLowerClasses = Math.max(1, Math.min(numClasses - 2,
+                (int) Math.round((T_Ratio_Low - bandMin) / denom * (numClasses - 1))));
         final int numHighClasses = numClasses - 1 - numLowerClasses;
         final double dl = (T_Ratio_Low - bandMin) / numLowerClasses;
         final double dh = (bandMax - T_Ratio_High) / numHighClasses;
@@ -451,9 +460,13 @@ public final class ForestAreaClassificationOp extends Operator {
         }
 
         for (int c = 0; c < numClasses; c++) {
+            final int size = clusterList.get(c).size;
+            if (size == 0) {
+                throw new OperatorException("Cluster " + c + " is empty when computing covariance.");
+            }
             for (int i = 0; i < numSrcBands - 1; i++) {
                 for (int j = 0; j < numSrcBands - 1; j++) {
-                    clusterCov[c][i][j] /= clusterList.get(c).size;
+                    clusterCov[c][i][j] /= size;
                 }
             }
             clusterList.get(c).setClusterCovarianceMatrix(clusterCov[c]);
@@ -584,7 +597,11 @@ public final class ForestAreaClassificationOp extends Operator {
     private boolean isConvergent(final java.util.List<ClusterInfo> clusterList, final int[] clusterPixelChangeCounter) {
 
         for (int c = 0; c < numClasses; c++) {
-            final double unchangedPercentage = 100.0 * (1.0 - (double) clusterPixelChangeCounter[c] / (double) clusterList.get(c).size);
+            final int size = clusterList.get(c).size;
+            if (size == 0) {
+                return false;
+            }
+            final double unchangedPercentage = 100.0 * (1.0 - (double) clusterPixelChangeCounter[c] / (double) size);
             if (unchangedPercentage < convergenceThreshold) {
                 return false;
             }
@@ -596,6 +613,10 @@ public final class ForestAreaClassificationOp extends Operator {
                                             final double[][] clusterSum) {
 
         for (int c = 0; c < clusterList.size(); c++) {
+            if (clusterCounter[c] == 0) {
+                clusterList.get(c).setClusterCenter(clusterList.get(c).center, 0);
+                continue;
+            }
             final double[] center = new double[clusterList.get(c).center.length];
             for (int i = 0; i < center.length; i++) {
                 center[i] = clusterSum[c][i] / clusterCounter[c];
@@ -631,7 +652,15 @@ public final class ForestAreaClassificationOp extends Operator {
 
         public void setClusterCovarianceMatrix(final double[][] Cov) {
             final Matrix CMat = new Matrix(Cov);
-            this.logDet = Math.log(Math.max(Math.abs(CMat.det()), Constants.EPS));
+            final double det = CMat.det();
+            // Covariance matrices are positive semi-definite (det >= 0). A negative
+            // determinant means the matrix is numerically broken (singular with
+            // rounding error); refuse rather than silently absolute-value it away.
+            if (!(det > 0) || Double.isNaN(det) || Double.isInfinite(det)) {
+                throw new OperatorException("Cluster " + classIndex + " has a singular or invalid "
+                        + "covariance matrix (det=" + det + "); reduce feature redundancy or class count.");
+            }
+            this.logDet = Math.log(Math.max(det, Constants.EPS));
             this.invCov = CMat.inverse();
         }
     }

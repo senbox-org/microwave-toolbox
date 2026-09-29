@@ -962,18 +962,15 @@ public final class ERSCalibrator extends BaseCalibrator implements Calibrator {
      */
     private static double[][] readFile(final InputStream stream, final String fileName) {
 
-        // get reader
-        final BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-
         // read data from file and save them in 2-D array
-        String line = "";
         StringTokenizer st;
         double[][] array;
         int rowIdx = 0;
 
-        try {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             // get the 1st line
-            if ((line = reader.readLine()) == null) {
+            String line = reader.readLine();
+            if (line == null) {
                 throw new OperatorException("Empty file: " + fileName);
             }
 
@@ -1003,9 +1000,6 @@ public final class ERSCalibrator extends BaseCalibrator implements Calibrator {
             if (numRows != rowIdx) {
                 throw new OperatorException("Incorrect number of lines in file: " + fileName);
             }
-
-            reader.close();
-            stream.close();
 
         } catch (IOException e) {
             throw new OperatorException(e);
@@ -1052,6 +1046,8 @@ public final class ERSCalibrator extends BaseCalibrator implements Calibrator {
             */
         } catch (IOException e) {
             throw new OperatorException(e);
+        } finally {
+            try { reader.close(); } catch (IOException ignored) { }
         }
     }
 

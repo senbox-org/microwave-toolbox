@@ -87,7 +87,7 @@ public class PCAOp extends Operator {
     @Parameter(description = "Subtract mean image", defaultValue = "1", label = "Subtract Mean Image")
     private Boolean subtractMeanImage = false;
 
-    private boolean statsCalculated = false;
+    private volatile boolean statsCalculated = false;
     private int numOfPixels = 0;        // total number of pixel values
     private int numOfSourceBands = 0;   // number of user selected bands
     private double[] sum = null;        // summation of pixel values for each band
@@ -668,10 +668,12 @@ public class PCAOp extends Operator {
         }
 
         if (selectEigenvaluesBy.equals(EIGENVALUE_THRESHOLD)) {
+            // The parameter is in percent (default 100.0); compare to a fraction in [0, 1].
+            final double thresholdFraction = eigenvalueThreshold / 100.0;
             double sum = 0.0;
             for (int i = 0; i < numOfSourceBands; i++) {
                 sum += eigenValues[i];
-                if (sum / totalEigenvalues >= eigenvalueThreshold) {
+                if (sum / totalEigenvalues >= thresholdFraction) {
                     numPCA = i + 1;
                     break;
                 }
@@ -694,11 +696,7 @@ public class PCAOp extends Operator {
     private void createReportFile() {
 
         final File reportFile = new File(ResourceUtils.getReportFolder(), sourceProduct.getName() + "_pca_report.txt");
-        try {
-            final FileOutputStream out = new FileOutputStream(reportFile);
-
-            // Connect print stream to the output stream
-            final PrintStream p = new PrintStream(out);
+        try (final PrintStream p = new PrintStream(new FileOutputStream(reportFile))) {
 
             p.println();
             p.println("User Selected Bands: ");
@@ -717,13 +715,18 @@ public class PCAOp extends Operator {
                 p.println("    " + eigenValues[i]);
             }
             p.println();
-            p.close();
-
-            if (showEigenvalues) {
-                Desktop.getDesktop().edit(reportFile);
-            }
         } catch (IOException exc) {
             throw new OperatorException(exc);
+        }
+
+        if (showEigenvalues) {
+            try {
+                if (Desktop.isDesktopSupported()) {
+                    Desktop.getDesktop().edit(reportFile);
+                }
+            } catch (Exception e) {
+                // Headless / no editor — report file is still written; skip silently.
+            }
         }
     }
 

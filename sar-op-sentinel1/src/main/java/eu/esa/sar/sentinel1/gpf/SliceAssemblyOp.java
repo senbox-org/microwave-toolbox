@@ -1956,9 +1956,6 @@ public final class SliceAssemblyOp extends Operator {
             final int maxY = ty0 + targetTileRectangle.height;
             final int maxX = tx0 + targetTileRectangle.width;
 
-            if (targetTileRectangle.width < 2)
-                return;
-
             final BandLines[] lines = bandLineMap.get(targetBand);
             final ProductData trgData = targetTile.getDataBuffer();
 
@@ -1993,8 +1990,9 @@ public final class SliceAssemblyOp extends Operator {
                     }
                 }
 
-                final int sxMax = Math.min(maxX, line.band.getRasterWidth() - 1);
-                srcRect.setBounds(tx0, yy, sxMax - tx0 + 1, 1);
+                // sxMax is exclusive (matches maxX); clamp to source raster's exclusive width.
+                final int sxMax = Math.min(maxX, line.band.getRasterWidth());
+                srcRect.setBounds(tx0, yy, sxMax - tx0, 1);
                 final Tile sourceRaster = getSourceTile(line.band, srcRect);
                 final ProductData srcData = sourceRaster.getDataBuffer();
                 final TileIndex srcIndex = new TileIndex(sourceRaster);
@@ -2006,7 +2004,7 @@ public final class SliceAssemblyOp extends Operator {
                 }
             }
         } catch (Throwable e) {
-            throw new OperatorException(e.getMessage());
+            OperatorUtils.catchOperatorException(getId(), e);
         }
     }
 

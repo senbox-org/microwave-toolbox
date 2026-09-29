@@ -18,12 +18,14 @@ package eu.esa.sar.insar.gpf;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -45,6 +47,19 @@ public class TestPCAOp {
     }
 
     private final static OperatorSpi spi = new PCAOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final PCAOp op = (PCAOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = PCAOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Principal-Components", md.alias());
+    }
 
     @Test
     public void testProcessingIMS() throws Exception {

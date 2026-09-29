@@ -72,9 +72,9 @@ public class ALOSDeskewingOp extends Operator {
     private String[] sourceBandNames = null;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec",
+            defaultValue = "Copernicus 30m Global DEM",
             label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+    private String demName = "Copernicus 30m Global DEM";
 
     //@Parameter(defaultValue="false", label="Use Mapready Shift Only")
     boolean useMapreadyShiftOnly = false;
@@ -144,12 +144,23 @@ public class ALOSDeskewingOp extends Operator {
 
             createTargetProduct();
 
-            computeShift();
-
             updateTargetProductMetadata();
 
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        try {
+            pm.beginTask("Computing deskew shift", 1);
+            computeShift();
+            pm.worked(1);
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
         }
     }
 
@@ -171,7 +182,7 @@ public class ALOSDeskewingOp extends Operator {
 
         orbitStateVectors = AbstractMetadata.getOrbitStateVectors(absRoot);
         if (orbitStateVectors == null) {
-            throw new OperatorException("Invalid Obit State Vectors");
+            throw new OperatorException("Invalid Orbit State Vectors");
         } else if (orbitStateVectors.length < 2) {
             throw new OperatorException("Not enough orbit state vectors");
         }
@@ -385,16 +396,19 @@ public class ALOSDeskewingOp extends Operator {
         final float demNoDataValue = dem.getDescriptor().getNoDataValue();
 
         GeoPos geoPos = new GeoPos();
+        final PixelPos pixelPos = new PixelPos();
         for (int y = 0; y < sourceImageHeight; y++) {
-            sourceProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0.5f, y + 0.5f), geoPos);
+            pixelPos.setLocation(0.5f, y + 0.5f);
+            sourceProduct.getSceneGeoCoding().getGeoPos(pixelPos, geoPos);
             final double lat = geoPos.lat;
             double lon = geoPos.lon;
             if (lon >= 180.0) {
                 lon -= 360.0;
             }
+            geoPos.lon = lon; // hand the wrapped lon to dem.getElevation via the same object
 
-            final Double alt = dem.getElevation(new GeoPos(lat, lon));
-            if (alt.equals(demNoDataValue)) {
+            final double alt = dem.getElevation(geoPos);
+            if (Double.isNaN(alt) || alt == demNoDataValue) {
                 continue;
             }
 
@@ -568,7 +582,7 @@ public class ALOSDeskewingOp extends Operator {
         final double rz = rM[0][2] * x + rM[1][2] * y + rM[2][2] * z;
 
         final double re = GeoUtils.WGS84.a;
-        final double rp = re - re / GeoUtils.WGS84.b;
+        final double rp = GeoUtils.WGS84.b;
         final double re2 = re * re;
         final double rp2 = rp * rp;
         final double a = (rx * rx + ry * ry) / re2 + rz * rz / rp2;
@@ -668,10 +682,13 @@ public class ALOSDeskewingOp extends Operator {
      */
     private static double computeEarthRadius(final GeoPos geoPos) {
 
-        final double lat = geoPos.lat;
+        // geoPos.lat is in degrees; FastMath.sin/cos take radians.
+        final double latRad = geoPos.lat * Math.PI / 180.0;
         final double re = Constants.semiMajorAxis;
         final double rp = Constants.semiMinorAxis;
-        return (re * rp) / Math.sqrt(rp * rp * FastMath.cos(lat) * FastMath.cos(lat) + re * re * FastMath.sin(lat) * FastMath.sin(lat));
+        final double cosLat = FastMath.cos(latRad);
+        final double sinLat = FastMath.sin(latRad);
+        return (re * rp) / Math.sqrt(rp * rp * cosLat * cosLat + re * re * sinLat * sinLat);
     }
 
     public static class stateVector {

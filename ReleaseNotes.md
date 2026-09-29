@@ -1,6 +1,43 @@
-# Microwave Toolbox 13.0.0
+# Microwave Toolbox 14
 
-## New in Microwave Toolbox 13.0
+## 14.0.2
+* GeoCoded SLC 
+* Fix for large Cosmo-Skymed products
+* Support for Iceye opendata products
+
+## 14.0.0
+* InSAR Phase Linking
+* MuLog (Multi-channel Logarithm) speckle filter
+* Dual Pol Descriptors from Abhinav Verma, Sapienza Università di Roma | Ph.D. (PMRF), IIT Bombay
+* Empirical Tropospheric Correction
+* EOS4 Reader
+* ALOS4 Reader
+* NISAR Reader
+* Support for Sentinel-1D
+* Jupyter Notebook SAR tutorials
+
+# Microwave Toolbox 13
+
+## Update 13.0.4
+* [SNAP-4139] Fix Create Stack band unit
+* [SNAP-4162] Error opening PAZ SAR in SNAP 13
+* [SNAP-3552] Load the values defined in the XML graph for BandSelectOp
+* Default to using Copernicus DEM
+
+## Update 13.0.3
+* [SNAP-4151] Open Biomass products directly from zip file
+* [SNAP-4148] Terrain Flattening applies only to partial scene 
+
+## Update 13.0.2
+* [SNAP-4061] Investigate issues found in Biomass product supporting
+* [SNAP-4072] BIOMASS - Terrain corrected DGM image is not correct
+* [SNAP-4109] TOPSAR-Split operator ignores selected burst (always reverts to IW1)
+* [SNAP-4112] Improvements to terrain flattening
+* [SNAP-4133] Biomass error when exporting to NetCDF
+* [SNAP-4134] TileIndex in HAlphaWishart
+
+
+## New in Microwave Toolbox 13.0.0
 * Improved geolocation accuracy for multilooked terrain corrected graphs
 * Support for BIOMASS products
 * Support for NISAR products

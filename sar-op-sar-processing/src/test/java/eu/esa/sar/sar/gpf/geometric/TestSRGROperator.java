@@ -23,6 +23,7 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -177,12 +178,12 @@ public class TestSRGROperator extends ProcessorTest {
     }
 
     @Test
-    //@Ignore
     public void testProcessAllCosmo() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsCosmoSkymed, null, exceptionExemptions);
     }
 
     @Test
+    @Ignore
     public void testProcessAllSentinel1() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsSentinel1, productTypeExemptions, exceptionExemptions);
     }

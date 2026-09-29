@@ -247,7 +247,7 @@ public class MultiTemporalSpeckleFilterOp extends Operator {
     private void addSelectedBands() {
 
         final InputProductValidator validator = new InputProductValidator(sourceProduct);
-        if (sourceBandNames == null || sourceBandNames.length == 0 && validator.isComplex()) {
+        if (sourceBandNames == null || (sourceBandNames.length == 0 && validator.isComplex())) {
             final Band[] bands = sourceProduct.getBands();
             final List<String> bandNameList = new ArrayList<>(sourceProduct.getNumBands());
             for (Band band : bands) {
@@ -366,11 +366,12 @@ public class MultiTemporalSpeckleFilterOp extends Operator {
                     final int yy = y - y0;
                     for (int x = x0; x < xMax; ++x) {
                         final int xx = x - x0;
-                        if (filteredTile[yy][xx] != 0.0) {
+                        final double f = filteredTile[yy][xx];
+                        if (f != 0.0 && !Double.isNaN(f) && f != bandNoDataValues) {
                             final int sourceIndex = srcTile.getDataBufferIndex(x, y);
                             final double srcDataValue = srcData.getElemDoubleAt(sourceIndex);
-                            if (srcDataValue != bandNoDataValues) {
-                                sum[yy][xx] += srcDataValue / filteredTile[yy][xx];
+                            if (!Double.isNaN(srcDataValue) && srcDataValue != bandNoDataValues) {
+                                sum[yy][xx] += srcDataValue / f;
                                 count[yy][xx]++;
                             }
                         }
@@ -389,13 +390,22 @@ public class MultiTemporalSpeckleFilterOp extends Operator {
             for (int i = 0; i < numBands; i++) {
                 Tile targetTile = targetTiles.get(targetBands[i]);
                 final ProductData targetData = targetTile.getDataBuffer();
+                final Band srcBand = sourceProduct.getBand(targetBandNameToSourceBandName.get(targetBands[i].getName())[0]);
+                final double bandNoDataValue = srcBand.getNoDataValue();
                 final double[][] filteredTile = filteredTileList.get(i);
                 for (int y = y0; y < yMax; y++) {
                     final int yy = y - y0;
                     for (int x = x0; x < xMax; x++) {
                         final int xx = x - x0;
                         final int targetIndex = targetTile.getDataBufferIndex(x, y);
-                        targetData.setElemDoubleAt(targetIndex, filteredTile[yy][xx] * sum[yy][xx]);
+                        // When every temporal band had an invalid sample at this pixel,
+                        // emit the band's no-data sentinel rather than 0.0 (which would be
+                        // indistinguishable from a real zero-backscatter measurement).
+                        if (count[yy][xx] == 0) {
+                            targetData.setElemDoubleAt(targetIndex, bandNoDataValue);
+                        } else {
+                            targetData.setElemDoubleAt(targetIndex, filteredTile[yy][xx] * sum[yy][xx]);
+                        }
                     }
                 }
             }

@@ -84,7 +84,14 @@ The following parameters are used by this operator:
         give better results.
     </li>
     <li>
-        Flag for skipping estimation and subtraction of the reference-phase.</li><li>Flag for subtracting topographic phase</li><li>DEM to be used for subtracting topographic phase</li><li>Extension of tile (%) for DEM simulation (optimization parameter)</li><li>Flag for outputting elevation (if topographic phase subtraction is chosen)</li><li>Flag for outputting orthorectified latitudes and longitudes&nbsp;(if topographic phase subtraction is chosen)</li><li>Flag for including coherence estimation</li><li>Choice of using square pixel or not (for&nbsp;coherence estimation)</li><li>Coherence range and azimuth window sizes</li>
+        Flag for skipping estimation and subtraction of the reference-phase.</li><li>Flag for subtracting topographic phase</li><li>DEM to be used for subtracting topographic phase</li><li>Extension of tile (%) for DEM simulation (optimization parameter)</li><li>Flag for outputting elevation (if topographic phase subtraction is chosen)</li><li>Flag for outputting orthorectified latitudes and longitudes&nbsp;(if topographic phase subtraction is chosen)</li><li>
+        Flag for subtracting burst seam steps (GSLC TOPS stacks only): measures the residual phase
+        discontinuity at each burst seam directly, from across-seam multilooked phase differences,
+        and subtracts it. Anything continuous across a seam &mdash; deformation, atmosphere, an
+        orbital ramp &mdash; cancels in that difference to the extent that it is locally linear in
+        azimuth, so unlike a fitted surface this cannot absorb a broad signal wholesale. No effect
+        on stripmap products, which have no burst seams. Off by default.
+    </li><li>Flag for including coherence estimation</li><li>Choice of using square pixel or not (for&nbsp;coherence estimation)</li><li>Coherence range and azimuth window sizes</li>
 </ol>
 
 <h4>Source bands:</h4>

@@ -159,7 +159,7 @@ public final class DerampDemodPhaseOp extends Operator {
             createTargetProduct();
 
         } catch (Throwable e) {
-            throw new OperatorException(e.getMessage());
+            OperatorUtils.catchOperatorException(getId(), e);
         }
     }
 
@@ -184,6 +184,8 @@ public final class DerampDemodPhaseOp extends Operator {
                 sourceImageHeight);
 
         derampPhaseBand.setUnit("radian");
+        derampPhaseBand.setNoDataValue(Double.NaN);
+        derampPhaseBand.setNoDataValueUsed(true);
         targetProduct.addBand(derampPhaseBand);
 
         final Band demodPhaseBand = new Band(
@@ -193,6 +195,8 @@ public final class DerampDemodPhaseOp extends Operator {
                 sourceImageHeight);
 
         demodPhaseBand.setUnit("radian");
+        demodPhaseBand.setNoDataValue(Double.NaN);
+        demodPhaseBand.setNoDataValueUsed(true);
         targetProduct.addBand(demodPhaseBand);
     }
 
@@ -239,7 +243,7 @@ public final class DerampDemodPhaseOp extends Operator {
             }
 
         } catch (Throwable e) {
-            throw new OperatorException(e.getMessage());
+            OperatorUtils.catchOperatorException(getId(), e);
         }
     }
 

@@ -65,7 +65,7 @@ public class RangeShiftOp extends Operator {
     @SourceProduct(alias = "source")
     private Product sourceProduct;
 
-    @TargetProduct(description = "The target product which will use the master's grid.")
+    @TargetProduct(description = "The target product which will use the reference's grid.")
     private Product targetProduct = null;
 
     @Parameter(valueSet = {"32", "64", "128","256", "512", "1024", "2048"}, defaultValue = "512",
@@ -106,10 +106,10 @@ public class RangeShiftOp extends Operator {
     private Sentinel1Utils.SubSwathInfo[] subSwath = null;
     private int subSwathIndex = 0;
     private String[] subSwathNames = null;
-    private Band mstBandI = null;
-    private Band mstBandQ = null;
-    private Band slvBandI = null;
-    private Band slvBandQ = null;
+    private Band refBandI = null;
+    private Band refBandQ = null;
+    private Band secBandI = null;
+    private Band secBandQ = null;
 
     private static final int maxRangeShift = 1;
 
@@ -166,10 +166,10 @@ public class RangeShiftOp extends Operator {
                         subSwath[subSwathIndex - 1].linesPerBurst);
             }
 
-            mstBandI = getSourceBand(StackUtils.MST, Unit.REAL);
-            mstBandQ = getSourceBand(StackUtils.MST, Unit.IMAGINARY);
-            slvBandI = getSourceBand(StackUtils.SLV, Unit.REAL);
-            slvBandQ = getSourceBand(StackUtils.SLV, Unit.IMAGINARY);
+            refBandI = getSourceBand(StackUtils.REF, Unit.REAL);
+            refBandQ = getSourceBand(StackUtils.REF, Unit.IMAGINARY);
+            secBandI = getSourceBand(StackUtils.SEC, Unit.REAL);
+            secBandQ = getSourceBand(StackUtils.SEC, Unit.IMAGINARY);
 
             createTargetProduct();
 
@@ -198,7 +198,7 @@ public class RangeShiftOp extends Operator {
             }
 
             Band targetBand;
-            if (srcBandName.contains(StackUtils.MST) || srcBandName.contains("derampDemod")) {
+            if (srcBandName.contains(StackUtils.REF) || srcBandName.contains("derampDemod")) {
                 targetBand = ProductUtils.copyBand(srcBandName, sourceProduct, srcBandName, targetProduct, true);
             } else if (srcBandName.contains("azOffset") || srcBandName.contains("rgOffset")) {
                 continue;
@@ -209,6 +209,13 @@ public class RangeShiftOp extends Operator {
                         band.getRasterHeight());
 
                 targetBand.setUnit(band.getUnit());
+                if (band.isNoDataValueUsed()) {
+                    targetBand.setNoDataValue(band.getNoDataValue());
+                    targetBand.setNoDataValueUsed(true);
+                } else {
+                    targetBand.setNoDataValue(Double.NaN);
+                    targetBand.setNoDataValueUsed(true);
+                }
                 targetProduct.addBand(targetBand);
             }
 
@@ -266,57 +273,59 @@ public class RangeShiftOp extends Operator {
             }
 
             // perform range shift using FFT
-            Band slaveBandI = null, slaveBandQ = null;
+            Band secondaryBandI = null, secondaryBandQ = null;
             Band targetBandI = null, targetBandQ = null;
             final String[] bandNames = sourceProduct.getBandNames();
             for (String bandName : bandNames) {
-                if (bandName.contains("i_") && bandName.contains(StackUtils.SLV)) {
-                    slaveBandI = sourceProduct.getBand(bandName);
+                if (bandName.contains("i_") && bandName.contains(StackUtils.SEC)) {
+                    secondaryBandI = sourceProduct.getBand(bandName);
                     targetBandI = targetProduct.getBand(bandName);
-                } else if (bandName.contains("q_") && bandName.contains(StackUtils.SLV)) {
-                    slaveBandQ = sourceProduct.getBand(bandName);
+                } else if (bandName.contains("q_") && bandName.contains(StackUtils.SEC)) {
+                    secondaryBandQ = sourceProduct.getBand(bandName);
                     targetBandQ = targetProduct.getBand(bandName);
                 }
             }
 
-            final Tile slvTileI = getSourceTile(slaveBandI, targetRectangle);
-            final Tile slvTileQ = getSourceTile(slaveBandQ, targetRectangle);
+            final Tile secTileI = getSourceTile(secondaryBandI, targetRectangle);
+            final Tile secTileQ = getSourceTile(secondaryBandQ, targetRectangle);
             final Tile tgtTileI = targetTileMap.get(targetBandI);
             final Tile tgtTileQ = targetTileMap.get(targetBandQ);
-            final float[] slvArrayI = (float[]) slvTileI.getDataBuffer().getElems();
-            final float[] slvArrayQ = (float[]) slvTileQ.getDataBuffer().getElems();
-            final float[] tgtArrayI = (float[]) tgtTileI.getDataBuffer().getElems();
-            final float[] tgtArrayQ = (float[]) tgtTileQ.getDataBuffer().getElems();
+            // Source SLC may be INT16 (raw S1 SLC) or FLOAT32 (post-deramp). Convert to float regardless.
+            final float[] secArrayI = toFloatArray(secTileI.getDataBuffer().getElems());
+            final float[] secArrayQ = toFloatArray(secTileQ.getDataBuffer().getElems());
+            // Target buffer may also be INT16 (when target band kept source dtype); write via ProductData accessor.
+            final ProductData tgtBufI = tgtTileI.getDataBuffer();
+            final ProductData tgtBufQ = tgtTileQ.getDataBuffer();
 
             /*
             //========== test data generation
             rgOffset = 1.0;//0.009;
-            Band slaveBandI = null, slaveBandQ = null;
+            Band secondaryBandI = null, secondaryBandQ = null;
             Band targetBandI = null, targetBandQ = null;
             final String[] bandNames = sourceProduct.getBandNames();
             for (String bandName : bandNames) {
-                if (bandName.contains("i_") && bandName.contains(StackUtils.MST)) {
-                    slaveBandI = sourceProduct.getBand(bandName);
-                } else if (bandName.contains("q_") && bandName.contains(StackUtils.MST)) {
-                    slaveBandQ = sourceProduct.getBand(bandName);
-                } else if (bandName.contains("i_") && bandName.contains(StackUtils.SLV)) {
+                if (bandName.contains("i_") && bandName.contains(StackUtils.REF)) {
+                    secondaryBandI = sourceProduct.getBand(bandName);
+                } else if (bandName.contains("q_") && bandName.contains(StackUtils.REF)) {
+                    secondaryBandQ = sourceProduct.getBand(bandName);
+                } else if (bandName.contains("i_") && bandName.contains(StackUtils.SEC)) {
                     targetBandI = targetProduct.getBand(bandName);
-                } else if (bandName.contains("q_") && bandName.contains(StackUtils.SLV)) {
+                } else if (bandName.contains("q_") && bandName.contains(StackUtils.SEC)) {
                     targetBandQ = targetProduct.getBand(bandName);
                 }
             }
 
-            final Tile slvTileI = getSourceTile(slaveBandI, targetRectangle);
-            final Tile slvTileQ = getSourceTile(slaveBandQ, targetRectangle);
+            final Tile secTileI = getSourceTile(secondaryBandI, targetRectangle);
+            final Tile secTileQ = getSourceTile(secondaryBandQ, targetRectangle);
             final Tile tgtTileI = targetTileMap.get(targetBandI);
             final Tile tgtTileQ = targetTileMap.get(targetBandQ);
-            final short[] slvArrayIS = (short[]) slvTileI.getDataBuffer().getElems();
-            final short[] slvArrayQS = (short[]) slvTileQ.getDataBuffer().getElems();
-            final float[] slvArrayI = new float[slvArrayIS.length];
-            final float[] slvArrayQ = new float[slvArrayQS.length];
-            for (int i = 0; i < slvArrayIS.length; i++) {
-                slvArrayI[i] = (float)slvArrayIS[i];
-                slvArrayQ[i] = (float)slvArrayQS[i];
+            final short[] secArrayIS = (short[]) secTileI.getDataBuffer().getElems();
+            final short[] secArrayQS = (short[]) secTileQ.getDataBuffer().getElems();
+            final float[] secArrayI = new float[secArrayIS.length];
+            final float[] secArrayQ = new float[secArrayQS.length];
+            for (int i = 0; i < secArrayIS.length; i++) {
+                secArrayI[i] = (float)secArrayIS[i];
+                secArrayQ[i] = (float)secArrayQS[i];
             }
             final float[] tgtArrayI = (float[]) tgtTileI.getDataBuffer().getElems();
             final float[] tgtArrayQ = (float[]) tgtTileQ.getDataBuffer().getElems();
@@ -332,8 +341,8 @@ public class RangeShiftOp extends Operator {
             for (int r = 0; r < h; r++) {
                 final int rw = r * w;
                 for (int c = 0; c < w; c++) {
-                    line[2 * c] = slvArrayI[rw + c];
-                    line[2 * c + 1] = slvArrayQ[rw + c];
+                    line[2 * c] = secArrayI[rw + c];
+                    line[2 * c + 1] = secArrayQ[rw + c];
                 }
 
                 row_fft.complexForward(line);
@@ -343,8 +352,8 @@ public class RangeShiftOp extends Operator {
                 row_fft.complexInverse(line, true);
 
                 for (int c = 0; c < w; c++) {
-                    tgtArrayI[rw + c] = (float)line[2 * c];
-                    tgtArrayQ[rw + c] = (float)line[2 * c + 1];
+                    tgtBufI.setElemFloatAt(rw + c, (float) line[2 * c]);
+                    tgtBufQ.setElemFloatAt(rw + c, (float) line[2 * c + 1]);
                 }
             }
 
@@ -353,6 +362,30 @@ public class RangeShiftOp extends Operator {
         } finally {
             pm.done();
         }
+    }
+
+    private static float[] toFloatArray(final Object buffer) {
+        if (buffer instanceof float[]) {
+            return (float[]) buffer;
+        }
+        if (buffer instanceof short[]) {
+            final short[] src = (short[]) buffer;
+            final float[] out = new float[src.length];
+            for (int i = 0; i < src.length; i++) {
+                out[i] = src[i];
+            }
+            return out;
+        }
+        if (buffer instanceof int[]) {
+            final int[] src = (int[]) buffer;
+            final float[] out = new float[src.length];
+            for (int i = 0; i < src.length; i++) {
+                out[i] = src[i];
+            }
+            return out;
+        }
+        throw new OperatorException("Unsupported source band data type: " +
+                (buffer == null ? "null" : buffer.getClass().getName()));
     }
 
     /**
@@ -462,10 +495,10 @@ public class RangeShiftOp extends Operator {
 
         try {
             ComplexDoubleMatrix mI = getComplexDoubleMatrix(
-                    mstBandI, mstBandQ, mGCPPixelPos, fineWinWidth, fineWinHeight);
+                    refBandI, refBandQ, mGCPPixelPos, fineWinWidth, fineWinHeight);
 
             ComplexDoubleMatrix sI = getComplexDoubleMatrix(
-                    slvBandI, slvBandQ, sGCPPixelPos, fineWinWidth, fineWinHeight);
+                    secBandI, secBandQ, sGCPPixelPos, fineWinWidth, fineWinHeight);
 
             final double[] fineOffset = {0, 0};
 

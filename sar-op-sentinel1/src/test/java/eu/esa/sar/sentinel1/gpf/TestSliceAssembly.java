@@ -19,6 +19,7 @@ import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -27,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
@@ -53,6 +55,13 @@ public class TestSliceAssembly {
     public void testCreateOperator() {
         SliceAssemblyOp op = (SliceAssemblyOp) spi.createOperator();
         assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = SliceAssemblyOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("SliceAssembly", md.alias());
     }
 
     @Test

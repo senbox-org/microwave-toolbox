@@ -74,6 +74,17 @@
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="IonosphericCorrectionOp"/>
             </file>
+            <file name="eu-esa-sar-insar-gpf-EmpiricalTropoCorrection-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Tropospheric Correction (Empirical)"/>
+                <attr name="operatorName" stringvalue="EmpiricalTropoCorrection"/>
+                <attr name="dialogTitle" stringvalue="Tropospheric Correction (Empirical)"/>
+                <attr name="ShortDescription" stringvalue="Subtract topography-correlated tropospheric phase from unwrapped interferograms (phase-elevation regression: linear/quadratic LSQ fit on DEM elevation)."/>
+                <attr name="targetProductNameSuffix" stringvalue="_TropoCorr"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+                <attr name="helpId" stringvalue="EmpiricalTropoCorrectionOp"/>
+            </file>
             <file name="eu-esa-sar-insar-gpf-StackAveraging-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
@@ -171,6 +182,28 @@
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="DEMAssistedCoregistrationOp"/>
             </file>
+            <file name="eu-esa-sar-insar-gpf-Demodulate-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Demodulate"/>
+                <attr name="operatorName" stringvalue="Demodulate"/>
+                <attr name="dialogTitle" stringvalue="Demodulate"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Demod"/>
+                <attr name="ShortDescription" stringvalue="Demodulation of an SLC"/>
+                <attr name="helpId" stringvalue="DemodulateOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-insar-gpf-Remodulate-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Remodulate"/>
+                <attr name="operatorName" stringvalue="Remodulate"/>
+                <attr name="dialogTitle" stringvalue="Remodulate"/>
+                <attr name="targetProductNameSuffix" stringvalue="_Remod"/>
+                <attr name="ShortDescription" stringvalue="Remodulation of an SLC"/>
+                <attr name="helpId" stringvalue="RemodulateOp"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
             <file name="eu-esa-sar-insar-gpf-coregistration-OffsetTrackingOp-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
@@ -202,6 +235,28 @@
                 <attr name="ShortDescription" stringvalue="Export interferograms to StaMPS for PSI or SBAS"/>
                 <attr name="icon" stringvalue="esaIcon"/>
                 <attr name="helpId" stringvalue="StampsExport"/>
+            </file>
+            <file name="eu-esa-sar-insar-gpf-PhaseLinking-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="Phase Linking"/>
+                <attr name="operatorName" stringvalue="PhaseLinking"/>
+                <attr name="dialogTitle" stringvalue="Phase Linking (DS InSAR)"/>
+                <attr name="ShortDescription" stringvalue="Distributed-scatterer phase linking (SqueeSAR / EVD / EMI) over a coregistered SLC stack."/>
+                <attr name="targetProductNameSuffix" stringvalue="_PL"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+                <attr name="helpId" stringvalue="PhaseLinkingOp"/>
+            </file>
+            <file name="eu-esa-sar-insar-gpf-SBASInversion-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="SBAS Inversion"/>
+                <attr name="operatorName" stringvalue="SBASInversion"/>
+                <attr name="dialogTitle" stringvalue="SBAS Network Inversion"/>
+                <attr name="ShortDescription" stringvalue="Small-Baseline Subset (SBAS) network inversion to per-epoch displacement and velocity."/>
+                <attr name="targetProductNameSuffix" stringvalue="_SBAS"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+                <attr name="helpId" stringvalue="SBASInversionOp"/>
             </file>
         </folder>
     </folder>
@@ -282,9 +337,20 @@
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-IonosphericCorrection-Action.instance"/>
                         <attr name="position" intvalue="790"/>
                     </file>
+                    <file name="eu-esa-sar-insar-gpf-EmpiricalTropoCorrection-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-EmpiricalTropoCorrection-Action.instance"/>
+                        <attr name="position" intvalue="795"/>
+                    </file>
+                </folder>
+                <folder name="Phase Linking">
+                    <attr name="position" intvalue="200"/>
+                    <file name="eu-esa-sar-insar-gpf-PhaseLinking-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-PhaseLinking-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
                 </folder>
                 <folder name="Filtering">
-                    <attr name="position" intvalue="200"/>
+                    <attr name="position" intvalue="300"/>
                     <file name="eu-esa-sar-insar-gpf-GoldsteinPhaseFiltering-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-GoldsteinPhaseFiltering-Action.instance"/>
                         <attr name="position" intvalue="300"/>
@@ -295,6 +361,21 @@
                     <file name="eu-esa-sar-insar-gpf-StampsExport-Action.shadow">
                         <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-StampsExport-Action.instance"/>
                         <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="eu-esa-sar-insar-gpf-SBASInversion-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-SBASInversion-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
+                    </file>
+                </folder>
+                <folder name="Utilities">
+                    <attr name="position" intvalue="500"/>
+                    <file name="eu-esa-sar-insar-gpf-Demodulate-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-Demodulate-Action.instance"/>
+                        <attr name="position" intvalue="100"/>
+                    </file>
+                    <file name="eu-esa-sar-insar-gpf-Remodulate-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-insar-gpf-Remodulate-Action.instance"/>
+                        <attr name="position" intvalue="200"/>
                     </file>
                 </folder>
             </folder>
@@ -363,6 +444,14 @@
 	<file name="eu.esa.sar.insar.gpf.ui.MultiMasterInSAROpUI">
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.MultiMasterInSAROpUI"/>
             <attr name="operatorName" stringvalue="MultiMasterInSAR"/>
+        </file>
+        <file name="eu.esa.sar.insar.gpf.ui.PhaseLinkingOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.PhaseLinkingOpUI"/>
+            <attr name="operatorName" stringvalue="PhaseLinking"/>
+        </file>
+        <file name="eu.esa.sar.insar.gpf.ui.SBASInversionOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.SBASInversionOpUI"/>
+            <attr name="operatorName" stringvalue="SBASInversion"/>
         </file>
     </folder>
 

@@ -18,9 +18,11 @@
                         <tocitem text="IEM Hyrbid Inversion" target="IEMHybrid"/>
                         <tocitem text="SM Dielectric Modeling" target="SMDielectricModel"/>
                     </tocitem>
-                    <tocitem text="Hyrbid IEM SM Retrieval" target="HybridSoilMoisture"/>
-                    <tocitem text="Multi-Polarisation IEM SM Retrieval" target="MultiPolSoilMoisture"/>
-                    <tocitem text="Multi-Angle IEM SM Retrieval" target="MultiAngleSoilMoisture"/>
+                    <tocitem text="Soil Moisture Retrieval">
+                        <tocitem text="Hyrbid IEM SM Retrieval" target="HybridSoilMoisture"/>
+                        <tocitem text="Multi-Polarisation IEM SM Retrieval" target="MultiPolSoilMoisture"/>
+                        <tocitem text="Multi-Angle IEM SM Retrieval" target="MultiAngleSoilMoisture"/>
+                    </tocitem>
                 </tocitem>
             </tocitem>
         </tocitem>

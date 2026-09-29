@@ -24,6 +24,7 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
@@ -330,7 +331,7 @@ public class SeaSatProductDirectory extends XMLProductDirectory {
         try {
             Product imageProduct = ProductIO.readProduct(imageFile);
             if (imageProduct != null) {
-                product.setSceneGeoCoding(imageProduct.getSceneGeoCoding());
+                ProductUtils.copyGeoCoding(imageProduct, product);
             }
         } catch (IOException e) {
             //e.printStackTrace();

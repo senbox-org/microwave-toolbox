@@ -23,6 +23,7 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -37,6 +38,19 @@ import static org.junit.Assert.assertNotNull;
 public class TestDEMAssistedCoregistrationOp extends ProcessorTest {
 
     private final static OperatorSpi spi = new DEMAssistedCoregistrationOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final DEMAssistedCoregistrationOp op = (DEMAssistedCoregistrationOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = DEMAssistedCoregistrationOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("DEM-Assisted-Coregistration", md.alias());
+    }
 
     @Test
     public void testDEMAssistedCoregistration() throws Exception {

@@ -17,6 +17,7 @@ package eu.esa.sar.fex.gpf.oceantools;
 
 import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
@@ -25,6 +26,19 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class AdaptiveThresholdingOpTest {
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final AdaptiveThresholdingOp op = (AdaptiveThresholdingOp) new AdaptiveThresholdingOp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = AdaptiveThresholdingOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("AdaptiveThresholding", md.alias());
+    }
 
     // Initialize the operator with valid source and target products
     @Test

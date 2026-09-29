@@ -1,0 +1,160 @@
+{
+	"id": "ALOS2-Geotiff",
+	"decodeQualification": "INTENDED",
+	"expectedContent": {
+		"sceneWidth": 27233,
+		"sceneHeight": 32294,
+		"geoCoding": {
+			"coordinates": [
+				{
+					"x": 11745.0,
+					"y": 17360.0,
+					"lat": 35.43064089216728,
+					"lon": 138.69100045452495
+				},
+				{
+					"x": 20219.0,
+					"y": 20955.0,
+					"lat": 35.353891728435265,
+					"lon": 138.9262999549685
+				}
+			],
+			"reverseAccuracy": 4.459725460037589E-7
+		},
+		"bands": [
+			{
+				"name": "Amplitude_HH",
+				"bandWidth": 27233,
+				"bandHeight": 32294,
+				"geophysicalUnit": "amplitude",
+				"noDataValue": "0.0",
+				"noDataValueUsed": "true",
+				"spectralWavelength": "0.0",
+				"spectralBandwidth": "0.0",
+				"expectedPixels": [
+					{
+						"x": 1420,
+						"y": 5753,
+						"value": 6085.0
+					},
+					{
+						"x": 18657,
+						"y": 27468,
+						"value": 8133.0
+					}
+				]
+			},
+			{
+				"name": "Intensity_HH",
+				"description": "Intensity from complex data",
+				"bandWidth": 27233,
+				"bandHeight": 32294,
+				"geophysicalUnit": "intensity",
+				"noDataValue": "0.0",
+				"noDataValueUsed": "true",
+				"spectralWavelength": "0.0",
+				"spectralBandwidth": "0.0",
+				"expectedPixels": [
+					{
+						"x": 7921,
+						"y": 8294,
+						"value": 839056.0
+					},
+					{
+						"x": 16626,
+						"y": 11796,
+						"value": 1.0929636E7
+					}
+				]
+			},
+			{
+				"name": "Amplitude_HV",
+				"bandWidth": 27233,
+				"bandHeight": 32294,
+				"geophysicalUnit": "amplitude",
+				"noDataValue": "0.0",
+				"noDataValueUsed": "true",
+				"spectralWavelength": "0.0",
+				"spectralBandwidth": "0.0",
+				"expectedPixels": [
+					{
+						"x": 14979,
+						"y": 24070,
+						"value": 3582.0
+					},
+					{
+						"x": 16566,
+						"y": 29983,
+						"value": "NaN"
+					}
+				]
+			},
+			{
+				"name": "Intensity_HV",
+				"description": "Intensity from complex data",
+				"bandWidth": 27233,
+				"bandHeight": 32294,
+				"geophysicalUnit": "intensity",
+				"noDataValue": "0.0",
+				"noDataValueUsed": "true",
+				"spectralWavelength": "0.0",
+				"spectralBandwidth": "0.0",
+				"expectedPixels": [
+					{
+						"x": 4310,
+						"y": 21509,
+						"value": "NaN"
+					},
+					{
+						"x": 14137,
+						"y": 29501,
+						"value": 1522756.0
+					}
+				]
+			}
+		],
+		"metadata": [
+			{
+				"path": "Original_Product_Metadata/Odi_SceneId",
+				"value": "SARD000000025809-00003-114-008"
+			},
+			{
+				"path": "Original_Product_Metadata/Odi_SceneId",
+				"value": "SARD000000025809-00003-114-008"
+			},
+			{
+				"path": "Original_Product_Metadata/Lbi_ProcessLevel",
+				"value": "1.5"
+			},
+			{
+				"path": "Original_Product_Metadata/Lbi_ObservationDate",
+				"value": "20140620"
+			},
+			{
+				"path": "Original_Product_Metadata/Img_ImageSceneRightBottomLongitude",
+				"value": "139.122"
+			},
+			{
+				"path": "Original_Product_Metadata/Ach_HouseKeepingDataCheck",
+				"value": "GOOD"
+			},
+			{
+				"path": "Original_Product_Metadata/Img_ImageSceneLeftBottomLongitude",
+				"value": "138.578"
+			},
+			{
+				"path": "Original_Product_Metadata/Img_ImageSceneLeftTopLongitude",
+				"value": "138.359"
+			},
+			{
+				"path": "Original_Product_Metadata/Img_FrameSceneRightBottomLongitude",
+				"value": "139.125"
+			},
+			{
+				"path": "Original_Product_Metadata/Ach_PRF_Check",
+				"value": "-"
+			}
+		]
+	}
+}
+

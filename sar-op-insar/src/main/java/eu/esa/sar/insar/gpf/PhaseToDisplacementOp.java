@@ -77,9 +77,13 @@ public final class PhaseToDisplacementOp extends Operator {
     public void initialize() throws OperatorException {
 
         try {
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
-            validator.checkIfMapProjected(false);
-            // input should be flat-Earth-phase and topo-phase removed unwrapped phase
+            // input should be flat-Earth-phase and topo-phase removed unwrapped phase.
+            //
+            // Map-projected input is accepted. This operator is pure per-pixel arithmetic —
+            // displacement = -(lambda/4pi) * phase — with no geometric assumption whatsoever: it
+            // reads only the radar wavelength and the raster dimensions. Rejecting map-projected
+            // products blocked the geocode-first (GSLC) workflow, where the interferogram is already
+            // on a map grid by the time it is unwrapped, for no benefit.
 
             getMetadata();
 

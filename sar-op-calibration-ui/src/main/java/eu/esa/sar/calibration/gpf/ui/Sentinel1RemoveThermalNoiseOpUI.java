@@ -39,9 +39,11 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
     private final JCheckBox removeThermalNoiseCheckBox = new JCheckBox("Remove Thermal Noise");
     private final JCheckBox outputNoiseCheckBox = new JCheckBox("Output Noise");
     private final JCheckBox reIntroduceThermalNoiseCheckBox = new JCheckBox("Re-Introduce Thermal Noise");
+    private final JCheckBox clipNegativeValuesCheckBox = new JCheckBox("Clip Negative Values");
     private boolean removeThermalNoise = false;
     private boolean outputNoise = false;
     private boolean reIntroduceThermalNoise = false;
+    private boolean clipNegativeValues = true;
 
     @Override
     public JComponent CreateOpTab(String operatorName, Map<String, Object> parameterMap, AppContext appContext) {
@@ -57,11 +59,13 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
                     reIntroduceThermalNoise = false;
                     reIntroduceThermalNoiseCheckBox.setSelected(false);
                     outputNoiseCheckBox.setEnabled(true);
+                    clipNegativeValuesCheckBox.setEnabled(true);
                 } else {
                     reIntroduceThermalNoise = true;
                     reIntroduceThermalNoiseCheckBox.setSelected(true);
                     outputNoiseCheckBox.setEnabled(false);
                     outputNoiseCheckBox.setSelected(false);
+                    clipNegativeValuesCheckBox.setEnabled(false);
                 }
             }
         });
@@ -74,10 +78,12 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
                     removeThermalNoiseCheckBox.setSelected(false);
                     outputNoiseCheckBox.setEnabled(false);
                     outputNoiseCheckBox.setSelected(false);
+                    clipNegativeValuesCheckBox.setEnabled(false);
                 } else {
                     removeThermalNoise = true;
                     removeThermalNoiseCheckBox.setSelected(true);
                     outputNoiseCheckBox.setEnabled(true);
+                    clipNegativeValuesCheckBox.setEnabled(true);
                 }
             }
         });
@@ -85,6 +91,12 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
         outputNoiseCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 outputNoise = (e.getStateChange() == ItemEvent.SELECTED);
+            }
+        });
+
+        clipNegativeValuesCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                clipNegativeValues = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -120,6 +132,12 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
             outputNoise = paramVal;
             outputNoiseCheckBox.setSelected(outputNoise);
         }
+
+        paramVal = (Boolean) paramMap.get("clipNegativeValues");
+        if (paramVal != null) {
+            clipNegativeValues = paramVal;
+            clipNegativeValuesCheckBox.setSelected(clipNegativeValues);
+        }
     }
 
     @Override
@@ -135,6 +153,7 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
         paramMap.put("removeThermalNoise", removeThermalNoise);
         paramMap.put("reIntroduceThermalNoise", reIntroduceThermalNoise);
         paramMap.put("outputNoise", outputNoise);
+        paramMap.put("clipNegativeValues", clipNegativeValues);
     }
 
     private JComponent createPanel() {
@@ -153,6 +172,10 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
         gbc.gridx = 0;
         gbc.gridy++;
         contentPane.add(reIntroduceThermalNoiseCheckBox, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        contentPane.add(clipNegativeValuesCheckBox, gbc);
 
         DialogUtils.fillPanel(contentPane, gbc);
 

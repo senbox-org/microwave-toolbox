@@ -57,6 +57,7 @@ public class TestERSProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i","q","Intensity"});
+        validator.validateBandData();
     }
 
     @Test
@@ -67,5 +68,6 @@ public class TestERSProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude","Intensity"});
+        validator.validateBandData();
     }
 }

@@ -118,7 +118,10 @@ public class SpeckleDivergenceOp extends Operator {
 
         final int azimuthLooks = absRoot.getAttributeInt(AbstractMetadata.azimuth_looks);
         final int rangeLooks = absRoot.getAttributeInt(AbstractMetadata.range_looks);
-        c = 1.0 / (azimuthLooks + rangeLooks);
+        // Theoretical CV of L-look intensity speckle is 1/sqrt(L) (Goodman, Statistical Optics).
+        // ENL is the product of azimuth and range looks for boxcar multilooking.
+        final int enl = Math.max(1, azimuthLooks * rangeLooks);
+        c = 1.0 / Math.sqrt(enl);
     }
 
     /**
@@ -348,8 +351,10 @@ public class SpeckleDivergenceOp extends Operator {
         final TileIndex tileIndex = new TileIndex(sourceTile);
 
         int numSamples = 0;
-        final int maxy = Math.min(y0 + h, sourceTile.getMaxY() - 1);
-        final int maxx = Math.min(x0 + w, sourceTile.getMaxX() - 1);
+        // Tile.getMaxY()/getMaxX() are inclusive; the loop bound below is exclusive,
+        // so use getMaxY()+1 / getMaxX()+1 as the exclusive upper bound.
+        final int maxy = Math.min(y0 + h, sourceTile.getMaxY() + 1);
+        final int maxx = Math.min(x0 + w, sourceTile.getMaxX() + 1);
 
         if (bandUnit == Unit.UnitType.INTENSITY) {
 
@@ -357,7 +362,7 @@ public class SpeckleDivergenceOp extends Operator {
                 tileIndex.calculateStride(y);
                 for (int x = x0; x < maxx; x++) {
                     final double v = srcData.getElemDoubleAt(tileIndex.getIndex(x));
-                    if (v != noDataValue && v > 0.4) {
+                    if (v != noDataValue && !Double.isNaN(v) && v > 0.4) {
                         samples[numSamples++] = v;
                     }
                 }
@@ -369,7 +374,7 @@ public class SpeckleDivergenceOp extends Operator {
                 tileIndex.calculateStride(y);
                 for (int x = x0; x < maxx; x++) {
                     final double v = srcData.getElemDoubleAt(tileIndex.getIndex(x));
-                    if (v != noDataValue & v * v > 0.4) {
+                    if (v != noDataValue && !Double.isNaN(v) && v * v > 0.4) {
                         samples[numSamples++] = v * v;
                     }
                 }

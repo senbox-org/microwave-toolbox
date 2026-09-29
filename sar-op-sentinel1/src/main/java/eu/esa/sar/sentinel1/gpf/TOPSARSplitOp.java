@@ -202,8 +202,12 @@ public final class TOPSARSplitOp extends Operator {
             targetProduct = subsetBuilder.readProductNodes(sourceProduct, subsetDef);
 
             if (foundSwathTPG) {
-                targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("latitude"));
-                targetProduct.removeTiePointGrid(targetProduct.getTiePointGrid("longitude"));
+                TiePointGrid latTPG = targetProduct.getTiePointGrid("latitude");
+                if(latTPG != null)
+                    targetProduct.removeTiePointGrid(latTPG);
+                TiePointGrid lonTPG = targetProduct.getTiePointGrid("longitude");
+                if(lonTPG != null)
+                    targetProduct.removeTiePointGrid(lonTPG);
 
                 for (TiePointGrid tpg : targetProduct.getTiePointGrids()) {
                     tpg.setName(tpg.getName().replace(subswath + "_", ""));
@@ -235,12 +239,16 @@ public final class TOPSARSplitOp extends Operator {
         ProductData destBuffer = targetTile.getRawSamples();
         Rectangle rectangle = targetTile.getRectangle();
         try {
-            subsetBuilder.readBandRasterData(targetBand,
-                    rectangle.x,
-                    rectangle.y,
-                    rectangle.width,
-                    rectangle.height,
-                    destBuffer, pm);
+            // ProductSubsetBuilder.readBandRasterData is not thread-safe — it shares reader state internally.
+            // Serialize access from concurrent JAI tile threads.
+            synchronized (subsetBuilder) {
+                subsetBuilder.readBandRasterData(targetBand,
+                        rectangle.x,
+                        rectangle.y,
+                        rectangle.width,
+                        rectangle.height,
+                        destBuffer, pm);
+            }
             targetTile.setRawSamples(destBuffer);
         } catch (IOException e) {
             throw new OperatorException(e);

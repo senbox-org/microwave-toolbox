@@ -18,10 +18,12 @@ package eu.esa.sar.insar.gpf.ui.coregistration;
 import eu.esa.sar.insar.gpf.InSARStackOverview;
 import eu.esa.sar.insar.gpf.coregistration.CreateStackOp;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorException;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.graphbuilder.gpf.ui.BaseOperatorUI;
@@ -85,14 +87,50 @@ public class CreateStackOpUI extends BaseOperatorUI {
         //enableOptimalReferenceButton();
         //updateReferenceSecondarySelections();
 
-        if (referenceProduct != null) {
-            referenceProductLabel.setText(referenceProduct.getName());
-        }
         resamplingType.setSelectedItem(paramMap.get("resamplingType"));
 
         initialOffsetMethod.setSelectedItem(paramMap.get("initialOffsetMethod"));
 
+        if (referenceProduct != null) {
+            referenceProductLabel.setText(referenceProduct.getName());
+        }
+        if(referenceProduct != null && InputProductValidator.isMapProjected(referenceProduct)
+                && !isGSLCProduct(referenceProduct)) {
+            initialOffsetMethod.setSelectedItem(CreateStackOp.INITIAL_OFFSET_GEOLOCATION);
+            if(paramMap.get("resamplingType").equals("NONE")) {
+                resamplingType.setSelectedItem(ResamplingFactory.BISINC_5_POINT_INTERPOLATION_NAME);
+            }
+        } else {
+            initialOffsetMethod.setSelectedItem(paramMap.get("initialOffsetMethod"));
+        }
+
         extent.setSelectedItem(paramMap.get("extent"));
+    }
+
+    /**
+     * A GSLC (Geocoded SLC) is map-projected but carries the SLC carrier phase, so it
+     * must be handled by the orbit-based / no-resampling InSAR path — not by the
+     * geolocation-GCP + BISINC resampling path used for terrain-corrected amplitude stacks.
+     */
+    private static boolean isGSLCProduct(final Product product) {
+        if (product == null) return false;
+        if (product.getName() != null && product.getName().endsWith("_GSLC")) return true;
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(product);
+        if (abs != null && abs.getAttribute("gslc_source_slc_path") != null) return true;
+        // Final fallback: any map-projected product that still carries a complex (i/q) band
+        // pair is a GSLC for our purposes — the user may have written it with an arbitrary
+        // filename suffix (e.g. "_TC") that loses the natural _GSLC suffix, and subset can
+        // strip the gslc_source_slc_path stamp.
+        boolean hasReal = false;
+        boolean hasImag = false;
+        for (final Band b : product.getBands()) {
+            final String u = b.getUnit();
+            if (u == null) continue;
+            if (u.equals(Unit.REAL)) hasReal = true;
+            else if (u.equals(Unit.IMAGINARY)) hasImag = true;
+            if (hasReal && hasImag) return true;
+        }
+        return false;
     }
 
     private static List<Integer> getSelectedIndices(final String[] allBandNames,
@@ -143,6 +181,14 @@ public class CreateStackOpUI extends BaseOperatorUI {
         paramMap.put("initialOffsetMethod", initialOffsetMethod.getSelectedItem());
 
         paramMap.put("extent", extent.getSelectedItem());
+
+        // No UI control exposes this parameter (auto-coregister is a power-user toggle
+        // useful only to tests). Default it to TRUE so GSLC + raw-SLC workflows in the
+        // GUI auto-promote the SLC slaves to the master's grid. Tests that want to skip
+        // the heavy work set it directly via setParameter(...).
+        if (!paramMap.containsKey("autoCoregisterGSLC")) {
+            paramMap.put("autoCoregisterGSLC", Boolean.TRUE);
+        }
     }
 
     private JComponent createPanel() {
@@ -213,7 +259,7 @@ public class CreateStackOpUI extends BaseOperatorUI {
     }
 
     private void updateReferenceSecondarySelections() {
-        final String bandNames[] = getBandNames();
+        final String[] bandNames = getBandNames();
         OperatorUIUtils.initParamList(refBandList, bandNames);
         OperatorUIUtils.initParamList(secBandList, bandNames);
 

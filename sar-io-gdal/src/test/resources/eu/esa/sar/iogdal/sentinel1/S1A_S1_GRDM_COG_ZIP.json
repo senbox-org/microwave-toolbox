@@ -1,0 +1,213 @@
+{
+	"id": "S1A_S1_GRDM_COG_ZIP",
+	"decodeQualification": "INTENDED",
+	"expectedContent": {
+		"sceneWidth": 10414,
+		"sceneHeight": 10863,
+		"startTime": "25-FEB-2022 02:50:10.849068",
+		"endTime": "25-FEB-2022 02:51:15.144370",
+		"geoCoding": {
+			"coordinates": [
+				{
+					"x": 4491.0,
+					"y": 5839.0,
+					"lat": -72.79177710183156,
+					"lon": -90.32718670638327
+				},
+				{
+					"x": 7731.0,
+					"y": 7049.0,
+					"lat": -71.6679122705005,
+					"lon": -88.61012303935405
+				}
+			],
+			"reverseAccuracy": 1.5319404327892698
+		},
+		"tiePointGrids": [
+			{
+				"name": "latitude",
+				"offsetX": "0.5",
+				"offsetY": "0.5",
+				"subSamplingX": "520.7",
+				"subSamplingY": "493.77272727272725",
+				"expectedPixels": [
+					{
+						"x": 543,
+						"y": 1935,
+						"value": -74.77806
+					},
+					{
+						"x": 7134,
+						"y": 9239,
+						"value": -71.243324
+					}
+				]
+			},
+			{
+				"name": "longitude",
+				"offsetX": "0.5",
+				"offsetY": "0.5",
+				"subSamplingX": "520.7",
+				"subSamplingY": "493.77272727272725",
+				"expectedPixels": [
+					{
+						"x": 3029,
+						"y": 2790,
+						"value": -88.91288
+					},
+					{
+						"x": 6357,
+						"y": 3968,
+						"value": -87.09537
+					}
+				]
+			},
+			{
+				"name": "incident_angle",
+				"offsetX": "0.5",
+				"offsetY": "0.5",
+				"subSamplingX": "520.7",
+				"subSamplingY": "493.77272727272725",
+				"expectedPixels": [
+					{
+						"x": 5728,
+						"y": 8096,
+						"value": 34.725567
+					},
+					{
+						"x": 6335,
+						"y": 10085,
+						"value": 36.284985
+					}
+				]
+			},
+			{
+				"name": "elevation_angle",
+				"offsetX": "0.5",
+				"offsetY": "0.5",
+				"subSamplingX": "520.7",
+				"subSamplingY": "493.77272727272725",
+				"expectedPixels": [
+					{
+						"x": 1648,
+						"y": 7235,
+						"value": 20.754715
+					},
+					{
+						"x": 5406,
+						"y": 9923,
+						"value": 30.072922
+					}
+				]
+			},
+			{
+				"name": "slant_range_time",
+				"offsetX": "0.5",
+				"offsetY": "0.5",
+				"subSamplingX": "520.7",
+				"subSamplingY": "493.77272727272725",
+				"expectedPixels": [
+					{
+						"x": 7874,
+						"y": 5264,
+						"value": 6082731.0
+					},
+					{
+						"x": 9901,
+						"y": 5277,
+						"value": 6445423.0
+					}
+				]
+			}
+		],
+		"bands": [
+			{
+				"name": "Amplitude_HH",
+				"bandWidth": 10414,
+				"bandHeight": 10863,
+				"geophysicalUnit": "amplitude",
+				"noDataValue": "0.0",
+				"noDataValueUsed": "true",
+				"spectralWavelength": "0.0",
+				"spectralBandwidth": "0.0",
+				"expectedPixels": [
+					{
+						"x": 3545,
+						"y": 9770,
+						"value": 818.0
+					},
+					{
+						"x": 103,
+						"y": 5113,
+						"value": 717.0
+					}
+				]
+			},
+			{
+				"name": "Intensity_HH",
+				"description": "Intensity from complex data",
+				"bandWidth": 10414,
+				"bandHeight": 10863,
+				"geophysicalUnit": "intensity",
+				"noDataValue": "0.0",
+				"noDataValueUsed": "true",
+				"spectralWavelength": "0.0",
+				"spectralBandwidth": "0.0",
+				"expectedPixels": [
+					{
+						"x": 3409,
+						"y": 2141,
+						"value": 50176.0
+					},
+					{
+						"x": 2844,
+						"y": 469,
+						"value": 104976.0
+					}
+				]
+			}
+		],
+		"metadata": [
+			{
+				"path": "Original_Product_Metadata/noise/s1a-ew-grd-hh-20220225t025010-20220225t025115-042063-0502c8-001-cog.xml/noise/adsHeader/swath",
+				"value": "EW"
+			},
+			{
+				"path": "Abstracted_Metadata/Doppler_Centroid_Coefficients/dop_coef_list.38/coefficient.2/dop_coef",
+				"value": "214.0865"
+			},
+			{
+				"path": "Abstracted_Metadata/Doppler_Centroid_Coefficients/dop_coef_list.10/coefficient.2/dop_coef",
+				"value": "622.8431"
+			},
+			{
+				"path": "Original_Product_Metadata/annotation/s1a-ew-grd-hh-20220225t025010-20220225t025115-042063-0502c8-001-cog.xml/product/qualityInformation/qualityDataList/qualityData/dopplerCentroidQuality/dopplerCentroidUncertainFlag",
+				"value": "true"
+			},
+			{
+				"path": "Original_Product_Metadata/calibration/s1a-ew-grd-hh-20220225t025010-20220225t025115-042063-0502c8-001-cog.xml/calibration/calibrationInformation/absoluteCalibrationConstant",
+				"value": "1.000000e+00"
+			},
+			{
+				"path": "Original_Product_Metadata/annotation/s1a-ew-grd-hh-20220225t025010-20220225t025115-042063-0502c8-001-cog.xml/product/geolocationGrid/geolocationGridPointList/geolocationGridPoint[457]/line",
+				"value": "10647"
+			},
+			{
+				"path": "Original_Product_Metadata/noise/s1a-ew-grd-hh-20220225t025010-20220225t025115-042063-0502c8-001-cog.xml/noise/adsHeader/swath",
+				"value": "EW"
+			},
+			{
+				"path": "Original_Product_Metadata/XFDU/dataObjectSection/dataObject/byteStream/fileLocation/locatorType",
+				"value": "URL"
+			},
+			{
+				"path": "Abstracted_Metadata/Band_EW_HH/sample_type",
+				"value": "DETECTED"
+			},
+			{
+				"path": "Original_Product_Metadata/rfi/s1a-ew-grd-hh-20220225t025010-20220225t025115-042063-0502c8-001-cog.xml/rfi/rfiDetectionFromNoiseReportList/rfiDetectionFromNoiseReport[81]/maxKLDivergence",
+				"value": "2.388120e+00"
+			}
+		]
+	}
+}

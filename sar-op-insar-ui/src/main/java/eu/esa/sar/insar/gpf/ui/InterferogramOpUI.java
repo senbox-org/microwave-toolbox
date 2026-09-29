@@ -45,6 +45,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
 
     private final JCheckBox subtractFlatEarthPhaseCheckBox = new JCheckBox("Subtract Flat-Earth Phase");
     private final JCheckBox subtractTopographicPhaseCheckBox = new JCheckBox("Subtract Topographic Phase");
+    private final JCheckBox subtractSeamStepsCheckBox = new JCheckBox("Subtract Burst Seam Steps (GSLC)");
     private final JCheckBox includeCoherenceCheckBox = new JCheckBox("Output Coherence");
     private final JCheckBox squarePixelCheckBox = new JCheckBox("Square Pixel");
     private final JCheckBox independentWindowSizeCheckBox = new JCheckBox("Independent Window Sizes");
@@ -77,6 +78,7 @@ public class InterferogramOpUI extends BaseOperatorUI {
     private Boolean outputLatLon = false;
 
     private Boolean subtractTopographicPhase = false;
+    private Boolean subtractSeamSteps = false;
     private static final String[] demValueSet = DEMFactory.getDEMNameList();
     //    private final JTextField orbitDegree = new JTextField("");
     private final JComboBox<String> demName = new JComboBox<>(demValueSet);
@@ -162,6 +164,12 @@ public class InterferogramOpUI extends BaseOperatorUI {
                 outputElevationCheckBox.setEnabled(subtractTopographicPhase);
                 outputLatLonCheckBox.setEnabled(subtractTopographicPhase);
                 outputTopoPhaseCheckBox.setEnabled(subtractTopographicPhase);
+            }
+        });
+
+        subtractSeamStepsCheckBox.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                subtractSeamSteps = (e.getStateChange() == ItemEvent.SELECTED);
             }
         });
 
@@ -253,6 +261,12 @@ public class InterferogramOpUI extends BaseOperatorUI {
             subtractTopographicPhaseCheckBox.setSelected(subtractTopographicPhase);
         }
 
+        paramVal = (Boolean) paramMap.get("subtractSeamSteps");
+        if (paramVal != null) {
+            subtractSeamSteps = paramVal;
+            subtractSeamStepsCheckBox.setSelected(subtractSeamSteps);
+        }
+
         paramVal = (Boolean) paramMap.get("outputTopoPhase");
         if (paramVal != null) {
             outputTopoPhase = paramVal;
@@ -273,7 +287,6 @@ public class InterferogramOpUI extends BaseOperatorUI {
         }
         outputLatLonCheckBox.setSelected(outputLatLon);
         outputLatLonCheckBox.setEnabled(subtractTopographicPhase);
-
 
 //        orbitDegree.setText(String.valueOf(paramMap.get("orbitDegree")));
         final String demNameParam = (String) paramMap.get("demName");
@@ -356,6 +369,10 @@ public class InterferogramOpUI extends BaseOperatorUI {
         }
 
         paramMap.put("subtractTopographicPhase", subtractTopographicPhase);
+        paramMap.put("subtractSeamSteps", subtractSeamSteps);
+        try {
+        } catch (NumberFormatException e) {
+        }
         if (subtractTopographicPhase) {
 //          paramMap.put("orbitDegree", Integer.parseInt(orbitDegree.getText()));
             final String properDEMName = (DEMFactory.getProperDEMName((String) demName.getSelectedItem()));
@@ -450,6 +467,22 @@ public class InterferogramOpUI extends BaseOperatorUI {
         outputElevationCheckBox.setEnabled(false);
         outputLatLonCheckBox.setEnabled(false);
 
+        final JPanel gslcPanel = new JPanel(new GridBagLayout());
+        final GridBagConstraints gbc5 = DialogUtils.createGridBagConstraints();
+        gslcPanel.setBorder(BorderFactory.createTitledBorder("GSLC Burst Seams"));
+
+        gbc.gridy++;
+        contentPane.add(gslcPanel, gbc);
+
+        gslcPanel.add(subtractSeamStepsCheckBox, gbc5);
+        subtractSeamStepsCheckBox.setToolTipText(
+                "GSLC TOPS stacks only: measure each burst seam's residual phase discontinuity " +
+                "directly (across-seam differences) and subtract it. A continuous field - " +
+                "deformation, atmosphere, an orbital ramp - cancels in that difference to the " +
+                "extent that it is locally linear in azimuth, so unlike a fitted surface this " +
+                "cannot absorb a broad signal wholesale. No effect on stripmap products, which " +
+                "have no burst seams.");
+
         final JPanel coherencePanel = new JPanel(new GridBagLayout());
         final GridBagConstraints gbc4 = DialogUtils.createGridBagConstraints();
         coherencePanel.setBorder(BorderFactory.createTitledBorder("Coherence"));
@@ -480,12 +513,12 @@ public class InterferogramOpUI extends BaseOperatorUI {
 
         DialogUtils.fillPanel(flatEarthPanel, gbc2);
         DialogUtils.fillPanel(topoPanel, gbc3);
+        DialogUtils.fillPanel(gslcPanel, gbc5);
         DialogUtils.fillPanel(coherencePanel, gbc4);
         DialogUtils.fillPanel(contentPane, gbc);
 
         return contentPane;
     }
-
 
     private synchronized void setCohWinAz() {
         if (sourceProducts != null && sourceProducts.length > 0) {

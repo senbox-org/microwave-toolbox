@@ -45,7 +45,7 @@ public class ProjectedDEM {
     private double demNoDataValue = 0.0f;
     private final String bandName;
 
-    private final String demName = "SRTM 3Sec";
+    private final String demName = "Copernicus 30m Global DEM";
     private final String demResamplingMethod = ResamplingFactory.BILINEAR_INTERPOLATION_NAME;
     private final String mapProjection = "AUTO:42001";
 

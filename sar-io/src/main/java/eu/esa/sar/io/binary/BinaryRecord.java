@@ -26,7 +26,7 @@ public class BinaryRecord {
     private final BinaryFileReader reader;
 
     private final BinaryDBReader db;
-    private final Integer recordLength;
+    private final int recordLength;
 
     public BinaryRecord(final BinaryFileReader reader, final long sPos,
                         final Document recordDefinitionXML, final String recName) throws IOException {
@@ -39,15 +39,10 @@ public class BinaryRecord {
             this.startPos = reader.getCurrentPos();
         }
 
-        //if (this.startPos >= reader.getLength()) {
-       //     recordLength = 0;
-        //    db = null;
-        //    return;
-        //}
-
         db = new BinaryDBReader(recordDefinitionXML, recName, this.startPos);
         db.readRecord(reader);
 
+        // getAttributeInt returns 0 on a missing entry — no null check needed.
         recordLength = getAttributeInt("Record Length");
     }
 
@@ -80,9 +75,7 @@ public class BinaryRecord {
     }
 
     public long getRecordEndPosition() {
-        if (recordLength != null)
-            return startPos + recordLength;
-        return startPos;
+        return startPos + recordLength;
     }
 
     public long getAbsolutPosition(final long relativePosition) {

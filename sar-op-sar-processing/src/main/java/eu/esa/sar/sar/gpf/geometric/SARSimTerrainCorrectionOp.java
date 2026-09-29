@@ -195,13 +195,13 @@ public class SARSimTerrainCorrectionOp extends Operator {
 
     private ProductNodeGroup<Placemark> masterGCPGroup = null;
     private MetadataElement absRoot = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private String demResamplingMethod;
 
     private boolean srgrFlag = false;
     private boolean saveLayoverShadowMask = false;
     private boolean saveIncidenceAngleFromEllipsoid = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
     private boolean usePreCalibrationOp = false;
     private boolean warpDataAvailable = false;
     private boolean fileOutput = false;
@@ -249,6 +249,7 @@ public class SARSimTerrainCorrectionOp extends Operator {
     private Calibrator calibrator = null;
     private Band maskBand = null;
     private boolean skipBistaticCorrection = false;
+    private double bistaticCorrectionRefRange = 0.0;
 
     private boolean orthoDataProduced = false;  // check if any ortho data is actually produced
     private boolean processingStarted = false;
@@ -412,6 +413,9 @@ public class SARSimTerrainCorrectionOp extends Operator {
         mission = RangeDopplerGeocodingOp.getMissionType(absRoot);
 
         skipBistaticCorrection = absRoot.getAttributeInt(AbstractMetadata.bistatic_correction_applied, 0) == 1;
+        if (skipBistaticCorrection && mission != null && mission.startsWith("SENTINEL-1")) {
+            bistaticCorrectionRefRange = AbstractMetadata.getAttributeDouble(absRoot, AbstractMetadata.slant_range_to_first_pixel);
+        }
 
         srgrFlag = AbstractMetadata.getAttributeBoolean(absRoot, AbstractMetadata.srgr_flag);
 
@@ -475,9 +479,12 @@ public class SARSimTerrainCorrectionOp extends Operator {
         if (demDescriptor == null) {
 
             final File externalDemFile = new File(demName);
+            if (!externalDemFile.exists()) {
+                throw new OperatorException("External DEM file not found: " + demName);
+            }
+            demNoDataValue = absRoot.getAttributeDouble("external DEM no data value", demNoDataValue);
             dem = new FileElevationModel(externalDemFile, demResamplingMethod, demNoDataValue);
             demName = externalDemFile.getName();
-            demNoDataValue = absRoot.getAttributeDouble("external DEM no data value");
         } else {
             dem = DEMFactory.createElevationModel(demName, demResamplingMethod);
             demNoDataValue = dem.getDescriptor().getNoDataValue();
@@ -954,7 +961,9 @@ public class SARSimTerrainCorrectionOp extends Operator {
         final RangeDopplerGeocodingOp.TileData[] trgTiles = trgTileList.toArray(new RangeDopplerGeocodingOp.TileData[0]);
         final TileGeoreferencing tileGeoRef = new TileGeoreferencing(targetProduct, x0 - 1, y0 - 1, w + 2, h + 2);
 
-        int diffLat = Math.abs(latitude.getPixelInt(0, 0) - latitude.getPixelInt(0, targetImageHeight));
+        // Last valid row is targetImageHeight - 1, not targetImageHeight. Use max(1, abs)
+        // so small scenes (<1°) don't get diffLat == 0 and skip the latitude boundary check.
+        int diffLat = Math.max(1, Math.abs(latitude.getPixelInt(0, 0) - latitude.getPixelInt(0, targetImageHeight - 1)));
 
         try {
             final double[][] localDEM = new double[h + 2][w + 2];
@@ -975,9 +984,9 @@ public class SARSimTerrainCorrectionOp extends Operator {
 
                     final int index = trgTiles[0].targetTile.getDataBufferIndex(x, y);
 
-                    final Double alt = localDEM[yy][x - x0 + 1];
+                    final double alt = localDEM[yy][x - x0 + 1];
 
-                    if (!useAvgSceneHeight && alt.equals(demNoDataValue)) {
+                    if (!useAvgSceneHeight && (Double.isNaN(alt) || alt == demNoDataValue)) {
                         if (saveDEM) {
                             demBuffer.setElemDoubleAt(index, demNoDataValue);
                         }
@@ -1005,14 +1014,20 @@ public class SARSimTerrainCorrectionOp extends Operator {
                         continue;
                     }
 
-                    double slantRange = SARGeocoding.computeSlantRange(zeroDopplerTime, orbit, earthPoint, sensorPos);
+                    double slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                            zeroDopplerTime, earthPoint, sensorPos);
 
                     double zeroDoppler = zeroDopplerTime;
                     if (!skipBistaticCorrection) {
-                        // skip bistatic correction for COSMO, TerraSAR-X and RadarSAT-2
+                        // Full bistatic correction: product has no bulk correction applied
                         zeroDoppler = zeroDopplerTime + slantRange / Constants.lightSpeedInMetersPerDay;
-
-                        slantRange = SARGeocoding.computeSlantRange(zeroDoppler, orbit, earthPoint, sensorPos);
+                        slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                                zeroDoppler, earthPoint, sensorPos);
+                    } else if (bistaticCorrectionRefRange > 0.0) {
+                        // Bistatic residual correction (Section 4.7.3 of UZH-S1-GC-AD v1.12)
+                        zeroDoppler = zeroDopplerTime + (slantRange - bistaticCorrectionRefRange) / Constants.lightSpeedInMetersPerDay;
+                        slantRange = SARGeocoding.computeSlantRangeFast(orbit, firstLineUTC, lineTimeInterval,
+                                zeroDoppler, earthPoint, sensorPos);
                     }
 
                     final double azimuthIndex = (zeroDoppler - firstLineUTC) / lineTimeInterval;

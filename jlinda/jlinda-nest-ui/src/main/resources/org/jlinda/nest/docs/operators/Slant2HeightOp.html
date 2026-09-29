@@ -17,6 +17,16 @@
 </table>
 <h3>Phase to Height conversion</h3>
 
+<p style="border: 1px solid #a00; padding: 8px;">
+    <b>Deprecated.</b> This operator has been superseded by
+    <b>Radar &rarr; Interferometric &rarr; Products &rarr; Phase to Elevation</b>, which offers the
+    same Schwabisch conversion under its <i>Method</i> parameter. Its menu entry has been
+    removed; the operator itself is retained so that existing graphs keep running,
+    and it will be deleted in a future release. Please migrate graphs by replacing the
+    <code>PhaseToHeight</code> node with a <code>PhaseToElevation</code> node whose
+    <code>method</code> parameter is set to <code>Schwabisch</code>.
+</p>
+
 <p>
     This operator converts the unwrapped interferometric phase to the heights in the radar coded system. This
     functionality is sometimes referred to as "slant-to-height" conversion.

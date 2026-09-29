@@ -110,8 +110,8 @@ public final class SARSimulationOp extends Operator {
     private String[] sourceBandNames;
 
     @Parameter(description = "The digital elevation model.",
-            defaultValue = "SRTM 3Sec", label = "Digital Elevation Model")
-    private String demName = "SRTM 3Sec";
+            defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
+    private String demName = "Copernicus 30m Global DEM";
 
     @Parameter(defaultValue = ResamplingFactory.BICUBIC_INTERPOLATION_NAME,
             label = "DEM Resampling Method")
@@ -153,13 +153,13 @@ public final class SARSimulationOp extends Operator {
     public final static String layoverShadowMaskBandName = "layover_shadow_mask";
 
     private MetadataElement absRoot = null;
-    private ElevationModel dem = null;
+    private volatile ElevationModel dem = null;
     private GeoCoding targetGeoCoding = null;
 
     private int sourceImageWidth = 0;
     private int sourceImageHeight = 0;
     private boolean srgrFlag = false;
-    private boolean isElevationModelAvailable = false;
+    private volatile boolean isElevationModelAvailable = false;
 
     private double rangeSpacing = 0.0;
     private double firstLineUTC = 0.0; // in days
@@ -213,6 +213,14 @@ public final class SARSimulationOp extends Operator {
 
             computeSensorPositionsAndVelocities();
 
+            if (false) { //srgrFlag) {
+                try {
+                    validateSRGR();
+                } catch (Exception e) {
+                    System.err.println("SAR-Simulation: SRGR validation could not be performed due to an error: " + e.getMessage());
+                }
+            }
+
             createTargetProduct();
 
             if (demName.contains(externalDEMStr) && externalDEMFile == null) {
@@ -233,6 +241,56 @@ public final class SARSimulationOp extends Operator {
             }
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    private void validateSRGR() throws Exception {
+
+        final GeoCoding geoCoding = sourceProduct.getSceneGeoCoding();
+        if (geoCoding == null) {
+            System.out.println("SAR-Simulation: No GeoCoding found in the product. Cannot perform SRGR validation.");
+            return;
+        }
+
+        getElevationModel();
+        if (dem == null) {
+            System.out.println("SAR-Simulation: DEM is not available. Cannot perform SRGR validation without elevation.");
+            return;
+        }
+
+        final int w = sourceImageWidth;
+        final int h = sourceImageHeight;
+        final float[] xCoords = {0.5f, w / 2.0f, w - 0.5f};
+        final float[] yCoords = {0.5f, h / 2.0f, h - 0.5f};
+
+        for (float y : yCoords) {
+            for (float x : xCoords) {
+                final PixelPos pixelPos = new PixelPos(x, y);
+                final GeoPos geoPos = geoCoding.getGeoPos(pixelPos, null);
+                if (geoPos == null || !geoPos.isValid()) {
+                    continue;
+                }
+                final double height = dem.getElevation(geoPos);
+
+                System.out.printf("SAR-Simulation: Validating SRGR coefficients using generated point at (%.1f, %.1f)%n", x, y);
+
+                final double error = SARGeocoding.validateSRGR(
+                        pixelPos, geoPos, height,
+                        orbit,
+                        srgrConvParams,
+                        rangeSpacing,
+                        firstLineUTC, lastLineUTC,
+                        lineTimeInterval, wavelength,
+                        sourceImageWidth);
+
+                if (Math.abs(error) >= 9000) {
+                    System.err.printf("SAR-Simulation Warning: SRGR validation failed for point (%.1f, %.1f). Please check log for details. Geocoding results may be inaccurate.%n", x, y);
+                } else if (Math.abs(error) > 1.0) {
+                    System.err.printf("SAR-Simulation Warning: SRGR validation for point (%.1f, %.1f) resulted in an error of %.2f pixels. Geocoding results may be inaccurate.%n", x, y, error);
+                } else {
+                    System.out.printf("SAR-Simulation: SRGR validation for point (%.1f, %.1f) successful with an error of %.2f pixels.%n", x, y, error);
+                }
+            }
         }
     }
 
@@ -295,20 +353,17 @@ public final class SARSimulationOp extends Operator {
     private synchronized void getElevationModel() throws Exception {
 
         if (isElevationModelAvailable) return;
-        try {
-            if (demName.contains(externalDEMStr)) { // if external DEM file is specified by user
 
-                dem = new FileElevationModel(externalDEMFile, demResamplingMethod, externalDEMNoDataValue);
-                ((FileElevationModel)dem).applyEarthGravitionalModel(externalDEMApplyEGM);
-                demNoDataValue = externalDEMNoDataValue;
-                demName = externalDEMFile.getPath();
+        if (demName.contains(externalDEMStr)) { // if external DEM file is specified by user
 
-            } else {
-                dem = DEMFactory.createElevationModel(demName, demResamplingMethod);
-                demNoDataValue = dem.getDescriptor().getNoDataValue();
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
+            dem = new FileElevationModel(externalDEMFile, demResamplingMethod, externalDEMNoDataValue);
+            ((FileElevationModel)dem).applyEarthGravitionalModel(externalDEMApplyEGM);
+            demNoDataValue = externalDEMNoDataValue;
+            demName = externalDEMFile.getPath();
+
+        } else {
+            dem = DEMFactory.createElevationModel(demName, demResamplingMethod);
+            demNoDataValue = dem.getDescriptor().getNoDataValue();
         }
         isElevationModelAvailable = true;
     }
@@ -578,7 +633,7 @@ public final class SARSimulationOp extends Operator {
 
                 final double[][] tileDEM = new double[nLat + 1][nLon + 1];
                 final double[][] neighbourDEM = new double[3][3];
-                Double alt;
+                double alt;
 
                 if (saveLayoverShadowMask) {
                     slrs = new double[nLon];
@@ -609,7 +664,7 @@ public final class SARSimulationOp extends Operator {
                         } else {
                             geoPos.setLocation(lat, lon);
                             alt = dem.getElevation(geoPos);
-                            if (alt.equals(demNoDataValue))
+                            if (Double.isNaN(alt) || alt == demNoDataValue)
                                 continue;
                         }
                         tileDEM[i][j] = alt;
@@ -738,9 +793,9 @@ public final class SARSimulationOp extends Operator {
 
                     for (int x = xmin; x < xmax; x++) {
                         final int xx = x - xmin;
-                        Double alt = localDEM[yy + 1][xx + 1];
+                        double alt = localDEM[yy + 1][xx + 1];
 
-                        if (alt.equals(demNoDataValue))
+                        if (Double.isNaN(alt) || alt == demNoDataValue)
                             continue;
 
                         tileGeoRef.getGeoPos(x, y, geoPos);
@@ -757,7 +812,10 @@ public final class SARSimulationOp extends Operator {
                             double[] latlon = jOrbit.lp2ell(new Point(x + 0.5, y + 0.5), meta);
                             lat = latlon[0] * Constants.RTOD;
                             lon = latlon[1] * Constants.RTOD;
-                            alt = dem.getElevation(new GeoPos(lat, lon));
+                            // Reuse the loop-scope geoPos already declared above (line 614) rather
+                            // than allocating per-pixel in the orbit-method branch.
+                            geoPos.setLocation(lat, lon);
+                            alt = dem.getElevation(geoPos);
                         }
 
                         GeoUtils.geo2xyzWGS84(lat, lon, alt, posData.earthPoint);

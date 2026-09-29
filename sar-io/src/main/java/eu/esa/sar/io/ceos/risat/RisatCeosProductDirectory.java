@@ -82,8 +82,7 @@ class RisatCeosProductDirectory extends CEOSProductDirectory {
                 final RisatCeosImageFile imgFile = new RisatCeosImageFile(imageFile.imgInputStream, histogramRec);
                 imgArray.add(imgFile);
             } catch (Exception e) {
-                e.printStackTrace();
-                // continue
+                org.esa.snap.core.util.SystemUtils.LOG.warning("Unable to read RISAT image file: " + e.getMessage());
             }
         }
         imageFiles = imgArray.toArray(new RisatCeosImageFile[0]);

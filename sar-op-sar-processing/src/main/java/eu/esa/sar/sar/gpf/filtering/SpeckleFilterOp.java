@@ -59,7 +59,8 @@ public class SpeckleFilterOp extends Operator {
     private String[] sourceBandNames;
 
     @Parameter(valueSet = {NONE, BOXCAR_SPECKLE_FILTER, MEDIAN_SPECKLE_FILTER, FROST_SPECKLE_FILTER,
-            GAMMA_MAP_SPECKLE_FILTER, LEE_SPECKLE_FILTER, LEE_REFINED_FILTER, LEE_SIGMA_FILTER, IDAN_FILTER},
+            GAMMA_MAP_SPECKLE_FILTER, LEE_SPECKLE_FILTER, LEE_REFINED_FILTER, LEE_SIGMA_FILTER, IDAN_FILTER,
+            MULOG_FILTER},
             defaultValue = LEE_SIGMA_FILTER,
             label = "Filter")
     private String filter = LEE_SIGMA_FILTER;
@@ -118,6 +119,7 @@ public class SpeckleFilterOp extends Operator {
     public static final String LEE_SIGMA_FILTER = "Lee Sigma";
     public static final String IDAN_FILTER = "IDAN";
     public static final String MEAN_SPECKLE_FILTER = "Mean";
+    public static final String MULOG_FILTER = "MuLoG";
 
     public static final String NUM_LOOKS_1 = "1";
     public static final String NUM_LOOKS_2 = "2";
@@ -145,7 +147,7 @@ public class SpeckleFilterOp extends Operator {
      *
      * @param s The filter name.
      */
-    public void SetFilter(String s) {
+    public void setFilter(String s) {
 
         if (s.equals(BOXCAR_SPECKLE_FILTER) ||
                 s.equals(MEDIAN_SPECKLE_FILTER) ||
@@ -156,11 +158,18 @@ public class SpeckleFilterOp extends Operator {
                 s.equals(LEE_SIGMA_FILTER) ||
                 s.equals(IDAN_FILTER) ||
                 s.equals(MEAN_SPECKLE_FILTER) ||
+                s.equals(MULOG_FILTER) ||
                 s.equals(NONE)) {
             filter = s;
         } else {
             throw new OperatorException(s + " is an invalid filter name.");
         }
+    }
+
+    /** @deprecated use {@link #setFilter(String)} (camelCase). */
+    @Deprecated
+    public void SetFilter(String s) {
+        setFilter(s);
     }
 
     /**
@@ -269,6 +278,9 @@ public class SpeckleFilterOp extends Operator {
             case IDAN_FILTER:
                 return new IDAN(this, sourceProduct, targetProduct, targetBandNameToSourceBandName,
                         numLooksStr, anSize);
+
+            case MULOG_FILTER:
+                return new MuLog(this, sourceProduct, targetProduct, targetBandNameToSourceBandName);
 
             default:
                 return null;

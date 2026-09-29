@@ -1,27 +1,23 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head><title>Help - Import PAZ</title>
 
-  
 
-  
-  
-  <link rel="stylesheet" href="../style.css"></head><body>
+
+    <link rel="stylesheet" href="../style.css"></head><body>
 <table class="header">
-
-  <tbody>
+    <tbody>
     <tr class="header">
-      <td class="header">&nbsp; Import PAZ SAR</td>
-      <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header">&nbsp; Import PAZ SAR</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
-  </tbody>
+    </tbody>
 </table>
 
 <h3>Import PAZ Product</h3>
 
-<p class="MsoNormal" style="text-align: justify;">PAZ <span style="background: white none repeat scroll 0%; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">is
-a Spanish dual use Earth observation and reconnaissance satellite</span>
-developed by Hisdesat. The Paz satellite is operated in a constellation with
-the German TerraSAR-X and TanDEM-X on the same orbit.</p>
+<p class="MsoNormal" style="text-align: justify;">PAZ is a Spanish dual use Earth observation and reconnaissance satellite
+developed by Hisdesat. The PAZ satellite uses the same X-band SAR instrument design and data format
+as TerraSAR-X and TanDEM-X, and operates in the same orbit constellation.</p>
 
 
 <p class="MsoNormal"><b style="">Operational:</b>
@@ -29,35 +25,30 @@ the German TerraSAR-X and TanDEM-X on the same orbit.</p>
 
 
 <p class="MsoNormal"><b style="">Frequency Band:</b>
-X-band</p>
+X-band (9.65 GHz)</p>
 
 
 <p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, ScanSAR, Spotlight</p>
+Stripmap, ScanSAR, Spotlight, High-Resolution Spotlight, Staring Spotlight</p>
 
 
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
+<p class="MsoNormal"><b style="">Product Types:</b></p>
 
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"></span></span></span><!--[endif]-->MGD Multi Look Ground Range, Detected
-representation</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GEC Geocoded Ellipsoid Corrected, Detected
-representation</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->EEC Enhanced Ellipsoid Corrected, Detected
-representation</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SSC Single Look Slant Range Complex
-representation</li>
+  <li>SSC Single Look Slant Range Complex (COSAR binary format)</li>
+  <li>MGD Multi Look Ground Range Detected (GeoTIFF format)</li>
+  <li>GEC Geocoded Ellipsoid Corrected (GeoTIFF format)</li>
+  <li>EEC Enhanced Ellipsoid Corrected with terrain correction (GeoTIFF format)</li>
 </ul>
 
 
+<p class="MsoNormal"><b style="">Polarizations:</b>
+Single Pol (HH or VV), Dual Pol (HH/VV, HH/HV, VV/VH)</p>
 
 
-
-
+<p class="MsoNormal"><b style="">Opening products:</b>
+Products can be opened by selecting the main XML annotation file (e.g., PAZ1_SAR__SSC*.xml).
+The TSX product format is used, identical to TerraSAR-X products.</p>
 
 
 <p class="MsoNormal"><b style="">Further Information: </b></p>
@@ -67,7 +58,6 @@ representation</li>
 
 
 <ul>
-
 </ul>
 
 <hr>

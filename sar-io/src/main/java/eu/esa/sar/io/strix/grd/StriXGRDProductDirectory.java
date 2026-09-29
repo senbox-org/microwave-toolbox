@@ -12,6 +12,7 @@ import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.image.ImageManager;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
@@ -19,6 +20,7 @@ import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
+import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -157,7 +159,7 @@ public class StriXGRDProductDirectory extends XMLProductDirectory {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.azimuth_spacing, sarProcessingParameter.getAttributeDouble("azimuthPixelSpacing"));
         }
 
-//        addOrbitStateVectors(absRoot, state.getElement("state_vectors"));
+        // Orbit state vectors not available in GRD EarthObservation XML metadata
     }
 
     @Override
@@ -187,7 +189,7 @@ public class StriXGRDProductDirectory extends XMLProductDirectory {
         return mode;
     }
 
-    protected void addImageFile(final String imgPath, final MetadataElement newRoot) {
+    protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
         final String name = getBandFileNameFromImage(imgPath);
         String prefix = "IMG";
         if(!productName.startsWith("PAR-"+pol)) {
@@ -197,7 +199,7 @@ public class StriXGRDProductDirectory extends XMLProductDirectory {
         if ((name.endsWith("tif")) && name.startsWith(imageName) && !name.contains("preview")) {
             try {
                 if(!productDir.isCompressed()) {
-                    final File file = new File(getBaseDir(), imgPath);
+                    final File file = getBaseDir().toPath().resolve(imgPath).toFile();
                     if (file.exists() && file.length() > 0) {
                         final ProductReader geoTiffReader = geoTiffPlugIn.createReaderInstance();
                         bandProduct = geoTiffReader.readProductNodes(file, null);
@@ -222,7 +224,7 @@ public class StriXGRDProductDirectory extends XMLProductDirectory {
                     }
                 }
             } catch (Exception e) {
-                SystemUtils.LOG.severe(imgPath + " not found");
+                throw new IOException("Unable to read image file " + imgPath + ": " + e.getMessage(), e);
             }
         }
     }
@@ -380,38 +382,29 @@ public class StriXGRDProductDirectory extends XMLProductDirectory {
     @Override
     protected void addTiePointGrids(final Product product) {
 
-//        final int gridWidth = 4;
-//        final int gridHeight = 4;
-//        final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
-//        final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
-//        if (subSamplingX == 0 || subSamplingY == 0)
-//            return;
-//
-//        final MetadataElement origProdRoot = AbstractMetadata.getOriginalProductMetadata(product);
-//        final MetadataElement productMetadata = origProdRoot.getElement("ProductMetadata");
-//        final MetadataElement collect = productMetadata.getElement("collect");
-//        final MetadataElement image = collect.getElement("image");
-//        final MetadataElement centerPixel = image.getElement("center_pixel");
-//        final double incidenceAngle = centerPixel.getAttributeDouble("incidence_angle");
-//
-//        final double[] incidenceCorners = new double[] { incidenceAngle,incidenceAngle,incidenceAngle,incidenceAngle};
-//
-//        if (product.getTiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE) == null) {
-//            final float[] fineAngles = new float[gridWidth * gridHeight];
-//            ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight, incidenceCorners, fineAngles);
-//
-//            final TiePointGrid incidentAngleGrid = new TiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE, gridWidth, gridHeight, 0, 0,
-//                    subSamplingX, subSamplingY, fineAngles);
-//            incidentAngleGrid.setUnit(Unit.DEGREES);
-//            product.addTiePointGrid(incidentAngleGrid);
-//        }
-//
-////        final float[] fineSlantRange = new float[gridWidth * gridHeight];
-////        ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight, flippedSlantRangeCorners, fineSlantRange);
-////
-////        final TiePointGrid slantRangeGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME, gridWidth, gridHeight, 0, 0,
-////                subSamplingX, subSamplingY, fineSlantRange);
-////        slantRangeGrid.setUnit(Unit.NANOSECONDS);
-////        product.addTiePointGrid(slantRangeGrid);
+        final int gridWidth = 4;
+        final int gridHeight = 4;
+        final double subSamplingX = (double) product.getSceneRasterWidth() / (gridWidth - 1);
+        final double subSamplingY = (double) product.getSceneRasterHeight() / (gridHeight - 1);
+        if (subSamplingX == 0 || subSamplingY == 0)
+            return;
+
+        // Create incidence angle TPG from near/far incidence angles in metadata
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+        final double incNear = absRoot.getAttributeDouble(AbstractMetadata.incidence_near, 0);
+        final double incFar = absRoot.getAttributeDouble(AbstractMetadata.incidence_far, 0);
+
+        if (incNear > 0 && incFar > 0 && product.getTiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE) == null) {
+            // Near-range corners get near incidence angle, far-range corners get far
+            final double[] incidenceCorners = new double[] { incNear, incFar, incNear, incFar };
+
+            final float[] fineAngles = new float[gridWidth * gridHeight];
+            ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight, incidenceCorners, fineAngles);
+
+            final TiePointGrid incidentAngleGrid = new TiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE, gridWidth, gridHeight, 0, 0,
+                    subSamplingX, subSamplingY, fineAngles);
+            incidentAngleGrid.setUnit(Unit.DEGREES);
+            product.addTiePointGrid(incidentAngleGrid);
+        }
     }
 }

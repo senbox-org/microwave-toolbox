@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.calibration.gpf;
 
+import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
@@ -30,9 +31,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * Unit test for Calibration Operator.
+ * Unit test for RemoveAntennaPattern Operator.
  */
-public class TestRemoveAntennaPatternOp {
+public class TestRemoveAntennaPatternOp extends ProcessorTest {
 
     private final static File inputFile1 = TestData.inputASAR_WSM;
     private final static File inputFile2 = TestData.inputERS_IMP;
@@ -46,11 +47,13 @@ public class TestRemoveAntennaPatternOp {
         assumeTrue(inputFile3 + "not found", inputFile3.exists());
     }
 
-    static {
-        TestUtils.initTestEnvironment();
-    }
-
     private final static OperatorSpi spi = new RemoveAntennaPatternOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final RemoveAntennaPatternOp op = (RemoveAntennaPatternOp) spi.createOperator();
+        assertNotNull(op);
+    }
 
     private String[] productTypeExemptions = {"_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR", "GeoTIFF", "SCS_U"};
     private String[] exceptionExemptions = {"not supported",

@@ -80,7 +80,7 @@ scene. To do this, the application output scaling applied by the
 processor must
 be undone and the desired scaling must be applied. Level-1 products
 provide
-four calibration Look Up Tables (LUTs) to produce �<sup>0</sup><sub>i</sub>,
+four calibration Look Up Tables (LUTs) to produce &#946;<sup>0</sup><sub>i</sub>,
 &#963;<sup>0</sup><sub>i</sub>
 and &#947;<sub>i</sub> or to return to the Digital Number (DN).
 The LUTs apply a
@@ -184,16 +184,13 @@ is the antenna pattern gain</li>
 <h4 style="font-style: italic;"> <small><font size="3"> <small>APS Products</small> </font></small>
 </h4>
 <p>The methodology to derive the sigma nought is the same of the
-IMS data but an additional factor (<span style="font-style: italic;">R</span><i ,j=""> / R<sub>ref</sub></i>) must be
+IMS data but an additional factor (<span style="font-style: italic;">R<sub>i,j</sub> / R<sub>ref</sub></span>) must be
 taken into account:</p>
-<i ,j=""><img style="width: 700px; height: 190px;" alt="" src="images/calibration_eq2.jpg">
+<img style="width: 700px; height: 190px;" alt="" src="images/calibration_eq2.jpg">
 <br>
-</i>
-<h4> <small><i ,j=""><font size="3">
-<small>IMP, APP, IMM, APM, WSM Products</small> </font></i></small>
+<h4 style="font-style: italic;"> <small><font size="3">
+<small>IMP, APP, IMM, APM, WSM Products</small> </font></small>
 </h4>
-<i ,j="">
-</i>
 <p>In contrast to IMS and APS products, ASAR ground range
 imageries (IMP, APP, IMM, APM, WSM) have all been applied antenna gain
 pattern compensation (based on ellipsoid approximations) and range
@@ -203,8 +200,8 @@ when updated external XCA file is available for the product.
 </p>
 <p>The sigma nought image can be derived from ESA&#8217;s ASAR level 1
 IMP, APP, IMM, APM, WSM products as the follows (adapted from [1]):</p>
-<i ,j=""><img style="width: 650px; height: 190px;" alt="" src="images/calibration_eq3.jpg"><br>
-</i>&nbsp;&nbsp;For
+<img style="width: 650px; height: 190px;" alt="" src="images/calibration_eq3.jpg"><br>
+&nbsp;&nbsp;For
 detailed ASAR calibration algorithm, reader is referred to [1].
 <h4>ERS Calibration</h4>
 <p>The operator is able to calibrate ERS VMP, ERS PGS CEOS and
@@ -310,7 +307,7 @@ tables provided in the product.</p>
 is referred to [4].</p>
 <h4>TerraSAR-X</h4>
 <p>The operator performs absolute radiometric calibration for
-TerraSAR-X products. The following corrections have been appllied:</p>
+TerraSAR-X products. The following corrections have been applied:</p>
 <ul>
 <li>
 <p>calibration constant correction</p>
@@ -389,8 +386,8 @@ checkmarked, no beta0 image is created. </li>
 <p>[1] Rosich B., Meadows P., Absolute calibration of ASAR Level
 1 products, ESA/ESRIN, ENVI-CLVL-EOPG-TN-03-0010, Issue
 1,&nbsp;Revision 5, October 2004</p>
-<p>[2]&nbsp;Laur H., Bally P., Meadows P., S�nchez J.,
-Sch�ttler B., Lopinto E. &amp; Esteban D., ERS SAR Calibration:
+<p>[2]&nbsp;Laur H., Bally P., Meadows P., S&aacute;nchez J.,
+Sch&auml;ttler B., Lopinto E. &amp; Esteban D., ERS SAR Calibration:
 Derivation of &#963;0 in ESA ERS SAR PRI Products, ESA/ESRIN,
 ES-TN-RS-PM-HL09, Issue 2, Rev. 5f, November 2004</p>
 <p>[3]&nbsp;Lavalle M., Absolute Radiometric and Polarimetric

@@ -19,6 +19,7 @@ import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
 import eu.esa.sar.commons.io.ImageIOFile;
 import eu.esa.sar.commons.io.JSONProductDirectory;
 import eu.esa.sar.commons.io.SARReader;
+import eu.esa.sar.commons.io.StoredZipImageInputStream;
 import eu.esa.sar.commons.io.XMLProductDirectory;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.GeoCoding;
@@ -46,6 +47,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
 import javax.imageio.stream.FileCacheImageInputStream;
+import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.Dimension;
 import java.io.*;
@@ -83,21 +85,47 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         final String name = getBandFileNameFromImage(imgPath);
         if ((name.endsWith("tiff"))) {
             try {
-                final Dimension bandDimensions = getBandDimensions(newRoot, imgBandMetadataMap.get(name));
-                final InputStream inStream = getInputStream(imgPath);
-                if(inStream.available() > 0) {
-                    final ImageInputStream imgStream = createImageInputStream(inStream, bandDimensions, isSLC());
-
-                    final ImageIOFile img = new ImageIOFile(name, imgStream, GeoTiffUtils.getTiffIIOReader(imgStream),
-                                1, 1, ProductData.TYPE_INT32, productInputFile);
-                    bandImageFileMap.put(img.getName(), img);
-                } else {
-                    inStream.close();
+                ImageInputStream imgStream = createRandomAccessImageStream(imgPath);
+                if (imgStream == null) {
+                    final Dimension bandDimensions = getBandDimensions(newRoot, imgBandMetadataMap.get(name));
+                    final InputStream inStream = getInputStream(imgPath);
+                    if (inStream.available() > 0) {
+                        imgStream = createImageInputStream(inStream, bandDimensions, isSLC());
+                    } else {
+                        inStream.close();
+                        return;
+                    }
                 }
+                final ImageIOFile img = new ImageIOFile(name, imgStream, GeoTiffUtils.getTiffIIOReader(imgStream),
+                            1, 1, ProductData.TYPE_INT32, productInputFile);
+                bandImageFileMap.put(img.getName(), img);
             } catch (Exception e) {
                 SystemUtils.LOG.severe(imgPath +" not found");
             }
         }
+    }
+
+    /**
+     * Random-access stream for a measurement GeoTIFF, or null to fall back to the buffered
+     * streaming path. S1 measurement TIFFs keep their IFD at the END of the file, so a
+     * sequential Memory/FileCache stream pulls the whole 1.2-1.4 GB band through the cache on
+     * the very first read (measured ~45 s/band, ~106 s to open-and-verify an IW SLC zip);
+     * SAFE zips store these entries UNCOMPRESSED, so both the zip and the unpacked-folder
+     * cases can be served by true random access instead (see {@link StoredZipImageInputStream}).
+     */
+    private ImageInputStream createRandomAccessImageStream(final String imgPath) {
+        try {
+            if (isCompressed()) {
+                return StoredZipImageInputStream.create(getBaseDir(), imgPath);
+            }
+            final File imgFile = getFile(imgPath);
+            if (imgFile != null && imgFile.isFile()) {
+                return new FileImageInputStream(imgFile);
+            }
+        } catch (Exception e) {
+            // fall back to the buffered streaming path
+        }
+        return null;
     }
 
     public static ImageInputStream createImageInputStream(final InputStream inStream, final Dimension bandDimensions,
@@ -231,7 +259,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         addRFIAbstractedMetadata(origProdRoot);
     }
 
-    private void addProductInfoJSON(final MetadataElement origProdRoot) {
+    private void addProductInfoJSON(final MetadataElement origProdRoot) throws IOException {
         if(productDir.exists("productInfo.json")) {
             try {
                 final File productInfoFile = productDir.getFile("productInfo.json");
@@ -243,7 +271,7 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
                     AbstractMetadataIO.AddXMLMetadata(JSONProductDirectory.jsonToXML("ProductInfo", json), origProdRoot);
                 }
             } catch(Exception e) {
-               //throw new IOException("Unable to read productInfo " + e.getMessage(), e);
+                throw new IOException("Unable to read productInfo " + e.getMessage(), e);
             }
         }
     }
@@ -291,6 +319,29 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
             totalWidth += width;
             if (height > maxHeight) {
                 maxHeight = height;
+            }
+        }
+
+        // Fallback for annotation-only products (no measurement data)
+        if (bandImageFileMap.isEmpty() && !imgBandMetadataMap.isEmpty()) {
+            SystemUtils.LOG.warning("No measurement data found. Product may be an annotation-only product.");
+            for (String bandMetadataName : imgBandMetadataMap.values()) {
+                final String p = bandMetadataName.substring(bandMetadataName.lastIndexOf("_") + 1);
+                if (pol == null) {
+                    pol = p;
+                } else if (!p.equals(pol)) {
+                    continue;
+                }
+
+                final MetadataElement bandMetadata = absRoot.getElement(bandMetadataName);
+                if (bandMetadata != null) {
+                    int width = bandMetadata.getAttributeInt(AbstractMetadata.num_samples_per_line);
+                    int height = bandMetadata.getAttributeInt(AbstractMetadata.num_output_lines);
+                    totalWidth += width;
+                    if (height > maxHeight) {
+                        maxHeight = height;
+                    }
+                }
             }
         }
 
@@ -828,6 +879,13 @@ public class Sentinel1Level1Directory extends XMLProductDirectory implements Sen
         if(band != null) {
             sceneRasterWidth = band.getRasterWidth();
             sceneRasterHeight = band.getRasterHeight();
+        }
+
+        if (sceneRasterWidth <= 0 || sceneRasterHeight <= 0 || newGridWidth <= 1 || newGridHeight <= 1) {
+            SystemUtils.LOG.warning("Unable to create tie-point grids: invalid dimensions" +
+                    " (rasterWidth=" + sceneRasterWidth + ", rasterHeight=" + sceneRasterHeight +
+                    ", gridWidth=" + newGridWidth + ", gridHeight=" + newGridHeight + ")");
+            return;
         }
 
         final double subSamplingX = (double) sceneRasterWidth / (newGridWidth - 1);

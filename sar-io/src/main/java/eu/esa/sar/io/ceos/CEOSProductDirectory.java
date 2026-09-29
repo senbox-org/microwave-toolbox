@@ -16,12 +16,12 @@
 package eu.esa.sar.io.ceos;
 
 import com.bc.ceres.core.VirtualDir;
-import eu.esa.sar.commons.io.FileImageInputStreamExtImpl;
 import eu.esa.sar.io.binary.BinaryFileReader;
 import eu.esa.sar.io.binary.BinaryRecord;
 import eu.esa.sar.io.binary.IllegalBinaryFormatException;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.util.Guardian;
+import org.esa.snap.core.util.ImageUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -30,7 +30,6 @@ import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 
 import javax.imageio.stream.ImageInputStream;
-import javax.imageio.stream.MemoryCacheImageInputStream;
 import java.io.*;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -498,12 +497,7 @@ public abstract class CEOSProductDirectory {
             for (String prefix : prefixList) {
                 if (nameUp.startsWith(prefix) || nameUp.endsWith('.' + prefix)) {
                     try {
-                        ImageInputStream stream;
-                        if (productDir.isCompressed()) {
-                            stream = new MemoryCacheImageInputStream(productDir.getInputStream(folder + name));
-                        } else {
-                            stream = new FileImageInputStreamExtImpl(productDir.getFile(folder + name));
-                        }
+                        final ImageInputStream stream = ImageUtils.getImageInputStream(productDir.getFile(folder + name));
                         list.add(new CeosFile(stream, name));
                     } catch (Exception e) {
                         SystemUtils.LOG.info(folder + name + " not found");

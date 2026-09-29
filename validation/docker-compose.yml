@@ -1,0 +1,79 @@
+# Peer engines for cross-tool validation.
+#
+# SNAP is absent by design: it runs natively via `gpt` because the native build is the artifact under
+# test. See README.md.
+#
+# Every service mounts the SAME two host paths at the SAME in-container paths, so a case file never
+# has to know which engine will read it.
+
+x-mounts: &mounts
+  - type: bind
+    source: ${DATA_DIR:?set DATA_DIR in .env}
+    target: /data
+    read_only: true
+  - type: bind
+    source: ${WORK_DIR:?set WORK_DIR in .env}
+    target: /work
+  - type: bind
+    source: ./engines
+    target: /engines
+  # The comparator runs INSIDE a container: that is where GDAL lives, and /work already exposes both
+  # engines' outputs, so nothing has to be copied out to be compared.
+  - type: bind
+    source: ./compare
+    target: /compare
+  # The 2x2 experiment writes outside WORK_DIR, so it needs its own mount for the renderer to read.
+  - type: bind
+    source: E:\Output\exp2x2
+    target: /exp2x2
+    read_only: true
+  - type: bind
+    source: ./cases
+    target: /cases
+    read_only: true
+  # Acquisition data lives in its own root, separate from the shared test tree. Kept as a distinct
+  # canonical mount rather than an ad-hoc path so a case still never has to know which engine reads it.
+  - type: bind
+    source: ${SCENES_DIR:?set SCENES_DIR in .env}
+    target: /scenes
+    read_only: true
+
+services:
+
+  # ISCE3 + COMPASS — the algorithmic peer for GSLC (produces OPERA CSLC-S1).
+  # Phase convention: flatten=True, reramp=True (COMPASS s1_geocode_slc.py:215,
+  # defaults/s1_cslc_geo.yaml:50). Opposite to the toolbox default on BOTH axes.
+  isce3:
+    # 12g of the VM's 15g: leaves room for the host and makes an overrun
+    # attributable to THIS container instead of a bare kernel SIGKILL.
+    mem_limit: 12g
+    user: root
+    build: ./engines/isce3
+    image: mwtbx-validation/isce3:latest
+    volumes: *mounts
+    environment:
+      OMP_NUM_THREADS: ${THREADS:-8}
+
+  # Dolphin — phase-linking peer for PhaseLinkingOp (the DISP-S1 engine).
+  # Consumes a coregistered SLC stack, so it can take a CSLC-compatible GSLC stack directly.
+  dolphin:
+    # 12g of the VM's 15g: leaves room for the host and makes an overrun
+    # attributable to THIS container instead of a bare kernel SIGKILL.
+    mem_limit: 12g
+    user: root
+    build: ./engines/dolphin
+    image: mwtbx-validation/dolphin:latest
+    volumes: *mounts
+    environment:
+      OMP_NUM_THREADS: ${THREADS:-8}
+
+  # InSAR.dev / insardev_pygmtsar — independent geocode-first lineage (GMTSAR-derived, not
+  # ISCE-derived), so a third opinion rather than a second one.
+  insardev:
+    # 12g of the VM's 15g: leaves room for the host and makes an overrun
+    # attributable to THIS container instead of a bare kernel SIGKILL.
+    mem_limit: 12g
+    user: root
+    build: ./engines/insardev
+    image: mwtbx-validation/insardev:latest
+    volumes: *mounts

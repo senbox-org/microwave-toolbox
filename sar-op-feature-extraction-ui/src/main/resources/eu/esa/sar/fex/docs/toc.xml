@@ -15,6 +15,9 @@
 				<tocitem text="Urban Area">
 					<tocitem text="Speckle Divergence" target="SpeckleDivergence"/>
 				</tocitem>
+                <tocitem text="Texture Analysis">
+                    <tocitem text="Gabor Filter" target="GaborFilterOp"/>
+                </tocitem>
             </tocitem>
         </tocitem>
         <tocitem text="Raster">

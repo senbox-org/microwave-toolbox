@@ -1,7 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head>
-
-
     
     <title>Help - Speckle Filter</title><link rel="stylesheet" href="../style.css"></head>
 
@@ -13,8 +11,7 @@
     <tr class="header">
 
         <td class="header">&nbsp;Speckle Filter</td>
-
-
+        
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
 
     </tr>
@@ -24,16 +21,13 @@
 
 
 <h3>Speckle Filter Operator</h3><p>SAR images have inherent salt and pepper like texturing called
-speckles which
-degrade the quality of the image and make interpretation of features more
+speckles which degrade the quality of the image and make interpretation of features more
 difficult. Speckles are caused by random constructive and destructive interference
 of the de-phased but coherent return waves scattered by the elementary scatters
 within each resolution cell. Speckle noise reduction can be applied either by
 spatial filtering or multilook processing.</p><h4>Filters Supported</h4><p>
-The operator supports&nbsp;the following
-speckle&nbsp;filters&nbsp;for handling speckle noise of
-different&nbsp;distributions (Gaussian, multiplicative or
-Gamma):
+The operator supports&nbsp;the following speckle&nbsp;filters&nbsp;for handling speckle noise of
+different&nbsp;distributions (Gaussian, multiplicative or Gamma):
 </p>
 <ul>
     <li>Boxcar (mean)</li>
@@ -41,7 +35,10 @@ Gamma):
     <li>Frost</li>
     <li>Lee</li>
     <li>Refined Lee</li>
-    <li>Gamma-MAP</li><li>Lee Sigma</li><li>IDAN</li>
+    <li>Gamma-MAP</li>
+    <li>Lee Sigma</li>
+    <li>IDAN</li>
+    <li>MuLog</li>
 </ul>
 <h4>Parameters Used</h4>&nbsp;&nbsp;&nbsp;For most filters, the following parameters should be selected (see figure 1
 for example):
@@ -100,6 +97,9 @@ filter<br><br>For Refined Lee filter, &nbsp;the following parameter should be se
 <p>[4] Mansourpour M., Rajabi M.A., Blais J.A.R., &#8220;Effects and Performance
     of Speckle Noise Reduction Filters on Active Radar and SAR Images&#8221;,
     http://people.ucalgary.ca/~blais/Mansourpour2006.pdf</p>
+
+<p>[5] C. A. Deledalle, L. Denis, S. Tabti, and F. Tupin, &#8220;MuLoG, or How to apply Gaussian denoisers to multi-channel SAR speckle reduction?&#8221;,
+    IEEE Transactions on Image Processing, vol. 26, no. 9, pp. 4389-4403, Sept. 2017.</p>
 
 <hr>
 </body></html>

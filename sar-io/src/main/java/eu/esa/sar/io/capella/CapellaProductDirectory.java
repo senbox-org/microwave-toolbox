@@ -21,6 +21,7 @@ import eu.esa.sar.commons.io.SARReader;
 import eu.esa.sar.io.geotiffxml.GeoTiffUtils;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.*;
+import org.esa.snap.core.util.ImageUtils;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dataio.geotiff.GeoTiffProductReaderPlugIn;
@@ -32,7 +33,6 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
-import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.*;
 import java.io.File;
@@ -193,7 +193,7 @@ public class CapellaProductDirectory extends JSONProductDirectory {
         return scaleFactor;
     }
 
-    protected void addImageFile(final String imgPath, final MetadataElement newRoot) {
+    protected void addImageFile(final String imgPath, final MetadataElement newRoot) throws IOException {
         final String name = getBandFileNameFromImage(imgPath);
         if ((name.endsWith("tif")) && name.startsWith(productName) && !name.contains("preview")) {
             try {
@@ -201,7 +201,7 @@ public class CapellaProductDirectory extends JSONProductDirectory {
                 if(!productDir.isCompressed()) {
                     File file = productDir.getFile(imgPath);
                     if (file.exists() && file.length() > 0) {
-                        imgStream = new FileImageInputStream(file);
+                        imgStream = ImageUtils.getImageInputStream(file);
                     }
                 } else {
                     final Dimension bandDimensions = new Dimension(width, height);
@@ -221,7 +221,7 @@ public class CapellaProductDirectory extends JSONProductDirectory {
                     bandProduct = reader.readProductNodes(productDir.getFile(imgPath), null);
                 }
             } catch (Exception e) {
-                SystemUtils.LOG.severe(imgPath + " not found");
+                throw new IOException("Unable to read image file " + imgPath + ": " + e.getMessage(), e);
             }
         }
     }
@@ -433,12 +433,32 @@ public class CapellaProductDirectory extends JSONProductDirectory {
             product.addTiePointGrid(incidentAngleGrid);
         }
 
-//        final float[] fineSlantRange = new float[gridWidth * gridHeight];
-//        ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight, flippedSlantRangeCorners, fineSlantRange);
-//
-//        final TiePointGrid slantRangeGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME, gridWidth, gridHeight, 0, 0,
-//                subSamplingX, subSamplingY, fineSlantRange);
-//        slantRangeGrid.setUnit(Unit.NANOSECONDS);
-//        product.addTiePointGrid(slantRangeGrid);
+        if (isSLC() && product.getTiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME) == null) {
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+            final double slantRangeToFirstPixel = absRoot.getAttributeDouble(
+                    AbstractMetadata.slant_range_to_first_pixel, 0);
+            final double rangeSpacing = absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 0);
+
+            if (slantRangeToFirstPixel > 0 && rangeSpacing > 0) {
+                final double slantRangeToLastPixel = slantRangeToFirstPixel +
+                        (product.getSceneRasterWidth() - 1) * rangeSpacing;
+
+                // Convert slant range distance (m) to two-way travel time (ns)
+                final double firstTimeNs = slantRangeToFirstPixel / Constants.halfLightSpeed * Constants.oneBillion;
+                final double lastTimeNs = slantRangeToLastPixel / Constants.halfLightSpeed * Constants.oneBillion;
+
+                final double[] slantRangeCorners = new double[]{
+                        firstTimeNs, lastTimeNs, firstTimeNs, lastTimeNs
+                };
+
+                final float[] fineSlantRange = new float[gridWidth * gridHeight];
+                ReaderUtils.createFineTiePointGrid(2, 2, gridWidth, gridHeight, slantRangeCorners, fineSlantRange);
+
+                final TiePointGrid slantRangeGrid = new TiePointGrid(OperatorUtils.TPG_SLANT_RANGE_TIME,
+                        gridWidth, gridHeight, 0, 0, subSamplingX, subSamplingY, fineSlantRange);
+                slantRangeGrid.setUnit(Unit.NANOSECONDS);
+                product.addTiePointGrid(slantRangeGrid);
+            }
+        }
     }
 }

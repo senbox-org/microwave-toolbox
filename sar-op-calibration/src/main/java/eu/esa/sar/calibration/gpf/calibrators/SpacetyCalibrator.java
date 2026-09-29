@@ -324,8 +324,7 @@ public final class SpacetyCalibrator extends BaseCalibrator implements Calibrato
                 throw new OperatorException("Please select I and Q bands in pairs only");
             }
 
-            final String pol = srcBandI.getName().substring(srcBandI.getName().lastIndexOf("_") + 1);
-            if (!selectedPolList.contains(pol)) {
+            if (shouldSkipForPolarisation(srcBandI.getName())) {
                 continue;
             }
 
@@ -396,8 +395,7 @@ public final class SpacetyCalibrator extends BaseCalibrator implements Calibrato
                 srcBandNames[0] = srcBand.getName();
             }
 
-            final String pol = srcBandNames[0].substring(srcBandNames[0].lastIndexOf("_") + 1);
-            if (!selectedPolList.contains(pol)) {
+            if (shouldSkipForPolarisation(srcBandNames[0])) {
                 continue;
             }
 

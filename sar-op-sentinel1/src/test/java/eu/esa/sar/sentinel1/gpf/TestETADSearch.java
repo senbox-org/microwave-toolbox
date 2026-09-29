@@ -16,45 +16,33 @@
 package eu.esa.sar.sentinel1.gpf;
 
 import com.bc.ceres.annotation.STTM;
-import eu.esa.sar.cloud.opendata.DataSpaces;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
-import java.nio.file.Files;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
+/**
+ * Fast, offline ETADSearch unit tests. The live Copernicus Data Space search + download
+ * integration tests live in {@link TestETADSearchLongTest} (LongTestRunner-gated): they need
+ * credentials, network, and tens of seconds each.
+ */
 @STTM("SNAP-3707")
 public class TestETADSearch {
 
-    private final File S1_Pre_ETAD = new File(TestData.inputSAR + "S1/GRD/Hawaii_slices/S1A_IW_GRDH_1SDV_20180514T043029_20180514T043054_021896_025D31_BBDA.zip");
     private final File S1_GRD = new File(TestData.inputSAR + "S1/GRD/S1A_IW_GRDH_1SDV_20240508T062559_20240508T062624_053776_0688DB_1A13.SAFE.zip");
-    private final File S1_SLC_IW2 = new File(TestData.inputSAR + "S1/ETAD/IW/Etna/S1A_IW_SLC__1SDV_20240717T050507_20240717T050534_054796_06AC2D_DE30_split.dim");
-
-    @Before
-    public void setUp() {
-        // If any of the file does not exist: the test will be ignored
-        assumeTrue(S1_Pre_ETAD + " not found", S1_Pre_ETAD.exists());
-        assumeTrue(S1_GRD + " not found", S1_GRD.exists());
-        assumeTrue(S1_SLC_IW2 + " not found", S1_SLC_IW2.exists());
-
-        final DataSpaces dataSpaces = new DataSpaces();
-        assumeTrue("DataSpaces credentials not found", dataSpaces.hasToken());
-    }
 
     @Test
     public void testGetTime() throws Exception {
+        assumeTrue(S1_GRD + " not found", S1_GRD.exists());
         try(Product s1GRD = TestUtils.readSourceProduct(S1_GRD)) {
             ETADSearch etadSearch = new ETADSearch();
             String startTime = etadSearch.getTime(s1GRD.getStartTime());
-            assertEquals("2024-05-08T06:25:59.059Z", startTime);
+            assertEquals("2024-05-08T06:25:59.776Z", startTime);
         }
     }
 
@@ -75,54 +63,5 @@ public class TestETADSearch {
 
         productType = etadSearch.getETADProductType("XX");
         assertEquals("IW_ETA__AX", productType);
-    }
-
-    @Test
-    public void testETADNotFound() throws Exception {
-        try(Product s1PreEtad = TestUtils.readSourceProduct(S1_Pre_ETAD)) {
-
-            ETADSearch etadSearch = new ETADSearch();
-            DataSpaces.Result[] results = etadSearch.search(s1PreEtad);
-
-            assumeTrue("ETAD not found", results.length == 0);
-
-            s1PreEtad.dispose();
-        }
-    }
-
-    @Test
-    public void testGRDProduct() throws Exception {
-        try(Product s1GRD = TestUtils.readSourceProduct(S1_GRD)) {
-
-            ETADSearch etadSearch = new ETADSearch();
-            DataSpaces.Result[] results = etadSearch.search(s1GRD);
-
-            assertEquals("One ETAD file found", 1, results.length);
-
-            File outputFolder = Files.createTempDirectory("etad").toFile();
-            File file = etadSearch.download(results[0], outputFolder);
-            assert file.exists();
-
-            s1GRD.dispose();
-            FileUtils.deleteTree(outputFolder);
-        }
-    }
-
-    @Test
-    public void testSLCProduct() throws Exception {
-        try(Product s1GRD = TestUtils.readSourceProduct(S1_SLC_IW2)) {
-
-            ETADSearch etadSearch = new ETADSearch();
-            DataSpaces.Result[] results = etadSearch.search(s1GRD);
-
-            assertEquals("One ETAD file found", 1, results.length);
-
-            File outputFolder = Files.createTempDirectory("etad").toFile();
-            File file = etadSearch.download(results[0], outputFolder);
-            assert file.exists();
-
-            s1GRD.dispose();
-            FileUtils.deleteTree(outputFolder);
-        }
     }
 }

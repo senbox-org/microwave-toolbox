@@ -53,7 +53,18 @@ import java.util.concurrent.locks.ReentrantLock;
     protected boolean sumOfRangeCorrections = false;
     protected boolean resamplingImage = false;
     protected boolean outputPhaseCorrections = false;
-    protected boolean tropoToHeightGradientComputed = false;
+    /**
+     * Emit the baked-in ETAD range-delay phase as a band so it can be inspected.
+     * <p>
+     * Opt-in: when the phase is applied to the complex data (resampling mode), nothing downstream
+     * records how large the correction was, and the Option-2 tie-point grids are not written in that
+     * mode. Without this the only way to quantify the correction is to reprocess with the phase
+     * disabled and difference the results. Off by default because it adds a non-complex band to the
+     * output, which changes what coregistration and stacking see.
+     */
+    protected boolean outputETADPhaseBand = false;
+    // Volatile: subclasses read this outside synchronized blocks as a fast-path "already computed" check.
+    protected volatile boolean tropoToHeightGradientComputed = false;
 
     protected static final String TROPOSPHERIC_CORRECTION_RG = "troposphericCorrectionRg";
     protected static final String IONOSPHERIC_CORRECTION_RG = "ionosphericCorrectionRg";
@@ -151,6 +162,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
     public void setOutputPhaseCorrections(final boolean flag) {
         outputPhaseCorrections = flag;
+    }
+
+    public void setOutputETADPhaseBand(final boolean flag) {
+        outputETADPhaseBand = flag;
     }
 
     public Product createTargetProduct() {
@@ -323,8 +338,13 @@ import java.util.concurrent.locks.ReentrantLock;
             try {
                 layerCorrection = correctionMap.get(bandName);
                 if (layerCorrection == null) {
-                    //System.out.println("Loading burst correction for band: " + bandName);
                     layerCorrection = etadUtils.getLayerCorrectionForCurrentBurst(burst, bandName);
+                    if (layerCorrection == null) {
+                        // Do NOT cache a null result — caching it would make every retry hit the same broken path
+                        // while believing the load already succeeded.
+                        throw new OperatorException("Failed to load ETAD correction for band '" + bandName +
+                                "' (burst " + burst.bIndex + ", swath " + burst.swathID + ").");
+                    }
                     correctionMap.put(bandName, layerCorrection);
                 }
             } finally {

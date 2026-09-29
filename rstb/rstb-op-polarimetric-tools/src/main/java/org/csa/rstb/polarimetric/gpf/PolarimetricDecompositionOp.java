@@ -22,6 +22,7 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.gpf.GPF;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.gpf.OperatorSpi;
@@ -36,6 +37,7 @@ import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 
 import java.awt.*;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -66,6 +68,12 @@ public final class PolarimetricDecompositionOp extends Operator {
 
     @Parameter(description = "The sliding window size", interval = "[1, 100]", defaultValue = "5", label = "Window Size")
     private int windowSize = 5;
+
+    @Parameter(description = "Apply polarization orientation angle correction (deshift) to the input " +
+            "T3 / C3 matrix before running the selected decomposition. Equivalent to chaining " +
+            "Orientation-Angle-Correction in front of this operator.",
+            defaultValue = "false", label = "Apply Orientation Angle Correction")
+    private boolean applyOrientationAngleCorrection = false;
 
     // H-A-Alpha flags
     @Parameter(description = "Output entropy, anisotropy, alpha", defaultValue = "false",
@@ -187,6 +195,17 @@ public final class PolarimetricDecompositionOp extends Operator {
             validator.checkIfSARProduct();
             validator.checkIfSLC();
             validator.checkIfTOPSARBurstProduct(false);
+
+            if (applyOrientationAngleCorrection) {
+                final PolBandUtils.MATRIX rawType = PolBandUtils.getSourceProductType(sourceProduct);
+                if (rawType == PolBandUtils.MATRIX.T3 || rawType == PolBandUtils.MATRIX.C3
+                        || rawType == PolBandUtils.MATRIX.FULL) {
+                    final Map<String, Object> oacParams = new HashMap<>();
+                    oacParams.put("outputOrientationAngle", false);
+                    sourceProduct = GPF.createProduct("Orientation-Angle-Correction", oacParams, sourceProduct);
+                }
+                // Dual-pol C2 has no meaningful POA correction at the matrix level — silently skip.
+            }
 
             sourceProductType = PolBandUtils.getSourceProductType(sourceProduct);
 

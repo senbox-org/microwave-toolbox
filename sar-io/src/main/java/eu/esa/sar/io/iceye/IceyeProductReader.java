@@ -15,15 +15,12 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Ahmad Hamouda
  */
 public class IceyeProductReader extends SARReader {
 
-    private AtomicBoolean isTiff = new AtomicBoolean();
-    private AtomicBoolean isNewFormat = new AtomicBoolean();
     private ProductReader reader;
 
     /**
@@ -59,36 +56,21 @@ public class IceyeProductReader extends SARReader {
 
             if (fileName.startsWith(IceyeConstants.ICEYE_FILE_PREFIX.toLowerCase())) {
                 if (fileName.endsWith(".xml")) {
-                    inputFile = FileUtils.exchangeExtension(inputFile, ".h5");
-                    if (!inputFile.exists()) {
-                        inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
+                    final File h5File = FileUtils.exchangeExtension(inputFile, ".h5");
+                    if (h5File.exists()) {
+                        inputFile = h5File;
+                        fileName = inputFile.getName().toLowerCase();
                     }
-                    fileName = inputFile.getName().toLowerCase();
-                }
-
-                if (fileName.endsWith(".json")) {
-                    inputFile = FileUtils.exchangeExtension(inputFile, ".tif");
-                    fileName = inputFile.getName().toLowerCase();
                 }
 
                 if (fileName.endsWith(".h5")) {
-                    isTiff.set(false);
                     reader = new IceyeSLCProductReader(getReaderPlugIn());
-                } else if (fileName.endsWith(".tif")) {
-                    isTiff.set(true);
-                    if (fileName.endsWith("aml.tif")) {
-                        isNewFormat.set(true);
-                        reader = new IceyeAMLProductReader(getReaderPlugIn());
-                    } else if (fileName.contains("cpx.tif")) {
-                        isNewFormat.set(true);
-                        reader = new IceyeCPXProductReader(getReaderPlugIn());
-                    } else {
-                        reader = new IceyeGRDProductReader(getReaderPlugIn());
-                        isNewFormat.set(false);
-                    }
                 }
             }
 
+            if (reader == null) {
+                throw new IOException("Unable to find HDF5 file for ICEYE product: " + inputPath);
+            }
             return reader.readProductNodes(inputFile, getSubsetDef());
         } catch (Exception e) {
             SystemUtils.LOG.severe(e.getMessage());
@@ -112,20 +94,9 @@ public class IceyeProductReader extends SARReader {
             int sourceStepX, int sourceStepY, Band destBand, int destOffsetX,
             int destOffsetY, int destWidth, int destHeight, ProductData destBuffer,
             ProgressMonitor pm) throws IOException {
-        if (isNewFormat.get()) {
-            ((IceyeAMLCPXProductReader) reader).readBandRasterDataImpl(sourceOffsetX, sourceOffsetY, sourceWidth,
-                    sourceHeight, sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight,
-                    destBuffer, pm);
-        } else if (isTiff.get()) {
-            ((IceyeGRDProductReader) reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth,
-                    sourceHeight,
-                    sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer,
-                    pm);
-        } else {
-            ((IceyeSLCProductReader) reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth,
-                    sourceHeight,
-                    sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer,
-                    pm);
-        }
+        ((IceyeSLCProductReader) reader).callReadBandRasterData(sourceOffsetX, sourceOffsetY, sourceWidth,
+                sourceHeight,
+                sourceStepX, sourceStepY, destBand, destOffsetX, destOffsetY, destWidth, destHeight, destBuffer,
+                pm);
     }
 }

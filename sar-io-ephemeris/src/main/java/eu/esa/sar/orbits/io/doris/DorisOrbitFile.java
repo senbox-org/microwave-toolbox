@@ -51,7 +51,14 @@ public class DorisOrbitFile extends BaseOrbitFile {
     }
 
     public File retrieveOrbitFile(final String orbitType) throws Exception {
-        dorisReader = EnvisatOrbitReader.getInstance();
+        // Use a private reader instance, NOT the shared singleton: EnvisatOrbitReader
+        // holds per-product mutable state (_productFile, dataRecords, recordTimes).
+        // Sharing one instance across the products of an InSAR stack lets concurrent
+        // GPF threads overwrite each other's orbit data, so getOrbitVector() can
+        // interpolate one product's geometry from another product's state vectors.
+        // That manifests as non-deterministic, slightly-shifted coregistration output
+        // (e.g. a pixel value flipping between two values across runs).
+        dorisReader = new EnvisatOrbitReader();
         final int absOrbit = absRoot.getAttributeInt(AbstractMetadata.ABS_ORBIT, 0);
 
         // construct path to the orbit file folder

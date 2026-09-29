@@ -1,5 +1,6 @@
 package eu.esa.sar.io.uavsar;
 
+import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Product;
@@ -13,7 +14,7 @@ import static org.junit.Assert.assertSame;
 
 public class TestUAVSARReader {
 
-    private final static File inputFile = new File("I:\\ESA-Data\\UAVSAR\\UA_HaitiQ_05701_10011_008_100127_L090_CX_01\\HaitiQ_05701_10011_008_100127_L090HHHH_CX_01.mlc");
+    private final static File inputFile = new File(TestData.inputSAR + "UAVSAR/UA_HaitiQ_05701_10011_008_100127_L090_CX_01/HaitiQ_05701_10011_008_100127_L090HHHH_CX_01.mlc");
 
     private UAVSARReaderPlugIn readerPlugin;
     private ProductReader reader;

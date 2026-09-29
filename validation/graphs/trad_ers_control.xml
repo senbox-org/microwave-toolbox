@@ -1,0 +1,94 @@
+<graph id="ersTradControl">
+  <version>1.0</version>
+
+  <!--
+    CRITICAL constraint — READ THIS BEFORE SPLITTING THIS GRAPH:
+
+    CreateStack, Cross-Correlation, and Warp MUST live in this ONE graph, in ONE gpt
+    invocation. GCPManager is an in-memory singleton keyed by product. If you write the
+    CreateStack output to disk and re-read it in a second gpt process for
+    Cross-Correlation, or write the Cross-Correlation output and re-read it for Warp, the
+    GCPs computed in the earlier step are NOT persisted with the product and are silently
+    lost across the process boundary. The downstream Warp step then either finds zero GCPs
+    or falls back to a degenerate default, and WRITES A ZEROED-OUT PRODUCT with no error or
+    warning. This was confirmed experimentally in this project (see
+    validation/README-controls.md). Do not "simplify" this graph into two gpt calls.
+
+    TopoPhaseRemoval, by contrast, has no such cross-process state dependency (it consumes
+    the interferogram + orbit + DEM only) and is intentionally run as a SECOND, separate gpt
+    step — see run_trad_ers_control.md / README-controls.md for the exact two-step command
+    sequence.
+
+    File paths are parameterized as gpt graph variables: ${input1}, ${input2}, ${output}.
+    Pass them with -Pinput1=... -Pinput2=... -Poutput=... on the gpt/exec:java command line.
+  -->
+
+  <node id="Read1">
+    <operator>Read</operator>
+    <sources/>
+    <parameters>
+      <file>${input1}</file>
+    </parameters>
+  </node>
+  <node id="Read2">
+    <operator>Read</operator>
+    <sources/>
+    <parameters>
+      <file>${input2}</file>
+    </parameters>
+  </node>
+  <node id="CreateStack">
+    <operator>CreateStack</operator>
+    <sources>
+      <sourceProduct refid="Read1"/>
+      <sourceProduct.1 refid="Read2"/>
+    </sources>
+    <parameters>
+      <extent>Master</extent>
+      <initialOffsetMethod>Orbit</initialOffsetMethod>
+      <resamplingType>NONE</resamplingType>
+    </parameters>
+  </node>
+  <node id="CrossCorrelation">
+    <operator>Cross-Correlation</operator>
+    <sources>
+      <sourceProduct refid="CreateStack"/>
+    </sources>
+    <parameters>
+      <numGCPtoGenerate>400</numGCPtoGenerate>
+      <applyFineRegistration>true</applyFineRegistration>
+      <inSAROptimized>true</inSAROptimized>
+      <coherenceThreshold>0.4</coherenceThreshold>
+    </parameters>
+  </node>
+  <node id="Warp">
+    <operator>Warp</operator>
+    <sources>
+      <sourceProduct refid="CrossCorrelation"/>
+    </sources>
+    <parameters>
+      <warpPolynomialOrder>2</warpPolynomialOrder>
+      <interpolationMethod>Cubic convolution (6 points)</interpolationMethod>
+    </parameters>
+  </node>
+  <node id="Interferogram">
+    <operator>Interferogram</operator>
+    <sources>
+      <sourceProduct refid="Warp"/>
+    </sources>
+    <parameters>
+      <subtractFlatEarthPhase>true</subtractFlatEarthPhase>
+      <includeCoherence>false</includeCoherence>
+    </parameters>
+  </node>
+  <node id="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Interferogram"/>
+    </sources>
+    <parameters>
+      <file>${output}</file>
+      <formatName>BEAM-DIMAP</formatName>
+    </parameters>
+  </node>
+</graph>

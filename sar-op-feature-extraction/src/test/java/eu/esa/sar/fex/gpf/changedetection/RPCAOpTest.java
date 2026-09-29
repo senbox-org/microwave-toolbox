@@ -21,6 +21,7 @@ import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -29,9 +30,23 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 public class RPCAOpTest {
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final RPCAOp op = (RPCAOp) new RPCAOp.Spi().createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = RPCAOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("RPCA-Change-Detection", md.alias());
+    }
 
     @STTM("SRM-187")
     @Test
@@ -45,25 +60,25 @@ public class RPCAOpTest {
         // get targetProduct: execute initialize()
         final Product targetProduct = op.getTargetProduct();
 
-        final Band mstBand = targetProduct.getBand("Sigma0_VV_mst_03Feb2018_sparse");
-        if (mstBand == null) {
-            throw new IOException(mstBand + " not found");
+        final Band refBand = targetProduct.getBand("Sigma0_VV_ref_03Feb2018_sparse");
+        if (refBand == null) {
+            throw new IOException(refBand + " not found");
         }
 
-        final Band slvBand = targetProduct.getBand("Sigma0_VV_slv1_15Feb2018_sparse");
-        if (slvBand == null) {
-            throw new IOException(slvBand + " not found");
+        final Band secBand = targetProduct.getBand("Sigma0_VV_sec1_15Feb2018_sparse");
+        if (secBand == null) {
+            throw new IOException(secBand + " not found");
         }
 
-        final float mstExpected = 0.0f, slvExpected = 9.0f;
-        final float[] mstActual = new float[1];
-        mstBand.readPixels(4, 4, 1, 1, mstActual, ProgressMonitor.NULL);
+        final float refExpected = 0.0f, secExpected = 9.0f;
+        final float[] refActual = new float[1];
+        refBand.readPixels(4, 4, 1, 1, refActual, ProgressMonitor.NULL);
 
-        final float[] slvActual = new float[1];
-        slvBand.readPixels(4, 4, 1, 1, slvActual, ProgressMonitor.NULL);
+        final float[] secActual = new float[1];
+        secBand.readPixels(4, 4, 1, 1, secActual, ProgressMonitor.NULL);
 
-        Assert.assertEquals(mstExpected, mstActual[0], 1e-4);
-        Assert.assertEquals(slvExpected, slvActual[0], 1e-4);
+        Assert.assertEquals(refExpected, refActual[0], 1e-4);
+        Assert.assertEquals(secExpected, secActual[0], 1e-4);
     }
 
     private Product createProduct() {
@@ -77,8 +92,8 @@ public class RPCAOpTest {
         absRoot.setAttributeDouble(AbstractMetadata.radar_frequency, 5405.000454334349);
         absRoot.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
 
-        createBand(srcProduct, "Sigma0_VV_mst_03Feb2018", 1.0f, 1.0f);
-        createBand(srcProduct, "Sigma0_VV_slv1_15Feb2018", 1.0f,  10.0f);
+        createBand(srcProduct, "Sigma0_VV_ref_03Feb2018", 1.0f, 1.0f);
+        createBand(srcProduct, "Sigma0_VV_sec1_15Feb2018", 1.0f,  10.0f);
 
         return srcProduct;
     }

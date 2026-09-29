@@ -73,7 +73,55 @@ methods:<br>
 <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/tutorials/coregistering_products.html"></a>
 <br><img style="width: 600px; height: 500px;" alt="" src="images/create_stack_dlg.JPG">
 <br><br><br><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/tutorials/coregistering_products.html"></a><br>
-<br>
+
+<h4>GSLC Auto-Coregistration</h4>
+<p>When at least one source product is a Geocoded SLC (output of
+    <a href="nbdocs://eu.esa.microwavetbx.sar-op-sar-processing-ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC-Terrain-Correction</a>),
+    CreateStack switches to a geocoded-stacking path that avoids any complex resampling
+    of the carrier-bearing data &mdash; resampling a GSLC would destroy the phase needed
+    for InSAR.</p>
+<p>If the inputs are <em>mixed</em> (a geocoded reference plus one or more raw slant-range
+    SLC secondaries), the secondaries are automatically promoted to GSLCs on the reference's
+    grid. The promotion does three things:</p>
+<ol>
+    <li>Reads the reference GSLC's pixel size and CRS, and locks each new slave GSLC to
+        exactly that grid &mdash; same lat/lon spacing, same standard-grid origin, so the
+        master-to-slave offset is exactly an integer number of pixels.</li>
+    <li>Inherits the reference GSLC's <code>gslc_output_flattened</code> metadata stamp,
+        so the slave is built with the same flattening state. Mixing flattened and
+        non-flattened bands in the stack would otherwise yield a noise interferogram.</li>
+    <li>If the reference carries a <code>gslc_source_slc_path</code> stamp (or its source
+        SLC can be found by name in the reference's directory), the master SLC is reloaded
+        and cross-correlated against each slave's source SLC. The median GCP offset is
+        passed back to GSLC-Terrain-Correction as <code>rangeOffsetPixels</code> /
+        <code>azimuthOffsetPixels</code> so the slave GSLC samples the source SLC at the
+        bias-corrected position. This recovers sub-pixel alignment that orbit + DEM alone
+        cannot provide.</li>
+</ol>
+<p>If the cross-correlation step cannot run (the master SLC isn't reachable on disk),
+    CreateStack falls back to pure geometric coregistration (bias = 0). The stack will
+    still produce a recognisable interferogram, but the residual sub-pixel offset will
+    degrade coherence.</p>
+<p>Two parameters control this behaviour:</p>
+<ul>
+    <li><b>Auto-coregister GSLC slaves</b> (default <i>true</i>) &mdash; master switch
+        for the GSLC path. Disable only for unit tests or when you want to coregister
+        manually with explicit GSLC-Terrain-Correction nodes for each secondary.</li>
+    <li><b>Skip GSLC bias estimation (geometric only)</b> (default <i>false</i>) &mdash;
+        keep auto-coregister on but skip the slow cross-correlation step. Useful for fast
+        iteration on full-resolution stacks where CC takes several minutes; turn it off
+        for final quality.</li>
+</ul>
+<p>For GSLC inputs the operator forces <i>Resampling Type</i> = <code>NONE</code> and the
+    Output Extent = <i>Reference</i>. Other settings are ignored on that path.</p>
+
+<h4>Mutual no-data propagation</h4>
+<p>For every target pixel, both the reference and the (offset-corrected) secondary are
+    probed: if <em>either</em> side is no-data at the corresponding pixel, the target
+    pixel is set to no-data. This guarantees that the intersection of the two scenes is
+    the only region with valid data in the stack &mdash; downstream interferogram /
+    coherence rasters then have clean no-data borders matching that intersection.</p>
+
 <hr>
 </body>
 </html>

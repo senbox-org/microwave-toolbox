@@ -4,9 +4,9 @@ import org.esa.snap.engine_utilities.datamodel.OrbitStateVector;
 import org.esa.snap.engine_utilities.datamodel.PosVector;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class OrbitStateVectors {
 
@@ -14,7 +14,10 @@ public final class OrbitStateVectors {
     public PosVector[] sensorPosition = null; // sensor position for all range lines
     public PosVector[] sensorVelocity = null; // sensor velocity for all range lines
     private double dt = 0.0;
-    private final Map<Double, PositionVelocity> timeMap = new HashMap<>();
+    // ConcurrentHashMap: getPositionVelocity is called from JAI tile threads in parallel
+    // from every geocoding operator. An unsynchronized HashMap here can corrupt the
+    // internal table during resize, lose entries, or throw ConcurrentModificationException.
+    private final Map<Double, PositionVelocity> timeMap = new ConcurrentHashMap<>();
 
     private static final int nv = 8;
 

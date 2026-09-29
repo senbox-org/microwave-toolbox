@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Faraday Rotation Correction</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Faraday Rotation Correction</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Faraday Rotation Correction Operator</h3>
+
+<p class="MsoNormal">
+    Removes the ionospheric Faraday-rotation signature from a quad-polarimetric
+    SAR product. As the radar wave traverses the ionosphere, the
+    plane of polarization rotates by an angle &Omega; that depends on the total
+    electron content (TEC), the geomagnetic field component along the line of
+    sight, and the radar wavelength (&Omega; &prop; &lambda;<sup>2</sup>). At
+    L-band and longer this can be tens of degrees and badly distorts the
+    measured polarimetric quantities; at C-band and X-band the effect is small
+    and usually negligible.
+</p>
+
+<p class="MsoNormal">
+    For a quad-pol product the observed and true scattering matrices are related
+    by:
+</p>
+<p class="MsoNormal" align="center">
+    S<sub>obs</sub> = R(&Omega;) &middot; S<sub>true</sub> &middot; R(&Omega;)
+</p>
+<p class="MsoNormal">
+    where R(&Omega;) is the 2&times;2 rotation matrix. This operator estimates
+    &Omega; per pixel from the observed scattering matrix using the
+    Bickel-Bates / Freeman estimator:
+</p>
+<p class="MsoNormal" align="center">
+    &Omega; = (1/4) &middot; arg( (Z<sub>12</sub> &minus; Z<sub>21</sub>) &middot;
+    conj(Z<sub>22</sub> + Z<sub>11</sub>) )
+</p>
+<p class="MsoNormal">
+    where Z is the circular-basis transform of S, then applies the inverse
+    rotation R(&minus;&Omega;) to recover S<sub>true</sub>.
+</p>
+
+<h4>Input</h4>
+<p class="MsoNormal">
+    Full quad-pol SLC product. The operator rejects dual-pol and compact-pol inputs.
+</p>
+
+<h4>Output</h4>
+<p class="MsoNormal">
+    A quad-pol product with the Faraday rotation removed. Optionally, an additional
+    band carries the per-pixel estimated rotation angle &Omega; (degrees).
+</p>
+
+<h4>Parameters</h4>
+<ul>
+    <li><b>Window Size</b> &mdash; sliding window size used to spatially average the
+        Z<sub>ij</sub> products before computing &Omega;. Default 10 (range 1&ndash;100).
+        Larger windows produce a smoother &Omega; map at the cost of resolution.</li>
+</ul>
+
+<h4>Notes</h4>
+<ul>
+    <li>The correction is most relevant for L-band (ALOS-1/2/4, SAOCOM, NISAR) and
+        P-band (BIOMASS) data. Applying it to C-band or X-band is harmless but
+        usually has negligible effect.</li>
+    <li>The Bickel-Bates estimator assumes reciprocity (S<sub>HV</sub> = S<sub>VH</sub>);
+        cross-channel SNR correction (<a href="CrossChannelSNRCorrectionOp.html">Cross-Channel SNR
+        Correction</a>) is recommended as a pre-step.</li>
+</ul>
+
+<h4>References</h4>
+<ol>
+    <li>Bickel, S. H., Bates, R. H. T. (1965). <i>Effects of magneto-ionic propagation on the
+        polarization scattering matrix.</i> Proc. IEEE 53(8), 1089&ndash;1091.</li>
+    <li>Freeman, A. (2004). <i>Calibration of linearly polarized polarimetric SAR data subject to
+        Faraday rotation.</i> IEEE TGRS 42(8), 1617&ndash;1624.</li>
+    <li>Wright, P. A., Quegan, S., Wheadon, N. S., Hall, C. D. (2003). <i>Faraday rotation
+        effects on L-band spaceborne SAR data.</i> IEEE TGRS 41(12), 2735&ndash;2744.</li>
+</ol>
+
+</body>
+</html>

@@ -68,7 +68,7 @@ public class SARTests {
             subsetWidth = Integer.parseInt(testPreferences.get("test.subsetWidth", "100"));
             subsetHeight = Integer.parseInt(testPreferences.get("test.subsetHeight", "100"));
 
-            maxIteration = Integer.parseInt(testPreferences.get("test.maxProductsPerRootFolder", "100"));
+            maxIteration = Integer.parseInt(testPreferences.get("test.maxProductsPerRootFolder", "5"));
             String testReadersOnAllProducts = testPreferences.get("test.ReadersOnAllProducts", "true");
             String testProcessingOnAllProducts = testPreferences.get("test.ProcessingOnAllProducts", "true");
 

@@ -110,7 +110,6 @@ public class TerraSarXProductReader extends SARReader {
                 product.setProductReader(this);
             }    */
 
-            product.getGcpGroup();
             product.setModified(false);
         } catch (Throwable e) {
             handleReaderException(e);
@@ -298,8 +297,6 @@ public class TerraSarXProductReader extends SARReader {
         final int bi = iiStream.readInt();
         final int rtnb = iiStream.readInt();
         final int tnl = iiStream.readInt();
-        //System.out.print("bib"+bib+" rsri"+rsri+" rs"+rs+" as"+as+" bi"+bi+" rtbn"+rtnb+" tnl"+tnl);
-        //System.out.println(" sourceOffsetX="+sourceOffsetX+" sourceOffsetY="+sourceOffsetY);
 
         final long imageRecordLength = (long) rtnb;
         final int sourceMaxY = sourceOffsetY + sourceHeight - 1;
@@ -316,7 +313,6 @@ public class TerraSarXProductReader extends SARReader {
             throw new IOException("Unknown version = " + version);
         }
 
-        //System.out.println("csar = " + csar + " version = " + version);
 
         final boolean isSSC = (version == 1); // true means it is SSC, false means it is CoSSC
 
@@ -354,7 +350,7 @@ public class TerraSarXProductReader extends SARReader {
                     pm.worked(1);
                 }
             } catch (Exception e) {
-                //System.out.println(e.toString());
+                SystemUtils.LOG.warning("Error reading SSC COSAR data at line " + y + ": " + e.getMessage());
                 final int currentLineIndex = (y - sourceOffsetY) * destWidth;
                 Arrays.fill(destLine, (short) 0);
                 System.arraycopy(destLine, 0, destBuffer.getElems(), currentLineIndex, destWidth);
@@ -390,7 +386,7 @@ public class TerraSarXProductReader extends SARReader {
                     pm.worked(1);
                 }
             } catch (Exception e) {
-                //System.out.println(e.toString());
+                SystemUtils.LOG.warning("Error reading CoSSC COSAR data at line " + y + ": " + e.getMessage());
                 final int currentLineIndex = (y - sourceOffsetY) * destWidth;
                 Arrays.fill(destLine, (char) 0);
                 for (int i = 0; i < destWidth; i++) {

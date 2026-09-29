@@ -13,10 +13,13 @@
                     <tocitem text="Warp" target="WarpOp"/>
                 </tocitem>
                 <tocitem text="DEM Assisted Coregistration" target="DEMAssistedCoregistrationOp"/>
+                <tocitem text="Demodulate" target="DemodulateOp"/>
+                <tocitem text="Remodulate" target="RemodulateOp"/>
                 <tocitem text="Stack Tools">
                     <tocitem text="Create Stack" target="CreateStackOp"/>
                     <tocitem text="Stack Averaging" target="StackAveragingOp"/>
                     <tocitem text="Stack Split" target="StackSplitOp"/>
+                    <tocitem text="Split Stack into Multiple References" target="MultiReference"/>
                 </tocitem>
             </tocitem>
             <tocitem text="Interferometric">
@@ -27,6 +30,7 @@
                     <tocitem text="Multi-Reference InSAR" target="MultiReferenceInSAROp"/>
                     <tocitem text="Horizontal/Vertical Motion" target="HorizontalVerticalMotionOp"/>
                     <tocitem text="Ionospheric Correction" target="IonosphericCorrectionOp"/>
+                    <tocitem text="Tropospheric Correction (Empirical)" target="EmpiricalTropoCorrectionOp"/>
                 </tocitem>
                 <tocitem text="Filtering">
                     <tocitem text="Goldstein Phase Filtering" target="GoldsteinFilterOp"/>

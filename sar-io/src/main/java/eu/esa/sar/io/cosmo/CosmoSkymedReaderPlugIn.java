@@ -28,8 +28,8 @@ import java.nio.file.Path;
 public class CosmoSkymedReaderPlugIn extends NetCDFReaderPlugIn {
 
     private final static String[] COSMO_FORMAT_NAMES = {"CosmoSkymed"};
-    private final static String[] COSMO_FORMAT_FILE_EXTENSIONS = {".h5",".attribs.xml",".tif"};
-    private final static String COSMO_PLUGIN_DESCRIPTION = "Cosmo-Skymed Products";
+    private final static String[] COSMO_FORMAT_FILE_EXTENSIONS = {".h5"};
+    private final static String COSMO_PLUGIN_DESCRIPTION = "Cosmo-Skymed HDF5 Products";
     private final static String[] COSMO_FILE_PREFIXES = {"csk","csg"};
 
     public CosmoSkymedReaderPlugIn() {

@@ -21,18 +21,19 @@ import eu.esa.sar.commons.test.SARTests;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -43,16 +44,9 @@ public class TestMultilookOperator extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If the file does not exist: the test will be ignored
-            assumeTrue("Input file" + inputFile + " does not exist - Skipping test", inputFile.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // testProcessing gates itself on inputFile;
+    // testMultilookOfRealImage uses createTestProduct(...) and runs always;
+    // testProcessAll* scan their own roots and skip via TestProcessor.
 
     private final static OperatorSpi spi = new MultilookOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
@@ -60,6 +54,19 @@ public class TestMultilookOperator extends ProcessorTest {
     private static final String[] productTypeExemptions = {"-","_BP", "XCA", "WVW", "WVI", "WVS", "WSS", "DOR_VOR_AX","OCN"};
     private static final String[] exceptionExemptions = {"not supported", "not intended", "not be map projected",
             "first be deburst","has no bands"};
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final MultilookOp op = (MultilookOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = MultilookOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Multilook", md.alias());
+    }
 
     /**
      * Tests multi-look operator with a 4x16 "DETECTED" test product.
@@ -91,8 +98,12 @@ public class TestMultilookOperator extends ProcessorTest {
         final float[] floatValues = new float[8];
         band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
 
-        // compare with expected outputs:
-        final float[] expectedValues = {10.5f, 14.5f, 18.5f, 22.5f, 42.5f, 46.5f, 50.5f, 54.5f};
+        // Multilooking an amplitude band is the sqrt of the mean intensity (E[amp²]),
+        // not the arithmetic mean of the amplitudes; the latter is biased low for
+        // speckle-distributed data. The previous baseline (10.5f, 14.5f, ...) was
+        // the buggy arithmetic-mean output.
+        final float[] expectedValues = {13.247642f, 16.598192f, 20.186628f, 23.906067f,
+                                        43.260838f, 47.1964f, 51.14196f, 55.09537f};
         assertArrayEquals(Arrays.toString(floatValues), expectedValues, floatValues, 0.0001f);
 
         // compare updated metadata
@@ -113,6 +124,7 @@ public class TestMultilookOperator extends ProcessorTest {
      */
     @Test
     public void testProcessing() throws Exception {
+        assumeTrue(inputFile + " not found", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final MultilookOp op = (MultilookOp) spi.createOperator();

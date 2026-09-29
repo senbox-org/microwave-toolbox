@@ -89,7 +89,7 @@ public class RangeFilter extends ProductDataFilter {
 
         // define filtering params
         RSR = 0.5 * metadata.getRsr2x();
-        RBW = metadata.getRangeBandwidth() * Constants.MEGA;
+        RBW = metadata.getRangeBandwidth();
 
         doOversampleFlag = (ovsFactor != 1);
         doHamming = (alphaHamming < 0.9999);
@@ -251,12 +251,12 @@ public class RangeFilter extends ProductDataFilter {
             throw new IllegalArgumentException("oversample factor (FFT) has to be power of 2.");
         }
         if (data1.rows != nRows) {
-            logger.severe("slave not same size as master.");
-            throw new IllegalArgumentException("slave not same size as master.");
+            logger.severe("secondary not same size as reference.");
+            throw new IllegalArgumentException("secondary not same size as reference.");
         }
         if (data1.columns != nCols) {
-            logger.severe("slave not same size as master.");
-            throw new IllegalArgumentException("slave not same size as master.");
+            logger.severe("secondary not same size as reference.");
+            throw new IllegalArgumentException("secondary not same size as reference.");
         }
 //        if (outputLines < 1) {
 //            logger.warning("no outputLines, continuing....");

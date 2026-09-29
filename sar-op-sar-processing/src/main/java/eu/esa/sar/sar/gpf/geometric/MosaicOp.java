@@ -71,14 +71,14 @@ public class MosaicOp extends Operator {
     @Parameter(valueSet = {ResamplingFactory.NEAREST_NEIGHBOUR_NAME,
             ResamplingFactory.BILINEAR_INTERPOLATION_NAME, ResamplingFactory.CUBIC_CONVOLUTION_NAME},
             defaultValue = ResamplingFactory.NEAREST_NEIGHBOUR_NAME,
-            description = "The method to be used when resampling the slave grid onto the master grid.",
+            description = "The method to be used when resampling the secondary grid onto the reference grid.",
             label = "Resampling Type")
     private String resamplingMethod = ResamplingFactory.NEAREST_NEIGHBOUR_NAME;
 
     @Parameter(defaultValue = "true", description = "Average the overlapping areas", label = "Average Overlap")
     private Boolean average = true;
     @Parameter(defaultValue = "true", description = "Normalize by Mean", label = "Normalize by Mean")
-    private Boolean normalizeByMean = true;
+    private volatile Boolean normalizeByMean = true;
     @Parameter(defaultValue = "false", description = "Gradient Domain Mosaic", label = "Gradient Domain Mosaic")
     private Boolean gradientDomainMosaic = false;
 
@@ -578,7 +578,7 @@ public class MosaicOp extends Operator {
                         }
                     }
 
-                    if (targetVal != 0) {
+                    if (numSamples > 0) {
                         if (average && numSamples > 1) {
                             double sum = 0;
                             int totalWeight = 0;
@@ -586,7 +586,9 @@ public class MosaicOp extends Operator {
                                 sum += sampleList[i] * sampleDistanceList[i];
                                 totalWeight += sampleDistanceList[i];
                             }
-                            targetVal = sum / totalWeight;
+                            if (totalWeight > 0) {
+                                targetVal = sum / totalWeight;
+                            }
                         }
 
                         trgBuffer.setElemDoubleAt(trgIndex.getIndex(x), targetVal);
@@ -1016,7 +1018,15 @@ public class MosaicOp extends Operator {
                         allValid = false;
                     }
                     if (usesNoData) {
-                        if (scalingApplied && geophysicalNoDataValue == samples[i][j] || noDataValue == samples[i][j]) {
+                        // Parenthesize: when scaling is applied, sample is in geophysical units;
+                        // otherwise it is the raw sentinel. The previous form's && bound tighter
+                        // than || so the raw `noDataValue == sample` test fired regardless of
+                        // scalingApplied, silently nulling geophysical samples that happened to
+                        // equal the raw sentinel.
+                        final boolean isNoData = scalingApplied
+                                ? geophysicalNoDataValue == samples[i][j]
+                                : noDataValue == samples[i][j];
+                        if (isNoData) {
                             samples[i][j] = Float.NaN;
                             allValid = false;
                         }

@@ -15,7 +15,9 @@
  */
 package eu.esa.sar.orbits.gpf;
 
+import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.orbits.io.OrbitFile;
+import eu.esa.sar.orbits.io.biomass.BiomassPODOrbitFile;
 import eu.esa.sar.orbits.io.delft.DelftOrbitFile;
 import eu.esa.sar.orbits.io.doris.DorisOrbitFile;
 import eu.esa.sar.orbits.io.k5.K5OrbitFile;
@@ -90,7 +92,8 @@ public final class ApplyOrbitFileOp extends Operator {
             DorisOrbitFile.DORIS_POR + " (ENVISAT)", DorisOrbitFile.DORIS_VOR + " (ENVISAT)" + " (Auto Download)",
             DelftOrbitFile.DELFT_PRECISE + " (ENVISAT, ERS1&2)" + " (Auto Download)",
             PrareOrbitFile.PRARE_PRECISE + " (ERS1&2)" + " (Auto Download)",
-            K5OrbitFile.PRECISE },
+            K5OrbitFile.PRECISE,
+            BiomassPODOrbitFile.PRECISE + " (Auto Download)"},
             defaultValue = SentinelPODOrbitFile.PRECISE + " (Auto Download)", label = "Orbit State Vectors")
     private String orbitType = null;
 
@@ -140,6 +143,20 @@ public final class ApplyOrbitFileOp extends Operator {
 
             getSourceMetadata();
 
+            // BIOMASS orbits ship inside the L1 annotation and are populated into
+            // AbstractMetadata.orbit_state_vectors by BiomassProductDirectory at read time.
+            // There is no external precise/restituted ephemeris service for BIOMASS yet
+            // (when one becomes available, route it through BiomassPODOrbitFile below).
+            // Until then, running ApplyOrbitFileOp on a BIOMASS product is a no-op:
+            // pass the source through unchanged.
+            if (mission.equals("BIOMASS")) {
+                SystemUtils.LOG.info("BIOMASS orbits are sourced from the product annotation by the reader; "
+                        + "ApplyOrbitFileOp has nothing to apply. Passing source through.");
+                createTargetProduct();
+                productUpdated = true;
+                return;
+            }
+
             if (orbitType == null) {
                 if (mission.equals("ENVISAT")) {
                     orbitType = DorisOrbitFile.DORIS_VOR;
@@ -184,10 +201,26 @@ public final class ApplyOrbitFileOp extends Operator {
                 orbitProvider = new SentinelPODOrbitFile(absRoot, polyDegree);
             } else if (orbitType.contains("Kompsat5")) {
                 orbitProvider = new K5OrbitFile(absRoot, polyDegree);
+            } else if (orbitType.startsWith(BiomassPODOrbitFile.PRECISE)) {
+                orbitProvider = new BiomassPODOrbitFile(absRoot, polyDegree);
             }
 
             createTargetProduct();
 
+        } catch (Throwable e) {
+            OperatorUtils.catchOperatorException(getId(), e);
+        }
+    }
+
+    /**
+     * Called by the GPF framework after {@link #initialize()} and before any {@link #computeTile} call.
+     * Network I/O (orbit-file download) is deferred to this method so that the UI parameter dialog
+     * and Graph Builder validation do not block on network access.
+     */
+    @Override
+    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+        try {
+            pm.beginTask("Downloading orbit file", 1);
             if (!productUpdated) {
                 try {
                     updateOrbits();
@@ -200,9 +233,11 @@ public final class ApplyOrbitFileOp extends Operator {
                     }
                 }
             }
-
+            pm.worked(1);
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
+        } finally {
+            pm.done();
         }
     }
 
@@ -263,6 +298,14 @@ public final class ApplyOrbitFileOp extends Operator {
             if(!tryAnotherType) {
                 throw e;
             }
+        }
+
+        if (orbitProvider.isOrbitAlreadyApplied(absRoot)) {
+            SystemUtils.LOG.info("Orbit already applied (source matches " +
+                    absRoot.getAttributeString(AbstractMetadata.VECTOR_SOURCE, "in-product") +
+                    "); skipping state-vector rewrite.");
+            productUpdated = true;
+            return;
         }
 
         updateOrbitStateVectors();

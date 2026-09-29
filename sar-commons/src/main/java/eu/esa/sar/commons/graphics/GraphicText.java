@@ -60,11 +60,9 @@ public class GraphicText {
         if (text.length() >= width || text.equalsIgnoreCase("NaN"))
             return text;
         final StringBuilder newText = new StringBuilder(width);
-        final int firstPos = width - text.length();
-        int i = 0;
-        while (i <= firstPos) {
+        final int padCount = width - text.length();
+        for (int i = 0; i < padCount; i++) {
             newText.append(' ');
-            ++i;
         }
         newText.append(text);
         return newText.toString();

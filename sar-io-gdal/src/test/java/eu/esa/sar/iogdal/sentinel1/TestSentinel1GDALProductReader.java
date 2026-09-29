@@ -62,6 +62,7 @@ public class TestSentinel1GDALProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
+            validator.validateBandData();
         }
     }
 
@@ -74,6 +75,7 @@ public class TestSentinel1GDALProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
+            validator.validateBandData();
         }
     }
 
@@ -86,6 +88,7 @@ public class TestSentinel1GDALProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_VV", "Intensity_VV", "Amplitude_VH", "Intensity_VH"});
+            validator.validateBandData();
         }
     }
 
@@ -97,6 +100,7 @@ public class TestSentinel1GDALProductReader extends ReaderTest {
             validator.validateProduct();
             validator.validateMetadata();
             validator.validateBands(new String[]{"Amplitude_HH", "Intensity_HH"});
+            validator.validateBandData();
         }
     }
 

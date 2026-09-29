@@ -15,6 +15,7 @@ import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.SLCImage;
 import org.jlinda.core.Window;
@@ -458,7 +459,7 @@ public class SnaphuWriter extends AbstractProductWriter {
 
         // prepare snaphu config file
         final MetadataElement primaryRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-        final MetadataElement[] secondaryS = sourceProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT).getElements();
+        final MetadataElement[] secondaryS = StackUtils.findSecondaryMetadataRoot(sourceProduct).getElements();
         Band [] phaseBands = getPhaseBands(sourceProduct);
         Band [] coherenceBands = getCoherenceBands(sourceProduct);
         boolean hasCoherence = coherenceBands.length > 0;

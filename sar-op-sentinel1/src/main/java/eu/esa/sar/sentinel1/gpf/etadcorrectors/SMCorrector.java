@@ -163,14 +163,20 @@ import java.util.Map;
 
             final Band phaseBand = new Band(ETAD_PHASE_CORRECTION, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
             phaseBand.setUnit(Unit.RADIANS);
+            phaseBand.setNoDataValue(Double.NaN);
+            phaseBand.setNoDataValueUsed(true);
             targetProduct.addBand(phaseBand);
 
             final Band heightBand = new Band(ETAD_HEIGHT, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
             heightBand.setUnit(Unit.METERS);
+            heightBand.setNoDataValue(Double.NaN);
+            heightBand.setNoDataValueUsed(true);
             targetProduct.addBand(heightBand);
 
             final Band gradientBand = new Band(ETAD_GRADIENT, ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
             gradientBand.setUnit(Unit.RADIANS);
+            gradientBand.setNoDataValue(Double.NaN);
+            gradientBand.setNoDataValueUsed(true);
             targetProduct.addBand(gradientBand);
 
         } else { // resampling image
@@ -185,6 +191,12 @@ import java.util.Map;
 
                 targetBand.setUnit(srcBand.getUnit());
                 targetBand.setDescription(srcBand.getDescription());
+                if (srcBand.isNoDataValueUsed()) {
+                    targetBand.setNoDataValue(srcBand.getNoDataValue());
+                } else {
+                    targetBand.setNoDataValue(Double.NaN);
+                }
+                targetBand.setNoDataValueUsed(true);
                 targetProduct.addBand(targetBand);
 
                 if(targetBand.getUnit() != null && targetBand.getUnit().equals(Unit.IMAGINARY)) {
@@ -251,7 +263,7 @@ import java.util.Map;
                 final TileIndex srcIndex = new TileIndex(srcTile);
                 final TileIndex tgtIndex = new TileIndex(tgtTile);
 
-                final ResamplingRaster slvResamplingRaster = new ResamplingRaster(srcTile, srcData);
+                final ResamplingRaster secResamplingRaster = new ResamplingRaster(srcTile, srcData);
                 final Resampling.Index resamplingIndex = selectedResampling.createIndex();
 
                 for (int y = y0; y <= yMax; ++y) {
@@ -267,7 +279,7 @@ import java.util.Map;
                         selectedResampling.computeCornerBasedIndex(slavePixelPos.x, slavePixelPos.y,
                                 sourceImageWidth, sourceImageHeight, resamplingIndex);
 
-                        final double v = selectedResampling.resample(slvResamplingRaster, resamplingIndex);
+                        final double v = selectedResampling.resample(secResamplingRaster, resamplingIndex);
                         tgtData.setElemDoubleAt(tgtIdx, v);
                     }
                 }

@@ -19,17 +19,22 @@ import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -43,6 +48,44 @@ public class TestPolarimetricDecompositionOp {
     }
 
     private final static OperatorSpi spi = new PolarimetricDecompositionOp.Spi();
+
+    // Cache of source products, keyed by absolute path, to avoid re-reading the same product
+    // across many tests. Safe because PolarimetricDecompositionOp only reads from the source
+    // product (it constructs a new target product) and the helper does not mutate the source.
+    private static final Map<String, Product> PRODUCT_CACHE = new ConcurrentHashMap<>();
+
+    private static Product loadCached(final File file) throws Exception {
+        final String key = file.getAbsolutePath();
+        Product p = PRODUCT_CACHE.get(key);
+        if (p == null) {
+            p = TestUtils.readSourceProduct(file);
+            PRODUCT_CACHE.put(key, p);
+        }
+        return p;
+    }
+
+    @AfterClass
+    public static void disposeCachedProducts() {
+        for (Product p : PRODUCT_CACHE.values()) {
+            if (p != null) {
+                p.dispose();
+            }
+        }
+        PRODUCT_CACHE.clear();
+    }
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = PolarimetricDecompositionOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("Polarimetric-Decomposition", md.alias());
+    }
 
     private final static String inputPathQuad = TestData.inputSAR + "/QuadPol/QuadPol_subset_0_of_RS2-SLC-PDS_00058900.dim";
     private final static String inputQuadFullStack = TestData.inputSAR + "/QuadPolStack/RS2-Quad_Pol_Stack.dim";
@@ -92,7 +135,7 @@ public class TestPolarimetricDecompositionOp {
     private Product runDecomposition(final PolarimetricDecompositionOp op,
                                      final String decompositionName, final String path) throws Exception {
         final File inputFile = new File(path);
-        final Product sourceProduct = TestUtils.readSourceProduct(inputFile);
+        final Product sourceProduct = loadCached(inputFile);
 
         assertNotNull(op);
         op.setSourceProduct(sourceProduct);

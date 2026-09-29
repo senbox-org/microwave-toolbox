@@ -5,6 +5,7 @@ import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
+import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -41,6 +42,19 @@ public class TestInSAROverviewOp extends ProcessorTest {
     }
 
     private final static OperatorSpi spi = new InSAROverviewOp.Spi();
+
+    @Test
+    public void testSpiCreatesOperator() {
+        final InSAROverviewOp op = (InSAROverviewOp) spi.createOperator();
+        assertNotNull(op);
+    }
+
+    @Test
+    public void testOperatorMetadata() {
+        final OperatorMetadata md = InSAROverviewOp.class.getAnnotation(OperatorMetadata.class);
+        assertNotNull(md);
+        assertEquals("InSAR-Overview", md.alias());
+    }
 
     @Test
     public void testFileList() throws Exception {

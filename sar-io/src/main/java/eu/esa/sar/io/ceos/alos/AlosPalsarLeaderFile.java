@@ -52,6 +52,13 @@ public class AlosPalsarLeaderFile extends CEOSLeaderFile {
     }
 
     public AlosPalsarLeaderFile(final ImageInputStream stream, final Document fdrXML) throws IOException {
+        this(stream, fdrXML, sceneXML, mapProjXML, platformXML, attitudeXML, radiometricXML, dataQualityXML);
+    }
+
+    protected AlosPalsarLeaderFile(final ImageInputStream stream, final Document fdrXML,
+                                   final Document sceneDoc, final Document mapProjDoc,
+                                   final Document platformDoc, final Document attitudeDoc,
+                                   final Document radiometricDoc, final Document dataQualityDoc) throws IOException {
 
         final BinaryFileReader reader = new BinaryFileReader(stream);
 
@@ -61,13 +68,13 @@ public class AlosPalsarLeaderFile extends CEOSLeaderFile {
 
         for (int i = 0; i < leaderFDR.getAttributeInt("Number of data set summary records"); ++i) {
             header = new CeosRecordHeader(reader);
-            sceneHeaderRecord = new BinaryRecord(reader, -1, sceneXML, scene_recordDefinitionFile);
+            sceneHeaderRecord = new BinaryRecord(reader, -1, sceneDoc, scene_recordDefinitionFile);
             header.seekToEnd();
         }
         for (int i = 0; i < leaderFDR.getAttributeInt("Number of map projection data records"); ++i) {
             try {
                 header = new CeosRecordHeader(reader);
-                mapProjRecord = new BinaryRecord(reader, -1, mapProjXML, mapproj_recordDefinitionFile);
+                mapProjRecord = new BinaryRecord(reader, -1, mapProjDoc, mapproj_recordDefinitionFile);
                 header.seekToEnd();
             } catch (Exception e) {
                 SystemUtils.LOG.warning("unable to read projection");
@@ -76,7 +83,7 @@ public class AlosPalsarLeaderFile extends CEOSLeaderFile {
         for (int i = 0; i < leaderFDR.getAttributeInt("Number of platform pos. data records"); ++i) {
             try {
                 header = new CeosRecordHeader(reader);
-                platformPositionRecord = new BinaryRecord(reader, -1, platformXML, platformPosition_recordDefinitionFile);
+                platformPositionRecord = new BinaryRecord(reader, -1, platformDoc, platformPosition_recordDefinitionFile);
                 header.seekToEnd();
             } catch (Exception e) {
                 SystemUtils.LOG.warning("unable to read platform pos");
@@ -85,7 +92,7 @@ public class AlosPalsarLeaderFile extends CEOSLeaderFile {
         for (int i = 0; i < leaderFDR.getAttributeInt("Number of attitude data records"); ++i) {
             try {
                 header = new CeosRecordHeader(reader);
-                attitudeRecord = new BinaryRecord(reader, -1, attitudeXML, attitude_recordDefinitionFile);
+                attitudeRecord = new BinaryRecord(reader, -1, attitudeDoc, attitude_recordDefinitionFile);
                 header.seekToEnd();
             } catch (Exception e) {
                 SystemUtils.LOG.warning("unable to read attitude");
@@ -94,7 +101,7 @@ public class AlosPalsarLeaderFile extends CEOSLeaderFile {
         for (int i = 0; i < leaderFDR.getAttributeInt("Number of radiometric data records"); ++i) {
             try {
                 header = new CeosRecordHeader(reader);
-                radiometricRecord = new BinaryRecord(reader, -1, radiometricXML, radiometric_recordDefinitionFile);
+                radiometricRecord = new BinaryRecord(reader, -1, radiometricDoc, radiometric_recordDefinitionFile);
                 header.seekToEnd();
             } catch (Exception e) {
                 SystemUtils.LOG.warning("unable to read radiometric");
@@ -103,7 +110,7 @@ public class AlosPalsarLeaderFile extends CEOSLeaderFile {
         for (int i = 0; i < leaderFDR.getAttributeInt("Number of data quality summary records"); ++i) {
             try {
                 header = new CeosRecordHeader(reader);
-                dataQualityRecord = new BinaryRecord(reader, -1, dataQualityXML, dataQuality_recordDefinitionFile);
+                dataQualityRecord = new BinaryRecord(reader, -1, dataQualityDoc, dataQuality_recordDefinitionFile);
                 header.seekToEnd();
             } catch (Exception e) {
                 SystemUtils.LOG.warning("unable to read quality");

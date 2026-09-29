@@ -1,0 +1,73 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Y3-DP Dual-pol Decomposition</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Dual-pol Y3-DP / iDPSV Decomposition</td>
+        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Three-Component Decomposition for Dual-pol C2 Data</h3>
+<p>Decomposes a dual-pol covariance matrix C2 into surface (P<sub>s</sub>),
+   double-bounce (P<sub>d</sub>) and volume (P<sub>v</sub>) scattering powers via a model-based
+   approach analogous to Freeman&ndash;Durden but adapted to two channels.</p>
+
+<h4>Volume model</h4>
+<p>The volume contribution is parameterised by a normalised diagonal matrix
+   V = diag(a, b). The amplitude f<sub>v</sub> is fixed by matching the cross-pol intensity
+   c<sub>22</sub>:</p>
+<pre>
+    f<sub>v</sub> = c<sub>22</sub> / b
+    P<sub>v</sub> = f<sub>v</sub> &middot; (a + b)
+</pre>
+<p>Three volume models are offered:</p>
+<table border="1" cellpadding="4">
+    <tr><th>Model</th><th>(a, b)</th><th>Typical use</th></tr>
+    <tr><td>Uniform random</td><td>(&frac12;, &frac12;)</td><td>Symmetric scatterers (S1 IW VV+VH)</td></tr>
+    <tr><td>Bragg-like</td><td>(&#8532;, &#8531;)</td><td>Vegetation-over-surface</td></tr>
+    <tr><td>Dipole cloud</td><td>(&#8540;, &#8539;)</td><td>Oriented-dipole canopy (HH+HV)</td></tr>
+</table>
+
+<h4>Surface vs double-bounce branch</h4>
+<p>After volume removal, the residual matrix C<sub>r</sub> = C2 &minus; f<sub>v</sub>&middot;V has its
+   cross-pol diagonal forced to zero (rank-1 residual). The remaining trace is assigned to one
+   of two scattering mechanisms based on the sign of the real part of the off-diagonal element:</p>
+<ul>
+    <li>Re(c<sub>12</sub>) &ge; 0 &rArr; surface dominant: P<sub>s</sub> = trace(C<sub>r</sub>),
+        P<sub>d</sub> = 0.</li>
+    <li>Re(c<sub>12</sub>) &lt; 0 &rArr; double-bounce dominant: P<sub>d</sub> = trace(C<sub>r</sub>),
+        P<sub>s</sub> = 0.</li>
+</ul>
+<p>Volume over-estimation (negative residual diagonal) is detected and clipped: f<sub>v</sub> is
+   reduced so that c<sub>11</sub> &minus; f<sub>v</sub>&middot;a = 0, preserving non-negative powers.</p>
+
+<h4>Inputs</h4>
+<ul>
+    <li>Dual-pol C2 covariance matrix product (4 bands: c11, c12_real, c12_imag, c22).</li>
+</ul>
+
+<h4>Outputs</h4>
+<ul>
+    <li>P<sub>s</sub>_Y3DP &mdash; surface scattering power.</li>
+    <li>P<sub>d</sub>_Y3DP &mdash; double-bounce power.</li>
+    <li>P<sub>v</sub>_Y3DP &mdash; volume power.</li>
+</ul>
+
+<h4>References</h4>
+<p>[1] Mascolo, L., Cloude, S.R., Lopez-Martinez, C., 2022.
+   <i>Model-based decomposition of dual-pol SAR data: Application to Sentinel-1.</i>
+   IEEE Transactions on Geoscience and Remote Sensing, 60.</p>
+<p>[2] Mascolo, L., Lopez-Martinez, C., et al., 2024.
+   <i>Scattering power components from dual-pol Sentinel-1 SLC and GRD SAR data.</i>
+   ISPRS Journal of Photogrammetry and Remote Sensing, 212, 289&ndash;305.</p>
+
+<hr>
+</body>
+</html>

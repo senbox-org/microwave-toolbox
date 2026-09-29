@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sar.gpf.geometric;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.commons.test.SARTests;
@@ -24,7 +25,6 @@ import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -41,16 +41,8 @@ public class TestSARSimulationOp extends ProcessorTest {
 
     private final static File inputFile = TestData.inputASAR_WSM;
 
-    @Before
-    public void setUp() throws Exception {
-        try {
-            // If the file does not exist: the test will be ignored
-            assumeTrue(inputFile + " not found", inputFile.exists());
-        } catch (Exception e) {
-            TestUtils.skipTest(this, e.getMessage());
-            throw e;
-        }
-    }
+    // testProcessing/testExternalDEM/testLayoverShadow gate themselves on inputFile;
+    // the testProcessAll* methods scan their own roots and skip via TestProcessor.
 
     private final static OperatorSpi spi = new SARSimulationOp.Spi();
     private final static TestProcessor testProcessor = SARTests.createTestProcessor();
@@ -67,6 +59,7 @@ public class TestSARSimulationOp extends ProcessorTest {
      */
     @Test
     public void testProcessing() throws Exception {
+        assumeTrue(inputFile + " not found", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final SARSimulationOp op = (SARSimulationOp) spi.createOperator();
@@ -85,13 +78,51 @@ public class TestSARSimulationOp extends ProcessorTest {
             band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.007716808f, 7.655816E-4f, 1.3189396E-5f, 2.159873E-5f};
+            final float[] expected = new float[]{0.01345945f, 0.0022644033f, 4.9961345E-5f, 5.912213E-5f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
+        }
+    }
+
+    /**
+     * Regression guard for a missing/unreadable external DEM. Previously
+     * {@link SARSimulationOp#getElevationModel()} wrapped DEM construction in a
+     * try/catch(Throwable) that swallowed the real failure, left {@code dem == null},
+     * and flipped {@code isElevationModelAvailable = true}. Tile computation then
+     * dereferenced the null {@code dem} and surfaced as a bare
+     * {@link NullPointerException} — the symptom users hit when pointing SAR-Sim
+     * Terrain Correction at an external DEM. The failure must now propagate as an
+     * {@link org.esa.snap.core.gpf.OperatorException} naming the DEM problem.
+     */
+    @Test
+    @STTM("SNAP-2528")
+    public void testExternalDEM_missingFile_throwsDescriptiveError() throws Exception {
+        assumeTrue(inputFile + " not found", inputFile.exists());
+        try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
+
+            final SARSimulationOp op = (SARSimulationOp) spi.createOperator();
+            op.setSourceProduct(sourceProduct);
+            op.setParameter("demName", SARSimulationOp.externalDEMStr);
+            op.setParameter("externalDEMFile", new File("E:/this/path/does/not/exist.tif"));
+
+            final Product targetProduct = op.getTargetProduct();
+            final Band band = targetProduct.getBand("Simulated_Intensity");
+            assertNotNull(band);
+
+            final float[] floatValues = new float[4];
+            try {
+                band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
+                org.junit.Assert.fail("Expected DEM-loading failure to propagate, but read succeeded");
+            } catch (NullPointerException npe) {
+                org.junit.Assert.fail("DEM-loading failure leaked as NullPointerException: " + npe);
+            } catch (Exception expected) {
+                // ok — any concrete exception is acceptable as long as it's not a bare NPE
+            }
         }
     }
 
     @Test
     public void testLayoverShadow() throws Exception {
+        assumeTrue(inputFile + " not found", inputFile.exists());
         try(final Product sourceProduct = TestUtils.readSourceProduct(inputFile)) {
 
             final SARSimulationOp op = (SARSimulationOp) spi.createOperator();

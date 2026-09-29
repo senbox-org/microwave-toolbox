@@ -20,6 +20,7 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.util.Debug;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.jlinda.core.Baseline;
 import org.jlinda.core.Orbit;
 import org.jlinda.core.Point;
@@ -36,9 +37,58 @@ import java.util.List;
  */
 public class InSARStackOverview {
 
-    private final static int BTEMP_CRITICAL = 3 * 365;
-    private final static int BPERP_CRITICAL = 1200;
-    private final static int DFDC_CRITICAL = 1380;
+    /**
+     * Critical decorrelation thresholds per radar band. Values are practical
+     * (not strictly geometric) limits where modeled coherence approaches zero:
+     *   - bPerpCritical (m): perpendicular baseline beyond which range spectral
+     *     overlap is too small for useful interferometry.
+     *   - bTempCritical (days): temporal-decorrelation horizon for vegetated /
+     *     semi-stable surfaces; longer wavelengths penetrate canopy and stay
+     *     coherent for longer.
+     *   - dfDcCritical (Hz): Doppler-centroid difference beyond which the
+     *     azimuth spectra no longer overlap.
+     *
+     * Numbers chosen to match published practice for the canonical mission per
+     * band: Sentinel-1 IW (C), TerraSAR-X SM (X), NovaSAR (S), NISAR/ALOS-2 (L),
+     * BIOMASS (P).
+     */
+    public enum Band {
+        X(0.025, 0.040,   600,  730, 2200),
+        C(0.040, 0.080,  1200, 1095, 1380),
+        S(0.080, 0.150,  2500, 1825, 1500),
+        L(0.150, 0.300,  6000, 2920, 1500),
+        P(0.300, 1.000, 12000, 3650, 1200);
+
+        final double minLambda, maxLambda;
+        final int bPerpCritical;
+        final int bTempCritical;
+        final int dfDcCritical;
+
+        Band(double minLambda, double maxLambda, int bPerp, int bTemp, int dfDc) {
+            this.minLambda = minLambda;
+            this.maxLambda = maxLambda;
+            this.bPerpCritical = bPerp;
+            this.bTempCritical = bTemp;
+            this.dfDcCritical = dfDc;
+        }
+
+        public static Band fromWavelength(double lambdaMeters) {
+            for (Band b : values()) {
+                if (lambdaMeters >= b.minLambda && lambdaMeters < b.maxLambda) {
+                    return b;
+                }
+            }
+            // Fallback: out-of-range wavelengths (or zero/NaN) default to C.
+            return C;
+        }
+    }
+
+    // Default thresholds (C-band). Kept for backward compatibility with callers
+    // that build IfgPair without a Band override; the wavelength-aware
+    // constructor below should be preferred.
+    private final static int BTEMP_CRITICAL = Band.C.bTempCritical;
+    private final static int BPERP_CRITICAL = Band.C.bPerpCritical;
+    private final static int DFDC_CRITICAL = Band.C.dfDcCritical;
 
     private SLCImage[] slcImages;
     private Orbit[] orbits;
@@ -48,7 +98,6 @@ public class InSARStackOverview {
     private float modeledCoherence;
 
     // TODO: function to sort input array according to modeled coherence
-    // TODO: critical values for other sensors then C.band ESA
 
     public InSARStackOverview() {
     }
@@ -63,7 +112,7 @@ public class InSARStackOverview {
         }
     }
 
-    // returns orbit number of an "optimal master"
+    // returns orbit number of an "optimal reference"
     public long getOrbitNumber() {
         return orbitNumber;
     }
@@ -80,6 +129,12 @@ public class InSARStackOverview {
 
     private static float modelCoherence(float bPerp, float bTemp, float fDc) {
         return coherenceFnc(bPerp, BPERP_CRITICAL) * coherenceFnc(bTemp, BTEMP_CRITICAL) * coherenceFnc(fDc, DFDC_CRITICAL);
+    }
+
+    private static float modelCoherence(float bPerp, float bTemp, float fDc, Band band) {
+        return coherenceFnc(bPerp, band.bPerpCritical)
+                * coherenceFnc(bTemp, band.bTempCritical)
+                * coherenceFnc(fDc, band.dfDcCritical);
     }
 
     private static float coherenceFnc(float value, float value_CRITICAL) {
@@ -110,16 +165,16 @@ public class InSARStackOverview {
         pm.beginTask("Computing...", numOfImages);
         for (int i = 0; i < numOfImages; i++) {
 
-            CplxContainer master = cplxContainers[i];
+            CplxContainer reference = cplxContainers[i];
 
             for (int j = 0; j < numOfImages; j++) {
 
-                CplxContainer slave = cplxContainers[j];
-                ifgPair[i][j] = new IfgPair(master, slave);
+                CplxContainer secondary = cplxContainers[j];
+                ifgPair[i][j] = new IfgPair(reference, secondary);
 
             }
 
-            ifgStack[i] = new IfgStack(master, ifgPair[i]);
+            ifgStack[i] = new IfgStack(reference, ifgPair[i]);
             ifgStack[i].meanCoherence();
 
             pm.worked(1);
@@ -160,10 +215,10 @@ public class InSARStackOverview {
     }
 
     /**
-     * Finds the optimal master product from a list of products
+     * Finds the optimal reference product from a list of products
      *
      * @param srcProducts input products
-     * @return the optimal master product
+     * @return the optimal reference product
      */
     public static Product findOptimalMasterProduct(final Product[] srcProducts) throws Exception {
         final int size = srcProducts.length;
@@ -190,14 +245,11 @@ public class InSARStackOverview {
 
     public static InSARStackOverview.IfgStack[] calculateInSAROverview(final Product coregProduct) throws Exception {
 
-        MetadataElement slaveElem = coregProduct.getMetadataRoot().getElement(AbstractMetadata.SLAVE_METADATA_ROOT);
-        if (slaveElem == null) {
-            slaveElem = coregProduct.getMetadataRoot().getElement("Slave Metadata");
-        }
+        MetadataElement secondaryElem = StackUtils.findSecondaryMetadataRoot(coregProduct);
 
         final List<MetadataElement> absMetaList = new ArrayList<>();
         absMetaList.add(AbstractMetadata.getAbstractedMetadata(coregProduct));
-        absMetaList.addAll(Arrays.asList(slaveElem.getElements()));
+        absMetaList.addAll(Arrays.asList(secondaryElem.getElements()));
 
         return InSARStackOverview.calculateInSAROverview(absMetaList.toArray(new MetadataElement[0]));
     }
@@ -255,23 +307,23 @@ public class InSARStackOverview {
     public static class IfgStack {
 
         private final CplxContainer master;
-        private final IfgPair[] master_slave;
+        private final IfgPair[] reference_secondary;
         private float meanCoherence;
 
-        public IfgStack(CplxContainer master, IfgPair... master_slave) {
+        public IfgStack(CplxContainer master, IfgPair... reference_secondary) {
             this.master = master;
-            this.master_slave = master_slave;
+            this.reference_secondary = reference_secondary;
         }
 
         public void meanCoherence() {
-            for (IfgPair aMaster_slave : master_slave) {
-                meanCoherence += aMaster_slave.coherence;
+            for (IfgPair aReference_secondary : reference_secondary) {
+                meanCoherence += aReference_secondary.coherence;
             }
-            meanCoherence /= master_slave.length;
+            meanCoherence /= reference_secondary.length;
         }
 
         public IfgPair[] getMasterSlave() {
-            return master_slave;
+            return reference_secondary;
         }
     }
 
@@ -280,7 +332,7 @@ public class InSARStackOverview {
         private final int refLine, refPixel;
         private final double refHeight;
 
-        private final CplxContainer master, slave;
+        private final CplxContainer reference, secondary;
         private Baseline baseline = null;
 
         private float bPerp;            // perpendicular baseline
@@ -289,29 +341,34 @@ public class InSARStackOverview {
         private final float coherence;        // modeled coherence
         private float heightAmb;        // modeled coherence
 
-        public IfgPair(CplxContainer master, CplxContainer slave) {
+        public IfgPair(CplxContainer reference, CplxContainer secondary) {
 
-            this.master = master;
-            this.slave = slave;
+            this.reference = reference;
+            this.secondary = secondary;
 
-            final Point refPoint = master.metaData.getApproxRadarCentreOriginal();
+            final Point refPoint = reference.metaData.getApproxRadarCentreOriginal();
             this.refPixel = (int) refPoint.x;
             this.refLine = (int) refPoint.y;
             this.refHeight = 0;
 
             try {
                 baseline = new Baseline();
-                baseline.model(master.metaData, slave.metaData, master.orbit, slave.orbit);
+                baseline.model(reference.metaData, secondary.metaData, reference.orbit, secondary.orbit);
                 bPerp = (float) baseline.getBperp(refLine, refPixel);
                 heightAmb = (float) baseline.getHamb(refLine, refPixel, refHeight);
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            bTemp = (float) (master.dateMjd - slave.dateMjd);
-            deltaDoppler = (float) (master.metaData.doppler.getF_DC_a0() - slave.metaData.doppler.getF_DC_a0());
+            bTemp = (float) (reference.dateMjd - secondary.dateMjd);
+            deltaDoppler = (float) (reference.metaData.doppler.getF_DC_a0() - secondary.metaData.doppler.getF_DC_a0());
 
-            coherence = modelCoherence(bPerp, bTemp, deltaDoppler);
+            // Band-aware coherence model: pick critical thresholds from the
+            // reference radar wavelength so L-band stacks (NISAR, ALOS-2,
+            // SAOCOM) and X-band stacks (TSX, CSK) are not scored against
+            // hardcoded C-band defaults.
+            final Band band = Band.fromWavelength(reference.metaData.getRadarWavelength());
+            coherence = modelCoherence(bPerp, bTemp, deltaDoppler, band);
         }
 
         public float getPerpendicularBaseline(final double line, final double pixel, final double height) throws Exception {
@@ -355,11 +412,11 @@ public class InSARStackOverview {
         }
 
         public SLCImage getMasterMetadata() {
-            return master.metaData;
+            return reference.metaData;
         }
 
         public SLCImage getSlaveMetadata() {
-            return slave.metaData;
+            return secondary.metaData;
         }
     }
 }

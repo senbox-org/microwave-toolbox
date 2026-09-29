@@ -66,7 +66,13 @@ class ERSLeaderFile {
         reader.seek(_platformPositionRecord.getRecordEndPosition());
         _facilityRecord = new BinaryRecord(reader, -1, facilityXML, facility_recordDefinitionFile);
         reader.seek(_facilityRecord.getRecordEndPosition());
-        if (reader.getCurrentPos() + 4000 < reader.getLength()) {
+        // The leader FDR declares how many facility-related data records follow. Products
+        // that carry a Facility Related PCS record report a count of 2 (the standard
+        // facility record plus the PCS record). The previous heuristic gated this on
+        // reader.getCurrentPos() + 4000 < reader.getLength(), but getLength() returns -1
+        // for the cache-backed ImageInputStreams the reader now uses (VFS / compressed
+        // products), so the PCS record was always dropped. Use the declared count instead.
+        if (_leaderFDR.getAttributeInt("Number of facility data records") >= 2) {
             _facilityRelatedPCSRecord = new BinaryRecord(reader, -1, facilityRelXML, facilityRelatedPCS_recordDefinitionFile);
             reader.seek(_facilityRelatedPCSRecord.getRecordEndPosition());
         } else {

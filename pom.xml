@@ -6,7 +6,7 @@
 
     <groupId>eu.esa.microwavetbx</groupId>
     <artifactId>microwave-toolbox</artifactId>
-    <version>14.0.0-SNAPSHOT</version>
+    <version>15.0.0-SNAPSHOT</version>
     <name>SNAP Microwave Toolbox</name>
     <url>https://sentinel.esa.int/web/sentinel/toolboxes/sentinel-1</url>
     <description>Tools for SAR Earth Observation</description>
@@ -23,22 +23,29 @@
         <jvm.version>21</jvm.version>
 
         <skipTests>false</skipTests>
-        <surefire.jvm.args>-enableassertions</surefire.jvm.args>
+        <surefire.jvm.args>-enableassertions -Xmx4096M -Dfile.encoding=UTF-8 --add-exports java.desktop/sun.awt=ALL-UNNAMED --add-exports java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/sun.awt.shell=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.base/java.security=ALL-UNNAMED --add-exports java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED</surefire.jvm.args>
+        <!-- Extra surefire fork arguments, appended to surefire.jvm.args rather than replacing it.
+             Overriding surefire.jvm.args itself on the command line silently drops -Xmx4096M (forks
+             then fall back to the JVM default max heap, a quarter of physical RAM, which with a -T
+             parallel build exhausts memory and kills forks at startup) AND every add-opens /
+             add-exports flag the JDK 21 tests need. Use this property instead:
+             mvn test -Dsurefire.jvm.extra.args="-DoutputFolder=e:\API" -->
+        <surefire.jvm.extra.args></surefire.jvm.extra.args>
         <maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format>
         <buildDate>${maven.build.timestamp}</buildDate>
         <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
         <sonar.java.binaries>**/classes</sonar.java.binaries>
         <sonar.exclusions>*/src</sonar.exclusions>
 
-        <snap.version>14.0.0-SNAPSHOT</snap.version>
-        <snap-help-system.version>1.0.2</snap-help-system.version>
+        <snap.version>15.0.0-SNAPSHOT</snap.version>
+        <snap-help-system.version>1.0.3</snap-help-system.version>
         <!--
             microwavetbx.version is the Maven module version.
             microwavetbx.nbmSpecVersion is the NetBeans module specification version.
             It is used to filter manifest.mf and set the manifest's "OpenIDE-Module-Specification-Version" header.
             This is necessary to make NetBeans modules updatable and independent of the Maven version (= microwavetbx.version).
         -->
-        <microwavetbx.version>14.0.0-SNAPSHOT</microwavetbx.version>
+        <microwavetbx.version>15.0.0-SNAPSHOT</microwavetbx.version>
 
         <junit.version>4.13.2</junit.version>
         <mockito.version>5.17.0</mockito.version>
@@ -101,7 +108,6 @@
         <module>sar-op-feature-extraction-ui</module>
         <module>sar-op-insar</module>
         <module>sar-op-insar-ui</module>
-        <module>sar-op-ocean-ui</module>
         <module>sar-op-sar-processing</module>
         <module>sar-op-sar-processing-ui</module>
         <module>sar-op-sentinel1</module>
@@ -639,7 +645,7 @@
                                 <value>target/test-data</value>
                             </property>
                         </systemPropertyVariables>
-                        <argLine>${surefire.jvm.args} @{argLine}</argLine>
+                        <argLine>${surefire.jvm.args} ${surefire.jvm.extra.args} @{argLine}</argLine>
                     </configuration>
 
                 </plugin>

@@ -1,0 +1,96 @@
+# INTERFEROGRAM cross-tool comparison -- S1A/S1C 1-day repeat, IW1 VV, northern Venezuela, orbit 106.
+#
+# Companion to gslc_s1_venezuela_orbit106.yml. That case compares SINGLE GSLCs against COMPASS CSLC
+# granules in the CSLC product convention. THIS case compares FRINGES, which requires a different
+# convention -- see below. Same scenes, same DEM, same grid, so the two cases are directly relatable.
+
+case: insar_s1_venezuela_orbit106
+feature: GSLC-InSAR
+description: >
+  Geocode both dates of a 1-day S1A/S1C IW TOPS pair, form the interferogram from the geocoded pair
+  in each tool, and compare the resulting fringe patterns on an identical lattice.
+
+engines:
+  - snap
+  - isce3
+
+# --- inputs -----------------------------------------------------------------------------------
+# Left zipped deliberately: measurement TIFFs inside are STORED (ratio 1.000), so a tile read is a
+# plain seek at a byte offset. Both engines read zipped SAFE natively.
+scene:
+  slc: /scenes/Venezuela/S1A_IW_SLC__1SDV_20260623T225050_20260623T225120_065103_0834C8_BAD5.SAFE.zip
+  polarisation: VV
+  subswath: IW1                 # BOTH adapters must honour this: SNAP splits, and COMPASS (which has
+                                # no subswath parameter) filters burst_id, else it does all 30 bursts.
+
+secondary:
+  slc: /scenes/Venezuela/S1C_IW_SLC__1SDV_20260624T224958_20260624T225025_008254_010515_304A.SAFE.zip
+  polarisation: VV
+  subswath: IW1
+
+dem: /data/dem/copernicus30_venezuela_orbit106.tif
+orbits: /data/orbits
+
+grid:
+  crs: EPSG:32619
+  spacing: [5.0, 10.0]
+
+# --- phase convention -------------------------------------------------------------------------
+# DIFFERENT from the GSLC product case, and necessarily so:
+#
+# flattened: FALSE -- this is the whole point. outputFlattened=true removes the geometric carrier
+#   4*pi*R/lambda from each SLC independently, which zeroes the (R_ref - R_sec) difference. That
+#   difference IS the fringe signal, so a flattened pair produces no fringes at all. COMPASS exposes
+#   `flatten` in its runconfig, so both engines can honour this.
+#
+# azimuth_carrier: REMOVED -- the TOPS azimuth carrier is acquisition-specific (burst timing, FM
+#   rate) and does NOT cancel between acquisitions, least of all across two platforms (S1A vs S1C).
+#   Leaving it in adds tens of spurious fringes per burst. SNAP geocodes carrier-free natively.
+#   COMPASS hardcodes reramp=True and CANNOT, so it is removed afterwards from the
+#   azimuth_carrier_phase grid it always writes:  z *= exp(-1j*phi).
+#   That is EXACT, not an approximation: COMPASS stores phi wrapped, and exp(-1j*wrap(phi)) is
+#   identically exp(-1j*phi). No unwrapping is involved.
+#   The alternative -- forcing SNAP to carrier-restored to match COMPASS -- was rejected: it would
+#   put BOTH engines in a convention that corrupts interferometry, so agreement would prove nothing.
+conventions:
+  flattened: false
+  azimuth_carrier: removed
+
+engine_params:
+  snap:
+    imgResamplingMethod: BISINC_5_POINT_INTERPOLATION
+    outputPhaseTerms: true     # emit carrier + flattening grids so the comparison can also be done
+                               # term-by-term, not only on total phase
+  isce3:
+    flatten: false
+    analytic_carrier_removal: true   # required, else the adapter refuses the carrier-free convention
+
+# --- what gets measured -----------------------------------------------------------------------
+# circular_std_multilooked is the load-bearing one for fringes: residue_density and
+# local_phase_coherence are BLIND to smooth, scene-scale phase error, which is exactly what a
+# geocoding or convention difference produces. A comparison relying only on those two would pass
+# while the fringe pattern was wrong.
+metrics:
+  - phase_difference_smoothness
+  - rms_difference
+  - residue_density
+  - local_phase_coherence
+  - circular_std_multilooked
+  - safe_multilook_factor
+
+tolerances:
+  rms_difference:
+    max: 0.25          # rad, on the interferometric phase difference between the two tools. Looser
+                       # than the single-GSLC case (0.15) because an interferogram compounds the
+                       # resampling error of TWO geocoding passes.
+  circular_std_multilooked:
+    max: 0.30          # rad at 32x32 multilook. A sub-pixel scene-scale geocoding bias exceeds this
+                       # while leaving residue density untouched.
+  residue_density:
+    max: 0.02          # fraction of pixels that are residues. A 1-day pair over this terrain should
+                       # be well-behaved; a large excess means genuine decorrelation or a real defect.
+
+# Known asymmetry, recorded so it is not rediscovered as a "finding": SNAP geocodes the whole split
+# subswath into ONE raster, whereas OPERA CSLC is per-burst (10 grids here). The comparator must
+# therefore mosaic the COMPASS bursts, or compare burst-by-burst against the corresponding window of
+# the SNAP raster. Burst seams are the expected place for disagreement.

@@ -77,7 +77,7 @@ public class DataCache {
 
     public static class Data {
 
-        public final boolean valid;
+        public boolean valid;
         public int[] intArray;
 
         public Data() {

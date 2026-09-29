@@ -24,6 +24,7 @@ import eu.esa.sar.sar.gpf.geometric.RangeDopplerGeocodingOp;
 import eu.esa.sar.sar.gpf.geometric.TerrainFlatteningOp;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Product;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,7 +33,9 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assume.assumeTrue;
 
@@ -44,6 +47,31 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
 
     private File S1_GRD = S1_GRD_Surat;
     private String csvFile = Surat_CSV;
+
+    // Cache of opened Products keyed by absolute path, shared across tests in this class.
+    // testGA mutates its product (adds pins), so it bypasses the cache; the other tests
+    // only feed the product to operators / read pixels, which is safe to share.
+    private static final Map<String, Product> PRODUCT_CACHE = new HashMap<>();
+
+    private static synchronized Product loadCached(File file) throws IOException {
+        final String key = file.getAbsolutePath();
+        Product product = PRODUCT_CACHE.get(key);
+        if (product == null) {
+            product = ProductIO.readProduct(file);
+            PRODUCT_CACHE.put(key, product);
+        }
+        return product;
+    }
+
+    @AfterClass
+    public static synchronized void disposeCachedProducts() {
+        for (Product product : PRODUCT_CACHE.values()) {
+            if (product != null) {
+                product.dispose();
+            }
+        }
+        PRODUCT_CACHE.clear();
+    }
 
     public CRValidationSuratGRDTest() {
         super("Surat/GRD");
@@ -59,19 +87,22 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
     public void testGA() throws IOException {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
+        // Read fresh (not cached): this test mutates the product by adding pins.
         Product product = ProductIO.readProduct(S1_GRD);
         Assert.assertNotNull(product);
 
         addCornerReflectorPins(csvFile, product);
 
         write(product);
+
+        product.dispose();
     }
 
     @Test
     public void testGeolocationErrors_GRD() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_GRD);
+        Product srcProduct = loadCached(S1_GRD);
         Assert.assertNotNull(srcProduct);
 
         computeCRGeoLocationError(csvFile, srcProduct);
@@ -81,7 +112,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
     public void testGeolocationErrors_GRD_TC_Cop30() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_GRD);
+        Product srcProduct = loadCached(S1_GRD);
         Assert.assertNotNull(srcProduct);
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
@@ -96,7 +127,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
     public void testGeolocationErrors_GRD_TC_SRTM() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_GRD);
+        Product srcProduct = loadCached(S1_GRD);
         Assert.assertNotNull(srcProduct);
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
@@ -111,7 +142,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
     public void testGeolocationErrors_GRD_orbit_TC() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_GRD);
+        Product srcProduct = loadCached(S1_GRD);
         Assert.assertNotNull(srcProduct);
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
@@ -129,7 +160,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
     public void testGeolocationErrors_GRD_orbit_Cal_TF_TC() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_GRD);
+        Product srcProduct = loadCached(S1_GRD);
         Assert.assertNotNull(srcProduct);
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
@@ -157,7 +188,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
     public void testGeolocationErrors_GRD_orbit_ML_TC() throws Exception {
         setName(new Throwable().getStackTrace()[0].getMethodName());
 
-        Product srcProduct = ProductIO.readProduct(S1_GRD);
+        Product srcProduct = loadCached(S1_GRD);
         Assert.assertNotNull(srcProduct);
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();

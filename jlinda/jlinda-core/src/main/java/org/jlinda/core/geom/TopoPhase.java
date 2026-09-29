@@ -349,9 +349,9 @@ public class TopoPhase {
                                      final double demSamplingLon,
                                      final String tileExtensionPercent) {
 
-        ProductContainer mstContainer = targetMap.values().iterator().next();
+        ProductContainer refContainer = targetMap.values().iterator().next();
 
-        return getDEMTile(tileWindow, mstContainer.sourceMaster.metaData, mstContainer.sourceMaster.orbit,
+        return getDEMTile(tileWindow, refContainer.sourceRef.metaData, refContainer.sourceRef.orbit,
                 dem, demNoDataValue, demSamplingLat, demSamplingLon, tileExtensionPercent);
     }
 
@@ -442,39 +442,39 @@ public class TopoPhase {
     public static TopoPhase computeTopoPhase(
             final ProductContainer product, final Window tileWindow, final DemTile demTile, final boolean outputDEM, final boolean outputLatLon) {
 
-        final SLCImage mstMetaData = product.sourceMaster.metaData;
-        final Orbit mstOrbit = product.sourceMaster.orbit;
-        final SLCImage slvMetaData = product.sourceSlave.metaData;
-        final Orbit slvOrbit = product.sourceSlave.orbit;
+        final SLCImage refMetaData = product.sourceRef.metaData;
+        final Orbit refOrbit = product.sourceRef.orbit;
+        final SLCImage secMetaData = product.sourceSec.metaData;
+        final Orbit secOrbit = product.sourceSec.orbit;
 
-        return computeTopoPhase(mstMetaData, mstOrbit, slvMetaData, slvOrbit, tileWindow, demTile, outputDEM, outputLatLon);
+        return computeTopoPhase(refMetaData, refOrbit, secMetaData, secOrbit, tileWindow, demTile, outputDEM, outputLatLon);
     }
 
     public static TopoPhase computeTopoPhase(
             final ProductContainer product, final Window tileWindow, final DemTile demTile, final boolean outputDEM) {
 
-        final SLCImage mstMetaData = product.sourceMaster.metaData;
-        final Orbit mstOrbit = product.sourceMaster.orbit;
-        final SLCImage slvMetaData = product.sourceSlave.metaData;
-        final Orbit slvOrbit = product.sourceSlave.orbit;
+        final SLCImage refMetaData = product.sourceRef.metaData;
+        final Orbit refOrbit = product.sourceRef.orbit;
+        final SLCImage secMetaData = product.sourceSec.metaData;
+        final Orbit secOrbit = product.sourceSec.orbit;
 
-        return computeTopoPhase(mstMetaData, mstOrbit, slvMetaData, slvOrbit, tileWindow, demTile, outputDEM, false);
+        return computeTopoPhase(refMetaData, refOrbit, secMetaData, secOrbit, tileWindow, demTile, outputDEM, false);
     }
 
     public static TopoPhase computeTopoPhase(
-            final SLCImage mstMetaData, final Orbit mstOrbit, final SLCImage slvMetaData, final Orbit slvOrbit,
+            final SLCImage refMetaData, final Orbit refOrbit, final SLCImage secMetaData, final Orbit secOrbit,
             final Window tileWindow, final DemTile demTile, final boolean outputDEM) {
-        return computeTopoPhase(mstMetaData, mstOrbit, slvMetaData, slvOrbit, tileWindow, demTile, outputDEM, false);
+        return computeTopoPhase(refMetaData, refOrbit, secMetaData, secOrbit, tileWindow, demTile, outputDEM, false);
     }
 
     public static TopoPhase computeTopoPhase(
-            final SLCImage mstMetaData, final Orbit mstOrbit, final SLCImage slvMetaData, final Orbit slvOrbit,
+            final SLCImage refMetaData, final Orbit refOrbit, final SLCImage secMetaData, final Orbit secOrbit,
             final Window tileWindow, final DemTile demTile, final boolean outputDEM, final boolean outputLatLon) {
         // computeTopoPhase() is called separately for outputting lat/lon and outputting elevation because elevation
         // requires sea pixels to be masked out and lat/lon do not; so outputDEM and outputLatLon cannot be true
         // at the same time.
         try {
-            final TopoPhase topoPhase = new TopoPhase(mstMetaData, mstOrbit, slvMetaData, slvOrbit, tileWindow, demTile);
+            final TopoPhase topoPhase = new TopoPhase(refMetaData, refOrbit, secMetaData, secOrbit, tileWindow, demTile);
 
             // We do not want to use ivalidIndex if it is outputting lat/lon because we do not want to mask out the sea
             // pixels like we do with elevation.

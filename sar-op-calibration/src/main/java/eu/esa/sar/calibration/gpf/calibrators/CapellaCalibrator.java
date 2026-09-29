@@ -214,7 +214,7 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
                 } else if (srcBandUnit == Unit.UnitType.INTENSITY_DB) {
                     dn = FastMath.pow(10, dn / 10.0); // convert dB to linear scale
                 } else {
-                    throw new OperatorException("ALOS Calibration: unhandled unit");
+                    throw new OperatorException("Capella Calibration: unhandled unit");
                 }
 
                 if (inputSigma0) {
@@ -260,8 +260,9 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
             if (inputBeta0) {
                 return sigma * FastMath.sin(localIncidenceAngle * Constants.DTOR);
             }
+            // Convert sigma0 from ellipsoid incidence angle to local (DEM) incidence angle
             return sigma * FastMath.sin(localIncidenceAngle * Constants.DTOR) /
-                    FastMath.sin(localIncidenceAngle * Constants.DTOR);
+                    FastMath.sin(centerIncidenceAngle * Constants.DTOR);
         } else { // USE_INCIDENCE_ANGLE_FROM_ELLIPSOID
             if (inputBeta0) {
                 return sigma * FastMath.sin(centerIncidenceAngle * Constants.DTOR);

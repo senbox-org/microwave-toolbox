@@ -49,7 +49,9 @@ public class SpeckleFilterOpUI extends BaseOperatorUI {
             SpeckleFilterOp.LEE_SPECKLE_FILTER,
             SpeckleFilterOp.LEE_REFINED_FILTER,
             SpeckleFilterOp.LEE_SIGMA_FILTER,
-            SpeckleFilterOp.IDAN_FILTER});
+            SpeckleFilterOp.IDAN_FILTER,
+            SpeckleFilterOp.MULOG_FILTER
+        });
 
     private final JComboBox<String> numLooks = new JComboBox(new String[]{SpeckleFilterOp.NUM_LOOKS_1,
             SpeckleFilterOp.NUM_LOOKS_2,

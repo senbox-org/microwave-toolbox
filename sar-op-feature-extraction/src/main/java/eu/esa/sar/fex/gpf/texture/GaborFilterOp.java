@@ -138,18 +138,19 @@ public class GaborFilterOp extends Operator {
         final int ymax = (int) Math.floor(filter[0].length / 2.0);
         final String[] srcBandName = targetBandNameToSourceBandName.get(targetBand.getName());
         final Band srcBand = sourceProduct.getBand(srcBandName[0]);
+        final int rasterW = srcBand.getRasterWidth();
+        final int rasterH = srcBand.getRasterHeight();
         final int minBoundx = Math.max(0, x0 - xmax);
         final int minBoundy = Math.max(0, y0 - ymax);
-        final int boundW = Math.min(w + minBoundx + xmax, srcBand.getRasterWidth() - x0);
-        final int boundH = Math.min(h + minBoundy + ymax, srcBand.getRasterHeight() - y0);
-        final Rectangle srcRect = new Rectangle(minBoundx, minBoundy, boundW, boundH);
+        final int maxBoundx = Math.min(rasterW, x0 + w + xmax);
+        final int maxBoundy = Math.min(rasterH, y0 + h + ymax);
+        final Rectangle srcRect = new Rectangle(minBoundx, minBoundy, maxBoundx - minBoundx, maxBoundy - minBoundy);
 
         final Tile sourceTile = getSourceTile(srcBand, srcRect);
         final ProductData trgData = targetTile.getDataBuffer();
         final ProductData srcData = sourceTile.getDataBuffer();
         final TileIndex trgIndex = new TileIndex(targetTile);
         final TileIndex srcIndex = new TileIndex(sourceTile);
-        int maxIndex = srcData.getNumElems();
 
         for (int y = y0; y < y0 + h; y++) {
             trgIndex.calculateStride(y);
@@ -158,14 +159,12 @@ public class GaborFilterOp extends Operator {
                 double sum = 0;
                 for (int yf = -ymax; yf <= ymax; yf++) {
                     final int yy = y - yf;
-                    if (yy >= minBoundy && yy < y0 + boundH) {
+                    if (yy >= minBoundy && yy < maxBoundy) {
                         srcIndex.calculateStride(yy);
                         for (int xf = -xmax; xf <= xmax; xf++) {
                             final int xx = x - xf;
-                            if (xx >= minBoundx && xx < x0 + boundW) {
-                                final int idx = srcIndex.getIndex(xx);
-                                if (idx < maxIndex)   //todo something not right here
-                                    sum += filter[xf + xmax][yf + ymax] * srcData.getElemDoubleAt(idx);
+                            if (xx >= minBoundx && xx < maxBoundx) {
+                                sum += filter[xf + xmax][yf + ymax] * srcData.getElemDoubleAt(srcIndex.getIndex(xx));
                             }
                         }
                     }

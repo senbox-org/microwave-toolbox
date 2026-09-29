@@ -40,7 +40,7 @@
 				"value": "true"
 			},
 			{
-				"path": "Slave_Metadata/Original_Product_Metadata/level1Product/platform/orbit/stateVec[16]/timeGPSFraction",
+				"path": "Secondary_Metadata/Original_Product_Metadata/level1Product/platform/orbit/stateVec[16]/timeGPSFraction",
 				"value": "0.00000000000000000E+00"
 			}
 		],
@@ -238,7 +238,7 @@
 				],
 				"spectralWavelength": "0.0",
 				"spectralBandwidth": "0.0",
-				"name": "i_HH_mst_29Aug2011",
+				"name": "i_HH_ref_29Aug2011",
 				"noDataValue": "0.0",
 				"geophysicalUnit": "real"
 			},
@@ -260,7 +260,7 @@
 				],
 				"spectralWavelength": "0.0",
 				"spectralBandwidth": "0.0",
-				"name": "q_HH_mst_29Aug2011",
+				"name": "q_HH_ref_29Aug2011",
 				"noDataValue": "0.0",
 				"geophysicalUnit": "imaginary"
 			},
@@ -282,7 +282,7 @@
 				],
 				"spectralWavelength": "0.0",
 				"spectralBandwidth": "0.0",
-				"name": "Intensity_HH_mst_29Aug2011",
+				"name": "Intensity_HH_ref_29Aug2011",
 				"noDataValue": "0.0",
 				"description": "Intensity from complex data",
 				"geophysicalUnit": "intensity"
@@ -305,7 +305,7 @@
 				],
 				"spectralWavelength": "0.0",
 				"spectralBandwidth": "0.0",
-				"name": "i_HH_slv1_29Aug2011",
+				"name": "i_HH_sec1_29Aug2011",
 				"noDataValue": "0.0",
 				"geophysicalUnit": "real"
 			},
@@ -327,7 +327,7 @@
 				],
 				"spectralWavelength": "0.0",
 				"spectralBandwidth": "0.0",
-				"name": "q_HH_slv1_29Aug2011",
+				"name": "q_HH_sec1_29Aug2011",
 				"noDataValue": "0.0",
 				"geophysicalUnit": "imaginary"
 			},
@@ -349,7 +349,7 @@
 				],
 				"spectralWavelength": "0.0",
 				"spectralBandwidth": "0.0",
-				"name": "Intensity_HH_slv1_29Aug2011",
+				"name": "Intensity_HH_sec1_29Aug2011",
 				"noDataValue": "0.0",
 				"description": "Intensity from complex data",
 				"geophysicalUnit": "intensity"

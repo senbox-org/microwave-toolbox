@@ -53,6 +53,7 @@ public class TestStriXGRDProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Amplitude_VV", "Intensity_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -63,6 +64,7 @@ public class TestStriXGRDProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Amplitude_VV", "Intensity_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -74,6 +76,7 @@ public class TestStriXGRDProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Amplitude_VV", "Intensity_VV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -85,5 +88,6 @@ public class TestStriXGRDProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata(options);
         validator.validateBands(new String[] {"Amplitude_VV", "Intensity_VV"});
+        validator.validateBandData();
     }
 }

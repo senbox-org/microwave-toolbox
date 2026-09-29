@@ -24,12 +24,14 @@ import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.dataop.downloadable.XMLSupport;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.metadata.AbstractMetadataIO;
 import org.jdom2.Document;
 import org.jdom2.Element;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 
 /**
@@ -65,12 +67,7 @@ public class CosmoSkymedReader extends SARReader {
         try {
             final Path inputPath = getPathFromInput(getInput());
 
-            if(inputPath.toFile().getName().endsWith(".h5")) {
-                reader = new CosmoSkymedNetCDFReader(readerPlugIn, this);
-            } else {
-                reader = new CosmoSkymedGeoTiffReader(readerPlugIn, this);
-            }
-
+            reader = new CosmoSkymedNetCDFReader(readerPlugIn, this);
             product = reader.createProduct(inputPath);
 
             setQuicklookBandName(product);
@@ -93,6 +90,18 @@ public class CosmoSkymedReader extends SARReader {
             reader.close();
         }
         super.close();
+    }
+
+    /**
+     * The NetCDF backing store reads strided sections natively, so sub-sampled reads cost only the
+     * samples that are asked for. Declaring this lets SNAP render the higher pyramid levels and
+     * build sub-sampled subsets through {@link #readBandRasterDataImpl} instead of reading every
+     * full-resolution tile of the source region and discarding almost all of it - which is what
+     * made large CSG scenes exhaust the heap and display as a blank image.
+     */
+    @Override
+    public boolean isSubsetReadingFullySupported() {
+        return true;
     }
 
     /**
@@ -133,13 +142,16 @@ public class CosmoSkymedReader extends SARReader {
                     }
                 }
                 if (dnFile != null) {
-                    final Document xmlDoc = XMLSupport.LoadXML(dnFile.getAbsolutePath());
+                    final Document xmlDoc;
+                    try(final InputStream is = ProductUtils.getProductInputStream(dnFile)) {
+                        xmlDoc = XMLSupport.LoadXML(is);
+                    }
                     final Element rootElement = xmlDoc.getRootElement();
 
                     AbstractMetadataIO.AddXMLMetadata(rootElement, origMeta);
                 }
             } catch (IOException e) {
-                //System.out.println("Unable to read Delivery Note for "+product.getName());
+                org.esa.snap.core.util.SystemUtils.LOG.fine("Unable to read delivery note: " + e.getMessage());
             }
         }
     }

@@ -55,6 +55,7 @@ public class TestRisat1ProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_RCH","Intensity_RCH","Amplitude_RCV","Intensity_RCV"});
+        validator.validateBandData();
     }
 
     @Test
@@ -65,5 +66,6 @@ public class TestRisat1ProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_RCH","Intensity_RCH","Amplitude_RCV","Intensity_RCV"});
+        validator.validateBandData();
     }
 }

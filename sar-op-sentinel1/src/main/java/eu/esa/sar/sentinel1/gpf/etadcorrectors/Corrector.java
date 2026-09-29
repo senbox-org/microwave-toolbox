@@ -45,6 +45,7 @@ public interface Corrector {
     void setSumOfRangeCorrections(final boolean flag);
     void setResamplingImage(final boolean flag);
     void setOutputPhaseCorrections(final boolean flag);
+    void setOutputETADPhaseBand(final boolean flag);
     void setEtadUtils(final ETADUtils etadUtils);
     void setEtadProduct(final Product etadProduct);
 
