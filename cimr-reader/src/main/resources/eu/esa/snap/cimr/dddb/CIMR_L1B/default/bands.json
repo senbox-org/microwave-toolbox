@@ -1,0 +1,37 @@
+[
+  {
+    "name": "L_BAND",
+    "feedCount": 1,
+    "feedDimension": "n_feeds_L_BAND",
+    "sampleDimension": "n_samples_L_BAND",
+    "tiePointDimension": "n_tie_points_L_BAND"
+  },
+  {
+    "name": "C_BAND",
+    "feedCount": 4,
+    "feedDimension": "n_feeds_C_BAND",
+    "sampleDimension": "n_samples_C_BAND",
+    "tiePointDimension": "n_tie_points_C_BAND"
+  },
+  {
+    "name": "X_BAND",
+    "feedCount": 4,
+    "feedDimension": "n_feeds_X_BAND",
+    "sampleDimension": "n_samples_X_BAND",
+    "tiePointDimension": "n_tie_points_X_BAND"
+  },
+  {
+    "name": "KU_BAND",
+    "feedCount": 8,
+    "feedDimension": "n_feeds_KU_BAND",
+    "sampleDimension": "n_samples_KU_BAND",
+    "tiePointDimension": "n_tie_points_KU_BAND"
+  },
+  {
+    "name": "KA_BAND",
+    "feedCount": 8,
+    "feedDimension": "n_feeds_KA_BAND",
+    "sampleDimension": "n_samples_KA_BAND",
+    "tiePointDimension": "n_tie_points_KA_BAND"
+  }
+]

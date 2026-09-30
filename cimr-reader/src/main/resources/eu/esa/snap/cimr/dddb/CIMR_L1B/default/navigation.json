@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "GEOMETRY",
+    "valueVarName": "latitude",
+    "groupPath": "/Data/Navigation_Data/{band}/",
+    "dimensions": ["n_scans", "{tiePointDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "degrees_north",
+    "description": "Geodetic latitude of Earth surface point in the boresight direction for the {band} acquisitions"
+  },
+  {
+    "kind": "GEOMETRY",
+    "valueVarName": "longitude",
+    "groupPath": "/Data/Navigation_Data/{band}/",
+    "dimensions": ["n_scans", "{tiePointDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "degrees_east",
+    "description": "Geodetic longitude of Earth surface point in the boresight direction for the {band} acquisitions"
+  }
+]

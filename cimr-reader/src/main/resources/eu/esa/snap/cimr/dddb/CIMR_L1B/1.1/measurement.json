@@ -1,0 +1,120 @@
+[
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "raw_brightness_temperature_h",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)",
+    "geometryVariables": ["latitude", "longitude"],
+    "footprintVariables": ["footprint_minor_axis", "footprint_major_axis", "geometric_rot_angle"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "raw_brightness_temperature_v",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Brightness temperature of the Earth, in V polarization, from raw counts (no RFI mitigation)",
+    "geometryVariables": ["latitude", "longitude"],
+    "footprintVariables": ["footprint_minor_axis", "footprint_major_axis", "geometric_rot_angle"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "raw_brightness_temperature_t3",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Brightness temperature of the Earth, in Real(HV) polarization, from raw counts (no RFI mitigation)",
+    "geometryVariables": ["latitude", "longitude"],
+    "footprintVariables": ["footprint_minor_axis", "footprint_major_axis", "geometric_rot_angle"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "raw_brightness_temperature_t4",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Brightness temperature of the Earth, in Imag(HV) polarization, from raw counts (no RFI mitigation)",
+    "geometryVariables": ["latitude", "longitude"],
+    "footprintVariables": ["footprint_minor_axis", "footprint_major_axis", "geometric_rot_angle"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "brightness_temperature_h",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Brightness temperature of the Earth, in H polarization, with RFI mitigation applied",
+    "geometryVariables": ["latitude", "longitude"],
+    "footprintVariables": ["footprint_minor_axis", "footprint_major_axis", "geometric_rot_angle"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "brightness_temperature_v",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Brightness temperature of the Earth, in V polarization, with RFI mitigation applied",
+    "geometryVariables": ["latitude", "longitude"],
+    "footprintVariables": ["footprint_minor_axis", "footprint_major_axis", "geometric_rot_angle"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "brightness_temperature_t3",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Brightness temperature of the Earth, in Real(HV) polarization, with RFI mitigation applied",
+    "geometryVariables": ["latitude", "longitude"],
+    "footprintVariables": ["footprint_minor_axis", "footprint_major_axis", "geometric_rot_angle"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "brightness_temperature_t4",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Brightness temperature of the Earth, in Imag(HV) polarization, with RFI mitigation applied",
+    "geometryVariables": ["latitude", "longitude"],
+    "footprintVariables": ["footprint_minor_axis", "footprint_major_axis", "geometric_rot_angle"]
+  },
+  {
+    "kind": "TIEPOINT_VARIABLE",
+    "valueVarName": "footprint_major_axis",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "m",
+    "description": "Elliptical footprint major semi-axis value",
+    "geometryVariables": ["latitude", "longitude"]
+  },
+  {
+    "kind": "TIEPOINT_VARIABLE",
+    "valueVarName": "footprint_minor_axis",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "m",
+    "description": "Elliptical footprint minor semi-axis value",
+    "geometryVariables": ["latitude", "longitude"]
+  },
+  {
+    "kind": "TIEPOINT_VARIABLE",
+    "valueVarName": "geometric_rot_angle",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],
+    "dataType": "float",
+    "unit": "deg",
+    "description": "Geometric rotation angle value corresponding to the measured BT value",
+    "geometryVariables": ["latitude", "longitude"]
+  }
+]
