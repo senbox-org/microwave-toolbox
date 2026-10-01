@@ -1,0 +1,9 @@
+{
+  "productType": "CIMR_L1B",
+  "bandsFile": "bands.json",
+  "descriptorFiles": [
+    "navigation.json",
+    "measurement.json"
+  ],
+  "autoGrouping": "L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND"
+}

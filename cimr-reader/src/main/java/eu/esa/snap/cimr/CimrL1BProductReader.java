@@ -2,19 +2,12 @@ package eu.esa.snap.cimr;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.snap.cimr.cimr.*;
-import eu.esa.snap.cimr.config.CimrConfigLoader;
-import eu.esa.snap.cimr.grid.CimrBoundingBox;
-import eu.esa.snap.cimr.grid.CimrGrid;
-import eu.esa.snap.cimr.grid.CimrGridFactory;
-import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
-import eu.esa.snap.cimr.netcdf.NetcdfCimrBandFactory;
 import org.esa.snap.core.dataio.AbstractProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.dataio.netcdf.util.NetcdfFileOpener;
-import ucar.ma2.InvalidRangeException;
 import ucar.nc2.NetcdfFile;
 
 import java.awt.*;
@@ -26,6 +19,9 @@ import java.util.List;
 
 
 public class CimrL1BProductReader extends AbstractProductReader {
+
+
+    static final String PRODUCT_TYPE = "CIMR_L1B";
 
     private NetcdfFile ncFile;
     private CimrReaderContext readerContext;
@@ -44,11 +40,11 @@ public class CimrL1BProductReader extends AbstractProductReader {
             this.ncFile = NetcdfFileOpener.open(path);
             assert this.ncFile != null;
 
-            this.readerContext = initContext(this.ncFile);
+            this.readerContext = CimrReaderContextFactory.create(this.ncFile);
             CimrGridProduct cimrGridProduct = CimrGridProduct.buildLazy(this.readerContext, true);
 
             // TODO: name and type from Metadata
-            Product snapProduct = CimrSnapProductBuilder.buildProduct("CIMR_L1B", "CIMR_L1B", cimrGridProduct, path);
+            Product snapProduct = CimrSnapProductBuilder.buildProduct(PRODUCT_TYPE, PRODUCT_TYPE, cimrGridProduct, path, this.readerContext.getAutoGrouping());
 
             return snapProduct;
 
@@ -107,19 +103,5 @@ public class CimrL1BProductReader extends AbstractProductReader {
             return ((File) input).getPath();
         }
         return (String) input;
-    }
-
-    private CimrReaderContext initContext(NetcdfFile ncFile) throws IOException, InvalidRangeException {
-        CimrDescriptorSet descriptorSet = CimrConfigLoader.load("cimr-l1b-config.json");
-        CimrDimensions dimensions = CimrDimensions.from(ncFile);
-
-        CimrBandDescriptor bbDescriptor = descriptorSet.getMeasurements().getFirst();
-        NetcdfCimrGeometryFactory geometryFactory = new NetcdfCimrGeometryFactory(ncFile, descriptorSet.getGeometries(), dimensions);
-        CimrBoundingBox bBox = geometryFactory.getBoundingBox(bbDescriptor, CimrGridFactory.DEFAULT_CELL_SIZE_DEG);
-
-        CimrGrid cimrGrid = CimrGridFactory.createPlateCarreeFromBoundingBox(bBox);
-        NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(ncFile, dimensions);
-
-        return new CimrReaderContext(ncFile, descriptorSet, cimrGrid, geometryFactory, bandFactory);
     }
 }

@@ -13,7 +13,7 @@ public class CimrGridBuilderTest {
     public void build_whenUseAverageTrue_usesMapAverage() {
         RecordingMapper mapper = new RecordingMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
-        CimrGrid grid = CimrGridFactory.createGlobalPlateCarree(10.0);
+        CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 10.0);
 
         CimrGridBandDataSource result = builder.build(null, grid, true);
 
@@ -28,7 +28,7 @@ public class CimrGridBuilderTest {
     public void build_whenUseAverageFalse_usesMapNearest() {
         RecordingMapper mapper = new RecordingMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
-        CimrGrid grid = CimrGridFactory.createGlobalPlateCarree(10.0);
+        CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 10.0);
 
         CimrGridBandDataSource result = builder.build(null, grid, false);
 

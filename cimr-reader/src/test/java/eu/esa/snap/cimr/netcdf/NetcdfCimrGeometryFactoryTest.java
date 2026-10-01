@@ -1,6 +1,7 @@
 package eu.esa.snap.cimr.netcdf;
 
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
 import eu.esa.snap.cimr.cimr.CimrDimensions;
 import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
@@ -26,6 +27,7 @@ import static org.junit.Assert.*;
 
 
 public class NetcdfCimrGeometryFactoryTest {
+
 
     private static final double doubleErr = 1e-6;
 
@@ -458,5 +460,105 @@ public class NetcdfCimrGeometryFactoryTest {
         assertEquals(-0.5, bBox.getLonMin(), doubleErr);
         assertEquals(10.5, bBox.getLatMax(), doubleErr);
         assertEquals(20.5, bBox.getLonMax(), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testGetBoundingBoxFromAllNavigationVariables() throws IOException {
+        Dimension scanDim = new Dimension("n_scans", 1);
+        Dimension cTpDim = new Dimension("n_tiepoints_C_BAND", 2);
+        Dimension cFeedDim = new Dimension("n_feeds_C_BAND", 2);
+        Dimension kaTpDim = new Dimension("n_tiepoints_KA_BAND", 2);
+        Dimension kaFeedDim = new Dimension("n_feeds_KA_BAND", 1);
+
+        Group.Builder rootBuilder = Group.builder(null).setName("root");
+        rootBuilder.addDimension(scanDim)
+                .addDimension(cTpDim)
+                .addDimension(cFeedDim)
+                .addDimension(kaTpDim)
+                .addDimension(kaFeedDim);
+
+        ArrayDouble.D3 cLatData = new ArrayDouble.D3(1, 2, 2);
+        ArrayDouble.D3 cLonData = new ArrayDouble.D3(1, 2, 2);
+        cLatData.set(0, 0, 0, 10.0);
+        cLatData.set(0, 1, 0, 11.0);
+        cLatData.set(0, 0, 1, 20.0);
+        cLatData.set(0, 1, 1, 21.0);
+        cLonData.set(0, 0, 0, 30.0);
+        cLonData.set(0, 1, 0, 31.0);
+        cLonData.set(0, 0, 1, 40.0);
+        cLonData.set(0, 1, 1, 41.0);
+
+        ArrayDouble.D3 kaLatData = new ArrayDouble.D3(1, 2, 1);
+        ArrayDouble.D3 kaLonData = new ArrayDouble.D3(1, 2, 1);
+        kaLatData.set(0, 0, 0, -5.0);
+        kaLatData.set(0, 1, 0, 15.0);
+        kaLonData.set(0, 0, 0, -10.0);
+        kaLonData.set(0, 1, 0, 50.0);
+
+        Group.Builder cGroupBuilder = Group.builder(rootBuilder).setName("C_BAND");
+        cGroupBuilder.addVariable(Variable.builder()
+                .setName("latitude")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_C_BAND n_feeds_C_BAND")
+                .setCachedData(cLatData, false));
+        cGroupBuilder.addVariable(Variable.builder()
+                .setName("longitude")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_C_BAND n_feeds_C_BAND")
+                .setCachedData(cLonData, false));
+        rootBuilder.addGroup(cGroupBuilder);
+
+        Group.Builder kaGroupBuilder = Group.builder(rootBuilder).setName("KA_BAND");
+        kaGroupBuilder.addVariable(Variable.builder()
+                .setName("latitude")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_KA_BAND n_feeds_KA_BAND")
+                .setCachedData(kaLatData, false));
+        kaGroupBuilder.addVariable(Variable.builder()
+                .setName("longitude")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_KA_BAND n_feeds_KA_BAND")
+                .setCachedData(kaLonData, false));
+        rootBuilder.addGroup(kaGroupBuilder);
+
+        NetcdfFile ncFile = NetcdfFile.builder()
+                .setLocation("test")
+                .setRootGroup(rootBuilder)
+                .build();
+
+        CimrDimensions dims = CimrDimensions.from(ncFile);
+        CimrBandDescriptor cLatDesc = createGeometryDescriptor("C_BAND_latitude_feed1", "latitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor cLonDesc = createGeometryDescriptor("C_BAND_longitude_feed1", "longitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor cLatFeed2Desc = createGeometryDescriptor("C_BAND_latitude_feed2", "latitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 1, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor cLonFeed2Desc = createGeometryDescriptor("C_BAND_longitude_feed2", "longitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 1, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor kaLatDesc = createGeometryDescriptor("KA_BAND_latitude_feed1", "latitude", CimrFrequencyBand.KA_BAND, "/KA_BAND/", 0, "n_tiepoints_KA_BAND", "n_feeds_KA_BAND");
+        CimrBandDescriptor kaLonDesc = createGeometryDescriptor("KA_BAND_longitude_feed1", "longitude", CimrFrequencyBand.KA_BAND, "/KA_BAND/", 0, "n_tiepoints_KA_BAND", "n_feeds_KA_BAND");
+
+        NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Arrays.asList(cLatDesc, cLonDesc, cLatFeed2Desc, cLonFeed2Desc, kaLatDesc, kaLonDesc), dims);
+
+        CimrBoundingBox bBox = factory.getBoundingBox(1.0);
+
+        assertEquals(-6.0, bBox.getLatMin(), doubleErr);
+        assertEquals(-11.0, bBox.getLonMin(), doubleErr);
+        assertEquals(22.0, bBox.getLatMax(), doubleErr);
+        assertEquals(51.0, bBox.getLonMax(), doubleErr);
+    }
+
+    private CimrBandDescriptor createGeometryDescriptor(String name, String valueVarName, CimrFrequencyBand band, String groupPath, int feedIndex, String tiePointDimension, String feedDimension) {
+        return new CimrBandDescriptor(
+                name,
+                valueVarName,
+                band,
+                new String[]{},
+                new String[]{},
+                groupPath,
+                feedIndex,
+                CimrDescriptorKind.GEOMETRY,
+                new String[]{"n_scans", tiePointDimension, feedDimension},
+                "double",
+                "",
+                ""
+        );
     }
 }

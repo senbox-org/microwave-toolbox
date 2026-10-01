@@ -17,6 +17,7 @@ public class LazyGridBandDataSourceTest {
 
     private static final double doubleErr = 1e-6;
 
+
     @Test
     public void testLazyInitializationAndGetSampleDelegation() {
         double[] data = {
@@ -73,9 +74,7 @@ public class LazyGridBandDataSourceTest {
         private final CimrGridBandDataSource delegate;
 
         TestReaderContext(CimrGridBandDataSource delegate) {
-            super((NetcdfFile) null,
-                    new CimrDescriptorSet(null, null, null),
-                    null, null, null);
+            super((NetcdfFile) null, new CimrDescriptorSet(null, null, null), "L_BAND:C_BAND", null, null, null);
             this.delegate = delegate;
         }
 

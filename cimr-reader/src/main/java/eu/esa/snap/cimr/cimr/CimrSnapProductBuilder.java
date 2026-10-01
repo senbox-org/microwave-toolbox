@@ -14,10 +14,8 @@ import java.util.Map;
 
 public class CimrSnapProductBuilder {
 
-    private static final String AUTO_GROUPING = "L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND";
 
-
-    public static Product buildProduct(String productName, String productType, CimrGridProduct cimrProduct, String path) throws Exception {
+    public static Product buildProduct(String productName, String productType, CimrGridProduct cimrProduct, String path, String autoGrouping) throws Exception {
         CimrGrid grid = cimrProduct.getGlobalGrid();
         Product product = new Product(productName, productType, grid.getWidth(), grid.getHeight());
 
@@ -25,7 +23,7 @@ public class CimrSnapProductBuilder {
         addBands(cimrProduct, product);
 
         product.setFileLocation(new File(path));
-        product.setAutoGrouping(AUTO_GROUPING);
+        product.setAutoGrouping(autoGrouping);
 
         return product;
     }
