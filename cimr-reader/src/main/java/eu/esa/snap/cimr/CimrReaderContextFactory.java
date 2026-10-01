@@ -1,6 +1,5 @@
 package eu.esa.snap.cimr;
 
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
 import eu.esa.snap.cimr.cimr.CimrDescriptorSet;
 import eu.esa.snap.cimr.cimr.CimrDimensions;
 import eu.esa.snap.cimr.dddb.CimrDDDB;
@@ -23,6 +22,7 @@ public class CimrReaderContextFactory {
 
     static final String FORMAT_VERSION_ATTRIBUTE = "format_version";
 
+
     private CimrReaderContextFactory() {}
 
 
@@ -31,9 +31,8 @@ public class CimrReaderContextFactory {
         CimrDescriptorSet descriptorSet = expandDescriptorSet(productDescriptor);
         CimrDimensions dimensions = CimrDimensions.from(ncFile);
 
-        CimrBandDescriptor bbDescriptor = descriptorSet.getMeasurements().getFirst();
         NetcdfCimrGeometryFactory geometryFactory = new NetcdfCimrGeometryFactory(ncFile, descriptorSet.getGeometries(), dimensions);
-        CimrBoundingBox bBox = geometryFactory.getBoundingBox(bbDescriptor, CimrGridFactory.DEFAULT_CELL_SIZE_DEG);
+        CimrBoundingBox bBox = geometryFactory.getBoundingBox(CimrGridFactory.DEFAULT_CELL_SIZE_DEG);
 
         CimrGrid cimrGrid = CimrGridFactory.createPlateCarreeFromBoundingBox(bBox);
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(ncFile, dimensions);
