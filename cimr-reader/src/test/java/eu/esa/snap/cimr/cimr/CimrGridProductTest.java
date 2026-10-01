@@ -85,9 +85,7 @@ public class CimrGridProductTest {
                 List.of(tieDesc)
         );
 
-        CimrReaderContext context = new CimrReaderContext(
-                null, descriptorSet, grid, null, null
-        );
+        CimrReaderContext context = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, null, null);
 
         CimrGridProduct product = CimrGridProduct.buildLazy(context, true);
 

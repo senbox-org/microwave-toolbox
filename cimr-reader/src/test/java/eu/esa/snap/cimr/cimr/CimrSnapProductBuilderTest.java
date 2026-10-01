@@ -15,7 +15,9 @@ import static org.junit.Assert.*;
 
 public class CimrSnapProductBuilderTest {
 
+
     private static final double doubleErr = 1e-6;
+
 
     @Test
     public void testBuildSnapProduct_createsBandsAndValues() throws Exception {
@@ -41,7 +43,7 @@ public class CimrSnapProductBuilderTest {
         GridBandDataSource ds = new CimrGridBandDataSource(2, 1, data);
         gridProduct.addBand(bandDesc, ds);
 
-        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path");
+        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
 
         assertEquals(2, product.getSceneRasterWidth());
         assertEquals(1, product.getSceneRasterHeight());
@@ -81,7 +83,7 @@ public class CimrSnapProductBuilderTest {
         gridProduct.addBand(bandDesc, ds);
 
         String path = "some\\path\\file.nc";
-        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, path);
+        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, path, "L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND");
 
         assertEquals("TEST", product.getName());
         assertEquals("CIMR_GRID", product.getProductType());
@@ -131,7 +133,7 @@ public class CimrSnapProductBuilderTest {
         gridProduct.addBand(band1, ds1);
         gridProduct.addBand(band2, ds2);
 
-        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path");
+        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
 
         assertEquals(2, product.getNumBands());
 
@@ -157,7 +159,7 @@ public class CimrSnapProductBuilderTest {
 
         CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
-        Product product = CimrSnapProductBuilder.buildProduct("EMPTY", "CIMR_GRID", gridProduct, "path");
+        Product product = CimrSnapProductBuilder.buildProduct("EMPTY", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
 
         assertEquals(4, product.getSceneRasterWidth());
         assertEquals(2, product.getSceneRasterHeight());

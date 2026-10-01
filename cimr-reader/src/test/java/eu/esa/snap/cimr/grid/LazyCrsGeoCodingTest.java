@@ -28,7 +28,7 @@ public class LazyCrsGeoCodingTest {
 
     @Test
     public void test_delegateIsCreatedLazilyAndReusedForAllDelegatingMethods() throws Exception {
-        CimrGrid grid = CimrGridFactory.createGlobalPlateCarree(1.0);
+        CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 1.0);
         LazyCrsGeoCoding gc = new LazyCrsGeoCoding(grid);
 
         assertNull(getField(gc, "delegate"));
@@ -77,7 +77,7 @@ public class LazyCrsGeoCodingTest {
 
     @Test(expected = IllegalStateException.class)
     public void cloneThrowsIllegalStateException() {
-        CimrGrid grid = CimrGridFactory.createGlobalPlateCarree(1.0);
+        CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 1.0);
         LazyCrsGeoCoding gc = new LazyCrsGeoCoding(grid);
 
         gc.clone();
