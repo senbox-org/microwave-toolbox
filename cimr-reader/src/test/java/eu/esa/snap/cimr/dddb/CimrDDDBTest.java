@@ -19,7 +19,7 @@ public class CimrDDDBTest {
         assertEquals("CIMR_L1B", descriptor.getProductType());
         assertEquals("1.1", descriptor.getVersion());
         assertEquals("bands.json", descriptor.getBandsFile());
-        assertArrayEquals(new String[]{"navigation.json", "measurement.json"}, descriptor.getDescriptorFiles());
+        assertArrayEquals(new String[]{"navigation.json", "measurement.json", "calibration.json"}, descriptor.getDescriptorFiles());
         assertEquals("L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND", descriptor.getAutoGrouping());
     }
 
@@ -41,7 +41,14 @@ public class CimrDDDBTest {
         CimrVariableFamily[] families = dddb.getDescriptorFile(descriptor, "measurement.json");
 
         assertEquals("VARIABLE", families[0].getKind());
-        assertEquals("TIEPOINT_VARIABLE", families[8].getKind());
-        assertEquals("footprint_major_axis", families[8].getValueVarName());
+        CimrVariableFamily footprintFamily = null;
+        for (CimrVariableFamily family : families) {
+            if ("footprint_major_axis".equals(family.getValueVarName())) {
+                footprintFamily = family;
+                break;
+            }
+        }
+        assertNotNull(footprintFamily);
+        assertEquals("TIEPOINT_VARIABLE", footprintFamily.getKind());
     }
 }

@@ -21,9 +21,9 @@ public class CimrDescriptorExpanderTest {
 
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        assertEquals(200, descriptorSet.getMeasurements().size());
+        assertEquals(1175, descriptorSet.getMeasurements().size());
         assertEquals(50, descriptorSet.getGeometries().size());
-        assertEquals(75, descriptorSet.getTiepointVariables().size());
+        assertEquals(200, descriptorSet.getTiepointVariables().size());
     }
 
     @Test
@@ -91,5 +91,45 @@ public class CimrDescriptorExpanderTest {
         assertEquals("float", descriptor.getDataType());
         assertEquals("m", descriptor.getUnit());
         assertArrayEquals(new String[]{"KU_BAND_latitude_feed8", "KU_BAND_longitude_feed8"}, descriptor.getGeometryNames());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void expand_createsCalibrationDescriptorFromTemplate() throws Exception {
+        CimrDDDB dddb = CimrDDDB.getInstance();
+        CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
+        CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
+
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("KA_BAND_raw_counts_h_feed8");
+
+        assertNotNull(descriptor);
+        assertEquals("raw_counts_h", descriptor.getValueVarName());
+        assertEquals(CimrFrequencyBand.KA_BAND, descriptor.getBand());
+        assertEquals("/Data/Calibration_Data/KA_BAND/", descriptor.getGroupPath());
+        assertEquals(7, descriptor.getFeedIndex());
+        assertEquals(CimrDescriptorKind.VARIABLE, descriptor.getKind());
+        assertArrayEquals(new String[]{"n_scans", "n_samples_KA_BAND", "n_feeds_KA_BAND"}, descriptor.getDimensions());
+        assertEquals("int", descriptor.getDataType());
+        assertArrayEquals(new String[]{"KA_BAND_latitude_feed8", "KA_BAND_longitude_feed8"}, descriptor.getGeometryNames());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void expand_createsNavigationTiepointDescriptorFromTemplate() throws Exception {
+        CimrDDDB dddb = CimrDDDB.getInstance();
+        CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
+        CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
+
+        CimrBandDescriptor descriptor = descriptorSet.getTpVariableByName("X_BAND_direct_sun_angle_feed4");
+
+        assertNotNull(descriptor);
+        assertEquals("direct_sun_angle", descriptor.getValueVarName());
+        assertEquals(CimrFrequencyBand.X_BAND, descriptor.getBand());
+        assertEquals("/Data/Navigation_Data/X_BAND/", descriptor.getGroupPath());
+        assertEquals(3, descriptor.getFeedIndex());
+        assertEquals(CimrDescriptorKind.TIEPOINT_VARIABLE, descriptor.getKind());
+        assertArrayEquals(new String[]{"n_scans", "n_tie_points_X_BAND", "n_feeds_X_BAND"}, descriptor.getDimensions());
+        assertEquals("float", descriptor.getDataType());
+        assertArrayEquals(new String[]{"X_BAND_latitude_feed4", "X_BAND_longitude_feed4"}, descriptor.getGeometryNames());
     }
 }
