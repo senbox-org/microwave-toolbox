@@ -21,7 +21,7 @@ public class CimrDescriptorExpanderTest {
 
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        assertEquals(1175, descriptorSet.getMeasurements().size());
+        assertEquals(1250, descriptorSet.getMeasurements().size());
         assertEquals(50, descriptorSet.getGeometries().size());
         assertEquals(200, descriptorSet.getTiepointVariables().size());
     }
@@ -111,6 +111,27 @@ public class CimrDescriptorExpanderTest {
         assertArrayEquals(new String[]{"n_scans", "n_samples_KA_BAND", "n_feeds_KA_BAND"}, descriptor.getDimensions());
         assertEquals("int", descriptor.getDataType());
         assertArrayEquals(new String[]{"KA_BAND_latitude_feed8", "KA_BAND_longitude_feed8"}, descriptor.getGeometryNames());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void expand_createsNoFeedMeasurementDescriptorForEachFeed() throws Exception {
+        CimrDDDB dddb = CimrDDDB.getInstance();
+        CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
+        CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
+
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("KU_BAND_tsu_feed8");
+
+        assertNotNull(descriptor);
+        assertEquals("tsu", descriptor.getValueVarName());
+        assertEquals(CimrFrequencyBand.KU_BAND, descriptor.getBand());
+        assertEquals("/Data/Measurement_Data/KU_BAND/", descriptor.getGroupPath());
+        assertEquals(7, descriptor.getFeedIndex());
+        assertEquals(CimrDescriptorKind.VARIABLE, descriptor.getKind());
+        assertArrayEquals(new String[]{"n_scans", "n_samples_KU_BAND"}, descriptor.getDimensions());
+        assertEquals("float", descriptor.getDataType());
+        assertEquals("K", descriptor.getUnit());
+        assertArrayEquals(new String[]{"KU_BAND_latitude_feed8", "KU_BAND_longitude_feed8"}, descriptor.getGeometryNames());
     }
 
     @Test

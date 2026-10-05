@@ -99,6 +99,36 @@
   },
   {
     "kind": "VARIABLE",
+    "valueVarName": "tsu",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Total Standard Uncertainty for each measured BT",
+    "geometryVariables": ["latitude", "longitude"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "nedt",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}"],
+    "dataType": "float",
+    "unit": "K",
+    "description": "Radiometric Resolution of each measured BT",
+    "geometryVariables": ["latitude", "longitude"]
+  },
+  {
+    "kind": "VARIABLE",
+    "valueVarName": "tec",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}"],
+    "dataType": "float",
+    "unit": "tecu",
+    "description": "Total Electron Count content applicable to measured data",
+    "geometryVariables": ["latitude", "longitude"]
+  },
+  {
+    "kind": "VARIABLE",
     "valueVarName": "water_fraction",
     "groupPath": "/Data/Measurement_Data/{band}/",
     "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],

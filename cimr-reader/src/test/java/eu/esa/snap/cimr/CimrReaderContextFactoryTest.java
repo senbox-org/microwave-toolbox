@@ -32,9 +32,10 @@ public class CimrReaderContextFactoryTest {
 
         CimrDescriptorSet descriptorSet = CimrReaderContextFactory.loadDescriptorSet(ncFile);
 
-        assertEquals(1175, descriptorSet.getMeasurements().size());
+        assertEquals(1250, descriptorSet.getMeasurements().size());
         assertNotNull(descriptorSet.getMeasurementByName("L_BAND_brightness_temperature_h_feed1"));
         assertNotNull(descriptorSet.getMeasurementByName("L_BAND_faraday_rot_angle_feed1"));
+        assertNotNull(descriptorSet.getMeasurementByName("KU_BAND_tsu_feed8"));
         assertNotNull(descriptorSet.getMeasurementByName("KA_BAND_raw_counts_h_feed8"));
         assertNotNull(descriptorSet.getMeasurementByName("X_BAND_altitude_feed4"));
         assertNotNull(descriptorSet.getTpVariableByName("KA_BAND_footprint_major_axis_feed8"));
@@ -50,7 +51,7 @@ public class CimrReaderContextFactoryTest {
 
         CimrDescriptorSet descriptorSet = CimrReaderContextFactory.loadDescriptorSet(ncFile);
 
-        assertEquals(1175, descriptorSet.getMeasurements().size());
+        assertEquals(1250, descriptorSet.getMeasurements().size());
         assertNotNull(descriptorSet.getMeasurementByName("X_BAND_raw_brightness_temperature_h_feed4"));
     }
 
@@ -80,19 +81,6 @@ public class CimrReaderContextFactoryTest {
     }
 
     private static CimrBandDescriptor descriptor(String name, String valueVarName) {
-        return new CimrBandDescriptor(
-                name,
-                valueVarName,
-                CimrFrequencyBand.C_BAND,
-                new String[0],
-                new String[0],
-                "/Data/Measurement_Data/C_BAND/",
-                0,
-                CimrDescriptorKind.VARIABLE,
-                new String[0],
-                "",
-                "",
-                ""
-        );
+        return new CimrBandDescriptor(name, valueVarName, CimrFrequencyBand.C_BAND, new String[0], new String[0], "/Data/Measurement_Data/C_BAND/", 0, CimrDescriptorKind.VARIABLE, new String[0], "", "", "");
     }
 }
