@@ -5,7 +5,6 @@ import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.LazyCrsGeoCoding;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.GeoCoding;
 
 import java.io.File;
@@ -41,11 +40,12 @@ public class CimrSnapProductBuilder {
             CimrBandDescriptor desc = e.getKey();
             GridBandDataSource dataSource = e.getValue();
 
-            Band band = product.addBand(desc.getName(), ProductData.TYPE_FLOAT64);
+            Band band = product.addBand(desc.getName(), desc.getRasterDataType());
             band.setDescription(desc.getDescription());
             band.setUnit(desc.getUnit());
-            band.setNoDataValue(Double.NaN);
-            band.setNoDataValueUsed(true);
+            // TODO: BL - 01/10/2026 - check fillValue handling for future test data
+            //band.setNoDataValue(Double.NaN);
+            band.setNoDataValueUsed(false);
             band.setSpectralWavelength(desc.getBand().getSpectralWaveLength());
 
             CimrGridMultiLevelSource.attachToBand(band, dataSource, grid);

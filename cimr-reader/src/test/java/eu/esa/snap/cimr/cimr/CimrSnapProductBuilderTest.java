@@ -1,11 +1,13 @@
 package eu.esa.snap.cimr.cimr;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.snap.cimr.grid.CimrGridBandDataSource;
 import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.PlateCarreeProjection;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import java.awt.image.Raster;
@@ -51,10 +53,40 @@ public class CimrSnapProductBuilderTest {
 
         Band band = product.getBand("C_raw_bt_h_feed1");
         assertNotNull(band);
+        assertEquals(ProductData.TYPE_FLOAT64, band.getDataType());
 
         Raster raster = band.getSourceImage().getImage(0).getData();
         assertEquals(1.0, raster.getSampleDouble(0,0,0), doubleErr);
         assertEquals(2.0, raster.getSampleDouble(1,0,0), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testBuildSnapProduct_usesDescriptorRasterDataType() throws Exception {
+        PlateCarreeProjection proj = new PlateCarreeProjection(
+                2, 1,
+                0.0, 1.0,
+                1.0, 1.0
+        );
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
+
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
+
+        CimrBandDescriptor bandDesc = new CimrBandDescriptor(
+                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                new String[] {""}, new String[] {""},
+                "/Data/Measurement_Data/C_BAND/",
+                1, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
+                "float", ProductData.TYPE_FLOAT32, "", ""
+        );
+
+        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0});
+        gridProduct.addBand(bandDesc, ds);
+
+        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
+
+        assertEquals(ProductData.TYPE_FLOAT32, product.getBand("C_raw_bt_h_feed1").getDataType());
     }
 
     @Test
@@ -94,8 +126,7 @@ public class CimrSnapProductBuilderTest {
         Band band = product.getBand("C_raw_bt_h_feed1");
         assertEquals("K", band.getUnit());
         assertEquals("Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)", band.getDescription());
-        assertEquals(Double.NaN, band.getNoDataValue(), doubleErr);
-        assertTrue(band.isNoDataValueSet());
+        assertFalse(band.isNoDataValueSet());
         assertEquals(43300000f, band.getSpectralWavelength(), doubleErr);
     }
 
