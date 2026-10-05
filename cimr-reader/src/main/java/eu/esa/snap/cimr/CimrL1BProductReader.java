@@ -41,7 +41,7 @@ public class CimrL1BProductReader extends AbstractProductReader {
             assert this.ncFile != null;
 
             this.readerContext = CimrReaderContextFactory.create(this.ncFile);
-            CimrGridProduct cimrGridProduct = CimrGridProduct.buildLazy(this.readerContext, true);
+            CimrGridProduct cimrGridProduct = CimrGridProduct.buildLazy(this.readerContext, false);
 
             // TODO: name and type from Metadata
             Product snapProduct = CimrSnapProductBuilder.buildProduct(PRODUCT_TYPE, PRODUCT_TYPE, cimrGridProduct, path, this.readerContext.getAutoGrouping());
