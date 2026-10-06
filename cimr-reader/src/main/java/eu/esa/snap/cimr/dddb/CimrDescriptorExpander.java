@@ -77,7 +77,8 @@ public class CimrDescriptorExpander {
                 resolve(family.getDimensions(), band),
                 family.getDataType(),
                 family.getUnit(),
-                resolve(family.getDescription(), band)
+                resolve(family.getDescription(), band),
+                family.getSampleCoding()
         );
     }
 

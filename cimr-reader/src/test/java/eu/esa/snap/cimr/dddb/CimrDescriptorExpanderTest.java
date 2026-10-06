@@ -5,6 +5,7 @@ import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
 import eu.esa.snap.cimr.cimr.CimrDescriptorKind;
 import eu.esa.snap.cimr.cimr.CimrDescriptorSet;
 import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
+import eu.esa.snap.cimr.cimr.CimrSampleCoding;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -21,7 +22,7 @@ public class CimrDescriptorExpanderTest {
 
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        assertEquals(1250, descriptorSet.getMeasurements().size());
+        assertEquals(1275, descriptorSet.getMeasurements().size());
         assertEquals(50, descriptorSet.getGeometries().size());
         assertEquals(200, descriptorSet.getTiepointVariables().size());
     }
@@ -132,6 +133,32 @@ public class CimrDescriptorExpanderTest {
         assertEquals("float", descriptor.getDataType());
         assertEquals("K", descriptor.getUnit());
         assertArrayEquals(new String[]{"KU_BAND_latitude_feed8", "KU_BAND_longitude_feed8"}, descriptor.getGeometryNames());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void expand_createsInstrumentStatusDescriptorForEachFeed() throws Exception {
+        CimrDDDB dddb = CimrDDDB.getInstance();
+        CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
+        CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
+
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("C_BAND_instrument_status_feed4");
+
+        assertNotNull(descriptor);
+        assertEquals("instrument_status", descriptor.getValueVarName());
+        assertEquals(CimrFrequencyBand.C_BAND, descriptor.getBand());
+        assertEquals("/Data/Measurement_Data/C_BAND/", descriptor.getGroupPath());
+        assertEquals(3, descriptor.getFeedIndex());
+        assertEquals(CimrDescriptorKind.VARIABLE, descriptor.getKind());
+        assertArrayEquals(new String[]{"n_scans", "n_samples_C_BAND"}, descriptor.getDimensions());
+        assertEquals("int", descriptor.getDataType());
+        assertArrayEquals(new String[]{"C_BAND_latitude_feed4", "C_BAND_longitude_feed4"}, descriptor.getGeometryNames());
+        assertNotNull(descriptor.getSampleCoding());
+        assertEquals(CimrSampleCoding.Type.INDEX, descriptor.getSampleCoding().getType());
+        assertEquals("instrument_status", descriptor.getSampleCoding().getName());
+        assertEquals(6, descriptor.getSampleCoding().getEntries().length);
+        assertEquals("hot_load_calibration", descriptor.getSampleCoding().getEntries()[4].getName());
+        assertEquals(4, descriptor.getSampleCoding().getEntries()[4].getValue());
     }
 
     @Test

@@ -129,6 +129,52 @@
   },
   {
     "kind": "VARIABLE",
+    "valueVarName": "instrument_status",
+    "groupPath": "/Data/Measurement_Data/{band}/",
+    "dimensions": ["n_scans", "{sampleDimension}"],
+    "dataType": "int",
+    "unit": "",
+    "description": "Instrument Calibration or Observation mode, for all samples",
+    "geometryVariables": ["latitude", "longitude"],
+    "sampleCoding": {
+      "type": "INDEX",
+      "name": "instrument_status",
+      "entries": [
+        {
+          "name": "forward_scan_observation",
+          "value": 0,
+          "description": "Forward scan observation"
+        },
+        {
+          "name": "backward_scan_observation",
+          "value": 1,
+          "description": "Backward scan observation"
+        },
+        {
+          "name": "forward_external_cold_sky_observation",
+          "value": 2,
+          "description": "Forward external cold sky observation"
+        },
+        {
+          "name": "backward_external_cold_sky_observation",
+          "value": 3,
+          "description": "Backward external cold sky observation"
+        },
+        {
+          "name": "hot_load_calibration",
+          "value": 4,
+          "description": "Hot load calibration"
+        },
+        {
+          "name": "active_cold_load_calibration",
+          "value": 5,
+          "description": "Active cold load calibration"
+        }
+      ]
+    }
+  },
+  {
+    "kind": "VARIABLE",
     "valueVarName": "water_fraction",
     "groupPath": "/Data/Measurement_Data/{band}/",
     "dimensions": ["n_scans", "{sampleDimension}", "{feedDimension}"],

@@ -6,6 +6,7 @@ import eu.esa.snap.cimr.grid.LazyCrsGeoCoding;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.GeoCoding;
+import org.esa.snap.core.datamodel.IndexCoding;
 
 import java.io.File;
 import java.util.Map;
@@ -47,8 +48,31 @@ public class CimrSnapProductBuilder {
             //band.setNoDataValue(Double.NaN);
             band.setNoDataValueUsed(false);
             band.setSpectralWavelength(desc.getBand().getSpectralWaveLength());
+            addSampleCoding(product, band, desc);
 
             CimrGridMultiLevelSource.attachToBand(band, dataSource, grid);
         }
+    }
+
+    private static void addSampleCoding(Product product, Band band, CimrBandDescriptor desc) {
+        CimrSampleCoding sampleCoding = desc.getSampleCoding();
+        if (sampleCoding == null) {
+            return;
+        }
+        if (sampleCoding.getType() == CimrSampleCoding.Type.INDEX) {
+            band.setSampleCoding(getOrCreateIndexCoding(product, sampleCoding));
+        }
+    }
+
+    private static IndexCoding getOrCreateIndexCoding(Product product, CimrSampleCoding sampleCoding) {
+        IndexCoding indexCoding = product.getIndexCodingGroup().get(sampleCoding.getName());
+        if (indexCoding == null) {
+            indexCoding = new IndexCoding(sampleCoding.getName());
+            for (CimrSampleCodingEntry entry : sampleCoding.getEntries()) {
+                indexCoding.addIndex(entry.getName(), entry.getValue(), entry.getDescription());
+            }
+            product.getIndexCodingGroup().add(indexCoding);
+        }
+        return indexCoding;
     }
 }

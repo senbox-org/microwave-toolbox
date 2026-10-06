@@ -1,5 +1,7 @@
 package eu.esa.snap.cimr.dddb;
 
+import eu.esa.snap.cimr.cimr.CimrSampleCoding;
+
 
 public class CimrVariableFamily {
 
@@ -14,6 +16,7 @@ public class CimrVariableFamily {
     private boolean expandFeeds;
     private String[] geometryVariables;
     private String[] footprintVariables;
+    private CimrSampleCoding sampleCoding;
 
 
     public CimrVariableFamily() {
@@ -27,6 +30,7 @@ public class CimrVariableFamily {
         this.expandFeeds = true;
         this.geometryVariables = new String[0];
         this.footprintVariables = new String[0];
+        this.sampleCoding = null;
     }
 
 
@@ -108,5 +112,13 @@ public class CimrVariableFamily {
 
     public void setFootprintVariables(String[] footprintVariables) {
         this.footprintVariables = footprintVariables;
+    }
+
+    public CimrSampleCoding getSampleCoding() {
+        return sampleCoding;
+    }
+
+    public void setSampleCoding(CimrSampleCoding sampleCoding) {
+        this.sampleCoding = sampleCoding;
     }
 }

@@ -6,6 +6,7 @@ import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.PlateCarreeProjection;
 import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.IndexCoding;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
@@ -87,6 +88,55 @@ public class CimrSnapProductBuilderTest {
         Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
 
         assertEquals(ProductData.TYPE_FLOAT32, product.getBand("C_raw_bt_h_feed1").getDataType());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testBuildSnapProduct_setsInstrumentStatusIndexCoding() throws Exception {
+        PlateCarreeProjection proj = new PlateCarreeProjection(2, 1, 0.0, 1.0, 1.0, 1.0);
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
+
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
+
+        CimrBandDescriptor bandDesc = new CimrBandDescriptor(
+                "C_BAND_instrument_status_feed1", "instrument_status", CimrFrequencyBand.C_BAND,
+                new String[] {""}, new String[] {""},
+                "/Data/Measurement_Data/C_BAND/",
+                0, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_C_BAND"},
+                "int", ProductData.TYPE_INT32, "", "Instrument Calibration or Observation mode, for all samples",
+                instrumentStatusCoding()
+        );
+
+        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[] {0.0, 4.0});
+        gridProduct.addBand(bandDesc, ds);
+
+        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
+
+        Band band = product.getBand("C_BAND_instrument_status_feed1");
+        assertNotNull(band);
+        assertEquals(ProductData.TYPE_INT32, band.getDataType());
+
+        IndexCoding indexCoding = band.getIndexCoding();
+        assertNotNull(indexCoding);
+        assertSame(product.getIndexCodingGroup().get("instrument_status"), indexCoding);
+        assertEquals(0, indexCoding.getIndexValue("forward_scan_observation"));
+        assertEquals(1, indexCoding.getIndexValue("backward_scan_observation"));
+        assertEquals(2, indexCoding.getIndexValue("forward_external_cold_sky_observation"));
+        assertEquals(3, indexCoding.getIndexValue("backward_external_cold_sky_observation"));
+        assertEquals(4, indexCoding.getIndexValue("hot_load_calibration"));
+        assertEquals(5, indexCoding.getIndexValue("active_cold_load_calibration"));
+    }
+
+    private static CimrSampleCoding instrumentStatusCoding() {
+        return new CimrSampleCoding(CimrSampleCoding.Type.INDEX, "instrument_status", new CimrSampleCodingEntry[]{
+                new CimrSampleCodingEntry("forward_scan_observation", 0, "Forward scan observation"),
+                new CimrSampleCodingEntry("backward_scan_observation", 1, "Backward scan observation"),
+                new CimrSampleCodingEntry("forward_external_cold_sky_observation", 2, "Forward external cold sky observation"),
+                new CimrSampleCodingEntry("backward_external_cold_sky_observation", 3, "Backward external cold sky observation"),
+                new CimrSampleCodingEntry("hot_load_calibration", 4, "Hot load calibration"),
+                new CimrSampleCodingEntry("active_cold_load_calibration", 5, "Active cold load calibration")
+        });
     }
 
     @Test

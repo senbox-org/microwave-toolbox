@@ -19,13 +19,22 @@ public class CimrBandDescriptor {
     private final int rasterDataType;
     private final String unit;
     private final String description;
+    private final CimrSampleCoding sampleCoding;
 
 
     public CimrBandDescriptor(String name, String valueVarName, CimrFrequencyBand band, String[] geometryNames, String[] footprintVars, String groupPath, int feedIndex, CimrDescriptorKind kind, String[] dimensions, String dataType, String unit, String description) {
-        this(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, defaultRasterDataType(dataType), unit, description);
+        this(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, defaultRasterDataType(dataType), unit, description, null);
+    }
+
+    public CimrBandDescriptor(String name, String valueVarName, CimrFrequencyBand band, String[] geometryNames, String[] footprintVars, String groupPath, int feedIndex, CimrDescriptorKind kind, String[] dimensions, String dataType, String unit, String description, CimrSampleCoding sampleCoding) {
+        this(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, defaultRasterDataType(dataType), unit, description, sampleCoding);
     }
 
     public CimrBandDescriptor(String name, String valueVarName, CimrFrequencyBand band, String[] geometryNames, String[] footprintVars, String groupPath, int feedIndex, CimrDescriptorKind kind, String[] dimensions, String dataType, int rasterDataType, String unit, String description) {
+        this(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, rasterDataType, unit, description, null);
+    }
+
+    public CimrBandDescriptor(String name, String valueVarName, CimrFrequencyBand band, String[] geometryNames, String[] footprintVars, String groupPath, int feedIndex, CimrDescriptorKind kind, String[] dimensions, String dataType, int rasterDataType, String unit, String description, CimrSampleCoding sampleCoding) {
         this.name = name;
         this.valueVarName = valueVarName;
         this.band = band;
@@ -39,10 +48,11 @@ public class CimrBandDescriptor {
         this.rasterDataType = rasterDataType;
         this.unit = unit;
         this.description = description;
+        this.sampleCoding = sampleCoding;
     }
 
     public CimrBandDescriptor withRasterDataType(int rasterDataType) {
-        return new CimrBandDescriptor(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, rasterDataType, unit, description);
+        return new CimrBandDescriptor(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, rasterDataType, unit, description, sampleCoding);
     }
 
     public String getName() {
@@ -95,6 +105,10 @@ public class CimrBandDescriptor {
 
     public String getDescription() {
         return description;
+    }
+
+    public CimrSampleCoding getSampleCoding() {
+        return sampleCoding;
     }
 
     private static int defaultRasterDataType(String dataType) {
