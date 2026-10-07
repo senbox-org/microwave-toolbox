@@ -1,4 +1,4 @@
-package eu.esa.snap.cimr.cimr;
+package eu.esa.snap.cimr.dddb.descriptor;
 
 import org.esa.snap.core.datamodel.ProductData;
 

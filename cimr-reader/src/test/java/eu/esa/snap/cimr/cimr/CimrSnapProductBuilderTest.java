@@ -1,6 +1,11 @@
 package eu.esa.snap.cimr.cimr;
 
 import com.bc.ceres.annotation.STTM;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
+import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCoding;
+import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCodingEntry;
 import eu.esa.snap.cimr.grid.CimrGridBandDataSource;
 import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;

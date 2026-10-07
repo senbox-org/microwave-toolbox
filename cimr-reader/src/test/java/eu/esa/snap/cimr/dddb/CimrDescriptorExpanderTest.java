@@ -1,11 +1,11 @@
 package eu.esa.snap.cimr.dddb;
 
 import com.bc.ceres.annotation.STTM;
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDescriptorKind;
-import eu.esa.snap.cimr.cimr.CimrDescriptorSet;
-import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
-import eu.esa.snap.cimr.cimr.CimrSampleCoding;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
+import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCoding;
 import org.junit.Test;
 
 import static org.junit.Assert.*;

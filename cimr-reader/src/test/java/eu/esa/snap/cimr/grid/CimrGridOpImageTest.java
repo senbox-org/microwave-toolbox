@@ -1,4 +1,4 @@
-package eu.esa.snap.cimr.cimr;
+package eu.esa.snap.cimr.grid;
 
 
 import com.bc.ceres.multilevel.MultiLevelModel;

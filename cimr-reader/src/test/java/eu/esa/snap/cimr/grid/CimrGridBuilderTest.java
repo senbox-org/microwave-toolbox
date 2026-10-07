@@ -1,6 +1,6 @@
 package eu.esa.snap.cimr.grid;
 
-import eu.esa.snap.cimr.cimr.CimrGridBuilder;
+import eu.esa.snap.cimr.grid.CimrGridBuilder;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.junit.Test;
 

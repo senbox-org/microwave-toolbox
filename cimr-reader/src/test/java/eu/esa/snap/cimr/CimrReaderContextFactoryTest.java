@@ -1,10 +1,10 @@
 package eu.esa.snap.cimr;
 
 import com.bc.ceres.annotation.STTM;
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDescriptorSet;
-import eu.esa.snap.cimr.cimr.CimrDescriptorKind;
-import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 import ucar.ma2.DataType;

@@ -2,10 +2,10 @@ package eu.esa.snap.cimr.netcdf;
 
 
 import com.bc.ceres.annotation.STTM;
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDescriptorKind;
-import eu.esa.snap.cimr.cimr.CimrDimensions;
-import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.netcdf.CimrDimensions;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
 import eu.esa.snap.cimr.grid.CimrTiepointGeometry;
 import org.esa.snap.core.datamodel.GeoPos;

@@ -1,6 +1,6 @@
 package eu.esa.snap.cimr.dddb;
 
-import eu.esa.snap.cimr.cimr.CimrSampleCoding;
+import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCoding;
 
 
 public class CimrVariableFamily {

@@ -1,9 +1,9 @@
 package eu.esa.snap.cimr.dddb;
 
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDescriptorKind;
-import eu.esa.snap.cimr.cimr.CimrDescriptorSet;
-import eu.esa.snap.cimr.cimr.CimrFrequencyBand;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 
 import java.io.IOException;
 import java.util.ArrayList;

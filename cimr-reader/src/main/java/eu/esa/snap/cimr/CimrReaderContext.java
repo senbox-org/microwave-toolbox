@@ -1,6 +1,8 @@
 package eu.esa.snap.cimr;
 
 import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.grid.*;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrFootprintFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;

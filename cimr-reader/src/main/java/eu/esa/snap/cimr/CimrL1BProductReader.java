@@ -2,6 +2,7 @@ package eu.esa.snap.cimr;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.metadata.CimrProductMetadata;
 import eu.esa.snap.cimr.metadata.CimrProductMetadataReader;
 import org.esa.snap.core.dataio.AbstractProductReader;

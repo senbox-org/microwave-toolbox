@@ -1,6 +1,5 @@
-package eu.esa.snap.cimr.cimr;
+package eu.esa.snap.cimr.grid;
 
-import eu.esa.snap.cimr.grid.GridBandDataSource;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.RasterDataNode;
 import org.esa.snap.core.image.RasterDataNodeOpImage;
@@ -10,6 +9,7 @@ import java.awt.*;
 
 
 public class CimrGridOpImage extends RasterDataNodeOpImage {
+
 
     private final GridBandDataSource gridDataSource;
 

@@ -1,4 +1,4 @@
-package eu.esa.snap.cimr.cimr;
+package eu.esa.snap.cimr.netcdf;
 
 import org.junit.Test;
 import ucar.nc2.Dimension;

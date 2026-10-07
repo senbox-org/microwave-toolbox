@@ -1,10 +1,12 @@
-package eu.esa.snap.cimr.grid;
+package eu.esa.snap.cimr.cimr;
 
 import eu.esa.snap.cimr.CimrReaderContext;
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.grid.GridBandDataSource;
 
 
 public class LazyGridBandDataSource implements GridBandDataSource {
+
 
     private final CimrReaderContext context;
     private final CimrBandDescriptor descriptor;
@@ -20,6 +22,7 @@ public class LazyGridBandDataSource implements GridBandDataSource {
         this.descriptor = descriptor;
         this.useAverage = useAverage;
     }
+
 
     private GridBandDataSource getDelegate() {
         GridBandDataSource local = delegate;

@@ -1,8 +1,8 @@
 package eu.esa.snap.cimr;
 
-import eu.esa.snap.cimr.cimr.CimrDescriptorSet;
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDimensions;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.netcdf.CimrDimensions;
 import eu.esa.snap.cimr.dddb.CimrDDDB;
 import eu.esa.snap.cimr.dddb.CimrDescriptorExpander;
 import eu.esa.snap.cimr.dddb.CimrProductDescriptor;

@@ -1,6 +1,10 @@
 package eu.esa.snap.cimr.cimr;
 
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCoding;
+import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCodingEntry;
 import eu.esa.snap.cimr.grid.CimrGrid;
+import eu.esa.snap.cimr.grid.CimrGridMultiLevelSource;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.LazyCrsGeoCoding;
 import eu.esa.snap.cimr.metadata.CimrProductMetadata;

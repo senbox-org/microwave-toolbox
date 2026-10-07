@@ -1,12 +1,10 @@
-package eu.esa.snap.cimr.cimr;
+package eu.esa.snap.cimr.grid;
 
 import com.bc.ceres.multilevel.MultiLevelModel;
 import com.bc.ceres.multilevel.MultiLevelSource;
 import com.bc.ceres.multilevel.support.AbstractMultiLevelSource;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelImage;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelModel;
-import eu.esa.snap.cimr.grid.CimrGrid;
-import eu.esa.snap.cimr.grid.GridBandDataSource;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.image.ResolutionLevel;
 
@@ -15,6 +13,7 @@ import java.awt.image.RenderedImage;
 
 
 public class CimrGridMultiLevelSource extends AbstractMultiLevelSource {
+
 
     private static final int MLM_LEVEL_COUNT = 7;
 
@@ -28,6 +27,7 @@ public class CimrGridMultiLevelSource extends AbstractMultiLevelSource {
         this.targetBand = targetBand;
         this.gridDataSource = gridDataSource;
     }
+
 
     @Override
     protected RenderedImage createImage(int level) {

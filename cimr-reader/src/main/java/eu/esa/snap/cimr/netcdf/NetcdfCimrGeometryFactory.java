@@ -1,7 +1,6 @@
 package eu.esa.snap.cimr.netcdf;
 
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDimensions;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.grid.CimrBoundingBox;
 import eu.esa.snap.cimr.grid.CimrTiepointGeometry;
 import eu.esa.snap.cimr.grid.CimrGeometry;

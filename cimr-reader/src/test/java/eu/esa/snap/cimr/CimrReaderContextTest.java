@@ -1,7 +1,12 @@
 package eu.esa.snap.cimr;
 
 import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.*;
+import eu.esa.snap.cimr.netcdf.CimrDimensions;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrBandFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
 import org.esa.snap.core.datamodel.GeoPos;

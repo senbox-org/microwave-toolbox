@@ -1,4 +1,4 @@
-package eu.esa.snap.cimr.cimr;
+package eu.esa.snap.cimr.grid;
 
 import eu.esa.snap.cimr.grid.*;
 import org.junit.Test;
@@ -6,7 +6,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 
-public class CimrGridBuilderTest {
+public class CimrGridBuilderMapperSelectionTest {
 
 
     @Test
