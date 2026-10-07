@@ -2,6 +2,8 @@ package eu.esa.snap.cimr;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.metadata.CimrProductMetadata;
+import eu.esa.snap.cimr.metadata.CimrProductMetadataReader;
 import org.esa.snap.core.dataio.AbstractProductReader;
 import org.esa.snap.core.dataio.ProductReaderPlugIn;
 import org.esa.snap.core.datamodel.Band;
@@ -43,10 +45,8 @@ public class CimrL1BProductReader extends AbstractProductReader {
             this.readerContext = CimrReaderContextFactory.create(this.ncFile);
             CimrGridProduct cimrGridProduct = CimrGridProduct.buildLazy(this.readerContext, false);
 
-            // TODO: name and type from Metadata
-            Product snapProduct = CimrSnapProductBuilder.buildProduct(PRODUCT_TYPE, PRODUCT_TYPE, cimrGridProduct, path, this.readerContext.getAutoGrouping());
-
-            return snapProduct;
+            CimrProductMetadata productMetadata = CimrProductMetadataReader.read(this.ncFile, path, PRODUCT_TYPE);
+            return CimrSnapProductBuilder.buildProduct(productMetadata, cimrGridProduct, path, this.readerContext.getAutoGrouping());
 
         } catch (Exception e) {
             throw new IOException("Failed to read CIMR product from " + path, e);

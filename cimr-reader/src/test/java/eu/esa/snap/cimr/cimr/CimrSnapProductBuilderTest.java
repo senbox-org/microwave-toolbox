@@ -5,6 +5,8 @@ import eu.esa.snap.cimr.grid.CimrGridBandDataSource;
 import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.PlateCarreeProjection;
+import eu.esa.snap.cimr.metadata.CimrProductMetadata;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.IndexCoding;
 import org.esa.snap.core.datamodel.Product;
@@ -46,7 +48,7 @@ public class CimrSnapProductBuilderTest {
         GridBandDataSource ds = new CimrGridBandDataSource(2, 1, data);
         gridProduct.addBand(bandDesc, ds);
 
-        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
+        Product product = CimrSnapProductBuilder.buildProduct(metadata("TEST", "CIMR_GRID"), gridProduct, "path", "L_BAND:C_BAND");
 
         assertEquals(2, product.getSceneRasterWidth());
         assertEquals(1, product.getSceneRasterHeight());
@@ -85,7 +87,7 @@ public class CimrSnapProductBuilderTest {
         GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0});
         gridProduct.addBand(bandDesc, ds);
 
-        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
+        Product product = CimrSnapProductBuilder.buildProduct(metadata("TEST", "CIMR_GRID"), gridProduct, "path", "L_BAND:C_BAND");
 
         assertEquals(ProductData.TYPE_FLOAT32, product.getBand("C_raw_bt_h_feed1").getDataType());
     }
@@ -111,7 +113,7 @@ public class CimrSnapProductBuilderTest {
         GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[] {0.0, 4.0});
         gridProduct.addBand(bandDesc, ds);
 
-        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
+        Product product = CimrSnapProductBuilder.buildProduct(metadata("TEST", "CIMR_GRID"), gridProduct, "path", "L_BAND:C_BAND");
 
         Band band = product.getBand("C_BAND_instrument_status_feed1");
         assertNotNull(band);
@@ -165,7 +167,7 @@ public class CimrSnapProductBuilderTest {
         gridProduct.addBand(bandDesc, ds);
 
         String path = "some\\path\\file.nc";
-        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, path, "L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND");
+        Product product = CimrSnapProductBuilder.buildProduct(metadata("TEST", "CIMR_GRID"), gridProduct, path, "L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND");
 
         assertEquals("TEST", product.getName());
         assertEquals("CIMR_GRID", product.getProductType());
@@ -178,6 +180,27 @@ public class CimrSnapProductBuilderTest {
         assertEquals("Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)", band.getDescription());
         assertFalse(band.isNoDataValueSet());
         assertEquals(43300000f, band.getSpectralWavelength(), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testBuildSnapProduct_fromProductMetadataAddsMetadataElement() throws Exception {
+        PlateCarreeProjection proj = new PlateCarreeProjection(
+                2, 1,
+                0.0, 1.0,
+                1.0, 1.0
+        );
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
+        MetadataElement metadataElement = new MetadataElement("CIMR_Metadata");
+        metadataElement.addElement(new MetadataElement("Global_Attributes"));
+        CimrProductMetadata metadata = new CimrProductMetadata("TEST_PRODUCT", "CIMR_L1B", metadataElement);
+
+        Product product = CimrSnapProductBuilder.buildProduct(metadata, gridProduct, "path", "L_BAND:C_BAND");
+
+        assertEquals("TEST_PRODUCT", product.getName());
+        assertEquals("CIMR_L1B", product.getProductType());
+        assertSame(metadataElement, product.getMetadataRoot().getElement("CIMR_Metadata"));
     }
 
     @Test
@@ -214,7 +237,7 @@ public class CimrSnapProductBuilderTest {
         gridProduct.addBand(band1, ds1);
         gridProduct.addBand(band2, ds2);
 
-        Product product = CimrSnapProductBuilder.buildProduct("TEST", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
+        Product product = CimrSnapProductBuilder.buildProduct(metadata("TEST", "CIMR_GRID"), gridProduct, "path", "L_BAND:C_BAND");
 
         assertEquals(2, product.getNumBands());
 
@@ -240,11 +263,16 @@ public class CimrSnapProductBuilderTest {
 
         CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
-        Product product = CimrSnapProductBuilder.buildProduct("EMPTY", "CIMR_GRID", gridProduct, "path", "L_BAND:C_BAND");
+        Product product = CimrSnapProductBuilder.buildProduct(metadata("EMPTY", "CIMR_GRID"), gridProduct, "path", "L_BAND:C_BAND");
 
         assertEquals(4, product.getSceneRasterWidth());
         assertEquals(2, product.getSceneRasterHeight());
         assertNotNull(product.getSceneGeoCoding());
         assertEquals(0, product.getNumBands());
+    }
+
+
+    private static CimrProductMetadata metadata(String productName, String productType) {
+        return new CimrProductMetadata(productName, productType, new MetadataElement("CIMR_Metadata"));
     }
 }

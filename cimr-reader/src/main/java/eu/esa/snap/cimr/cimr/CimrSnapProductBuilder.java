@@ -3,6 +3,7 @@ package eu.esa.snap.cimr.cimr;
 import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.LazyCrsGeoCoding;
+import eu.esa.snap.cimr.metadata.CimrProductMetadata;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.GeoCoding;
@@ -15,10 +16,11 @@ import java.util.Map;
 public class CimrSnapProductBuilder {
 
 
-    public static Product buildProduct(String productName, String productType, CimrGridProduct cimrProduct, String path, String autoGrouping) throws Exception {
+    public static Product buildProduct(CimrProductMetadata metadata, CimrGridProduct cimrProduct, String path, String autoGrouping) throws Exception {
         CimrGrid grid = cimrProduct.getGlobalGrid();
-        Product product = new Product(productName, productType, grid.getWidth(), grid.getHeight());
+        Product product = new Product(metadata.getProductName(), metadata.getProductType(), grid.getWidth(), grid.getHeight());
 
+        addMetadata(metadata, product);
         addGeoCoding(grid, product);
         addBands(cimrProduct, product);
 
@@ -26,6 +28,10 @@ public class CimrSnapProductBuilder {
         product.setAutoGrouping(autoGrouping);
 
         return product;
+    }
+
+    private static void addMetadata(CimrProductMetadata metadata, Product product) {
+        product.getMetadataRoot().addElement(metadata.getMetadataElement());
     }
 
     private static void addGeoCoding(CimrGrid grid, Product product) {
