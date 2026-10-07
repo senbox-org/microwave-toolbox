@@ -1,6 +1,8 @@
 package eu.esa.snap.cimr.dddb;
 
 import com.bc.ceres.annotation.STTM;
+import eu.esa.snap.core.datamodel.group.BandGroup;
+import org.esa.snap.core.datamodel.Product;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -20,7 +22,9 @@ public class CimrDDDBTest {
         assertEquals("1.1", descriptor.getVersion());
         assertEquals("bands.json", descriptor.getBandsFile());
         assertArrayEquals(new String[]{"navigation.json", "measurement.json", "calibration.json"}, descriptor.getDescriptorFiles());
-        assertEquals("L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND", descriptor.getAutoGrouping());
+        assertTrue(descriptor.getAutoGrouping().startsWith("L_BAND:C_BAND:C_BAND_*feed1:C_BAND_*feed2:C_BAND_*feed3:C_BAND_*feed4"));
+        assertTrue(descriptor.getAutoGrouping().contains("KU_BAND:KU_BAND_*feed1:KU_BAND_*feed2"));
+        assertTrue(descriptor.getAutoGrouping().endsWith("KA_BAND_*feed7:KA_BAND_*feed8"));
     }
 
     @Test
@@ -30,6 +34,21 @@ public class CimrDDDBTest {
 
         assertEquals("CIMR_L1B", descriptor.getProductType());
         assertEquals("default", descriptor.getVersion());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getProductDescriptor_autoGroupingGroupsMultiFeedBandsByFeedAndKeyword() throws IOException {
+        CimrProductDescriptor descriptor = CimrDDDB.getInstance().getProductDescriptor("CIMR_L1B", "1.1");
+        Product product = new Product("test", "CIMR_L1B", 1, 1);
+
+        product.setAutoGrouping(descriptor.getAutoGrouping());
+        BandGroup autoGrouping = product.getAutoGrouping();
+
+        assertArrayEquals(new String[]{"L_BAND"}, autoGrouping.get(autoGrouping.indexOf("L_BAND_brightness_temperature_h_feed1")));
+        assertArrayEquals(new String[]{"C_BAND_*feed2"}, autoGrouping.get(autoGrouping.indexOf("C_BAND_brightness_temperature_h_feed2")));
+        assertArrayEquals(new String[]{"KU_BAND_*feed8"}, autoGrouping.get(autoGrouping.indexOf("KU_BAND_direct_sun_angle_feed8")));
+        assertArrayEquals(new String[]{"KA_BAND_*feed7"}, autoGrouping.get(autoGrouping.indexOf("KA_BAND_raw_counts_h_feed7")));
     }
 
     @Test
