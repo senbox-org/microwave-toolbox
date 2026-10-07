@@ -103,7 +103,9 @@ public class CimrProductMetadataReaderTest {
                 .getElement("Processing")
                 .getElement("Variables")
                 .getElement("creation_time_utc");
+        verify(creationTime, never()).read();
         assertEquals(42.0, processingVariable.getAttributeDouble("value"), 1e-8);
+        verify(creationTime).read();
         assertEquals("seconds since 2028-01-01 00:00:00.00", processingVariable.getAttributeString("units"));
 
         MetadataElement satelliteElement = statusElement.getElement("Satellite");
@@ -111,23 +113,50 @@ public class CimrProductMetadataReaderTest {
         MetadataElement semiMajorAxisVariable = satelliteElement
                 .getElement("Variables")
                 .getElement("semi_major_axis");
+        verify(semiMajorAxis, never()).read();
         assertEquals(7200000.0, semiMajorAxisVariable.getAttributeDouble("value"), 1e-8);
+        verify(semiMajorAxis).read();
         assertEquals("m", semiMajorAxisVariable.getAttributeString("units"));
     }
 
     @Test
     @STTM("SNAP-4262")
-    public void read_ignoresNonScalarVariablesAndEmptyGroups() throws Exception {
-        Variable modeStart = variable("mode_start_time_utc_L_Band", 1, DataType.DOUBLE, new double[]{1.0, 2.0}, Collections.emptyList());
-        Group instrument = group("Instrument", "/Status/Instrument", Collections.emptyList(), List.of(modeStart), Collections.emptyList());
-        Group status = group("Status", "/Status", Collections.emptyList(), Collections.emptyList(), List.of(instrument));
+    public void read_ignoresNonMetadataNonScalarVariablesAndEmptyGroups() throws Exception {
+        Variable brightnessTemperature = variable("brightness_temperature_h", 1, DataType.DOUBLE, new double[]{1.0, 2.0}, Collections.emptyList());
+        Group lBand = group("L_Band", "/Data/Measurement_Data/L_Band", Collections.emptyList(), List.of(brightnessTemperature), Collections.emptyList());
+        Group measurement = group("Measurement_Data", "/Data/Measurement_Data", Collections.emptyList(), Collections.emptyList(), List.of(lBand));
+        Group data = group("Data", "/Data", Collections.emptyList(), Collections.emptyList(), List.of(measurement));
 
-        MetadataElement statusElement = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(status)), "path", "CIMR_L1B")
+        MetadataElement dataElement = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(data)), "path", "CIMR_L1B")
                 .getMetadataElement()
                 .getElement("Groups")
-                .getElement("Status");
+                .getElement("Data");
 
-        assertNull(statusElement);
+        assertNull(dataElement);
+        verify(brightnessTemperature, never()).read();
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void read_addsNonScalarAuxMetadataVariablesLazily() throws Exception {
+        Variable acqTime = variable("acq_time_utc", 2, DataType.DOUBLE, new double[]{1.0, 2.0, 3.0, 4.0}, Collections.emptyList());
+        Group lBand = group("L_Band", "/Data/Measurement_Data/L_Band", Collections.emptyList(), List.of(acqTime), Collections.emptyList());
+        Group measurement = group("Measurement_Data", "/Data/Measurement_Data", Collections.emptyList(), Collections.emptyList(), List.of(lBand));
+        Group data = group("Data", "/Data", Collections.emptyList(), Collections.emptyList(), List.of(measurement));
+
+        MetadataElement acqTimeMetadata = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(data)), "path", "CIMR_L1B")
+                .getMetadataElement()
+                .getElement("Groups")
+                .getElement("Data")
+                .getElement("Measurement_Data")
+                .getElement("L_Band")
+                .getElement("Variables")
+                .getElement("acq_time_utc");
+
+        verify(acqTime, never()).read();
+        assertArrayEquals(new double[]{1.0, 2.0, 3.0, 4.0},
+                (double[]) acqTimeMetadata.getAttribute("value").getData().getElems(), 1e-8);
+        verify(acqTime).read();
     }
 
     @Test
@@ -206,6 +235,9 @@ public class CimrProductMetadataReaderTest {
         Variable variable = mock(Variable.class);
         when(variable.getShortName()).thenReturn(shortName);
         when(variable.getRank()).thenReturn(rank);
+        when(variable.getDataType()).thenReturn(dataType);
+        when(variable.getShape()).thenReturn(shape(rank, data));
+        when(variable.getDimensionsString()).thenReturn(rank == 0 ? "" : "dim_0");
         when(variable.attributes()).thenReturn(attributeContainer(attributes));
         when(variable.read()).thenReturn(Array.factory(dataType, shape(rank, data), data));
         return variable;
@@ -216,10 +248,10 @@ public class CimrProductMetadataReaderTest {
             return new int[0];
         }
         if (data instanceof double[]) {
-            return new int[]{((double[]) data).length};
+            return rank == 1 ? new int[]{((double[]) data).length} : new int[]{1, ((double[]) data).length};
         }
         if (data instanceof byte[]) {
-            return new int[]{((byte[]) data).length};
+            return rank == 1 ? new int[]{((byte[]) data).length} : new int[]{1, ((byte[]) data).length};
         }
         return new int[]{1};
     }
