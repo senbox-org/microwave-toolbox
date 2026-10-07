@@ -88,6 +88,26 @@ public class CimrL1BProductReaderTest {
         reader.close();
     }
 
+    @Test
+    public void close_clearsContextAndNullsFieldsWhenNcFileCloseFails() throws Exception {
+        CimrL1BProductReader reader = new CimrL1BProductReader(null);
+
+        NetcdfFile ncFile = mock(NetcdfFile.class);
+        CimrReaderContext ctx = mock(CimrReaderContext.class);
+        IOException closeFailure = new IOException("close failed");
+        doThrow(closeFailure).when(ncFile).close();
+
+        setField(reader, "ncFile", ncFile);
+        setField(reader, "readerContext", ctx);
+
+        IOException actual = assertThrows(IOException.class, reader::close);
+
+        assertSame(closeFailure, actual);
+        verify(ctx).clearCache();
+        assertNull(getField(reader, "ncFile"));
+        assertNull(getField(reader, "readerContext"));
+    }
+
 
 
     private static class TestBand extends Band {

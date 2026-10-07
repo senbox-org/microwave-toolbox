@@ -34,7 +34,7 @@ public class CimrL1BProductReader extends AbstractProductReader {
         super(readerPlugIn);
     }
 
-    // TODO BL write tests
+
     @Override
     protected Product readProductNodesImpl() throws IOException {
         final String path = getInputPath();
@@ -50,6 +50,7 @@ public class CimrL1BProductReader extends AbstractProductReader {
             return CimrSnapProductBuilder.buildProduct(productMetadata, cimrGridProduct, path, this.readerContext.getAutoGrouping());
 
         } catch (Exception e) {
+            closeAfterFailedRead(e);
             throw new IOException("Failed to read CIMR product from " + path, e);
         }
     }
@@ -71,15 +72,21 @@ public class CimrL1BProductReader extends AbstractProductReader {
 
     @Override
     public void close() throws IOException {
-        if (this.ncFile != null) {
-            this.ncFile.close();
-            this.ncFile = null;
-        }
-        if (this.readerContext != null) {
-            this.readerContext.clearCache();
+        try {
+            if (this.readerContext != null) {
+                this.readerContext.clearCache();
+            }
+        } finally {
             this.readerContext = null;
+            try {
+                if (this.ncFile != null) {
+                    this.ncFile.close();
+                }
+            } finally {
+                this.ncFile = null;
+                super.close();
+            }
         }
-        super.close();
     }
 
     public CimrFootprints getFootprints(String name) {
@@ -104,5 +111,13 @@ public class CimrL1BProductReader extends AbstractProductReader {
             return ((File) input).getPath();
         }
         return (String) input;
+    }
+
+    private void closeAfterFailedRead(Exception readFailure) {
+        try {
+            close();
+        } catch (IOException closeException) {
+            readFailure.addSuppressed(closeException);
+        }
     }
 }
