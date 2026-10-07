@@ -28,7 +28,7 @@ public class CimrProductMetadataReaderTest {
         NetcdfFile ncFile = emptyNcFile();
         when(ncFile.findGlobalAttribute("product_name")).thenReturn(new Attribute("product_name", " CIMR_TEST_PRODUCT "));
 
-        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "C:\\data\\fallback.nc", "CIMR_L1B");
+        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "fallback.nc", "CIMR_L1B");
 
         assertEquals("CIMR_TEST_PRODUCT", metadata.getProductName());
         assertEquals("CIMR_L1B", metadata.getProductType());
@@ -41,9 +41,7 @@ public class CimrProductMetadataReaderTest {
         NetcdfFile ncFile = emptyNcFile();
         when(ncFile.findGlobalAttribute("product_name")).thenReturn(null);
 
-        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile,
-                "C:\\data\\W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20260921T093512.nc",
-                "CIMR_L1B");
+        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20260921T093512.nc", "CIMR_L1B");
 
         assertEquals("W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20260921T093512", metadata.getProductName());
         assertEquals("CIMR_L1B", metadata.getProductType());
@@ -55,7 +53,7 @@ public class CimrProductMetadataReaderTest {
         NetcdfFile ncFile = emptyNcFile();
         when(ncFile.findGlobalAttribute("product_name")).thenReturn(new Attribute("product_name", " "));
 
-        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "C:\\data\\test-product.nc", "CIMR_L1B");
+        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "test-product.nc", "CIMR_L1B");
 
         assertEquals("test-product", metadata.getProductName());
         assertEquals("CIMR_L1B", metadata.getProductType());
@@ -85,10 +83,8 @@ public class CimrProductMetadataReaderTest {
     @Test
     @STTM("SNAP-4262")
     public void read_mirrorsGroupAttributesAndScalarVariables() throws Exception {
-        Variable creationTime = scalarVariable("creation_time_utc", DataType.DOUBLE, new double[]{42.0},
-                List.of(new Attribute("units", "seconds since 2028-01-01 00:00:00.00")));
-        Variable semiMajorAxis = scalarVariable("semi_major_axis", DataType.DOUBLE, new double[]{7200000.0},
-                List.of(new Attribute("units", "m")));
+        Variable creationTime = scalarVariable("creation_time_utc", DataType.DOUBLE, new double[]{42.0}, List.of(new Attribute("units", "seconds since 2028-01-01 00:00:00.00")));
+        Variable semiMajorAxis = scalarVariable("semi_major_axis", DataType.DOUBLE, new double[]{7200000.0}, List.of(new Attribute("units", "m")));
 
         Group processing = group("Processing", "/Status/Processing", Collections.emptyList(), List.of(creationTime), Collections.emptyList());
         Group satellite = group("Satellite", "/Status/Satellite", List.of(new Attribute("group_attribute", "satellite metadata")), List.of(semiMajorAxis), Collections.emptyList());
@@ -154,9 +150,45 @@ public class CimrProductMetadataReaderTest {
                 .getElement("acq_time_utc");
 
         verify(acqTime, never()).read();
-        assertArrayEquals(new double[]{1.0, 2.0, 3.0, 4.0},
-                (double[]) acqTimeMetadata.getAttribute("value").getData().getElems(), 1e-8);
+        assertArrayEquals(new double[]{1.0, 2.0, 3.0, 4.0}, (double[]) acqTimeMetadata.getAttribute("value").getData().getElems(), 1e-8);
         verify(acqTime).read();
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void read_addsComponentAuxMetadataVariablesLazily() throws Exception {
+        Variable matrix = variable("boresight2AntennaPlane", 4, DataType.DOUBLE, new double[]{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0}, Collections.emptyList());
+        Variable thermistors = variable("thermistor_counts", 3, DataType.INT, new int[]{1, 2, 3, 4}, Collections.emptyList());
+
+        Group navBand = group("L_Band", "/Data/Navigation_Data/L_Band", Collections.emptyList(), List.of(matrix), Collections.emptyList());
+        Group navigation = group("Navigation_Data", "/Data/Navigation_Data", Collections.emptyList(), Collections.emptyList(), List.of(navBand));
+        Group calBand = group("L_Band", "/Data/Calibration_Data/L_Band", Collections.emptyList(), List.of(thermistors), Collections.emptyList());
+        Group calibration = group("Calibration_Data", "/Data/Calibration_Data", Collections.emptyList(), Collections.emptyList(), List.of(calBand));
+        Group data = group("Data", "/Data", Collections.emptyList(), Collections.emptyList(), List.of(navigation, calibration));
+
+        MetadataElement dataElement = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(data)), "path", "CIMR_L1B")
+                .getMetadataElement()
+                .getElement("Groups")
+                .getElement("Data");
+        MetadataElement matrixMetadata = dataElement
+                .getElement("Navigation_Data")
+                .getElement("L_Band")
+                .getElement("Variables")
+                .getElement("boresight2AntennaPlane");
+        MetadataElement thermistorMetadata = dataElement
+                .getElement("Calibration_Data")
+                .getElement("L_Band")
+                .getElement("Variables")
+                .getElement("thermistor_counts");
+
+        verify(matrix, never()).read();
+        verify(thermistors, never()).read();
+
+        assertArrayEquals(new double[]{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0}, (double[]) matrixMetadata.getAttribute("value").getData().getElems(), 1e-8);
+        assertArrayEquals(new int[]{1, 2, 3, 4}, (int[]) thermistorMetadata.getAttribute("value").getData().getElems());
+
+        verify(matrix).read();
+        verify(thermistors).read();
     }
 
     @Test
@@ -248,12 +280,24 @@ public class CimrProductMetadataReaderTest {
             return new int[0];
         }
         if (data instanceof double[]) {
-            return rank == 1 ? new int[]{((double[]) data).length} : new int[]{1, ((double[]) data).length};
+            return shape(rank, ((double[]) data).length);
         }
         if (data instanceof byte[]) {
-            return rank == 1 ? new int[]{((byte[]) data).length} : new int[]{1, ((byte[]) data).length};
+            return shape(rank, ((byte[]) data).length);
+        }
+        if (data instanceof int[]) {
+            return shape(rank, ((int[]) data).length);
         }
         return new int[]{1};
+    }
+
+    private static int[] shape(int rank, int length) {
+        int[] shape = new int[rank];
+        for (int i = 0; i < rank - 1; i++) {
+            shape[i] = 1;
+        }
+        shape[rank - 1] = length;
+        return shape;
     }
 
     private static Group group(String shortName,

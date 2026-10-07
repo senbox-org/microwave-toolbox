@@ -190,7 +190,9 @@ public class CimrProductMetadataReader {
                 || "orbit_angle".equals(variableName)
                 || "spacecraft_altitude".equals(variableName)
                 || "sub_satellite_lat".equals(variableName)
-                || "sub_satellite_lon".equals(variableName));
+                || "sub_satellite_lon".equals(variableName)
+                || "boresight2AntennaPlane".equals(variableName)
+                || "antennaPlane2EarthFixed".equals(variableName));
     }
 
     private static boolean isCalibrationMetadata(String groupPath, String variableName) {
@@ -198,7 +200,8 @@ public class CimrProductMetadataReader {
                 && ("t_cold_h".equals(variableName)
                 || "t_cold_v".equals(variableName)
                 || "t_hot_h".equals(variableName)
-                || "t_hot_v".equals(variableName));
+                || "t_hot_v".equals(variableName)
+                || "thermistor_counts".equals(variableName));
     }
 
     private static boolean isQualityMetadata(String groupPath, String variableName) {

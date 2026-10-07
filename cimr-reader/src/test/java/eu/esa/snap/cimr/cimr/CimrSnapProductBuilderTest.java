@@ -14,6 +14,7 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import java.awt.image.Raster;
+import java.nio.file.Paths;
 
 import static org.junit.Assert.*;
 
@@ -166,7 +167,7 @@ public class CimrSnapProductBuilderTest {
         GridBandDataSource ds = new CimrGridBandDataSource(2, 1, data);
         gridProduct.addBand(bandDesc, ds);
 
-        String path = "some\\path\\file.nc";
+        String path = Paths.get("some", "path", "file.nc").toString();
         Product product = CimrSnapProductBuilder.buildProduct(metadata("TEST", "CIMR_GRID"), gridProduct, path, "L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND");
 
         assertEquals("TEST", product.getName());
