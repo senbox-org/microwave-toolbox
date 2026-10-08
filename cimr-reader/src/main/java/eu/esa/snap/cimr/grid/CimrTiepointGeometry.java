@@ -68,20 +68,10 @@ public class CimrTiepointGeometry implements CimrGeometry {
             throw new IllegalArgumentException("feedIndex out of range: " + feedIndex);
         }
 
+        TiepointInterpolator.Position position = TiepointInterpolator.position(sampleIndex, sampleCount, tiePointCount);
+        GeoPos p0 = tiePoints[scanIndex][position.getLowerIndex()][feedIndex];
+        GeoPos p1 = tiePoints[scanIndex][position.getUpperIndex()][feedIndex];
 
-        // TODO: BL refactor interpolation method to be single class with methods for handling all cases
-        double t = (double) sampleIndex * (tiePointCount - 1) / (double) (sampleCount - 1);
-
-        int tp0 = (int) Math.floor(t);
-        int tp1 = Math.min(tp0 + 1, tiePointCount - 1);
-        double f = t - tp0;
-
-        GeoPos p0 = tiePoints[scanIndex][tp0][feedIndex];
-        GeoPos p1 = tiePoints[scanIndex][tp1][feedIndex];
-
-        double lat = p0.getLat() + f * (p1.getLat() - p0.getLat());
-        double lon = p0.getLon() + f * (p1.getLon() - p0.getLon());
-
-        return new GeoPos((float) lat, (float) lon);
+        return TiepointInterpolator.interpolate(p0, p1, position.getFraction());
     }
 }

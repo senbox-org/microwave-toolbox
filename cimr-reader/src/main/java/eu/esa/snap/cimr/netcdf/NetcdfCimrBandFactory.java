@@ -4,6 +4,7 @@ import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.grid.CimrGeometry;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
+import eu.esa.snap.cimr.grid.TiepointInterpolator;
 import ucar.ma2.Array;
 import ucar.ma2.Index;
 import ucar.ma2.Index3D;
@@ -71,20 +72,16 @@ public class NetcdfCimrBandFactory {
         double[][] values = new double[nScans][sampleCount];
         Index3D idx = new Index3D(data.getShape());
 
-        // TODO extract Tiepoint interpolation
         for (int s = 0; s < nScans; s++) {
             for (int smp = 0; smp < sampleCount; smp++) {
-                double t  = (double) smp * (nTiepoints - 1) / (double) (sampleCount - 1);
-                int tp0   = (int) Math.floor(t);
-                int tp1   = Math.min(tp0 + 1, nTiepoints - 1);
-                double f  = t - tp0;
+                TiepointInterpolator.Position position = TiepointInterpolator.position(smp, sampleCount, nTiepoints);
 
-                idx.set(s, tp0, 0);
+                idx.set(s, position.getLowerIndex(), 0);
                 double v0 = data.getDouble(idx);
-                idx.set(s, tp1, 0);
+                idx.set(s, position.getUpperIndex(), 0);
                 double v1 = data.getDouble(idx);
 
-                values[s][smp] = v0 + f * (v1 - v0);
+                values[s][smp] = TiepointInterpolator.interpolate(v0, v1, position.getFraction());
             }
         }
         return values;
