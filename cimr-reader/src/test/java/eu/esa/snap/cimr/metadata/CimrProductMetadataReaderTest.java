@@ -13,7 +13,11 @@ import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
 
 import java.util.Collections;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -244,6 +248,122 @@ public class CimrProductMetadataReaderTest {
                 .getElement("Global_Attributes");
 
         assertEquals("empty_attribute = <empty>", globalAttributes.getAttributeString("empty_attribute"));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void read_addsStatusSatelliteVectorMetadataVariablesLazily() throws Exception {
+        List<Variable> variables = List.of(
+                variable("x_position", 1, DataType.DOUBLE, new double[]{1.0}, Collections.emptyList()),
+                variable("y_position", 1, DataType.DOUBLE, new double[]{2.0}, Collections.emptyList()),
+                variable("z_position", 1, DataType.DOUBLE, new double[]{3.0}, Collections.emptyList()),
+                variable("x_velocity", 1, DataType.DOUBLE, new double[]{4.0}, Collections.emptyList()),
+                variable("y_velocity", 1, DataType.DOUBLE, new double[]{5.0}, Collections.emptyList()),
+                variable("z_velocity", 1, DataType.DOUBLE, new double[]{6.0}, Collections.emptyList()),
+                variable("q0", 1, DataType.DOUBLE, new double[]{7.0}, Collections.emptyList()),
+                variable("q1", 1, DataType.DOUBLE, new double[]{8.0}, Collections.emptyList()),
+                variable("q2", 1, DataType.DOUBLE, new double[]{9.0}, Collections.emptyList()),
+                variable("q3", 1, DataType.DOUBLE, new double[]{10.0}, Collections.emptyList()),
+                variable("ignored_vector", 1, DataType.DOUBLE, new double[]{11.0}, Collections.emptyList())
+        );
+        Group orbit = group("Orbit", "/Status/Satellite/Orbit", Collections.emptyList(), variables, Collections.emptyList());
+        Group satellite = group("Satellite", "/Status/Satellite", Collections.emptyList(), Collections.emptyList(), List.of(orbit));
+        Group status = group("Status", "/Status", Collections.emptyList(), Collections.emptyList(), List.of(satellite));
+
+        MetadataElement metadataVariables = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(status)), "path", "CIMR_L1B")
+                .getMetadataElement()
+                .getElement("Groups")
+                .getElement("Status")
+                .getElement("Satellite")
+                .getElement("Orbit")
+                .getElement("Variables");
+
+        assertNotNull(metadataVariables.getElement("x_position"));
+        assertNotNull(metadataVariables.getElement("y_position"));
+        assertNotNull(metadataVariables.getElement("z_position"));
+        assertNotNull(metadataVariables.getElement("x_velocity"));
+        assertNotNull(metadataVariables.getElement("y_velocity"));
+        assertNotNull(metadataVariables.getElement("z_velocity"));
+        assertNotNull(metadataVariables.getElement("q0"));
+        assertNotNull(metadataVariables.getElement("q1"));
+        assertNotNull(metadataVariables.getElement("q2"));
+        assertNotNull(metadataVariables.getElement("q3"));
+        assertNull(metadataVariables.getElement("ignored_vector"));
+        verify(variables.get(0), never()).read();
+        assertArrayEquals(new double[]{1.0}, (double[]) metadataVariables.getElement("x_position").getAttribute("value").getData().getElems(), 1e-8);
+        verify(variables.get(0)).read();
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void read_addsStatusInstrumentMetadataVariablesLazily() throws Exception {
+        Variable instrumentMode = variable("instrument_mode", 1, DataType.INT, new int[]{1, 2}, Collections.emptyList());
+        Variable modeStart = variable("mode_start_time_utc_observation", 1, DataType.DOUBLE, new double[]{3.0}, Collections.emptyList());
+        Variable modeStop = variable("mode_stop_time_utc_observation", 1, DataType.DOUBLE, new double[]{4.0}, Collections.emptyList());
+        Variable ignored = variable("mode_duration", 1, DataType.DOUBLE, new double[]{5.0}, Collections.emptyList());
+        Group instrument = group("Instrument", "/Status/Instrument", Collections.emptyList(), List.of(instrumentMode, modeStart, modeStop, ignored), Collections.emptyList());
+        Group status = group("Status", "/Status", Collections.emptyList(), Collections.emptyList(), List.of(instrument));
+
+        MetadataElement variables = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(status)), "path", "CIMR_L1B")
+                .getMetadataElement()
+                .getElement("Groups")
+                .getElement("Status")
+                .getElement("Instrument")
+                .getElement("Variables");
+
+        assertNotNull(variables.getElement("instrument_mode"));
+        assertNotNull(variables.getElement("mode_start_time_utc_observation"));
+        assertNotNull(variables.getElement("mode_stop_time_utc_observation"));
+        assertNull(variables.getElement("mode_duration"));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void read_addsQualityGapMetadataVariablesLazily() throws Exception {
+        Variable gapStart = variable("gap_start_time_utc", 1, DataType.DOUBLE, new double[]{1.0}, Collections.emptyList());
+        Variable gapEnd = variable("gap_end_time_utc", 1, DataType.DOUBLE, new double[]{2.0}, Collections.emptyList());
+        Variable ignored = variable("gap_duration", 1, DataType.DOUBLE, new double[]{3.0}, Collections.emptyList());
+        Group quality = group("Quality", "/Quality", Collections.emptyList(), List.of(gapStart, gapEnd, ignored), Collections.emptyList());
+
+        MetadataElement variables = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(quality)), "path", "CIMR_L1B")
+                .getMetadataElement()
+                .getElement("Groups")
+                .getElement("Quality")
+                .getElement("Variables");
+
+        assertNotNull(variables.getElement("gap_start_time_utc"));
+        assertNotNull(variables.getElement("gap_end_time_utc"));
+        assertNull(variables.getElement("gap_duration"));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void read_handlesNullGroupPathAndUsesVariableShortNamePath() throws Exception {
+        Variable scalar = scalarVariable("root_scalar", DataType.DOUBLE, new double[]{42.0}, Collections.emptyList());
+        Group nameless = group("Nameless", null, Collections.emptyList(), List.of(scalar), Collections.emptyList());
+
+        MetadataElement rootScalar = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(nameless)), "path", "CIMR_L1B")
+                .getMetadataElement()
+                .getElement("Groups")
+                .getElement("Nameless")
+                .getElement("Variables")
+                .getElement("root_scalar");
+
+        assertEquals(42.0, rootScalar.getAttributeDouble("value"), 1e-8);
+        verify(scalar).read();
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void netcdfMetadataProviderReturnsNullForUnknownVariablePath() throws Exception {
+        Class<?> providerClass = Class.forName("eu.esa.snap.cimr.metadata.CimrProductMetadataReader$NetcdfMetadataProvider");
+        Constructor<?> constructor = providerClass.getDeclaredConstructor(Map.class);
+        constructor.setAccessible(true);
+        Object provider = constructor.newInstance(new HashMap<String, Variable>());
+        Method readElement = providerClass.getDeclaredMethod("readElement", String.class);
+        readElement.setAccessible(true);
+
+        assertNull(readElement.invoke(provider, "missing/path"));
     }
 
 

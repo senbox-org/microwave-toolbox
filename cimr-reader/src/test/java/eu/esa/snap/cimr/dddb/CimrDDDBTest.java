@@ -6,6 +6,9 @@ import org.esa.snap.core.datamodel.Product;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
 
 import static org.junit.Assert.*;
 
@@ -69,5 +72,50 @@ public class CimrDDDBTest {
         }
         assertNotNull(footprintFamily);
         assertEquals("TIEPOINT_VARIABLE", footprintFamily.getKind());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getProductDescriptor_failsWhenProductResourceDoesNotExist() {
+        IOException actual = assertThrows(IOException.class, () -> CimrDDDB.getInstance().getProductDescriptor("NO_SUCH_PRODUCT", "1.1"));
+
+        assertEquals("Invalid CIMR DDDB resource: NO_SUCH_PRODUCT/default/product.json", actual.getMessage());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getBandDefinitions_failsWhenBandResourceDoesNotExist() {
+        CimrProductDescriptor descriptor = new CimrProductDescriptor();
+        descriptor.setProductType("CIMR_L1B");
+        descriptor.setVersion("1.1");
+        descriptor.setBandsFile("missing-bands.json");
+
+        IOException actual = assertThrows(IOException.class, () -> CimrDDDB.getInstance().getBandDefinitions(descriptor));
+
+        assertEquals("Invalid CIMR DDDB band resource: CIMR_L1B/1.1/missing-bands.json", actual.getMessage());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getDescriptorFile_failsWhenDescriptorResourceDoesNotExist() throws IOException {
+        CimrProductDescriptor descriptor = CimrDDDB.getInstance().getProductDescriptor("CIMR_L1B", "1.1");
+
+        IOException actual = assertThrows(IOException.class, () -> CimrDDDB.getInstance().getDescriptorFile(descriptor, "missing-descriptors.json"));
+
+        assertEquals("Invalid CIMR DDDB descriptor resource: CIMR_L1B/1.1/missing-descriptors.json", actual.getMessage());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void read_wrapsIoExceptions() throws Exception {
+        Method read = CimrDDDB.class.getDeclaredMethod("read", URL.class, Class.class);
+        read.setAccessible(true);
+
+        URL missingUrl = new URL("file:/missing-cimr-dddb-test-resource.json");
+        InvocationTargetException actual = assertThrows(InvocationTargetException.class, () -> read.invoke(null, missingUrl, CimrProductDescriptor.class));
+
+        assertTrue(actual.getCause() instanceof IllegalStateException);
+        assertTrue(actual.getCause().getMessage().startsWith("Failed to read CIMR DDDB resource:"));
+        assertTrue(actual.getCause().getCause() instanceof IOException);
     }
 }

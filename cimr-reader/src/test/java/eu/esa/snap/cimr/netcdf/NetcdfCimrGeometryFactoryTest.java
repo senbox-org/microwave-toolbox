@@ -3,7 +3,6 @@ package eu.esa.snap.cimr.netcdf;
 
 import com.bc.ceres.annotation.STTM;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
-import eu.esa.snap.cimr.netcdf.CimrDimensions;
 import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.grid.CimrBoundingBox;
@@ -543,6 +542,65 @@ public class NetcdfCimrGeometryFactoryTest {
         assertEquals(-11.0, bBox.getLonMin(), doubleErr);
         assertEquals(22.0, bBox.getLatMax(), doubleErr);
         assertEquals(51.0, bBox.getLonMax(), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testGetBoundingBoxFromAllNavigationVariables_FailsWhenLongitudeDescriptorMissing() throws IOException {
+        NetcdfFile ncFile = NetcdfFile.builder()
+                .setLocation("test")
+                .setRootGroup(Group.builder(null).setName("root"))
+                .build();
+        CimrDimensions dims = CimrDimensions.from(ncFile);
+        CimrBandDescriptor latDesc = createGeometryDescriptor("C_BAND_latitude_feed1", "latitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+
+        NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Collections.singletonList(latDesc), dims);
+
+        IllegalStateException actual = assertThrows(IllegalStateException.class, () -> factory.getBoundingBox(1.0));
+
+        assertEquals("Longitude descriptor not found for band 'C_BAND'", actual.getMessage());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testGetBoundingBoxFromAllNavigationVariables_FailsWhenNoValidNavigationPoints() throws IOException {
+        Dimension scanDim = new Dimension("n_scans", 1);
+        Dimension tpDim = new Dimension("n_tiepoints_C_BAND", 2);
+        Dimension feedDim = new Dimension("n_feeds_C_BAND", 1);
+
+        Group.Builder rootBuilder = Group.builder(null).setName("root");
+        rootBuilder.addDimension(scanDim).addDimension(tpDim).addDimension(feedDim);
+
+        ArrayDouble.D3 latData = new ArrayDouble.D3(1, 2, 1);
+        ArrayDouble.D3 lonData = new ArrayDouble.D3(1, 2, 1);
+        latData.set(0, 0, 0, Double.NaN);
+        latData.set(0, 1, 0, Double.NaN);
+        lonData.set(0, 0, 0, Double.NaN);
+        lonData.set(0, 1, 0, Double.NaN);
+
+        rootBuilder.addVariable(Variable.builder()
+                .setName("latitude")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_C_BAND n_feeds_C_BAND")
+                .setCachedData(latData, false));
+        rootBuilder.addVariable(Variable.builder()
+                .setName("longitude")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_C_BAND n_feeds_C_BAND")
+                .setCachedData(lonData, false));
+
+        NetcdfFile ncFile = NetcdfFile.builder()
+                .setLocation("test")
+                .setRootGroup(rootBuilder)
+                .build();
+        CimrDimensions dims = CimrDimensions.from(ncFile);
+        CimrBandDescriptor latDesc = createGeometryDescriptor("C_BAND_latitude_feed1", "latitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor lonDesc = createGeometryDescriptor("C_BAND_longitude_feed1", "longitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Arrays.asList(latDesc, lonDesc), dims);
+
+        IllegalStateException actual = assertThrows(IllegalStateException.class, () -> factory.getBoundingBox(1.0));
+
+        assertEquals("No valid CIMR navigation points found for bounding box", actual.getMessage());
     }
 
     private CimrBandDescriptor createGeometryDescriptor(String name, String valueVarName, CimrFrequencyBand band, String groupPath, int feedIndex, String tiePointDimension, String feedDimension) {

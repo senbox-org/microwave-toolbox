@@ -4,7 +4,6 @@ package eu.esa.snap.cimr.netcdf;
 import com.bc.ceres.annotation.STTM;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
-import eu.esa.snap.cimr.netcdf.CimrDimensions;
 import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
 import eu.esa.snap.cimr.grid.CimrTiepointGeometry;
@@ -294,5 +293,108 @@ public class NetcdfCimrBandFactoryTest {
 
         NetcdfCimrBandFactory factory = new NetcdfCimrBandFactory(ncFile, dims);
         factory.createGeometryBand(desc, geom);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testCreateGeometryBand_FailsFor2DTiepointVariable() throws IOException {
+        int nScans = 1;
+        int nTiepoints = 2;
+        int nSamples = 4;
+
+        Dimension scanDim = new Dimension("n_scans", nScans);
+        Dimension tpDim = new Dimension("n_tiepoints_C_BAND", nTiepoints);
+        Dimension samplesDim = new Dimension("n_samples_C_BAND", nSamples);
+
+        Group.Builder root = Group.builder(null).setName("root");
+        root.addDimension(scanDim).addDimension(tpDim).addDimension(samplesDim);
+
+        ArrayDouble.D2 data = new ArrayDouble.D2(nScans, nTiepoints);
+        data.set(0, 0, 1.0);
+        data.set(0, 1, 2.0);
+
+        Group.Builder dataGroup = Group.builder(root).setName("Data");
+        dataGroup.addVariable(Variable.builder()
+                .setName("tie_var")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans n_tiepoints_C_BAND")
+                .setCachedData(data, false));
+        root.addGroup(dataGroup);
+
+        NetcdfFile ncFile = NetcdfFile.builder().setLocation("test").setRootGroup(root).build();
+        CimrDimensions dims = CimrDimensions.from(ncFile);
+        CimrBandDescriptor desc = new CimrBandDescriptor(
+                "tie_var",
+                "tie_var",
+                CimrFrequencyBand.C_BAND,
+                new String[]{},
+                new String[]{},
+                "/Data",
+                0,
+                CimrDescriptorKind.TIEPOINT_VARIABLE,
+                new String[]{"n_scans", "n_tiepoints_C_BAND"},
+                "double",
+                "",
+                ""
+        );
+
+        GeoPos[][][] tp = new GeoPos[1][2][1];
+        tp[0][0][0] = new GeoPos(0f, 0f);
+        tp[0][1][0] = new GeoPos(0f, 1f);
+        CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, nSamples);
+
+        NetcdfCimrBandFactory factory = new NetcdfCimrBandFactory(ncFile, dims);
+
+        IllegalArgumentException actual = assertThrows(IllegalArgumentException.class, () -> factory.createGeometryBand(desc, geom));
+
+        assertEquals("Expected 3D tie-point variable for 'tie_var', but rank=2", actual.getMessage());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testCreateGeometryBand_FailsForNon2DOr3DVariableWithMessage() throws IOException {
+        int nScans = 1;
+        Dimension scanDim = new Dimension("n_scans", nScans);
+
+        Group.Builder root = Group.builder(null).setName("root");
+        root.addDimension(scanDim);
+
+        ArrayDouble.D1 data = new ArrayDouble.D1(nScans);
+        data.set(0, 1.0);
+
+        Group.Builder dataGroup = Group.builder(root).setName("Data");
+        dataGroup.addVariable(Variable.builder()
+                .setName("bad_var")
+                .setDataType(DataType.DOUBLE)
+                .setDimensionsByName("n_scans")
+                .setCachedData(data, false));
+        root.addGroup(dataGroup);
+
+        NetcdfFile ncFile = NetcdfFile.builder().setLocation("test").setRootGroup(root).build();
+        CimrDimensions dims = CimrDimensions.from(ncFile);
+        CimrBandDescriptor desc = new CimrBandDescriptor(
+                "bad_var",
+                "bad_var",
+                CimrFrequencyBand.C_BAND,
+                new String[]{},
+                new String[]{},
+                "/Data",
+                0,
+                CimrDescriptorKind.VARIABLE,
+                new String[]{"n_scans"},
+                "double",
+                "",
+                ""
+        );
+
+        GeoPos[][][] tp = new GeoPos[1][1][1];
+        tp[0][0][0] = new GeoPos(0f, 0f);
+        CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 2);
+
+        NetcdfCimrBandFactory factory = new NetcdfCimrBandFactory(ncFile, dims);
+
+        IllegalArgumentException actual = assertThrows(IllegalArgumentException.class, () -> factory.createGeometryBand(desc, geom));
+
+        assertEquals("Expected 2D or 3D variable for 'bad_var', but rank=1", actual.getMessage());
     }
 }
