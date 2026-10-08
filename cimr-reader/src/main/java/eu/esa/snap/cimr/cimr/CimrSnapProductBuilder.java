@@ -1,5 +1,6 @@
 package eu.esa.snap.cimr.cimr;
 
+import eu.esa.snap.cimr.CimrReaderContext;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCoding;
 import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCodingEntry;
@@ -20,7 +21,7 @@ import java.util.Map;
 public class CimrSnapProductBuilder {
 
 
-    public static Product buildProduct(CimrProductMetadata metadata, CimrGridProduct cimrProduct, String path, String autoGrouping) throws Exception {
+    public static Product buildProduct(CimrReaderContext readerContext, CimrGridProduct cimrProduct, CimrProductMetadata metadata, String path) throws Exception {
         CimrGrid grid = cimrProduct.getGlobalGrid();
         Product product = new Product(metadata.getProductName(), metadata.getProductType(), grid.getWidth(), grid.getHeight());
 
@@ -29,7 +30,7 @@ public class CimrSnapProductBuilder {
         addBands(cimrProduct, product);
 
         product.setFileLocation(new File(path));
-        product.setAutoGrouping(autoGrouping);
+        product.setAutoGrouping(readerContext.getAutoGrouping());
 
         return product;
     }
