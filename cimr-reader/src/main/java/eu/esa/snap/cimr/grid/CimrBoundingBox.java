@@ -44,36 +44,6 @@ public class CimrBoundingBox {
         return latMax - latMin;
     }
 
-    // TODO: BL - 01/10/2026 - discuss if this method can be removed
-    public static CimrBoundingBox create(CimrGeometry geometry, double cellSizeDeg) {
-        double lonMin = Double.POSITIVE_INFINITY;
-        double lonMax = Double.NEGATIVE_INFINITY;
-        double latMin = Double.POSITIVE_INFINITY;
-        double latMax = Double.NEGATIVE_INFINITY;
-
-        for (int ii = 0; ii < geometry.getScanCount(); ii++) {
-            for(int jj = 0; jj < geometry.getSampleCount(); jj++) {
-                double lon = geometry.getGeoPos(ii, jj, 0).getLon();
-                double lat = geometry.getGeoPos(ii, jj, 0).getLat();
-
-                if (lon < lonMin) {
-                    lonMin = lon;
-                }
-                if (lon > lonMax) {
-                    lonMax = lon;
-                }
-                if (lat < latMin) {
-                    latMin = lat;
-                }
-                if (lat > latMax) {
-                    latMax = lat;
-                }
-            }
-        }
-
-        return create(lonMin, lonMax, latMin, latMax, cellSizeDeg);
-    }
-
     public static CimrBoundingBox create(double lonMin, double lonMax, double latMin, double latMax, double cellSizeDeg) {
         lonMin = snapToGrid(lonMin - DEFAULT_BOUNDING_BOX_OFFSET_DEG, true, cellSizeDeg);
         lonMax = snapToGrid(lonMax + DEFAULT_BOUNDING_BOX_OFFSET_DEG, false, cellSizeDeg);

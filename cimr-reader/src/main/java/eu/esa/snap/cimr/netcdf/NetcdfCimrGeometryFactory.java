@@ -119,11 +119,6 @@ public class NetcdfCimrGeometryFactory {
         return lon;
     }
 
-    public CimrBoundingBox getBoundingBox(CimrBandDescriptor variableDesc, double cellSizeDeg) throws InvalidRangeException, IOException {
-        CimrGeometry bbGeometry = getOrCreateGeometry(variableDesc);
-        return CimrBoundingBox.create(bbGeometry, cellSizeDeg);
-    }
-
     public CimrBoundingBox getBoundingBox(double cellSizeDeg) throws IOException {
         Map<String, CimrBandDescriptor> latitudesByBand = new LinkedHashMap<>();
         Map<String, CimrBandDescriptor> longitudesByBand = new LinkedHashMap<>();
