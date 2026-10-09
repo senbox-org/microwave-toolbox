@@ -39,7 +39,7 @@ public class CimrSnapProductBuilder {
         product.getMetadataRoot().addElement(metadata.getMetadataElement());
     }
 
-    private static void addGeoCoding(CimrGrid grid, Product product) {
+    private static void addGeoCoding(CimrGrid grid, Product product) throws Exception {
         GeoCoding geoCoding = new LazyCrsGeoCoding(grid);
         product.setSceneGeoCoding(geoCoding);
     }
