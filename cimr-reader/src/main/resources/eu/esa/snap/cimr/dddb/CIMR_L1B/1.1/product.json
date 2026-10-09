@@ -1,0 +1,10 @@
+{
+  "productType": "CIMR_L1B",
+  "bandsFile": "bands.json",
+  "descriptorFiles": [
+    "navigation.json",
+    "measurement.json",
+    "calibration.json"
+  ],
+  "autoGrouping": "L_BAND:C_BAND:C_BAND_*feed1:C_BAND_*feed2:C_BAND_*feed3:C_BAND_*feed4:X_BAND:X_BAND_*feed1:X_BAND_*feed2:X_BAND_*feed3:X_BAND_*feed4:KU_BAND:KU_BAND_*feed1:KU_BAND_*feed2:KU_BAND_*feed3:KU_BAND_*feed4:KU_BAND_*feed5:KU_BAND_*feed6:KU_BAND_*feed7:KU_BAND_*feed8:KA_BAND:KA_BAND_*feed1:KA_BAND_*feed2:KA_BAND_*feed3:KA_BAND_*feed4:KA_BAND_*feed5:KA_BAND_*feed6:KA_BAND_*feed7:KA_BAND_*feed8"
+}

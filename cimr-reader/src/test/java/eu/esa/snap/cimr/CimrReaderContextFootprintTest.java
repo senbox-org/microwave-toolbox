@@ -1,6 +1,9 @@
 package eu.esa.snap.cimr;
 
 import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.CimrGeometry;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
 import eu.esa.snap.cimr.grid.CimrGrid;
@@ -28,6 +31,7 @@ import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CimrReaderContextFootprintTest {
+
 
     @Mock
     private NetcdfFile ncFile;
@@ -85,19 +89,16 @@ public class CimrReaderContextFootprintTest {
 
     private CimrReaderContext context;
 
+
     @Before
     public void setUp() throws Exception {
-        context = new CimrReaderContext(ncFile, descriptorSet, cimrGrid, geometryFactory, bandFactory);
+        context = new CimrReaderContext(ncFile, descriptorSet, "L_BAND:C_BAND", cimrGrid, geometryFactory, bandFactory);
 
         Field ff = CimrReaderContext.class.getDeclaredField("footprintFactory");
         ff.setAccessible(true);
         ff.set(context, footprintFactory);
 
-        when(mainDesc.getFootprintVars()).thenReturn(new String[]{
-                "FOOT_MINOR",
-                "FOOT_MAJOR",
-                "FOOT_ANGLE"
-        });
+        when(mainDesc.getFootprintVars()).thenReturn(new String[]{"FOOT_MINOR", "FOOT_MAJOR", "FOOT_ANGLE"});
         when(mainDesc.getBand()).thenReturn(CimrFrequencyBand.C_BAND);
         when(mainDesc.getFeedIndex()).thenReturn(0);
 
@@ -127,6 +128,7 @@ public class CimrReaderContextFootprintTest {
         when(bandFactory.createGeometryBand(eq(majorDesc), eq(majorGeom))).thenReturn(majorGeomBand);
         when(bandFactory.createGeometryBand(eq(angleDesc), eq(angleGeom))).thenReturn(angleGeomBand);
     }
+
 
     @Test
     public void testGetOrCreateFootprints_createsFromDependenciesAndCaches() throws InvalidRangeException, IOException {

@@ -1,9 +1,10 @@
 package eu.esa.snap.cimr.cimr;
 
 import eu.esa.snap.cimr.CimrReaderContext;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
-import eu.esa.snap.cimr.grid.LazyGridBandDataSource;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 
 public class CimrGridProduct {
+
 
     private final CimrGrid cimrGrid;
     private final Map<CimrBandDescriptor, GridBandDataSource> bands = new LinkedHashMap<>();

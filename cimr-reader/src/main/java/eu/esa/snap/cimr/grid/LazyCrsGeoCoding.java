@@ -1,7 +1,9 @@
 package eu.esa.snap.cimr.grid;
 
+import org.esa.snap.core.dataio.ProductSubsetDef;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.dataop.maptransf.Datum;
+import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 
@@ -9,14 +11,18 @@ import java.awt.*;
 import java.awt.geom.AffineTransform;
 
 
-public class LazyCrsGeoCoding implements GeoCoding {
+public class LazyCrsGeoCoding extends AbstractGeoCoding {
+
 
     private final CimrGrid grid;
     private GeoCoding delegate;
 
-    public LazyCrsGeoCoding(CimrGrid grid) {
+
+    public LazyCrsGeoCoding(CimrGrid grid) throws FactoryException {
+        super(grid.getProjection().getCrs());
         this.grid = grid;
     }
+
 
     private GeoCoding getDelegate() {
         if (delegate == null) {
@@ -69,22 +75,15 @@ public class LazyCrsGeoCoding implements GeoCoding {
 
     @Override
     public void dispose() {
-        getDelegate().dispose();
+        GeoCoding geoCoding = delegate;
+        if (geoCoding != null) {
+            geoCoding.dispose();
+        }
     }
 
     @Override
-    public CoordinateReferenceSystem getImageCRS() {
-        return getDelegate().getImageCRS();
-    }
-
-    @Override
-    public CoordinateReferenceSystem getMapCRS() {
-        return getDelegate().getMapCRS();
-    }
-
-    @Override
-    public CoordinateReferenceSystem getGeoCRS() {
-        return getDelegate().getGeoCRS();
+    public boolean transferGeoCoding(Scene srcScene, Scene destScene, ProductSubsetDef subsetDef) {
+        return ((AbstractGeoCoding) getDelegate()).transferGeoCoding(srcScene, destScene, subsetDef);
     }
 
     @Override
@@ -94,12 +93,12 @@ public class LazyCrsGeoCoding implements GeoCoding {
 
     @Override
     public GeoCoding clone() {
-        return getDelegate().clone();
+        throw new IllegalStateException("not implemented");
     }
 
     @Override
     public boolean canClone() {
-        return getDelegate().canClone();
+        return false;
     }
 
     @Override

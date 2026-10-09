@@ -1,6 +1,8 @@
 package eu.esa.snap.cimr;
 
 import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.grid.*;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrFootprintFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
@@ -16,8 +18,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class CimrReaderContext {
 
+
     private final NetcdfFile ncFile;
     private final CimrDescriptorSet descriptorSet;
+    private final String autoGrouping;
     private final CimrGrid cimrGrid;
     private final GeometryBandToGridMapper mapper;
     private final NetcdfCimrGeometryFactory geometryFactory;
@@ -30,11 +34,13 @@ public class CimrReaderContext {
 
     public CimrReaderContext(NetcdfFile ncFile,
                              CimrDescriptorSet descriptorSet,
+                             String autoGrouping,
                              CimrGrid cimrGrid,
                              NetcdfCimrGeometryFactory geomFactory,
                              NetcdfCimrBandFactory bandFactory) {
         this.ncFile = ncFile;
         this.descriptorSet = descriptorSet;
+        this.autoGrouping = autoGrouping;
         this.cimrGrid = cimrGrid;
         this.mapper = new GeometryBandToGridMapper();
         this.geometryFactory = geomFactory;
@@ -49,6 +55,10 @@ public class CimrReaderContext {
 
     public CimrDescriptorSet getDescriptorSet() {
         return this.descriptorSet;
+    }
+
+    public String getAutoGrouping() {
+        return this.autoGrouping;
     }
 
     public GridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor varDesc, boolean useAverage) {
