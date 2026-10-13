@@ -48,15 +48,13 @@ public class CimrGridOpImage extends RasterDataNodeOpImage {
 
                 for (int yy = y0; yy < y1; yy++) {
                     for (int xx = x0; xx < x1; xx++) {
-                        double v;
                         try {
-                            v = gridDataSource.getSample(xx, yy);
+                            if (gridDataSource.isValid(xx, yy)) {
+                                sum += gridDataSource.getSample(xx, yy);
+                                count++;
+                            }
                         } catch (IllegalArgumentException e) {
-                            v = Double.NaN;
-                        }
-                        if (!Double.isNaN(v)) {
-                            sum += v;
-                            count++;
+                            // Treat unavailable source pixels as NoData for this output sample.
                         }
                     }
                 }

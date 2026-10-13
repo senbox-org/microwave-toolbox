@@ -13,6 +13,7 @@ public class CimrVariableFamily {
     private String dataType;
     private String unit;
     private String description;
+    private Double fillValue;
     private boolean expandFeeds;
     private String[] geometryVariables;
     private String[] footprintVariables;
@@ -27,6 +28,7 @@ public class CimrVariableFamily {
         this.dataType = "";
         this.unit = "";
         this.description = "";
+        this.fillValue = null;
         this.expandFeeds = true;
         this.geometryVariables = new String[0];
         this.footprintVariables = new String[0];
@@ -88,6 +90,14 @@ public class CimrVariableFamily {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Double getFillValue() {
+        return fillValue;
+    }
+
+    public void setFillValue(Double fillValue) {
+        this.fillValue = fillValue;
     }
 
     public boolean isExpandFeeds() {

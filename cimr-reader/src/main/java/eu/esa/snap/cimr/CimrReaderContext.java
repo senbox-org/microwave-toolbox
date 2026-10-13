@@ -64,7 +64,7 @@ public class CimrReaderContext {
     public GridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor varDesc, boolean useAverage) {
         CimrGeometryBand geometryBand = getOrCreateGeometryBand(varDesc);
         CimrGridBuilder gridBuilder = new CimrGridBuilder(this.mapper);
-        return gridBuilder.build(geometryBand, this.cimrGrid, useAverage);
+        return gridBuilder.build(varDesc, geometryBand, this.cimrGrid, useAverage);
     }
 
     public CimrGeometry getOrCreateGeometry(CimrBandDescriptor varDesc) {

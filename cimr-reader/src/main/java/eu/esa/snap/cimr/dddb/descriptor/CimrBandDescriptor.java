@@ -20,6 +20,7 @@ public class CimrBandDescriptor {
     private final String unit;
     private final String description;
     private final CimrSampleCoding sampleCoding;
+    private final Double fillValue;
 
 
     public CimrBandDescriptor(String name, String valueVarName, CimrFrequencyBand band, String[] geometryNames, String[] footprintVars, String groupPath, int feedIndex, CimrDescriptorKind kind, String[] dimensions, String dataType, String unit, String description) {
@@ -49,10 +50,36 @@ public class CimrBandDescriptor {
         this.unit = unit;
         this.description = description;
         this.sampleCoding = sampleCoding;
+        this.fillValue = null;
+    }
+
+    private CimrBandDescriptor(String name, String valueVarName, CimrFrequencyBand band, String[] geometryNames,
+                               String[] footprintVars, String groupPath, int feedIndex, CimrDescriptorKind kind,
+                               String[] dimensions, String dataType, int rasterDataType, String unit,
+                               String description, CimrSampleCoding sampleCoding, Double fillValue) {
+        this.name = name;
+        this.valueVarName = valueVarName;
+        this.band = band;
+        this.geometryNames = geometryNames;
+        this.footprintVars = footprintVars;
+        this.groupPath = groupPath;
+        this.feedIndex = feedIndex;
+        this.kind = kind;
+        this.dimensions = dimensions;
+        this.dataType = dataType;
+        this.rasterDataType = rasterDataType;
+        this.unit = unit;
+        this.description = description;
+        this.sampleCoding = sampleCoding;
+        this.fillValue = fillValue;
     }
 
     public CimrBandDescriptor withRasterDataType(int rasterDataType) {
-        return new CimrBandDescriptor(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, rasterDataType, unit, description, sampleCoding);
+        return new CimrBandDescriptor(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, rasterDataType, unit, description, sampleCoding, fillValue);
+    }
+
+    public CimrBandDescriptor withFillValue(Double fillValue) {
+        return new CimrBandDescriptor(name, valueVarName, band, geometryNames, footprintVars, groupPath, feedIndex, kind, dimensions, dataType, rasterDataType, unit, description, sampleCoding, fillValue);
     }
 
     public String getName() {
@@ -109,6 +136,26 @@ public class CimrBandDescriptor {
 
     public CimrSampleCoding getSampleCoding() {
         return sampleCoding;
+    }
+
+    public Double getFillValue() {
+        return fillValue;
+    }
+
+    public boolean hasFillValue() {
+        return fillValue != null;
+    }
+
+    public boolean isFillValue(double value) {
+        return fillValue != null && Double.compare(value, fillValue) == 0;
+    }
+
+    public boolean isInvalidSampleValue(double value) {
+        return Double.isNaN(value) || isFillValue(value);
+    }
+
+    public boolean isFloatingPointRasterDataType() {
+        return rasterDataType == ProductData.TYPE_FLOAT32 || rasterDataType == ProductData.TYPE_FLOAT64;
     }
 
     private static int defaultRasterDataType(String dataType) {

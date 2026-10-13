@@ -5,6 +5,8 @@ import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 
 public class CimrBandDescriptorTest {
@@ -68,6 +70,57 @@ public class CimrBandDescriptorTest {
     @STTM("SNAP-4262")
     public void constructor_defaultsRasterDataTypeForUnknownDataType() {
         assertEquals(ProductData.TYPE_FLOAT64, descriptor("unsupported").getRasterDataType());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void isFloatingPointRasterDataType_returnsTrueForFloatDataTypes() {
+        assertTrue(descriptor("float").isFloatingPointRasterDataType());
+        assertTrue(descriptor("double").isFloatingPointRasterDataType());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void isFloatingPointRasterDataType_returnsFalseForIntegerDataTypes() {
+        assertFalse(descriptor("byte").isFloatingPointRasterDataType());
+        assertFalse(descriptor("short").isFloatingPointRasterDataType());
+        assertFalse(descriptor("int").isFloatingPointRasterDataType());
+        assertFalse(descriptor("long").isFloatingPointRasterDataType());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void fillValue_isOptionalByDefault() {
+        CimrBandDescriptor descriptor = descriptor("float");
+
+        assertFalse(descriptor.hasFillValue());
+        assertFalse(descriptor.isFillValue(-9999.0));
+        assertFalse(descriptor.isInvalidSampleValue(12.0));
+        assertTrue(descriptor.isInvalidSampleValue(Double.NaN));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void fillValue_marksConfiguredValueInvalid() {
+        CimrBandDescriptor descriptor = descriptor("float").withFillValue(-9999.0);
+
+        assertTrue(descriptor.hasFillValue());
+        assertEquals(-9999.0, descriptor.getFillValue(), 0.0);
+        assertTrue(descriptor.isFillValue(-9999.0));
+        assertTrue(descriptor.isInvalidSampleValue(-9999.0));
+        assertTrue(descriptor.isInvalidSampleValue(Double.NaN));
+        assertFalse(descriptor.isInvalidSampleValue(-9998.0));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void withRasterDataType_preservesFillValue() {
+        CimrBandDescriptor descriptor = descriptor("float")
+                .withFillValue(-9999.0)
+                .withRasterDataType(ProductData.TYPE_FLOAT64);
+
+        assertEquals(ProductData.TYPE_FLOAT64, descriptor.getRasterDataType());
+        assertTrue(descriptor.isFillValue(-9999.0));
     }
 
     private static CimrBandDescriptor descriptor(String dataType) {

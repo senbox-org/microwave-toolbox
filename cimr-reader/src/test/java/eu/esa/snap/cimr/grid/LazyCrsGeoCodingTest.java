@@ -30,7 +30,7 @@ public class LazyCrsGeoCodingTest {
 
         assertTrue(gc.canGetGeoPos());
         assertTrue(gc.canGetPixelPos());
-        assertTrue(gc.isGlobal());
+        assertFalse(gc.isGlobal());
         assertFalse(gc.canClone());
 
         verify(projection, never()).getAffineTransform(grid);

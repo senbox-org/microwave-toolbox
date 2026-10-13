@@ -91,18 +91,4 @@ public class LazyCrsGeoCoding extends AbstractGeoCoding {
         return getDelegate().getImageToMapTransform();
     }
 
-    @Override
-    public GeoCoding clone() {
-        throw new IllegalStateException("not implemented");
-    }
-
-    @Override
-    public boolean canClone() {
-        return false;
-    }
-
-    @Override
-    public boolean isGlobal() {
-        return true;
-    }
 }

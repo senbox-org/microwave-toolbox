@@ -65,7 +65,7 @@ public class CimrDescriptorExpander {
         int feedNumber = feedIndex + 1;
         String descriptorName = descriptorName(bandName, family.getValueVarName(), feedNumber);
 
-        return new CimrBandDescriptor(
+        CimrBandDescriptor descriptor = new CimrBandDescriptor(
                 descriptorName,
                 family.getValueVarName(),
                 CimrFrequencyBand.valueOf(bandName),
@@ -80,6 +80,10 @@ public class CimrDescriptorExpander {
                 resolve(family.getDescription(), band),
                 family.getSampleCoding()
         );
+        if (family.getFillValue() != null) {
+            descriptor = descriptor.withFillValue(family.getFillValue());
+        }
+        return descriptor;
     }
 
     private static String[] referenceNames(String bandName, int feedNumber, String[] variableNames) {

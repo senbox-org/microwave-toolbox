@@ -1,10 +1,10 @@
 package eu.esa.snap.cimr.grid;
 
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.multilevel.MultiLevelModel;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelImage;
 import com.bc.ceres.multilevel.support.DefaultMultiLevelModel;
-import eu.esa.snap.cimr.grid.GridBandDataSource;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 
 
 public class CimrGridOpImageTest {
+
 
     private static final double doubleErr = 1e-8;
 
@@ -69,6 +70,74 @@ public class CimrGridOpImageTest {
         assertEquals(7.5, data.getElemDoubleAt(1), doubleErr);
         assertEquals(25.5, data.getElemDoubleAt(2), doubleErr);
         assertEquals(27.5, data.getElemDoubleAt(3), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testLevel0UsesSampleState() throws Exception {
+        int width = 2;
+        int height = 1;
+        Product product = new Product("P", "T", width, height);
+        Band band = product.addBand("b", ProductData.TYPE_FLOAT64);
+
+        StateAwareGrid grid = new StateAwareGrid(width, height, new double[]{1.0, 99.0}, new GridSampleState[]{GridSampleState.VALID, GridSampleState.INVALID});
+        CimrGridOpImage opImage = createOpImageLevel(band, 0, width, height, grid);
+
+        ProductData data = ProductData.createInstance(ProductData.TYPE_FLOAT64, width * height);
+        opImage.computeProductData(data, new Rectangle(0, 0, width, height));
+
+        assertEquals(1.0, data.getElemDoubleAt(0), doubleErr);
+        assertTrue(Double.isNaN(data.getElemDoubleAt(1)));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testLevel1AveragesOnlyValidSamples() throws Exception {
+        int baseWidth = 2;
+        int baseHeight = 2;
+        Product product = new Product("P", "T", baseWidth, baseHeight);
+        Band band = product.addBand("b", ProductData.TYPE_FLOAT64);
+
+        StateAwareGrid grid = new StateAwareGrid(baseWidth, baseHeight,
+                new double[]{
+                        1.0, 100.0,
+                        3.0, 200.0
+                },
+                new GridSampleState[]{
+                        GridSampleState.VALID, GridSampleState.INVALID,
+                        GridSampleState.VALID, GridSampleState.EMPTY
+                });
+        CimrGridOpImage opImage = createOpImageLevel(band, 1, baseWidth, baseHeight, grid);
+
+        ProductData data = ProductData.createInstance(ProductData.TYPE_FLOAT64, 1);
+        opImage.computeProductData(data, new Rectangle(0, 0, 1, 1));
+
+        assertEquals(2.0, data.getElemDoubleAt(0), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testLevel1AllInvalidOrEmptyProducesNaN() throws Exception {
+        int baseWidth = 2;
+        int baseHeight = 2;
+        Product product = new Product("P", "T", baseWidth, baseHeight);
+        Band band = product.addBand("b", ProductData.TYPE_FLOAT64);
+
+        StateAwareGrid grid = new StateAwareGrid(baseWidth, baseHeight,
+                new double[]{
+                        10.0, 20.0,
+                        30.0, 40.0
+                },
+                new GridSampleState[]{
+                        GridSampleState.INVALID, GridSampleState.EMPTY,
+                        GridSampleState.INVALID, GridSampleState.EMPTY
+                });
+        CimrGridOpImage opImage = createOpImageLevel(band, 1, baseWidth, baseHeight, grid);
+
+        ProductData data = ProductData.createInstance(ProductData.TYPE_FLOAT64, 1);
+        opImage.computeProductData(data, new Rectangle(0, 0, 1, 1));
+
+        assertTrue(Double.isNaN(data.getElemDoubleAt(0)));
     }
 
 
@@ -136,6 +205,37 @@ public class CimrGridOpImageTest {
         @Override
         public void setSample(int x, int y, double value) {
             data[y * width + x] = value;
+        }
+    }
+
+    private static class StateAwareGrid implements GridBandDataSource {
+
+        private final int width;
+        private final double[] data;
+        private final GridSampleState[] states;
+
+        StateAwareGrid(int width, int height, double[] data, GridSampleState[] states) {
+            if (data.length != width * height || states.length != width * height) {
+                throw new IllegalArgumentException("data and states must match width * height");
+            }
+            this.width = width;
+            this.data = data;
+            this.states = states;
+        }
+
+        @Override
+        public double getSample(int x, int y) {
+            return data[y * width + x];
+        }
+
+        @Override
+        public void setSample(int x, int y, double value) {
+            data[y * width + x] = value;
+        }
+
+        @Override
+        public GridSampleState getSampleState(int x, int y) {
+            return states[y * width + x];
         }
     }
 

@@ -180,4 +180,59 @@ public class CimrDescriptorExpanderTest {
         assertEquals("float", descriptor.getDataType());
         assertArrayEquals(new String[]{"X_BAND_latitude_feed4", "X_BAND_longitude_feed4"}, descriptor.getGeometryNames());
     }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void expand_propagatesOptionalFillValueFromDddbFamily() throws Exception {
+        CimrProductDescriptor productDescriptor = new CimrProductDescriptor();
+        productDescriptor.setDescriptorFiles(new String[]{"measurements.json"});
+
+        CimrBandDefinition band = new CimrBandDefinition();
+        band.setName("C_BAND");
+        band.setFeedCount(1);
+        band.setFeedDimension("n_feeds_C_BAND");
+        band.setSampleDimension("n_samples_C_BAND");
+        band.setTiePointDimension("n_tie_points_C_BAND");
+
+        CimrVariableFamily family = new CimrVariableFamily();
+        family.setKind("VARIABLE");
+        family.setValueVarName("brightness_temperature_h");
+        family.setGroupPath("/Data/Measurement_Data/{band}/");
+        family.setDimensions(new String[]{"n_scans", "{sampleDimension}", "{feedDimension}"});
+        family.setDataType("float");
+        family.setUnit("K");
+        family.setDescription("Brightness temperature for {band}");
+        family.setGeometryVariables(new String[]{"latitude", "longitude"});
+        family.setFillValue(-9999.0);
+
+        CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(new StaticDDDB(band, family)).expand(productDescriptor);
+
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("C_BAND_brightness_temperature_h_feed1");
+        assertNotNull(descriptor);
+        assertTrue(descriptor.hasFillValue());
+        assertEquals(-9999.0, descriptor.getFillValue(), 0.0);
+        assertTrue(descriptor.isInvalidSampleValue(-9999.0));
+        assertFalse(descriptor.isInvalidSampleValue(120.0));
+        assertEquals("Brightness temperature for C_BAND", descriptor.getDescription());
+    }
+
+    private static class StaticDDDB extends CimrDDDB {
+        private final CimrBandDefinition bandDefinition;
+        private final CimrVariableFamily family;
+
+        StaticDDDB(CimrBandDefinition bandDefinition, CimrVariableFamily family) {
+            this.bandDefinition = bandDefinition;
+            this.family = family;
+        }
+
+        @Override
+        public CimrBandDefinition[] getBandDefinitions(CimrProductDescriptor productDescriptor) {
+            return new CimrBandDefinition[]{bandDefinition};
+        }
+
+        @Override
+        public CimrVariableFamily[] getDescriptorFile(CimrProductDescriptor productDescriptor, String resourceName) {
+            return new CimrVariableFamily[]{family};
+        }
+    }
 }

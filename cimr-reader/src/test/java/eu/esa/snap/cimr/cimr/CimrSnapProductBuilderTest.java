@@ -15,6 +15,7 @@ import eu.esa.snap.cimr.metadata.CimrProductMetadata;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.IndexCoding;
+import org.esa.snap.core.datamodel.Mask;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
@@ -66,6 +67,7 @@ public class CimrSnapProductBuilderTest {
         Band band = product.getBand("C_raw_bt_h_feed1");
         assertNotNull(band);
         assertEquals(ProductData.TYPE_FLOAT64, band.getDataType());
+        assertEquals(coverageExpression(bandDesc), band.getValidPixelExpression());
 
         Raster raster = band.getSourceImage().getImage(0).getData();
         assertEquals(1.0, raster.getSampleDouble(0,0,0), doubleErr);
@@ -99,6 +101,152 @@ public class CimrSnapProductBuilderTest {
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
 
         assertEquals(ProductData.TYPE_FLOAT32, product.getBand("C_raw_bt_h_feed1").getDataType());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testBuildSnapProduct_addsCoverageBandAndMaskPerFeedGeometry() throws Exception {
+        PlateCarreeProjection proj = new PlateCarreeProjection(3, 1, 0.0, 1.0, 1.0, 1.0);
+        CimrGrid cimrGrid = new CimrGrid(proj, 3, 1);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
+
+        CimrBandDescriptor bandDesc = new CimrBandDescriptor(
+                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                new String[] {"geometry_1"}, new String[] {"footprint_1"},
+                "/Data/Measurement_Data/C_BAND/",
+                1, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
+                "double", "", ""
+        );
+
+        CimrGridBandDataSource ds = CimrGridBandDataSource.createEmpty(3, 1);
+        ds.setValidSample(0, 0, 10.0);
+        ds.setInvalidSample(1, 0);
+        gridProduct.addBand(bandDesc, ds);
+
+        Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
+
+        String coverageBandName = coverageBandName(bandDesc);
+        Band coverageBand = product.getBand(coverageBandName);
+        assertNotNull(coverageBand);
+        assertEquals(ProductData.TYPE_UINT8, coverageBand.getDataType());
+        assertTrue(coverageBand.isStxSet());
+        assertEquals(0.0, coverageBand.getStx().getMinimum(), doubleErr);
+        assertEquals(1.0, coverageBand.getStx().getMaximum(), doubleErr);
+        assertTrue(Double.isNaN(coverageBand.getStx().getMean()));
+        assertTrue(Double.isNaN(coverageBand.getStx().getStandardDeviation()));
+        assertNotNull(coverageBand.getImageInfo());
+        assertEquals(0.0, coverageBand.getImageInfo().getColorPaletteDef().getMinDisplaySample(), doubleErr);
+        assertEquals(1.0, coverageBand.getImageInfo().getColorPaletteDef().getMaxDisplaySample(), doubleErr);
+        assertEquals(256, coverageBand.getImageInfo().getColorPaletteDef().getNumColors());
+        assertFalse(coverageBand.getImageInfo().getColorPaletteDef().isDiscrete());
+
+        Raster coverageRaster = coverageBand.getSourceImage().getImage(0).getData();
+        assertEquals(1.0, coverageRaster.getSampleDouble(0, 0, 0), doubleErr);
+        assertEquals(1.0, coverageRaster.getSampleDouble(1, 0, 0), doubleErr);
+        assertEquals(0.0, coverageRaster.getSampleDouble(2, 0, 0), doubleErr);
+
+        Band measurementBand = product.getBand(bandDesc.getName());
+        assertTrue(measurementBand.isNoDataValueUsed());
+        assertTrue(Double.isNaN(measurementBand.getNoDataValue()));
+        assertEquals(coverageExpression(bandDesc), measurementBand.getValidPixelExpression());
+
+        Raster measurementRaster = measurementBand.getSourceImage().getImage(0).getData();
+        assertEquals(10.0, measurementRaster.getSampleDouble(0, 0, 0), doubleErr);
+        assertTrue(Double.isNaN(measurementRaster.getSampleDouble(1, 0, 0)));
+        assertTrue(Double.isNaN(measurementRaster.getSampleDouble(2, 0, 0)));
+
+        Mask coverageMask = product.getMaskGroup().get(coverageMaskName(bandDesc));
+        assertNotNull(coverageMask);
+        assertEquals(coverageExpression(bandDesc), Mask.BandMathsType.getExpression(coverageMask));
+        assertTrue(coverageMask.isStxSet());
+        assertEquals(0.0, coverageMask.getStx().getMinimum(), doubleErr);
+        assertEquals(255.0, coverageMask.getStx().getMaximum(), doubleErr);
+        assertTrue(Double.isNaN(coverageMask.getStx().getMean()));
+        assertTrue(Double.isNaN(coverageMask.getStx().getStandardDeviation()));
+        assertNotNull(coverageMask.getImageInfo());
+        assertEquals(0.0, coverageMask.getImageInfo().getColorPaletteDef().getMinDisplaySample(), doubleErr);
+        assertEquals(255.0, coverageMask.getImageInfo().getColorPaletteDef().getMaxDisplaySample(), doubleErr);
+        assertEquals(256, coverageMask.getImageInfo().getColorPaletteDef().getNumColors());
+        assertFalse(coverageMask.getImageInfo().getColorPaletteDef().isDiscrete());
+
+        Raster maskRaster = coverageMask.getSourceImage().getImage(0).getData();
+        assertEquals(255.0, maskRaster.getSampleDouble(0, 0, 0), doubleErr);
+        assertEquals(255.0, maskRaster.getSampleDouble(1, 0, 0), doubleErr);
+        assertEquals(0.0, maskRaster.getSampleDouble(2, 0, 0), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testBuildSnapProduct_reusesCoverageForSameFeedGeometry() throws Exception {
+        PlateCarreeProjection proj = new PlateCarreeProjection(2, 1, 0.0, 1.0, 1.0, 1.0);
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
+
+        CimrBandDescriptor band1 = new CimrBandDescriptor(
+                "C_band1_feed1", "band1", CimrFrequencyBand.C_BAND,
+                new String[] {"geometry_1"}, new String[] {"footprint_1"},
+                "/Data/Measurement_Data/C_BAND/",
+                1, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
+                "double", "", ""
+        );
+        CimrBandDescriptor band2 = new CimrBandDescriptor(
+                "C_band2_feed1", "band2", CimrFrequencyBand.C_BAND,
+                new String[] {"geometry_1"}, new String[] {"footprint_1"},
+                "/Data/Measurement_Data/C_BAND/",
+                1, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
+                "double", "", ""
+        );
+
+        gridProduct.addBand(band1, new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0}));
+        gridProduct.addBand(band2, new CimrGridBandDataSource(2, 1, new double[] {3.0, 4.0}));
+
+        Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
+
+        assertNotNull(product.getBand(coverageBandName(band1)));
+        assertEquals(coverageExpression(band1), product.getBand("C_band1_feed1").getValidPixelExpression());
+        assertEquals(coverageExpression(band1), product.getBand("C_band2_feed1").getValidPixelExpression());
+        assertEquals(3, product.getNumBands());
+        assertEquals(1, product.getMaskGroup().getNodeCount());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testBuildSnapProduct_reusesCoverageForSameBandAndFeedEvenWithDifferentDescriptorGeometry() throws Exception {
+        PlateCarreeProjection proj = new PlateCarreeProjection(2, 1, 0.0, 1.0, 1.0, 1.0);
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
+
+        CimrBandDescriptor band1 = new CimrBandDescriptor(
+                "L_band1_feed0", "band1", CimrFrequencyBand.L_BAND,
+                new String[] {"L_geometry_a_lat", "L_geometry_a_lon"}, new String[] {"L_footprint_a"},
+                "/Data/Measurement_Data/L_BAND/",
+                0, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_L_BAND", "n_feeds_L_BAND"},
+                "double", "", ""
+        );
+        CimrBandDescriptor band2 = new CimrBandDescriptor(
+                "L_band2_feed0", "band2", CimrFrequencyBand.L_BAND,
+                new String[] {"L_geometry_b_lat", "L_geometry_b_lon"}, new String[] {"L_footprint_b"},
+                "/Data/Measurement_Data/L_BAND/",
+                0, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_L_BAND", "n_feeds_L_BAND"},
+                "double", "", ""
+        );
+
+        gridProduct.addBand(band1, new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0}));
+        gridProduct.addBand(band2, new CimrGridBandDataSource(2, 1, new double[] {3.0, 4.0}));
+
+        Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
+
+        assertEquals(coverageBandName(band1), coverageBandName(band2));
+        assertNotNull(product.getBand(coverageBandName(band1)));
+        assertEquals(coverageExpression(band1), product.getBand("L_band1_feed0").getValidPixelExpression());
+        assertEquals(coverageExpression(band1), product.getBand("L_band2_feed0").getValidPixelExpression());
+        assertEquals(3, product.getNumBands());
+        assertEquals(1, product.getMaskGroup().getNodeCount());
     }
 
     @Test
@@ -187,8 +335,49 @@ public class CimrSnapProductBuilderTest {
         Band band = product.getBand("C_raw_bt_h_feed1");
         assertEquals("K", band.getUnit());
         assertEquals("Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)", band.getDescription());
-        assertFalse(band.isNoDataValueSet());
+        assertTrue(band.isNoDataValueSet());
+        assertTrue(band.isNoDataValueUsed());
+        assertTrue(Double.isNaN(band.getNoDataValue()));
         assertEquals(43300000f, band.getSpectralWavelength(), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testBuildSnapProduct_setsNanNoDataForFloatingPointBandsOnly() throws Exception {
+        PlateCarreeProjection proj = new PlateCarreeProjection(2, 1, 0.0, 1.0, 1.0, 1.0);
+        CimrGrid cimrGrid = new CimrGrid(proj, 2, 1);
+        CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
+
+        CimrBandDescriptor floatBand = new CimrBandDescriptor(
+                "float_band", "raw_float", CimrFrequencyBand.C_BAND,
+                new String[] {""}, new String[] {""},
+                "/Data/Measurement_Data/C_BAND/",
+                0, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
+                "float", ProductData.TYPE_FLOAT32, "", ""
+        );
+        CimrBandDescriptor intBand = new CimrBandDescriptor(
+                "int_band", "raw_int", CimrFrequencyBand.C_BAND,
+                new String[] {""}, new String[] {""},
+                "/Data/Measurement_Data/C_BAND/",
+                0, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_C_BAND"},
+                "int", ProductData.TYPE_INT32, "", ""
+        );
+
+        gridProduct.addBand(floatBand, new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0}));
+        gridProduct.addBand(intBand, new CimrGridBandDataSource(2, 1, new double[] {3.0, 4.0}));
+
+        Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
+
+        Band floatSnapBand = product.getBand("float_band");
+        assertTrue(floatSnapBand.isNoDataValueSet());
+        assertTrue(floatSnapBand.isNoDataValueUsed());
+        assertTrue(Double.isNaN(floatSnapBand.getNoDataValue()));
+
+        Band intSnapBand = product.getBand("int_band");
+        assertFalse(intSnapBand.isNoDataValueUsed());
+        assertEquals(coverageExpression(floatBand), intSnapBand.getValidPixelExpression());
     }
 
     @Test
@@ -248,7 +437,7 @@ public class CimrSnapProductBuilderTest {
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
 
-        assertEquals(2, product.getNumBands());
+        assertEquals(4, product.getNumBands());
 
         Band b1 = product.getBand("band1");
         Band b2 = product.getBand("band2");
@@ -289,5 +478,21 @@ public class CimrSnapProductBuilderTest {
         CimrReaderContext readerContext = mock(CimrReaderContext.class);
         when(readerContext.getAutoGrouping()).thenReturn(autoGrouping);
         return CimrSnapProductBuilder.buildProduct(readerContext, gridProduct, metadata, path);
+    }
+
+    private static String coverageExpression(CimrBandDescriptor descriptor) {
+        return coverageBandName(descriptor) + " > 0.0";
+    }
+
+    private static String coverageBandName(CimrBandDescriptor descriptor) {
+        return coverageName(descriptor, "coverage");
+    }
+
+    private static String coverageMaskName(CimrBandDescriptor descriptor) {
+        return coverageName(descriptor, "coverage_mask");
+    }
+
+    private static String coverageName(CimrBandDescriptor descriptor, String name) {
+        return descriptor.getBand().name() + "_" + name + "_feed_" + (descriptor.getFeedIndex() + 1);
     }
 }
