@@ -610,6 +610,78 @@ public class TestCreateStackOp extends ProcessorTest {
                 StackUtils.getBandSuffix(qBand.getName()));
     }
 
+    /**
+     * A dual-pol secondary (RCM compact pol CH/CV, S1 SM VV/VH) carries one _secN tag per complex
+     * pair, so i/q_CH become _sec1 and i/q_CV _sec2 of the same acquisition. DemodulateOp looks up
+     * init_offsets + that tag, so each tag needs exactly one entry. These fixtures are geocoded, so
+     * this runs the GEOCODED offset path, which wrote one entry per band (i and q duplicates) and,
+     * matching by date, an init_offsets_ref_* entry for same-date acquisitions. The orbit path
+     * (last band's entry only) needs real orbits: see sar-test-stacks TestCreateStackOp
+     * #testOrbitOffsets_DualPol_OneEntryPerSecondaryTag (long test, ASAR Santorini).
+     */
+    @Test
+    public void testCreateStack_DualPolSecondary_OneInitOffsetPerSecondaryTag() throws Exception {
+        final int w = 50, h = 50;
+        final double pixelSize = 0.001;
+        final Product ref = createGeocodedDualPolProduct("ref", w, h, 10.000, 50.000, pixelSize);
+        final Product sec = createGeocodedDualPolProduct("sec", w, h,
+                10.000 + 3 * pixelSize, 50.000 - 7 * pixelSize, pixelSize);
+
+        final CreateStackOp op = (CreateStackOp) spi.createOperator();
+        op.setSourceProducts(ref, sec);
+        op.setTestParameters(CreateStackOp.MASTER_EXTENT, CreateStackOp.INITIAL_OFFSET_ORBIT);
+        final Product target = op.getTargetProduct();
+
+        final java.util.Set<String> tags = new java.util.TreeSet<>();
+        for (final String name : target.getBandNames()) {
+            if (name.contains(StackUtils.SEC)) {
+                tags.add("init_offsets" + StackUtils.getBandSuffix(name));
+            }
+        }
+        assertEquals("one secondary tag per polarisation pair: " + tags, 2, tags.size());
+
+        final MetadataElement oo = AbstractMetadata.getAbstractedMetadata(target).getElement("Orbit_Offsets");
+        assertNotNull(oo);
+        final java.util.Set<String> got = new java.util.TreeSet<>();
+        for (final MetadataElement e : oo.getElements()) {
+            assertTrue("duplicate entry " + e.getName(), got.add(e.getName()));
+            assertEquals(-3, e.getAttributeInt("init_offset_X"));
+            assertEquals(-7, e.getAttributeInt("init_offset_Y"));
+        }
+        assertEquals(tags, got);
+    }
+
+    /** The orbit path's writer, driven with the band names of the RCM CH/CV stack that exposed it. */
+    @Test
+    public void testAddInitOffsets_OneEntryPerSecondaryTag() {
+        final MetadataElement oo = new MetadataElement("Orbit_Offsets");
+        CreateStackOp.addInitOffsets(oo, java.util.Arrays.asList(
+                "i_RCH_sec1_04Feb2025", "q_RCH_sec1_04Feb2025",
+                "i_RCV_sec2_04Feb2025", "q_RCV_sec2_04Feb2025"), -33, -77);
+
+        assertEquals(2, oo.getNumElements());
+        for (final String name : new String[]{"init_offsets_sec1_04Feb2025", "init_offsets_sec2_04Feb2025"}) {
+            final MetadataElement e = oo.getElement(name);
+            assertNotNull(name + " missing", e);
+            assertEquals(-33, e.getAttributeInt("init_offset_X"));
+            assertEquals(-77, e.getAttributeInt("init_offset_Y"));
+        }
+    }
+
+    private static Product createGeocodedDualPolProduct(final String name, final int w, final int h,
+                                                        final double easting, final double northing,
+                                                        final double pixelSize) throws Exception {
+        final Product p = createGeocodedProduct(name, w, h, easting, northing, pixelSize);
+        for (final Band b : p.getBands().clone()) {
+            p.removeBand(b);
+        }
+        for (final String pol : new String[]{"CH", "CV"}) {
+            TestUtils.createBand(p, "i_" + pol, ProductData.TYPE_FLOAT32, Unit.REAL, w, h, true);
+            TestUtils.createBand(p, "q_" + pol, ProductData.TYPE_FLOAT32, Unit.IMAGINARY, w, h, true);
+        }
+        return p;
+    }
+
     private static Product createBareIQProduct(final String name, final int w, final int h) {
         final Product p = TestUtils.createProduct("SLC", w, h);
         for (final Band b : p.getBands().clone()) {

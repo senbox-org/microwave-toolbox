@@ -1166,6 +1166,57 @@ public class CreateStackOp extends Operator {
     }
 
     /**
+     * The target's Orbit_Offsets element, created only if absent. When appending to an existing stack
+     * copyProductNodes has already copied the reference stack's element; adding a second one left two
+     * siblings, and getElement("Orbit_Offsets") - DemodulateOp, readNestedStackInitOffset - returns the
+     * first, so the appended secondary's offsets were never found and silently read as {0, 0}.
+     */
+    private MetadataElement getOrCreateOrbitOffsets() {
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+        MetadataElement orbitOffsets = absRoot.getElement("Orbit_Offsets");
+        if (orbitOffsets == null) {
+            orbitOffsets = new MetadataElement("Orbit_Offsets");
+            absRoot.addElement(orbitOffsets);
+        }
+        return orbitOffsets;
+    }
+
+    /**
+     * The stack bands that were created from {@code secProduct}, in target band order. Selected
+     * through sourceRasterMap rather than by the date at the end of the band name, which also
+     * matches the reference bands - and another secondary's - when acquisitions share a date.
+     */
+    private List<String> secondaryBandNamesOf(final Product secProduct) {
+        final List<String> names = new ArrayList<>();
+        for (final Band band : targetProduct.getBands()) {
+            final Band srcBand = sourceRasterMap.get(band);
+            if (srcBand != null && srcBand.getProduct() == secProduct) {
+                names.add(band.getName());
+            }
+        }
+        return names;
+    }
+
+    /**
+     * One init_offsets element per secondary tag. A dual-pol secondary carries one _secN tag per
+     * complex pair (i/q_CH -> _sec1, i/q_CV -> _sec2 of the same acquisition) and DemodulateOp
+     * looks its offset up by that tag, so every tag needs exactly one entry - not only the last
+     * band's, and not one per i and q band.
+     */
+    static void addInitOffsets(final MetadataElement orbitOffsets, final List<String> secondaryBandNames,
+                               final int offsetX, final int offsetY) {
+        for (final String bandName : secondaryBandNames) {
+            final String elemName = "init_offsets" + StackUtils.getBandSuffix(bandName);
+            if (!orbitOffsets.containsElement(elemName)) {
+                final MetadataElement bandElem = new MetadataElement(elemName);
+                bandElem.setAttributeInt("init_offset_X", offsetX);
+                bandElem.setAttributeInt("init_offset_Y", offsetY);
+                orbitOffsets.addElement(bandElem);
+            }
+        }
+    }
+
+    /**
      * The highest _secN index already present in a band name, or 0. Testing
      * {@code name.contains("_sec" + cnt)} made _sec10 satisfy the test for cnt == 1, so seeding the
      * counter for an appended acquisition mis-fired and its bands collided with existing ones.
@@ -1447,9 +1498,7 @@ public class CreateStackOp extends Operator {
             // Reference point in reference radar geometry
             Point tgtLP = metaReference.getApproxRadarCentreOriginal();
 
-            MetadataElement orbitOffsets = new MetadataElement("Orbit_Offsets");
-            MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
-            absRoot.addElement(orbitOffsets);
+            final MetadataElement orbitOffsets = getOrCreateOrbitOffsets();
             for (final Product secProd : sourceProduct) {
 
                 if (secProd == referenceProduct) {
@@ -1476,18 +1525,7 @@ public class CreateStackOp extends Operator {
                 int offsetX = (int) Math.floor(offsetLP.x + .5);
                 int offsetY = (int) Math.floor(offsetLP.y + .5);
 
-                // Add to metadata
-                String timeStamp = StackUtils.createBandTimeStamp(secProd).substring(1);
-                MetadataElement bandElem = null;
-                for (String bandName : targetProduct.getBandNames()){
-                    String bandTimeStamp = bandName.split("_")[bandName.split("_").length - 1];
-                    if (bandTimeStamp.equals(timeStamp)){
-                        bandElem = new MetadataElement("init_offsets" + StackUtils.getBandSuffix(bandName));
-                        bandElem.setAttributeInt("init_offset_X", offsetX);
-                        bandElem.setAttributeInt("init_offset_Y", offsetY);
-                    }
-                }
-                orbitOffsets.addElement(bandElem);
+                addInitOffsets(orbitOffsets, secondaryBandNamesOf(secProd), offsetX, offsetY);
 
                 addOffset(secProd, offsetX, offsetY);
 
@@ -3535,12 +3573,7 @@ public class CreateStackOp extends Operator {
                     "Could not derive a valid lat/lon at the reference centre " + refAnchorPP +
                     " — geocoding of '" + referenceProduct.getName() + "' is broken.");
         }
-        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
-        MetadataElement orbitOffsets = absRoot.getElement("Orbit_Offsets");
-        if (orbitOffsets == null) {
-            orbitOffsets = new MetadataElement("Orbit_Offsets");
-            absRoot.addElement(orbitOffsets);
-        }
+        final MetadataElement orbitOffsets = getOrCreateOrbitOffsets();
 
         final PixelPos secPP = new PixelPos();
         for (final Product secProd : sourceProduct) {
@@ -3568,17 +3601,7 @@ public class CreateStackOp extends Operator {
 
             verifyGeocodedLatticeAlignment(secProd, secGeoCoding, targGeoCoding, tw, th, offsetX, offsetY);
 
-            final String timeStamp = StackUtils.createBandTimeStamp(secProd).substring(1);
-            for (String bandName : targetProduct.getBandNames()) {
-                final String[] parts = bandName.split("_");
-                if (parts.length > 0 && parts[parts.length - 1].equals(timeStamp)) {
-                    final MetadataElement bandElem = new MetadataElement(
-                            "init_offsets" + StackUtils.getBandSuffix(bandName));
-                    bandElem.setAttributeInt("init_offset_X", offsetX);
-                    bandElem.setAttributeInt("init_offset_Y", offsetY);
-                    orbitOffsets.addElement(bandElem);
-                }
-            }
+            addInitOffsets(orbitOffsets, secondaryBandNamesOf(secProd), offsetX, offsetY);
             addOffset(secProd, offsetX, offsetY);
         }
     }
