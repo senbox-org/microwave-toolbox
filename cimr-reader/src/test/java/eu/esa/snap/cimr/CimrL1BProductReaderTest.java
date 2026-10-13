@@ -142,7 +142,7 @@ public class CimrL1BProductReaderTest {
 
             opener.when(() -> NetcdfFileOpener.open("test-product.nc")).thenReturn(ncFile);
             contextFactory.when(() -> CimrReaderContextFactory.create(ncFile)).thenReturn(context);
-            gridProductFactory.when(() -> CimrGridProduct.buildLazy(context, false)).thenReturn(gridProduct);
+            gridProductFactory.when(() -> CimrGridProduct.buildLazy(context)).thenReturn(gridProduct);
             metadataReader.when(() -> CimrProductMetadataReader.read(ncFile, "test-product.nc", CimrL1BProductReader.PRODUCT_TYPE)).thenReturn(metadata);
             productBuilder.when(() -> CimrSnapProductBuilder.buildProduct(context, gridProduct, metadata, "test-product.nc")).thenReturn(product);
 

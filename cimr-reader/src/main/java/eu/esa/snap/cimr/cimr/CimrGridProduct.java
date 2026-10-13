@@ -44,19 +44,19 @@ public class CimrGridProduct {
     }
 
 
-    public static CimrGridProduct buildLazy(CimrReaderContext context, boolean useAverage) {
+    public static CimrGridProduct buildLazy(CimrReaderContext context) {
         CimrGrid cimrGrid = context.getGlobalGrid();
         CimrDescriptorSet descriptorSet = context.getDescriptorSet();
 
         CimrGridProduct product = new CimrGridProduct(cimrGrid);
 
         for (CimrBandDescriptor desc : descriptorSet.getTiepointVariables()) {
-            GridBandDataSource dataSource = new LazyGridBandDataSource(context, desc, useAverage);
+            GridBandDataSource dataSource = new LazyGridBandDataSource(context, desc);
             product.addBand(desc, dataSource);
         }
 
         for (CimrBandDescriptor desc : descriptorSet.getMeasurements()) {
-            GridBandDataSource dataSource = new LazyGridBandDataSource(context, desc, useAverage);
+            GridBandDataSource dataSource = new LazyGridBandDataSource(context, desc);
             product.addBand(desc, dataSource);
         }
 

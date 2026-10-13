@@ -42,21 +42,6 @@ public class GeometryBandToGridMapperTest {
         assertTrue(target.isValid(0, 0));
     }
 
-
-    @Test
-    public void testMap_simpleCase_mapAverage() {
-        PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, -180, 90, 360, 180);
-        CimrGrid grid = new CimrGrid(proj, 1, 1);
-
-        CimrBand swath = new DummyCimrBand();
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
-        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapAverage(swath, grid, target);
-
-        assertEquals(6.5, target.getSample(0, 0), 1e-6);
-        assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));
-    }
-
     @Test
     @STTM("SNAP-4262")
     public void testMapNearest_nanHitBecomesInvalid() {
@@ -75,41 +60,13 @@ public class GeometryBandToGridMapperTest {
 
     @Test
     @STTM("SNAP-4262")
-    public void testMapAverage_onlyNaNHitsBecomeInvalid() {
-        PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
-        CimrGrid grid = new CimrGrid(proj, 1, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
-
-        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapAverage(new SingleSampleBand(Double.NaN), grid, target);
-
-        assertTrue(Double.isNaN(target.getSample(0, 0)));
-        assertEquals(GridSampleState.INVALID, target.getSampleState(0, 0));
-    }
-
-    @Test
-    @STTM("SNAP-4262")
-    public void testMapAverage_ignoresNaNButKeepsValidAverage() {
-        PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
-        CimrGrid grid = new CimrGrid(proj, 1, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
-
-        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapAverage(new MixedSampleBand(new double[]{Double.NaN, 4.0, 8.0}), grid, target);
-
-        assertEquals(6.0, target.getSample(0, 0), doubleErr);
-        assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));
-    }
-
-    @Test
-    @STTM("SNAP-4262")
-    public void testMapAverage_unhitPixelRemainsEmpty() {
+    public void testMapNearest_unhitPixelRemainsEmpty() {
         PlateCarreeProjection proj = new PlateCarreeProjection(2, 1, 0.0, 1.0, 1.0, 1.0);
         CimrGrid grid = new CimrGrid(proj, 2, 1);
         CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(2, 1);
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapAverage(new SingleSampleBand(3.0), grid, target);
+        mapper.mapNearest(new SingleSampleBand(3.0), grid, target);
 
         assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));
         assertEquals(GridSampleState.EMPTY, target.getSampleState(1, 0));
@@ -125,36 +82,6 @@ public class GeometryBandToGridMapperTest {
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
         mapper.mapNearest(new SingleSampleBand(-9999.0), grid, target, value -> value != -9999.0);
-
-        assertTrue(Double.isNaN(target.getSample(0, 0)));
-        assertEquals(GridSampleState.INVALID, target.getSampleState(0, 0));
-        assertTrue(target.isCovered(0, 0));
-        assertFalse(target.isValid(0, 0));
-    }
-
-    @Test
-    @STTM("SNAP-4262")
-    public void testMapAverage_usesValidatorAndAveragesOnlyValidValues() {
-        PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
-        CimrGrid grid = new CimrGrid(proj, 1, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
-
-        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapAverage(new MixedSampleBand(new double[]{-9999.0, 10.0, 20.0}), grid, target, value -> value != -9999.0);
-
-        assertEquals(15.0, target.getSample(0, 0), doubleErr);
-        assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));
-    }
-
-    @Test
-    @STTM("SNAP-4262")
-    public void testMapAverage_onlyValidatorInvalidHitsBecomeInvalid() {
-        PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
-        CimrGrid grid = new CimrGrid(proj, 1, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
-
-        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapAverage(new MixedSampleBand(new double[]{-9999.0, -9999.0}), grid, target, value -> value != -9999.0);
 
         assertTrue(Double.isNaN(target.getSample(0, 0)));
         assertEquals(GridSampleState.INVALID, target.getSampleState(0, 0));
@@ -191,36 +118,6 @@ class SingleSampleBand implements CimrBand {
         return new GeoPos(0.5f, 0.5f);
     }
 }
-
-
-class MixedSampleBand implements CimrBand {
-    private final double[] values;
-
-    MixedSampleBand(double[] values) {
-        this.values = values;
-    }
-
-    @Override
-    public int getScanCount() {
-        return 1;
-    }
-
-    @Override
-    public int getSampleCount() {
-        return values.length;
-    }
-
-    @Override
-    public double getValue(int scanIndex, int sampleIndex) {
-        return values[sampleIndex];
-    }
-
-    @Override
-    public GeoPos getGeoPos(int scanIndex, int sampleIndex) {
-        return new GeoPos(0.5f, 0.5f);
-    }
-}
-
 
 class DummyCimrBand implements CimrBand {
     @Override

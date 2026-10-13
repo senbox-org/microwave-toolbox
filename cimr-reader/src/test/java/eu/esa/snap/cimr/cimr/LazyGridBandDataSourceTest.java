@@ -30,7 +30,7 @@ public class LazyGridBandDataSourceTest {
         TestReaderContext context = new TestReaderContext(delegate);
         CimrBandDescriptor desc = createDummyDescriptor("test_band");
 
-        LazyGridBandDataSource lazy = new LazyGridBandDataSource(context, desc, true);
+        LazyGridBandDataSource lazy = new LazyGridBandDataSource(context, desc);
 
         double v00 = lazy.getSample(0, 0);
         double v11 = lazy.getSample(1, 1);
@@ -40,11 +40,10 @@ public class LazyGridBandDataSourceTest {
 
         assertEquals(1, context.callCount);
         assertSame(desc, context.lastDescriptor);
-        assertTrue(context.lastUseAverage);
     }
 
     @Test
-    public void testSetSampleDelegationAndUseAverageFalse() {
+    public void testSetSampleDelegation() {
         double[] data = {
                 0.0, 0.0,
                 0.0, 0.0
@@ -54,7 +53,7 @@ public class LazyGridBandDataSourceTest {
         TestReaderContext context = new TestReaderContext(delegate);
         CimrBandDescriptor desc = createDummyDescriptor("test_band_2");
 
-        LazyGridBandDataSource lazy = new LazyGridBandDataSource(context, desc, false);
+        LazyGridBandDataSource lazy = new LazyGridBandDataSource(context, desc);
 
         assertEquals(0.0, delegate.getSample(1, 1), doubleErr);
 
@@ -63,7 +62,6 @@ public class LazyGridBandDataSourceTest {
 
         assertEquals(1, context.callCount);
         assertSame(desc, context.lastDescriptor);
-        assertFalse(context.lastUseAverage);
     }
 
 
@@ -71,7 +69,6 @@ public class LazyGridBandDataSourceTest {
 
         int callCount = 0;
         CimrBandDescriptor lastDescriptor;
-        boolean lastUseAverage;
         private final CimrGridBandDataSource delegate;
 
         TestReaderContext(CimrGridBandDataSource delegate) {
@@ -80,10 +77,9 @@ public class LazyGridBandDataSourceTest {
         }
 
         @Override
-        public CimrGridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor descriptor, boolean useAverage) {
+        public CimrGridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor descriptor) {
             callCount++;
             lastDescriptor = descriptor;
-            lastUseAverage = useAverage;
             return delegate;
         }
     }

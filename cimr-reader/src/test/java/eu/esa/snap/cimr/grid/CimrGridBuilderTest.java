@@ -1,6 +1,5 @@
 package eu.esa.snap.cimr.grid;
 
-import eu.esa.snap.cimr.grid.CimrGridBuilder;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.junit.Test;
 
@@ -13,7 +12,7 @@ public class CimrGridBuilderTest {
 
 
     @Test
-    public void testBuild_usesAverageWhenTrue() {
+    public void testBuild_usesNearestMapping() {
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
 
@@ -25,27 +24,7 @@ public class CimrGridBuilderTest {
         );
         CimrGrid grid =  new CimrGrid(proj, 1, 1);
 
-        CimrGridBandDataSource target = builder.build(swath, grid, true);
-
-        assertEquals(41.0, target.getSample(0, 0), doubleErr);
-        assertEquals(1, target.getWidth());
-        assertEquals(1, target.getHeight());
-    }
-
-    @Test
-    public void testBuild_usesNearestWhenFalse() {
-        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        CimrGridBuilder builder = new CimrGridBuilder(mapper);
-
-        CimrBand swath = createDummySwath();
-        PlateCarreeProjection proj = new PlateCarreeProjection(
-                1, 1,
-                0.0, 1.0,
-                1.0, 1.0
-        );
-        CimrGrid grid =  new CimrGrid(proj, 1, 1);
-
-        CimrGridBandDataSource target = builder.build(swath, grid, false);
+        CimrGridBandDataSource target = builder.build(swath, grid);
 
         assertEquals(40.0, target.getSample(0, 0), doubleErr);
         assertEquals(1, target.getWidth());

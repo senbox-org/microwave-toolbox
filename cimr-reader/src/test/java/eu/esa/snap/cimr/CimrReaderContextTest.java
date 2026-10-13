@@ -1,6 +1,5 @@
 package eu.esa.snap.cimr;
 
-import eu.esa.snap.cimr.cimr.*;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
@@ -98,8 +97,8 @@ public class CimrReaderContextTest {
 
         CimrReaderContext ctx = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
-        GridBandDataSource grid1 = ctx.getOrCreateGridForVariable(desc, true);
-        GridBandDataSource grid2 = ctx.getOrCreateGridForVariable(desc, false);
+        GridBandDataSource grid1 = ctx.getOrCreateGridForVariable(desc);
+        GridBandDataSource grid2 = ctx.getOrCreateGridForVariable(desc);
 
         assertNotSame(grid1, grid2);
 
@@ -134,7 +133,7 @@ public class CimrReaderContextTest {
         CimrReaderContext ctx = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         try {
-            ctx.getOrCreateGridForVariable(desc, true);
+            ctx.getOrCreateGridForVariable(desc);
             fail("Expected RuntimeException");
         } catch (RuntimeException e) {
             assertTrue(e.getMessage().contains("Failed to build geometry band for variable testVar"));
@@ -172,7 +171,7 @@ public class CimrReaderContextTest {
         }
 
         try {
-            ctx.getOrCreateGridForVariable(desc, true);
+            ctx.getOrCreateGridForVariable(desc);
             fail("Expected RuntimeException from getOrCreateGridForVariable");
         } catch (RuntimeException e) {
             assertEquals(geoEx.getMessage(), e.getMessage());
@@ -247,8 +246,8 @@ public class CimrReaderContextTest {
 
         CimrReaderContext ctx = new CimrReaderContext(ncFile, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
-        GridBandDataSource ds1 = ctx.getOrCreateGridForVariable(varDesc, true);
-        GridBandDataSource ds2 = ctx.getOrCreateGridForVariable(varDesc, true);
+        GridBandDataSource ds1 = ctx.getOrCreateGridForVariable(varDesc);
+        GridBandDataSource ds2 = ctx.getOrCreateGridForVariable(varDesc);
 
         assertNotSame(ds1, ds2);
         assertEquals(1, geomFactory.getCalls);
@@ -257,7 +256,7 @@ public class CimrReaderContextTest {
         ctx.clearCache();
         assertEquals(1, geomFactory.clearCalls);
 
-        ctx.getOrCreateGridForVariable(varDesc, true);
+        ctx.getOrCreateGridForVariable(varDesc);
         assertEquals(2, geomFactory.getCalls);
         assertEquals(2, bandFactory.calls);
     }

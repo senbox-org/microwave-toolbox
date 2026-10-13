@@ -11,17 +11,13 @@ public class LazyGridBandDataSource implements GridBandDataSource {
 
     private final CimrReaderContext context;
     private final CimrBandDescriptor descriptor;
-    private final boolean useAverage;
 
     private volatile GridBandDataSource delegate;
 
 
-    public LazyGridBandDataSource(CimrReaderContext context,
-                                  CimrBandDescriptor descriptor,
-                                  boolean useAverage) {
+    public LazyGridBandDataSource(CimrReaderContext context, CimrBandDescriptor descriptor) {
         this.context = context;
         this.descriptor = descriptor;
-        this.useAverage = useAverage;
     }
 
 
@@ -31,7 +27,7 @@ public class LazyGridBandDataSource implements GridBandDataSource {
             synchronized (this) {
                 local = delegate;
                 if (local == null) {
-                    local = context.getOrCreateGridForVariable(descriptor, useAverage);
+                    local = context.getOrCreateGridForVariable(descriptor);
                     delegate = local;
                 }
             }

@@ -61,10 +61,10 @@ public class CimrReaderContext {
         return this.autoGrouping;
     }
 
-    public GridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor varDesc, boolean useAverage) {
+    public GridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor varDesc) {
         CimrGeometryBand geometryBand = getOrCreateGeometryBand(varDesc);
         CimrGridBuilder gridBuilder = new CimrGridBuilder(this.mapper);
-        return gridBuilder.build(varDesc, geometryBand, this.cimrGrid, useAverage);
+        return gridBuilder.build(varDesc, geometryBand, this.cimrGrid);
     }
 
     public CimrGeometry getOrCreateGeometry(CimrBandDescriptor varDesc) {

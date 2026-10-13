@@ -14,24 +14,16 @@ public class CimrGridBuilder {
     }
 
 
-    public CimrGridBandDataSource build(CimrBand band, CimrGrid grid, boolean useAverage) {
+    public CimrGridBandDataSource build(CimrBand band, CimrGrid grid) {
         CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(grid.getWidth(), grid.getHeight());
-        if (useAverage) {
-            mapper.mapAverage(band, grid, target);
-        } else {
-            mapper.mapNearest(band, grid, target);
-        }
+        mapper.mapNearest(band, grid, target);
         return target;
     }
 
-    public CimrGridBandDataSource build(CimrBandDescriptor descriptor, CimrBand band, CimrGrid grid, boolean useAverage) {
+    public CimrGridBandDataSource build(CimrBandDescriptor descriptor, CimrBand band, CimrGrid grid) {
         CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(grid.getWidth(), grid.getHeight());
         GridSampleValidator validator = GridSampleValidator.forDescriptor(descriptor);
-        if (useAverage) {
-            mapper.mapAverage(band, grid, target, validator);
-        } else {
-            mapper.mapNearest(band, grid, target, validator);
-        }
+        mapper.mapNearest(band, grid, target, validator);
         return target;
     }
 }

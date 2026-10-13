@@ -12,30 +12,13 @@ public class CimrGridBuilderMapperSelectionTest {
 
 
     @Test
-    public void build_whenUseAverageTrue_usesMapAverage() {
+    public void build_usesMapNearest() {
         RecordingMapper mapper = new RecordingMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
         CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 10.0);
 
-        CimrGridBandDataSource result = builder.build(null, grid, true);
+        CimrGridBandDataSource result = builder.build(null, grid);
 
-        assertTrue(mapper.mapAverageCalled);
-        assertFalse(mapper.mapNearestCalled);
-        assertSame(grid, mapper.lastGrid);
-        assertSame(result, mapper.lastTarget);
-        assertNull(mapper.lastBand);
-        assertNull(mapper.lastValidator);
-    }
-
-    @Test
-    public void build_whenUseAverageFalse_usesMapNearest() {
-        RecordingMapper mapper = new RecordingMapper();
-        CimrGridBuilder builder = new CimrGridBuilder(mapper);
-        CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 10.0);
-
-        CimrGridBandDataSource result = builder.build(null, grid, false);
-
-        assertFalse(mapper.mapAverageCalled);
         assertTrue(mapper.mapNearestCalled);
         assertSame(grid, mapper.lastGrid);
         assertSame(result, mapper.lastTarget);
@@ -44,26 +27,12 @@ public class CimrGridBuilderMapperSelectionTest {
     }
 
     @Test
-    public void buildWithDescriptor_passesDescriptorValidatorToMapAverage() {
-        RecordingMapper mapper = new RecordingMapper();
-        CimrGridBuilder builder = new CimrGridBuilder(mapper);
-        CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 10.0);
-
-        builder.build(descriptorWithFillValue(), null, grid, true);
-
-        assertTrue(mapper.mapAverageWithValidatorCalled);
-        assertNotNull(mapper.lastValidator);
-        assertFalse(mapper.lastValidator.isValid(-9999.0));
-        assertTrue(mapper.lastValidator.isValid(10.0));
-    }
-
-    @Test
     public void buildWithDescriptor_passesDescriptorValidatorToMapNearest() {
         RecordingMapper mapper = new RecordingMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
         CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 10.0);
 
-        builder.build(descriptorWithFillValue(), null, grid, false);
+        builder.build(descriptorWithFillValue(), null, grid);
 
         assertTrue(mapper.mapNearestWithValidatorCalled);
         assertNotNull(mapper.lastValidator);
@@ -72,31 +41,12 @@ public class CimrGridBuilderMapperSelectionTest {
     }
 
     private static class RecordingMapper extends GeometryBandToGridMapper {
-        boolean mapAverageCalled;
         boolean mapNearestCalled;
-        boolean mapAverageWithValidatorCalled;
         boolean mapNearestWithValidatorCalled;
         CimrBand lastBand;
         CimrGrid lastGrid;
         GridBandDataSource lastTarget;
         GridSampleValidator lastValidator;
-
-        @Override
-        public void mapAverage(CimrBand band, CimrGrid grid, GridBandDataSource target) {
-            mapAverageCalled = true;
-            lastBand = band;
-            lastGrid = grid;
-            lastTarget = target;
-        }
-
-        @Override
-        public void mapAverage(CimrBand band, CimrGrid grid, GridBandDataSource target, GridSampleValidator validator) {
-            mapAverageWithValidatorCalled = true;
-            lastBand = band;
-            lastGrid = grid;
-            lastTarget = target;
-            lastValidator = validator;
-        }
 
         @Override
         public void mapNearest(CimrBand band, CimrGrid grid, GridBandDataSource target) {

@@ -91,7 +91,7 @@ public class CimrGridProductTest {
 
         CimrReaderContext context = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, null, null);
 
-        CimrGridProduct product = CimrGridProduct.buildLazy(context, true);
+        CimrGridProduct product = CimrGridProduct.buildLazy(context);
 
         assertSame(grid, product.getGlobalGrid());
         assertEquals(2, product.getBandCount());
