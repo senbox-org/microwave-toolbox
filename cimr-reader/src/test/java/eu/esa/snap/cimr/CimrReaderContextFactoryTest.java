@@ -43,15 +43,15 @@ public class CimrReaderContextFactoryTest {
         CimrDescriptorSet descriptorSet = CimrReaderContextFactory.loadDescriptorSet(ncFile);
 
         assertEquals(1275, descriptorSet.getMeasurements().size());
-        assertNotNull(descriptorSet.getMeasurementByName("L_BAND_brightness_temperature_h_feed1"));
-        assertNotNull(descriptorSet.getMeasurementByName("L_BAND_faraday_rot_angle_feed1"));
-        assertNotNull(descriptorSet.getMeasurementByName("KU_BAND_tsu_feed8"));
-        assertNotNull(descriptorSet.getMeasurementByName("C_BAND_instrument_status_feed4"));
-        assertNotNull(descriptorSet.getMeasurementByName("KA_BAND_raw_counts_h_feed8"));
-        assertNotNull(descriptorSet.getMeasurementByName("X_BAND_altitude_feed4"));
-        assertNotNull(descriptorSet.getTpVariableByName("KA_BAND_footprint_major_axis_feed8"));
-        assertNotNull(descriptorSet.getTpVariableByName("KU_BAND_direct_sun_angle_feed8"));
-        assertNotNull(descriptorSet.getGeometryByName("C_BAND_longitude_feed4"));
+        assertNotNull(descriptorSet.getMeasurementByName("L_BAND_brightness_temperature_h_feed_1"));
+        assertNotNull(descriptorSet.getMeasurementByName("L_BAND_faraday_rot_angle_feed_1"));
+        assertNotNull(descriptorSet.getMeasurementByName("KU_BAND_tsu_feed_8"));
+        assertNotNull(descriptorSet.getMeasurementByName("C_BAND_instrument_status_feed_4"));
+        assertNotNull(descriptorSet.getMeasurementByName("KA_BAND_raw_counts_h_feed_8"));
+        assertNotNull(descriptorSet.getMeasurementByName("X_BAND_altitude_feed_4"));
+        assertNotNull(descriptorSet.getTpVariableByName("KA_BAND_footprint_major_axis_feed_8"));
+        assertNotNull(descriptorSet.getTpVariableByName("KU_BAND_direct_sun_angle_feed_8"));
+        assertNotNull(descriptorSet.getGeometryByName("C_BAND_longitude_feed_4"));
     }
 
     @Test
@@ -63,7 +63,7 @@ public class CimrReaderContextFactoryTest {
         CimrDescriptorSet descriptorSet = CimrReaderContextFactory.loadDescriptorSet(ncFile);
 
         assertEquals(1275, descriptorSet.getMeasurements().size());
-        assertNotNull(descriptorSet.getMeasurementByName("X_BAND_raw_brightness_temperature_h_feed4"));
+        assertNotNull(descriptorSet.getMeasurementByName("X_BAND_raw_brightness_temperature_h_feed_4"));
     }
 
     @Test
@@ -120,7 +120,7 @@ public class CimrReaderContextFactoryTest {
             assertTrue(context.getGlobalGrid().getWidth() > 0);
             assertTrue(context.getGlobalGrid().getHeight() > 0);
 
-            CimrBandDescriptor measurement = context.getDescriptorSet().getMeasurementByName("L_BAND_brightness_temperature_h_feed1");
+            CimrBandDescriptor measurement = context.getDescriptorSet().getMeasurementByName("L_BAND_brightness_temperature_h_feed_1");
             assertEquals(ProductData.TYPE_FLOAT32, measurement.getRasterDataType());
             CimrGeometry geometry = context.getOrCreateGeometry(measurement);
             assertEquals(2, geometry.getScanCount());

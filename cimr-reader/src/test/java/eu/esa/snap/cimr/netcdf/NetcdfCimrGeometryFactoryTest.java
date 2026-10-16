@@ -447,12 +447,12 @@ public class NetcdfCimrGeometryFactoryTest {
                 .build();
 
         CimrDimensions dims = CimrDimensions.from(ncFile);
-        CimrBandDescriptor cLatDesc = createGeometryDescriptor("C_BAND_latitude_feed1", "latitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
-        CimrBandDescriptor cLonDesc = createGeometryDescriptor("C_BAND_longitude_feed1", "longitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
-        CimrBandDescriptor cLatFeed2Desc = createGeometryDescriptor("C_BAND_latitude_feed2", "latitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 1, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
-        CimrBandDescriptor cLonFeed2Desc = createGeometryDescriptor("C_BAND_longitude_feed2", "longitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 1, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
-        CimrBandDescriptor kaLatDesc = createGeometryDescriptor("KA_BAND_latitude_feed1", "latitude", CimrFrequencyBand.KA_BAND, "/KA_BAND/", 0, "n_tiepoints_KA_BAND", "n_feeds_KA_BAND");
-        CimrBandDescriptor kaLonDesc = createGeometryDescriptor("KA_BAND_longitude_feed1", "longitude", CimrFrequencyBand.KA_BAND, "/KA_BAND/", 0, "n_tiepoints_KA_BAND", "n_feeds_KA_BAND");
+        CimrBandDescriptor cLatDesc = createGeometryDescriptor("C_BAND_latitude_feed_1", "latitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor cLonDesc = createGeometryDescriptor("C_BAND_longitude_feed_1", "longitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor cLatFeed2Desc = createGeometryDescriptor("C_BAND_latitude_feed_2", "latitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 1, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor cLonFeed2Desc = createGeometryDescriptor("C_BAND_longitude_feed_2", "longitude", CimrFrequencyBand.C_BAND, "/C_BAND/", 1, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor kaLatDesc = createGeometryDescriptor("KA_BAND_latitude_feed_1", "latitude", CimrFrequencyBand.KA_BAND, "/KA_BAND/", 0, "n_tiepoints_KA_BAND", "n_feeds_KA_BAND");
+        CimrBandDescriptor kaLonDesc = createGeometryDescriptor("KA_BAND_longitude_feed_1", "longitude", CimrFrequencyBand.KA_BAND, "/KA_BAND/", 0, "n_tiepoints_KA_BAND", "n_feeds_KA_BAND");
 
         NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Arrays.asList(cLatDesc, cLonDesc, cLatFeed2Desc, cLonFeed2Desc, kaLatDesc, kaLonDesc), dims);
 
@@ -472,7 +472,7 @@ public class NetcdfCimrGeometryFactoryTest {
                 .setRootGroup(Group.builder(null).setName("root"))
                 .build();
         CimrDimensions dims = CimrDimensions.from(ncFile);
-        CimrBandDescriptor latDesc = createGeometryDescriptor("C_BAND_latitude_feed1", "latitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor latDesc = createGeometryDescriptor("C_BAND_latitude_feed_1", "latitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
 
         NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Collections.singletonList(latDesc), dims);
 
@@ -514,8 +514,8 @@ public class NetcdfCimrGeometryFactoryTest {
                 .setRootGroup(rootBuilder)
                 .build();
         CimrDimensions dims = CimrDimensions.from(ncFile);
-        CimrBandDescriptor latDesc = createGeometryDescriptor("C_BAND_latitude_feed1", "latitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
-        CimrBandDescriptor lonDesc = createGeometryDescriptor("C_BAND_longitude_feed1", "longitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor latDesc = createGeometryDescriptor("C_BAND_latitude_feed_1", "latitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
+        CimrBandDescriptor lonDesc = createGeometryDescriptor("C_BAND_longitude_feed_1", "longitude", CimrFrequencyBand.C_BAND, "/", 0, "n_tiepoints_C_BAND", "n_feeds_C_BAND");
         NetcdfCimrGeometryFactory factory = new NetcdfCimrGeometryFactory(ncFile, Arrays.asList(latDesc, lonDesc), dims);
 
         IllegalStateException actual = assertThrows(IllegalStateException.class, () -> factory.getBoundingBox(1.0));

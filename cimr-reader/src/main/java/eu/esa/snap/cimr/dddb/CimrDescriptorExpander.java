@@ -98,7 +98,7 @@ public class CimrDescriptorExpander {
     }
 
     private static String descriptorName(String bandName, String variableName, int feedNumber) {
-        return bandName + "_" + variableName + "_feed" + feedNumber;
+        return bandName + "_" + variableName + "_feed_" + feedNumber;
     }
 
     private static String[] resolve(String[] values, CimrBandDefinition band) {

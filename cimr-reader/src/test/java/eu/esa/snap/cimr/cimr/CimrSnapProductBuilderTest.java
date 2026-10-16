@@ -46,7 +46,7 @@ public class CimrSnapProductBuilderTest {
         CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -64,7 +64,7 @@ public class CimrSnapProductBuilderTest {
         assertEquals(1, product.getSceneRasterHeight());
         assertNotNull(product.getSceneGeoCoding());
 
-        Band band = product.getBand("C_raw_bt_h_feed1");
+        Band band = product.getBand("C_raw_bt_h_feed_1");
         assertNotNull(band);
         assertEquals(ProductData.TYPE_FLOAT64, band.getDataType());
         assertEquals(coverageExpression(bandDesc), band.getValidPixelExpression());
@@ -87,7 +87,7 @@ public class CimrSnapProductBuilderTest {
         CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -100,7 +100,7 @@ public class CimrSnapProductBuilderTest {
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
 
-        assertEquals(ProductData.TYPE_FLOAT32, product.getBand("C_raw_bt_h_feed1").getDataType());
+        assertEquals(ProductData.TYPE_FLOAT32, product.getBand("C_raw_bt_h_feed_1").getDataType());
     }
 
     @Test
@@ -111,7 +111,7 @@ public class CimrSnapProductBuilderTest {
         CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {"geometry_1"}, new String[] {"footprint_1"},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -189,7 +189,7 @@ public class CimrSnapProductBuilderTest {
         CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor band1 = new CimrBandDescriptor(
-                "C_band1_feed1", "band1", CimrFrequencyBand.C_BAND,
+                "C_band1_feed_1", "band1", CimrFrequencyBand.C_BAND,
                 new String[] {"geometry_1"}, new String[] {"footprint_1"},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -197,7 +197,7 @@ public class CimrSnapProductBuilderTest {
                 "double", "", ""
         );
         CimrBandDescriptor band2 = new CimrBandDescriptor(
-                "C_band2_feed1", "band2", CimrFrequencyBand.C_BAND,
+                "C_band2_feed_1", "band2", CimrFrequencyBand.C_BAND,
                 new String[] {"geometry_1"}, new String[] {"footprint_1"},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -211,8 +211,8 @@ public class CimrSnapProductBuilderTest {
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
 
         assertNotNull(product.getBand(coverageBandName(band1)));
-        assertEquals(coverageExpression(band1), product.getBand("C_band1_feed1").getValidPixelExpression());
-        assertEquals(coverageExpression(band1), product.getBand("C_band2_feed1").getValidPixelExpression());
+        assertEquals(coverageExpression(band1), product.getBand("C_band1_feed_1").getValidPixelExpression());
+        assertEquals(coverageExpression(band1), product.getBand("C_band2_feed_1").getValidPixelExpression());
         assertEquals(3, product.getNumBands());
         assertEquals(1, product.getMaskGroup().getNodeCount());
     }
@@ -263,7 +263,7 @@ public class CimrSnapProductBuilderTest {
         CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
-                "C_BAND_instrument_status_feed1", "instrument_status", CimrFrequencyBand.C_BAND,
+                "C_BAND_instrument_status_feed_1", "instrument_status", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 0, CimrDescriptorKind.VARIABLE,
@@ -277,7 +277,7 @@ public class CimrSnapProductBuilderTest {
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
 
-        Band band = product.getBand("C_BAND_instrument_status_feed1");
+        Band band = product.getBand("C_BAND_instrument_status_feed_1");
         assertNotNull(band);
         assertEquals(ProductData.TYPE_INT32, band.getDataType());
 
@@ -318,7 +318,7 @@ public class CimrSnapProductBuilderTest {
         CimrGridProduct gridProduct = new CimrGridProduct(cimrGrid);
 
         CimrBandDescriptor bandDesc = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -340,7 +340,7 @@ public class CimrSnapProductBuilderTest {
         assertTrue(product.getFileLocation().getPath().endsWith(path));
         assertEquals("L_BAND:C_BAND:X_BAND:KU_BAND:KA_BAND", product.getAutoGrouping().toString());
 
-        Band band = product.getBand("C_raw_bt_h_feed1");
+        Band band = product.getBand("C_raw_bt_h_feed_1");
         assertEquals("K", band.getUnit());
         assertEquals("Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)", band.getDescription());
         assertTrue(band.isNoDataValueSet());

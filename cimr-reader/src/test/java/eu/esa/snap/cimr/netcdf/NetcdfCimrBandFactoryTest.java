@@ -207,7 +207,7 @@ public class NetcdfCimrBandFactoryTest {
         CimrDimensions dims = CimrDimensions.from(ncFile);
 
         CimrBandDescriptor desc = new CimrBandDescriptor(
-                "C_BAND_tsu_feed2",
+                "C_BAND_tsu_feed_2",
                 "tsu",
                 CimrFrequencyBand.C_BAND,
                 new String[] {},

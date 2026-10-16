@@ -28,7 +28,7 @@ public class CimrGridProductTest {
         CimrGridProduct product = new CimrGridProduct(grid);
 
         CimrBandDescriptor band1 = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -36,7 +36,7 @@ public class CimrGridProductTest {
                 "double", "", ""
         );
         CimrBandDescriptor band2 = new CimrBandDescriptor(
-                "X_raw_bt_v_feed1", "raw_bt_h", CimrFrequencyBand.X_BAND,
+                "X_raw_bt_v_feed_1", "raw_bt_h", CimrFrequencyBand.X_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 2, CimrDescriptorKind.VARIABLE,
@@ -75,7 +75,7 @@ public class CimrGridProductTest {
                 "double", "", ""
         );
         CimrBandDescriptor measDesc = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {"lat", "lon"}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/", 0,
                 CimrDescriptorKind.VARIABLE,
@@ -109,7 +109,7 @@ public class CimrGridProductTest {
         CimrGridProduct product = new CimrGridProduct(grid);
 
         CimrBandDescriptor band = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,

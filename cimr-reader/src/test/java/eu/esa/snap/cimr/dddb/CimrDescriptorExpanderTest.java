@@ -34,7 +34,7 @@ public class CimrDescriptorExpanderTest {
         CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("C_BAND_brightness_temperature_h_feed4");
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("C_BAND_brightness_temperature_h_feed_4");
 
         assertNotNull(descriptor);
         assertEquals("brightness_temperature_h", descriptor.getValueVarName());
@@ -45,11 +45,11 @@ public class CimrDescriptorExpanderTest {
         assertArrayEquals(new String[]{"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"}, descriptor.getDimensions());
         assertEquals("float", descriptor.getDataType());
         assertEquals("K", descriptor.getUnit());
-        assertArrayEquals(new String[]{"C_BAND_latitude_feed4", "C_BAND_longitude_feed4"}, descriptor.getGeometryNames());
+        assertArrayEquals(new String[]{"C_BAND_latitude_feed_4", "C_BAND_longitude_feed_4"}, descriptor.getGeometryNames());
         assertArrayEquals(new String[]{
-                "C_BAND_footprint_minor_axis_feed4",
-                "C_BAND_footprint_major_axis_feed4",
-                "C_BAND_geometric_rot_angle_feed4"
+                "C_BAND_footprint_minor_axis_feed_4",
+                "C_BAND_footprint_major_axis_feed_4",
+                "C_BAND_geometric_rot_angle_feed_4"
         }, descriptor.getFootprintVars());
     }
 
@@ -60,7 +60,7 @@ public class CimrDescriptorExpanderTest {
         CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        CimrBandDescriptor descriptor = descriptorSet.getGeometryByName("KA_BAND_longitude_feed8");
+        CimrBandDescriptor descriptor = descriptorSet.getGeometryByName("KA_BAND_longitude_feed_8");
 
         assertNotNull(descriptor);
         assertEquals("longitude", descriptor.getValueVarName());
@@ -80,7 +80,7 @@ public class CimrDescriptorExpanderTest {
         CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        CimrBandDescriptor descriptor = descriptorSet.getTpVariableByName("KU_BAND_footprint_minor_axis_feed8");
+        CimrBandDescriptor descriptor = descriptorSet.getTpVariableByName("KU_BAND_footprint_minor_axis_feed_8");
 
         assertNotNull(descriptor);
         assertEquals("footprint_minor_axis", descriptor.getValueVarName());
@@ -91,7 +91,7 @@ public class CimrDescriptorExpanderTest {
         assertArrayEquals(new String[]{"n_scans", "n_samples_KU_BAND", "n_feeds_KU_BAND"}, descriptor.getDimensions());
         assertEquals("float", descriptor.getDataType());
         assertEquals("m", descriptor.getUnit());
-        assertArrayEquals(new String[]{"KU_BAND_latitude_feed8", "KU_BAND_longitude_feed8"}, descriptor.getGeometryNames());
+        assertArrayEquals(new String[]{"KU_BAND_latitude_feed_8", "KU_BAND_longitude_feed_8"}, descriptor.getGeometryNames());
     }
 
     @Test
@@ -101,7 +101,7 @@ public class CimrDescriptorExpanderTest {
         CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("KA_BAND_raw_counts_h_feed8");
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("KA_BAND_raw_counts_h_feed_8");
 
         assertNotNull(descriptor);
         assertEquals("raw_counts_h", descriptor.getValueVarName());
@@ -111,7 +111,7 @@ public class CimrDescriptorExpanderTest {
         assertEquals(CimrDescriptorKind.VARIABLE, descriptor.getKind());
         assertArrayEquals(new String[]{"n_scans", "n_samples_KA_BAND", "n_feeds_KA_BAND"}, descriptor.getDimensions());
         assertEquals("int", descriptor.getDataType());
-        assertArrayEquals(new String[]{"KA_BAND_latitude_feed8", "KA_BAND_longitude_feed8"}, descriptor.getGeometryNames());
+        assertArrayEquals(new String[]{"KA_BAND_latitude_feed_8", "KA_BAND_longitude_feed_8"}, descriptor.getGeometryNames());
     }
 
     @Test
@@ -121,7 +121,7 @@ public class CimrDescriptorExpanderTest {
         CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("KU_BAND_tsu_feed8");
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("KU_BAND_tsu_feed_8");
 
         assertNotNull(descriptor);
         assertEquals("tsu", descriptor.getValueVarName());
@@ -132,7 +132,7 @@ public class CimrDescriptorExpanderTest {
         assertArrayEquals(new String[]{"n_scans", "n_samples_KU_BAND"}, descriptor.getDimensions());
         assertEquals("float", descriptor.getDataType());
         assertEquals("K", descriptor.getUnit());
-        assertArrayEquals(new String[]{"KU_BAND_latitude_feed8", "KU_BAND_longitude_feed8"}, descriptor.getGeometryNames());
+        assertArrayEquals(new String[]{"KU_BAND_latitude_feed_8", "KU_BAND_longitude_feed_8"}, descriptor.getGeometryNames());
     }
 
     @Test
@@ -142,7 +142,7 @@ public class CimrDescriptorExpanderTest {
         CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("C_BAND_instrument_status_feed4");
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("C_BAND_instrument_status_feed_4");
 
         assertNotNull(descriptor);
         assertEquals("instrument_status", descriptor.getValueVarName());
@@ -152,7 +152,7 @@ public class CimrDescriptorExpanderTest {
         assertEquals(CimrDescriptorKind.VARIABLE, descriptor.getKind());
         assertArrayEquals(new String[]{"n_scans", "n_samples_C_BAND"}, descriptor.getDimensions());
         assertEquals("int", descriptor.getDataType());
-        assertArrayEquals(new String[]{"C_BAND_latitude_feed4", "C_BAND_longitude_feed4"}, descriptor.getGeometryNames());
+        assertArrayEquals(new String[]{"C_BAND_latitude_feed_4", "C_BAND_longitude_feed_4"}, descriptor.getGeometryNames());
         assertNotNull(descriptor.getSampleCoding());
         assertEquals(CimrSampleCoding.Type.INDEX, descriptor.getSampleCoding().getType());
         assertEquals("instrument_status", descriptor.getSampleCoding().getName());
@@ -168,7 +168,7 @@ public class CimrDescriptorExpanderTest {
         CimrProductDescriptor productDescriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(dddb).expand(productDescriptor);
 
-        CimrBandDescriptor descriptor = descriptorSet.getTpVariableByName("X_BAND_direct_sun_angle_feed4");
+        CimrBandDescriptor descriptor = descriptorSet.getTpVariableByName("X_BAND_direct_sun_angle_feed_4");
 
         assertNotNull(descriptor);
         assertEquals("direct_sun_angle", descriptor.getValueVarName());
@@ -178,7 +178,7 @@ public class CimrDescriptorExpanderTest {
         assertEquals(CimrDescriptorKind.TIEPOINT_VARIABLE, descriptor.getKind());
         assertArrayEquals(new String[]{"n_scans", "n_tie_points_X_BAND", "n_feeds_X_BAND"}, descriptor.getDimensions());
         assertEquals("float", descriptor.getDataType());
-        assertArrayEquals(new String[]{"X_BAND_latitude_feed4", "X_BAND_longitude_feed4"}, descriptor.getGeometryNames());
+        assertArrayEquals(new String[]{"X_BAND_latitude_feed_4", "X_BAND_longitude_feed_4"}, descriptor.getGeometryNames());
     }
 
     @Test
@@ -207,7 +207,7 @@ public class CimrDescriptorExpanderTest {
 
         CimrDescriptorSet descriptorSet = new CimrDescriptorExpander(new StaticDDDB(band, family)).expand(productDescriptor);
 
-        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("C_BAND_brightness_temperature_h_feed1");
+        CimrBandDescriptor descriptor = descriptorSet.getMeasurementByName("C_BAND_brightness_temperature_h_feed_1");
         assertNotNull(descriptor);
         assertTrue(descriptor.hasFillValue());
         assertEquals(-9999.0, descriptor.getFillValue(), 0.0);

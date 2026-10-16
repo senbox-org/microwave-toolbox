@@ -25,9 +25,9 @@ public class CimrDDDBTest {
         assertEquals("1.1", descriptor.getVersion());
         assertEquals("bands.json", descriptor.getBandsFile());
         assertArrayEquals(new String[]{"navigation.json", "measurement.json", "calibration.json"}, descriptor.getDescriptorFiles());
-        assertTrue(descriptor.getAutoGrouping().startsWith("L_BAND:C_BAND:C_BAND_*feed1:C_BAND_*feed2:C_BAND_*feed3:C_BAND_*feed4"));
-        assertTrue(descriptor.getAutoGrouping().contains("KU_BAND:KU_BAND_*feed1:KU_BAND_*feed2"));
-        assertTrue(descriptor.getAutoGrouping().endsWith("KA_BAND_*feed7:KA_BAND_*feed8"));
+        assertTrue(descriptor.getAutoGrouping().startsWith("L_BAND:C_BAND:C_BAND_*feed_1:C_BAND_*feed_2:C_BAND_*feed_3:C_BAND_*feed_4"));
+        assertTrue(descriptor.getAutoGrouping().contains("KU_BAND:KU_BAND_*feed_1:KU_BAND_*feed_2"));
+        assertTrue(descriptor.getAutoGrouping().endsWith("KA_BAND_*feed_7:KA_BAND_*feed_8"));
     }
 
     @Test
@@ -48,10 +48,11 @@ public class CimrDDDBTest {
         product.setAutoGrouping(descriptor.getAutoGrouping());
         BandGroup autoGrouping = product.getAutoGrouping();
 
-        assertArrayEquals(new String[]{"L_BAND"}, autoGrouping.get(autoGrouping.indexOf("L_BAND_brightness_temperature_h_feed1")));
-        assertArrayEquals(new String[]{"C_BAND_*feed2"}, autoGrouping.get(autoGrouping.indexOf("C_BAND_brightness_temperature_h_feed2")));
-        assertArrayEquals(new String[]{"KU_BAND_*feed8"}, autoGrouping.get(autoGrouping.indexOf("KU_BAND_direct_sun_angle_feed8")));
-        assertArrayEquals(new String[]{"KA_BAND_*feed7"}, autoGrouping.get(autoGrouping.indexOf("KA_BAND_raw_counts_h_feed7")));
+        assertArrayEquals(new String[]{"L_BAND"}, autoGrouping.get(autoGrouping.indexOf("L_BAND_brightness_temperature_h_feed_1")));
+        assertArrayEquals(new String[]{"C_BAND_*feed_2"}, autoGrouping.get(autoGrouping.indexOf("C_BAND_brightness_temperature_h_feed_2")));
+        assertArrayEquals(new String[]{"C_BAND_*feed_2"}, autoGrouping.get(autoGrouping.indexOf("C_BAND_coverage_feed_2")));
+        assertArrayEquals(new String[]{"KU_BAND_*feed_8"}, autoGrouping.get(autoGrouping.indexOf("KU_BAND_direct_sun_angle_feed_8")));
+        assertArrayEquals(new String[]{"KA_BAND_*feed_7"}, autoGrouping.get(autoGrouping.indexOf("KA_BAND_raw_counts_h_feed_7")));
     }
 
     @Test
