@@ -88,6 +88,38 @@ public class GeometryBandToGridMapperTest {
         assertTrue(target.isCovered(0, 0));
         assertFalse(target.isValid(0, 0));
     }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testMapNearest_laterInvalidHitDoesNotOverwriteValidSample() {
+        PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
+        CimrGrid grid = new CimrGrid(proj, 1, 1);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
+
+        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
+        mapper.mapNearest(new SamePixelBand(42.0, Double.NaN), grid, target);
+
+        assertEquals(42.0, target.getSample(0, 0), doubleErr);
+        assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));
+        assertTrue(target.isCovered(0, 0));
+        assertTrue(target.isValid(0, 0));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testMapNearest_laterValidHitReplacesEarlierInvalidSample() {
+        PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
+        CimrGrid grid = new CimrGrid(proj, 1, 1);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
+
+        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
+        mapper.mapNearest(new SamePixelBand(Double.NaN, 42.0), grid, target);
+
+        assertEquals(42.0, target.getSample(0, 0), doubleErr);
+        assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));
+        assertTrue(target.isCovered(0, 0));
+        assertTrue(target.isValid(0, 0));
+    }
 }
 
 
@@ -111,6 +143,34 @@ class SingleSampleBand implements CimrBand {
     @Override
     public double getValue(int scanIndex, int sampleIndex) {
         return value;
+    }
+
+    @Override
+    public GeoPos getGeoPos(int scanIndex, int sampleIndex) {
+        return new GeoPos(0.5f, 0.5f);
+    }
+}
+
+class SamePixelBand implements CimrBand {
+    private final double[] values;
+
+    SamePixelBand(double... values) {
+        this.values = values;
+    }
+
+    @Override
+    public int getScanCount() {
+        return 1;
+    }
+
+    @Override
+    public int getSampleCount() {
+        return values.length;
+    }
+
+    @Override
+    public double getValue(int scanIndex, int sampleIndex) {
+        return values[sampleIndex];
     }
 
     @Override

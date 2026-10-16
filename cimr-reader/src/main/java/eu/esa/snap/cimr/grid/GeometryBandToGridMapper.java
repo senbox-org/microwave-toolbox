@@ -28,7 +28,7 @@ public class GeometryBandToGridMapper {
 
                 if (validator.isValid(value)) {
                     target.setValidSample(gridPoint.x, gridPoint.y, value);
-                } else {
+                } else if (!target.isValid(gridPoint.x, gridPoint.y)) {
                     target.setInvalidSample(gridPoint.x, gridPoint.y);
                 }
             }
