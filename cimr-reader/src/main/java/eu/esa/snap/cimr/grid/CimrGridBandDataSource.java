@@ -1,22 +1,26 @@
 package eu.esa.snap.cimr.grid;
 
-import java.util.Arrays;
+import org.esa.snap.core.datamodel.ProductData;
 
 
 public class CimrGridBandDataSource implements GridBandDataSource {
 
     private final int width;
     private final int height;
-    private final double[] data;
-    private final GridSampleState[] states;
+    private final CimrSampleBuffer data;
+    private final byte[] states;
+
+    private static final byte EMPTY = 0;
+    private static final byte INVALID = 1;
+    private static final byte VALID = 2;
 
 
     public CimrGridBandDataSource(int width, int height, double[] data) {
-        this(width, height, data, createStates(data));
+        this(width, height, CimrSampleBuffer.wrap(ProductData.TYPE_FLOAT64, data, data.length), createStates(data));
     }
 
-    private CimrGridBandDataSource(int width, int height, double[] data, GridSampleState[] states) {
-        if (data.length != width * height) {
+    private CimrGridBandDataSource(int width, int height, CimrSampleBuffer data, byte[] states) {
+        if (data.size() != width * height) {
             throw new IllegalArgumentException("data length must be width * height");
         }
         if (states.length != width * height) {
@@ -30,10 +34,13 @@ public class CimrGridBandDataSource implements GridBandDataSource {
 
 
     public static CimrGridBandDataSource createEmpty(int width, int height) {
-        double[] data = new double[width * height];
-        Arrays.fill(data, Double.NaN);
-        GridSampleState[] states = new GridSampleState[width * height];
-        Arrays.fill(states, GridSampleState.EMPTY);
+        return createEmpty(width, height, ProductData.TYPE_FLOAT64);
+    }
+
+    public static CimrGridBandDataSource createEmpty(int width, int height, int rasterDataType) {
+        int size = width * height;
+        CimrSampleBuffer data = CimrSampleBuffer.create(rasterDataType, size);
+        byte[] states = new byte[size];
         return new CimrGridBandDataSource(width, height, data, states);
     }
 
@@ -45,11 +52,15 @@ public class CimrGridBandDataSource implements GridBandDataSource {
         return height;
     }
 
+    public int getRasterDataType() {
+        return data.getRasterDataType();
+    }
+
     @Override
     public double getSample(int x, int y) {
         checkBounds(x, y);
         int index = y * width + x;
-        return data[index];
+        return states[index] == VALID ? data.get(index) : Double.NaN;
     }
 
     @Override
@@ -65,7 +76,7 @@ public class CimrGridBandDataSource implements GridBandDataSource {
     public GridSampleState getSampleState(int x, int y) {
         checkBounds(x, y);
         int index = y * width + x;
-        return states[index];
+        return toState(states[index]);
     }
 
     @Override
@@ -76,16 +87,15 @@ public class CimrGridBandDataSource implements GridBandDataSource {
         }
         checkBounds(x, y);
         int index = y * width + x;
-        data[index] = value;
-        states[index] = GridSampleState.VALID;
+        data.set(index, value);
+        states[index] = VALID;
     }
 
     @Override
     public void setInvalidSample(int x, int y) {
         checkBounds(x, y);
         int index = y * width + x;
-        data[index] = Double.NaN;
-        states[index] = GridSampleState.INVALID;
+        states[index] = INVALID;
     }
 
     private void checkBounds(int x, int y) {
@@ -94,11 +104,20 @@ public class CimrGridBandDataSource implements GridBandDataSource {
         }
     }
 
-    private static GridSampleState[] createStates(double[] data) {
-        GridSampleState[] states = new GridSampleState[data.length];
+    private static byte[] createStates(double[] data) {
+        byte[] states = new byte[data.length];
         for (int ii = 0; ii < data.length; ii++) {
-            states[ii] = Double.isNaN(data[ii]) ? GridSampleState.INVALID : GridSampleState.VALID;
+            states[ii] = Double.isNaN(data[ii]) ? INVALID : VALID;
         }
         return states;
+    }
+
+    private static GridSampleState toState(byte state) {
+        return switch (state) {
+            case EMPTY -> GridSampleState.EMPTY;
+            case INVALID -> GridSampleState.INVALID;
+            case VALID -> GridSampleState.VALID;
+            default -> throw new IllegalStateException("Unknown grid sample state: " + state);
+        };
     }
 }

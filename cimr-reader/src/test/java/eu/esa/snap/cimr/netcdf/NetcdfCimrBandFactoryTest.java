@@ -8,8 +8,10 @@ import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
 import eu.esa.snap.cimr.grid.CimrTiepointGeometry;
 import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 import ucar.ma2.ArrayDouble;
+import ucar.ma2.ArrayFloat;
 import ucar.ma2.DataType;
 import ucar.ma2.InvalidRangeException;
 import ucar.nc2.*;
@@ -23,6 +25,45 @@ public class NetcdfCimrBandFactoryTest {
 
 
     private static final double doubleErr = 1e-6;
+
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testCreateGeometryBand_preservesNetcdfFloatStorageType() throws IOException, InvalidRangeException {
+        Dimension scanDim = new Dimension("n_scans", 1);
+        Dimension sampleDim = new Dimension("n_samples_C_BAND", 2);
+        Group.Builder root = Group.builder(null).setName("root");
+        root.addDimension(scanDim).addDimension(sampleDim);
+
+        ArrayFloat.D2 data = new ArrayFloat.D2(1, 2);
+        data.set(0, 0, 1.25f);
+        data.set(0, 1, 2.5f);
+
+        Group.Builder dataGroup = Group.builder(root).setName("Data");
+        dataGroup.addVariable(Variable.builder()
+                .setName("float_values")
+                .setDataType(DataType.FLOAT)
+                .setDimensionsByName("n_scans n_samples_C_BAND")
+                .setCachedData(data, false));
+        root.addGroup(dataGroup);
+
+        NetcdfFile ncFile = NetcdfFile.builder().setLocation("test").setRootGroup(root).build();
+        CimrBandDescriptor desc = new CimrBandDescriptor(
+                "float_values", "float_values", CimrFrequencyBand.C_BAND,
+                new String[] {}, new String[] {}, "/Data", 0, CimrDescriptorKind.VARIABLE,
+                new String[] {"n_scans", "n_samples_C_BAND"}, "double", "", ""
+        );
+
+        GeoPos[][][] tiePoints = new GeoPos[1][2][1];
+        tiePoints[0][0][0] = new GeoPos(0.0f, 0.0f);
+        tiePoints[0][1][0] = new GeoPos(0.0f, 1.0f);
+        CimrGeometryBand band = new NetcdfCimrBandFactory(ncFile, CimrDimensions.from(ncFile))
+                .createGeometryBand(desc, new CimrTiepointGeometry(tiePoints, 2));
+
+        assertEquals(ProductData.TYPE_FLOAT32, band.getRasterDataType());
+        assertEquals(1.25, band.getValue(0, 0), doubleErr);
+        assertEquals(2.5, band.getValue(0, 1), doubleErr);
+    }
 
 
     @Test

@@ -4,9 +4,9 @@ import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.grid.CimrGeometry;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
+import eu.esa.snap.cimr.grid.CimrSampleBuffer;
 import eu.esa.snap.cimr.grid.TiepointInterpolator;
 import ucar.ma2.Array;
-import ucar.ma2.Index;
 import ucar.ma2.Index3D;
 import ucar.ma2.InvalidRangeException;
 import ucar.nc2.Group;
@@ -62,14 +62,15 @@ public class NetcdfCimrBandFactory {
         }
 
         if (desc.getKind() == CimrDescriptorKind.TIEPOINT_VARIABLE) {
-            return new CimrGeometryBand(readTiepointValues(desc, nScans, nSamples, data), geometry, feedIdx);
+            int outputSampleCount = getSampleCount(desc);
+            return new CimrGeometryBand(readTiepointValues(desc, nScans, nSamples, data), nScans, outputSampleCount, geometry, feedIdx);
         }
-        return new CimrGeometryBand(readSampleValues(nScans, nSamples, data), geometry, feedIdx);
+        return new CimrGeometryBand(readSampleValues(nScans, nSamples, data), nScans, nSamples, geometry, feedIdx);
     }
 
-    private double[][] readTiepointValues(CimrBandDescriptor desc, int nScans, int nTiepoints, Array data) {
+    private CimrSampleBuffer readTiepointValues(CimrBandDescriptor desc, int nScans, int nTiepoints, Array data) {
         int sampleCount = getSampleCount(desc);
-        double[][] values = new double[nScans][sampleCount];
+        CimrSampleBuffer values = CimrSampleBuffer.create(getRasterDataType(data), nScans * sampleCount);
         Index3D idx = new Index3D(data.getShape());
 
         for (int s = 0; s < nScans; s++) {
@@ -81,33 +82,22 @@ public class NetcdfCimrBandFactory {
                 idx.set(s, position.getUpperIndex(), 0);
                 double v1 = data.getDouble(idx);
 
-                values[s][smp] = TiepointInterpolator.interpolate(v0, v1, position.getFraction());
+                values.set(s * sampleCount + smp, TiepointInterpolator.interpolate(v0, v1, position.getFraction()));
             }
         }
         return values;
     }
 
-    private double[][] readSampleValues(int nScans, int nSamples, Array data) {
-        double[][] values = new double[nScans][nSamples];
-
-        if (data.getRank() == 2) {
-            Index idx = data.getIndex();
-            for (int s = 0; s < nScans; s++) {
-                for (int smp = 0; smp < nSamples; smp++) {
-                    idx.set(s, smp);
-                    values[s][smp] = data.getDouble(idx);
-                }
-            }
-        } else {
-            Index3D idx = new Index3D(data.getShape());
-            for (int s = 0; s < nScans; s++) {
-                for (int smp = 0; smp < nSamples; smp++) {
-                    idx.set(s, smp, 0);
-                    values[s][smp] = data.getDouble(idx);
-                }
-            }
+    private CimrSampleBuffer readSampleValues(int nScans, int nSamples, Array data) {
+        CimrSampleBuffer values = CimrSampleBuffer.fromNetcdfArray(data);
+        if (values.size() != nScans * nSamples) {
+            throw new IllegalArgumentException("Unexpected sample value count: " + values.size());
         }
         return values;
+    }
+
+    private int getRasterDataType(Array data) {
+        return CimrSampleBuffer.getRasterDataType(data);
     }
 
     private int getSampleCount(CimrBandDescriptor d) {

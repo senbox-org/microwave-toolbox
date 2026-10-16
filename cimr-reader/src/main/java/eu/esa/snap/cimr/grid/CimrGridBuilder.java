@@ -21,7 +21,7 @@ public class CimrGridBuilder {
     }
 
     public CimrGridBandDataSource build(CimrBandDescriptor descriptor, CimrBand band, CimrGrid grid) {
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(grid.getWidth(), grid.getHeight());
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(grid.getWidth(), grid.getHeight(), descriptor.getRasterDataType());
         GridSampleValidator validator = GridSampleValidator.forDescriptor(descriptor);
         mapper.mapNearest(band, grid, target, validator);
         return target;

@@ -68,7 +68,7 @@ public class CimrReaderContextTest {
     }
 
     @Test
-    public void testGetOrCreateGridForVariable() {
+    public void testGetOrCreateGridForVariable_doesNotRetainSourceValueBand() {
         CimrGrid grid = createTestGrid();
         CimrDescriptorSet descriptorSet = createEmptyDescriptorSet();
         CimrBandDescriptor desc = createTestDescriptor();
@@ -102,8 +102,8 @@ public class CimrReaderContextTest {
 
         assertNotSame(grid1, grid2);
 
-        assertEquals(1, geomCalls.get());
-        assertEquals(1, bandCalls.get());
+        assertEquals(2, geomCalls.get());
+        assertEquals(2, bandCalls.get());
 
         assertEquals(42.0, grid1.getSample(0, 0), doubleErr);
     }
@@ -181,7 +181,7 @@ public class CimrReaderContextTest {
     }
 
     @Test
-    public void testClearCache_clearsBandCacheAndGeometryCache() {
+    public void testClearCache_clearsFootprintBandCacheAndGeometryCache() {
         PlateCarreeProjection proj = new PlateCarreeProjection(
                 2, 1,
                 0.0, 0.0,
@@ -250,15 +250,15 @@ public class CimrReaderContextTest {
         GridBandDataSource ds2 = ctx.getOrCreateGridForVariable(varDesc);
 
         assertNotSame(ds1, ds2);
-        assertEquals(1, geomFactory.getCalls);
-        assertEquals(1, bandFactory.calls);
+        assertEquals(2, geomFactory.getCalls);
+        assertEquals(2, bandFactory.calls);
 
         ctx.clearCache();
         assertEquals(1, geomFactory.clearCalls);
 
         ctx.getOrCreateGridForVariable(varDesc);
-        assertEquals(2, geomFactory.getCalls);
-        assertEquals(2, bandFactory.calls);
+        assertEquals(3, geomFactory.getCalls);
+        assertEquals(3, bandFactory.calls);
     }
 
 
