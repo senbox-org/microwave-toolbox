@@ -156,6 +156,11 @@ public class CimrSnapProductBuilderTest {
         assertTrue(Double.isNaN(measurementRaster.getSampleDouble(1, 0, 0)));
         assertTrue(Double.isNaN(measurementRaster.getSampleDouble(2, 0, 0)));
 
+        // A valid pixel requires both geometry coverage and a non-NoData measurement value.
+        assertTrue(measurementBand.isPixelValid(0, 0));
+        assertFalse(measurementBand.isPixelValid(1, 0));
+        assertFalse(measurementBand.isPixelValid(2, 0));
+
         Mask coverageMask = product.getMaskGroup().get(coverageMaskName(bandDesc));
         assertNotNull(coverageMask);
         assertEquals(coverageExpression(bandDesc), Mask.BandMathsType.getExpression(coverageMask));
