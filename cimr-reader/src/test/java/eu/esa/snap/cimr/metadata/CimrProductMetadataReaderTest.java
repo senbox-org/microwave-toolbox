@@ -296,6 +296,30 @@ public class CimrProductMetadataReaderTest {
 
     @Test
     @STTM("SNAP-4262")
+    public void read_addsStatusSatelliteManoeuvreMetadataVariablesLazily() throws Exception {
+        Variable occurrence = variable("manoeuvre_occurence", 1, DataType.BYTE, new byte[]{1}, Collections.emptyList());
+        Variable startTime = variable("manoeuvre_start_time_utc", 1, DataType.DOUBLE, new double[]{2.0}, Collections.emptyList());
+        Variable endTime = variable("manoeuvre_end_time_utc", 1, DataType.DOUBLE, new double[]{3.0}, Collections.emptyList());
+        Group satellite = group("Satellite", "/Status/Satellite", Collections.emptyList(), List.of(occurrence, startTime, endTime), Collections.emptyList());
+        Group status = group("Status", "/Status", Collections.emptyList(), Collections.emptyList(), List.of(satellite));
+
+        MetadataElement variables = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(status)), "path", "CIMR_L1B")
+                .getMetadataElement()
+                .getElement("Groups")
+                .getElement("Status")
+                .getElement("Satellite")
+                .getElement("Variables");
+
+        assertNotNull(variables.getElement("manoeuvre_occurence"));
+        assertNotNull(variables.getElement("manoeuvre_start_time_utc"));
+        assertNotNull(variables.getElement("manoeuvre_end_time_utc"));
+        verify(occurrence, never()).read();
+        assertArrayEquals(new byte[]{1}, (byte[]) variables.getElement("manoeuvre_occurence").getAttribute("value").getData().getElems());
+        verify(occurrence).read();
+    }
+
+    @Test
+    @STTM("SNAP-4262")
     public void read_addsStatusInstrumentMetadataVariablesLazily() throws Exception {
         Variable instrumentMode = variable("instrument_mode", 1, DataType.INT, new int[]{1, 2}, Collections.emptyList());
         Variable modeStart = variable("mode_start_time_utc_observation", 1, DataType.DOUBLE, new double[]{3.0}, Collections.emptyList());

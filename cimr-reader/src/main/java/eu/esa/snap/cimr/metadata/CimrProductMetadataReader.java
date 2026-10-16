@@ -158,7 +158,7 @@ public class CimrProductMetadataReader {
     }
 
     private static boolean isStatusSatelliteMetadata(String groupPath, String variableName) {
-        return groupPath.startsWith("Status/Satellite/")
+        return ("Status/Satellite".equals(groupPath) || groupPath.startsWith("Status/Satellite/"))
                 && ("x_position".equals(variableName)
                 || "y_position".equals(variableName)
                 || "z_position".equals(variableName)
@@ -168,7 +168,10 @@ public class CimrProductMetadataReader {
                 || "q0".equals(variableName)
                 || "q1".equals(variableName)
                 || "q2".equals(variableName)
-                || "q3".equals(variableName));
+                || "q3".equals(variableName)
+                || "manoeuvre_occurence".equals(variableName)
+                || "manoeuvre_start_time_utc".equals(variableName)
+                || "manoeuvre_end_time_utc".equals(variableName));
     }
 
     private static boolean isStatusInstrumentMetadata(String groupPath, String variableName) {
