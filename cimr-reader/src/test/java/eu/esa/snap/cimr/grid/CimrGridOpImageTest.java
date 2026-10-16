@@ -74,6 +74,44 @@ public class CimrGridOpImageTest {
 
     @Test
     @STTM("SNAP-4262")
+    public void testLevel1UsesNearestSourceCodeForCategoricalData() throws Exception {
+        Product product = new Product("P", "T", 2, 2);
+        Band band = product.addBand("status", ProductData.TYPE_INT32);
+        StateAwareGrid grid = new StateAwareGrid(2, 2,
+                                                  new double[]{0.0, 4.0, 1.0, 5.0},
+                                                  new GridSampleState[]{
+                                                          GridSampleState.VALID, GridSampleState.VALID,
+                                                          GridSampleState.VALID, GridSampleState.VALID
+                                                  });
+        CimrGridOpImage opImage = createOpImageLevel(band, 1, 2, 2, grid, CimrOverviewResampling.CATEGORICAL_NEAREST);
+
+        ProductData data = ProductData.createInstance(ProductData.TYPE_INT32, 1);
+        opImage.computeProductData(data, new Rectangle(0, 0, 1, 1));
+
+        assertEquals(0.0, data.getElemDoubleAt(0), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testLevel1MarksCoverageWhenAnySourcePixelIsCovered() throws Exception {
+        Product product = new Product("P", "T", 2, 2);
+        Band band = product.addBand("coverage", ProductData.TYPE_UINT8);
+        StateAwareGrid source = new StateAwareGrid(2, 2,
+                                                    new double[]{Double.NaN, Double.NaN, Double.NaN, Double.NaN},
+                                                    new GridSampleState[]{
+                                                            GridSampleState.EMPTY, GridSampleState.EMPTY,
+                                                            GridSampleState.INVALID, GridSampleState.EMPTY
+                                                    });
+        CimrGridOpImage opImage = createOpImageLevel(band, 1, 2, 2, new GridCoverageDataSource(source), CimrOverviewResampling.COVERAGE_ANY);
+
+        ProductData data = ProductData.createInstance(ProductData.TYPE_UINT8, 1);
+        opImage.computeProductData(data, new Rectangle(0, 0, 1, 1));
+
+        assertEquals(1.0, data.getElemDoubleAt(0), doubleErr);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
     public void testLevel0UsesSampleState() throws Exception {
         int width = 2;
         int height = 1;
@@ -240,9 +278,13 @@ public class CimrGridOpImageTest {
     }
 
     private CimrGridOpImage createOpImageLevel(Band band, int levelIndex, int baseWidth, int baseHeight, GridBandDataSource grid) {
+        return createOpImageLevel(band, levelIndex, baseWidth, baseHeight, grid, CimrOverviewResampling.CONTINUOUS_AVERAGE);
+    }
+
+    private CimrGridOpImage createOpImageLevel(Band band, int levelIndex, int baseWidth, int baseHeight, GridBandDataSource grid, CimrOverviewResampling overviewResampling) {
         AffineTransform at = new AffineTransform();
         MultiLevelModel model = new DefaultMultiLevelModel(2, at, baseWidth, baseHeight);
         ResolutionLevel level = ResolutionLevel.create(model, levelIndex);
-        return new CimrGridOpImage(band, level, grid);
+        return new CimrGridOpImage(band, level, grid, overviewResampling);
     }
 }

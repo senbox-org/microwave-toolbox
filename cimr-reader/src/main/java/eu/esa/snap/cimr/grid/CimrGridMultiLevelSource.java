@@ -19,27 +19,38 @@ public class CimrGridMultiLevelSource extends AbstractMultiLevelSource {
 
     private final Band targetBand;
     private final GridBandDataSource gridDataSource;
+    private final CimrOverviewResampling overviewResampling;
 
+
+    public CimrGridMultiLevelSource(MultiLevelModel multiLevelModel, Band targetBand, GridBandDataSource gridDataSource) {
+        this(multiLevelModel, targetBand, gridDataSource, CimrOverviewResampling.CONTINUOUS_AVERAGE);
+    }
 
     public CimrGridMultiLevelSource(MultiLevelModel multiLevelModel, Band targetBand,
-                                    GridBandDataSource gridDataSource) {
+                                    GridBandDataSource gridDataSource, CimrOverviewResampling overviewResampling) {
         super(multiLevelModel);
         this.targetBand = targetBand;
         this.gridDataSource = gridDataSource;
+        this.overviewResampling = overviewResampling;
     }
 
 
     @Override
     protected RenderedImage createImage(int level) {
         ResolutionLevel resLevel = ResolutionLevel.create(getModel(), level);
-        return new CimrGridOpImage(targetBand, resLevel, gridDataSource);
+        return new CimrGridOpImage(targetBand, resLevel, gridDataSource, overviewResampling);
     }
 
     public static void attachToBand(Band band, GridBandDataSource gridDataSource, CimrGrid grid) {
+        attachToBand(band, gridDataSource, grid, CimrOverviewResampling.CONTINUOUS_AVERAGE);
+    }
+
+    public static void attachToBand(Band band, GridBandDataSource gridDataSource, CimrGrid grid,
+                                    CimrOverviewResampling overviewResampling) {
         AffineTransform imageToModel = grid.getProjection().getAffineTransform(grid);
         MultiLevelModel model = new DefaultMultiLevelModel(MLM_LEVEL_COUNT, imageToModel, grid.getWidth(), grid.getHeight());
 
-        MultiLevelSource source = new CimrGridMultiLevelSource(model, band, gridDataSource);
+        MultiLevelSource source = new CimrGridMultiLevelSource(model, band, gridDataSource, overviewResampling);
         band.setSourceImage(new DefaultMultiLevelImage(source));
     }
 }

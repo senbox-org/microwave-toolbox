@@ -285,6 +285,9 @@ public class CimrSnapProductBuilderTest {
         assertEquals(3, indexCoding.getIndexValue("backward_external_cold_sky_observation"));
         assertEquals(4, indexCoding.getIndexValue("hot_load_calibration"));
         assertEquals(5, indexCoding.getIndexValue("active_cold_load_calibration"));
+
+        Raster overview = band.getSourceImage().getImage(1).getData();
+        assertEquals(0.0, overview.getSampleDouble(0, 0, 0), doubleErr);
     }
 
     private static CimrSampleCoding instrumentStatusCoding() {

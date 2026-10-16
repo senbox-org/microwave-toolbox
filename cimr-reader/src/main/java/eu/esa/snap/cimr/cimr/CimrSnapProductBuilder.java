@@ -6,6 +6,7 @@ import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCoding;
 import eu.esa.snap.cimr.dddb.descriptor.CimrSampleCodingEntry;
 import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.CimrGridMultiLevelSource;
+import eu.esa.snap.cimr.grid.CimrOverviewResampling;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.GridCoverageDataSource;
 import eu.esa.snap.cimr.grid.LazyCrsGeoCoding;
@@ -72,7 +73,7 @@ public class CimrSnapProductBuilder {
             band.setValidPixelExpression(getCoverageExpression(coverageBandName));
             addSampleCoding(product, band, desc);
 
-            CimrGridMultiLevelSource.attachToBand(band, dataSource, grid);
+            CimrGridMultiLevelSource.attachToBand(band, dataSource, grid, getOverviewResampling(desc));
             addCoverageBandAndMask(product, grid, desc, dataSource, coverageKey, coverageKeys);
         }
     }
@@ -89,7 +90,7 @@ public class CimrSnapProductBuilder {
         coverageBand.setDescription("CIMR grid coverage for " + getCoverageDescription(desc));
         coverageBand.setNoDataValueUsed(false);
         configureCoverageBandDisplay(coverageBand);
-        CimrGridMultiLevelSource.attachToBand(coverageBand, new GridCoverageDataSource(dataSource), grid);
+        CimrGridMultiLevelSource.attachToBand(coverageBand, new GridCoverageDataSource(dataSource), grid, CimrOverviewResampling.COVERAGE_ANY);
 
         String maskName = getCoverageMaskName(desc);
         Mask coverageMask = product.addMask(maskName, getCoverageExpression(coverageBandName),
@@ -161,6 +162,12 @@ public class CimrSnapProductBuilder {
             // TODO: BL - 12/10/2026 - enable descriptor/DDDB fill values for integer, categorical, and flag bands.
             band.setNoDataValueUsed(false);
         }
+    }
+
+    private static CimrOverviewResampling getOverviewResampling(CimrBandDescriptor desc) {
+        return desc.getSampleCoding() == null
+                ? CimrOverviewResampling.CONTINUOUS_AVERAGE
+                : CimrOverviewResampling.CATEGORICAL_NEAREST;
     }
 
     private static void addSampleCoding(Product product, Band band, CimrBandDescriptor desc) {
