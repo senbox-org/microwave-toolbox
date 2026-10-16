@@ -1,10 +1,11 @@
 package eu.esa.snap.cimr.netcdf;
 
-import eu.esa.snap.cimr.cimr.CimrBandDescriptor;
-import eu.esa.snap.cimr.cimr.CimrDescriptorKind;
-import eu.esa.snap.cimr.cimr.CimrDimensions;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.grid.CimrGeometry;
 import eu.esa.snap.cimr.grid.CimrGeometryBand;
+import eu.esa.snap.cimr.grid.CimrSampleBuffer;
+import eu.esa.snap.cimr.grid.TiepointInterpolator;
 import ucar.ma2.Array;
 import ucar.ma2.Index3D;
 import ucar.ma2.InvalidRangeException;
@@ -32,8 +33,12 @@ public class NetcdfCimrBandFactory {
         Group group = NcUtil.findGroupOrThrow(this.ncFile, desc.getGroupPath());
         Variable var = NcUtil.findVarOrThrow(group, desc.getValueVarName());
 
-        if (var.getRank() != 3) {
-            throw new IllegalArgumentException("Expected 3D variable for '"
+        if (var.getRank() == 2 && desc.getKind() == CimrDescriptorKind.TIEPOINT_VARIABLE) {
+            throw new IllegalArgumentException("Expected 3D tie-point variable for '"
+                    + desc.getValueVarName() + "', but rank=" + var.getRank());
+        }
+        if (var.getRank() != 2 && var.getRank() != 3) {
+            throw new IllegalArgumentException("Expected 2D or 3D variable for '"
                     + desc.getValueVarName() + "', but rank=" + var.getRank());
         }
 
@@ -41,49 +46,58 @@ public class NetcdfCimrBandFactory {
         int nSamples = dimensions.get(desc.getDimensions()[1]);
         int feedIdx = desc.getFeedIndex();
 
-        int[] origin = new int[] {0, 0, feedIdx};
-        int[] shape  = new int[] {nScans, nSamples, 1};
+        int[] origin;
+        int[] shape;
+        if (var.getRank() == 2) {
+            origin = new int[] {0, 0};
+            shape  = new int[] {nScans, nSamples};
+        } else {
+            origin = new int[] {0, 0, feedIdx};
+            shape  = new int[] {nScans, nSamples, 1};
+        }
 
         final Array data;
         synchronized (this.ncFile) {
             data = var.read(origin, shape);
         }
 
-        double[][] values;
+        if (desc.getKind() == CimrDescriptorKind.TIEPOINT_VARIABLE) {
+            int outputSampleCount = getSampleCount(desc);
+            return new CimrGeometryBand(readTiepointValues(desc, nScans, nSamples, data), nScans, outputSampleCount, geometry, feedIdx);
+        }
+        return new CimrGeometryBand(readSampleValues(nScans, nSamples, data), nScans, nSamples, geometry, feedIdx);
+    }
+
+    private CimrSampleBuffer readTiepointValues(CimrBandDescriptor desc, int nScans, int nTiepoints, Array data) {
+        int sampleCount = getSampleCount(desc);
+        CimrSampleBuffer values = CimrSampleBuffer.create(getRasterDataType(data), nScans * sampleCount);
         Index3D idx = new Index3D(data.getShape());
 
-        if (desc.getKind() == CimrDescriptorKind.TIEPOINT_VARIABLE) {
-            int sampleCount = getSampleCount(desc);
-            values = new double[nScans][sampleCount];
+        for (int s = 0; s < nScans; s++) {
+            for (int smp = 0; smp < sampleCount; smp++) {
+                TiepointInterpolator.Position position = TiepointInterpolator.position(smp, sampleCount, nTiepoints);
 
-            // TODO extract Tiepoint interpolation
-            for (int s = 0; s < nScans; s++) {
-                for (int smp = 0; smp < sampleCount; smp++) {
-                    double t  = (double) smp * (nSamples - 1) / (double) (sampleCount - 1);
-                    int tp0   = (int) Math.floor(t);
-                    int tp1   = Math.min(tp0 + 1, nSamples - 1);
-                    double f  = t - tp0;
+                idx.set(s, position.getLowerIndex(), 0);
+                double v0 = data.getDouble(idx);
+                idx.set(s, position.getUpperIndex(), 0);
+                double v1 = data.getDouble(idx);
 
-                    idx.set(s, tp0, 0);
-                    double v0 = data.getDouble(idx);
-                    idx.set(s, tp1, 0);
-                    double v1 = data.getDouble(idx);
-
-                    values[s][smp] = v0 + f * (v1 - v0);
-                }
-            }
-        } else {
-            values = new double[nScans][nSamples];
-
-            for (int s = 0; s < nScans; s++) {
-                for (int smp = 0; smp < nSamples; smp++) {
-                    idx.set(s, smp, 0);
-                    values[s][smp] = data.getDouble(idx);
-                }
+                values.set(s * sampleCount + smp, TiepointInterpolator.interpolate(v0, v1, position.getFraction()));
             }
         }
+        return values;
+    }
 
-        return new CimrGeometryBand(values, geometry, feedIdx);
+    private CimrSampleBuffer readSampleValues(int nScans, int nSamples, Array data) {
+        CimrSampleBuffer values = CimrSampleBuffer.fromNetcdfArray(data);
+        if (values.size() != nScans * nSamples) {
+            throw new IllegalArgumentException("Unexpected sample value count: " + values.size());
+        }
+        return values;
+    }
+
+    private int getRasterDataType(Array data) {
+        return CimrSampleBuffer.getRasterDataType(data);
     }
 
     private int getSampleCount(CimrBandDescriptor d) {

@@ -1,6 +1,10 @@
 package eu.esa.snap.cimr.cimr;
 
 import eu.esa.snap.cimr.CimrReaderContext;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.*;
 import org.junit.Test;
 
@@ -24,7 +28,7 @@ public class CimrGridProductTest {
         CimrGridProduct product = new CimrGridProduct(grid);
 
         CimrBandDescriptor band1 = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -32,7 +36,7 @@ public class CimrGridProductTest {
                 "double", "", ""
         );
         CimrBandDescriptor band2 = new CimrBandDescriptor(
-                "X_raw_bt_v_feed1", "raw_bt_h", CimrFrequencyBand.X_BAND,
+                "X_raw_bt_v_feed_1", "raw_bt_h", CimrFrequencyBand.X_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 2, CimrDescriptorKind.VARIABLE,
@@ -71,7 +75,7 @@ public class CimrGridProductTest {
                 "double", "", ""
         );
         CimrBandDescriptor measDesc = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {"lat", "lon"}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/", 0,
                 CimrDescriptorKind.VARIABLE,
@@ -85,11 +89,9 @@ public class CimrGridProductTest {
                 List.of(tieDesc)
         );
 
-        CimrReaderContext context = new CimrReaderContext(
-                null, descriptorSet, grid, null, null
-        );
+        CimrReaderContext context = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, null, null);
 
-        CimrGridProduct product = CimrGridProduct.buildLazy(context, true);
+        CimrGridProduct product = CimrGridProduct.buildLazy(context);
 
         assertSame(grid, product.getGlobalGrid());
         assertEquals(2, product.getBandCount());
@@ -107,7 +109,7 @@ public class CimrGridProductTest {
         CimrGridProduct product = new CimrGridProduct(grid);
 
         CimrBandDescriptor band = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,

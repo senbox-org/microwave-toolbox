@@ -1,7 +1,11 @@
 package eu.esa.snap.cimr.grid;
 
-import eu.esa.snap.cimr.cimr.CimrGridBuilder;
+import com.bc.ceres.annotation.STTM;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -13,7 +17,7 @@ public class CimrGridBuilderTest {
 
 
     @Test
-    public void testBuild_usesAverageWhenTrue() {
+    public void testBuild_usesNearestMapping() {
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
 
@@ -25,31 +29,28 @@ public class CimrGridBuilderTest {
         );
         CimrGrid grid =  new CimrGrid(proj, 1, 1);
 
-        CimrGridBandDataSource target = builder.build(swath, grid, true);
+        CimrGridBandDataSource target = builder.build(swath, grid);
 
-        assertEquals(41.0, target.getSample(0, 0), doubleErr);
+        assertEquals(40.0, target.getSample(0, 0), doubleErr);
         assertEquals(1, target.getWidth());
         assertEquals(1, target.getHeight());
     }
 
     @Test
-    public void testBuild_usesNearestWhenFalse() {
-        GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        CimrGridBuilder builder = new CimrGridBuilder(mapper);
+    @STTM("SNAP-4262")
+    public void testBuild_usesDescriptorRasterDataTypeForTargetStorage() {
+        CimrGridBuilder builder = new CimrGridBuilder(new GeometryBandToGridMapper());
+        CimrBandDescriptor descriptor = new CimrBandDescriptor(
+                "status", "status", CimrFrequencyBand.C_BAND,
+                new String[] {"lat", "lon"}, new String[] {}, "/Data", 0,
+                CimrDescriptorKind.VARIABLE, new String[] {"n_scans", "n_samples_C_BAND"},
+                "int", ProductData.TYPE_INT32, "", "");
+        CimrGrid grid = new CimrGrid(new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0), 1, 1);
 
-        CimrBand swath = createDummySwath();
-        PlateCarreeProjection proj = new PlateCarreeProjection(
-                1, 1,
-                0.0, 1.0,
-                1.0, 1.0
-        );
-        CimrGrid grid =  new CimrGrid(proj, 1, 1);
+        CimrGridBandDataSource target = builder.build(descriptor, createDummySwath(), grid);
 
-        CimrGridBandDataSource target = builder.build(swath, grid, false);
-
+        assertEquals(ProductData.TYPE_INT32, target.getRasterDataType());
         assertEquals(40.0, target.getSample(0, 0), doubleErr);
-        assertEquals(1, target.getWidth());
-        assertEquals(1, target.getHeight());
     }
 
     private CimrBand createDummySwath() {
