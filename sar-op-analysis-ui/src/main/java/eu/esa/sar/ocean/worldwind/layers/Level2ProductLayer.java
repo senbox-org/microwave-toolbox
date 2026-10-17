@@ -40,9 +40,17 @@ import java.awt.event.ActionEvent;
 import java.text.DecimalFormat;
 import java.text.Format;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -61,7 +69,8 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
     private JCheckBox theArrowsCB;
     private String theSelectedComp = null;
 
-    final Map<String, ColorBarLegend> theColorBarLegendHash = new HashMap<>();
+    // also read by the components while they build the renderables on the background thread
+    final Map<String, ColorBarLegend> theColorBarLegendHash = new ConcurrentHashMap<>();
     private final Map<Object, String> theObjectInfoHash = new HashMap<>();
     private final Map<Object, Product> theSurfaceProductHash = new HashMap<>();
     private final Map<Object, Integer> theSurfaceSequenceHash = new HashMap<>();
@@ -78,6 +87,17 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
     Consumer<String> warningHandler = Dialogs::showWarning;
 
     private final List<OCNComponent> ocnComponents = new ArrayList<>();
+
+    private static final AtomicInteger threadCount = new AtomicInteger();
+    // one thread: OCN products are small, and products are installed in the order they were added
+    private static final ExecutorService productExecutor = Executors.newSingleThreadExecutor(r -> {
+        final Thread t = new Thread(r, "WorldWind-OCN-" + threadCount.incrementAndGet());
+        t.setDaemon(true);
+        return t;
+    });
+    // products whose renderables are being created; removing a product cancels its pending install
+    private final Set<Product> pendingProducts = Collections.newSetFromMap(Collections.synchronizedMap(new IdentityHashMap<>()));
+    private final AtomicInteger pendingTasks = new AtomicInteger();
 
     public Level2ProductLayer() {
         this.setName("S-1 Level-2 OCN");
@@ -177,8 +197,8 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
             return;
         }
 
-        // if the product has already been added, just return
-        if (theProductRenderablesInfoHash.get(product) != null) {
+        // if the product has already been added or is being added, just return
+        if (theProductRenderablesInfoHash.get(product) != null || !pendingProducts.add(product)) {
             return;
         }
 
@@ -199,27 +219,92 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
         //SystemUtils.LOG.info("product " + product.getName());
 
+        // the components read whole bands: build the renderables on a background thread and install them on the EDT
+        pendingTasks.incrementAndGet();
+        productExecutor.execute(() -> {
+            Throwable failure = null;
+            try {
+                for (OCNComponent component : ocnComponents) {
+                    component.addProduct(product, productRenderablesInfo);
+                }
+            } catch (Throwable e) {
+                failure = e;
+            }
+            final Throwable result = failure;
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    installProduct(product, productRenderablesInfo, result, wwd);
+                } finally {
+                    pendingTasks.decrementAndGet();
+                }
+            });
+        });
+    }
+
+    private void installProduct(final Product product, final ProductRenderablesInfo productRenderablesInfo,
+                                final Throwable failure, final WorldWindowGLCanvas wwd) {
+        if (!pendingProducts.remove(product)) {
+            // the product was removed while its renderables were being created; none was added to the layer
+            return;
+        }
+        if (failure != null) {
+            handleAddFailure(product, productRenderablesInfo, failure);
+            return;
+        }
+
         try {
-            for(OCNComponent component : ocnComponents) {
-                component.addProduct(product, productRenderablesInfo);
+            for (List<Renderable> renderableList : productRenderablesInfo.theRenderableListHash.values()) {
+                for (Renderable renderable : renderableList) {
+                    addRenderable(renderable);
+                }
+            }
+            theProductRenderablesInfoHash.put(product, productRenderablesInfo);
+
+            // the legend limits may have been changed while the product was being read
+            for (Map.Entry<String, ColorBarLegend> entry : theColorBarLegendHash.entrySet()) {
+                ColorGradient.createColorGradient(entry.getValue().getMinValue(), entry.getValue().getMaxValue(),
+                                                  ColorGradient.isWhiteZero(entry.getKey()), productRenderablesInfo,
+                                                  entry.getKey());
             }
 
-            theProductRenderablesInfoHash.put(product, productRenderablesInfo);
             if (theControlLevel2Panel != null) {
                 theControlLevel2Panel.setVisible(true);
             }
             setComponentVisible(theSelectedComp, wwd);
 
         } catch (Exception | Error e) {
-            // a component may already have added renderables: remove them, otherwise they could never be removed
-            removeRenderables(product, productRenderablesInfo);
-            // the product may already have been registered when showing it failed; it could then never be re-added
-            theProductRenderablesInfoHash.remove(product);
-            if (e instanceof Error) {
-                throw (Error) e;
-            }
-            errorHandler.accept("L2ProductLayer unable to add product " + product.getName(), (Exception) e);
+            handleAddFailure(product, productRenderablesInfo, e);
         }
+    }
+
+    private void handleAddFailure(final Product product, final ProductRenderablesInfo productRenderablesInfo,
+                                  final Throwable e) {
+        // renderables may already have been added: remove them, otherwise they could never be removed
+        removeRenderables(product, productRenderablesInfo);
+        // the product may already have been registered when showing it failed; it could then never be re-added
+        theProductRenderablesInfoHash.remove(product);
+        if (e instanceof Error) {
+            throw (Error) e;
+        }
+        errorHandler.accept("L2ProductLayer unable to add product " + product.getName(), (Exception) e);
+    }
+
+    /**
+     * Waits until all queued products have been installed on the EDT. For tests.
+     */
+    boolean awaitPendingProducts(final long timeoutMillis) throws Exception {
+        if (SwingUtilities.isEventDispatchThread()) {
+            throw new IllegalStateException("must not be called on the EDT");
+        }
+        final long end = System.currentTimeMillis() + timeoutMillis;
+        while (pendingTasks.get() > 0) {
+            if (System.currentTimeMillis() > end) {
+                return false;
+            }
+            SwingUtilities.invokeAndWait(() -> { });
+            TimeUnit.MILLISECONDS.sleep(10);
+        }
+        return true;
     }
 
     private void removeRenderables(final Product product, final ProductRenderablesInfo productRenderablesInfo) {
@@ -375,6 +460,8 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
     @Override
     public void removeProduct(final Product product) {
+        // cancels a pending install
+        pendingProducts.remove(product);
 
         final ProductRenderablesInfo productRenderablesInfo = theProductRenderablesInfoHash.get(product);
 

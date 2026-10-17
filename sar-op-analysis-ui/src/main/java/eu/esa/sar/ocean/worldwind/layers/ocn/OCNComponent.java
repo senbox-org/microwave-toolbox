@@ -300,7 +300,6 @@ public abstract class OCNComponent {
 
             Path p = theWWLayer.createPath(polygonPositions, BaseLayer.WHITE_MATERIAL, BaseLayer.RED_MATERIAL);
 
-            theWWLayer.addRenderable(p);
             if (renderableList != null) {
                 renderableList.add(p);
             }
@@ -354,7 +353,6 @@ public abstract class OCNComponent {
             analyticSurface.setSurfaceAttributes(attr);
             analyticSurface.setClientLayer(theWWLayer);
 
-            theWWLayer.addRenderable(analyticSurface);
             if (renderableList != null) {
                 renderableList.add(analyticSurface);
             }
@@ -399,7 +397,6 @@ public abstract class OCNComponent {
             DirectedPath directedPath = getDirectedPath(positions, dpAttrs);
             directedPath.setArrowLength(arrowHeadLength);
 
-            theWWLayer.addRenderable(directedPath);
             if (renderableList != null) {
                 renderableList.add(directedPath);
             }

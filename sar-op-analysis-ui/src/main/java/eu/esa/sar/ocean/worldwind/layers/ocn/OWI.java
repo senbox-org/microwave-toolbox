@@ -402,7 +402,6 @@ public class OWI extends OCNComponent {
                     }
                 };
 
-                theWWLayer.addRenderable(renderable);
                 if (renderableList != null) {
                     renderableList.add(renderable);
                 }
