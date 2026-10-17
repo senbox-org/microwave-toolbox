@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.ocean.worldwind.layers.ocn;
 
-import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.ocean.worldwind.layers.Level2ProductLayer;
 import gov.nasa.worldwind.WorldWind;
 import gov.nasa.worldwind.avlist.AVKey;
@@ -31,9 +30,7 @@ import gov.nasa.worldwind.render.ShapeAttributes;
 import gov.nasa.worldwindx.examples.util.DirectedPath;
 import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.MetadataElement;
-import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.worldwind.ArrowInfo;
@@ -47,6 +44,9 @@ import java.util.Map;
 import java.util.Objects;
 
 public class OWI extends OCNComponent {
+
+    // default colour range of the wind speed in m/s
+    public static final int DEFAULT_MAX_WIND_SPEED = 10;
 
     private boolean theOWIArrowsDisplayed = false;
 
@@ -77,46 +77,40 @@ public class OWI extends OCNComponent {
     @Override
     public void addProduct(final Product product, final ProductRenderablesInfo productRenderablesInfo)
             throws IOException {
-        final Band firstBand = product.getBandAt(0);
-        final String firstBandName = firstBand.getName().toLowerCase();
-        final String prefix = firstBandName.startsWith("vv") ? "vv" : "hh";
-
         final MetadataElement metadataRoot = product.getMetadataRoot();
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
 
-        final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+        final String acquisitionMode = absRoot != null ?
+                absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE, "") : "";
 
-        final GeoPos geoPos1 = product.getSceneGeoCoding().getGeoPos(new PixelPos(0, 0), null);
-        final GeoPos geoPos2 = product.getSceneGeoCoding().getGeoPos(new PixelPos(product.getSceneRasterWidth() - 1,
-                product.getSceneRasterHeight() - 1), null);
+        final Band owiLonBand = findFirstBand(product, "owiLon");
+        final Band owiLatBand = findFirstBand(product, "owiLat");
+        final Band owiIncAngleBand = findFirstBand(product, "owiIncidenceAngle");
+        final Band owiWindSpeedBand = findFirstBand(product, "owiWindSpeed");
+        final Band owiWindDirBand = findFirstBand(product, "owiWindDirection");
 
-        final Band owiLonBand = findBands(product, "owiLon")[0];
-        final Band owiLatBand = findBands(product, "owiLat")[0];
-        final Band owiIncAngleBand = findBands(product, "owiIncidenceAngle")[0];
-        final Band owiWindSpeedBand = findBands(product, "owiWindSpeed")[0];
-        final Band owiWindDirBand = findBands(product, "owiWindDirection")[0];
-
-        if (owiLonBand != null) {
-            final double[] lonValues = new double[owiLonBand.getRasterWidth() * owiLonBand.getRasterHeight()];
-            owiLonBand.readPixels(0, 0, owiLonBand.getRasterWidth(), owiLonBand.getRasterHeight(), lonValues, ProgressMonitor.NULL);
-
-            final double[] latValues = new double[owiLatBand.getRasterWidth() * owiLatBand.getRasterHeight()];
-            owiLatBand.readPixels(0, 0, owiLatBand.getRasterWidth(), owiLatBand.getRasterHeight(), latValues, ProgressMonitor.NULL);
-
-            final double[] incAngleValues = new double[owiIncAngleBand.getRasterWidth() * owiIncAngleBand.getRasterHeight()];
-            owiIncAngleBand.readPixels(0, 0, owiIncAngleBand.getRasterWidth(), owiIncAngleBand.getRasterHeight(), incAngleValues, ProgressMonitor.NULL);
-
-            final double[] windSpeedValues = new double[owiWindSpeedBand.getRasterWidth() * owiWindSpeedBand.getRasterHeight()];
-            owiWindSpeedBand.readPixels(0, 0, owiWindSpeedBand.getRasterWidth(), owiWindSpeedBand.getRasterHeight(), windSpeedValues, ProgressMonitor.NULL);
-
-            final double[] windDirValues = new double[owiWindDirBand.getRasterWidth() * owiWindDirBand.getRasterHeight()];
-            owiWindDirBand.readPixels(0, 0, owiWindDirBand.getRasterWidth(), owiWindDirBand.getRasterHeight(), windDirValues, ProgressMonitor.NULL);
+        final boolean hasGrid = owiLonBand != null && owiLatBand != null && owiIncAngleBand != null &&
+                owiWindSpeedBand != null && owiWindDirBand != null;
+        if (hasGrid) {
+            final int width = owiLonBand.getRasterWidth();
+            final int height = owiLonBand.getRasterHeight();
+            for (Band band : new Band[]{owiLatBand, owiIncAngleBand, owiWindSpeedBand, owiWindDirBand}) {
+                if (band.getRasterWidth() != width || band.getRasterHeight() != height) {
+                    throw new IOException("OWI band " + band.getName() + " is " + band.getRasterWidth() + " x " +
+                                                  band.getRasterHeight() + " pixels, the positions " + width + " x " + height);
+                }
+            }
+            final double[] lonValues = readValues(owiLonBand);
+            final double[] latValues = readValues(owiLatBand);
+            final double[] incAngleValues = readValues(owiIncAngleBand);
+            final double[] windSpeedValues = readValues(owiWindSpeedBand);
+            final double[] windDirValues = readValues(owiWindDirBand);
 
             addWindSpeedArrows(latValues, lonValues, incAngleValues, windSpeedValues, windDirValues,
-                    owiLonBand.getRasterWidth(), owiLonBand.getRasterHeight(), productRenderablesInfo.theRenderableListHash.get("owi"));
+                    width, height, productRenderablesInfo.theRenderableListHash.get("owi"));
 
-            createColorSurfaceWithGradient(geoPos1, geoPos2, latValues, lonValues, windSpeedValues,
-                    owiWindSpeedBand.getRasterWidth(), owiWindSpeedBand.getRasterHeight(), 0, 10,
+            createColorSurfaceWithGradient(null, null, latValues, lonValues, windSpeedValues,
+                    width, height, 0, DEFAULT_MAX_WIND_SPEED,
                     false, productRenderablesInfo.theRenderableListHash.get("owi"), productRenderablesInfo, "owi");
         }
 
@@ -141,13 +135,14 @@ public class OWI extends OCNComponent {
             }
         }
 
-        if (owiData != null && owiLonBand == null) {
+        if (owiData != null && !hasGrid) {
             //addWaveLengthArrows(owiData[0], owiData[1], owiData[3], owiData[4], productRenderablesInfo.theRenderableListHash.get("owi"));
-            createWVColorSurfaceWithGradient(product, owiData[0], owiData[1], owiData[2], productRenderablesInfo.theRenderableListHash.get("owi"), "owi");
+            createWVColorSurfaceWithGradient(product, owiData[0], owiData[1], owiData[2], 0, DEFAULT_MAX_WIND_SPEED,
+                    false, productRenderablesInfo.theRenderableListHash.get("owi"), productRenderablesInfo, "owi");
         }
     }
 
-    private void addWindSpeedArrows(double[] latValues,
+    ArrowInfo[][][] addWindSpeedArrows(double[] latValues,
                                     double[] lonValues,
                                     double[] incAngleValues,
                                     double[] windSpeedValues,
@@ -155,17 +150,10 @@ public class OWI extends OCNComponent {
                                     int width,
                                     int height,
                                     List<Renderable> renderableList) {
-        double pixelWidth = Math.abs(lonValues[0] - lonValues[lonValues.length - 1]) / width;
-        double pixelHeight = Math.abs(latValues[0] - latValues[latValues.length - 1]) / height;
-
-        //SystemUtils.LOG.info("pixelWidth " + pixelWidth + " pixelHeight " + pixelHeight);
-
-        //System.out.println("pixelWidth " + pixelWidth + " pixelHeight " + pixelHeight);
-
-        // take the smaller dimension
-        double arrowLength_deg = pixelWidth;
-        if (pixelHeight < pixelWidth) {
-            arrowLength_deg = pixelHeight;
+        double arrowLength_deg = computeGridSpacingDeg(latValues, lonValues, width, height);
+        if (!(arrowLength_deg > 0)) {
+            // no valid neighbouring positions; fall back to the nominal OCN grid spacing of about 1 km
+            arrowLength_deg = 0.01;
         }
 
         arrowLength_deg = arrowLength_deg * theOWIArrowCellSize;
@@ -182,6 +170,9 @@ public class OWI extends OCNComponent {
 
         int numCellRows = height / theOWIArrowCellSize;
         int numCellCols = width / theOWIArrowCellSize;
+        // the last cells may be partial, if the grid size is not a multiple of the cell size
+        final int lastCellRow = Math.max(0, height - 1) / theOWIArrowCellSize;
+        final int lastCellCol = Math.max(0, width - 1) / theOWIArrowCellSize;
         //SystemUtils.LOG.info(":: numCells: " + numCellRows + " " + numCellCols);
 
         // we need to add 1 because if height is not divisible by cellSize then (height / cellSize) is equal
@@ -194,12 +185,12 @@ public class OWI extends OCNComponent {
         for (int row = 0; row < height; row = row + theOWIArrowCellSize) {
             for (int col = 0; col < width; col = col + theOWIArrowCellSize) {
                 //int i = row*width + col;
-                int globalInd = row * width + col;
-                float avgLat = 0;
-                float avgLon = 0;
+                final PositionMean avgPos = new PositionMean();
+                final DirectionMean avgDir = new DirectionMean();
                 double avgIncAngle = 0;
+                int numIncAngles = 0;
                 double avgWindSpeed = 0;
-                double avgWindDir = 0;
+                int numValid = 0;
                 int finalCellRow = row + theOWIArrowCellSize;
                 int finalCellCol = col + theOWIArrowCellSize;
 
@@ -212,48 +203,60 @@ public class OWI extends OCNComponent {
                 for (int currCellRow = row; currCellRow < finalCellRow; currCellRow++) {
                     for (int currCellCol = col; currCellCol < finalCellCol; currCellCol++) {
                         int i = currCellRow * width + currCellCol;
-                        avgLat += latValues[i];
-                        avgLon += lonValues[i];
-                        avgIncAngle += incAngleValues[i];
+                        // skip fill values (land, outside the swath)
+                        if (!isValidLatLon(latValues[i], lonValues[i]) || Double.isNaN(windSpeedValues[i]) ||
+                                Double.isNaN(windDirValues[i])) {
+                            continue;
+                        }
+                        avgPos.add(latValues[i], lonValues[i]);
+                        avgDir.add(windDirValues[i]);
+                        if (!Double.isNaN(incAngleValues[i])) {
+                            avgIncAngle += incAngleValues[i];
+                            numIncAngles++;
+                        }
                         avgWindSpeed += windSpeedValues[i];
-                        avgWindDir += windDirValues[i];
+                        numValid++;
                     }
                 }
 
-                avgLat = avgLat / ((finalCellRow - row) * (finalCellCol - col));
-                avgLon = avgLon / ((finalCellRow - row) * (finalCellCol - col));
-                avgIncAngle = avgIncAngle / ((finalCellRow - row) * (finalCellCol - col));
-                avgWindSpeed = avgWindSpeed / ((finalCellRow - row) * (finalCellCol - col));
-                avgWindDir = avgWindDir / ((finalCellRow - row) * (finalCellCol - col));
-
-
-                //System.out.println("avgIncAngle " + avgIncAngle);
-                //for (int i = 0; i < latValues.length; i=i+50) {
-                //System.out.println(lonValues[i] + "::==::" + latValues[i] + "::==::" + incAngleValues[i] + "::==::" + windSpeedValues[i] + "::==::" + windDirValues[i] + "::==::");
-                final Position startPos = new Position(Angle.fromDegreesLatitude(avgLat), Angle.fromDegreesLongitude(avgLon), 10.0);
-                final Position endPos = new Position(LatLon.greatCircleEndPosition(startPos, Angle.fromDegrees(avgWindDir), Angle.fromDegrees(arrowLength_deg)), 10.0);
-
-                //System.out.println("startPos " + startPos + " endPos " + endPos);
-
-                final List<Position> positions = new ArrayList<>();
-                positions.add(startPos);
-                positions.add(endPos);
-
-                final DirectedPath directedPath = getDirectedPath(positions, dpAttrs);
-
-                //double arrowHeadLength = computeSegmentLength(directedPath, dc, startPos, endPos) / 4;
-                directedPath.setArrowLength(arrowHeadLength);
                 int currCellRow = row / theOWIArrowCellSize;
                 int currCellCol = col / theOWIArrowCellSize;
-                //SystemUtils.LOG.info(":: currCell: " + currCellRow + " " + currCellCol);
-                arrowGrid[0][currCellRow][currCellCol] = new ArrowInfo(directedPath, avgIncAngle, avgWindSpeed, avgWindDir, arrowLength_deg);
+                final double avgWindDir = avgDir.getMeanDeg();
+                // cells without valid data (land, outside the swath) get no arrow;
+                // coarser levels average the remaining cells
+                if (numValid > 0 && !Double.isNaN(avgWindDir)) {
+                    avgIncAngle = numIncAngles > 0 ? avgIncAngle / numIncAngles : Double.NaN;
+                    avgWindSpeed = avgWindSpeed / numValid;
 
+
+                    //System.out.println("avgIncAngle " + avgIncAngle);
+                    //for (int i = 0; i < latValues.length; i=i+50) {
+                    //System.out.println(lonValues[i] + "::==::" + latValues[i] + "::==::" + incAngleValues[i] + "::==::" + windSpeedValues[i] + "::==::" + windDirValues[i] + "::==::");
+                    final Position startPos = new Position(Angle.fromDegreesLatitude(avgPos.getLatDeg()), Angle.fromDegreesLongitude(avgPos.getLonDeg()), 10.0);
+                    final Position endPos = new Position(LatLon.greatCircleEndPosition(startPos, Angle.fromDegrees(toArrowAzimuthDeg(avgWindDir)), Angle.fromDegrees(arrowLength_deg)), 10.0);
+
+                    //System.out.println("startPos " + startPos + " endPos " + endPos);
+
+                    final List<Position> positions = new ArrayList<>();
+                    positions.add(startPos);
+                    positions.add(endPos);
+
+                    final DirectedPath directedPath = getDirectedPath(positions, dpAttrs);
+
+                    //double arrowHeadLength = computeSegmentLength(directedPath, dc, startPos, endPos) / 4;
+                    directedPath.setArrowLength(arrowHeadLength);
+                    //SystemUtils.LOG.info(":: currCell: " + currCellRow + " " + currCellCol);
+                    arrowGrid[0][currCellRow][currCellCol] = new ArrowInfo(directedPath, avgIncAngle, avgWindSpeed, avgWindDir, arrowLength_deg);
+                }
 
                 //if (currCellRow > 0 && currCellCol > 0) {
                 for (int cellSizeResolution = 1; cellSizeResolution < theOWIArrowNumLevels; cellSizeResolution++) {
                     // treating the original cell size as 1
                     int currBigCellSize = (int) FastMath.pow(2, cellSizeResolution);
-                    if ((currCellRow % currBigCellSize == currBigCellSize - 1) && (currCellCol % currBigCellSize == currBigCellSize - 1)) {
+                    // a big cell is built at its last small cell; partial big cells at the end of the grid as well,
+                    // otherwise the edges of the swath have no arrows at the coarser levels
+                    if ((currCellRow % currBigCellSize == currBigCellSize - 1 || currCellRow == lastCellRow) &&
+                            (currCellCol % currBigCellSize == currBigCellSize - 1 || currCellCol == lastCellCol)) {
                         int bigCellRow = (currCellRow / currBigCellSize);
                         int bigCellCol = (currCellCol / currBigCellSize);
 
@@ -261,45 +264,49 @@ public class OWI extends OCNComponent {
                         int smallCellStartCol = bigCellCol * 2;
 
                         double cumAvgIncAngle = 0;
+                        int numCumIncAngles = 0;
                         double cumAvgWindSpeed = 0;
-                        double cumAvgWindDir = 0;
-                        Position cumStartPos = new Position(Angle.fromDegreesLatitude(0.0), Angle.fromDegreesLongitude(0.0), 10.0);
-                        Position cumEndPos = new Position(Angle.fromDegreesLatitude(0.0), Angle.fromDegreesLongitude(0.0), 10.0);
-                        double cumStartPosLat_deg = 0;
-                        double cumStartPosLon_deg = 0;
+                        final DirectionMean cumAvgDir = new DirectionMean();
+                        final PositionMean cumStartPos = new PositionMean();
+                        int numSmallArrows = 0;
                         double bigCellArrowLength_deg = currBigCellSize * arrowLength_deg;
                         for (int currSmallCellRow = smallCellStartRow; currSmallCellRow < smallCellStartRow + 2; currSmallCellRow++) {
                             for (int currSmallCellCol = smallCellStartCol; currSmallCellCol < smallCellStartCol + 2; currSmallCellCol++) {
-                                ArrowInfo currSmallArrow = arrowGrid[cellSizeResolution - 1][currSmallCellRow][currSmallCellCol];
-                                // all small cell's arrow length's will be the same
-                                //bigCellArrowLength_deg = 2*currSmallArrow.theArrowLength;
-                                cumAvgIncAngle += currSmallArrow.theAvgIncAngle;
-                                cumAvgWindSpeed += currSmallArrow.theAvgWindSpeed;
-                                cumAvgWindDir += currSmallArrow.theAvgWindDir;
-                                boolean firstPosNext = true;
-                                for (Position pos : currSmallArrow.theDirectedPath.getPositions()) {
-                                    if (firstPosNext) {
-                                        cumStartPos = cumStartPos.add(pos);
-                                        cumStartPosLat_deg += pos.getLatitude().getDegrees();
-                                        cumStartPosLon_deg += pos.getLongitude().getDegrees();
-                                        firstPosNext = false;
-                                    } else {
-                                        cumEndPos = cumEndPos.add(pos);
-                                    }
+                                if (currSmallCellRow >= arrowGrid[cellSizeResolution - 1].length ||
+                                        currSmallCellCol >= arrowGrid[cellSizeResolution - 1][currSmallCellRow].length) {
+                                    // beyond the end of the grid
+                                    continue;
                                 }
+                                ArrowInfo currSmallArrow = arrowGrid[cellSizeResolution - 1][currSmallCellRow][currSmallCellCol];
+                                if (currSmallArrow == null) {
+                                    // cell without valid data
+                                    continue;
+                                }
+                                if (!Double.isNaN(currSmallArrow.theAvgIncAngle)) {
+                                    cumAvgIncAngle += currSmallArrow.theAvgIncAngle;
+                                    numCumIncAngles++;
+                                }
+                                cumAvgWindSpeed += currSmallArrow.theAvgWindSpeed;
+                                cumAvgDir.add(currSmallArrow.theAvgWindDir);
+                                for (Position pos : currSmallArrow.theDirectedPath.getPositions()) {
+                                    // the first position is the start of the arrow
+                                    cumStartPos.add(pos.getLatitude().getDegrees(), pos.getLongitude().getDegrees());
+                                    break;
+                                }
+                                numSmallArrows++;
                             }
                         }
-                        cumAvgIncAngle = cumAvgIncAngle / 4;
-                        cumAvgWindSpeed = cumAvgWindSpeed / 4;
-                        cumAvgWindDir = cumAvgWindDir / 4;
-                        cumStartPosLat_deg = cumStartPosLat_deg / 4;
-                        cumStartPosLon_deg = cumStartPosLon_deg / 4;
 
                         arrowGrid[cellSizeResolution][bigCellRow][bigCellCol] = null;
+                        final double cumAvgWindDir = cumAvgDir.getMeanDeg();
+                        if (numSmallArrows == 0 || Double.isNaN(cumAvgWindDir)) {
+                            continue;
+                        }
+                        cumAvgIncAngle = numCumIncAngles > 0 ? cumAvgIncAngle / numCumIncAngles : Double.NaN;
+                        cumAvgWindSpeed = cumAvgWindSpeed / numSmallArrows;
 
-
-                        Position bigCellStartPos = new Position(Angle.fromDegreesLatitude(cumStartPosLat_deg), Angle.fromDegreesLongitude(cumStartPosLon_deg), 10.0);
-                        Position bigCellEndPos = new Position(LatLon.greatCircleEndPosition(bigCellStartPos, Angle.fromDegrees(cumAvgWindDir), Angle.fromDegrees(bigCellArrowLength_deg)), 10.0);
+                        Position bigCellStartPos = new Position(Angle.fromDegreesLatitude(cumStartPos.getLatDeg()), Angle.fromDegreesLongitude(cumStartPos.getLonDeg()), 10.0);
+                        Position bigCellEndPos = new Position(LatLon.greatCircleEndPosition(bigCellStartPos, Angle.fromDegrees(toArrowAzimuthDeg(cumAvgWindDir)), Angle.fromDegrees(bigCellArrowLength_deg)), 10.0);
 
                         //System.out.println("startPos " + startPos + " endPos " + endPos);
                         List<Position> bigCellPositions = new ArrayList<>();
@@ -317,8 +324,8 @@ public class OWI extends OCNComponent {
 
             }
         }
-        for (int cellRow = 0; cellRow < numCellRows; cellRow++) {
-            for (int cellCol = 0; cellCol < numCellCols; cellCol++) {
+        for (int cellRow = 0; cellRow <= lastCellRow; cellRow++) {
+            for (int cellCol = 0; cellCol <= lastCellCol; cellCol++) {
 
                 final int finalCellRow = cellRow;
                 final int finalCellCol = cellCol;
@@ -376,7 +383,7 @@ public class OWI extends OCNComponent {
 
                                     if (theObjectInfoHash.get(currDirectedPath) == null) {
                                         String info = "Wind Speed: " + currArrow.theAvgWindSpeed + "<br/>";
-                                        info += "Wind Direction: " + currArrow.theAvgWindDir + "<br/>";
+                                        info += "Wind Direction (from): " + currArrow.theAvgWindDir + "<br/>";
                                         info += "Incidence Angle: " + currArrow.theAvgIncAngle + "<br/>";
                                         theObjectInfoHash.put(currDirectedPath, info);
                                     }
@@ -402,6 +409,40 @@ public class OWI extends OCNComponent {
 
             }
         }
+        return arrowGrid;
+    }
+
+    /**
+     * Grid spacing in degrees of arc: the smaller of the great circle distances from the valid grid point nearest
+     * the centre row to its right and lower neighbours. The distance between two corners does not work: depending
+     * on the heading of the swath, their latitude or longitude difference can be close to zero.
+     *
+     * @return the spacing, or NaN if no grid point has valid right and lower neighbours
+     */
+    static double computeGridSpacingDeg(final double[] latValues, final double[] lonValues,
+                                        final int width, final int height) {
+        final int centreRow = height / 2;
+        for (int d = 0; d <= height; d++) {
+            for (int row : new int[]{centreRow - d, centreRow + d}) {
+                if (row < 0 || row + 1 >= height) {
+                    continue;
+                }
+                for (int col = 0; col + 1 < width; col++) {
+                    final int i = row * width + col;
+                    if (isValidLatLon(latValues[i], lonValues[i]) &&
+                            isValidLatLon(latValues[i + 1], lonValues[i + 1]) &&
+                            isValidLatLon(latValues[i + width], lonValues[i + width])) {
+                        final LatLon pos = LatLon.fromDegrees(latValues[i], normalizeLon(lonValues[i]));
+                        final double dx = LatLon.greatCircleDistance(pos,
+                                LatLon.fromDegrees(latValues[i + 1], normalizeLon(lonValues[i + 1]))).degrees;
+                        final double dy = LatLon.greatCircleDistance(pos,
+                                LatLon.fromDegrees(latValues[i + width], normalizeLon(lonValues[i + width]))).degrees;
+                        return Math.min(dx, dy);
+                    }
+                }
+            }
+        }
+        return Double.NaN;
     }
 
     private static double computeSegmentLength(Path path, DrawContext dc, Position posA, Position posB) {

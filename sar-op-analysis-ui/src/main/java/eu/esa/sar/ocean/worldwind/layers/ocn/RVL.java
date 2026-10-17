@@ -15,14 +15,12 @@
  */
 package eu.esa.sar.ocean.worldwind.layers.ocn;
 
-import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.ocean.worldwind.layers.Level2ProductLayer;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.MetadataElement;
-import org.esa.snap.core.datamodel.PixelPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.util.StringUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.worldwind.ColorBarLegend;
 import org.esa.snap.worldwind.ProductRenderablesInfo;
@@ -44,6 +42,40 @@ public class RVL extends OCNComponent {
                 theSurfaceSequenceHash);
     }
 
+    // default colour range of the radial velocity in m/s, symmetric so that zero is white
+    public static final int DEFAULT_MAX_RADIAL_VELOCITY = 6;
+
+    /**
+     * Extent of the valid positions of a grid. Swaths are padded with fill values at the end of the rows and
+     * columns, but the padding is not the same in every row (slanted swath edges), so the whole grid is searched.
+     *
+     * @return the number of leading columns and rows up to and including the last one with a valid position
+     */
+    static int[] getValidExtent(final double[] latValues, final double[] lonValues, final int width, final int height) {
+        int maxCol = -1;
+        int maxRow = -1;
+        for (int row = 0; row < height; row++) {
+            for (int col = 0; col < width; col++) {
+                final int i = row * width + col;
+                if (isValidLatLon(latValues[i], lonValues[i])) {
+                    maxCol = Math.max(maxCol, col);
+                    maxRow = row;
+                }
+            }
+        }
+        return new int[]{maxCol + 1, maxRow + 1};
+    }
+
+    /**
+     * @return the top left w x h samples of a grid that is srcWidth samples wide
+     */
+    static double[] crop(final double[] values, final int srcWidth, final int w, final int h) {
+        final double[] cropped = new double[w * h];
+        for (int row = 0; row < h; row++) {
+            System.arraycopy(values, row * srcWidth, cropped, row * w, w);
+        }
+        return cropped;
+    }
     @Override
     public void addProduct(final Product product, final ProductRenderablesInfo productRenderablesInfo)
             throws IOException {
@@ -51,7 +83,8 @@ public class RVL extends OCNComponent {
         final MetadataElement metadataRoot = product.getMetadataRoot();
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
 
-        final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+        final String acquisitionMode = absRoot != null ?
+                absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE, "") : "";
 
         int numRVLElements = 0;
         int numSwaths = 0;
@@ -74,14 +107,14 @@ public class RVL extends OCNComponent {
 
         for (int i = 0; i < numSwaths; i++) {
             String swath = swathName + (i + 1);
-            Band rvlLonBand = findBands(product, swath, "rvlLon")[0];
+            Band rvlLonBand = findFirstBand(product, swath, "rvlLon");
+            if (rvlLonBand == null) {
+                // swath not present, e.g. in a subset
+                continue;
+            }
 
             numRVLElements += (rvlLonBand.getRasterWidth() * rvlLonBand.getRasterHeight());
         }
-
-        final GeoPos geoPos1 = product.getSceneGeoCoding().getGeoPos(new PixelPos(0, 0), null);
-        final GeoPos geoPos2 = product.getSceneGeoCoding().getGeoPos(new PixelPos(product.getSceneRasterWidth() - 1,
-                product.getSceneRasterHeight() - 1), null);
 
         if (numRVLElements > 0) {
 
@@ -104,48 +137,36 @@ public class RVL extends OCNComponent {
                     Band currRVLLatBand = latBands[0];
                     Band currRVLRadVelBand = radVelBands[0];
 
-                    int w = currRVLRadVelBand.getRasterWidth();
-                    int h = currRVLRadVelBand.getRasterHeight();
-
-                    double[] currRVLLonValues = new double[w];
-                    currRVLLonBand.readPixels(0, 0, w, 1, currRVLLonValues, ProgressMonitor.NULL);
-
-                    // find no data value edge
-                    for (int cnt = w - 1; cnt > 0; --cnt) {
-                        if (currRVLLonValues[cnt] != currRVLLatBand.getNoDataValue()) {
-                            w = cnt;
-                            break;
-                        }
+                    final int bandW = currRVLRadVelBand.getRasterWidth();
+                    final int bandH = currRVLRadVelBand.getRasterHeight();
+                    if (currRVLLonBand.getRasterWidth() != bandW || currRVLLonBand.getRasterHeight() != bandH ||
+                            currRVLLatBand.getRasterWidth() != bandW || currRVLLatBand.getRasterHeight() != bandH) {
+                        throw new IOException("RVL position and radial velocity bands of " + swath + " differ in size");
                     }
 
-                    currRVLLonValues = new double[h];
-                    currRVLLonBand.readPixels(0, 0, 1, h, currRVLLonValues, ProgressMonitor.NULL);
+                    final double[] lonValues = readValues(currRVLLonBand);
+                    final double[] latValues = readValues(currRVLLatBand);
+                    final double[] radVelValues = readValues(currRVLRadVelBand);
 
-                    // find no data value edge
-                    for (int cnt = h - 1; cnt > 0; --cnt) {
-                        if (currRVLLonValues[cnt] != currRVLLatBand.getNoDataValue()) {
-                            h = cnt;
-                            break;
-                        }
+                    // trim the trailing columns and rows that only contain fill values
+                    final int[] extent = getValidExtent(latValues, lonValues, bandW, bandH);
+                    final int w = extent[0];
+                    final int h = extent[1];
+                    if (w < 2 || h < 2) {
+                        SystemUtils.LOG.warning("RVL grid of " + swath + " has too few valid positions (" + w + " x " + h + ") and is not drawn");
+                        continue;
                     }
 
-                    currRVLLonValues = new double[w * h];
-                    currRVLLonBand.readPixels(0, 0, w, h, currRVLLonValues, ProgressMonitor.NULL);
-
-                    double[] currRVLLatValues = new double[w * h];
-                    currRVLLatBand.readPixels(0, 0, w, h, currRVLLatValues, ProgressMonitor.NULL);
-
-                    double[] currRVLRadVelValues = new double[w * h];
-                    currRVLRadVelBand.readPixels(0, 0, w, h, currRVLRadVelValues, ProgressMonitor.NULL);
-
-                    createColorSurfaceWithGradient(geoPos1, geoPos2, currRVLLatValues, currRVLLonValues, currRVLRadVelValues, w, h,
-                            -6, 5, true, productRenderablesInfo.theRenderableListHash.get("rvl"), productRenderablesInfo, "rvl");
+                    // fill values inside the trimmed grid (slanted swath edges) are NaN and are not drawn
+                    createColorSurfaceWithGradient(null, null, crop(latValues, bandW, w, h), crop(lonValues, bandW, w, h),
+                            crop(radVelValues, bandW, w, h), w, h,
+                            -DEFAULT_MAX_RADIAL_VELOCITY, DEFAULT_MAX_RADIAL_VELOCITY, true, productRenderablesInfo.theRenderableListHash.get("rvl"), productRenderablesInfo, "rvl");
                 }
             }
         }
 
         double[][] rvlData = null;
-        if (acquisitionMode.equalsIgnoreCase("WV") && numImagettes > 1) {
+        if (acquisitionMode.equalsIgnoreCase("WV") && numImagettes > 1 && numRVLElements == 0) {
             rvlData = new double[3][numImagettes];
 
             int i = 0;
@@ -160,7 +181,9 @@ public class RVL extends OCNComponent {
         }
 
         if (rvlData != null && numRVLElements == 0) {
-            createWVColorSurfaceWithGradient(product, rvlData[0], rvlData[1], rvlData[2], productRenderablesInfo.theRenderableListHash.get("rvl"), "rvl");
+            createWVColorSurfaceWithGradient(product, rvlData[0], rvlData[1], rvlData[2],
+                    -DEFAULT_MAX_RADIAL_VELOCITY, DEFAULT_MAX_RADIAL_VELOCITY, true,
+                    productRenderablesInfo.theRenderableListHash.get("rvl"), productRenderablesInfo, "rvl");
         }
     }
 }

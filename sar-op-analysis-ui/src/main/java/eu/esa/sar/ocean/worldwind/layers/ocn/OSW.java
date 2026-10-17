@@ -26,6 +26,9 @@ import java.util.Map;
 
 public class OSW extends OCNComponent {
 
+    // default colour range of the significant wave height in m
+    public static final int DEFAULT_MAX_WAVE_HEIGHT = 10;
+
     public OSW(final Level2ProductLayer wwLayer,
                final Map<String, ColorBarLegend> theColorBarLegendHash,
                final Map<Object, String> theObjectInfoHash,
@@ -44,7 +47,8 @@ public class OSW extends OCNComponent {
         final MetadataElement metadataRoot = product.getMetadataRoot();
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
 
-        final String acquisitionMode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
+        final String acquisitionMode = absRoot != null ?
+                absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE, "") : "";
 
         double[][] oswData = null;
 
@@ -57,11 +61,13 @@ public class OSW extends OCNComponent {
 
                 int i = 0;
                 for (MetadataElement element : metadataRoot.getElement("Original_Product_Metadata").getElement("annotation").getElements()) {
+                    // the wave parameters are given per swell partition: show the dominant one
+                    final int partition = getDominantPartition(element.getElement("oswHs"));
                     oswData[0][i] = getData(element.getElement("oswLat"));
                     oswData[1][i] = getData(element.getElement("oswLon"));
-                    oswData[2][i] = getData(element.getElement("oswHs"));
-                    oswData[3][i] = getData(element.getElement("oswWl"));
-                    oswData[4][i] = getData(element.getElement("oswDirmet"));
+                    oswData[2][i] = getData(element.getElement("oswHs"), partition);
+                    oswData[3][i] = getData(element.getElement("oswWl"), partition);
+                    oswData[4][i] = getData(element.getElement("oswDirmet"), partition);
 
                     i++;
                 }
@@ -70,7 +76,24 @@ public class OSW extends OCNComponent {
 
         if (oswData != null) {
             addWaveLengthArrows(oswData[0], oswData[1], oswData[3], oswData[4], productRenderablesInfo.theRenderableListHash.get("osw"));
-            createWVColorSurfaceWithGradient(product, oswData[0], oswData[1], oswData[2], productRenderablesInfo.theRenderableListHash.get("osw"), "osw");
+            createWVColorSurfaceWithGradient(product, oswData[0], oswData[1], oswData[2], 0, DEFAULT_MAX_WAVE_HEIGHT,
+                    false, productRenderablesInfo.theRenderableListHash.get("osw"), productRenderablesInfo, "osw");
         }
+    }
+
+    /**
+     * @return the index of the swell partition with the largest significant wave height, 0 if there is none
+     */
+    int getDominantPartition(final MetadataElement hsElement) {
+        int dominant = 0;
+        double maxHs = Double.NEGATIVE_INFINITY;
+        for (int p = 0; p < getNumValues(hsElement); p++) {
+            final double hs = getData(hsElement, p);
+            if (hs > maxHs) {
+                maxHs = hs;
+                dominant = p;
+            }
+        }
+        return dominant;
     }
 }
