@@ -8,10 +8,6 @@ import java.awt.*;
 public class GeometryBandToGridMapper {
 
 
-    public void mapNearest(CimrBand band, CimrGrid grid, GridBandDataSource target) {
-        mapNearest(band, grid, target, GridSampleValidator.NAN_ONLY);
-    }
-
     public void mapNearest(CimrBand band, CimrGrid grid, GridBandDataSource target, GridSampleValidator validator) {
         Point gridPoint = new Point();
 

@@ -6,6 +6,8 @@ import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.*;
+import eu.esa.snap.cimr.test.CimrGridTestData;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import java.util.List;
@@ -44,10 +46,8 @@ public class CimrGridProductTest {
                 "double", "", ""
         );
 
-        double[] data1 = {1.0, 2.0};
-        double[] data2 = {10.0, 20.0};
-        GridBandDataSource ds1 = new CimrGridBandDataSource(2, 1, data1);
-        GridBandDataSource ds2 = new CimrGridBandDataSource(2, 1, data2);
+        GridBandDataSource ds1 = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0);
+        GridBandDataSource ds2 = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 10.0, 20.0);
 
         product.addBand(band1, ds1);
         product.addBand(band2, ds2);
@@ -116,7 +116,7 @@ public class CimrGridProductTest {
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
         );
-        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[]{1.0, 2.0});
+        GridBandDataSource ds = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0);
         product.addBand(band, ds);
 
         product.getBands().put(band, ds);

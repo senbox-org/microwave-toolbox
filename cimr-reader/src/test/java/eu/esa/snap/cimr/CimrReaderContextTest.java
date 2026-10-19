@@ -8,7 +8,9 @@ import eu.esa.snap.cimr.grid.*;
 import eu.esa.snap.cimr.netcdf.CimrDimensions;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrBandFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
+import eu.esa.snap.cimr.test.CimrGridTestData;
 import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 import ucar.nc2.NetcdfFile;
 
@@ -90,8 +92,7 @@ public class CimrReaderContextTest {
             @Override
             public CimrGeometryBand createGeometryBand(CimrBandDescriptor desc, CimrGeometry geometry) {
                 bandCalls.incrementAndGet();
-                double[][] values = {{42.0, 42.0}};
-                return new CimrGeometryBand(values, geometry, desc.getFeedIndex());
+                return CimrGridTestData.geometryBand(ProductData.TYPE_FLOAT32, 1, 2, geometry, desc.getFeedIndex(), 42.0, 42.0);
             }
         };
 
@@ -236,8 +237,7 @@ public class CimrReaderContextTest {
             @Override
             public CimrGeometryBand createGeometryBand(CimrBandDescriptor desc, CimrGeometry geometry) {
                 calls++;
-                double[][] values = {{1.0, 2.0}};
-                return new CimrGeometryBand(values, geometry, desc.getFeedIndex());
+                return CimrGridTestData.geometryBand(ProductData.TYPE_FLOAT32, 1, 2, geometry, desc.getFeedIndex(), 1.0, 2.0);
             }
         }
 

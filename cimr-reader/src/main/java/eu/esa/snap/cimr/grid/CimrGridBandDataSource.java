@@ -1,9 +1,8 @@
 package eu.esa.snap.cimr.grid;
 
-import org.esa.snap.core.datamodel.ProductData;
-
 
 public class CimrGridBandDataSource implements GridBandDataSource {
+
 
     private final int width;
     private final int height;
@@ -14,10 +13,6 @@ public class CimrGridBandDataSource implements GridBandDataSource {
     private static final byte INVALID = 1;
     private static final byte VALID = 2;
 
-
-    public CimrGridBandDataSource(int width, int height, double[] data) {
-        this(width, height, CimrSampleBuffer.wrap(ProductData.TYPE_FLOAT64, data, data.length), createStates(data));
-    }
 
     private CimrGridBandDataSource(int width, int height, CimrSampleBuffer data, byte[] states) {
         if (data.size() != width * height) {
@@ -32,10 +27,6 @@ public class CimrGridBandDataSource implements GridBandDataSource {
         this.states = states;
     }
 
-
-    public static CimrGridBandDataSource createEmpty(int width, int height) {
-        return createEmpty(width, height, ProductData.TYPE_FLOAT64);
-    }
 
     public static CimrGridBandDataSource createEmpty(int width, int height, int rasterDataType) {
         int size = width * height;
@@ -102,14 +93,6 @@ public class CimrGridBandDataSource implements GridBandDataSource {
         if (x < 0 || x >= width || y < 0 || y >= height) {
             throw new IllegalArgumentException("Grid index out of range: x=" + x + ", y=" + y);
         }
-    }
-
-    private static byte[] createStates(double[] data) {
-        byte[] states = new byte[data.length];
-        for (int ii = 0; ii < data.length; ii++) {
-            states[ii] = Double.isNaN(data[ii]) ? INVALID : VALID;
-        }
-        return states;
     }
 
     private static GridSampleState toState(byte state) {

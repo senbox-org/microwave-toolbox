@@ -1,6 +1,8 @@
 package eu.esa.snap.cimr.grid;
 
+import eu.esa.snap.cimr.test.CimrGridTestData;
 import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -13,17 +15,13 @@ public class CimrGeometryBandTest {
 
     @Test
     public void testValuesAndGeometryAreWiredCorrectly() {
-        double[][] values = {
-                {1.0, 2.0, 3.0, 4.0}
-        };
-
         GeoPos[][][] tp = new GeoPos[1][2][1];
         tp[0][0][0] = new GeoPos(50f, 0f);
         tp[0][1][0] = new GeoPos(50f, 10f);
 
         CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 4);
 
-        CimrGeometryBand band = new CimrGeometryBand(values, geom, 5);
+        CimrGeometryBand band = CimrGridTestData.geometryBand(ProductData.TYPE_FLOAT32, 1, 4, geom, 5, 1.0, 2.0, 3.0, 4.0);
 
         assertEquals(1, band.getScanCount());
         assertEquals(4, band.getSampleCount());
@@ -50,64 +48,49 @@ public class CimrGeometryBandTest {
         tp[0][0][0] = new GeoPos(0f, 0f);
         CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 2);
 
-        new CimrGeometryBand(new double[0][0], geom, 0);
+        new CimrGeometryBand(null, 1, 2, geom, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructor_FailsWhenGeometryNull() {
-        double[][] values = {
-                {1.0, 2.0}
-        };
-        new CimrGeometryBand(values, null, 0);
+        new CimrGeometryBand(CimrSampleBuffer.create(ProductData.TYPE_FLOAT32, 2), 1, 2, null, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructor_FailsWhenNoScans() {
-        double[][] values = new double[0][];
         GeoPos[][][] tp = new GeoPos[1][1][1];
         tp[0][0][0] = new GeoPos(0f, 0f);
 
-        CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 1);
-        new CimrGeometryBand(values, geom, 0);
+        CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 2);
+        new CimrGeometryBand(CimrSampleBuffer.create(ProductData.TYPE_FLOAT32, 0), 0, 2, geom, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testConstructor_FailsWhenSampleDimMismatchInValues() {
-        double[][] values = new double[2][];
-        values[0] = new double[]{1.0, 2.0};
-        values[1] = new double[]{3.0};
-
+    public void testConstructor_FailsWhenValueCountDoesNotMatchDimensions() {
         GeoPos[][][] tp = new GeoPos[2][1][1];
         tp[0][0][0] = new GeoPos(0f, 0f);
         tp[1][0][0] = new GeoPos(1f, 1f);
 
         CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 2);
-        new CimrGeometryBand(values, geom, 0);
+        new CimrGeometryBand(CimrSampleBuffer.create(ProductData.TYPE_FLOAT32, 3), 2, 2, geom, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructor_FailsWhenGeometryScanCountMismatch() {
-        double[][] values = {
-                {1.0, 2.0}
-        };
-
         GeoPos[][][] tp = new GeoPos[2][1][1];
         tp[0][0][0] = new GeoPos(0f, 0f);
         tp[1][0][0] = new GeoPos(1f, 1f);
 
         CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 2);
-        new CimrGeometryBand(values, geom, 0);
+        new CimrGeometryBand(CimrSampleBuffer.create(ProductData.TYPE_FLOAT32, 2), 1, 2, geom, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConstructor_FailsWhenGeometrySampleCountMismatch() {
-        double[][] values = {
-                {1.0, 2.0}
-        };
         GeoPos[][][] tp = new GeoPos[1][1][1];
         tp[0][0][0] = new GeoPos(0f, 0f);
 
         CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 3);
-        new CimrGeometryBand(values, geom, 0);
+        new CimrGeometryBand(CimrSampleBuffer.create(ProductData.TYPE_FLOAT32, 2), 1, 2, geom, 0);
     }
 }

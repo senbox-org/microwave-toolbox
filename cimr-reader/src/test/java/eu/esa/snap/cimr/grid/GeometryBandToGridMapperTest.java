@@ -2,6 +2,7 @@ package eu.esa.snap.cimr.grid;
 
 import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -11,6 +12,7 @@ public class GeometryBandToGridMapperTest {
 
 
     private static final double doubleErr = 1e-6;
+    private static final GridSampleValidator NON_NAN_VALIDATOR = value -> !Double.isNaN(value);
 
 
     @Test
@@ -23,10 +25,10 @@ public class GeometryBandToGridMapperTest {
         CimrGrid grid = new CimrGrid(projection, 4, 2);
         CimrBand swath = new DummyCimrBand();
 
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(4, 2);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(4, 2, ProductData.TYPE_FLOAT32);
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapNearest(swath, grid, target);
+        mapper.mapNearest(swath, grid, target, NON_NAN_VALIDATOR);
 
         assertEquals(0.0, target.getSample(0, 0), doubleErr);
         assertEquals(1.0, target.getSample(1, 0), doubleErr);
@@ -47,10 +49,10 @@ public class GeometryBandToGridMapperTest {
     public void testMapNearest_nanHitBecomesInvalid() {
         PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
         CimrGrid grid = new CimrGrid(proj, 1, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1, ProductData.TYPE_FLOAT32);
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapNearest(new SingleSampleBand(Double.NaN), grid, target);
+        mapper.mapNearest(new SingleSampleBand(Double.NaN), grid, target, NON_NAN_VALIDATOR);
 
         assertTrue(Double.isNaN(target.getSample(0, 0)));
         assertEquals(GridSampleState.INVALID, target.getSampleState(0, 0));
@@ -63,10 +65,10 @@ public class GeometryBandToGridMapperTest {
     public void testMapNearest_unhitPixelRemainsEmpty() {
         PlateCarreeProjection proj = new PlateCarreeProjection(2, 1, 0.0, 1.0, 1.0, 1.0);
         CimrGrid grid = new CimrGrid(proj, 2, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(2, 1);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(2, 1, ProductData.TYPE_FLOAT32);
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapNearest(new SingleSampleBand(3.0), grid, target);
+        mapper.mapNearest(new SingleSampleBand(3.0), grid, target, NON_NAN_VALIDATOR);
 
         assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));
         assertEquals(GridSampleState.EMPTY, target.getSampleState(1, 0));
@@ -78,7 +80,7 @@ public class GeometryBandToGridMapperTest {
     public void testMapNearest_usesValidatorForInvalidValues() {
         PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
         CimrGrid grid = new CimrGrid(proj, 1, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1, ProductData.TYPE_FLOAT32);
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
         mapper.mapNearest(new SingleSampleBand(-9999.0), grid, target, value -> value != -9999.0);
@@ -94,10 +96,10 @@ public class GeometryBandToGridMapperTest {
     public void testMapNearest_laterInvalidHitDoesNotOverwriteValidSample() {
         PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
         CimrGrid grid = new CimrGrid(proj, 1, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1, ProductData.TYPE_FLOAT32);
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapNearest(new SamePixelBand(42.0, Double.NaN), grid, target);
+        mapper.mapNearest(new SamePixelBand(42.0, Double.NaN), grid, target, NON_NAN_VALIDATOR);
 
         assertEquals(42.0, target.getSample(0, 0), doubleErr);
         assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));
@@ -110,10 +112,10 @@ public class GeometryBandToGridMapperTest {
     public void testMapNearest_laterValidHitReplacesEarlierInvalidSample() {
         PlateCarreeProjection proj = new PlateCarreeProjection(1, 1, 0.0, 1.0, 1.0, 1.0);
         CimrGrid grid = new CimrGrid(proj, 1, 1);
-        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1);
+        CimrGridBandDataSource target = CimrGridBandDataSource.createEmpty(1, 1, ProductData.TYPE_FLOAT32);
 
         GeometryBandToGridMapper mapper = new GeometryBandToGridMapper();
-        mapper.mapNearest(new SamePixelBand(Double.NaN, 42.0), grid, target);
+        mapper.mapNearest(new SamePixelBand(Double.NaN, 42.0), grid, target, NON_NAN_VALIDATOR);
 
         assertEquals(42.0, target.getSample(0, 0), doubleErr);
         assertEquals(GridSampleState.VALID, target.getSampleState(0, 0));

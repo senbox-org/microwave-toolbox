@@ -12,6 +12,7 @@ import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
 import eu.esa.snap.cimr.grid.PlateCarreeProjection;
 import eu.esa.snap.cimr.metadata.CimrProductMetadata;
+import eu.esa.snap.cimr.test.CimrGridTestData;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.IndexCoding;
@@ -54,8 +55,7 @@ public class CimrSnapProductBuilderTest {
                 "double", "", ""
         );
 
-        double[] data = {1.0, 2.0};
-        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, data);
+        GridBandDataSource ds = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0);
         gridProduct.addBand(bandDesc, ds);
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
@@ -95,7 +95,7 @@ public class CimrSnapProductBuilderTest {
                 "float", ProductData.TYPE_FLOAT32, "", ""
         );
 
-        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0});
+        GridBandDataSource ds = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT32, 1.0, 2.0);
         gridProduct.addBand(bandDesc, ds);
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
@@ -119,7 +119,7 @@ public class CimrSnapProductBuilderTest {
                 "double", "", ""
         );
 
-        CimrGridBandDataSource ds = CimrGridBandDataSource.createEmpty(3, 1);
+        CimrGridBandDataSource ds = CimrGridBandDataSource.createEmpty(3, 1, ProductData.TYPE_FLOAT64);
         ds.setValidSample(0, 0, 10.0);
         ds.setInvalidSample(1, 0);
         gridProduct.addBand(bandDesc, ds);
@@ -205,8 +205,8 @@ public class CimrSnapProductBuilderTest {
                 "double", "", ""
         );
 
-        gridProduct.addBand(band1, new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0}));
-        gridProduct.addBand(band2, new CimrGridBandDataSource(2, 1, new double[] {3.0, 4.0}));
+        gridProduct.addBand(band1, CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0));
+        gridProduct.addBand(band2, CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 3.0, 4.0));
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
 
@@ -241,8 +241,8 @@ public class CimrSnapProductBuilderTest {
                 "double", "", ""
         );
 
-        gridProduct.addBand(band1, new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0}));
-        gridProduct.addBand(band2, new CimrGridBandDataSource(2, 1, new double[] {3.0, 4.0}));
+        gridProduct.addBand(band1, CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0));
+        gridProduct.addBand(band2, CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 3.0, 4.0));
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
 
@@ -272,7 +272,7 @@ public class CimrSnapProductBuilderTest {
                 instrumentStatusCoding()
         );
 
-        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[] {0.0, 4.0});
+        GridBandDataSource ds = CimrGridTestData.grid(2, 1, ProductData.TYPE_INT32, 0.0, 4.0);
         gridProduct.addBand(bandDesc, ds);
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
@@ -327,8 +327,7 @@ public class CimrSnapProductBuilderTest {
                 "Brightness temperature of the Earth, in H polarization, from raw counts (no RFI mitigation)"
         );
 
-        double[] data = {1.0, 2.0};
-        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, data);
+        GridBandDataSource ds = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0);
         gridProduct.addBand(bandDesc, ds);
 
         String path = Paths.get("some", "path", "file.nc").toString();
@@ -373,8 +372,8 @@ public class CimrSnapProductBuilderTest {
                 "int", ProductData.TYPE_INT32, "", ""
         );
 
-        gridProduct.addBand(floatBand, new CimrGridBandDataSource(2, 1, new double[] {1.0, 2.0}));
-        gridProduct.addBand(intBand, new CimrGridBandDataSource(2, 1, new double[] {3.0, 4.0}));
+        gridProduct.addBand(floatBand, CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT32, 1.0, 2.0));
+        gridProduct.addBand(intBand, CimrGridTestData.grid(2, 1, ProductData.TYPE_INT32, 3.0, 4.0));
 
         Product product = buildProduct(gridProduct, metadata("TEST", "CIMR_GRID"), "path", "L_BAND:C_BAND");
 
@@ -437,8 +436,8 @@ public class CimrSnapProductBuilderTest {
                 "double", "", ""
         );
 
-        GridBandDataSource ds1 = new CimrGridBandDataSource(2, 1, new double[]{1.0, 2.0});
-        GridBandDataSource ds2 = new CimrGridBandDataSource(2, 1, new double[]{10.0, 20.0});
+        GridBandDataSource ds1 = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0);
+        GridBandDataSource ds2 = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 10.0, 20.0);
 
         gridProduct.addBand(band1, ds1);
         gridProduct.addBand(band2, ds2);

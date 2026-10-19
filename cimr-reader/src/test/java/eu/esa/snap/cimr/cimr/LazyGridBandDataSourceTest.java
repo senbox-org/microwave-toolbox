@@ -1,12 +1,13 @@
 package eu.esa.snap.cimr.cimr;
 
-
 import eu.esa.snap.cimr.CimrReaderContext;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.CimrGridBandDataSource;
+import eu.esa.snap.cimr.test.CimrGridTestData;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 import ucar.nc2.NetcdfFile;
 
@@ -21,11 +22,7 @@ public class LazyGridBandDataSourceTest {
 
     @Test
     public void testLazyInitializationAndGetSampleDelegation() {
-        double[] data = {
-                1.0, 2.0,
-                3.0, 4.0
-        };
-        CimrGridBandDataSource delegate = new CimrGridBandDataSource(2, 2, data);
+        CimrGridBandDataSource delegate = CimrGridTestData.grid(2, 2, ProductData.TYPE_FLOAT64, 1.0, 2.0, 3.0, 4.0);
 
         TestReaderContext context = new TestReaderContext(delegate);
         CimrBandDescriptor desc = createDummyDescriptor("test_band");
@@ -44,11 +41,7 @@ public class LazyGridBandDataSourceTest {
 
     @Test
     public void testSetSampleDelegation() {
-        double[] data = {
-                0.0, 0.0,
-                0.0, 0.0
-        };
-        CimrGridBandDataSource delegate = new CimrGridBandDataSource(2, 2, data);
+        CimrGridBandDataSource delegate = CimrGridTestData.grid(2, 2, ProductData.TYPE_FLOAT64, 0.0, 0.0, 0.0, 0.0);
 
         TestReaderContext context = new TestReaderContext(delegate);
         CimrBandDescriptor desc = createDummyDescriptor("test_band_2");

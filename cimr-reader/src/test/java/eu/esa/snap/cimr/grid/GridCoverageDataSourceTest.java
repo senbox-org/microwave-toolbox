@@ -1,6 +1,7 @@
 package eu.esa.snap.cimr.grid;
 
 import com.bc.ceres.annotation.STTM;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -14,7 +15,7 @@ public class GridCoverageDataSourceTest {
     @Test
     @STTM("SNAP-4262")
     public void getSample_returnsOneForCoveredPixelsAndZeroForEmptyPixels() {
-        CimrGridBandDataSource source = CimrGridBandDataSource.createEmpty(3, 1);
+        CimrGridBandDataSource source = CimrGridBandDataSource.createEmpty(3, 1, ProductData.TYPE_FLOAT32);
         source.setValidSample(0, 0, 12.0);
         source.setInvalidSample(1, 0);
 
@@ -28,7 +29,7 @@ public class GridCoverageDataSourceTest {
     @Test
     @STTM("SNAP-4262")
     public void coverageKeepsSourceCoverageButRendersEveryCoveragePixelAsValid() {
-        CimrGridBandDataSource source = CimrGridBandDataSource.createEmpty(2, 1);
+        CimrGridBandDataSource source = CimrGridBandDataSource.createEmpty(2, 1, ProductData.TYPE_FLOAT32);
         source.setInvalidSample(0, 0);
 
         GridCoverageDataSource coverage = new GridCoverageDataSource(source);
@@ -43,7 +44,7 @@ public class GridCoverageDataSourceTest {
     @Test(expected = UnsupportedOperationException.class)
     @STTM("SNAP-4262")
     public void setSample_throwsBecauseCoverageIsReadOnly() {
-        GridCoverageDataSource coverage = new GridCoverageDataSource(CimrGridBandDataSource.createEmpty(1, 1));
+        GridCoverageDataSource coverage = new GridCoverageDataSource(CimrGridBandDataSource.createEmpty(1, 1, ProductData.TYPE_FLOAT32));
 
         coverage.setSample(0, 0, 1.0);
     }

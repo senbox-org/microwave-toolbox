@@ -12,21 +12,6 @@ public class CimrGridBuilderMapperSelectionTest {
 
 
     @Test
-    public void build_usesMapNearest() {
-        RecordingMapper mapper = new RecordingMapper();
-        CimrGridBuilder builder = new CimrGridBuilder(mapper);
-        CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(new CimrBoundingBox(-180.0, 180.0, -90.0, 90.0), 10.0);
-
-        CimrGridBandDataSource result = builder.build(null, grid);
-
-        assertTrue(mapper.mapNearestCalled);
-        assertSame(grid, mapper.lastGrid);
-        assertSame(result, mapper.lastTarget);
-        assertNull(mapper.lastBand);
-        assertNull(mapper.lastValidator);
-    }
-
-    @Test
     public void buildWithDescriptor_passesDescriptorValidatorToMapNearest() {
         RecordingMapper mapper = new RecordingMapper();
         CimrGridBuilder builder = new CimrGridBuilder(mapper);
@@ -41,20 +26,11 @@ public class CimrGridBuilderMapperSelectionTest {
     }
 
     private static class RecordingMapper extends GeometryBandToGridMapper {
-        boolean mapNearestCalled;
         boolean mapNearestWithValidatorCalled;
         CimrBand lastBand;
         CimrGrid lastGrid;
         GridBandDataSource lastTarget;
         GridSampleValidator lastValidator;
-
-        @Override
-        public void mapNearest(CimrBand band, CimrGrid grid, GridBandDataSource target) {
-            mapNearestCalled = true;
-            lastBand = band;
-            lastGrid = grid;
-            lastTarget = target;
-        }
 
         @Override
         public void mapNearest(CimrBand band, CimrGrid grid, GridBandDataSource target, GridSampleValidator validator) {
