@@ -71,7 +71,8 @@ public class Alos4ProductDirectory extends Alos2ProductDirectory {
                 continue;
             }
             try {
-                final AlosPalsarImageFile imgFile = new AlosPalsarImageFile(imageFile.imgInputStream,
+                // PALSAR-3 records slant range in centimetres, not metres: see Alos4ImageFile.
+                final AlosPalsarImageFile imgFile = new Alos4ImageFile(imageFile.imgInputStream,
                         getProductLevel(), imageFile.fileName);
                 imgArray.add(imgFile);
             } catch (Exception e) {
