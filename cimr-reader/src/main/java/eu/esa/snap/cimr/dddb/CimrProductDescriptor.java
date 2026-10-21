@@ -8,6 +8,7 @@ public class CimrProductDescriptor {
     private String version;
     private String bandsFile;
     private String[] descriptorFiles;
+    private String metadataFile;
     private String autoGrouping;
 
 
@@ -16,6 +17,7 @@ public class CimrProductDescriptor {
         this.version = "";
         this.bandsFile = "";
         this.descriptorFiles = new String[0];
+        this.metadataFile = "";
         this.autoGrouping = "";
     }
 
@@ -50,6 +52,14 @@ public class CimrProductDescriptor {
 
     public void setDescriptorFiles(String[] descriptorFiles) {
         this.descriptorFiles = descriptorFiles;
+    }
+
+    public String getMetadataFile() {
+        return metadataFile;
+    }
+
+    public void setMetadataFile(String metadataFile) {
+        this.metadataFile = metadataFile;
     }
 
     public String getAutoGrouping() {

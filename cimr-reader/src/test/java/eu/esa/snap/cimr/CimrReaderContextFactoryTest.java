@@ -113,6 +113,7 @@ public class CimrReaderContextFactoryTest {
 
             CimrReaderContext context = CimrReaderContextFactory.create(ncFile);
 
+            assertSame(productDescriptor, context.getProductDescriptor());
             assertEquals("L_BAND", context.getAutoGrouping());
             assertEquals(1, context.getDescriptorSet().getMeasurements().size());
             assertEquals(2, context.getDescriptorSet().getGeometries().size());

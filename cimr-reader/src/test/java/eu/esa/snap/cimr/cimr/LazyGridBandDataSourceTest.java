@@ -1,6 +1,7 @@
 package eu.esa.snap.cimr.cimr;
 
 import eu.esa.snap.cimr.CimrReaderContext;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
@@ -65,8 +66,14 @@ public class LazyGridBandDataSourceTest {
         private final CimrGridBandDataSource delegate;
 
         TestReaderContext(CimrGridBandDataSource delegate) {
-            super((NetcdfFile) null, new CimrDescriptorSet(null, null, null), "L_BAND:C_BAND", null, null, null);
+            super((NetcdfFile) null, productDescriptor(), new CimrDescriptorSet(null, null, null), "L_BAND:C_BAND", null, null, null);
             this.delegate = delegate;
+        }
+
+        private static CimrProductDescriptor productDescriptor() {
+            CimrProductDescriptor productDescriptor = new CimrProductDescriptor();
+            productDescriptor.setProductType("CIMR_L1B");
+            return productDescriptor;
         }
 
         @Override

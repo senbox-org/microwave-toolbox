@@ -25,6 +25,7 @@ public class CimrDDDBTest {
         assertEquals("1.1", descriptor.getVersion());
         assertEquals("bands.json", descriptor.getBandsFile());
         assertArrayEquals(new String[]{"navigation.json", "measurement.json", "calibration.json"}, descriptor.getDescriptorFiles());
+        assertEquals("metadata.json", descriptor.getMetadataFile());
         assertTrue(descriptor.getAutoGrouping().startsWith("L_BAND:C_BAND:C_BAND_*feed_1:C_BAND_*feed_2:C_BAND_*feed_3:C_BAND_*feed_4"));
         assertTrue(descriptor.getAutoGrouping().contains("KU_BAND:KU_BAND_*feed_1:KU_BAND_*feed_2"));
         assertTrue(descriptor.getAutoGrouping().endsWith("KA_BAND_*feed_7:KA_BAND_*feed_8"));
@@ -73,6 +74,22 @@ public class CimrDDDBTest {
         }
         assertNotNull(footprintFamily);
         assertEquals("TIEPOINT_VARIABLE", footprintFamily.getKind());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getMetadataPaths_loadsExplicitLazyMetadataAllowList() throws IOException {
+        CimrDDDB dddb = CimrDDDB.getInstance();
+        CimrProductDescriptor descriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
+
+        String[] paths = dddb.getMetadataPaths(descriptor);
+
+        assertEquals(157, paths.length);
+        assertTrue(java.util.Arrays.asList(paths).contains("Status/Satellite/L_BAND/x_position"));
+        assertTrue(java.util.Arrays.asList(paths).contains("Data/Navigation_Data/KA_BAND/antennaPlane2EarthFixed"));
+        assertTrue(java.util.Arrays.asList(paths).contains("Quality/duration_of_product"));
+        assertFalse(java.util.Arrays.asList(paths).contains("Quality/overall_quality_flag"));
+        assertFalse(java.util.Arrays.asList(paths).contains("Data/Processing_Flags/processing_flags"));
     }
 
     @Test

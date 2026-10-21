@@ -1,5 +1,6 @@
 package eu.esa.snap.cimr;
 
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
@@ -35,9 +36,11 @@ public class CimrReaderContextTest {
         NetcdfCimrGeometryFactory geomFactory = new NetcdfCimrGeometryFactory(null, Collections.emptyList(), null);
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(null, null);
 
-        CimrReaderContext ctx = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
+        CimrProductDescriptor productDescriptor = productDescriptor();
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         assertSame(grid, ctx.getGlobalGrid());
+        assertSame(productDescriptor, ctx.getProductDescriptor());
         assertSame(descriptorSet, ctx.getDescriptorSet());
         assertEquals("L_BAND:C_BAND", ctx.getAutoGrouping());
     }
@@ -56,7 +59,7 @@ public class CimrReaderContextTest {
             }
         };
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(null, null);
-        CimrReaderContext ctx = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         try {
             ctx.getOrCreateGeometry(desc);
@@ -96,7 +99,7 @@ public class CimrReaderContextTest {
             }
         };
 
-        CimrReaderContext ctx = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         GridBandDataSource grid1 = ctx.getOrCreateGridForVariable(desc);
         GridBandDataSource grid2 = ctx.getOrCreateGridForVariable(desc);
@@ -131,7 +134,7 @@ public class CimrReaderContextTest {
                 throw new IOException("boom-band");
             }
         };
-        CimrReaderContext ctx = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         try {
             ctx.getOrCreateGridForVariable(desc);
@@ -158,7 +161,7 @@ public class CimrReaderContextTest {
             }
         };
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(null, null);
-        CimrReaderContext ctx = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         RuntimeException geoEx;
         try {
@@ -244,7 +247,7 @@ public class CimrReaderContextTest {
         CountingGeometryFactory geomFactory = new CountingGeometryFactory();
         CountingBandFactory bandFactory = new CountingBandFactory();
 
-        CimrReaderContext ctx = new CimrReaderContext(ncFile, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
+        CimrReaderContext ctx = new CimrReaderContext(ncFile, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         GridBandDataSource ds1 = ctx.getOrCreateGridForVariable(varDesc);
         GridBandDataSource ds2 = ctx.getOrCreateGridForVariable(varDesc);
@@ -270,6 +273,12 @@ public class CimrReaderContextTest {
                 1.0, 1.0
         );
         return new CimrGrid(proj, 1, 1);
+    }
+
+    private CimrProductDescriptor productDescriptor() {
+        CimrProductDescriptor productDescriptor = new CimrProductDescriptor();
+        productDescriptor.setProductType(CimrL1BProductReader.PRODUCT_TYPE);
+        return productDescriptor;
     }
 
     private CimrBandDescriptor createTestDescriptor() {

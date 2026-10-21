@@ -43,7 +43,7 @@ public class CimrReaderContextFactory {
         CimrGrid cimrGrid = CimrGridFactory.createPlateCarreeFromBoundingBox(bBox);
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(ncFile, dimensions);
 
-        return new CimrReaderContext(ncFile, descriptorSet, productDescriptor.getAutoGrouping(), cimrGrid, geometryFactory, bandFactory);
+        return new CimrReaderContext(ncFile, productDescriptor, descriptorSet, productDescriptor.getAutoGrouping(), cimrGrid, geometryFactory, bandFactory);
     }
 
     static CimrDescriptorSet loadDescriptorSet(NetcdfFile ncFile) throws IOException {

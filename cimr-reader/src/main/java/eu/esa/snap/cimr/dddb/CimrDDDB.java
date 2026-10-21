@@ -17,6 +17,7 @@ public class CimrDDDB {
     private final Map<String, CimrProductDescriptor> productDescriptors = new HashMap<>();
     private final Map<String, CimrBandDefinition[]> bandDefinitions = new HashMap<>();
     private final Map<String, CimrVariableFamily[]> descriptorFiles = new HashMap<>();
+    private final Map<String, String[]> metadataFiles = new HashMap<>();
 
 
     public static CimrDDDB getInstance() {
@@ -58,6 +59,15 @@ public class CimrDDDB {
             throw new IOException("Invalid CIMR DDDB descriptor resource: " + resourcePath);
         }
         return descriptorFiles.computeIfAbsent(resourcePath, k -> read(resourceUrl, CimrVariableFamily[].class));
+    }
+
+    public String[] getMetadataPaths(CimrProductDescriptor productDescriptor) throws IOException {
+        final String resourcePath = versionedResourcePath(productDescriptor, productDescriptor.getMetadataFile());
+        URL resourceUrl = getResourceUrl(resourcePath);
+        if (resourceUrl == null) {
+            throw new IOException("Invalid CIMR DDDB metadata resource: " + resourcePath);
+        }
+        return metadataFiles.computeIfAbsent(resourcePath, k -> read(resourceUrl, String[].class));
     }
 
     private static String productResourceName(String productType, String formatVersion) {

@@ -1,5 +1,7 @@
 package eu.esa.snap.cimr.metadata;
 
+import eu.esa.snap.cimr.dddb.CimrDDDB;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import eu.esa.snap.cimr.netcdf.NcUtil;
 import eu.esa.snap.cimr.netcdf.NetcdfProductDataConverter;
 import org.esa.snap.core.datamodel.MetadataAttribute;
@@ -14,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 
 public class CimrProductMetadataReader {
@@ -33,23 +36,29 @@ public class CimrProductMetadataReader {
     private CimrProductMetadataReader() {}
 
 
-    public static CimrProductMetadata read(NetcdfFile ncFile, String path, String defaultProductType) throws IOException {
+    public static CimrProductMetadata read(NetcdfFile ncFile, String path, CimrProductDescriptor productDescriptor) throws IOException {
+        Set<String> metadataPaths = loadMetadataPaths(productDescriptor);
         Map<String, Variable> metadataVariables = new HashMap<>();
         return new CimrProductMetadata(
                 getProductName(ncFile, path),
-                defaultProductType,
-                readMetadataElement(ncFile, new NetcdfMetadataProvider(metadataVariables))
+                productDescriptor.getProductType(),
+                readMetadataElement(ncFile, new NetcdfMetadataProvider(metadataVariables), metadataPaths)
         );
     }
 
 
-    private static MetadataElement readMetadataElement(NetcdfFile ncFile, NetcdfMetadataProvider metadataProvider) throws IOException {
+    private static Set<String> loadMetadataPaths(CimrProductDescriptor productDescriptor) throws IOException {
+        CimrDDDB dddb = CimrDDDB.getInstance();
+        return Set.of(dddb.getMetadataPaths(productDescriptor));
+    }
+
+    private static MetadataElement readMetadataElement(NetcdfFile ncFile, NetcdfMetadataProvider metadataProvider, Set<String> metadataPaths) throws IOException {
         MetadataElement cimrRoot = new MetadataElement(CIMR_METADATA_ELEMENT_NAME);
         addGlobalAttributes(cimrRoot, ncFile);
 
         MetadataElement groupsRoot = getOrCreateElement(cimrRoot, GROUPS_ELEMENT_NAME);
         for (Group group : ncFile.getRootGroup().getGroups()) {
-            addGroupIfNotEmpty(groupsRoot, group, metadataProvider);
+            addGroupIfNotEmpty(groupsRoot, group, metadataProvider, metadataPaths);
         }
         return cimrRoot;
     }
@@ -61,13 +70,13 @@ public class CimrProductMetadataReader {
         }
     }
 
-    private static void addGroupIfNotEmpty(MetadataElement parent, Group group, NetcdfMetadataProvider metadataProvider) throws IOException {
+    private static void addGroupIfNotEmpty(MetadataElement parent, Group group, NetcdfMetadataProvider metadataProvider, Set<String> metadataPaths) throws IOException {
         MetadataElement groupElement = new MetadataElement(group.getShortName());
         addGroupAttributes(groupElement, group);
-        addMetadataVariables(groupElement, group, metadataProvider);
+        addMetadataVariables(groupElement, group, metadataProvider, metadataPaths);
 
         for (Group child : group.getGroups()) {
-            addGroupIfNotEmpty(groupElement, child, metadataProvider);
+            addGroupIfNotEmpty(groupElement, child, metadataProvider, metadataPaths);
         }
 
         if (hasContent(groupElement)) {
@@ -86,17 +95,11 @@ public class CimrProductMetadataReader {
         }
     }
 
-    private static void addMetadataVariables(MetadataElement groupElement, Group group, NetcdfMetadataProvider metadataProvider) {
-        if (isExcludedVariableGroup(group)) {
-            return;
-        }
-
+    private static void addMetadataVariables(MetadataElement groupElement, Group group, NetcdfMetadataProvider metadataProvider, Set<String> metadataPaths) {
         MetadataElement variablesElement = null;
         for (Variable variable : group.getVariables()) {
-            if (isExcludedVariable(group, variable)) {
-                continue;
-            }
-            if (!isMetadataVariable(group, variable)) {
+            String variablePath = variablePath(group, variable);
+            if (!metadataPaths.contains(variablePath)) {
                 continue;
             }
 
@@ -104,7 +107,6 @@ public class CimrProductMetadataReader {
                 variablesElement = getOrCreateElement(groupElement, VARIABLES_ELEMENT_NAME);
             }
 
-            String variablePath = variablePath(group, variable);
             metadataProvider.addVariable(variablePath, variable);
             MetadataElement variableElement = new CimrLazyMetadataElement(variable.getShortName(), variablePath, metadataProvider);
             addVariableAttributes(variableElement, variable);
@@ -140,90 +142,6 @@ public class CimrProductMetadataReader {
             builder.append(shape[i]);
         }
         return builder.toString();
-    }
-
-    private static boolean isMetadataVariable(Group group, Variable variable) {
-        if (variable.getRank() == 0) {
-            return true;
-        }
-
-        String groupPath = normalizePath(group.getFullName());
-        String variableName = variable.getShortName();
-        return isStatusSatelliteMetadata(groupPath, variableName)
-                || isStatusInstrumentMetadata(groupPath, variableName)
-                || isMeasurementMetadata(groupPath, variableName)
-                || isNavigationMetadata(groupPath, variableName)
-                || isCalibrationMetadata(groupPath, variableName)
-                || isQualityMetadata(groupPath, variableName);
-    }
-
-    private static boolean isStatusSatelliteMetadata(String groupPath, String variableName) {
-        return ("Status/Satellite".equals(groupPath) || groupPath.startsWith("Status/Satellite/"))
-                && ("x_position".equals(variableName)
-                || "y_position".equals(variableName)
-                || "z_position".equals(variableName)
-                || "x_velocity".equals(variableName)
-                || "y_velocity".equals(variableName)
-                || "z_velocity".equals(variableName)
-                || "q0".equals(variableName)
-                || "q1".equals(variableName)
-                || "q2".equals(variableName)
-                || "q3".equals(variableName)
-                || "manoeuvre_occurence".equals(variableName)
-                || "manoeuvre_start_time_utc".equals(variableName)
-                || "manoeuvre_end_time_utc".equals(variableName));
-    }
-
-    private static boolean isStatusInstrumentMetadata(String groupPath, String variableName) {
-        return "Status/Instrument".equals(groupPath)
-                && ("instrument_mode".equals(variableName)
-                || variableName.startsWith("mode_start_time_utc_")
-                || variableName.startsWith("mode_stop_time_utc_"));
-    }
-
-    private static boolean isMeasurementMetadata(String groupPath, String variableName) {
-        return groupPath.startsWith("Data/Measurement_Data/")
-                && "acq_time_utc".equals(variableName);
-    }
-
-    private static boolean isNavigationMetadata(String groupPath, String variableName) {
-        return groupPath.startsWith("Data/Navigation_Data/")
-                && ("processing_scan_angle_feeds_offsets".equals(variableName)
-                || "telemetry_scan_angle".equals(variableName)
-                || "orbit_angle".equals(variableName)
-                || "spacecraft_altitude".equals(variableName)
-                || "sub_satellite_lat".equals(variableName)
-                || "sub_satellite_lon".equals(variableName)
-                || "boresight2AntennaPlane".equals(variableName)
-                || "antennaPlane2EarthFixed".equals(variableName));
-    }
-
-    private static boolean isCalibrationMetadata(String groupPath, String variableName) {
-        return groupPath.startsWith("Data/Calibration_Data/")
-                && ("t_cold_h".equals(variableName)
-                || "t_cold_v".equals(variableName)
-                || "t_hot_h".equals(variableName)
-                || "t_hot_v".equals(variableName)
-                || "thermistor_counts".equals(variableName));
-    }
-
-    private static boolean isQualityMetadata(String groupPath, String variableName) {
-        return "Quality".equals(groupPath)
-                && ("gap_start_time_utc".equals(variableName)
-                || "gap_end_time_utc".equals(variableName));
-    }
-
-    private static boolean isExcludedVariableGroup(Group group) {
-        String groupPath = normalizePath(group.getFullName());
-        return "Data/Quality_Information".equals(groupPath)
-                || groupPath.startsWith("Data/Quality_Information/")
-                || "Data/Processing_Flags".equals(groupPath)
-                || groupPath.startsWith("Data/Processing_Flags/");
-    }
-
-    private static boolean isExcludedVariable(Group group, Variable variable) {
-        String groupPath = normalizePath(group.getFullName());
-        return "Quality".equals(groupPath) && "overall_quality_flag".equals(variable.getShortName());
     }
 
     private static String normalizePath(String path) {

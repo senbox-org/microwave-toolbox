@@ -1,6 +1,7 @@
 package eu.esa.snap.cimr.cimr;
 
 import eu.esa.snap.cimr.CimrReaderContext;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
@@ -89,7 +90,7 @@ public class CimrGridProductTest {
                 List.of(tieDesc)
         );
 
-        CimrReaderContext context = new CimrReaderContext(null, descriptorSet, "L_BAND:C_BAND", grid, null, null);
+        CimrReaderContext context = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, null, null);
 
         CimrGridProduct product = CimrGridProduct.buildLazy(context);
 
@@ -120,6 +121,12 @@ public class CimrGridProductTest {
         product.addBand(band, ds);
 
         product.getBands().put(band, ds);
+    }
+
+    private static CimrProductDescriptor productDescriptor() {
+        CimrProductDescriptor productDescriptor = new CimrProductDescriptor();
+        productDescriptor.setProductType("CIMR_L1B");
+        return productDescriptor;
     }
 
 }

@@ -46,7 +46,7 @@ public class CimrL1BProductReader extends AbstractProductReader {
             this.readerContext = CimrReaderContextFactory.create(this.ncFile);
             CimrGridProduct cimrGridProduct = CimrGridProduct.buildLazy(this.readerContext);
 
-            CimrProductMetadata productMetadata = CimrProductMetadataReader.read(this.ncFile, path, PRODUCT_TYPE);
+            CimrProductMetadata productMetadata = CimrProductMetadataReader.read(this.ncFile, path, this.readerContext.getProductDescriptor());
             return CimrSnapProductBuilder.buildProduct(this.readerContext, cimrGridProduct, productMetadata, path);
 
         } catch (Exception e) {

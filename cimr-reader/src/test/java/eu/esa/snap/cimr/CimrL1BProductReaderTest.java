@@ -9,6 +9,7 @@ import com.bc.ceres.multilevel.support.DefaultMultiLevelSource;
 import eu.esa.snap.cimr.cimr.CimrFootprints;
 import eu.esa.snap.cimr.cimr.CimrGridProduct;
 import eu.esa.snap.cimr.cimr.CimrSnapProductBuilder;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.metadata.CimrProductMetadata;
@@ -129,10 +130,13 @@ public class CimrL1BProductReaderTest {
 
         NetcdfFile ncFile = mock(NetcdfFile.class);
         CimrReaderContext context = mock(CimrReaderContext.class);
+        CimrProductDescriptor productDescriptor = new CimrProductDescriptor();
+        productDescriptor.setProductType(CimrL1BProductReader.PRODUCT_TYPE);
         CimrGridProduct gridProduct = mock(CimrGridProduct.class);
         CimrProductMetadata metadata = new CimrProductMetadata("TEST", "CIMR_L1B", new MetadataElement("CIMR_Metadata"));
         Product product = new Product("TEST", "CIMR_L1B", 1, 1);
         when(context.getAutoGrouping()).thenReturn("L_BAND");
+        when(context.getProductDescriptor()).thenReturn(productDescriptor);
 
         try (MockedStatic<NetcdfFileOpener> opener = mockStatic(NetcdfFileOpener.class);
              MockedStatic<CimrReaderContextFactory> contextFactory = mockStatic(CimrReaderContextFactory.class);
@@ -143,7 +147,7 @@ public class CimrL1BProductReaderTest {
             opener.when(() -> NetcdfFileOpener.open("test-product.nc")).thenReturn(ncFile);
             contextFactory.when(() -> CimrReaderContextFactory.create(ncFile)).thenReturn(context);
             gridProductFactory.when(() -> CimrGridProduct.buildLazy(context)).thenReturn(gridProduct);
-            metadataReader.when(() -> CimrProductMetadataReader.read(ncFile, "test-product.nc", CimrL1BProductReader.PRODUCT_TYPE)).thenReturn(metadata);
+            metadataReader.when(() -> CimrProductMetadataReader.read(ncFile, "test-product.nc", productDescriptor)).thenReturn(metadata);
             productBuilder.when(() -> CimrSnapProductBuilder.buildProduct(context, gridProduct, metadata, "test-product.nc")).thenReturn(product);
 
             Product actual = reader.exposedReadProductNodesImpl();

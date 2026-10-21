@@ -1,9 +1,12 @@
 package eu.esa.snap.cimr.metadata;
 
 import com.bc.ceres.annotation.STTM;
+import eu.esa.snap.cimr.dddb.CimrDDDB;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 import ucar.ma2.Array;
 import ucar.ma2.DataType;
 import ucar.nc2.Attribute;
@@ -28,11 +31,32 @@ public class CimrProductMetadataReaderTest {
 
     @Test
     @STTM("SNAP-4262")
+    public void read_usesProvidedProductDescriptorForMetadataPaths() throws Exception {
+        NetcdfFile ncFile = emptyNcFile();
+        CimrProductDescriptor productDescriptor = new CimrProductDescriptor();
+        productDescriptor.setProductType("CIMR_L1B");
+        productDescriptor.setMetadataFile("metadata.json");
+        CimrDDDB dddb = mock(CimrDDDB.class);
+        when(dddb.getMetadataPaths(productDescriptor)).thenReturn(new String[0]);
+
+        try (MockedStatic<CimrDDDB> mockedDddb = mockStatic(CimrDDDB.class)) {
+            mockedDddb.when(CimrDDDB::getInstance).thenReturn(dddb);
+
+            CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "test-product.nc", productDescriptor);
+
+            assertEquals("CIMR_L1B", metadata.getProductType());
+            verify(dddb).getMetadataPaths(productDescriptor);
+            verify(dddb, never()).getProductDescriptor(anyString(), anyString());
+        }
+    }
+
+    @Test
+    @STTM("SNAP-4262")
     public void read_usesProductNameAttributeWhenPresent() throws Exception {
         NetcdfFile ncFile = emptyNcFile();
         when(ncFile.findGlobalAttribute("product_name")).thenReturn(new Attribute("product_name", " CIMR_TEST_PRODUCT "));
 
-        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "fallback.nc", "CIMR_L1B");
+        CimrProductMetadata metadata = readMetadata(ncFile, "fallback.nc");
 
         assertEquals("CIMR_TEST_PRODUCT", metadata.getProductName());
         assertEquals("CIMR_L1B", metadata.getProductType());
@@ -45,7 +69,7 @@ public class CimrProductMetadataReaderTest {
         NetcdfFile ncFile = emptyNcFile();
         when(ncFile.findGlobalAttribute("product_name")).thenReturn(null);
 
-        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20260921T093512.nc", "CIMR_L1B");
+        CimrProductMetadata metadata = readMetadata(ncFile, "W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20260921T093512.nc");
 
         assertEquals("W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20260921T093512", metadata.getProductName());
         assertEquals("CIMR_L1B", metadata.getProductType());
@@ -57,7 +81,7 @@ public class CimrProductMetadataReaderTest {
         NetcdfFile ncFile = emptyNcFile();
         when(ncFile.findGlobalAttribute("product_name")).thenReturn(new Attribute("product_name", " "));
 
-        CimrProductMetadata metadata = CimrProductMetadataReader.read(ncFile, "test-product.nc", "CIMR_L1B");
+        CimrProductMetadata metadata = readMetadata(ncFile, "test-product.nc");
 
         assertEquals("test-product", metadata.getProductName());
         assertEquals("CIMR_L1B", metadata.getProductType());
@@ -74,7 +98,7 @@ public class CimrProductMetadataReaderTest {
                 new Attribute("Data_Measurement_Data_L_Band_central_frequency", 1.4135)
         ));
 
-        MetadataElement globalAttributes = CimrProductMetadataReader.read(ncFile, "path", "CIMR_L1B")
+        MetadataElement globalAttributes = readMetadata(ncFile, "path")
                 .getMetadataElement()
                 .getElement("Global_Attributes");
 
@@ -94,7 +118,7 @@ public class CimrProductMetadataReaderTest {
         Group satellite = group("Satellite", "/Status/Satellite", List.of(new Attribute("group_attribute", "satellite metadata")), List.of(semiMajorAxis), Collections.emptyList());
         Group status = group("Status", "/Status", Collections.emptyList(), Collections.emptyList(), List.of(processing, satellite));
 
-        MetadataElement statusElement = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(status)), "path", "CIMR_L1B")
+        MetadataElement statusElement = readMetadata(ncFileWithRootGroups(List.of(status)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
                 .getElement("Status");
@@ -127,7 +151,7 @@ public class CimrProductMetadataReaderTest {
         Group measurement = group("Measurement_Data", "/Data/Measurement_Data", Collections.emptyList(), Collections.emptyList(), List.of(lBand));
         Group data = group("Data", "/Data", Collections.emptyList(), Collections.emptyList(), List.of(measurement));
 
-        MetadataElement dataElement = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(data)), "path", "CIMR_L1B")
+        MetadataElement dataElement = readMetadata(ncFileWithRootGroups(List.of(data)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
                 .getElement("Data");
@@ -138,18 +162,38 @@ public class CimrProductMetadataReaderTest {
 
     @Test
     @STTM("SNAP-4262")
-    public void read_addsNonScalarAuxMetadataVariablesLazily() throws Exception {
-        Variable acqTime = variable("acq_time_utc", 2, DataType.DOUBLE, new double[]{1.0, 2.0, 3.0, 4.0}, Collections.emptyList());
-        Group lBand = group("L_Band", "/Data/Measurement_Data/L_Band", Collections.emptyList(), List.of(acqTime), Collections.emptyList());
+    public void read_keepsGroupAttributesWhenNoVariableIsConfiguredAsMetadata() throws Exception {
+        Variable brightnessTemperature = variable("brightness_temperature_h", 1, DataType.DOUBLE, new double[]{1.0, 2.0}, Collections.emptyList());
+        Group lBand = group("L_BAND", "/Data/Measurement_Data/L_BAND", List.of(new Attribute("central_frequency", 1.4135)), List.of(brightnessTemperature), Collections.emptyList());
         Group measurement = group("Measurement_Data", "/Data/Measurement_Data", Collections.emptyList(), Collections.emptyList(), List.of(lBand));
         Group data = group("Data", "/Data", Collections.emptyList(), Collections.emptyList(), List.of(measurement));
 
-        MetadataElement acqTimeMetadata = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(data)), "path", "CIMR_L1B")
+        MetadataElement lBandElement = readMetadata(ncFileWithRootGroups(List.of(data)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
                 .getElement("Data")
                 .getElement("Measurement_Data")
-                .getElement("L_Band")
+                .getElement("L_BAND");
+
+        assertEquals(1.4135, lBandElement.getElement("Attributes").getAttributeDouble("central_frequency"), 1e-8);
+        assertNull(lBandElement.getElement("Variables"));
+        verify(brightnessTemperature, never()).read();
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void read_addsNonScalarAuxMetadataVariablesLazily() throws Exception {
+        Variable acqTime = variable("acq_time_utc", 2, DataType.DOUBLE, new double[]{1.0, 2.0, 3.0, 4.0}, Collections.emptyList());
+        Group lBand = group("L_BAND", "/Data/Measurement_Data/L_BAND", Collections.emptyList(), List.of(acqTime), Collections.emptyList());
+        Group measurement = group("Measurement_Data", "/Data/Measurement_Data", Collections.emptyList(), Collections.emptyList(), List.of(lBand));
+        Group data = group("Data", "/Data", Collections.emptyList(), Collections.emptyList(), List.of(measurement));
+
+        MetadataElement acqTimeMetadata = readMetadata(ncFileWithRootGroups(List.of(data)), "path")
+                .getMetadataElement()
+                .getElement("Groups")
+                .getElement("Data")
+                .getElement("Measurement_Data")
+                .getElement("L_BAND")
                 .getElement("Variables")
                 .getElement("acq_time_utc");
 
@@ -164,24 +208,24 @@ public class CimrProductMetadataReaderTest {
         Variable matrix = variable("boresight2AntennaPlane", 4, DataType.DOUBLE, new double[]{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0}, Collections.emptyList());
         Variable thermistors = variable("thermistor_counts", 3, DataType.INT, new int[]{1, 2, 3, 4}, Collections.emptyList());
 
-        Group navBand = group("L_Band", "/Data/Navigation_Data/L_Band", Collections.emptyList(), List.of(matrix), Collections.emptyList());
+        Group navBand = group("L_BAND", "/Data/Navigation_Data/L_BAND", Collections.emptyList(), List.of(matrix), Collections.emptyList());
         Group navigation = group("Navigation_Data", "/Data/Navigation_Data", Collections.emptyList(), Collections.emptyList(), List.of(navBand));
-        Group calBand = group("L_Band", "/Data/Calibration_Data/L_Band", Collections.emptyList(), List.of(thermistors), Collections.emptyList());
+        Group calBand = group("L_BAND", "/Data/Calibration_Data/L_BAND", Collections.emptyList(), List.of(thermistors), Collections.emptyList());
         Group calibration = group("Calibration_Data", "/Data/Calibration_Data", Collections.emptyList(), Collections.emptyList(), List.of(calBand));
         Group data = group("Data", "/Data", Collections.emptyList(), Collections.emptyList(), List.of(navigation, calibration));
 
-        MetadataElement dataElement = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(data)), "path", "CIMR_L1B")
+        MetadataElement dataElement = readMetadata(ncFileWithRootGroups(List.of(data)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
                 .getElement("Data");
         MetadataElement matrixMetadata = dataElement
                 .getElement("Navigation_Data")
-                .getElement("L_Band")
+                .getElement("L_BAND")
                 .getElement("Variables")
                 .getElement("boresight2AntennaPlane");
         MetadataElement thermistorMetadata = dataElement
                 .getElement("Calibration_Data")
-                .getElement("L_Band")
+                .getElement("L_BAND")
                 .getElement("Variables")
                 .getElement("thermistor_counts");
 
@@ -208,7 +252,7 @@ public class CimrProductMetadataReaderTest {
         Group qualityInformation = group("Quality_Information", "/Data/Quality_Information", Collections.emptyList(), List.of(scanQualityFlag), Collections.emptyList());
         Group data = group("Data", "/Data", Collections.emptyList(), Collections.emptyList(), List.of(processingFlagsGroup, qualityInformation));
 
-        MetadataElement groups = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(quality, data)), "path", "CIMR_L1B")
+        MetadataElement groups = readMetadata(ncFileWithRootGroups(List.of(quality, data)), "path")
                 .getMetadataElement()
                 .getElement("Groups");
 
@@ -224,7 +268,7 @@ public class CimrProductMetadataReaderTest {
         NetcdfFile ncFile = ncFileWithRootGroups(Collections.emptyList());
         when(ncFile.getGlobalAttributes()).thenReturn(List.of(new Attribute("orbit_number", 17)));
 
-        MetadataElement globalAttributes = CimrProductMetadataReader.read(ncFile, "path", "CIMR_L1B")
+        MetadataElement globalAttributes = readMetadata(ncFile, "path")
                 .getMetadataElement()
                 .getElement("Global_Attributes");
 
@@ -243,7 +287,7 @@ public class CimrProductMetadataReaderTest {
         when(emptyAttribute.toString()).thenReturn("empty_attribute = <empty>");
         when(ncFile.getGlobalAttributes()).thenReturn(List.of(emptyAttribute));
 
-        MetadataElement globalAttributes = CimrProductMetadataReader.read(ncFile, "path", "CIMR_L1B")
+        MetadataElement globalAttributes = readMetadata(ncFile, "path")
                 .getMetadataElement()
                 .getElement("Global_Attributes");
 
@@ -266,16 +310,16 @@ public class CimrProductMetadataReaderTest {
                 variable("q3", 1, DataType.DOUBLE, new double[]{10.0}, Collections.emptyList()),
                 variable("ignored_vector", 1, DataType.DOUBLE, new double[]{11.0}, Collections.emptyList())
         );
-        Group orbit = group("Orbit", "/Status/Satellite/Orbit", Collections.emptyList(), variables, Collections.emptyList());
+        Group orbit = group("L_BAND", "/Status/Satellite/L_BAND", Collections.emptyList(), variables, Collections.emptyList());
         Group satellite = group("Satellite", "/Status/Satellite", Collections.emptyList(), Collections.emptyList(), List.of(orbit));
         Group status = group("Status", "/Status", Collections.emptyList(), Collections.emptyList(), List.of(satellite));
 
-        MetadataElement metadataVariables = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(status)), "path", "CIMR_L1B")
+        MetadataElement metadataVariables = readMetadata(ncFileWithRootGroups(List.of(status)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
                 .getElement("Status")
                 .getElement("Satellite")
-                .getElement("Orbit")
+                .getElement("L_BAND")
                 .getElement("Variables");
 
         assertNotNull(metadataVariables.getElement("x_position"));
@@ -303,7 +347,7 @@ public class CimrProductMetadataReaderTest {
         Group satellite = group("Satellite", "/Status/Satellite", Collections.emptyList(), List.of(occurrence, startTime, endTime), Collections.emptyList());
         Group status = group("Status", "/Status", Collections.emptyList(), Collections.emptyList(), List.of(satellite));
 
-        MetadataElement variables = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(status)), "path", "CIMR_L1B")
+        MetadataElement variables = readMetadata(ncFileWithRootGroups(List.of(status)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
                 .getElement("Status")
@@ -322,13 +366,13 @@ public class CimrProductMetadataReaderTest {
     @STTM("SNAP-4262")
     public void read_addsStatusInstrumentMetadataVariablesLazily() throws Exception {
         Variable instrumentMode = variable("instrument_mode", 1, DataType.INT, new int[]{1, 2}, Collections.emptyList());
-        Variable modeStart = variable("mode_start_time_utc_observation", 1, DataType.DOUBLE, new double[]{3.0}, Collections.emptyList());
-        Variable modeStop = variable("mode_stop_time_utc_observation", 1, DataType.DOUBLE, new double[]{4.0}, Collections.emptyList());
+        Variable modeStart = variable("mode_start_time_utc_L_Band", 1, DataType.DOUBLE, new double[]{3.0}, Collections.emptyList());
+        Variable modeStop = variable("mode_stop_time_utc_L_Band", 1, DataType.DOUBLE, new double[]{4.0}, Collections.emptyList());
         Variable ignored = variable("mode_duration", 1, DataType.DOUBLE, new double[]{5.0}, Collections.emptyList());
         Group instrument = group("Instrument", "/Status/Instrument", Collections.emptyList(), List.of(instrumentMode, modeStart, modeStop, ignored), Collections.emptyList());
         Group status = group("Status", "/Status", Collections.emptyList(), Collections.emptyList(), List.of(instrument));
 
-        MetadataElement variables = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(status)), "path", "CIMR_L1B")
+        MetadataElement variables = readMetadata(ncFileWithRootGroups(List.of(status)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
                 .getElement("Status")
@@ -336,8 +380,8 @@ public class CimrProductMetadataReaderTest {
                 .getElement("Variables");
 
         assertNotNull(variables.getElement("instrument_mode"));
-        assertNotNull(variables.getElement("mode_start_time_utc_observation"));
-        assertNotNull(variables.getElement("mode_stop_time_utc_observation"));
+        assertNotNull(variables.getElement("mode_start_time_utc_L_Band"));
+        assertNotNull(variables.getElement("mode_stop_time_utc_L_Band"));
         assertNull(variables.getElement("mode_duration"));
     }
 
@@ -349,7 +393,7 @@ public class CimrProductMetadataReaderTest {
         Variable ignored = variable("gap_duration", 1, DataType.DOUBLE, new double[]{3.0}, Collections.emptyList());
         Group quality = group("Quality", "/Quality", Collections.emptyList(), List.of(gapStart, gapEnd, ignored), Collections.emptyList());
 
-        MetadataElement variables = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(quality)), "path", "CIMR_L1B")
+        MetadataElement variables = readMetadata(ncFileWithRootGroups(List.of(quality)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
                 .getElement("Quality")
@@ -362,19 +406,17 @@ public class CimrProductMetadataReaderTest {
 
     @Test
     @STTM("SNAP-4262")
-    public void read_handlesNullGroupPathAndUsesVariableShortNamePath() throws Exception {
+    public void read_doesNotAddUnconfiguredScalarVariable() throws Exception {
         Variable scalar = scalarVariable("root_scalar", DataType.DOUBLE, new double[]{42.0}, Collections.emptyList());
         Group nameless = group("Nameless", null, Collections.emptyList(), List.of(scalar), Collections.emptyList());
 
-        MetadataElement rootScalar = CimrProductMetadataReader.read(ncFileWithRootGroups(List.of(nameless)), "path", "CIMR_L1B")
+        MetadataElement namelessElement = readMetadata(ncFileWithRootGroups(List.of(nameless)), "path")
                 .getMetadataElement()
                 .getElement("Groups")
-                .getElement("Nameless")
-                .getElement("Variables")
-                .getElement("root_scalar");
+                .getElement("Nameless");
 
-        assertEquals(42.0, rootScalar.getAttributeDouble("value"), 1e-8);
-        verify(scalar).read();
+        assertNull(namelessElement);
+        verify(scalar, never()).read();
     }
 
     @Test
@@ -393,6 +435,11 @@ public class CimrProductMetadataReaderTest {
 
     private static NetcdfFile emptyNcFile() {
         return ncFileWithRootGroups(Collections.emptyList());
+    }
+
+    private static CimrProductMetadata readMetadata(NetcdfFile ncFile, String path) throws Exception {
+        CimrProductDescriptor productDescriptor = CimrDDDB.getInstance().getProductDescriptor("CIMR_L1B", null);
+        return CimrProductMetadataReader.read(ncFile, path, productDescriptor);
     }
 
     private static NetcdfFile ncFileWithRootGroups(List<Group> groups) {

@@ -1,6 +1,7 @@
 package eu.esa.snap.cimr;
 
 import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
@@ -38,6 +39,9 @@ public class CimrReaderContextFootprintTest {
 
     @Mock
     private CimrDescriptorSet descriptorSet;
+
+    @Mock
+    private CimrProductDescriptor productDescriptor;
 
     @Mock
     private CimrGrid cimrGrid;
@@ -92,7 +96,7 @@ public class CimrReaderContextFootprintTest {
 
     @Before
     public void setUp() throws Exception {
-        context = new CimrReaderContext(ncFile, descriptorSet, "L_BAND:C_BAND", cimrGrid, geometryFactory, bandFactory);
+        context = new CimrReaderContext(ncFile, productDescriptor, descriptorSet, "L_BAND:C_BAND", cimrGrid, geometryFactory, bandFactory);
 
         Field ff = CimrReaderContext.class.getDeclaredField("footprintFactory");
         ff.setAccessible(true);
