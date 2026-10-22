@@ -1,11 +1,21 @@
 package eu.esa.snap.cimr.netcdf;
 
+import ucar.nc2.Attribute;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
 
 
 public class NcUtil {
+
+
+    public static String getGlobalAttributeString(NetcdfFile ncFile, String attributeName) {
+        Attribute attribute = ncFile.findGlobalAttribute(attributeName);
+        if (attribute == null) {
+            return null;
+        }
+        return attribute.getStringValue();
+    }
 
     public static Group findGroupOrThrow(NetcdfFile ncFile, String path) {
         Group g = ncFile.findGroup(path);

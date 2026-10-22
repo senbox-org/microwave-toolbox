@@ -1,10 +1,17 @@
 package eu.esa.snap.cimr;
 
-import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.*;
+import eu.esa.snap.cimr.netcdf.CimrDimensions;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrBandFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
+import eu.esa.snap.cimr.test.CimrGridTestData;
 import org.esa.snap.core.datamodel.GeoPos;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 import ucar.nc2.NetcdfFile;
 
@@ -17,6 +24,7 @@ import static org.junit.Assert.*;
 
 public class CimrReaderContextTest {
 
+
     private static final double doubleErr = 1e-6;
 
 
@@ -28,16 +36,13 @@ public class CimrReaderContextTest {
         NetcdfCimrGeometryFactory geomFactory = new NetcdfCimrGeometryFactory(null, Collections.emptyList(), null);
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(null, null);
 
-        CimrReaderContext ctx = new CimrReaderContext(
-                null,
-                descriptorSet,
-                grid,
-                geomFactory,
-                bandFactory
-        );
+        CimrProductDescriptor productDescriptor = productDescriptor();
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor, descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         assertSame(grid, ctx.getGlobalGrid());
+        assertSame(productDescriptor, ctx.getProductDescriptor());
         assertSame(descriptorSet, ctx.getDescriptorSet());
+        assertEquals("L_BAND:C_BAND", ctx.getAutoGrouping());
     }
 
     @Test
@@ -54,13 +59,7 @@ public class CimrReaderContextTest {
             }
         };
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(null, null);
-        CimrReaderContext ctx = new CimrReaderContext(
-                null,
-                descriptorSet,
-                grid,
-                geomFactory,
-                bandFactory
-        );
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         try {
             ctx.getOrCreateGeometry(desc);
@@ -74,7 +73,7 @@ public class CimrReaderContextTest {
     }
 
     @Test
-    public void testGetOrCreateGridForVariable() {
+    public void testGetOrCreateGridForVariable_doesNotRetainSourceValueBand() {
         CimrGrid grid = createTestGrid();
         CimrDescriptorSet descriptorSet = createEmptyDescriptorSet();
         CimrBandDescriptor desc = createTestDescriptor();
@@ -96,26 +95,19 @@ public class CimrReaderContextTest {
             @Override
             public CimrGeometryBand createGeometryBand(CimrBandDescriptor desc, CimrGeometry geometry) {
                 bandCalls.incrementAndGet();
-                double[][] values = {{42.0, 42.0}};
-                return new CimrGeometryBand(values, geometry, desc.getFeedIndex());
+                return CimrGridTestData.geometryBand(ProductData.TYPE_FLOAT32, 1, 2, geometry, desc.getFeedIndex(), 42.0, 42.0);
             }
         };
 
-        CimrReaderContext ctx = new CimrReaderContext(
-                null,
-                descriptorSet,
-                grid,
-                geomFactory,
-                bandFactory
-        );
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
-        GridBandDataSource grid1 = ctx.getOrCreateGridForVariable(desc, true);
-        GridBandDataSource grid2 = ctx.getOrCreateGridForVariable(desc, false);
+        GridBandDataSource grid1 = ctx.getOrCreateGridForVariable(desc);
+        GridBandDataSource grid2 = ctx.getOrCreateGridForVariable(desc);
 
         assertNotSame(grid1, grid2);
 
-        assertEquals(1, geomCalls.get());
-        assertEquals(1, bandCalls.get());
+        assertEquals(2, geomCalls.get());
+        assertEquals(2, bandCalls.get());
 
         assertEquals(42.0, grid1.getSample(0, 0), doubleErr);
     }
@@ -142,16 +134,10 @@ public class CimrReaderContextTest {
                 throw new IOException("boom-band");
             }
         };
-        CimrReaderContext ctx = new CimrReaderContext(
-                null,
-                descriptorSet,
-                grid,
-                geomFactory,
-                bandFactory
-        );
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         try {
-            ctx.getOrCreateGridForVariable(desc, true);
+            ctx.getOrCreateGridForVariable(desc);
             fail("Expected RuntimeException");
         } catch (RuntimeException e) {
             assertTrue(e.getMessage().contains("Failed to build geometry band for variable testVar"));
@@ -175,13 +161,7 @@ public class CimrReaderContextTest {
             }
         };
         NetcdfCimrBandFactory bandFactory = new NetcdfCimrBandFactory(null, null);
-        CimrReaderContext ctx = new CimrReaderContext(
-                null,
-                descriptorSet,
-                grid,
-                geomFactory,
-                bandFactory
-        );
+        CimrReaderContext ctx = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
         RuntimeException geoEx;
         try {
@@ -195,7 +175,7 @@ public class CimrReaderContextTest {
         }
 
         try {
-            ctx.getOrCreateGridForVariable(desc, true);
+            ctx.getOrCreateGridForVariable(desc);
             fail("Expected RuntimeException from getOrCreateGridForVariable");
         } catch (RuntimeException e) {
             assertEquals(geoEx.getMessage(), e.getMessage());
@@ -205,7 +185,7 @@ public class CimrReaderContextTest {
     }
 
     @Test
-    public void testClearCache_clearsBandCacheAndGeometryCache() {
+    public void testClearCache_clearsFootprintBandCacheAndGeometryCache() {
         PlateCarreeProjection proj = new PlateCarreeProjection(
                 2, 1,
                 0.0, 0.0,
@@ -260,29 +240,28 @@ public class CimrReaderContextTest {
             @Override
             public CimrGeometryBand createGeometryBand(CimrBandDescriptor desc, CimrGeometry geometry) {
                 calls++;
-                double[][] values = {{1.0, 2.0}};
-                return new CimrGeometryBand(values, geometry, desc.getFeedIndex());
+                return CimrGridTestData.geometryBand(ProductData.TYPE_FLOAT32, 1, 2, geometry, desc.getFeedIndex(), 1.0, 2.0);
             }
         }
 
         CountingGeometryFactory geomFactory = new CountingGeometryFactory();
         CountingBandFactory bandFactory = new CountingBandFactory();
 
-        CimrReaderContext ctx = new CimrReaderContext(ncFile, descriptorSet, grid, geomFactory, bandFactory);
+        CimrReaderContext ctx = new CimrReaderContext(ncFile, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, geomFactory, bandFactory);
 
-        GridBandDataSource ds1 = ctx.getOrCreateGridForVariable(varDesc, true);
-        GridBandDataSource ds2 = ctx.getOrCreateGridForVariable(varDesc, true);
+        GridBandDataSource ds1 = ctx.getOrCreateGridForVariable(varDesc);
+        GridBandDataSource ds2 = ctx.getOrCreateGridForVariable(varDesc);
 
         assertNotSame(ds1, ds2);
-        assertEquals(1, geomFactory.getCalls);
-        assertEquals(1, bandFactory.calls);
+        assertEquals(2, geomFactory.getCalls);
+        assertEquals(2, bandFactory.calls);
 
         ctx.clearCache();
         assertEquals(1, geomFactory.clearCalls);
 
-        ctx.getOrCreateGridForVariable(varDesc, true);
-        assertEquals(2, geomFactory.getCalls);
-        assertEquals(2, bandFactory.calls);
+        ctx.getOrCreateGridForVariable(varDesc);
+        assertEquals(3, geomFactory.getCalls);
+        assertEquals(3, bandFactory.calls);
     }
 
 
@@ -294,6 +273,12 @@ public class CimrReaderContextTest {
                 1.0, 1.0
         );
         return new CimrGrid(proj, 1, 1);
+    }
+
+    private CimrProductDescriptor productDescriptor() {
+        CimrProductDescriptor productDescriptor = new CimrProductDescriptor();
+        productDescriptor.setProductType(CimrL1BProductReader.PRODUCT_TYPE);
+        return productDescriptor;
     }
 
     private CimrBandDescriptor createTestDescriptor() {

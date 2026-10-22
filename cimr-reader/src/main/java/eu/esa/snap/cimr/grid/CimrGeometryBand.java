@@ -5,27 +5,26 @@ import org.esa.snap.core.datamodel.GeoPos;
 
 public class CimrGeometryBand implements CimrBand {
 
-    private final double[][] values;
+
+    private final CimrSampleBuffer values;
+    private final int scanCount;
+    private final int sampleCount;
     private final CimrGeometry geometry;
     private final int feedIndex;
 
 
-    public CimrGeometryBand(double[][] values,
-                            CimrGeometry geometry,
-                            int feedIndex) {
+    public CimrGeometryBand(CimrSampleBuffer values, int scanCount, int sampleCount,
+                            CimrGeometry geometry, int feedIndex) {
         if (values == null || geometry == null) {
             throw new IllegalArgumentException("values and geometry must not be null");
         }
-        if (values.length == 0) {
-            throw new IllegalArgumentException("values must not be empty");
+        if (scanCount <= 0 || sampleCount <= 0) {
+            throw new IllegalArgumentException("scanCount and sampleCount must be positive");
         }
-        int sampleCount = values[0].length;
-        for (double[] row : values) {
-            if (row.length != sampleCount) {
-                throw new IllegalArgumentException("all scan rows must have same sample count");
-            }
+        if (values.size() != scanCount * sampleCount) {
+            throw new IllegalArgumentException("values length must be scanCount * sampleCount");
         }
-        if (geometry.getScanCount() != values.length) {
+        if (geometry.getScanCount() != scanCount) {
             throw new IllegalArgumentException("geometry scanCount does not match values");
         }
         if (geometry.getSampleCount() != sampleCount) {
@@ -33,18 +32,20 @@ public class CimrGeometryBand implements CimrBand {
         }
 
         this.values = values;
+        this.scanCount = scanCount;
+        this.sampleCount = sampleCount;
         this.geometry = geometry;
         this.feedIndex = feedIndex;
     }
 
     @Override
     public int getScanCount() {
-        return values.length;
+        return scanCount;
     }
 
     @Override
     public int getSampleCount() {
-        return values[0].length;
+        return sampleCount;
     }
 
     @Override
@@ -54,10 +55,17 @@ public class CimrGeometryBand implements CimrBand {
 
     @Override
     public double getValue(int scanIndex, int sampleIndex) {
-        return values[scanIndex][sampleIndex];
+        if (scanIndex < 0 || scanIndex >= scanCount || sampleIndex < 0 || sampleIndex >= sampleCount) {
+            throw new IllegalArgumentException("Sample index out of range: scan=" + scanIndex + ", sample=" + sampleIndex);
+        }
+        return values.get(scanIndex * sampleCount + sampleIndex);
     }
 
     public int getFeedIndex() {
         return feedIndex;
+    }
+
+    public int getRasterDataType() {
+        return values.getRasterDataType();
     }
 }

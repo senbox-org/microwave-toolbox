@@ -1,6 +1,5 @@
 package eu.esa.snap.cimr.grid;
 
-import org.esa.snap.core.datamodel.GeoPos;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -12,21 +11,10 @@ public class CimrGridFactoryTest {
 
     @Test
     public void testCreatePlateCarreeFromBoundingBox() {
-        int scanCount = 5;
-        int tpCount = 4;
-        int sampleCount = 8;
-        GeoPos[][][] tiePoints = new GeoPos[scanCount][tpCount][1];
-
-        for (int s = 0; s < scanCount; s++) {
-            for (int tp = 0; tp < tpCount; tp++) {
-                double lat = 50.0234 + s;
-                double lon = 10.542 + tp * 2;
-                tiePoints[s][tp][0] = new GeoPos(lat, lon);
-            }
-        }
-
-        CimrGeometry geometry = new CimrTiepointGeometry(tiePoints, sampleCount);
-        CimrBoundingBox bBox = CimrBoundingBox.create(geometry, CimrGridFactory.DEFAULT_CELL_SIZE_DEG);
+        CimrBoundingBox bBox = CimrBoundingBox.create(
+                10.542, 16.542, 50.0234, 54.0234,
+                CimrGridFactory.DEFAULT_CELL_SIZE_DEG
+        );
 
         CimrGrid grid = CimrGridFactory.createPlateCarreeFromBoundingBox(bBox);
 

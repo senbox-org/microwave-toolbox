@@ -1,6 +1,9 @@
 package eu.esa.snap.cimr;
 
 import eu.esa.snap.cimr.cimr.*;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import eu.esa.snap.cimr.grid.*;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrFootprintFactory;
 import eu.esa.snap.cimr.netcdf.NetcdfCimrGeometryFactory;
@@ -11,30 +14,38 @@ import ucar.nc2.NetcdfFile;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 
 public class CimrReaderContext {
 
+
     private final NetcdfFile ncFile;
+    private final CimrProductDescriptor productDescriptor;
     private final CimrDescriptorSet descriptorSet;
+    private final String autoGrouping;
     private final CimrGrid cimrGrid;
     private final GeometryBandToGridMapper mapper;
     private final NetcdfCimrGeometryFactory geometryFactory;
     private final NetcdfCimrBandFactory bandFactory;
     private final NetcdfCimrFootprintFactory footprintFactory;
 
-    private final Map<String, CimrGeometryBand> geometryBandCache = new ConcurrentHashMap<>();
+    private final Map<String, CimrGeometryBand> footprintBandCache = new ConcurrentHashMap<>();
     private final Map<String, List<CimrFootprintShape>> footprintCache = new ConcurrentHashMap<>();
 
 
     public CimrReaderContext(NetcdfFile ncFile,
+                             CimrProductDescriptor productDescriptor,
                              CimrDescriptorSet descriptorSet,
+                             String autoGrouping,
                              CimrGrid cimrGrid,
                              NetcdfCimrGeometryFactory geomFactory,
                              NetcdfCimrBandFactory bandFactory) {
         this.ncFile = ncFile;
+        this.productDescriptor = Objects.requireNonNull(productDescriptor, "productDescriptor");
         this.descriptorSet = descriptorSet;
+        this.autoGrouping = autoGrouping;
         this.cimrGrid = cimrGrid;
         this.mapper = new GeometryBandToGridMapper();
         this.geometryFactory = geomFactory;
@@ -51,10 +62,18 @@ public class CimrReaderContext {
         return this.descriptorSet;
     }
 
-    public GridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor varDesc, boolean useAverage) {
-        CimrGeometryBand geometryBand = getOrCreateGeometryBand(varDesc);
+    public CimrProductDescriptor getProductDescriptor() {
+        return this.productDescriptor;
+    }
+
+    public String getAutoGrouping() {
+        return this.autoGrouping;
+    }
+
+    public GridBandDataSource getOrCreateGridForVariable(CimrBandDescriptor varDesc) {
+        CimrGeometryBand geometryBand = createGeometryBand(varDesc);
         CimrGridBuilder gridBuilder = new CimrGridBuilder(this.mapper);
-        return gridBuilder.build(geometryBand, this.cimrGrid, useAverage);
+        return gridBuilder.build(varDesc, geometryBand, this.cimrGrid);
     }
 
     public CimrGeometry getOrCreateGeometry(CimrBandDescriptor varDesc) {
@@ -65,16 +84,18 @@ public class CimrReaderContext {
         }
     }
 
-    private CimrGeometryBand getOrCreateGeometryBand(CimrBandDescriptor varDesc) {
+    private CimrGeometryBand createGeometryBand(CimrBandDescriptor varDesc) {
+        try {
+            CimrGeometry geom = getOrCreateGeometry(varDesc);
+            return this.bandFactory.createGeometryBand(varDesc, geom);
+        } catch (IOException | InvalidRangeException e) {
+            throw new RuntimeException("Failed to build geometry band for variable " + varDesc.getName(), e);
+        }
+    }
+
+    private CimrGeometryBand getOrCreateFootprintBand(CimrBandDescriptor varDesc) {
         String key = getGeometryBandKey(varDesc);
-        return this.geometryBandCache.computeIfAbsent(key, k -> {
-            try {
-                CimrGeometry geom = getOrCreateGeometry(varDesc);
-                return this.bandFactory.createGeometryBand(varDesc, geom);
-            } catch (IOException | InvalidRangeException e) {
-                throw new RuntimeException("Failed to build geometry band for variable " + varDesc.getName(), e);
-            }
-        });
+        return this.footprintBandCache.computeIfAbsent(key, k -> createGeometryBand(varDesc));
     }
 
     private String getGeometryBandKey(CimrBandDescriptor varDesc) {
@@ -89,15 +110,15 @@ public class CimrReaderContext {
             CimrBandDescriptor majorAxisDesc = this.descriptorSet.getTpVariableByName(varDesc.getFootprintVars()[1]);
             CimrBandDescriptor angleDesc = this.descriptorSet.getTpVariableByName(varDesc.getFootprintVars()[2]);
 
-            CimrGeometryBand geometryBand = getOrCreateGeometryBand(varDesc);
-            CimrGeometryBand minorAxisBand = getOrCreateGeometryBand(minorAxisDesc);
-            CimrGeometryBand majorAxisBand = getOrCreateGeometryBand(majorAxisDesc);
-            CimrGeometryBand angleBand = getOrCreateGeometryBand(angleDesc);
+            CimrGeometryBand geometryBand = getOrCreateFootprintBand(varDesc);
+            CimrGeometryBand minorAxisBand = getOrCreateFootprintBand(minorAxisDesc);
+            CimrGeometryBand majorAxisBand = getOrCreateFootprintBand(majorAxisDesc);
+            CimrGeometryBand angleBand = getOrCreateFootprintBand(angleDesc);
 
             return footprintFactory.createFootprintShapes(geometryBand, minorAxisBand, majorAxisBand, angleBand);
         });
 
-        CimrGeometryBand geometryBand = getOrCreateGeometryBand(varDesc);
+        CimrGeometryBand geometryBand = getOrCreateFootprintBand(varDesc);
         List<Double> values = this.footprintFactory.getFootprintValues(geometryBand);
 
         return new CimrFootprints(shapes, values);
@@ -108,7 +129,7 @@ public class CimrReaderContext {
     }
 
     public void clearCache() {
-        this.geometryBandCache.clear();
+        this.footprintBandCache.clear();
         this.footprintCache.clear();
         this.geometryFactory.clearCache();
     }
