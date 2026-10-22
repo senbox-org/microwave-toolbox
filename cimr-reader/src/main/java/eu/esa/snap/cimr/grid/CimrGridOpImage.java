@@ -15,10 +15,6 @@ public class CimrGridOpImage extends RasterDataNodeOpImage {
     private final CimrOverviewResampling overviewResampling;
 
 
-    public CimrGridOpImage(RasterDataNode rasterDataNode, ResolutionLevel level, GridBandDataSource gridBandDataSource) {
-        this(rasterDataNode, level, gridBandDataSource, CimrOverviewResampling.CONTINUOUS_AVERAGE);
-    }
-
     public CimrGridOpImage(RasterDataNode rasterDataNode, ResolutionLevel level, GridBandDataSource gridBandDataSource, CimrOverviewResampling overviewResampling) {
         super(rasterDataNode, level);
         this.gridDataSource = gridBandDataSource;

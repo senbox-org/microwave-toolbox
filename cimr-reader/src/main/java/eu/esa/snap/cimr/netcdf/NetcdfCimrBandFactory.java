@@ -65,7 +65,7 @@ public class NetcdfCimrBandFactory {
             int outputSampleCount = getSampleCount(desc);
             return new CimrGeometryBand(readTiepointValues(desc, nScans, nSamples, data), nScans, outputSampleCount, geometry, feedIdx);
         }
-        return new CimrGeometryBand(readSampleValues(nScans, nSamples, data), nScans, nSamples, geometry, feedIdx);
+        return new CimrGeometryBand(readSampleValues(data), nScans, nSamples, geometry, feedIdx);
     }
 
     private CimrSampleBuffer readTiepointValues(CimrBandDescriptor desc, int nScans, int nTiepoints, Array data) {
@@ -88,12 +88,8 @@ public class NetcdfCimrBandFactory {
         return values;
     }
 
-    private CimrSampleBuffer readSampleValues(int nScans, int nSamples, Array data) {
-        CimrSampleBuffer values = CimrSampleBuffer.fromNetcdfArray(data);
-        if (values.size() != nScans * nSamples) {
-            throw new IllegalArgumentException("Unexpected sample value count: " + values.size());
-        }
-        return values;
+    private CimrSampleBuffer readSampleValues(Array data) {
+        return CimrSampleBuffer.fromNetcdfArray(data);
     }
 
     private int getRasterDataType(Array data) {

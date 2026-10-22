@@ -15,12 +15,6 @@ public class CimrGridBandDataSource implements GridBandDataSource {
 
 
     private CimrGridBandDataSource(int width, int height, CimrSampleBuffer data, byte[] states) {
-        if (data.size() != width * height) {
-            throw new IllegalArgumentException("data length must be width * height");
-        }
-        if (states.length != width * height) {
-            throw new IllegalArgumentException("states length must be width * height");
-        }
         this.width = width;
         this.height = height;
         this.data = data;

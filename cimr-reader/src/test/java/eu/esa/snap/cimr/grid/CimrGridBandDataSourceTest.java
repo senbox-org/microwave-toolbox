@@ -79,6 +79,19 @@ public class CimrGridBandDataSourceTest {
         assertEquals(GridSampleState.INVALID, ds.getSampleState(1, 0));
     }
 
+    @Test
+    @STTM("SNAP-4262")
+    public void setValidSample_withNaNMarksSampleInvalid() {
+        CimrGridBandDataSource ds = CimrGridBandDataSource.createEmpty(1, 1, ProductData.TYPE_FLOAT32);
+
+        ds.setValidSample(0, 0, Double.NaN);
+
+        assertTrue(Double.isNaN(ds.getSample(0, 0)));
+        assertEquals(GridSampleState.INVALID, ds.getSampleState(0, 0));
+        assertTrue(ds.isCovered(0, 0));
+        assertFalse(ds.isValid(0, 0));
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void testTypedFactory_invalidLength_throws() {
         CimrGridTestData.grid(2, 2, ProductData.TYPE_FLOAT32, 1.0, 2.0, 3.0);

@@ -1,5 +1,6 @@
 package eu.esa.snap.cimr.grid;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.snap.cimr.test.CimrGridTestData;
 import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.ProductData;
@@ -92,5 +93,19 @@ public class CimrGeometryBandTest {
 
         CimrTiepointGeometry geom = new CimrTiepointGeometry(tp, 3);
         new CimrGeometryBand(CimrSampleBuffer.create(ProductData.TYPE_FLOAT32, 2), 1, 2, geom, 0);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getValue_rejectsOutOfRangeSampleIndices() {
+        GeoPos[][][] tiePoints = new GeoPos[1][2][1];
+        tiePoints[0][0][0] = new GeoPos(0f, 0f);
+        tiePoints[0][1][0] = new GeoPos(0f, 1f);
+        CimrGeometryBand band = new CimrGeometryBand(CimrSampleBuffer.create(ProductData.TYPE_FLOAT32, 2), 1, 2, new CimrTiepointGeometry(tiePoints, 2), 0);
+
+        assertThrows(IllegalArgumentException.class, () -> band.getValue(-1, 0));
+        assertThrows(IllegalArgumentException.class, () -> band.getValue(1, 0));
+        assertThrows(IllegalArgumentException.class, () -> band.getValue(0, -1));
+        assertThrows(IllegalArgumentException.class, () -> band.getValue(0, 2));
     }
 }

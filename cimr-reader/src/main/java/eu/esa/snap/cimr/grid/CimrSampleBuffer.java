@@ -182,7 +182,7 @@ public final class CimrSampleBuffer {
         if (!Double.isFinite(value) || value < 0.0 || Math.rint(value) != value) {
             throw new IllegalArgumentException("Value out of range for UINT64: " + value);
         }
-        if (value <= Long.MAX_VALUE) {
+        if (value < 0x1.0p63) {
             return (long) value;
         }
         throw new IllegalArgumentException("UINT64 value cannot be represented exactly as double: " + value);

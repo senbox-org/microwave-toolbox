@@ -1,5 +1,6 @@
 package eu.esa.snap.cimr.cimr;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.snap.cimr.CimrReaderContext;
 import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
 import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
@@ -7,6 +8,7 @@ import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
 import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.CimrGridBandDataSource;
+import eu.esa.snap.cimr.grid.GridSampleState;
 import eu.esa.snap.cimr.test.CimrGridTestData;
 import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
@@ -56,6 +58,28 @@ public class LazyGridBandDataSourceTest {
 
         assertEquals(1, context.callCount);
         assertSame(desc, context.lastDescriptor);
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void testStateAndExplicitMutationMethodsDelegate() {
+        CimrGridBandDataSource delegate = CimrGridBandDataSource.createEmpty(1, 1, ProductData.TYPE_FLOAT64);
+        TestReaderContext context = new TestReaderContext(delegate);
+        LazyGridBandDataSource lazy = new LazyGridBandDataSource(context, createDummyDescriptor("test_band_3"));
+
+        assertEquals(GridSampleState.EMPTY, lazy.getSampleState(0, 0));
+        assertFalse(lazy.isCovered(0, 0));
+        assertFalse(lazy.isValid(0, 0));
+
+        lazy.setValidSample(0, 0, 7.0);
+        assertEquals(7.0, lazy.getSample(0, 0), doubleErr);
+        assertTrue(lazy.isCovered(0, 0));
+        assertTrue(lazy.isValid(0, 0));
+
+        lazy.setInvalidSample(0, 0);
+        assertTrue(Double.isNaN(lazy.getSample(0, 0)));
+        assertEquals(GridSampleState.INVALID, lazy.getSampleState(0, 0));
+        assertEquals(1, context.callCount);
     }
 
 

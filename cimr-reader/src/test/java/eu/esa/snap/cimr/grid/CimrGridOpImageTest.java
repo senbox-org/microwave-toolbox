@@ -93,6 +93,30 @@ public class CimrGridOpImageTest {
 
     @Test
     @STTM("SNAP-4262")
+    public void categoricalNearestTreatsUnavailableSourceSampleAsNoData() {
+        Product product = new Product("P", "T", 2, 2);
+        Band band = product.addBand("status", ProductData.TYPE_INT32);
+        GridBandDataSource unavailableGrid = new GridBandDataSource() {
+            @Override
+            public double getSample(int x, int y) {
+                throw new IllegalArgumentException("source sample unavailable");
+            }
+
+            @Override
+            public void setSample(int x, int y, double value) {
+                // Not needed for this test.
+            }
+        };
+        CimrGridOpImage opImage = createOpImageLevel(band, 1, 2, 2, unavailableGrid, CimrOverviewResampling.CATEGORICAL_NEAREST);
+
+        ProductData data = ProductData.createInstance(ProductData.TYPE_FLOAT64, 1);
+        opImage.computeProductData(data, new Rectangle(0, 0, 1, 1));
+
+        assertTrue(Double.isNaN(data.getElemDoubleAt(0)));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
     public void testLevel1MarksCoverageWhenAnySourcePixelIsCovered() throws Exception {
         Product product = new Product("P", "T", 2, 2);
         Band band = product.addBand("coverage", ProductData.TYPE_UINT8);
