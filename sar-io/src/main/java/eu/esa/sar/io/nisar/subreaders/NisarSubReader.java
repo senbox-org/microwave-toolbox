@@ -66,6 +66,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static eu.esa.snap.core.dataio.CfConstants.UNITS;
 import static ucar.ma2.DataType.STRUCTURE;
 
 public abstract class NisarSubReader implements CacheDataProvider {
@@ -924,7 +925,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
             Variable coordYVar = findVariable(gridGroup, "coordinateY", "yCoordinates");
             Variable coordXVar = findVariable(gridGroup, "coordinateX", "xCoordinates");
             if (coordYVar != null && coordXVar != null) {
-                Attribute unitsAttr = coordYVar.findAttribute("units");
+                Attribute unitsAttr = coordYVar.findAttribute(UNITS);
                 String unit = unitsAttr != null ? unitsAttr.getStringValue() : "";
 
                 TiePointGrid latGrid, lonGrid;
@@ -1357,7 +1358,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
             }
 
             // Parse epoch from time variable units attribute (e.g. "seconds since 2008-10-12T00:00:00.00000000")
-            Attribute unitsAttr = timeVar.findAttribute("units");
+            Attribute unitsAttr = timeVar.findAttribute(UNITS);
             if(unitsAttr == null) {
                 SystemUtils.LOG.warning("NISAR orbit: time variable has no 'units' attribute");
                 return;
@@ -1543,7 +1544,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
             if (v == null) continue;
             try {
                 azTimesSec = (double[]) v.read().get1DJavaArray(DataType.DOUBLE);
-                final Attribute units = v.findAttribute("units");
+                final Attribute units = v.findAttribute(UNITS);
                 if (units != null) {
                     final String us = units.getStringValue();
                     if (us != null && us.startsWith("seconds since ")) {

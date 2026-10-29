@@ -26,6 +26,8 @@ import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import java.util.ArrayList;
 import java.util.List;
 
+import static eu.esa.snap.core.dataio.CfConstants.UNITS;
+
 /**
  * Spectra Data for Sentinel-1 L2 OCN
  */
@@ -98,7 +100,7 @@ public class SpectraDataSentinel1 extends SpectraDataBase implements SpectraData
         if (value - (int) value != 0)
             valueStr = frmt.format(value);
         if (unit == null) {
-            unit = elem.getAttributeString("units");
+            unit = elem.getAttributeString(UNITS);
         }
 
         return name + ": " + valueStr + " " + unit;

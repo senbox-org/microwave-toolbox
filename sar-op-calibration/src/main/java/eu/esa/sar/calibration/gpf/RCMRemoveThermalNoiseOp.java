@@ -36,6 +36,8 @@ import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 
+import static eu.esa.snap.core.dataio.CfConstants.UNITS;
+
 /**
  * Removes thermal noise from RCM (RADARSAT Constellation Mission) SAR products.
  *
@@ -257,7 +259,7 @@ public class RCMRemoveThermalNoiseOp extends Operator {
 
             // Determine if values are in dB
             boolean isDB = true;
-            String units = valuesElem.getAttributeString("units", "dB");
+            String units = valuesElem.getAttributeString(UNITS, "dB");
             if (units.toLowerCase().contains("linear") || units.toLowerCase().contains("power")) {
                 isDB = false;
             }

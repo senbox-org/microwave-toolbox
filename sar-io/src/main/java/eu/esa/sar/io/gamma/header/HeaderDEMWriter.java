@@ -29,6 +29,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 
+import static eu.esa.snap.core.dataio.CfConstants.SCALE_FACTOR;
+
 /**
  * Writer par header
  */
@@ -118,7 +120,7 @@ public class HeaderDEMWriter extends HeaderWriter {
             latitudeOfOrigin = wkt.substring(wkt.indexOf("latitude_of_origin")+20);
             latitudeOfOrigin = latitudeOfOrigin.substring(0, latitudeOfOrigin.indexOf(']')).trim();
 
-            scaleFactor = wkt.substring(wkt.indexOf("scale_factor")+14);
+            scaleFactor = wkt.substring(wkt.indexOf(SCALE_FACTOR)+14);
             scaleFactor = scaleFactor.substring(0, scaleFactor.indexOf(']')).trim();
 
             return GammaConstants.PROJECTION_UTM;

@@ -50,6 +50,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static eu.esa.snap.core.dataio.CfConstants.*;
+
 /**
  * Provides some NetCDF related utility methods.
  */
@@ -137,7 +139,7 @@ public class NetCDFUtils {
     }
 
     private static double getScalingFactor(final NcAttributeMap attMap) {
-        Number numValue = attMap.getNumericValue(NetcdfConstants.SCALE_FACTOR_ATT_NAME);
+        Number numValue = attMap.getNumericValue(SCALE_FACTOR);
         if (numValue == null) {
             numValue = attMap.getNumericValue(NetcdfConstants.SLOPE_ATT_NAME);
         }
@@ -145,7 +147,7 @@ public class NetCDFUtils {
     }
 
     private static double getAddOffset(final NcAttributeMap attMap) {
-        Number numValue = attMap.getNumericValue(NetcdfConstants.ADD_OFFSET_ATT_NAME);
+        Number numValue = attMap.getNumericValue(ADD_OFFSET);
         if (numValue == null) {
             numValue = attMap.getNumericValue(NetcdfConstants.INTERCEPT_ATT_NAME);
         }
@@ -153,7 +155,7 @@ public class NetCDFUtils {
     }
 
     private static Number getNoDataValue(final NcAttributeMap attMap) {
-        Number noDataValue = attMap.getNumericValue(NetcdfConstants.FILL_VALUE_ATT_NAME);
+        Number noDataValue = attMap.getNumericValue(FILL_VALUE);
         if (noDataValue == null) {
             noDataValue = attMap.getNumericValue(NetcdfConstants.MISSING_VALUE_ATT_NAME);
         }

@@ -42,6 +42,7 @@ import java.text.DateFormat;
 import java.util.Map;
 
 import static eu.esa.sar.io.sentinel1.Sentinel1Directory.sentinelDateFormat;
+import static eu.esa.snap.core.dataio.CfConstants.SCALE_FACTOR;
 
 /**
  * This class represents a product directory.
@@ -111,7 +112,7 @@ public class CapellaProductDirectory extends JSONProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.bistatic_correction_applied, 1);
 
         final String radiometry = image.getAttributeString("radiometry");
-        scaleFactor = image.getAttributeDouble("scale_factor");
+        scaleFactor = image.getAttributeDouble(SCALE_FACTOR);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.calibration_factor, scaleFactor);
         if (radiometry.contains("nought")) {
             calibration = radiometry.contains("gamma") ? "Gamma0" : radiometry.contains("sigma") ? "Sigma0" : "Beta0";
