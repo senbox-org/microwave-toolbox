@@ -157,7 +157,7 @@ public class NetCDFUtils {
     private static Number getNoDataValue(final NcAttributeMap attMap) {
         Number noDataValue = attMap.getNumericValue(FILL_VALUE);
         if (noDataValue == null) {
-            noDataValue = attMap.getNumericValue(NetcdfConstants.MISSING_VALUE_ATT_NAME);
+            noDataValue = attMap.getNumericValue(MISSING_VALUE);
         }
         return noDataValue;
     }
@@ -174,11 +174,11 @@ public class NetCDFUtils {
         float pixelSizeY;
 
         final NcAttributeMap lonAttrMap = NcAttributeMap.create(lonVar);
-        final Number lonValidMin = lonAttrMap.getNumericValue(NetcdfConstants.VALID_MIN_ATT_NAME);
+        final Number lonValidMin = lonAttrMap.getNumericValue(VALID_MIN);
         final Number lonStep = lonAttrMap.getNumericValue(NetcdfConstants.STEP_ATT_NAME);
 
         final NcAttributeMap latAttrMap = NcAttributeMap.create(latVar);
-        final Number latValidMin = latAttrMap.getNumericValue(NetcdfConstants.VALID_MIN_ATT_NAME);
+        final Number latValidMin = latAttrMap.getNumericValue(VALID_MIN);
         final Number latStep = latAttrMap.getNumericValue(NetcdfConstants.STEP_ATT_NAME);
 
         boolean yFlipped;
@@ -614,7 +614,7 @@ public class NetCDFUtils {
         if (productType == null) {
             productType = attMap.getStringValue("Product_Type");
             if (productType == null) {
-                productType = attMap.getStringValue("Conventions");
+                productType = attMap.getStringValue(CONVENTIONS);
                 if (productType == null) {
                     productType = defaultType;
                 }
@@ -626,7 +626,7 @@ public class NetCDFUtils {
     public static String getProductDescription(final NcAttributeMap attMap) {
         String description = attMap.getStringValue("description");
         if (description == null) {
-            description = attMap.getStringValue("title");
+            description = attMap.getStringValue(TITLE);
             if (description == null) {
                 description = attMap.getStringValue("comment");
             }

@@ -66,6 +66,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static eu.esa.snap.core.dataio.CfConstants.TITLE;
 import static eu.esa.snap.core.dataio.CfConstants.UNITS;
 import static ucar.ma2.DataType.STRUCTURE;
 
@@ -362,7 +363,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, product.getName());
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, Missions.NISAR);
 
-        String title = globals.getAttributeString("title");
+        String title = globals.getAttributeString(TITLE);
         product.setDescription(title);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SPH_DESCRIPTOR, title);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, productType);
