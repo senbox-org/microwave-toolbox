@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.calibration.gpf.ui;
 
+import eu.esa.sar.calibration.gpf.RemoveGRDBorderNoiseOp;
 import eu.esa.sar.commons.Sentinel1Utils;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -36,6 +37,10 @@ public class RemoveGRDBorderNoiseOpUI extends BaseOperatorUI {
     private final JList<String> polList = new JList<>();
     private final JTextField borderLimit = new JTextField("");
     private final JTextField trimThreshold = new JTextField("");
+    private final JComboBox<String> borderMethod = new JComboBox<>(new String[]{
+            RemoveGRDBorderNoiseOp.METHOD_AUTO, RemoveGRDBorderNoiseOp.METHOD_ESA,
+            RemoveGRDBorderNoiseOp.METHOD_BIDIRECTIONAL});
+    private final JCheckBox processRecentProducts = new JCheckBox("Also process products from IPF 2.90 and later");
 
     @Override
     public JComponent CreateOpTab(String operatorName, Map<String, Object> parameterMap, AppContext appContext) {
@@ -43,6 +48,8 @@ public class RemoveGRDBorderNoiseOpUI extends BaseOperatorUI {
         initializeOperatorUI(operatorName, parameterMap);
         final JComponent panel = createPanel();
         initParameters();
+        borderMethod.addActionListener(e -> updateEnablement());
+        updateEnablement();
         return new JScrollPane(panel);
     }
 
@@ -62,10 +69,40 @@ public class RemoveGRDBorderNoiseOpUI extends BaseOperatorUI {
         if(paramMap.get("trimThreshold") != null) {
             trimThreshold.setText(String.valueOf(paramMap.get("trimThreshold")));
         }
+        final Object method = paramMap.get("borderMethod");
+        borderMethod.setSelectedItem(method != null ? method : RemoveGRDBorderNoiseOp.METHOD_AUTO);
+        final Boolean recent = (Boolean) paramMap.get("processRecentProducts");
+        processRecentProducts.setSelected(recent != null && recent);
+        updateEnablement();
+    }
+
+    /**
+     * The threshold is only used by the ESA method (also chosen by Auto); the IPF 2.90 option only changes Auto, since an
+     * explicit Bidirectional choice always runs and ESA is refused from IPF 2.90 on.
+     */
+    private void updateEnablement() {
+        final Object method = borderMethod.getSelectedItem();
+        trimThreshold.setEnabled(!RemoveGRDBorderNoiseOp.METHOD_BIDIRECTIONAL.equals(method));
+        processRecentProducts.setEnabled(RemoveGRDBorderNoiseOp.METHOD_AUTO.equals(method));
     }
 
     @Override
     public UIValidation validateParameters() {
+        final String limit = borderLimit.getText().trim();
+        if (!limit.isEmpty()) {
+            final Integer value = parseInteger(limit);
+            if (value == null || value < RemoveGRDBorderNoiseOp.MIN_BORDER_LIMIT) {
+                return new UIValidation(UIValidation.State.ERROR, "Border margin limit must be a whole number of at least " +
+                        RemoveGRDBorderNoiseOp.MIN_BORDER_LIMIT + " pixels");
+            }
+        }
+        final String threshold = trimThreshold.getText().trim();
+        if (!threshold.isEmpty()) {
+            final Double value = parseDouble(threshold);
+            if (value == null || value.isNaN() || value.isInfinite() || value < 0) {
+                return new UIValidation(UIValidation.State.ERROR, "Threshold must be a non-negative number");
+            }
+        }
         return new UIValidation(UIValidation.State.OK, "");
     }
 
@@ -73,11 +110,32 @@ public class RemoveGRDBorderNoiseOpUI extends BaseOperatorUI {
     public void updateParameters() {
 
         OperatorUIUtils.updateParamList(polList, paramMap, "selectedPolarisations");
-        if(!borderLimit.getText().isEmpty()) {
-            paramMap.put("borderLimit", Integer.parseInt(borderLimit.getText()));
+        // invalid text is reported by validateParameters; the previous value is kept
+        final Integer limit = parseInteger(borderLimit.getText().trim());
+        if (limit != null) {
+            paramMap.put("borderLimit", limit);
         }
-        if(!trimThreshold.getText().isEmpty()) {
-            paramMap.put("trimThreshold", Double.parseDouble(trimThreshold.getText()));
+        final Double threshold = parseDouble(trimThreshold.getText().trim());
+        if (threshold != null) {
+            paramMap.put("trimThreshold", threshold);
+        }
+        paramMap.put("borderMethod", borderMethod.getSelectedItem());
+        paramMap.put("processRecentProducts", processRecentProducts.isSelected());
+    }
+
+    private static Integer parseInteger(final String text) {
+        try {
+            return text.isEmpty() ? null : Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static Double parseDouble(final String text) {
+        try {
+            return text.isEmpty() ? null : Double.parseDouble(text);
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 
@@ -91,6 +149,11 @@ public class RemoveGRDBorderNoiseOpUI extends BaseOperatorUI {
         DialogUtils.addComponent(contentPane, gbc, "Border margin limit [pixels]:", borderLimit);
         gbc.gridy++;
         DialogUtils.addComponent(contentPane, gbc, "Threshold:", trimThreshold);
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Border detection method:", borderMethod);
+        gbc.gridy++;
+        gbc.gridx = 0;
+        contentPane.add(processRecentProducts, gbc);
 
         DialogUtils.fillPanel(contentPane, gbc);
 

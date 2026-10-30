@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<noiseLevels>
+  <referenceNoiseLevel>
+    <sarCalibrationType>Beta Nought</sarCalibrationType>
+    <pixelFirstNoiseValue>0</pixelFirstNoiseValue><stepSize>10</stepSize><numberOfValues>3</numberOfValues>
+    <noiseLevelValues units="dB">-30 -30 -30</noiseLevelValues>
+  </referenceNoiseLevel>
+  <azimuthNoiseLevelScaling>
+    <beam>FSL20</beam><lineFirstNoiseScalingValue>0</lineFirstNoiseScalingValue><stepSize>2</stepSize>
+    <numberOfNoiseLevelScalingValues>3</numberOfNoiseLevelScalingValues>
+    <noiseLevelScalingValues units="dB">0 3 6</noiseLevelScalingValues>
+  </azimuthNoiseLevelScaling>
+  <azimuthNoiseLevelScaling>
+    <beam>FSL21</beam><lineFirstNoiseScalingValue>0</lineFirstNoiseScalingValue><stepSize>2</stepSize>
+    <numberOfNoiseLevelScalingValues>3</numberOfNoiseLevelScalingValues>
+    <noiseLevelScalingValues units="dB">6 3 0</noiseLevelScalingValues>
+  </azimuthNoiseLevelScaling>
+</noiseLevels>

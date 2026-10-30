@@ -19,6 +19,7 @@ import com.bc.ceres.core.ProgressMonitor;
 import org.apache.commons.math3.util.FastMath;
 import eu.esa.sar.calibration.gpf.support.BaseCalibrator;
 import eu.esa.sar.calibration.gpf.support.Calibrator;
+import eu.esa.sar.calibration.gpf.support.RCMNoiseModel;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
@@ -105,7 +106,9 @@ public class RCMCalibrator extends BaseCalibrator implements Calibrator {
                 inputSigma0 = true;
             }
 
-            isSLC = sourceProduct.getProductType().toLowerCase().contains("slc");
+            // complex products (SLC, GRC, GCC): |DN|^2 / A^2; detected: (DN^2 + B) / A (RCM-SP-53-0419 7.5.1).
+            // Decided by product type so an SLC/GRC detected by RCM thermal noise removal keeps its convention.
+            isSLC = RCMNoiseModel.isComplexProductType(sourceProduct.getProductType());
 
             getSubsetOffset();
 

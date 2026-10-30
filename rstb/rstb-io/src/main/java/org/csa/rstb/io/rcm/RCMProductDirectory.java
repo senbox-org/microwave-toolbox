@@ -283,9 +283,6 @@ public class RCMProductDirectory extends XMLProductDirectory {
         origProdRoot.addElement(calibrationElem);
         addMetadataFiles(getRootFolder() + "metadata/calibration", calibrationElem);
 
-        // Read noise levels if present (noiseLevels.xml at root or in metadata/calibration)
-        addNoiseMetadata(origProdRoot);
-
         addAbstractedMetadataHeader(root);
 
         return root;
@@ -304,7 +301,9 @@ public class RCMProductDirectory extends XMLProductDirectory {
                     }
                     final Element metaFileElement = xmlDoc.getRootElement();
 
-                    if (metaFileElement.getName().equals("lut")) {
+                    // per-polarisation files share one root name; keep them apart by file name
+                    final String rootName = metaFileElement.getName();
+                    if (rootName.equals("lut") || rootName.equals("noiseLevels")) {
                         metaFileElement.setName(file.substring(0, file.lastIndexOf(".xml")));
                     }
 
@@ -312,32 +311,6 @@ public class RCMProductDirectory extends XMLProductDirectory {
                 } catch (IOException e) {
                     SystemUtils.LOG.severe("Unable to read metadata " + file);
                 }
-            }
-        }
-    }
-
-    private void addNoiseMetadata(final MetadataElement origProdRoot) {
-        // Try to read noiseLevels.xml from product root or metadata/calibration
-        final String[] searchPaths = {
-                getRootFolder() + "noiseLevels.xml",
-                getRootFolder() + "metadata/calibration/noiseLevels.xml",
-                getRootFolder() + "metadata/noiseLevels.xml"
-        };
-
-        for (String path : searchPaths) {
-            try {
-                if (productDir.exists(path)) {
-                    final File noiseFile = getFile(path);
-                    final Document noiseDoc = XMLSupport.LoadXML(noiseFile.getAbsolutePath());
-                    final Element noiseRoot = noiseDoc.getRootElement();
-
-                    final MetadataElement noiseElem = new MetadataElement("noiseLevels");
-                    origProdRoot.addElement(noiseElem);
-                    AbstractMetadataIO.AddXMLMetadata(noiseRoot, noiseElem);
-                    return;
-                }
-            } catch (Exception e) {
-                SystemUtils.LOG.fine("Unable to read noise levels: " + e.getMessage());
             }
         }
     }

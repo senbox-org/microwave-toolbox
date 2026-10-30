@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lut>
+  <pixelFirstLutValue>0</pixelFirstLutValue><stepSize>10</stepSize><numberOfValues>3</numberOfValues>
+  <offset>0</offset><gains>100 100 100</gains>
+</lut>

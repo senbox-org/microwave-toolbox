@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grdBurstMap>
+  <burstAttributes burst="0" beam="SC-1">
+    <topLeftLine>0</topLeftLine><topLeftPixel>0</topLeftPixel>
+    <bottomRightLine>8</bottomRightLine><bottomRightPixel>9</bottomRightPixel>
+  </burstAttributes>
+  <burstAttributes burst="1" beam="SC-1">
+    <topLeftLine>7</topLeftLine><topLeftPixel>0</topLeftPixel>
+    <bottomRightLine>15</bottomRightLine><bottomRightPixel>9</bottomRightPixel>
+  </burstAttributes>
+</grdBurstMap>

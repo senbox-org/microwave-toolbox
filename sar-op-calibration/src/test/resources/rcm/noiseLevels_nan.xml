@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<noiseLevels>
+  <referenceNoiseLevel>
+    <sarCalibrationType>Beta Nought</sarCalibrationType>
+    <pixelFirstNoiseValue>0</pixelFirstNoiseValue><stepSize>10</stepSize><numberOfValues>3</numberOfValues>
+    <noiseLevelValues units="dB">-30 NaN -30</noiseLevelValues>
+  </referenceNoiseLevel>
+</noiseLevels>

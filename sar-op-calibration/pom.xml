@@ -64,6 +64,20 @@
             <artifactId>sar-io</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- TOPSAR-Split, for the thermal noise subset (split) equivalence test -->
+        <dependency>
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-op-sentinel1</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- the RCM reader, for the end-to-end RCM thermal noise tests -->
+        <dependency>
+            <groupId>org.csa.rstb</groupId>
+            <artifactId>rstb-io</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <!-- the ICEYE COG readers, for the end-to-end calibration tests -->
         <dependency>
             <groupId>eu.esa.microwavetbx</groupId>
