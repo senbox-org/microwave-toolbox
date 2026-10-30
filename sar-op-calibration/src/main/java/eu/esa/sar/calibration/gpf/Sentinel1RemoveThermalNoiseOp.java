@@ -17,6 +17,10 @@ package eu.esa.sar.calibration.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.calibration.gpf.calibrators.Sentinel1Calibrator;
+import eu.esa.sar.calibration.gpf.support.NoiseSubtraction;
+import eu.esa.sar.calibration.gpf.support.S1IpfVersion;
+import eu.esa.sar.calibration.gpf.support.S1NoiseLutBuilder;
+import eu.esa.sar.calibration.gpf.support.S1NoiseRecalibration;
 import eu.esa.sar.commons.Sentinel1Utils;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
@@ -43,10 +47,11 @@ import org.esa.snap.engine_utilities.util.Maths;
 
 import java.awt.Rectangle;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Apply thermal noise correction to Sentinel-1 Level-1 products.
@@ -80,6 +85,14 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             defaultValue = "true", label = "Clip Negative Values")
     private Boolean clipNegativeValues = true;
 
+    @Parameter(description = "Apply the noise retro-calibration constants of Recchia et al. 2025 (IPF 3.1.0 and later)",
+            defaultValue = "false", label = "Apply Noise Retro-Calibration")
+    private Boolean applyNoiseRecalibration = false;
+
+    @Parameter(description = "Value assigned to pixels clipped after noise removal (0 = ESA MPC-0392 Eq-2)",
+            defaultValue = "1.0E-5", label = "Clip Floor Value")
+    private Double clipFloorValue = 1.0E-5;
+
     private MetadataElement absRoot = null;
     private MetadataElement origMetadataRoot = null;
     private boolean absoluteCalibrationPerformed = false;
@@ -99,13 +112,20 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     private List<String> selectedPolList = null;
     private final HashMap<String, String[]> targetBandNameToSourceBandName = new HashMap<>(2);
     private final HashMap<String, String> targetNoiseBandNameToImageBandName = new HashMap<>(2);
+    private final Map<String, S1NoiseLutBuilder> noiseBuilders = new HashMap<>();
+    private final Map<String, Integer> linesPerBurstMap = new HashMap<>();
+    private final Map<String, double[]> burstTimesMap = new HashMap<>();
+    private final Map<String, Integer> firstBurstLineMap = new HashMap<>();
 
     // For after IPF 2.9.0 ...
     private double version = 0.0f;
     private boolean isTOPS = false;
     private boolean isGRD = false;
 
-    public static float trgFloorValue = 1e-5f;
+    /** Default clip floor (historic SNAP value); read by other calibrators, never written. */
+    public static final float trgFloorValue = 1e-5f;
+
+    private final AtomicBoolean warnedDuplicatePixel = new AtomicBoolean();
 
     public static final String NOISE_EQUIVALENT_SIGMA_ZERO = "NESZ";
     public static final String NOISE_EQUIVALENT_BETA_ZERO = "NEBZ";
@@ -113,12 +133,6 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     public static final String NOISE_EQUIVALENT_POWER = "NEP";
 
     private static final String PRODUCT_SUFFIX = "_NR";
-
-    private static class TimeMaps {
-        private final HashMap<String, Double> t0Map = new HashMap<>();
-        private final HashMap<String, Double> deltaTsMap = new HashMap<>();
-        private final HashMap<String, double[]> swathStartEndTimesMap = new HashMap<>();
-    }
 
     /**
      * Default constructor. The graph processing framework
@@ -148,8 +162,21 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             validator.checkAcquisitionMode(new String[] {"IW","EW","SM"});
             validator.checkProductType(new String[] {"SLC","GRD"});
 
+            validator.checkIfMapProjected(false);
+
             absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
             origMetadataRoot = AbstractMetadata.getOriginalProductMetadata(sourceProduct);
+
+            final String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE, "");
+            if (absRoot.getAttributeString(AbstractMetadata.PRODUCT_TYPE, "").contains("SLC") &&
+                    (mode.contains("IW") || mode.contains("EW")) && validator.isDebursted()) {
+                // noise vectors are annotated per burst (MPC-0392); apply before TOPS Deburst
+                throw new OperatorException("Source product should NOT be a deburst product: apply thermal noise removal before TOPS Deburst");
+            }
+            if (clipFloorValue == null || clipFloorValue.isNaN() || clipFloorValue.isInfinite() || clipFloorValue < 0) {
+                throw new OperatorException("Clip floor value must be a finite, non-negative number");
+            }
+            checkRasterNotResampled();
 
             getSubsetOffset();
 
@@ -159,12 +186,31 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
             getAcquisitionMode();
 
+            // Stripmap vectors are ~100 dB too low with no published rescaling. IW vectors rescaled by
+            // knoise * Adn^2 (ESA MPC-0243) still give an NESZ 20+ dB below the noise floor observed in IPF 2.34
+            // IW SLCs, so removal would remove almost nothing.
+            if (version < 2.50) {
+                throw new OperatorException("Noise vectors of products before IPF 2.50 are not usable for " +
+                        "thermal noise removal (ESA MPC-0243)");
+            }
+
             getThermalNoiseCorrectionFlag();
 
             setSelectedPolarisations();
 
             if (version < 2.9 || !isTOPS) { // SM SLC/GRD do not have noise azimuth vectors
                 noise = getThermalNoiseVectors(origMetadataRoot, selectedPolList, numOfSubSwath);
+                if (isTOPSARSLC) {
+                    setBurstTiming();
+                }
+                if (applyNoiseRecalibration) {
+                    // the retro-calibration constants are published for the TOPS swaths only (IPF 2.9+ noise model)
+                    SystemUtils.LOG.warning("Noise retro-calibration is only available for IW/EW products from IPF " +
+                            S1NoiseRecalibration.MIN_IPF_VERSION + " on; not applied to this " +
+                            (isSM ? "stripmap" : "IPF " + version) + " product");
+                }
+            } else {
+                createNoiseBuilders();
             }
 
             getSampleType();
@@ -185,6 +231,44 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     }
 
     /**
+     * The noise annotation is given on the original L1 raster; a multilooked or resampled product changes the
+     * pixel spacing recorded in the abstracted metadata.
+     */
+    private void checkRasterNotResampled() {
+        final MetadataElement annotationElem = origMetadataRoot.getElement("annotation");
+        if (annotationElem == null) {
+            return;
+        }
+        // the reader sets the abstracted spacings to the average over all annotation data sets
+        double rangeSum = 0, azimuthSum = 0;
+        int n = 0;
+        for (MetadataElement elem : annotationElem.getElements()) {
+            final MetadataElement productElem = elem.getElement("product");
+            final MetadataElement imageAnnotation = productElem == null ? null : productElem.getElement("imageAnnotation");
+            final MetadataElement imageInformation = imageAnnotation == null ? null :
+                    imageAnnotation.getElement("imageInformation");
+            if (imageInformation == null || !imageInformation.containsAttribute("rangePixelSpacing") ||
+                    !imageInformation.containsAttribute("azimuthPixelSpacing")) {
+                return;
+            }
+            rangeSum += imageInformation.getAttributeDouble("rangePixelSpacing");
+            azimuthSum += imageInformation.getAttributeDouble("azimuthPixelSpacing");
+            n++;
+        }
+        if (n == 0) {
+            return;
+        }
+        if (differs(absRoot.getAttributeDouble(AbstractMetadata.range_spacing, 0), rangeSum / n) ||
+                differs(absRoot.getAttributeDouble(AbstractMetadata.azimuth_spacing, 0), azimuthSum / n)) {
+            throw new OperatorException("Thermal noise removal must be applied before multilooking or resampling");
+        }
+    }
+
+    private static boolean differs(final double a, final double b) {
+        return a > 0 && b > 0 && Math.abs(a - b) > 1e-3 * b;
+    }
+
+    /**
      * Get subset x and y offsets from abstract metadata.
      */
     private void getSubsetOffset() {
@@ -201,9 +285,6 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
         isTOPSARSLC = productType.contains("SLC") && (mode.contains("IW") || mode.contains("EW"));
 
-        final MetadataElement annotationElem = origMetadataRoot.getElement("annotation");
-        final MetadataElement[] annotationDataSetListElem = annotationElem.getElements();
-        final String imageName = annotationDataSetListElem[0].getName();
         isTOPS = mode.contains("IW") || mode.contains("EW");
         isGRD = productType.contains("GRD");
         isSM = mode.contains("SM");
@@ -270,7 +351,9 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
             final MetadataElement noiElem = dataSetListElem.getElement("noise");
             final MetadataElement adsHeaderElem = noiElem.getElement("adsHeader");
-            final String pol = adsHeaderElem.getAttributeString("polarisation");
+            // the ADS header may be sparse; fall back to the data set name (s1a-iw1-slc-vh-...)
+            final String upperName = dataSetListElem.getName().toUpperCase();
+            final String pol = adsHeaderElem.getAttributeString("polarisation", getBandPol(upperName));
             if (!selectedPolList.contains(pol)) {
                 continue;
             }
@@ -280,19 +363,57 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             if (noiseVectorListElem == null) {
                 noiseVectorListElem = noiElem.getElement("noiseRangeVectorList");
             }
-            final String subSwath = adsHeaderElem.getAttributeString("swath");
+            final String subSwath = adsHeaderElem.getAttributeString("swath", getBandSwath(upperName));
+            if (dataSetIndex >= noise.length) {
+                throw new IOException("More noise data sets than expected for " + selectedPolList);
+            }
 
+            final Sentinel1Utils.NoiseVector[] noiseVectors = Sentinel1Utils.getNoiseVector(noiseVectorListElem);
             noise[dataSetIndex] = new ThermalNoiseInfo(pol, subSwath,
                     Sentinel1Utils.getTime(adsHeaderElem, "startTime").getMJD(),
                     Sentinel1Utils.getTime(adsHeaderElem, "stopTime").getMJD(),
                     Sentinel1Calibrator.getNumOfLines(origMetadataRoot, pol, subSwath),
-                    Integer.parseInt(noiseVectorListElem.getAttributeString("count")),
-                    Sentinel1Utils.getNoiseVector(noiseVectorListElem));
+                    noiseVectors.length, noiseVectors);
+            noise[dataSetIndex].dataSetName = dataSetListElem.getName();
 
             dataSetIndex++;
         }
 
-        return noise;
+        // a TOPSAR-Split product keeps fewer data sets than swaths x polarisations: no trailing null entries
+        return Arrays.copyOf(noise, dataSetIndex);
+    }
+
+    /**
+     * TOPS SLC lines are not uniformly spaced in time (the bursts overlap): map each line to its burst's
+     * azimuthTime. The burst list, linesPerBurst and azimuthTimeInterval are not changed by TOPSAR-Split, unlike
+     * numberOfLines, so the mapping also holds for a Split product.
+     */
+    private void setBurstTiming() {
+        for (ThermalNoiseInfo info : noise) {
+            final MetadataElement annotation = info.dataSetName == null ? null : getAnnotation(info.dataSetName);
+            final MetadataElement productElem = annotation == null ? null : annotation.getElement("product");
+            final MetadataElement swathTiming = productElem == null ? null : productElem.getElement("swathTiming");
+            final MetadataElement burstList = swathTiming == null ? null : swathTiming.getElement("burstList");
+            final MetadataElement imageAnnotation = productElem == null ? null : productElem.getElement("imageAnnotation");
+            final MetadataElement imageInformation = imageAnnotation == null ? null :
+                    imageAnnotation.getElement("imageInformation");
+            if (burstList == null || burstList.getNumElements() == 0 || imageInformation == null ||
+                    !imageInformation.containsAttribute("azimuthTimeInterval")) {
+                continue;
+            }
+            final int linesPerBurst = swathTiming.getAttributeInt("linesPerBurst", 0);
+            if (linesPerBurst <= 0) {
+                continue;
+            }
+            final MetadataElement[] bursts = burstList.getElements();
+            final double[] burstTimes = new double[bursts.length];
+            for (int i = 0; i < bursts.length; i++) {
+                burstTimes[i] = Sentinel1Utils.getTime(bursts[i], "azimuthTime").getMJD();
+            }
+            final double dt = imageInformation.getAttributeDouble("azimuthTimeInterval") / Constants.secondsInDay;
+            info.setBurstTiming(burstTimes, linesPerBurst, dt,
+                    firstBurstLine(info.noiseVectorList, burstTimes, linesPerBurst, dt, info.firstLineTime));
+        }
     }
 
     private void getSampleType() {
@@ -372,6 +493,9 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                 sourceProduct.getSceneRasterHeight());
 
         addSelectedBands();
+        if (targetBandNameToSourceBandName.isEmpty()) {
+            throw new OperatorException("No bands found for the selected polarisations " + selectedPolList);
+        }
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
     }
@@ -394,7 +518,9 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                 throw new OperatorException("band " + srcBand.getName() + " requires a unit");
             }
 
-            if (!unit.contains(Unit.REAL) && !unit.contains(Unit.AMPLITUDE) && !unit.contains(Unit.INTENSITY)) {
+            // dB bands (intensity_db, amplitude_db) are not linear power and are not corrected
+            if (unit.contains(Unit.DB) ||
+                    (!unit.contains(Unit.REAL) && !unit.contains(Unit.AMPLITUDE) && !unit.contains(Unit.INTENSITY))) {
                 continue;
             }
 
@@ -439,7 +565,9 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
                 targetBand.setUnit(Unit.INTENSITY);
                 targetBand.setDescription(srcBand.getDescription());
-                targetBand.setNoDataValue(srcBand.getNoDataValue());
+                // clipped pixels must not be taken for no-data (clip floor 0 with no-data 0, ESA Eq-2)
+                final boolean floorIsNoData = clipNegativeValues && clipFloorValue == srcBand.getNoDataValue();
+                targetBand.setNoDataValue(floorIsNoData ? Double.NaN : srcBand.getNoDataValue());
                 targetBand.setNoDataValueUsed(true);
                 targetProduct.addBand(targetBand);
             }
@@ -462,7 +590,8 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
                     targetNoiseBand.setUnit(Unit.DB);
                     targetNoiseBand.setDescription(targetBand.getDescription());
-                    targetNoiseBand.setNoDataValue(targetBand.getNoDataValue());
+                    // any finite value (0 included) is a valid dB level; unknown noise is NaN
+                    targetNoiseBand.setNoDataValue(Double.NaN);
                     targetNoiseBand.setNoDataValueUsed(true);
                     targetProduct.addBand(targetNoiseBand);
                 }
@@ -547,15 +676,186 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             final int x0, final int y0, final int w, final int h, final String targetBandName) {
 
         if (version >= 2.9 && !isSM) {
-            final TimeMaps timeMaps = new TimeMaps();
-
+            final String pol = getBandPol(targetBandName);
             if (isGRD) {
-                return buildNoiseLUTForTOPSGRD(x0, y0, w, h, targetBandName, timeMaps);
+                final S1NoiseLutBuilder builder = noiseBuilders.get(pol);
+                return builder == null ? null : builder.buildGRD(x0, y0, w, h);
             } else if (isTOPSARSLC) {
-                return buildNoiseLUTForTOPSSLC(x0, y0, w, h, targetBandName, timeMaps);
+                final String key = getBandSwath(targetBandName) + '_' + pol;
+                return noiseBuilders.get(key).buildTopsSLC(x0, y0, w, h, linesPerBurstMap.get(key),
+                        burstTimesMap.get(key), firstBurstLineMap.get(key));
             }
         }
         return null;
+    }
+
+    /**
+     * Parse the IPF 2.9+ TOPS noise annotation once: one builder per polarisation (GRD) or per swath and
+     * polarisation (SLC, key "IW1_VV").
+     */
+    private void createNoiseBuilders() {
+        final MetadataElement noiseElem = origMetadataRoot.getElement("noise");
+        for (MetadataElement dataSetListElem : noiseElem.getElements()) {
+            final MetadataElement noiElem = dataSetListElem.getElement("noise");
+            final MetadataElement adsHeaderElem = noiElem.getElement("adsHeader");
+            final String imageName = dataSetListElem.getName();
+            // the ADS header may be sparse; fall back to the data set name (s1a-iw1-slc-vh-...)
+            final String upperName = imageName.toUpperCase();
+            final String pol = adsHeaderElem.getAttributeString("polarisation", getBandPol(upperName));
+            if (!selectedPolList.contains(pol)) {
+                continue;
+            }
+            final MetadataElement annotation = getAnnotation(imageName);
+            if (annotation == null) {
+                throw new OperatorException("No annotation found for noise data set " + imageName);
+            }
+            final MetadataElement imageInformation = annotation.getElement("product")
+                    .getElement("imageAnnotation").getElement("imageInformation");
+            final double t0 = Sentinel1Utils.getTime(imageInformation, "productFirstLineUtcTime").getMJD();
+            final double dt = imageInformation.getAttributeDouble("azimuthTimeInterval") / Constants.secondsInDay;
+
+            final MetadataElement noiseAzimuthVectorListElem = noiElem.getElement("noiseAzimuthVectorList");
+            final Sentinel1Utils.NoiseAzimuthVector[] azimuthVectors =
+                    Sentinel1Utils.getAzimuthNoiseVector(noiseAzimuthVectorListElem);
+            final Sentinel1Utils.NoiseVector[] rangeVectors =
+                    Sentinel1Utils.getNoiseVector(noiElem.getElement("noiseRangeVectorList"));
+
+            if (isGRD) {
+                final MetadataElement firstVector = noiseAzimuthVectorListElem.getNumElements() == 0 ?
+                        noiseAzimuthVectorListElem : noiseAzimuthVectorListElem.getElementAt(0);
+                if (firstVector.getAttributeString("slice", null) != null) {
+                    throw new OperatorException("Noise removal should be applied prior to slice assembly");
+                }
+                noiseBuilders.put(pol, new S1NoiseLutBuilder(rangeVectors, azimuthVectors, t0, dt,
+                        getSwathStartEndTimes(annotation, t0, dt), recalibrationFactors(pol, azimuthVectors, null)));
+            } else {
+                final MetadataElement firstAzimuthVector = noiseAzimuthVectorListElem.getNumElements() == 0 ?
+                        noiseAzimuthVectorListElem : noiseAzimuthVectorListElem.getElementAt(0);
+                if (firstAzimuthVector.getAttributeString("slice", null) != null) {
+                    throw new OperatorException("Noise removal should be applied prior to slice assembly");
+                }
+                if (azimuthVectors.length == 0) {
+                    throw new OperatorException("No noise azimuth vector annotated for noise data set " + imageName);
+                }
+                final String swath = adsHeaderElem.getAttributeString("swath", getBandSwath(upperName));
+                final String key = swath + '_' + pol;
+                final MetadataElement swathTiming = annotation.getElement("product").getElement("swathTiming");
+                final int linesPerBurst = swathTiming.getAttributeInt("linesPerBurst");
+                final MetadataElement[] bursts = swathTiming.getElement("burstList").getElements();
+                final double[] burstTimes = new double[bursts.length];
+                for (int i = 0; i < bursts.length; i++) {
+                    burstTimes[i] = Sentinel1Utils.getTime(bursts[i], "azimuthTime").getMJD();
+                }
+                noiseBuilders.put(key, new S1NoiseLutBuilder(rangeVectors, azimuthVectors, t0, dt,
+                        new HashMap<>(), recalibrationFactors(pol, azimuthVectors, swath)));
+                linesPerBurstMap.put(key, linesPerBurst);
+                burstTimesMap.put(key, burstTimes);
+                // image line of the first burst in the (possibly TOPSAR-Split trimmed) burst list
+                final double swathStartTime = adsHeaderElem.containsAttribute("startTime") ?
+                        Sentinel1Utils.getTime(adsHeaderElem, "startTime").getMJD() : Double.NaN;
+                firstBurstLineMap.put(key, firstBurstLine(rangeVectors, burstTimes, linesPerBurst, dt, swathStartTime));
+            }
+        }
+    }
+
+    /** Per-swath retro-calibration factors (Recchia et al. 2025), or none when not requested or not valid. */
+    private Map<String, Double> recalibrationFactors(final String pol,
+                                                     final Sentinel1Utils.NoiseAzimuthVector[] azimuthVectors,
+                                                     final String dataSetSwath) {
+        final Map<String, Double> factors = new HashMap<>();
+        if (!applyNoiseRecalibration) {
+            return factors;
+        }
+        if (version < S1NoiseRecalibration.MIN_IPF_VERSION) {
+            SystemUtils.LOG.warning("Noise retro-calibration is valid from IPF 3.1.0 on; not applied to IPF " + version);
+            return factors;
+        }
+        final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION, "");   // SENTINEL-1A
+        if (!mission.startsWith("SENTINEL-1") || mission.length() != "SENTINEL-1A".length()) {
+            SystemUtils.LOG.warning("Noise retro-calibration: unknown platform '" + mission + "'; not applied");
+            return factors;
+        }
+        final String platform = "S1" + mission.charAt(mission.length() - 1);
+        if (dataSetSwath != null) {       // SLC: every block belongs to the data set's swath
+            factors.put(S1NoiseLutBuilder.ANY_SWATH, recalibrationFactor(platform, dataSetSwath, pol));
+        } else {
+            for (Sentinel1Utils.NoiseAzimuthVector az : azimuthVectors) {
+                if (az.swath != null && !factors.containsKey(az.swath)) {
+                    factors.put(az.swath, recalibrationFactor(platform, az.swath, pol));
+                }
+            }
+        }
+        if (factors.values().stream().anyMatch(f -> f != 1.0)) {
+            // the constants apply to products generated before the AUX_CAL update that introduced them; the AUX_CAL
+            // used is not identifiable from the annotation, so a double application cannot be detected here
+            SystemUtils.LOG.warning("Noise retro-calibration (Recchia et al. 2025) applied to " + platform + " " + pol +
+                    " IPF " + version + ". If this product was generated with the AUX_CAL that already carries the " +
+                    "updated noise constants, the correction is applied twice: disable Apply Noise Retro-Calibration " +
+                    "for such products (this cannot be checked automatically)");
+        }
+        return factors;
+    }
+
+    private static double recalibrationFactor(final String platform, final String swath, final String pol) {
+        final double factor = S1NoiseRecalibration.linearFactor(platform, swath, pol.charAt(1));
+        if (factor == 1.0) {
+            SystemUtils.LOG.warning("Noise retro-calibration: no published constant for " + platform + " " + swath +
+                    " Rx " + pol.charAt(1) + "; not applied");
+        }
+        return factor;
+    }
+
+    /**
+     * Image line (original swath coordinates) of the first burst in the product's burst list. A burst list that
+     * starts at the swath start (noise ADS startTime, which TOPSAR-Split does not change) is untrimmed and starts at
+     * line 0 by construction. Only for a list trimmed by TOPSAR-Split is the line estimated, from the annotated line
+     * of the range vector nearest in time to the first burst (which before IPF 3.71 may be shifted).
+     *
+     * @param swathStartTime noise ADS startTime (MJD), NaN when not annotated
+     */
+    static int firstBurstLine(final Sentinel1Utils.NoiseVector[] vectors, final double[] burstTimes,
+                              final int linesPerBurst, final double lineTimeInterval, final double swathStartTime) {
+        if (burstTimes.length == 0 || vectors.length == 0 || linesPerBurst <= 0) {
+            return 0;
+        }
+        final double firstBurstTime = burstTimes[0];
+        if (!Double.isNaN(swathStartTime) &&
+                Math.abs(firstBurstTime - swathStartTime) < 0.5 * linesPerBurst * lineTimeInterval) {
+            return 0;
+        }
+        Sentinel1Utils.NoiseVector nearest = vectors[0];
+        for (Sentinel1Utils.NoiseVector v : vectors) {
+            if (Math.abs(v.timeMJD - firstBurstTime) < Math.abs(nearest.timeMJD - firstBurstTime)) {
+                nearest = v;
+            }
+        }
+        return Math.max(0, (int) Math.round(nearest.line / (double) linesPerBurst) * linesPerBurst);
+    }
+
+    private MetadataElement getAnnotation(final String imageName) {
+        for (MetadataElement elem : origMetadataRoot.getElement("annotation").getElements()) {
+            if (elem.getName().equals(imageName)) {
+                return elem;
+            }
+        }
+        return null;
+    }
+
+    /** Per swath, the {start, end} time of the swath in the merged GRD image (swathMerging bounds). */
+    private static Map<String, double[]> getSwathStartEndTimes(final MetadataElement annotation,
+                                                               final double t0, final double dt) {
+        final Map<String, double[]> times = new HashMap<>();
+        final MetadataElement swathMerging = annotation.getElement("product").getElement("swathMerging");
+        if (swathMerging == null) {
+            return times;
+        }
+        for (MetadataElement swathMerge : swathMerging.getElement("swathMergeList").getElements()) {
+            final MetadataElement[] bounds = swathMerge.getElement("swathBoundsList").getElements();
+            final int startLine = bounds[0].getAttributeInt("firstAzimuthLine");
+            final int endLine = bounds[bounds.length - 1].getAttributeInt("lastAzimuthLine");
+            times.put(swathMerge.getAttributeString("swath"), new double[]{t0 + startLine * dt, t0 + endLine * dt});
+        }
+        return times;
     }
 
     /**
@@ -618,6 +918,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             }
 
             final double srcNoDataValue = sourceBand1.getNoDataValue();
+            final double tgtNoDataValue = targetProduct.getBand(targetBandName).getNoDataValue();
             final Unit.UnitType bandUnit = Unit.getUnitType(sourceBand1);
             final ProductData tgtData = targetTile.getDataBuffer();
             final TileIndex srcIndex = new TileIndex(sourceRaster1);
@@ -627,21 +928,14 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
             final boolean complexData = bandUnit == Unit.UnitType.REAL || bandUnit == Unit.UnitType.IMAGINARY;
 
-            String key = "";
-            if (version >= 2.9 && isTOPS) {
-                if (complexData) { // SLC
-                    key = targetBandName.substring(10).toLowerCase();
-                } else { // GRD
-                    key = getBandPol(targetBandName);
-                }
-            }
-
             Sentinel1Calibrator.CalibrationInfo calInfo = null;
             Sentinel1Calibrator.CALTYPE calType = null;
             if (absoluteCalibrationPerformed) {
                 calInfo = getCalInfo(targetBandName);
                 calType = Sentinel1Calibrator.getCalibrationType(targetBandName);
             }
+            // looked up once per tile, not per row
+            final ThermalNoiseInfo noiseInfo = (version < 2.9 || isSM) ? getNoiseInfo(targetBandName) : null;
 
             double dn, dn2, i, q;
             int srcIdx, tgtIdx;
@@ -661,7 +955,6 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                     final int pixelIdx0 = calVec.getPixelIndex(sx0);
 
                     if (version < 2.9 || isSM) {
-                        final ThermalNoiseInfo noiseInfo = getNoiseInfo(targetBandName);
                         computeTileScaledNoiseLUT(sy, sx0, w, noiseInfo, calInfo, vec0.timeMJD, vec1.timeMJD,
                                 vec0LUT, vec1LUT, vec0.pixels, pixelIdx0, lut);
                     } else {
@@ -671,10 +964,14 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
                 } else {
                     if (version < 2.9 || isSM) {
-                        final ThermalNoiseInfo noiseInfo = getNoiseInfo(targetBandName);
                         computeTileNoiseLUT(sy, sx0, w, noiseInfo, lut);
                     } else {
                         computeTileNoiseLUT(sy - sy0, sx0, w, noiseBlock, lut);
+                    }
+                    if (reIntroduceThermalNoise) {      // the calibrated path negates in computeTileScaledNoiseLUT
+                        for (int k = 0; k < w; k++) {
+                            lut[k] = -lut[k];
+                        }
                     }
                 }
 
@@ -696,26 +993,22 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                     }
 
                     if(Double.isNaN(dn2) || dn2 == srcNoDataValue) {
-                        tgtData.setElemDoubleAt(tgtIdx, srcNoDataValue);
+                        tgtData.setElemDoubleAt(tgtIdx, tgtNoDataValue);
                         continue;
                     }
 
-                    if(lut[xx] == 0) {
-                        // Zero noise value means missing denoising data (Eq-1, Section 6.1 of MPC-0392 v2.2)
+                    if (!removeThermalNoise && !reIntroduceThermalNoise) {   // only the noise band is wanted
                         tgtData.setElemDoubleAt(tgtIdx, dn2);
                         continue;
                     }
 
-                    double value = dn2 - lut[xx];
-                    if(clipNegativeValues && value < 0) {
-                        // Eq-2 in Section 6.2 of MPC-0392 DI-MPC-TN v2.2 2024,May.31
-                        value = trgFloorValue;
-                    }
-                    tgtData.setElemDoubleAt(tgtIdx, value);
+                    // zero noise = missing denoising data (MPC-0392 Eq-1); clipping per Eq-2, kept negatives for Eq-3
+                    tgtData.setElemDoubleAt(tgtIdx,
+                            NoiseSubtraction.apply(dn2, lut[xx], clipNegativeValues, clipFloorValue));
                 }
             }
         } catch (Throwable e) {
-            throw new OperatorException(e.getMessage());
+            throw new OperatorException(e.getMessage() != null ? e.getMessage() : e.toString(), e);
         }
     }
 
@@ -751,6 +1044,8 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                 calInfo = getCalInfo(targetBandName);
                 calType = Sentinel1Calibrator.getCalibrationType(targetBandName);
             }
+            // looked up once per tile, not per row
+            final ThermalNoiseInfo noiseInfo = (version < 2.9 || isSM) ? getNoiseInfo(targetBandName) : null;
 
             int tgtIdx;
             for (int y = y0; y < maxY; ++y) {
@@ -768,7 +1063,6 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                     final int pixelIdx0 = calVec.getPixelIndex(sx0);
 
                     if (version < 2.9 || isSM) {
-                        final ThermalNoiseInfo noiseInfo = getNoiseInfo(targetBandName);
                         computeTileScaledNoiseLUT(sy, sx0, w, noiseInfo, calInfo, vec0.timeMJD, vec1.timeMJD,
                                 vec0LUT, vec1LUT, vec0.pixels, pixelIdx0, lut);
                     } else {
@@ -778,7 +1072,6 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
                 } else {
                     if (version < 2.9 || isSM) {
-                        final ThermalNoiseInfo noiseInfo = getNoiseInfo(targetBandName);
                         computeTileNoiseLUT(sy, sx0, w, noiseInfo, lut);
                     } else {
                         computeTileNoiseLUT(sy - sy0, sx0, w, noiseBlock, lut);
@@ -789,11 +1082,14 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
                     final int xx = x - x0;
                     tgtIdx = tgtIndex.getIndex(x);
                     // Zero noise value means missing denoising data (Eq-1, Section 6.1 of MPC-0392 v2.2)
-                    tgtData.setElemDoubleAt(tgtIdx, lut[xx] > 0 ? 10.0 * Math.log10(lut[xx]) : noDataValue);
+                    // the LUT is negated when re-introducing noise; the band shows the noise level itself
+                    final double noiseLevel = Math.abs(lut[xx]);
+                    tgtData.setElemDoubleAt(tgtIdx, noiseLevel > 0 && Double.isFinite(noiseLevel) ?
+                            10.0 * Math.log10(noiseLevel) : noDataValue);
                 }
             }
         } catch (Throwable e) {
-            throw new OperatorException(e.getMessage());
+            throw new OperatorException(e.getMessage() != null ? e.getMessage() : e.toString(), e);
         }
     }
 
@@ -806,6 +1102,9 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     private ThermalNoiseInfo getNoiseInfo(final String targetBandName) throws OperatorException {
 
         for (ThermalNoiseInfo noiseInfo : noise) {
+            if (noiseInfo == null) {
+                continue;
+            }
             if (isTOPSARSLC) {
                 if (targetBandName.contains(noiseInfo.polarization) && targetBandName.contains(noiseInfo.subSwath)) {
                     return noiseInfo;
@@ -942,17 +1241,24 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
      * @param noiseInfo Object of ThermalNoiseInfo class.
      * @param lut       The noise LUT.
      */
-    private static void computeTileNoiseLUT(final int y, final int x0, final int w,
-                                            final ThermalNoiseInfo noiseInfo, final double[] lut) {
+    private void computeTileNoiseLUT(final int y, final int x0, final int w,
+                                     final ThermalNoiseInfo noiseInfo, final double[] lut) {
         try {
-            final double azTime = noiseInfo.firstLineTime + y * noiseInfo.lineTimeInterval;
-            final int noiseVecIdx = getNoiseVectorIndex(azTime, noiseInfo);
-            final Sentinel1Utils.NoiseVector noiseVector0 = noiseInfo.noiseVectorList[noiseVecIdx];
-            final Sentinel1Utils.NoiseVector noiseVector1 = noiseInfo.noiseVectorList[noiseVecIdx + 1];
+            final Sentinel1Utils.NoiseVector[] vectors = noiseInfo.noiseVectorList;
+            if (vectors.length == 0) {
+                throw new OperatorException("No noise vectors annotated for " + noiseInfo.subSwath + ' ' +
+                        noiseInfo.polarization);
+            }
+            final double azTime = noiseInfo.lineTime(y);
+            // a single annotated vector applies to all lines
+            final int noiseVecIdx = vectors.length == 1 ? 0 : getNoiseVectorIndex(azTime, noiseInfo);
+            final Sentinel1Utils.NoiseVector noiseVector0 = vectors[noiseVecIdx];
+            final Sentinel1Utils.NoiseVector noiseVector1 = vectors[Math.min(noiseVecIdx + 1, vectors.length - 1)];
 
             final double azT0 = noiseVector0.timeMJD;
             final double azT1 = noiseVector1.timeMJD;
-            final double muY = (azTime - azT0) / (azT1 - azT0);
+            // beyond the first/last vector the nearest one is used (no extrapolation in time)
+            final double muY = azT1 == azT0 ? 0.0 : Math.max(0.0, Math.min(1.0, (azTime - azT0) / (azT1 - azT0)));
 
             int pixelIdx0 = getPixelIndex(x0, noiseVector0);
             int pixelIdx1 = getPixelIndex(x0, noiseVector1);
@@ -962,29 +1268,39 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             final int maxX = x0 + w;
             for (int x = x0; x < maxX; x++) {
 
-                if (x > noiseVector0.pixels[pixelIdx0 + 1] && pixelIdx0 < maxLength0) {
+                // advance past repeated pixel indices too
+                while (pixelIdx0 < maxLength0 && x > noiseVector0.pixels[pixelIdx0 + 1]) {
                     pixelIdx0++;
                 }
-                final int x00 = noiseVector0.pixels[pixelIdx0];
-                final int x01 = noiseVector0.pixels[pixelIdx0 + 1];
-                final double muX0 = (double) (x - x00) / (double) (x01 - x00);
-                final double noise0 = Maths.interpolationLinear(
-                        noiseVector0.noiseLUT[pixelIdx0], noiseVector0.noiseLUT[pixelIdx0 + 1], muX0);
+                final double noise0 = interpolRange(noiseVector0, pixelIdx0, x);
 
-                if (x > noiseVector1.pixels[pixelIdx1 + 1] && pixelIdx1 < maxLength1) {
+                while (pixelIdx1 < maxLength1 && x > noiseVector1.pixels[pixelIdx1 + 1]) {
                     pixelIdx1++;
                 }
-                final int x10 = noiseVector1.pixels[pixelIdx1];
-                final int x11 = noiseVector1.pixels[pixelIdx1 + 1];
-                final double muX1 = (double) (x - x10) / (double) (x11 - x10);
-                final double noise1 = Maths.interpolationLinear(
-                        noiseVector1.noiseLUT[pixelIdx1], noiseVector1.noiseLUT[pixelIdx1 + 1], muX1);
+                final double noise1 = interpolRange(noiseVector1, pixelIdx1, x);
 
                 lut[x - x0] = Maths.interpolationLinear(noise0, noise1, muY);
             }
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException("computeTileNoiseLUT", e);
         }
+    }
+
+    /** Linear in range between vector samples idx and idx+1; a repeated pixel index gives the left value. */
+    private double interpolRange(final Sentinel1Utils.NoiseVector vector, final int idx, final int x) {
+        if (vector.pixels.length < 2) {
+            return vector.noiseLUT[0];
+        }
+        final int xa = vector.pixels[idx];
+        final int xb = vector.pixels[idx + 1];
+        if (xa == xb) {     // should never happen
+            if (warnedDuplicatePixel.compareAndSet(false, true)) {
+                SystemUtils.LOG.warning("noise vector duplicate pixel indices: " + xa + " (further occurrences not logged)");
+            }
+            return vector.noiseLUT[idx];
+        }
+        return Maths.interpolationLinear(vector.noiseLUT[idx], vector.noiseLUT[idx + 1],
+                (double) (x - xa) / (double) (xb - xa));
     }
 
     private static void computeTileNoiseLUT(final int yy, final int x0, final int w,
@@ -1008,12 +1324,13 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
      * @return The noise vector index.
      */
     private static int getNoiseVectorIndex(final double azTime, final ThermalNoiseInfo noiseInfo) {
-        for (int i = 1; i < noiseInfo.count; i++) {
+        final int count = noiseInfo.noiseVectorList.length;
+        for (int i = 1; i < count; i++) {
             if (azTime < noiseInfo.noiseVectorList[i].timeMJD) {
                 return i - 1;
             }
         }
-        return noiseInfo.count - 2;
+        return Math.max(0, count - 2);
     }
 
     /**
@@ -1027,610 +1344,17 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
         for (int i = 0; i < noiseVector.pixels.length; i++) {
             if (x < noiseVector.pixels[i]) {
-                return i - 1;
+                return Math.max(0, i - 1);
             }
         }
-        return noiseVector.pixels.length - 2;
+        return Math.max(0, noiseVector.pixels.length - 2);
     }
 
     private void getIPFVersion() {
-        final String procSysId = absRoot.getAttributeString(AbstractMetadata.ProcessingSystemIdentifier);
-        version = Double.valueOf(procSysId.substring(procSysId.lastIndexOf(" ")));
-        //System.out.println("Sentinel1RemoveThermalNoiseOp: IPF version = " + version);
+        version = S1IpfVersion.get(sourceProduct);
     }
 
-    private double[][] buildNoiseLUTForTOPSSLC(
-            final int x0, final int y0, final int w, final int h, final String targetBandName, final TimeMaps timeMaps) {
-
-        final String targetBandPol = getBandPol(targetBandName).toLowerCase();
-        final String targetBandSwath = getBandSwath(targetBandName).toLowerCase();
-        final MetadataElement noiseElem = origMetadataRoot.getElement("noise");
-        final MetadataElement[] noiseDataSetListElem = noiseElem.getElements();
-
-        Sentinel1Utils.NoiseAzimuthVector[] noiseAzimuthVectors = null;
-        Sentinel1Utils.NoiseVector[] noiseRangeVectors = null;
-        int numVectorsToSkip = 0;
-
-        for (MetadataElement dataSetListElem : noiseDataSetListElem) {
-
-            final String imageName = dataSetListElem.getName();
-            if (!imageName.toLowerCase().contains(targetBandPol) || !imageName.toLowerCase().contains(targetBandSwath)){
-                continue;
-            }
-
-            getT0andDeltaTS(imageName, timeMaps);
-
-            final MetadataElement noiElem = dataSetListElem.getElement("noise");
-
-            MetadataElement noiseAzimuthVectorListElem = noiElem.getElement("noiseAzimuthVectorList");
-            noiseAzimuthVectors = Sentinel1Utils.getAzimuthNoiseVector(noiseAzimuthVectorListElem);
-
-            MetadataElement noiseRangeVectorListElem = noiElem.getElement("noiseRangeVectorList");
-            noiseRangeVectors = Sentinel1Utils.getNoiseVector(noiseRangeVectorListElem);
-
-            MetadataElement adsHeaderElem = noiElem.getElement("adsHeader");
-            final double startTime = Sentinel1Utils.getTime(adsHeaderElem, "startTime").getMJD();
-            numVectorsToSkip = getNumVectorsToSkip(startTime, noiseRangeVectors);
-        }
-
-        final MetadataElement annotationElem = origMetadataRoot.getElement("annotation");
-        final MetadataElement[] annotationDataSetListElem = annotationElem.getElements();
-        final HashMap<String, Sentinel1Utils.NoiseVector> burstToRangeVectorMap = new HashMap<>();
-
-        int linesPerBurst = 0;
-        for (MetadataElement elem : annotationDataSetListElem) {
-            final String imageName = elem.getName();
-            if (!imageName.toLowerCase().contains(targetBandPol) || !imageName.toLowerCase().contains(targetBandSwath)){
-                continue;
-            }
-
-            final MetadataElement productElem = elem.getElement("product");
-            final MetadataElement swathTimingElem = productElem.getElement("swathTiming");
-
-            linesPerBurst = swathTimingElem.getAttributeInt("linesPerBurst");
-            //final int samplesPerBurst = swathTimingElem.getAttributeInt("samplesPerBurst");
-//            final MetadataElement burstListElem = swathTimingElem.getElement("burstList");
-//            final MetadataElement[] burstListArray = burstListElem.getElements();
-//            for (int i = 0; i < burstListArray.length; i++) {
-//                final double time = Sentinel1Utils.getTime(burstListArray[i], "azimuthTime").getMJD();
-//                burstToRangeVectorMap.put("burst_" + i, getBurstRangeVectorByTime(time, noiseRangeVectors));
-//            }
-        }
-
-        // create noise matrix for the tile
-        double[][] noiseMatrix = new double[h][w];
-        populateNoiseMatrixForTOPSSLC(
-                noiseAzimuthVectors[0], noiseRangeVectors, numVectorsToSkip, linesPerBurst, x0, y0, w, h, noiseMatrix);
-
-        return noiseMatrix;
-    }
-
-    private int getNumVectorsToSkip(final double startTime, final Sentinel1Utils.NoiseVector[] noiseRangeVectors) {
-
-        int closest = 0;
-        for (int j = 1; j < noiseRangeVectors.length; j++) {
-            if (Math.abs(startTime - noiseRangeVectors[j].timeMJD) <
-                    Math.abs(startTime - noiseRangeVectors[closest].timeMJD)) {
-                closest = j;
-            }
-        }
-
-        return closest;
-    }
-
-    private Sentinel1Utils.NoiseVector getBurstRangeVector(
-            final int burstCenterLine, final Sentinel1Utils.NoiseVector[] noiseRangeVectors) {
-
-        int closest = 0;
-        for (int j = 1; j < noiseRangeVectors.length; j++) {
-            if (Math.abs(burstCenterLine - noiseRangeVectors[j].line) <
-                    Math.abs(burstCenterLine - noiseRangeVectors[closest].line)) {
-                closest = j;
-            }
-        }
-
-        return noiseRangeVectors[closest];
-    }
-
-    private Sentinel1Utils.NoiseVector getBurstRangeVectorByTime(
-            final double burstTime, final Sentinel1Utils.NoiseVector[] noiseRangeVectors) {
-
-        int closest = 0;
-        for (int j = 1; j < noiseRangeVectors.length; j++) {
-            if (Math.abs(burstTime - noiseRangeVectors[j].timeMJD) <
-                    Math.abs(burstTime - noiseRangeVectors[closest].timeMJD)) {
-                closest = j;
-            }
-        }
-
-        return noiseRangeVectors[closest];
-    }
-
-    private void populateNoiseMatrixForTOPSSLC(final Sentinel1Utils.NoiseAzimuthVector noiseAzimuthVector,
-                                               final Sentinel1Utils.NoiseVector[] noiseRangeVectors,
-                                               final int numVectorsToSkip, final int linesPerBurst,
-                                               final int x0, final int y0, final int w, final int h,
-                                               final double[][] noiseMatrix) {
-
-        final int xMax = x0 + w - 1;
-        final int yMax = y0 + h - 1;
-
-        final double[] interpolatedAzimuthVector = new double[h];
-        interpolNoiseAzimuthVector(noiseAzimuthVector, y0, yMax, interpolatedAzimuthVector);
-
-        int currentNoiseVectorLine = Integer.MAX_VALUE;
-        double[] interpolatedRangeVector = new double[w];
-
-        for (int y = y0; y <= yMax; ++y) {
-            final int yy = y - y0;
-            final int burstIdx = y / linesPerBurst;
-            final Sentinel1Utils.NoiseVector noiseRangeVector = noiseRangeVectors[burstIdx + numVectorsToSkip];
-            if (noiseRangeVector.line != currentNoiseVectorLine) {
-                currentNoiseVectorLine = noiseRangeVector.line;
-                interpolNoiseRangeVector(noiseRangeVector, x0, xMax, interpolatedRangeVector);
-            }
-
-             for (int x = x0; x <= xMax; ++x) {
-                final int xx = x - x0;
-                noiseMatrix[yy][xx] = interpolatedAzimuthVector[yy] * interpolatedRangeVector[xx];
-            }
-        }
-    }
-
-    private double[][] buildNoiseLUTForTOPSGRD(
-            final int x0, final int y0, final int w, final int h, final String targetBandName, final TimeMaps timeMaps) {
-
-        final int xMax = x0 + w - 1;
-        final int yMax = y0 + h - 1;
-        final String targetBandPol = getBandPol(targetBandName);
-        final MetadataElement noiseElem = origMetadataRoot.getElement("noise");
-        final MetadataElement[] noiseDataSetListElem = noiseElem.getElements();
-
-        // loop through s1a-iw-grd-hh-..., s1a-iw-grd-hv-... (TOPS (IW and EW) GRD products)
-        for (MetadataElement dataSetListElem : noiseDataSetListElem) {
-
-            // imageName is s1a-iw-grd-hh-... or s1a-ew1-slc-hh-...
-            final MetadataElement noiElem = dataSetListElem.getElement("noise");
-            final MetadataElement adsHeaderElem = noiElem.getElement("adsHeader");
-            final String pol = adsHeaderElem.getAttributeString("polarisation");
-            if (!pol.equals(targetBandPol)) {
-                continue;
-            }
-
-            final String imageName = dataSetListElem.getName();
-
-            // get the noise azimuth vectors
-            MetadataElement noiseAzimuthVectorListElem = noiElem.getElement("noiseAzimuthVectorList");
-
-            final MetadataElement firstVector;
-            if(noiseAzimuthVectorListElem.getNumElements() == 0) {
-                firstVector = noiseAzimuthVectorListElem;
-            } else {
-                firstVector = noiseAzimuthVectorListElem.getElementAt(0);
-            }
-
-            if (firstVector.getAttributeString("slice", null) != null) {
-                throw new OperatorException("Noise removal should be applied prior to slice assembly");
-            }
-
-            final Sentinel1Utils.NoiseAzimuthVector[] noiseAzimuthVectors =
-                    Sentinel1Utils.getAzimuthNoiseVector(noiseAzimuthVectorListElem);
-
-            // get the noise range vectors
-            MetadataElement noiseRangeVectorListElem = noiElem.getElement("noiseRangeVectorList");
-            final Sentinel1Utils.NoiseVector[] noiseRangeVectors =
-                    Sentinel1Utils.getNoiseVector(noiseRangeVectorListElem);
-
-            // create noise matrix for the tile
-            double[][] noiseMatrix = new double[h][w];
-            for (Sentinel1Utils.NoiseAzimuthVector noiseAzimuthVector : noiseAzimuthVectors) {
-                final int nx0 = Math.max(x0, noiseAzimuthVector.firstRangeSample);
-                final int nxMax = Math.min(xMax, noiseAzimuthVector.lastRangeSample);
-                final int ny0 = Math.max(y0, noiseAzimuthVector.firstAzimuthLine);
-                final int nyMax = Math.min(yMax, noiseAzimuthVector.lastAzimuthLine);
-
-                if (nx0 >= nxMax || ny0 >= nyMax) {
-                    continue;
-                }
-
-                populateNoiseMatrixForTOPSGRD(pol, imageName, noiseAzimuthVector, noiseRangeVectors,
-                        x0, y0, nx0, nxMax, ny0, nyMax, noiseMatrix, timeMaps);
-            }
-
-            return noiseMatrix;
-        }
-        return null;
-    }
-
-    private void populateNoiseMatrixForTOPSGRD(final String pol, final String imageName,
-                                     final Sentinel1Utils.NoiseAzimuthVector noiseAzimuthVector,
-                                     final Sentinel1Utils.NoiseVector[] noiseRangeVectors,
-                                     final int x0, final int y0,
-                                     final int nx0, final int nxMax, final int ny0, final int nyMax,
-                                     final double[][] noiseMatrix, final TimeMaps timeMaps) {
-
-        getT0andDeltaTS(imageName, timeMaps);
-        final double firstLineTime = timeMaps.t0Map.get(imageName);
-        final double lineTimeInterval = timeMaps.deltaTsMap.get(imageName);
-        final double startAzimTime = firstLineTime + noiseAzimuthVector.firstAzimuthLine * lineTimeInterval;
-        final double endAzimTime = firstLineTime + noiseAzimuthVector.lastAzimuthLine * lineTimeInterval;
-        final String swath = noiseAzimuthVector.swath;
-
-        int[] noiseRangeVecIndices = getNoiseRangeVectorIndices(pol, swath, startAzimTime, endAzimTime,
-                noiseRangeVectors, noiseAzimuthVector.firstAzimuthLine, noiseAzimuthVector.lastAzimuthLine,
-                timeMaps);
-
-        if (noiseRangeVecIndices != null && noiseRangeVecIndices.length > 0) {
-
-            final double[][] interpolatedRangeVectors = new double[noiseRangeVecIndices.length][nxMax - nx0 + 1];
-            final double[] noiseRangeVectorAzTime = new double[noiseRangeVecIndices.length];
-            for (int j = 0; j < noiseRangeVecIndices.length; j++) {
-
-                noiseRangeVectorAzTime[j] = noiseRangeVectors[noiseRangeVecIndices[j]].timeMJD;
-
-                interpolNoiseRangeVector(
-                        noiseRangeVectors[noiseRangeVecIndices[j]], nx0, nxMax, interpolatedRangeVectors[j]);
-            }
-
-            final double[] interpolatedAzimuthVector = new double[nyMax - ny0 + 1];
-            interpolNoiseAzimuthVector(noiseAzimuthVector, ny0, nyMax, interpolatedAzimuthVector);
-
-            computeNoiseMatrix(x0, y0, nx0, nxMax, ny0, nyMax, timeMaps.t0Map.get(imageName),
-                    timeMaps.deltaTsMap.get(imageName), noiseRangeVectorAzTime, interpolatedRangeVectors,
-                    interpolatedAzimuthVector, noiseMatrix);
-
-        } else {
-
-            for (int y = ny0; y <= nyMax; y++) {
-                for (int x = nx0; x <= nxMax; x++) {
-                    noiseMatrix[y - y0][x - x0] = 0.0;
-                }
-            }
-        }
-    }
-
-    private void interpolNoiseRangeVector(final Sentinel1Utils.NoiseVector noiseRangeVector,
-                                          final int firstRangeSample, final int lastRangeSample,
-                                          final double[] result) {
-        /*
-        System.out.println("interpolNoiseRangeVector called firstRangeSample = " + firstRangeSample
-            + " lastRangeSample = " + lastRangeSample + " pixels = " + noiseRangeVector.pixels[0]
-            + ", " + noiseRangeVector.pixels[noiseRangeVector.pixels.length-1]);
-        */
-
-        if (noiseRangeVector.pixels.length < 2) {  // should never happen
-            SystemUtils.LOG.warning("######### noise range vector has length 1");
-            for (int sample = 0; sample < result.length; sample++) {
-                result[sample] = noiseRangeVector.noiseLUT[0];
-            }
-        }  else {
-
-            int i = 0;
-            int sampleIdx = getSampleIndex(firstRangeSample, noiseRangeVector);
-            /*
-            System.out.println("interpolNoiseRangeVector: sampleIdx = " + sampleIdx
-                + ": " + noiseRangeVector.pixels[sampleIdx] + " " + noiseRangeVector.pixels[sampleIdx+1]);
-            */
-            for (int sample = firstRangeSample; sample <= lastRangeSample; sample++) {
-                //System.out.println("**** sample = " + sample);
-                if (sample > noiseRangeVector.pixels[sampleIdx + 1]
-                        && sampleIdx < noiseRangeVector.pixels.length - 2) {
-                    sampleIdx++;
-                }
-
-                result[i++] = interpol(noiseRangeVector.pixels[sampleIdx],
-                        noiseRangeVector.pixels[sampleIdx + 1],
-                        noiseRangeVector.noiseLUT[sampleIdx],
-                        noiseRangeVector.noiseLUT[sampleIdx + 1], sample);
-            }
-        }
-    }
-
-    private void interpolNoiseAzimuthVector(final Sentinel1Utils.NoiseAzimuthVector noiseAzimuthVector,
-                                            final int firstAzimuthLine, final int lastAzimuthLine,
-                                            final double[] interpNoiseAzimVec) {
-
-        if (noiseAzimuthVector.lines.length < 2) { // This is possible
-            for (int line = firstAzimuthLine; line <= lastAzimuthLine; line++)  {
-                interpNoiseAzimVec[line - firstAzimuthLine] = noiseAzimuthVector.noiseAzimuthLUT[0];
-            }
-        }  else {
-            int lineIdx = getLineIndex(firstAzimuthLine, noiseAzimuthVector.lines);
-            for (int line = firstAzimuthLine; line <= lastAzimuthLine; line++) {
-
-                if (line > noiseAzimuthVector.lines[lineIdx + 1] && lineIdx < noiseAzimuthVector.lines.length - 2) {
-                    lineIdx++;
-                }
-
-                interpNoiseAzimVec[line - firstAzimuthLine] = interpol(
-                        noiseAzimuthVector.lines[lineIdx],
-                        noiseAzimuthVector.lines[lineIdx + 1],
-                        noiseAzimuthVector.noiseAzimuthLUT[lineIdx],
-                        noiseAzimuthVector.noiseAzimuthLUT[lineIdx + 1],
-                        line);
-            }
-        }
-    }
-
-    private void computeNoiseMatrix(final int x0, final int y0, final int nx0, final int nxMax, final int ny0,
-                                    final int nyMax, final double t0, final double deltaTs,
-                                    final double[] noiseRangeVectorAzTime, final double[][] interpolatedRangeVectors,
-                                    final double[] interpolatedAzimuthVector, final double[][] noiseMatrix) {
-
-        if (noiseRangeVectorAzTime.length == 1) {
-            for (int x = nx0; x <= nxMax; x++) {
-                final int xx = x - nx0;
-                for (int y = ny0; y <= nyMax; y++) {
-                    noiseMatrix[y - y0][x - x0] = interpolatedAzimuthVector[y - ny0] * interpolatedRangeVectors[0][xx];
-                }
-            }
-
-        } else {
-
-            final double time0 = t0 + deltaTs * ny0;
-            final int line0Idx = getLineIndexByTime(time0, noiseRangeVectorAzTime);
-
-            for (int x = nx0; x <= nxMax; x++) {
-                final int xx = x - nx0;
-                int lineIdx = line0Idx;
-
-                for (int y = ny0; y <= nyMax; y++) {
-                    final double time = t0 + deltaTs * y;
-                    if (time > noiseRangeVectorAzTime[lineIdx + 1] && lineIdx < noiseRangeVectorAzTime.length - 2) {
-                        lineIdx++;
-                    }
-
-                    noiseMatrix[y - y0][x - x0] = interpolatedAzimuthVector[y - ny0] *
-                            interpolByTime(noiseRangeVectorAzTime[lineIdx], noiseRangeVectorAzTime[lineIdx + 1],
-                            interpolatedRangeVectors[lineIdx][xx], interpolatedRangeVectors[lineIdx + 1][xx], time);
-                }
-            }
-        }
-    }
-
-    private static double interpol(final int x1, final int x2, final double y1, final double y2, final int x) {
-
-        if (x1 == x2) { // should never happen
-            SystemUtils.LOG.warning("######### noise vector duplicate indices: x1 == x2  = " + x1);
-            return 0;
-        }
-
-        return y1 + ((double)(x - x1)/(double)(x2 - x1))*(y2 - y1);
-    }
-
-    private static double interpolByTime(final double t1, final double t2, final double y1, final double y2, final double t) {
-
-        if (t1 == t2) { // should never happen
-            SystemUtils.LOG.warning("######### noise vector duplicate indices: t1 == t2  = " + t1);
-            return 0.0;
-        }
-
-        return y1 + ((t - t1)/(t2 - t1)) * (y2 - y1);
-    }
-
-    private int[] getNoiseRangeVectorIndices(final String pol, final String swath,
-                                     final double startAzimTime, final double endAzimTime,
-                                     final Sentinel1Utils.NoiseVector[] noiseRangeVectors,
-                                     // for debugging...
-                                     final int startAzimLine, final int endAzimLine, final TimeMaps timeMaps) {
-
-        // Each noise range vector has an azimuth time (and corresponding azimuth line) associated with it.
-        // We want to find the noise range vectors in "noiseRangeVectors" whose azimuth time lies with
-        // the interval defined by [startAzimTime, endAzimTime].
-        // If no such range vector exists, then find the one that lies within the swath (of the azimuth block)
-        // start and end times and is closest to the centre of the azimuth block.
-        // Noise range vector is not associated with a swath.
-
-        //System.out.println("getNoiseRangeVectorIndices: called");
-        final List<Integer> list = new ArrayList<>();
-
-        for (int i = 0; i < noiseRangeVectors.length; i++) {
-            final double azimTime = noiseRangeVectors[i].timeMJD;
-            if (azimTime >= startAzimTime && azimTime <= endAzimTime) {
-                list.add(i);
-            }
-        }
-        //System.out.println("getNoiseRangeVectorIndices: list.size() = " + list.size());
-
-        if (list.size() == 0) {
-            int idx = -1;
-            final double[] startEndTimes = new double[2];
-            getSwathStartEndTimes(pol, swath, startEndTimes, timeMaps);
-            /*
-            System.out.println("getNoiseRangeVectorIndices: " + pol + " " + swath
-                    + " startAzimLine = " + startAzimLine + " endAzimLine = " + endAzimLine
-                    + " startAximTime = " + startAzimTime + " endAzimTime = " + endAzimTime
-                    + " startSwathTime = " + startEndTimes[0] + " endSwathTime = " + startEndTimes[1]);
-            */
-            final double blockCentreTime = (startAzimTime + endAzimTime) / 2.0;
-            for (int i = 0; i < noiseRangeVectors.length; i++) {
-                final double azimTime = noiseRangeVectors[i].timeMJD;
-                if (azimTime >= startEndTimes[0] && azimTime <= startEndTimes[1]) {
-                    if (idx < 0) {
-                        idx = i;
-                    } else if (Math.abs(blockCentreTime - noiseRangeVectors[i].timeMJD) <
-                            Math.abs(blockCentreTime - noiseRangeVectors[idx].timeMJD)) {
-                        idx = i;
-                    }
-                }
-            }
-            if (idx < 0) {
-                SystemUtils.LOG.warning("######### No valid range vector found for startAzimTime = " + startAzimTime + " endAzimTime = " + endAzimTime + " swath = " + swath);
-                return null;
-            } else {
-                list.add(idx);
-            }
-        }
-
-        int[] indices = new int[list.size()];
-        for (int i = 0; i < indices.length; i++) {
-            indices[i] = list.get(i);
-        }
-
-        return indices;
-    }
-//
-//    private int[] getNoiseRangeVectorIndices(
-//            final int y0, final int h, final Sentinel1Utils.NoiseVector[] noiseRangeVectors) {
-//
-//        final List<Integer> list = new ArrayList<>();
-//
-//        for (int i = 0; i < noiseRangeVectors.length; i++) {
-//            final int line = noiseRangeVectors[i].line;
-//            if (line >= y0 && line <= y0 + h) {
-//                list.add(i);
-//            }
-//        }
-//
-//        if (list.size() == 0) {
-//            final int midLine = y0 + (h - 1)/2;
-//            int nearestVecIdx = -1;
-//            int minDist = Integer.MAX_VALUE;
-//            for (int i = 0; i < noiseRangeVectors.length; i++) {
-//                final int line = noiseRangeVectors[i].line;
-//                final int dist = Math.abs(line - midLine);
-//                if (dist < minDist) {
-//                    minDist = dist;
-//                    nearestVecIdx = i;
-//                }
-//            }
-//            list.add(nearestVecIdx);
-//        }
-//
-//        int[] indices = new int[list.size()];
-//        for (int i = 0; i < indices.length; i++) {
-//            indices[i] = list.get(i);
-//        }
-//
-//        return indices;
-//    }
-
-    private void getSwathStartEndTimes(final String pol, final String swath, final double[] startEndtimes,
-                                       final TimeMaps timeMaps) {
-
-        final String key = pol + "+" + swath;
-
-        startEndtimes[0] = 0; // start time
-        startEndtimes[1] = 0; // end time
-
-        if (timeMaps.swathStartEndTimesMap.containsKey(key)) {
-            double[] times = timeMaps.swathStartEndTimesMap.get(key);
-            startEndtimes[0] = times[0];
-            startEndtimes[1] = times[1];
-            return;
-        }
-
-        final MetadataElement annotationElem = origMetadataRoot.getElement("annotation");
-        final MetadataElement[] annotationDataSetListElem = annotationElem.getElements();
-
-        for (MetadataElement elem : annotationDataSetListElem)  {
-            final String imageName = elem.getName();
-            if (imageName.toLowerCase().contains(pol.toLowerCase())) {
-                //System.out.println("getSwathStartEndTimes: found " + pol);
-                final MetadataElement productElem = elem.getElement("product");
-                final MetadataElement swathMergingElem = productElem.getElement("swathMerging");
-                final MetadataElement swathMergeListElem = swathMergingElem.getElement("swathMergeList");
-                final MetadataElement[] swathMergeArray = swathMergeListElem.getElements();
-                for (MetadataElement aSwathMergeArray : swathMergeArray) {
-                    final String curSwath = aSwathMergeArray.getAttributeString("swath");
-                    if (curSwath.equals(swath)) {
-                        //System.out.println("getSwathStartEndTimes: found " + key);
-                        MetadataElement swathBoundsListElem = aSwathMergeArray.getElement("swathBoundsList");
-                        MetadataElement[] swathBoundList = swathBoundsListElem.getElements();
-                        final int startLine = swathBoundList[0].getAttributeInt("firstAzimuthLine");
-                        final int lastIdx = swathBoundList.length - 1;
-                        final int endLine = swathBoundList[lastIdx].getAttributeInt("lastAzimuthLine");
-                        if (timeMaps.t0Map.containsKey(imageName) && timeMaps.deltaTsMap.containsKey(imageName)) {
-                            final double t0 = timeMaps.t0Map.get(imageName);
-                            final double deltaTs = timeMaps.deltaTsMap.get(imageName);
-                            startEndtimes[0] = t0 + (startLine * deltaTs);
-                            startEndtimes[1] = t0 + (endLine * deltaTs);
-                            timeMaps.swathStartEndTimesMap.put(key, startEndtimes);
-                            /*
-                            System.out.println("getSwathStartEndTimes: " + key + " -> [" + startEndtimes[0] + ", " + startEndtimes[1] + "]"
-                                + " [" + startLine + ", " + endLine + "]");
-                            */
-                        } else {
-                            SystemUtils.LOG.warning("######### fail to find swath start and end times for "
-                                    + pol + " " + swath);
-                        }
-                        return;
-                    }
-                }
-            }
-        }
-    }
-
-    private static int getLineIndex(final int line, final int lines[]) {
-
-        //  lines.length is assumed to be >= 2
-
-        for (int i = 0; i < lines.length; i++) {
-            if (line < lines[i]) {
-                return (i > 0) ? i - 1 : 0;
-            }
-        }
-
-        //System.out.println("getLineIndex: reach the end for line = " + line);
-        return lines.length - 2;
-    }
-
-    private static int getLineIndexByTime(final double time, final double[] times) {
-
-        //  times.length is assumed to be >= 2
-
-        for (int i = 0; i < times.length; i++) {
-            if (time < times[i]) {
-                return (i > 0) ? i - 1 : 0;
-            }
-        }
-
-        //System.out.println("getLineIndexByTime: reach the end for time = " + time);
-        return times.length - 2;
-    }
-
-    private static int getSampleIndex(final int sample, final Sentinel1Utils.NoiseVector noiseRangeVector) {
-
-        for (int i = 0; i < noiseRangeVector.pixels.length; i++) {
-            if (sample < noiseRangeVector.pixels[i]) {
-                return (i > 0) ? i - 1 : 0;
-            }
-        }
-
-        return noiseRangeVector.pixels.length - 2;
-    }
-
-    private void getT0andDeltaTS(final String imageName, final TimeMaps timeMaps) {
-
-        // imageName is something like s1a-iw-grd-hh-...
-
-        final MetadataElement annotationElem = origMetadataRoot.getElement("annotation");
-        final MetadataElement[] annotationDataSetListElem = annotationElem.getElements();
-
-        for (MetadataElement dataSetListElem : annotationDataSetListElem) {
-            if (dataSetListElem.getName().equals(imageName)){
-                //System.out.println("getT0andDeltaTS: found " + imageName);
-
-                MetadataElement productElem = dataSetListElem.getElement("product");
-                MetadataElement imageAnnotationElem = productElem.getElement("imageAnnotation");
-                MetadataElement imageInformationElem = imageAnnotationElem.getElement("imageInformation");
-
-                double t01 = absRoot.getAttributeUTC(AbstractMetadata.first_line_time).getMJD(); // just for comparison
-                double t0 = Sentinel1Utils.getTime(imageInformationElem ,"productFirstLineUtcTime").getMJD();
-                timeMaps.t0Map.put(imageName, t0);
-
-                double deltaTS1 = absRoot.getAttributeDouble(AbstractMetadata.line_time_interval) / Constants.secondsInDay; // just for comparison
-                double deltaTS = imageInformationElem.getAttributeDouble("azimuthTimeInterval") / Constants.secondsInDay; // s to day
-                timeMaps.deltaTsMap.put(imageName, deltaTS);
-
-                //System.out.println("getT0andDeltaTS: " + imageName + ": t01 = " + t01 + " t0 = " + t0 + " deltaTS1 = " + deltaTS1 + " deltaTS = " + deltaTS);
-
-                break;
-            }
-        }
-    }
-
-    private String getBandPol(final String bandName) {
+    private static String getBandPol(final String bandName) {
 
         if (bandName.contains("HH")) {
             return "HH";
@@ -1644,7 +1368,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
         return "";
     }
 
-    private String getBandSwath(final String bandName) {
+    private static String getBandSwath(final String bandName) {
 
         if (bandName.contains("IW1")) {
             return "IW1";
@@ -1677,6 +1401,13 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
 
         final double lineTimeInterval;
 
+        String dataSetName;
+        // TOPS SLC burst timing (null: lines uniformly spaced between firstLineTime and lastLineTime)
+        private double[] burstTimes;
+        private int linesPerBurst;
+        private double azimuthTimeInterval;
+        private int firstBurstLine;
+
         ThermalNoiseInfo(final String pol, final String subSwath, final double firstLineTime, final double lastLineTime,
                          final int numOfLines, final int count, final Sentinel1Utils.NoiseVector[] noiseVectorList) {
             this.polarization = pol;
@@ -1688,6 +1419,23 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
             this.noiseVectorList = noiseVectorList;
 
             lineTimeInterval = (lastLineTime - firstLineTime) / (numOfLines - 1);
+        }
+
+        void setBurstTiming(final double[] burstTimes, final int linesPerBurst, final double azimuthTimeInterval,
+                            final int firstBurstLine) {
+            this.burstTimes = burstTimes;
+            this.linesPerBurst = linesPerBurst;
+            this.azimuthTimeInterval = azimuthTimeInterval;
+            this.firstBurstLine = firstBurstLine;
+        }
+
+        /** Azimuth time (MJD) of an original-image line. */
+        double lineTime(final int y) {
+            if (burstTimes == null) {
+                return firstLineTime + y * lineTimeInterval;
+            }
+            final int b = Math.max(0, Math.min(burstTimes.length - 1, Math.floorDiv(y - firstBurstLine, linesPerBurst)));
+            return burstTimes[b] + (y - firstBurstLine - b * linesPerBurst) * azimuthTimeInterval;
         }
     }
     
