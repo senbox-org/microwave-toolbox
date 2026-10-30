@@ -102,51 +102,76 @@
 	<rec name="Nominal resolution in azimuth" type="5" num="16"/>
 	<rec name="Constant radiometric Bias" type="5" num="16"/>
 	<rec name="Linear radiometric Gain" type="5" num="16"/>
-	<rec name="Along track Doppler frequency centroid constant term" type="5" num="16"/>
+	<!--
+	  PALSAR-3 layout from here on: JAXA FTR-240031A Rev. A (2024-09-24), Table 4.6-5
+	  "Data Set Summary Record", fields 100-155. Positions in the comments are the spec's,
+	  1-based; the parser works 0-based. Everything above this comment is the stock 14.0.0
+	  file unchanged and agrees with the same table.
+
+	  Why the stock file is wrong from here: PALSAR-3 stores each Doppler block (along- and
+	  cross-track centroid, along- and cross-track rate) as FOUR 3xF16.7 groups, one per
+	  ScanSAR scan, where PALSAR-2 stores one. Each block grows by 144 bytes, and every field
+	  after it lands in the wrong place: range_spacing and azimuth_spacing read 0, PASS reads
+	  ASCENDING on a descending scene, the incidence polynomial reads 0.  Measured with
+	  microwave-toolbox 14.0.0 on a real delivery, 2026-09-22.
+
+	  Scans 2-4 are skipped: stripmap and spotlight fill scan 1 only, and SNAP reads scan 1.
+	-->
+	<rec name="Along track Doppler frequency centroid constant term" type="5" num="16"/>	<!-- #100  1415 -->
 	<rec name="Along track Doppler frequency centroid linear term" type="5" num="16"/>
 	<rec name="Along track Doppler frequency centroid quadratic term" type="5" num="16"/>
-	<rec name="skipBytes" type="0" num="16"/>
-	<rec name="Cross track Doppler frequency centroid constant term" type="5" num="16"/>
+	<rec name="skipBytes" type="0" num="144"/>	<!-- #101-103 along-track centroid, scans 2-4  1463 -->
+	<rec name="skipBytes" type="0" num="16"/>	<!-- #104 reserve  1607 -->
+	<rec name="Cross track Doppler frequency centroid constant term" type="5" num="16"/>	<!-- #105  1623 -->
 	<rec name="Cross track Doppler frequency centroid linear term" type="5" num="16"/>
 	<rec name="Cross track Doppler frequency centroid quadratic term" type="5" num="16"/>
-	<rec name="Time direction indicator along pixel direction" type="1" num="8"/>
-	<rec name="Time direction indicator along line direction" type="1" num="8"/>
-	<rec name="Along track Doppler frequency rate constant term" type="5" num="16"/>
+	<rec name="skipBytes" type="0" num="144"/>	<!-- #106-108 cross-track centroid, scans 2-4  1671 -->
+	<rec name="Time direction indicator along pixel direction" type="1" num="8"/>	<!-- #109  1815 -->
+	<rec name="Time direction indicator along line direction" type="1" num="8"/>	<!-- #110  1823  ASCENDbb / DESCENDb -->
+	<rec name="Along track Doppler frequency rate constant term" type="5" num="16"/>	<!-- #111  1831 -->
 	<rec name="Along track Doppler frequency rate linear term" type="5" num="16"/>
 	<rec name="Along track Doppler frequency rate quadratic term" type="5" num="16"/>
-	<rec name="skipBytes" type="0" num="16"/>
-	<rec name="Cross track Doppler frequency rate constant term" type="5" num="16"/>
+	<rec name="skipBytes" type="0" num="144"/>	<!-- #112-114 along-track rate, scans 2-4  1879 -->
+	<rec name="skipBytes" type="0" num="16"/>	<!-- #115 reserve  2023 -->
+	<rec name="Cross track Doppler frequency rate constant term" type="5" num="16"/>	<!-- #116  2039 -->
 	<rec name="Cross track Doppler frequency rate linear term" type="5" num="16"/>
 	<rec name="Cross track Doppler frequency rate quadratic term" type="5" num="16"/>
-	<rec name="skipBytes" type="0" num="16"/>
-	<rec name="Line content indicator" type="1" num="8"/>
-	<rec name="Clutterlock applied flag" type="1" num="4"/>
-	<rec name="Autofocussing applied flag" type="1" num="4"/>
-	<rec name="Line spacing" type="5" num="16"/>
-	<rec name="Pixel spacing" type="5" num="16"/>
-	<rec name="Processor range compression designator" type="1" num="16"/>
-	<rec name="Doppler center frequency constant term" type="5" num="16"/>
-	<rec name="Doppler center frequency linear term" type="5" num="16"/>
+	<rec name="skipBytes" type="0" num="144"/>	<!-- #117-119 cross-track rate, scans 2-4  2087 -->
+	<rec name="skipBytes" type="0" num="16"/>	<!-- #120 reserve  2231 -->
+	<rec name="Line content indicator" type="1" num="8"/>	<!-- #121  2247 -->
+	<rec name="Clutterlock applied flag" type="1" num="4"/>	<!-- #122  2255 -->
+	<rec name="Range antenna pattern correction flag" type="1" num="4"/>	<!-- #123  2259 -->
+	<rec name="Azimuth antenna pattern correction flag" type="1" num="4"/>	<!-- #124  2263 -->
+	<rec name="Interference noise removal flag" type="1" num="4"/>	<!-- #125  2267 -->
+	<rec name="Inter-polarization calibration flag" type="1" num="4"/>	<!-- #126  2271 -->
+	<rec name="Autofocussing applied flag" type="1" num="4"/>	<!-- #127  2275 -->
+	<rec name="HH polarization image output flag" type="1" num="1"/>	<!-- #128  2279 -->
+	<rec name="HV polarization image output flag" type="1" num="1"/>	<!-- #129  2280 -->
+	<rec name="VV polarization image output flag" type="1" num="1"/>	<!-- #130  2281 -->
+	<rec name="VH polarization image output flag" type="1" num="1"/>	<!-- #131  2282 -->
+	<rec name="Line spacing" type="5" num="16"/>	<!-- #132  2283  azimuth, m -->
+	<rec name="Pixel spacing" type="5" num="16"/>	<!-- #133  2299  range, m -->
+	<rec name="Processor range compression designator" type="1" num="16"/>	<!-- #134  2315 -->
+	<rec name="Doppler center frequency constant term" type="5" num="16"/>	<!-- #135  2331 -->
+	<rec name="Doppler center frequency linear term" type="5" num="16"/>	<!-- #136  2347 -->
 	<!-- SENSOR SPECIFIC LOCAL USE SEGMENT -->
-	<rec name="Calibration data indicator" type="2" num="4"/>
-	<rec name="Start line of calibration at upper image" type="2" num="8"/>
-	<rec name="Stop line of calibration at upper image" type="2" num="8"/>
-	<rec name="Start line of calibration at bottom image" type="2" num="8"/>
-	<rec name="Stop line of calibration at bottom image" type="2" num="8"/>
-	<rec name="PRF switching indicator" type="2" num="4"/>	
-	<rec name="Line locator of PRF switching" type="2" num="8"/>
-	<rec name="skipBytes" type="0" num="8"/>
-
-	<rec name="Direction of beam center in scene center" type="5" num="16"/>
-	<rec name="Yew steering mode flag" type="2" num="4"/>
-	<rec name="Parameter table number of auto setting" type="2" num="4"/>
-	<rec name="Nominal offnadir angle" type="5" num="16"/>
-	<rec name="Antenna beam number" type="2" num="4"/>
-	<rec name="skipBytes" type="0" num="28"/>
-	<rec name="Incidence angle constant term" type="5" num="20"/>
-	<rec name="Incidence angle linear term" type="5" num="20"/>
-	<rec name="Incidence angle quadratic term" type="5" num="20"/>
-	<rec name="Incidence angle cubic term" type="5" num="20"/>
-	<rec name="Incidence angle fourth term" type="5" num="20"/>
-	<rec name="Incidence angle fifth term" type="5" num="20"/>
+	<rec name="Calibration data indicator" type="2" num="4"/>	<!-- #137  2363 -->
+	<rec name="Start line of calibration at upper image" type="2" num="8"/>	<!-- #138  2367 -->
+	<rec name="Stop line of calibration at upper image" type="2" num="8"/>	<!-- #139  2375 -->
+	<rec name="Start line of calibration at bottom image" type="2" num="8"/>	<!-- #140  2383 -->
+	<rec name="Stop line of calibration at bottom image" type="2" num="8"/>	<!-- #141  2391 -->
+	<rec name="PRF switching indicator" type="2" num="4"/>	<!-- #142  2399 -->
+	<rec name="Line locator of PRF switching" type="2" num="8"/>	<!-- #143  2403 -->
+	<rec name="Direction of beam center in scene center" type="5" num="16"/>	<!-- #144  2411 -->
+	<rec name="Yew steering mode flag" type="2" num="4"/>	<!-- #145  2427 -->
+	<rec name="Parameter table number of auto setting" type="2" num="4"/>	<!-- #146  2431 -->
+	<rec name="Nominal offnadir angle" type="5" num="16"/>	<!-- #147  2435 -->
+	<rec name="Antenna beam number" type="2" num="4"/>	<!-- #148  2451 -->
+	<rec name="skipBytes" type="0" num="28"/>	<!-- #149 reserve  2455 -->
+	<rec name="Incidence angle constant term" type="5" num="20"/>	<!-- #150  2483  theta rad, R km -->
+	<rec name="Incidence angle linear term" type="5" num="20"/>	<!-- #151  2503 -->
+	<rec name="Incidence angle quadratic term" type="5" num="20"/>	<!-- #152  2523 -->
+	<rec name="Incidence angle cubic term" type="5" num="20"/>	<!-- #153  2543 -->
+	<rec name="Incidence angle fourth term" type="5" num="20"/>	<!-- #154  2563 -->
+	<rec name="Incidence angle fifth term" type="5" num="20"/>	<!-- #155  2583-2602 -->
 </ceos>
