@@ -40,6 +40,8 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
     private final JCheckBox outputNoiseCheckBox = new JCheckBox("Output Noise");
     private final JCheckBox reIntroduceThermalNoiseCheckBox = new JCheckBox("Re-Introduce Thermal Noise");
     private final JCheckBox clipNegativeValuesCheckBox = new JCheckBox("Clip Negative Values");
+    private final JTextField clipFloorValue = new JTextField("");
+    private final JCheckBox applyNoiseRecalibrationCheckBox = new JCheckBox("Apply Noise Retro-Calibration");
     private boolean removeThermalNoise = false;
     private boolean outputNoise = false;
     private boolean reIntroduceThermalNoise = false;
@@ -52,21 +54,16 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
         final JComponent panel = createPanel();
         initParameters();
 
+        // remove and re-introduce are mutually exclusive; both unchecked is the noise-only mode (Output Noise),
+        // so unchecking one does not check the other. Output Noise is available in every mode.
         removeThermalNoiseCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 removeThermalNoise = (e.getStateChange() == ItemEvent.SELECTED);
                 if (removeThermalNoise) {
                     reIntroduceThermalNoise = false;
                     reIntroduceThermalNoiseCheckBox.setSelected(false);
-                    outputNoiseCheckBox.setEnabled(true);
-                    clipNegativeValuesCheckBox.setEnabled(true);
-                } else {
-                    reIntroduceThermalNoise = true;
-                    reIntroduceThermalNoiseCheckBox.setSelected(true);
-                    outputNoiseCheckBox.setEnabled(false);
-                    outputNoiseCheckBox.setSelected(false);
-                    clipNegativeValuesCheckBox.setEnabled(false);
                 }
+                updateClipControls();
             }
         });
 
@@ -76,15 +73,8 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
                 if (reIntroduceThermalNoise) {
                     removeThermalNoise = false;
                     removeThermalNoiseCheckBox.setSelected(false);
-                    outputNoiseCheckBox.setEnabled(false);
-                    outputNoiseCheckBox.setSelected(false);
-                    clipNegativeValuesCheckBox.setEnabled(false);
-                } else {
-                    removeThermalNoise = true;
-                    removeThermalNoiseCheckBox.setSelected(true);
-                    outputNoiseCheckBox.setEnabled(true);
-                    clipNegativeValuesCheckBox.setEnabled(true);
                 }
+                updateClipControls();
             }
         });
 
@@ -97,10 +87,18 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
         clipNegativeValuesCheckBox.addItemListener(new ItemListener() {
             public void itemStateChanged(ItemEvent e) {
                 clipNegativeValues = (e.getStateChange() == ItemEvent.SELECTED);
+                updateClipControls();
             }
         });
+        updateClipControls();
 
         return new JScrollPane(panel);
+    }
+
+    /** Clipping only applies when noise is removed; the floor only when clipping. */
+    private void updateClipControls() {
+        clipNegativeValuesCheckBox.setEnabled(removeThermalNoise);
+        clipFloorValue.setEnabled(removeThermalNoise && clipNegativeValues);
     }
 
     @Override
@@ -138,10 +136,33 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
             clipNegativeValues = paramVal;
             clipNegativeValuesCheckBox.setSelected(clipNegativeValues);
         }
+        final Object floor = paramMap.get("clipFloorValue");
+        clipFloorValue.setText(floor != null ? String.valueOf(floor) : "1.0E-5");
+        paramVal = (Boolean) paramMap.get("applyNoiseRecalibration");
+        applyNoiseRecalibrationCheckBox.setSelected(paramVal != null && paramVal);
+        updateClipControls();
     }
 
     @Override
     public UIValidation validateParameters() {
+        if (removeThermalNoise && reIntroduceThermalNoise) {
+            return new UIValidation(UIValidation.State.ERROR,
+                    "Remove and Re-Introduce Thermal Noise cannot both be selected");
+        }
+        final String floorText = clipFloorValue.getText().trim();
+        if (!floorText.isEmpty()) {
+            final double floor;
+            try {
+                floor = Double.parseDouble(floorText);
+            } catch (NumberFormatException e) {
+                return new UIValidation(UIValidation.State.ERROR, "Clip floor value must be a number");
+            }
+            // same rule as the operator: NaN, Infinity and negative values are refused
+            if (!Double.isFinite(floor) || floor < 0) {
+                return new UIValidation(UIValidation.State.ERROR,
+                        "Clip floor value must be a finite, non-negative number (0 = ESA MPC-0392 Eq-2)");
+            }
+        }
         return new UIValidation(UIValidation.State.OK, "");
     }
 
@@ -154,6 +175,14 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
         paramMap.put("reIntroduceThermalNoise", reIntroduceThermalNoise);
         paramMap.put("outputNoise", outputNoise);
         paramMap.put("clipNegativeValues", clipNegativeValues);
+        if (!clipFloorValue.getText().trim().isEmpty()) {
+            try {
+                paramMap.put("clipFloorValue", Double.parseDouble(clipFloorValue.getText().trim()));
+            } catch (NumberFormatException e) {
+                // reported by validateParameters; the operator keeps its default
+            }
+        }
+        paramMap.put("applyNoiseRecalibration", applyNoiseRecalibrationCheckBox.isSelected());
     }
 
     private JComponent createPanel() {
@@ -176,6 +205,11 @@ public class Sentinel1RemoveThermalNoiseOpUI extends BaseOperatorUI {
         gbc.gridx = 0;
         gbc.gridy++;
         contentPane.add(clipNegativeValuesCheckBox, gbc);
+        gbc.gridy++;
+        DialogUtils.addComponent(contentPane, gbc, "Clip floor value:", clipFloorValue);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        contentPane.add(applyNoiseRecalibrationCheckBox, gbc);
 
         DialogUtils.fillPanel(contentPane, gbc);
 

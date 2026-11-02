@@ -863,7 +863,6 @@ public class TestCreateStackOp extends ProcessorTest {
         final float[] values = new float[size];
         java.util.Arrays.fill(values, value);
         band.setData(ProductData.createInstance(values));
-        band.setSynthetic(true);
     }
 
     private static Band findBandStartingWith(final Product product, final String prefix) {

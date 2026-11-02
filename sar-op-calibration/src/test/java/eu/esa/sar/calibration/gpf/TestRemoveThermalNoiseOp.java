@@ -63,40 +63,37 @@ public class TestRemoveThermalNoiseOp extends ProcessorTest {
     private String[] productTypeExemptions = {"OCN"};
     private String[] exceptionExemptions = {"not supported", "numbands is zero",
             "not a valid mission for Sentinel1 product",
-            "WV is not a valid acquisition mode from: IW,EW,SM"};
+            "WV is not a valid acquisition mode from: IW,EW,SM",
+            "not usable for thermal noise removal", "should NOT be a deburst product", "prior to slice assembly",
+            "No bands found for the selected polarisations"};
 
+    /**
+     * The fixture is a stripmap GRDM from IPF 2.32: its noise vectors are ~100 dB too low and have no published
+     * rescaling (ESA MPC-0243), so noise removal is refused instead of silently removing nothing.
+     */
     @Test
     public void testProcessingS1_GRD() throws Exception {
         try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile1)) {
-            try (final Product targetProduct = process(sourceProduct)) {
-
-                final Band band = targetProduct.getBand("Intensity_VV");
-                assertNotNull(band);
-
-                final float[] floatValues = new float[8];
-                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
-
-                assertEquals(1024.0, floatValues[0], 0.0001);
-                assertEquals(1024.0, floatValues[1], 0.0001);
-                assertEquals(1444.0, floatValues[2], 0.0001);
+            try {
+                process(sourceProduct);
+                org.junit.Assert.fail("expected OperatorException for stripmap IPF < 2.50");
+            } catch (org.esa.snap.core.gpf.OperatorException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("2.50"));
             }
         }
     }
 
+    /**
+     * The fixture is a stripmap SLC from IPF 2.34; see {@link #testProcessingS1_GRD()}.
+     */
     @Test
     public void testProcessingS1_StripmapSLC() throws Exception {
         try (final Product sourceProduct = TestUtils.readSourceProduct(inputFile2)) {
-            try (final Product targetProduct = process(sourceProduct)) {
-
-                final Band band = targetProduct.getBand("Intensity_VV");
-                assertNotNull(band);
-
-                final float[] floatValues = new float[8];
-                band.readPixels(0, 0, 4, 2, floatValues, ProgressMonitor.NULL);
-
-                assertEquals(629.0, floatValues[0], 0.0001);
-                assertEquals(2362.0, floatValues[1], 0.0001);
-                assertEquals(6065.0, floatValues[2], 0.0001);
+            try {
+                process(sourceProduct);
+                org.junit.Assert.fail("expected OperatorException for stripmap IPF < 2.50");
+            } catch (org.esa.snap.core.gpf.OperatorException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("2.50"));
             }
         }
     }
