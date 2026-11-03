@@ -44,6 +44,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
+import static eu.esa.snap.core.dataio.CfConstants.UNITS;
+
 
 public class NetCDFWriter extends AbstractProductWriter {
 
@@ -123,9 +125,9 @@ public class NetCDFWriter extends AbstractProductWriter {
         latLonList.add(rootGroup.findDimension(NetcdfConstants.LON_VAR_NAMES[0]));
 
         netCDFWriteable.addVariable(NetcdfConstants.LAT_VAR_NAMES[0], DataType.FLOAT, latLonList.subList(0,0));
-        netCDFWriteable.addVariableAttribute(NetcdfConstants.LAT_VAR_NAMES[0], "units", "degrees_north (+N/-S)");
+        netCDFWriteable.addVariableAttribute(NetcdfConstants.LAT_VAR_NAMES[0], UNITS, "degrees_north (+N/-S)");
         netCDFWriteable.addVariable(NetcdfConstants.LON_VAR_NAMES[0], DataType.FLOAT, latLonList.subList(1,1));
-        netCDFWriteable.addVariableAttribute(NetcdfConstants.LON_VAR_NAMES[0], "units", "degrees_east (+E/-W)");
+        netCDFWriteable.addVariableAttribute(NetcdfConstants.LON_VAR_NAMES[0], UNITS, "degrees_east (+E/-W)");
 
         for (Band band : product.getBands()) {
             final String name = StringUtils.createValidName(band.getName(), new char[]{'_'}, '_');

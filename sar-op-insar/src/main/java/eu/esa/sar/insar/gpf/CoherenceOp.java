@@ -158,6 +158,7 @@ public class CoherenceOp extends Operator {
     // target
     private Map<String, ProductContainer> targetMap = new HashMap<>();
     private Map<Band, Band> detectedSecondaryMap = new HashMap<>();
+    private final Map<Band, Band> detectedReferenceMap = new HashMap<>();
 
     private boolean isComplex;
     private boolean isTOPSARBurstProduct = false;
@@ -471,41 +472,90 @@ public class CoherenceOp extends Operator {
                 }
             }
         } else {
-            final int numSrcBands = sourceProduct.getNumBands();
-            String[] bandNames = sourceProduct.getBandNames();
-            if (numSrcBands < 2) {
+            if (sourceProduct.getNumBands() < 2) {
                 throw new OperatorException("To create a coherence image, more than 2 bands are needed.");
             }
-            //referenceBand = sourceProduct.getBand(findBandName(bandNames, "ref"));
-            //addTargetBand(referenceBand.getName(), referenceBand.getDataType(), referenceBand.getUnit());
-
-            // add secondary and coherence bands
-            for (int i = 1; i <= numSrcBands; i++) {
-
-                final String secondaryBandName = findBandName(bandNames, "sec" + i);
-                if (secondaryBandName == null) {
-                    break;
-                }
-                final Band secondaryBand = sourceProduct.getBand(secondaryBandName);
-                //addTargetBand(secondaryBandName, secondaryBand.getDataType(), secondaryBand.getUnit());
-
-                final Band coherenceBand = targetProduct.addBand("Coherence_sec" + i, ProductData.TYPE_FLOAT32);
+            // add a coherence band per secondary band, against the reference band of the same quantity
+            for (DetectedPair pair : pairDetectedBands(sourceProduct)) {
+                final Band coherenceBand = targetProduct.addBand(pair.coherenceBandName, ProductData.TYPE_FLOAT32);
                 coherenceBand.setUnit("coherence");
-                detectedSecondaryMap.put(coherenceBand, secondaryBand);
+                detectedSecondaryMap.put(coherenceBand, pair.secondary);
+                detectedReferenceMap.put(coherenceBand, pair.reference);
             }
         }
     }
 
-    private static String findBandName(String[] bandNames, String namePattern) {
+    static final class DetectedPair {
+        final String coherenceBandName;
+        final Band reference;
+        final Band secondary;
 
-        String bandName = null;
-        for (String name : bandNames) {
-            if (name.contains(namePattern)) {
-                bandName = name;
-                break;
+        DetectedPair(final String coherenceBandName, final Band reference, final Band secondary) {
+            this.coherenceBandName = coherenceBandName;
+            this.reference = reference;
+            this.secondary = secondary;
+        }
+    }
+
+    /**
+     * Pairs every secondary band of a detected stack with the reference band of the same quantity and
+     * polarisation (equal name once the _ref/_secN date suffix is removed). CreateStack tags each
+     * detected band separately, so a dual-pol secondary is Amplitude_VV_sec1_D + Amplitude_VH_sec2_D.
+     * The old loop took the first band containing "sec" + i and correlated every one of them against
+     * the first "ref" band - VH secondary against VV reference - and stopped at the first missing i.
+     * <p>
+     * A secondary with no same-named reference band is paired with the only reference band when there
+     * is exactly one (single-band stacks whose names differ keep working), and rejected otherwise.
+     * Output names stay Coherence_secN; when stacks tag per product (BackGeocoding: Amplitude_VV_sec1,
+     * Amplitude_VH_sec1) the band name is added so the coherence bands do not collide.
+     */
+    static List<DetectedPair> pairDetectedBands(final Product product) {
+        final List<Band> refBands = new ArrayList<>();
+        final List<Band> secBands = new ArrayList<>();
+        for (Band band : product.getBands()) {
+            final String suffix = StackUtils.getBandSuffix(band.getName());
+            if (suffix.startsWith(StackUtils.REF) || suffix.startsWith(StackUtils.MST)) {
+                refBands.add(band);
+            } else if (suffix.startsWith(StackUtils.SEC) || suffix.startsWith(StackUtils.SLV)) {
+                secBands.add(band);
             }
         }
-        return bandName;
+
+        final Map<String, Integer> tagUse = new HashMap<>();
+        for (Band sec : secBands) {
+            tagUse.merge(secondaryTagNumber(sec.getName()), 1, Integer::sum);
+        }
+
+        final List<DetectedPair> pairs = new ArrayList<>();
+        for (Band sec : secBands) {
+            final String base = StackUtils.getBandNameWithoutDate(sec.getName());
+            Band ref = null;
+            for (Band candidate : refBands) {
+                if (StackUtils.getBandNameWithoutDate(candidate.getName()).equals(base)) {
+                    ref = candidate;
+                    break;
+                }
+            }
+            if (ref == null) {
+                if (refBands.size() != 1) {
+                    throw new OperatorException("No reference band matches secondary band " + sec.getName() +
+                            "; expected a reference band named " + base + StackUtils.REF + "_<date>");
+                }
+                ref = refBands.get(0);
+            }
+            final String n = secondaryTagNumber(sec.getName());
+            final String name = tagUse.get(n) > 1 ? "Coherence_" + base + "_sec" + n : "Coherence_sec" + n;
+            pairs.add(new DetectedPair(name, ref, sec));
+        }
+        return pairs;
+    }
+
+    /** The N of a band's _secN / legacy _slvN tag. */
+    private static String secondaryTagNumber(final String bandName) {
+        final String suffix = StackUtils.getBandSuffix(bandName); // _sec2_10May2008
+        final int end = suffix.indexOf('_', 1);
+        final String tag = end > 0 ? suffix.substring(1, end) : suffix.substring(1);
+        return tag.replaceAll("\\D", "");
     }
 
     private void getRefApproxSceneCentreXYZ() {
@@ -659,9 +709,7 @@ public class CoherenceOp extends Operator {
                     }
 
                 } else { // coherence bands
-                    String[] bandNames = sourceProduct.getBandNames();
-                    Band referenceBand = sourceProduct.getBand(findBandName(bandNames, "ref"));
-
+                    final Band referenceBand = detectedReferenceMap.get(targetBand);
                     final Band secondaryBand = detectedSecondaryMap.get(targetBand);
                     final float[] dataArray = new float[w * h];
                     final RealCoherenceData realData = new RealCoherenceData();

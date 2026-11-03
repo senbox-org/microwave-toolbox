@@ -38,6 +38,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 
+import static eu.esa.snap.core.dataio.CfConstants.TITLE;
+
 // Class & functions for writing out & modifying the GAMMA header files to work with the external PyRATE InSAR software
 // Written by Alex McVittie April 2023.
 public class PyRateHeaderWriter {
@@ -241,7 +243,7 @@ public class PyRateHeaderWriter {
 
         // Initialize an array of strings for easy concatenation at the end.
         String [] contentLines = new String[]{
-                createTabbedVariableLine("title",root.getAttributeString("PRODUCT") ),
+                createTabbedVariableLine(TITLE,root.getAttributeString("PRODUCT") ),
 
                 createTabbedVariableLine("sensor", getSensorName(root)),
 

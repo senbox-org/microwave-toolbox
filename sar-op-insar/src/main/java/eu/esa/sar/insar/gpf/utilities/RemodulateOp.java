@@ -103,36 +103,18 @@ public class RemodulateOp extends Operator {
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
-        // Define source bands
-        Band sourceBandI = null;
-        Band sourceBandQ = null;
-
-        // Reference
-        final String[] referenceBandNames = StackUtils.getReferenceBandNames(sourceProduct);
-        for (String bandName : referenceBandNames) {
-            if (bandName.contains("i_")) {
-                sourceBandI = sourceProduct.getBand(bandName);
-            } else {
-                sourceBandQ = sourceProduct.getBand(bandName);
-            }
-        }
-        // Check if reference bands are null (this could happen if dropped by the BandSelect operator)
-        if (sourceBandI != null && sourceBandQ != null) {
-            createTargetBands(sourceBandI, sourceBandQ);
+        // Reference - pairs dropped by a BandSelect simply do not appear
+        for (Band[] pair : ComplexBandPairs.of(sourceProduct, StackUtils.getReferenceBandNames(sourceProduct))) {
+            createTargetBands(pair[0], pair[1]);
         }
 
-        // Secondaries
+        // Secondaries - a dual-pol secondary carries one pair per polarisation, each under its own tag
         final String[] secondaryProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
         for (String secondaryProductName : secondaryProductNames) {
             final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secondaryProductName);
-            for (String bandName : secBandNames) {
-                if (bandName.contains("i_")) {
-                    sourceBandI = sourceProduct.getBand(bandName);
-                } else {
-                    sourceBandQ = sourceProduct.getBand(bandName);
-                }
+            for (Band[] pair : ComplexBandPairs.of(sourceProduct, secBandNames)) {
+                createTargetBands(pair[0], pair[1]);
             }
-            createTargetBands(sourceBandI, sourceBandQ);
         }
     }
 

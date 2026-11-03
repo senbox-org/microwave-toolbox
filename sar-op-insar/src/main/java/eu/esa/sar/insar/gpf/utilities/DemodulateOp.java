@@ -139,33 +139,18 @@ public class DemodulateOp extends Operator {
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
-        // Define source bands
-        Band sourceBandI = null;
-        Band sourceBandQ = null;
-
-        // Reference
-        final String[] referenceBandNames = StackUtils.getReferenceBandNames(sourceProduct);
-        for (String bandName : referenceBandNames) {
-            if (bandName.contains("i_")) {
-                sourceBandI = sourceProduct.getBand(bandName);
-            } else {
-                sourceBandQ = sourceProduct.getBand(bandName);
-            }
+        // Reference - every i/q pair, one per polarisation
+        for (Band[] pair : ComplexBandPairs.of(sourceProduct, StackUtils.getReferenceBandNames(sourceProduct))) {
+            createTargetBands(pair[0], pair[1], excludeReference);
         }
-        createTargetBands(sourceBandI, sourceBandQ, excludeReference);
 
-        // Secondaries
+        // Secondaries - a dual-pol secondary carries one pair per polarisation, each under its own tag
         final String[] secondaryProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
         for (String secondaryProductName : secondaryProductNames) {
             final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secondaryProductName);
-            for (String bandName : secBandNames) {
-                if (bandName.contains("i_")) {
-                    sourceBandI = sourceProduct.getBand(bandName);
-                } else {
-                    sourceBandQ = sourceProduct.getBand(bandName);
-                }
+            for (Band[] pair : ComplexBandPairs.of(sourceProduct, secBandNames)) {
+                createTargetBands(pair[0], pair[1], false);
             }
-            createTargetBands(sourceBandI, sourceBandQ, false);
         }
     }
 
@@ -205,16 +190,12 @@ public class DemodulateOp extends Operator {
 
     private void getProductMetadata() {
 
+        // The maps are keyed by source i band, so every pair createTargetBands demodulates needs an entry.
         // Reference
         if (!excludeReference) {
-            String[] referenceBandNames = StackUtils.getReferenceBandNames(sourceProduct);
-            for (String bandName : referenceBandNames) {
-                if (bandName.contains("i_")) {
-                    final Band sourceBandI = sourceProduct.getBand(bandName);
-                    final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
-                    getBandMetadata(sourceBandI, abs);
-                    break;
-                }
+            final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+            for (Band[] pair : ComplexBandPairs.of(sourceProduct, StackUtils.getReferenceBandNames(sourceProduct))) {
+                getBandMetadata(pair[0], abs);
             }
         }
 
@@ -222,14 +203,10 @@ public class DemodulateOp extends Operator {
         final String[] secondaryProductNames = StackUtils.getSecondaryProductNames(sourceProduct);
         for (String secondaryProductName : secondaryProductNames) { // for each secondary
             final String[] secBandNames = StackUtils.getSecondaryBandNames(sourceProduct, secondaryProductName);
-            for (String bandName : secBandNames) {
-                if (bandName.contains("i_")) {
-                    final Band sourceBandI = sourceProduct.getBand(bandName);
-                    final MetadataElement abs = AbstractMetadata.getSecondaryMetadata(sourceProduct.getMetadataRoot())
-                            .getElement(secondaryProductName);
-                    getBandMetadata(sourceBandI, abs);
-                    break;
-                }
+            final MetadataElement abs = AbstractMetadata.getSecondaryMetadata(sourceProduct.getMetadataRoot())
+                    .getElement(secondaryProductName);
+            for (Band[] pair : ComplexBandPairs.of(sourceProduct, secBandNames)) {
+                getBandMetadata(pair[0], abs);
             }
         }
     }
