@@ -60,6 +60,8 @@
         <commons-codec.version>1.18.0</commons-codec.version>
         <commons-io.version>2.19.0</commons-io.version>
         <commons-text.version>1.13.1</commons-text.version>
+        <!-- managed here too: the toolbox otherwise resolves the guava of the installed snap-engine (33.4.8 has CVE-2026-102554) -->
+        <guava.version>33.7.2-jre</guava.version>
         <commons-math3.version>3.6.1</commons-math3.version>
         <jasypt.version>1.9.3</jasypt.version>
         <javaml.version>0.1.7</javaml.version>
@@ -418,6 +420,11 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-text</artifactId>
                 <version>${commons-text.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
             </dependency>
 
             <dependency>
