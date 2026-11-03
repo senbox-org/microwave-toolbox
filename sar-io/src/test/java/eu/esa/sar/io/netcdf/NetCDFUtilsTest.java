@@ -27,6 +27,7 @@ import ucar.nc2.ncml.NcMLReader;
 import java.io.IOException;
 import java.io.StringReader;
 
+import static eu.esa.snap.core.dataio.CfConstants.UNITS;
 import static org.junit.Assert.*;
 
 /**
@@ -174,7 +175,7 @@ public class NetCDFUtilsTest {
 
         // Check if NC attribute defined in NcML was added by MetadataUtils (implicitly tested)
         assertTrue("NC attribute 'units' should be present if MetadataUtils worked",
-                leafElement.getAttribute("units") != null);
+                leafElement.getAttribute(UNITS) != null);
     }
 
     @Test
@@ -191,7 +192,7 @@ public class NetCDFUtilsTest {
         // Check existence, value depends on read().
         assertAttributeExists(leafElement, "pressure");
         assertTrue("NC attribute 'units' should be present if MetadataUtils worked",
-                leafElement.getAttribute("units") != null);
+                leafElement.getAttribute(UNITS) != null);
     }
 
     @Test
@@ -223,7 +224,7 @@ public class NetCDFUtilsTest {
         // Attribute "data" (size > 1)
         assertAttributeExists(leafElement, "data");
         assertTrue("NC attribute 'units' should be present if MetadataUtils worked",
-                leafElement.getAttribute("units") != null);
+                leafElement.getAttribute(UNITS) != null);
     }
 
     @Test
@@ -246,11 +247,11 @@ public class NetCDFUtilsTest {
         assertNotNull("Member element '" + VAR_STRUCT_MEMBER_LAT + "' should exist", latMember);
         assertEquals(VAR_STRUCT_MEMBER_LAT, latMember.getName());
         // Check attributes potentially added by MetadataUtils.addAttribute
-        // Example: assertNotNull(latMember.getAttribute("units")); // Might fail
+        // Example: assertNotNull(latMember.getAttribute(UNITS)); // Might fail
 
         MetadataElement lonMember = structureElement.getElement(VAR_STRUCT_MEMBER_LON);
         assertNotNull("Member element '" + VAR_STRUCT_MEMBER_LON + "' should exist", lonMember);
         assertEquals(VAR_STRUCT_MEMBER_LON, lonMember.getName());
-        // Example: assertNotNull(lonMember.getAttribute("units")); // Might fail
+        // Example: assertNotNull(lonMember.getAttribute(UNITS)); // Might fail
     }
 }
