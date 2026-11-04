@@ -68,7 +68,6 @@
         <dependency>
             <groupId>uk.me.jstott</groupId>
             <artifactId>jcoord</artifactId>
-            <version>${jcoord.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jlinda</groupId>
