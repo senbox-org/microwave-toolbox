@@ -1,15 +1,38 @@
 package eu.esa.snap.cimr.netcdf;
 
+import com.bc.ceres.annotation.STTM;
 import org.junit.Test;
 import ucar.ma2.DataType;
+import ucar.nc2.Attribute;
 import ucar.nc2.Group;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 public class NcUtilTest {
+
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getGlobalAttributeString_readsStringAttribute() {
+        NetcdfFile ncFile = mock(NetcdfFile.class);
+        when(ncFile.findGlobalAttribute("format_version")).thenReturn(new Attribute("format_version", "1.1"));
+
+        assertEquals("1.1", NcUtil.getGlobalAttributeString(ncFile, "format_version"));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getGlobalAttributeString_returnsNullWhenAttributeIsMissing() {
+        NetcdfFile ncFile = mock(NetcdfFile.class);
+        when(ncFile.findGlobalAttribute("format_version")).thenReturn(null);
+
+        assertNull(NcUtil.getGlobalAttributeString(ncFile, "format_version"));
+    }
 
     @Test
     public void testFindGroupOrThrow_Found() {

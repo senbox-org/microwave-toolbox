@@ -16,6 +16,7 @@ import org.esa.snap.ui.product.ProductSceneView;
 import org.openide.modules.OnStart;
 import org.openide.windows.OnShowing;
 
+import java.util.Locale;
 import java.util.logging.Logger;
 
 
@@ -46,45 +47,56 @@ public class CimrUIManager {
     }
 
     private static void handleSceneViewChange(ProductSceneView oldView, ProductSceneView newView) {
-//        if (oldView != null) {
+//        if (isCimrView(oldView)) {
 //            oldView.getLayerCanvas().removeOverlay(CimrFootprintOverlay.INSTANCE);
 //        }
-        if (newView != null) {
-            // add worldmap layer
-            Layer worldMap = findWorldMapLayer(newView);
-            if (worldMap == null) {
-                worldMap = createWorldMapLayer();
-                final Layer rootLayer = newView.getRootLayer();
-                rootLayer.getChildren().add(worldMap);
-            }
-            worldMap.setVisible(true);
 
-//            // add footprints
-//            CimrL1BProductReader cimrReader = getCimrReader(newView);
-//            if (cimrReader != null) {
-//                RasterDataNode raster = newView.getRaster();
-//                String band = raster.getName();
-//                CimrFootprints fps = cimrReader.getFootprints(band);
-//                if (!fps.getShapes().isEmpty()) {
-//                    CimrFootprintOverlay.INSTANCE.setFootprints(fps);
-//                    CimrFootprintOverlay.INSTANCE.setRaster(raster);
-//                    newView.getLayerCanvas().addOverlay(CimrFootprintOverlay.INSTANCE);
-//                }
-//            }
+        if (!isCimrView(newView)) {
+            return;
         }
+
+        // add worldmap layer
+        Layer worldMap = findWorldMapLayer(newView);
+        if (worldMap == null) {
+            worldMap = createWorldMapLayer();
+            final Layer rootLayer = newView.getRootLayer();
+            rootLayer.getChildren().add(worldMap);
+        }
+        worldMap.setVisible(true);
+
+//        // add footprints
+//        CimrL1BProductReader cimrReader = getCimrReader(newView);
+//        if (cimrReader == null) {
+//            return;
+//        }
+//        RasterDataNode raster = newView.getRaster();
+//        String band = raster.getName();
+//        CimrFootprints fps = cimrReader.getFootprints(band);
+//        if (!fps.getShapes().isEmpty()) {
+//            CimrFootprintOverlay.INSTANCE.setFootprints(fps);
+//            CimrFootprintOverlay.INSTANCE.setRaster(raster);
+//            newView.getLayerCanvas().addOverlay(CimrFootprintOverlay.INSTANCE);
+//        }
     }
 
-//    private static CimrL1BProductReader getCimrReader(ProductSceneView view) {
-//        RasterDataNode raster = view.getRaster();
-//        if (raster == null) {
-//            return null;
-//        }
-//        ProductReader reader = raster.getProductReader();
-//        if (reader instanceof CimrL1BProductReader) {
-//            return (CimrL1BProductReader) reader;
-//        }
-//        return null;
-//    }
+    private static boolean isCimrView(ProductSceneView view) {
+        if (view == null || view.getProduct() == null || view.getProduct().getProductType() == null) {
+            return false;
+        }
+        return view.getProduct().getProductType().toLowerCase(Locale.ROOT).contains("cimr");
+    }
+
+    private static CimrL1BProductReader getCimrReader(ProductSceneView view) {
+        RasterDataNode raster = view.getRaster();
+        if (raster == null) {
+            return null;
+        }
+        ProductReader reader = raster.getProductReader();
+        if (reader instanceof CimrL1BProductReader) {
+            return (CimrL1BProductReader) reader;
+        }
+        return null;
+    }
 
     private static Layer findWorldMapLayer(ProductSceneView view) {
         return LayerUtils.getChildLayer(view.getRootLayer(), LayerUtils.SearchMode.DEEP,

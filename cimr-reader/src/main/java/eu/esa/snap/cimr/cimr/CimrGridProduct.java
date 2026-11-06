@@ -1,9 +1,10 @@
 package eu.esa.snap.cimr.cimr;
 
 import eu.esa.snap.cimr.CimrReaderContext;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
 import eu.esa.snap.cimr.grid.CimrGrid;
 import eu.esa.snap.cimr.grid.GridBandDataSource;
-import eu.esa.snap.cimr.grid.LazyGridBandDataSource;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 
 public class CimrGridProduct {
+
 
     private final CimrGrid cimrGrid;
     private final Map<CimrBandDescriptor, GridBandDataSource> bands = new LinkedHashMap<>();
@@ -42,19 +44,19 @@ public class CimrGridProduct {
     }
 
 
-    public static CimrGridProduct buildLazy(CimrReaderContext context, boolean useAverage) {
+    public static CimrGridProduct buildLazy(CimrReaderContext context) {
         CimrGrid cimrGrid = context.getGlobalGrid();
         CimrDescriptorSet descriptorSet = context.getDescriptorSet();
 
         CimrGridProduct product = new CimrGridProduct(cimrGrid);
 
         for (CimrBandDescriptor desc : descriptorSet.getTiepointVariables()) {
-            GridBandDataSource dataSource = new LazyGridBandDataSource(context, desc, useAverage);
+            GridBandDataSource dataSource = new LazyGridBandDataSource(context, desc);
             product.addBand(desc, dataSource);
         }
 
         for (CimrBandDescriptor desc : descriptorSet.getMeasurements()) {
-            GridBandDataSource dataSource = new LazyGridBandDataSource(context, desc, useAverage);
+            GridBandDataSource dataSource = new LazyGridBandDataSource(context, desc);
             product.addBand(desc, dataSource);
         }
 

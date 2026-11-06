@@ -1,7 +1,14 @@
 package eu.esa.snap.cimr.cimr;
 
 import eu.esa.snap.cimr.CimrReaderContext;
+import eu.esa.snap.cimr.dddb.CimrProductDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrBandDescriptor;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorKind;
+import eu.esa.snap.cimr.dddb.descriptor.CimrDescriptorSet;
+import eu.esa.snap.cimr.dddb.descriptor.CimrFrequencyBand;
 import eu.esa.snap.cimr.grid.*;
+import eu.esa.snap.cimr.test.CimrGridTestData;
+import org.esa.snap.core.datamodel.ProductData;
 import org.junit.Test;
 
 import java.util.List;
@@ -24,7 +31,7 @@ public class CimrGridProductTest {
         CimrGridProduct product = new CimrGridProduct(grid);
 
         CimrBandDescriptor band1 = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
@@ -32,7 +39,7 @@ public class CimrGridProductTest {
                 "double", "", ""
         );
         CimrBandDescriptor band2 = new CimrBandDescriptor(
-                "X_raw_bt_v_feed1", "raw_bt_h", CimrFrequencyBand.X_BAND,
+                "X_raw_bt_v_feed_1", "raw_bt_h", CimrFrequencyBand.X_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 2, CimrDescriptorKind.VARIABLE,
@@ -40,10 +47,8 @@ public class CimrGridProductTest {
                 "double", "", ""
         );
 
-        double[] data1 = {1.0, 2.0};
-        double[] data2 = {10.0, 20.0};
-        GridBandDataSource ds1 = new CimrGridBandDataSource(2, 1, data1);
-        GridBandDataSource ds2 = new CimrGridBandDataSource(2, 1, data2);
+        GridBandDataSource ds1 = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0);
+        GridBandDataSource ds2 = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 10.0, 20.0);
 
         product.addBand(band1, ds1);
         product.addBand(band2, ds2);
@@ -71,7 +76,7 @@ public class CimrGridProductTest {
                 "double", "", ""
         );
         CimrBandDescriptor measDesc = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {"lat", "lon"}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/", 0,
                 CimrDescriptorKind.VARIABLE,
@@ -85,11 +90,9 @@ public class CimrGridProductTest {
                 List.of(tieDesc)
         );
 
-        CimrReaderContext context = new CimrReaderContext(
-                null, descriptorSet, grid, null, null
-        );
+        CimrReaderContext context = new CimrReaderContext(null, productDescriptor(), descriptorSet, "L_BAND:C_BAND", grid, null, null);
 
-        CimrGridProduct product = CimrGridProduct.buildLazy(context, true);
+        CimrGridProduct product = CimrGridProduct.buildLazy(context);
 
         assertSame(grid, product.getGlobalGrid());
         assertEquals(2, product.getBandCount());
@@ -107,17 +110,23 @@ public class CimrGridProductTest {
         CimrGridProduct product = new CimrGridProduct(grid);
 
         CimrBandDescriptor band = new CimrBandDescriptor(
-                "C_raw_bt_h_feed1", "raw_bt_h", CimrFrequencyBand.C_BAND,
+                "C_raw_bt_h_feed_1", "raw_bt_h", CimrFrequencyBand.C_BAND,
                 new String[] {""}, new String[] {""},
                 "/Data/Measurement_Data/C_BAND/",
                 1, CimrDescriptorKind.VARIABLE,
                 new String[] {"n_scans", "n_samples_C_BAND", "n_feeds_C_BAND"},
                 "double", "", ""
         );
-        GridBandDataSource ds = new CimrGridBandDataSource(2, 1, new double[]{1.0, 2.0});
+        GridBandDataSource ds = CimrGridTestData.grid(2, 1, ProductData.TYPE_FLOAT64, 1.0, 2.0);
         product.addBand(band, ds);
 
         product.getBands().put(band, ds);
+    }
+
+    private static CimrProductDescriptor productDescriptor() {
+        CimrProductDescriptor productDescriptor = new CimrProductDescriptor();
+        productDescriptor.setProductType("CIMR_L1B");
+        return productDescriptor;
     }
 
 }

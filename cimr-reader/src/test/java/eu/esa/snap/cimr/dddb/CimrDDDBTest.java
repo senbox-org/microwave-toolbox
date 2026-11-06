@@ -1,0 +1,136 @@
+package eu.esa.snap.cimr.dddb;
+
+import com.bc.ceres.annotation.STTM;
+import eu.esa.snap.core.datamodel.group.BandGroup;
+import org.esa.snap.core.datamodel.Product;
+import org.junit.Test;
+
+import java.io.IOException;
+
+import static org.junit.Assert.*;
+
+
+public class CimrDDDBTest {
+
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getProductDescriptor_loadsVersionedDescriptor() throws IOException {
+        CimrProductDescriptor descriptor = CimrDDDB.getInstance().getProductDescriptor("CIMR_L1B", "1.1");
+
+        assertEquals("CIMR_L1B", descriptor.getProductType());
+        assertEquals("1.1", descriptor.getVersion());
+        assertEquals("bands.json", descriptor.getBandsFile());
+        assertArrayEquals(new String[]{"navigation.json", "measurement.json", "calibration.json"}, descriptor.getDescriptorFiles());
+        assertEquals("metadata.json", descriptor.getMetadataFile());
+        assertTrue(descriptor.getAutoGrouping().startsWith("L_BAND:C_BAND:C_BAND_*feed_1:C_BAND_*feed_2:C_BAND_*feed_3:C_BAND_*feed_4"));
+        assertTrue(descriptor.getAutoGrouping().contains("KU_BAND:KU_BAND_*feed_1:KU_BAND_*feed_2"));
+        assertTrue(descriptor.getAutoGrouping().endsWith("KA_BAND_*feed_7:KA_BAND_*feed_8"));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getProductDescriptor_fallsBackToDefaultDescriptor() throws IOException {
+        CimrProductDescriptor descriptor = CimrDDDB.getInstance().getProductDescriptor("CIMR_L1B", "not-yet-known");
+
+        assertEquals("CIMR_L1B", descriptor.getProductType());
+        assertEquals("default", descriptor.getVersion());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getProductDescriptor_autoGroupingGroupsMultiFeedBandsByFeedAndKeyword() throws IOException {
+        CimrProductDescriptor descriptor = CimrDDDB.getInstance().getProductDescriptor("CIMR_L1B", "1.1");
+        Product product = new Product("test", "CIMR_L1B", 1, 1);
+
+        product.setAutoGrouping(descriptor.getAutoGrouping());
+        BandGroup autoGrouping = product.getAutoGrouping();
+
+        assertArrayEquals(new String[]{"L_BAND"}, autoGrouping.get(autoGrouping.indexOf("L_BAND_brightness_temperature_h_feed_1")));
+        assertArrayEquals(new String[]{"C_BAND_*feed_2"}, autoGrouping.get(autoGrouping.indexOf("C_BAND_brightness_temperature_h_feed_2")));
+        assertArrayEquals(new String[]{"C_BAND_*feed_2"}, autoGrouping.get(autoGrouping.indexOf("C_BAND_coverage_feed_2")));
+        assertArrayEquals(new String[]{"KU_BAND_*feed_8"}, autoGrouping.get(autoGrouping.indexOf("KU_BAND_direct_sun_angle_feed_8")));
+        assertArrayEquals(new String[]{"KA_BAND_*feed_7"}, autoGrouping.get(autoGrouping.indexOf("KA_BAND_raw_counts_h_feed_7")));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getDescriptorFile_loadsMeasurementDescriptorsFromVersionDirectory() throws IOException {
+        CimrDDDB dddb = CimrDDDB.getInstance();
+        CimrProductDescriptor descriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
+
+        CimrVariableFamily[] families = dddb.getDescriptorFile(descriptor, "measurement.json");
+
+        assertEquals("VARIABLE", families[0].getKind());
+        CimrVariableFamily footprintFamily = null;
+        for (CimrVariableFamily family : families) {
+            if ("footprint_major_axis".equals(family.getValueVarName())) {
+                footprintFamily = family;
+                break;
+            }
+        }
+        assertNotNull(footprintFamily);
+        assertEquals("TIEPOINT_VARIABLE", footprintFamily.getKind());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getMetadataPaths_loadsExplicitLazyMetadataAllowList() throws IOException {
+        CimrDDDB dddb = CimrDDDB.getInstance();
+        CimrProductDescriptor descriptor = dddb.getProductDescriptor("CIMR_L1B", "1.1");
+
+        String[] paths = dddb.getMetadataPaths(descriptor);
+
+        assertEquals(157, paths.length);
+        assertTrue(java.util.Arrays.asList(paths).contains("Status/Satellite/L_BAND/x_position"));
+        assertTrue(java.util.Arrays.asList(paths).contains("Data/Navigation_Data/KA_BAND/antennaPlane2EarthFixed"));
+        assertTrue(java.util.Arrays.asList(paths).contains("Quality/duration_of_product"));
+        assertFalse(java.util.Arrays.asList(paths).contains("Quality/overall_quality_flag"));
+        assertFalse(java.util.Arrays.asList(paths).contains("Data/Processing_Flags/processing_flags"));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getMetadataPaths_failsWhenMetadataResourceDoesNotExist() {
+        CimrProductDescriptor descriptor = new CimrProductDescriptor();
+        descriptor.setProductType("CIMR_L1B");
+        descriptor.setVersion("1.1");
+        descriptor.setMetadataFile("missing-metadata.json");
+
+        IOException actual = assertThrows(IOException.class, () -> CimrDDDB.getInstance().getMetadataPaths(descriptor));
+
+        assertEquals("Invalid CIMR DDDB metadata resource: CIMR_L1B/1.1/missing-metadata.json", actual.getMessage());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getProductDescriptor_failsWhenProductResourceDoesNotExist() {
+        IOException actual = assertThrows(IOException.class, () -> CimrDDDB.getInstance().getProductDescriptor("NO_SUCH_PRODUCT", "1.1"));
+
+        assertEquals("Invalid CIMR DDDB resource: NO_SUCH_PRODUCT/default/product.json", actual.getMessage());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getBandDefinitions_failsWhenBandResourceDoesNotExist() {
+        CimrProductDescriptor descriptor = new CimrProductDescriptor();
+        descriptor.setProductType("CIMR_L1B");
+        descriptor.setVersion("1.1");
+        descriptor.setBandsFile("missing-bands.json");
+
+        IOException actual = assertThrows(IOException.class, () -> CimrDDDB.getInstance().getBandDefinitions(descriptor));
+
+        assertEquals("Invalid CIMR DDDB band resource: CIMR_L1B/1.1/missing-bands.json", actual.getMessage());
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getDescriptorFile_failsWhenDescriptorResourceDoesNotExist() throws IOException {
+        CimrProductDescriptor descriptor = CimrDDDB.getInstance().getProductDescriptor("CIMR_L1B", "1.1");
+
+        IOException actual = assertThrows(IOException.class, () -> CimrDDDB.getInstance().getDescriptorFile(descriptor, "missing-descriptors.json"));
+
+        assertEquals("Invalid CIMR DDDB descriptor resource: CIMR_L1B/1.1/missing-descriptors.json", actual.getMessage());
+    }
+
+}
