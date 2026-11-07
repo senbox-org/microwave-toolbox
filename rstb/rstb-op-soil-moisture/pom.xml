@@ -40,17 +40,14 @@
         <dependency>
             <groupId>org.tallison</groupId>
             <artifactId>jmatio</artifactId>
-            <version>${jmatio.version}</version>
         </dependency>
         <dependency>
             <groupId>net.sourceforge</groupId>
             <artifactId>javaml</artifactId>
-            <version>${javaml.version}</version>
         </dependency>
         <dependency>
             <groupId>net.sf.opencsv</groupId>
             <artifactId>opencsv</artifactId>
-            <version>${opencsv.version}</version>
         </dependency>
     </dependencies>
 

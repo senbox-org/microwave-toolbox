@@ -13,10 +13,6 @@
 
     <packaging>nbm</packaging>
 
-    <properties>
-        <netcdf.version>5.3.3</netcdf.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.esa.snap</groupId>
@@ -37,7 +33,6 @@
         <dependency>
             <groupId>edu.ucar</groupId>
             <artifactId>netcdfAll</artifactId>
-            <version>${netcdf.version}</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<noiseLevels>
+  <referenceNoiseLevel>
+    <sarCalibrationType>Beta Nought</sarCalibrationType>
+    <pixelFirstNoiseValue>0</pixelFirstNoiseValue><stepSize>10</stepSize><numberOfValues>3</numberOfValues>
+    <noiseLevelValues units="dB">-30 -20 -10</noiseLevelValues>
+  </referenceNoiseLevel>
+  <referenceNoiseLevel>
+    <sarCalibrationType>Sigma Nought</sarCalibrationType>
+    <pixelFirstNoiseValue>0</pixelFirstNoiseValue><stepSize>10</stepSize><numberOfValues>3</numberOfValues>
+    <noiseLevelValues units="dB">-90 -90 -90</noiseLevelValues>
+  </referenceNoiseLevel>
+  <perBeamReferenceNoiseLevel>
+    <beam>SC-1</beam><sarCalibrationType>Beta Nought</sarCalibrationType>
+    <pixelFirstNoiseValue>0</pixelFirstNoiseValue><stepSize>5</stepSize><numberOfValues>3</numberOfValues>
+    <noiseLevelValues units="dB">-30 -30 -30</noiseLevelValues>
+  </perBeamReferenceNoiseLevel>
+  <perBeamReferenceNoiseLevel>
+    <beam>SC-2</beam><sarCalibrationType>Beta Nought</sarCalibrationType>
+    <pixelFirstNoiseValue>10</pixelFirstNoiseValue><stepSize>5</stepSize><numberOfValues>3</numberOfValues>
+    <noiseLevelValues units="dB">-20 -20 -20</noiseLevelValues>
+  </perBeamReferenceNoiseLevel>
+  <azimuthNoiseLevelScaling>
+    <beam>SC-1</beam><stepSize>1</stepSize><numberOfNoiseLevelScalingValues>5</numberOfNoiseLevelScalingValues>
+    <noiseLevelScalingValues units="dB">3 1 0 1 3</noiseLevelScalingValues>
+  </azimuthNoiseLevelScaling>
+</noiseLevels>

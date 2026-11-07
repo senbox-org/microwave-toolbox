@@ -13,7 +13,11 @@ import java.util.Locale;
 public class CimrL1BProductReaderPlugin implements ProductReaderPlugIn {
 
     private static final String EXTENSION = ".nc";
-    private static final String NAME_PATTERN = "^W_[A-Za-z]{2}-[A-Za-z]{2,3}+-[A-Za-z]{1,11}+-SAT-CIMR-1B_C_(?:DME|ESA)_\\d{8}T\\d{6}_[A-Z]{1,2}+_\\d{8}T\\d{6}_\\d{8}T\\d{6}_[A-Z0-9_]{0,3}\\.nc$";
+    private static final String DATE_TIME = "\\d{8}T\\d{6}";
+    private static final String PRODUCT_IDENTIFIER = "[A-Za-z]{2}-[A-Za-z0-9]{2,3}-[A-Za-z0-9]{1,15}-SAT-CIMR-1B";
+    private static final String FREE_FORMAT = "G_[OVDIE]_" + DATE_TIME + "_" + DATE_TIME + "_[TCOV]_[NBR]_[A-Za-z0-9_]{3}";
+    private static final String NAME_PATTERN = "^W_" + PRODUCT_IDENTIFIER + "_C_[A-Z0-9_]{3,4}_"
+            + DATE_TIME + "_" + FREE_FORMAT + "\\.nc$";
 
 
     @Override

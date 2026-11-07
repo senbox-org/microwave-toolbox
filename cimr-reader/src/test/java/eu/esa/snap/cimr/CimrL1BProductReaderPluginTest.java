@@ -1,5 +1,6 @@
 package eu.esa.snap.cimr;
 
+import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.util.io.SnapFileFilter;
@@ -37,12 +38,25 @@ public class CimrL1BProductReaderPluginTest {
     }
 
     @Test
+    @STTM("SNAP-4262")
     public void getDecodeQualification_correctExtension_correctFilePattern() {
-        final File file = new File("W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20230420T103323_LD_20280110T114800_20280110T115700_TN.nc");
-        final File file2 = new File("W_xx-esa-Lisbon-SAT-CIMR-1B_C_DME_20251029T000420_G_20280105T121500_20280105T121600_002.nc");
+        final File specExample = new File("W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20250101T121212_G_O_20250101T103000_20250101T104000_O_N_001.nc");
+        final File september2026Product = new File("W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20260921T093512_G_D_20280105T164500_20280105T165100_T_N_002.nc");
 
-        assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(file));
-        assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(file2));
+        assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(specExample));
+        assertEquals(DecodeQualification.INTENDED, plugIn.getDecodeQualification(september2026Product));
+    }
+
+    @Test
+    @STTM("SNAP-4262")
+    public void getDecodeQualification_correctExtension_oldFilePattern() {
+        final File oldLegacyName = new File("W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20230420T103323_LD_20280110T114800_20280110T115700_TN.nc");
+        final File missingDispositionAndProcessingMode = new File("W_xx-esa-Lisbon-SAT-CIMR-1B_C_DME_20251029T000420_G_20280105T121500_20280105T121600_002.nc");
+        final File march2026IntermediateName = new File("W_PT-DME-Lisbon-SAT-CIMR-1B_C_DME_20260312T140912_G_D_20280105T094800_20280105T095300_002.nc");
+
+        assertEquals(DecodeQualification.UNABLE, plugIn.getDecodeQualification(oldLegacyName));
+        assertEquals(DecodeQualification.UNABLE, plugIn.getDecodeQualification(missingDispositionAndProcessingMode));
+        assertEquals(DecodeQualification.UNABLE, plugIn.getDecodeQualification(march2026IntermediateName));
     }
 
 

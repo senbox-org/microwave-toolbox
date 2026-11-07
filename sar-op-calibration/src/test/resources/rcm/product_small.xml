@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<product>
+  <imageGenerationParameters>
+    <sarProcessingInformation>
+      <noiseSubtractionPerformed>false</noiseSubtractionPerformed>
+    </sarProcessingInformation>
+  </imageGenerationParameters>
+  <imageReferenceAttributes>
+    <rasterAttributes>
+      <sampledPixelSpacing units="m">2.000000000000000e+01</sampledPixelSpacing>
+      <sampledLineSpacing units="m">2.000000000000000e+01</sampledLineSpacing>
+    </rasterAttributes>
+  </imageReferenceAttributes>
+</product>
