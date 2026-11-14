@@ -10,7 +10,7 @@
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; Dual-pol Scattering Powers (Factorization) Generation</td>
-        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg"
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg"
                                                                                  border="0"></a></td>
     </tr>
     </tbody>
@@ -38,21 +38,44 @@
 Therefore, we employ a slope layer to mask such areas to avoid misinterpretations over such areas. 
 Please include a slope layer along with the C2 matrix (Raster -> DEM Tools -> Compute Slope and Aspect). </p>
 
-<p align="center"><img src="images/DpFactformulation.PNG" width="900"></p>
+<p align="center"><img src="images/DpFactformulation.png" width="900"></p>
 
 <h3>2. Dual-pol Scattering Powers Flowchart (Factorization method) </h3>
 <p>A schematic flowchart to compute dual-pol scattering power components using factorization method is shown below [2]:</p>
-<p align="center"><img src="images/DpFactflowchart.PNG" width="1300"></p>
+<p align="center"><img src="images/DpFactflowchart.png" width="1300"></p>
 
 
-<p> Reference:&nbsp;</p>
+<h4>References</h4>
+<ol>
+    <li>Ratha, D., Pottier, E., Bhattacharya, A., Frery, A. C. (2020). A PolSAR scattering power factorization framework and novel roll-invariant parameter-based unsupervised classification scheme using a geodesic distance. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 58(5), 3509&#8211;3525. doi:10.1109/TGRS.2019.2957514</li>
+    <li>Verma, A., Bhattacharya, A., Dey, S., L&oacute;pez-Mart&iacute;nez, C., Gamba, P. (2024). Scattering power components from dual-pol Sentinel-1 SLC and GRD SAR data. <i>ISPRS Journal of Photogrammetry and Remote Sensing</i>, 212, 289&#8211;305. doi:10.1016/j.isprsjprs.2024.05.010</li>
+</ol>
 
-<p>[1] Ratha, D., Pottier, E., Bhattacharya, A., and Frery, A.C. A PolSAR Scattering Power Factorization Framework and Novel Roll-invariant Parameter Based
-Unsupervised Classification Scheme Using a Geodesic Distance.
-IEEE Transactions on Geoscience and Remote Sensing, vol. 58, no. 5, pp. 3509-3525 </p>
-<p>[2] Verma, A., Bhattacharya, A., Dey, S., Lopez-Martinez, C., and Gamba, P., 2024. Scattering Power Componenets from Dual-pol Sentinel-1 SLC and GRD SAR Data. 
- ISPRS Journal of Photogrammetry and Remote Sensing, 212, p.289-305.</p>	
-		
+<!-- params:begin op="DualPol-Powers-Factorization" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>DualPol-Powers-Factorization</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size</td></tr>
+<tr><td><code>NESZ</code></td><td>double</td><td>-16.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Threshold (dB) applied to the C11 intensity: pixels with C11 above it use the signal formula, pixels at or below it are treated as noise-dominated and use the noise formula. Set to the sensor noise floor (NESZ), e.g. S1 IW ~ -22, S1 EW ~ -19, RCM ~ -25, NISAR ~ -25.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Dual-pol C2 covariance matrix product (create it with <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a>); other product types are rejected</li>
+    <li>Band named "slope" in the product (Raster &gt; DEM Tools &gt; Compute Slope and Aspect); the operator stops with "Slope band is required" without it</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

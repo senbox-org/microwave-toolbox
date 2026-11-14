@@ -1,0 +1,572 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - SAR Glossary</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: SAR Glossary</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>SAR Glossary</h1>
+
+<p class="lead">Short definitions of the SAR terms used across the Microwave Toolbox help. Each entry links to the
+concept page that explains it in full. Greek symbols are listed under their spelled-out names, for example
+&sigma;<sup>0</sup> under "Sigma nought".</p>
+
+<p><a href="#A">A</a> &nbsp;<a href="#B">B</a> &nbsp;<a href="#C">C</a> &nbsp;<a href="#D">D</a> &nbsp;<a href="#E">E</a>
+&nbsp;<a href="#F">F</a> &nbsp;<a href="#G">G</a> &nbsp;<a href="#H">H</a> &nbsp;<a href="#I">I</a> &nbsp;<a href="#L">L</a>
+&nbsp;<a href="#M">M</a> &nbsp;<a href="#N">N</a> &nbsp;<a href="#O">O</a> &nbsp;<a href="#P">P</a> &nbsp;<a href="#Q">Q</a>
+&nbsp;<a href="#R">R</a> &nbsp;<a href="#S">S</a> &nbsp;<a href="#T">T</a> &nbsp;<a href="#U">U</a> &nbsp;<a href="#W">W</a>
+&nbsp;<a href="#Y">Y</a> &nbsp;<a href="#Z">Z</a></p>
+
+<h2><a name="A">A</a></h2>
+
+<p><b>Abstracted Metadata.</b> SNAP's sensor-independent metadata element. Each reader fills it from the product's own
+metadata (for example <code>radar_frequency</code>, <code>PASS</code>, <code>antenna_pointing</code>,
+<code>range_spacing</code>, <code>srgr_flag</code>), and the operators read their inputs from it. See
+<a href="../general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
+
+<p><b>Alpha angle (&alpha;).</b> The mean scattering-type angle of the Cloude-Pottier eigen-decomposition of
+T<sub>3</sub>: about 0&deg; for surfaces, 45&deg; for a dipole or a random cloud of dipoles, 90&deg; for a
+dihedral. See <a href="decompositions.html">Polarimetric Decompositions</a>.</p>
+
+<p><b>Amplitude.</b> The magnitude of a complex pixel, A = &radic;(i&sup2; + q&sup2;). Sentinel-1 GRD products are
+read as <code>Amplitude_&lt;pol&gt;</code> bands. See <a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>Anisotropy (A).</b> (&lambda;<sub>2</sub> &#8722; &lambda;<sub>3</sub>) / (&lambda;<sub>2</sub> +
+&lambda;<sub>3</sub>), from the eigenvalues of T<sub>3</sub>. It compares the second and third scattering
+mechanisms and adds information mainly at medium and high entropy. See
+<a href="decompositions.html">Polarimetric Decompositions</a>.</p>
+
+<p><b>Ascending / descending pass.</b> The satellite moves roughly north (ascending) or south (descending). A
+right-looking sensor such as Sentinel-1 looks east on ascending and west on descending passes, so slopes and motion
+are seen from opposite sides. Stored as <code>PASS</code> in the Abstracted Metadata. See
+<a href="geometry.html">SAR Geometry</a>.</p>
+
+<p><b>Azimuth.</b> The along-track image direction. A target's azimuth position is the time of its closest approach
+to the sensor (zero-Doppler time). Stripmap azimuth resolution is about half the antenna length, independent of range
+and wavelength. See <a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<h2><a name="B">B</a></h2>
+
+<p><b>Back-geocoding.</b> Orbit- and DEM-based coregistration used for Sentinel-1 TOPS pairs. Each Reference pixel is
+mapped to the ground with a DEM and the Reference orbit, then into the Secondary geometry with the Secondary orbit; ESD
+then removes the remaining azimuth offset. See <a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<p><b>Baseline.</b> The vector between the two antenna positions of an interferometric pair. Its component along the
+line of sight (B<sub>&#8741;</sub>) mainly adds the flat-Earth phase; the perpendicular baseline B<sub>&perp;</sub>
+sets the sensitivity to height. The <b>temporal baseline</b> is the time between the acquisitions. See
+<a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<p><b>Beta nought (&beta;<sup>0</sup>).</b> Radar brightness: the backscatter normalised by the reference area in
+slant-range geometry. It needs no knowledge of the terrain and is the input to Terrain Flattening (bands
+<code>Beta0_&lt;pol&gt;</code>). See <a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>Bragg scattering.</b> Resonant scattering from surface waves whose wavelength is
+&lambda;<sub>B</sub> = &lambda; / (2 sin &theta;). It dominates the sea echo at incidence angles of about 20&deg; to
+60&deg;, which is why ocean backscatter follows the local wind. See <a href="ocean.html">Ocean SAR</a>.</p>
+
+<p><b>Burst.</b> A short block of TOPS or ScanSAR data acquired while the beam dwells on one sub-swath (less than a
+second for Sentinel-1 IW); after focusing one IW burst covers about 3 s (about 20 km) of azimuth. Consecutive bursts overlap slightly in azimuth. From IPF 3.40 each burst has a relative burst ID
+tied to its ground position. See <a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<h2><a name="C">C</a></h2>
+
+<p><b>C<sub>2</sub>, C<sub>3</sub>, C<sub>4</sub> (covariance matrices).</b> Window- or look-averaged outer products
+of the lexicographic target vector. C<sub>3</sub> (3&times;3) assumes reciprocity, C<sub>4</sub> keeps
+S<sub>HV</sub> and S<sub>VH</sub> separate, and C<sub>2</sub> (2&times;2) describes dual-pol and compact-pol data.
+Diagonal bands are real powers (<code>C11</code>), off-diagonal ones are split into <code>_real</code> and
+<code>_imag</code> parts. See <a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<p><b>Calibration.</b> The conversion of digital numbers into backscatter coefficients (&beta;<sup>0</sup>,
+&sigma;<sup>0</sup>, &gamma;<sup>0</sup>) using the calibration look-up tables of the product. See
+<a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>CFAR (constant false alarm rate).</b> A detector that compares each pixel with the statistics of a background
+ring outside a guard area, with a threshold set by the probability of false alarm (PFA). SNAP's ship detector uses a
+two-parameter Gaussian CFAR. See <a href="ocean.html">Ocean SAR</a>.</p>
+
+<p><b>Change detection (log-ratio).</b> Comparison of images of the same place at different dates. Because speckle is
+multiplicative, change is measured with the ratio of intensities, usually as the log-ratio
+D = ln(I<sub>1</sub>/I<sub>2</sub>). See <a href="change_detection.html">SAR Change Detection</a>.</p>
+
+<p><b>Closure phase.</b> The sum &phi;<sub>12</sub> + &phi;<sub>23</sub> &#8722; &phi;<sub>13</sub> around a triplet
+of dates. It is zero for a single point scatterer, non-zero for multilooked distributed scatterers (soil moisture,
+vegetation), and a non-zero multiple of 2&pi; in unwrapped phase marks an unwrapping error. See
+<a href="time_series.html">InSAR Time Series</a>.</p>
+
+<p><b>CMOD.</b> The family of C-band VV geophysical model functions (CMOD4, CMOD5, CMOD5.N) that relate
+&sigma;<sup>0</sup> to the 10 m wind speed, the wind direction relative to the look direction and the incidence angle.
+See <a href="ocean.html">Ocean SAR</a>.</p>
+
+<p><b>Coherence (&gamma;).</b> The magnitude of the normalised complex cross-correlation of two coregistered complex
+images, from 0 (unrelated) to 1 (identical). It is estimated over a window and is biased upward for few looks. SNAP
+writes it as <code>coh_&lt;tag&gt;</code>. See <a href="coherence.html">Interferometric Coherence</a>.</p>
+
+<p><b>Coherency matrix (T<sub>3</sub>, T<sub>4</sub>).</b> The averaged outer product of the Pauli target vector,
+&lt;k<sub>P</sub> k<sub>P</sub><sup>H</sup>&gt;. It holds the same information as C<sub>3</sub>; its diagonal is the
+Pauli RGB. See <a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<p><b>Compact polarimetry.</b> A dual-channel mode that transmits one circular polarisation and receives H and V
+coherently, keeping part of the co-polar information that a VV+VH product loses. In SNAP the real data come from
+RCM. See <a href="dual_compact_pol.html">Dual-pol and Compact Polarimetry</a>.</p>
+
+<p><b>Co-polarised / cross-polarised.</b> HH and VV are co-polarised channels (same transmit and receive
+polarisation); HV and VH are cross-polarised and come mainly from volume scattering. See
+<a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>Coregistration.</b> Resampling one or more Secondary images onto the Reference grid to sub-pixel accuracy, as
+required for interferometry and stacks. Stripmap data use Create Stack, Cross-Correlation and Warp (or DEM-assisted
+coregistration, not for Sentinel-1 SLC); Sentinel-1 TOPS uses back-geocoding plus ESD. See <a href="insar.html">InSAR Fundamentals</a> and
+<a href="../workflows/workflow_stripmap_dinsar.html">Stripmap DInSAR workflow</a>.</p>
+
+<p><b>Critical baseline.</b> The perpendicular baseline at which the range spectra of the two images no longer
+overlap and the interferogram is pure noise: about 6 km for Sentinel-1 IW, about 1.1 km for ERS. See
+<a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<h2><a name="D">D</a></h2>
+
+<p><b>Deburst.</b> Joining the bursts of a TOPS sub-swath into one continuous image. TOPSAR-Deburst switches between
+bursts at the middle of each overlap without blending. In InSAR it comes after the interferogram. See
+<a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<p><b>Decibel (dB).</b> x<sub>dB</sub> = 10 log<sub>10</sub>(x). Backscatter must be averaged, filtered and
+resampled in linear units; a mean taken in dB is biased low (by 2.5 dB for single-look data). See
+<a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>Decorrelation.</b> Loss of coherence between two images. Its sources are geometric (baseline), Doppler, volume,
+temporal and thermal; the total coherence is roughly their product. See <a href="insar.html">InSAR
+Fundamentals</a>.</p>
+
+<p><b>Degree of polarisation (m).</b> The polarised fraction of the received power, from 1 (fully polarised) to 0
+(fully depolarised), computed from C<sub>2</sub> or from the Stokes vector. See
+<a href="dual_compact_pol.html">Dual-pol and Compact Polarimetry</a>.</p>
+
+<p><b>DEM (digital elevation model).</b> A raster of terrain heights used for terrain correction, terrain flattening,
+back-geocoding and topographic phase. SNAP's default is the Copernicus 30m Global DEM. See
+<a href="height_references.html">DEMs and Height References</a>.</p>
+
+<p><b>Deramping.</b> Multiplying a TOPS burst by the conjugate of its known azimuth phase ramp so that its spectrum
+sits at baseband. It is needed before any complex resampling; the ramp is put back afterwards (reramping). See
+<a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<p><b>Displacement (line-of-sight).</b> The change of the sensor-to-ground distance converted from unwrapped phase,
+d = &#8722;(&lambda;/4&pi;) &middot; &phi;. In SNAP a positive value means motion towards the satellite (Phase to
+Displacement, SBAS Inversion, Horizontal/Vertical Motion). It is always
+relative to a reference area. See <a href="displacement.html">From Phase to Displacement</a>.</p>
+
+<p><b>Distributed scatterer (DS).</b> A pixel that holds many small scatterers of similar strength (fields, debris,
+sparse vegetation). Each single interferogram is noisy, but the coherence matrix of all pairs can be exploited with
+phase linking. See <a href="time_series.html">InSAR Time Series</a>.</p>
+
+<p><b>Doppler centroid.</b> The centre frequency of a target's azimuth spectrum. In TOPS it changes linearly along each
+burst, which is why bursts must be deramped and coregistered to about 0.001 pixel in azimuth. See
+<a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<p><b>DpRVI.</b> Dual-pol radar vegetation index, 1 &#8722; m&beta;, from the degree of polarisation and the dominant
+eigenvalue fraction of C<sub>2</sub>: near 0 for bare soil, towards 1 for dense vegetation. See
+<a href="dual_compact_pol.html">Dual-pol and Compact Polarimetry</a>.</p>
+
+<p><b>Dual-pol.</b> Acquisition of one co-polar and one cross-polar channel (VV+VH or HH+HV), as in Sentinel-1. It
+gives a C<sub>2</sub> matrix but not the HH-VV phase, so surface and double-bounce scattering cannot be measured
+apart. See <a href="dual_compact_pol.html">Dual-pol and Compact Polarimetry</a>.</p>
+
+<h2><a name="E">E</a></h2>
+
+<p><b>EAP (elevation antenna pattern) phase.</b> Sentinel-1 products processed with IPF before 2.43 compensated only
+the gain of the elevation antenna pattern, not its phase. EAP-Phase-Correction adds the missing phase so that old
+and new SLCs can be combined. See <a href="orbits_etad.html">Orbits and Timing Corrections</a>.</p>
+
+<p><b>EGM96 / EGM2008.</b> Earth gravitational models that define the geoid (complete to degree 360 and 2190). The
+Copernicus DEM uses EGM2008 heights; SNAP's "Apply Earth Gravitational Model" switch for external DEMs always adds
+the EGM96 geoid. See <a href="height_references.html">DEMs and Height References</a>.</p>
+
+<p><b>Ellipsoid (WGS84).</b> The smooth mathematical reference surface of the Earth. Orbits and the range-Doppler
+geometry use ellipsoidal heights h. See <a href="height_references.html">DEMs and Height References</a>.</p>
+
+<p><b>Ellipsoid correction.</b> Geocoding without a DEM: Ellipsoid Correction GG interpolates the product's tie-point
+grids, Ellipsoid Correction RD uses one average scene height. Relief displacement stays in the result. See
+<a href="geometry.html">SAR Geometry</a>.</p>
+
+<p><b>Entropy (H).</b> The randomness of the scattering, from 0 (one mechanism) to 1 (random), computed from the
+normalised eigenvalues of T<sub>3</sub>. Together with &alpha; it spans the H-&alpha; plane used for unsupervised
+classification. See <a href="decompositions.html">Polarimetric Decompositions</a>.</p>
+
+<p><b>ENL (equivalent number of looks).</b> (mean of I)&sup2; / variance of I, measured in linear intensity over a
+homogeneous area. It describes how much averaging an image has received; a Sentinel-1 IW GRDH product has about 4.4.
+See <a href="speckle.html">Speckle and Multilooking</a>.</p>
+
+<p><b>ESD (Enhanced Spectral Diversity).</b> Estimation of the residual azimuth offset of a TOPS pair from the
+double-difference phase in the burst overlaps. It provides the 0.001-pixel azimuth accuracy that orbit-and-DEM
+coregistration alone cannot reach. See <a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<p><b>ETAD (Extended Timing Annotation Dataset).</b> A Sentinel-1 auxiliary product with gridded range and azimuth
+timing corrections (troposphere, ionosphere, solid Earth tides, Doppler-induced range shift, bistatic shift, FM-rate
+mismatch). It improves absolute geolocation; it is used for example for offset tracking, wide-area InSAR and in
+the GSLC chain. See
+<a href="orbits_etad.html">Orbits and Timing Corrections</a>.</p>
+
+<h2><a name="F">F</a></h2>
+
+<p><b>Faraday rotation.</b> Rotation of the polarisation plane of the wave by the ionosphere in the Earth's magnetic
+field. It grows with the square of the wavelength, so it matters at L- and P-band. It breaks the equality
+S<sub>HV</sub> = S<sub>VH</sub> and is corrected before polarimetric matrices are formed. See
+<a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<p><b>Flat-Earth phase.</b> The interferometric phase that a smooth reference surface (the ellipsoid) would produce.
+It gives dense, regular fringes in range and is removed by the Interferogram operator using the orbits. See
+<a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<p><b>Foreshortening.</b> Compression of slopes facing the sensor into fewer range cells, when the slope angle is
+smaller than the incidence angle. Such slopes look bright. See <a href="geometry.html">SAR Geometry</a>.</p>
+
+<p><b>Freeman-Durden decomposition.</b> A model-based decomposition of C<sub>3</sub> into surface, double-bounce and
+volume powers, assuming reflection symmetry. See <a href="decompositions.html">Polarimetric Decompositions</a>.</p>
+
+<p><b>Fringe.</b> One full 2&pi; colour cycle of interferometric phase. For deformation it is &lambda;/2 of
+line-of-sight motion (about 2.8 cm at C-band); for topography it is the height of ambiguity. See
+<a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<h2><a name="G">G</a></h2>
+
+<p><b>Gamma nought (&gamma;<sup>0</sup>).</b> Backscatter normalised by the area perpendicular to the line of sight.
+On flat ground &gamma;<sup>0</sup><sub>E</sub> = &beta;<sup>0</sup> tan &theta;<sub>E</sub>; Calibration's
+<code>Gamma0_&lt;pol&gt;</code> band is this ellipsoid value. See <a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>Gamma nought, terrain-flattened (&gamma;<sup>0</sup><sub>T</sub>).</b> &beta;<sup>0</sup> normalised by the
+local illuminated area A<sub>&gamma;,T</sub> computed from a DEM (&gamma;<sup>0</sup><sub>T</sub> =
+&beta;<sup>0</sup> A<sub>&beta;</sub>/A<sub>&gamma;,T</sub>; Small, 2011), which removes the brightness that slopes add. Terrain Flattening
+writes it as <code>Gamma0_&lt;pol&gt;</code>, the same name Calibration uses for the ellipsoid value. See
+<a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>GCP (ground control point).</b> In stripmap coregistration, a pair of matching positions in the Reference and
+Secondary images found by Cross-Correlation. Warp fits a polynomial to the GCP offsets and resamples the Secondary.
+See <a href="../workflows/workflow_stripmap_dinsar.html">Stripmap DInSAR workflow</a>.</p>
+
+<p><b>Geocoding / terrain correction.</b> Mapping each pixel from radar coordinates (azimuth time, slant range) to a
+map grid by solving the range-Doppler equations with a DEM. In SNAP: Range Doppler Terrain Correction. See
+<a href="geometry.html">SAR Geometry</a>.</p>
+
+<p><b>Geoid.</b> The equipotential surface of Earth's gravity field that best fits mean sea level. Its height above
+the ellipsoid, the geoid undulation N, ranges from about &#8722;105 m to +85 m; h &asymp; H + N. See
+<a href="height_references.html">DEMs and Height References</a>.</p>
+
+<p><b>GMF (geophysical model function).</b> An empirical function that gives &sigma;<sup>0</sup> over the sea as a
+function of wind speed, wind direction relative to the look direction and incidence angle; inverted for wind
+retrieval. See <a href="ocean.html">Ocean SAR</a>.</p>
+
+<p><b>Goldstein filter.</b> An adaptive, FFT-based filter that reduces interferometric phase noise, and so the number
+of residues, before unwrapping. See <a href="unwrapping.html">Phase Unwrapping</a>.</p>
+
+<p><b>GRD (Ground Range Detected).</b> A Level-1 product with amplitude only (phase discarded), multilooked and
+resampled to ground range on an ellipsoid, but still in radar layout and not map-projected. See
+<a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>GSLC (Geocoded SLC).</b> A complex product with its phase preserved, resampled onto a map grid with a DEM by
+GSLC-Terrain-Correction. Interferograms can then be formed directly on the map grid. See
+<a href="sar_fundamentals.html">SAR Fundamentals</a> and <a href="../workflows/workflow_gslc.html">GSLC
+workflow</a>.</p>
+
+<h2><a name="H">H</a></h2>
+
+<p><b>Height of ambiguity (h<sub>2&pi;</sub>).</b> The height difference that produces one topographic fringe,
+h<sub>2&pi;</sub> = &lambda; R sin &theta; / (2 B<sub>&perp;</sub>) for repeat-pass InSAR. A small value means
+high height sensitivity. See <a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<p><b>HH, HV, VH, VV.</b> Polarisation channels named transmit-then-receive, with H horizontal and V vertical. See
+<a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<h2><a name="I">I</a></h2>
+
+<p><b>i / q bands.</b> The in-phase (real) and quadrature (imaginary) parts of a complex pixel, stored in SNAP as
+<code>i_</code> and <code>q_</code> bands, for example <code>i_IW1_VV</code>. See
+<a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>IEM (Integral Equation Model).</b> A physical model of co-polarised backscatter from a randomly rough dielectric
+surface (Fung, Li and Chen, 1992), inverted by SNAP's soil moisture tools. See
+<a href="soil_moisture.html">Soil Moisture from SAR</a>.</p>
+
+<p><b>Incidence angle (&theta;).</b> The angle between the line of sight and the normal of the Earth ellipsoid. It
+grows across the swath, about 29&deg; to 46&deg; for Sentinel-1 IW. See <a href="geometry.html">SAR
+Geometry</a>.</p>
+
+<p><b>Intensity.</b> The squared amplitude, I = i&sup2; + q&sup2;. The virtual <code>Intensity_</code> band of a raw
+product is not calibrated. See <a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>Interferogram.</b> The product of the Reference image with the complex conjugate of the Secondary. Its phase
+measures the difference in two-way path, &phi; = (4&pi;/&lambda;)(R<sub>sec</sub> &#8722; R<sub>ref</sub>) modulo
+2&pi;. SNAP writes <code>i_ifg</code>, <code>q_ifg</code> and a virtual <code>Phase_ifg</code> band. See
+<a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<p><b>Ionospheric phase.</b> The dispersive phase advance caused by the free electrons of the ionosphere,
+proportional to the change in total electron content (TEC) and to 1/f. It is largest at L- and P-band and is
+estimated with the split-spectrum method. See <a href="atmosphere.html">Atmospheric and Ionospheric Phase</a>.</p>
+
+<p><b>IPF (Instrument Processing Facility).</b> The ground processor that generates Sentinel-1 Level-1 and Level-2
+products. Its version is recorded in the product and decides which corrections apply, for example EAP phase before
+IPF 2.43, border-noise masking from IPF 2.90 and burst IDs from IPF 3.40. See
+<a href="orbits_etad.html">Orbits and Timing Corrections</a>.</p>
+
+<p><b>IW, EW, SM, WV.</b> Sentinel-1 acquisition modes: Interferometric Wide swath (TOPS, three sub-swaths, about
+250 km), Extra Wide swath (TOPS, five sub-swaths), Stripmap, and Wave mode (small vignettes over the open ocean). See
+<a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<h2><a name="L">L</a></h2>
+
+<p><b>Layover.</b> When a slope facing the sensor is steeper than the incidence angle, its top is closer to the sensor
+than its foot and is imaged in front of it, folded over the ground. Value 1 of Terrain Correction's
+<code>layoverShadowMask</code>. See <a href="geometry.html">SAR Geometry</a>.</p>
+
+<p><b>Line of sight (LOS).</b> The direction from the ground to the satellite. InSAR measures only the projection of
+the ground motion on it: it is most sensitive to vertical and east-west motion and nearly blind to north-south motion.
+See <a href="displacement.html">From Phase to Displacement</a>.</p>
+
+<p><b>Local incidence angle.</b> The angle between the line of sight and the normal of the local terrain, taken from a
+DEM. The <b>projected</b> local incidence angle keeps only the range slope. See <a href="geometry.html">SAR
+Geometry</a>.</p>
+
+<p><b>Look.</b> One independent estimate of the backscatter of a resolution cell. Averaging L looks reduces the
+relative standard deviation of speckle by 1/&radic;L. See <a href="speckle.html">Speckle and Multilooking</a>.</p>
+
+<h2><a name="M">M</a></h2>
+
+<p><b>Master / slave.</b> Older names for Reference and Secondary. The help now uses Reference/Secondary, but some
+identifiers keep the old words, for example the operator alias <code>MultiMasterInSAR</code> (shown as
+Multi-Reference InSAR) and the legacy <code>_mst</code> / <code>_slv</code> band tags, which SNAP still accepts in
+place of <code>_ref</code> / <code>_sec</code>. See <a href="#Reference">Reference / Secondary</a>.</p>
+
+<p><b>Multilooking.</b> Averaging adjacent pixels in intensity. N independent pixels reduce the speckle variance by N
+and coarsen the resolution by the same factor; the range and azimuth looks also set the pixel shape. See
+<a href="speckle.html">Speckle and Multilooking</a>.</p>
+
+<h2><a name="N">N</a></h2>
+
+<p><b>NESZ (noise-equivalent sigma zero).</b> The &sigma;<sup>0</sup> at which the signal power equals the thermal
+noise power. Sentinel-1 is specified at &#8722;22 dB or better. Dark targets and cross-polarised channels are often
+close to it. See <a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>Network (interferogram network).</b> The set of pairs formed from a stack: a single-reference ("star") network
+for persistent scatterers, or a small-baseline network for SBAS. It must be connected for the inversion to be
+well-posed. See <a href="time_series.html">InSAR Time Series</a>.</p>
+
+<h2><a name="O">O</a></h2>
+
+<p><b>OCN.</b> The Sentinel-1 Level-2 ocean product. It has three components: ocean wind field (OWI), ocean swell
+spectra (OSW) and surface radial velocity (RVL). See <a href="ocean.html">Ocean SAR</a>.</p>
+
+<p><b>Offset tracking.</b> Measuring the pixel offsets between two coregistered images by cross-correlation of image
+patches, to map large motion such as glacier flow, where the phase is decorrelated or too ambiguous. See
+<a href="../workflows/workflow_offset_tracking.html">Offset Tracking workflow</a>.</p>
+
+<p><b>Orbit state vectors.</b> Satellite positions and velocities at regular times in an Earth-fixed frame. Sentinel-1
+precise orbits (AUX_POEORB) are available after about 20 days, restituted orbits (AUX_RESORB) after about 3 hours.
+See <a href="orbits_etad.html">Orbits and Timing Corrections</a>.</p>
+
+<p><b>Orthometric height (H).</b> Height above the geoid, the "height above sea level" of maps and of most DEMs. See
+<a href="height_references.html">DEMs and Height References</a>.</p>
+
+<h2><a name="P">P</a></h2>
+
+<p><b>Pauli decomposition / Pauli RGB.</b> Display of the diagonal of T<sub>3</sub>: red |S<sub>HH</sub> &#8722;
+S<sub>VV</sub>|&sup2;/2 (double bounce), green 2|S<sub>HV</sub>|&sup2; (volume), blue |S<sub>HH</sub> +
+S<sub>VV</sub>|&sup2;/2 (odd bounce). Bands <code>Pauli_r</code>, <code>Pauli_g</code>, <code>Pauli_b</code>. See
+<a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<p><b>Perpendicular baseline (B<sub>&perp;</sub>).</b> The component of the baseline at right angles to the line of
+sight. It sets the height sensitivity of an interferogram, and the geometric decorrelation grows with it. See
+<a href="#B">Baseline</a> and <a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<p><b>Persistent scatterer (PS).</b> A pixel dominated by one strong, stable reflector (a building corner, a rock
+face) whose phase stays coherent over long temporal and perpendicular baselines. See
+<a href="time_series.html">InSAR Time Series</a>.</p>
+
+<p><b>Phase.</b> The angle of a complex pixel, &phi; = atan2(q, i). It holds the two-way path phase 4&pi;R/&lambda;
+plus a random scattering phase, so it is useful only when two images are compared. See
+<a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>Phase linking.</b> Estimation of one consistent phase per date from the coherence matrix of all pairs, computed
+over statistically homogeneous pixels (SNAP offers EVD and EMI, an approximation of the maximum-likelihood
+estimator). Used for distributed scatterers.
+See <a href="time_series.html">InSAR Time Series</a>.</p>
+
+<p><b>Phase unwrapping.</b> Restoring the unknown whole cycles (2&pi;k) of the wrapped phase so that it becomes a
+continuous measurement. SNAP uses SNAPHU. See <a href="unwrapping.html">Phase Unwrapping</a>.</p>
+
+<p><b>PRF (pulse repetition frequency).</b> The rate at which the radar transmits pulses, which is the azimuth sampling
+rate of the raw data. It must be high enough to sample the azimuth Doppler bandwidth and low enough for the echoes of
+the whole swath to return between pulses. See <a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<h2><a name="Q">Q</a></h2>
+
+<p><b>Quad-pol (fully polarimetric).</b> Acquisition of all four channels HH, HV, VH and VV with their relative
+phases, which gives the full scattering matrix S (for example RADARSAT-2, ALOS-2, BIOMASS). See
+<a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<h2><a name="R">R</a></h2>
+
+<p><b>Range.</b> The across-track image direction. Slant range R = c&tau;/2 follows from the echo delay &tau;; range
+resolution is c/(2B) for chirp bandwidth B. See <a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>Reciprocity.</b> For a monostatic radar the two cross-polar elements are equal, S<sub>HV</sub> =
+S<sub>VH</sub>, so the scattering matrix has three independent complex elements. See
+<a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<p><b><a name="Reference">Reference / Secondary.</a></b> In a stack or pair, the Reference image defines the geometry
+that the Secondary images are coregistered to, and the interferogram is Reference &times; conj(Secondary). SNAP tags
+the bands <code>_ref</code> and <code>_sec&lt;n&gt;</code>, for example <code>i_IW1_VV_ref_03Apr2025</code>. Older
+pages and identifiers say master/slave. See <a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<p><b>Reflection symmetry.</b> The property of many natural media that co-polar and cross-polar channels are
+uncorrelated, so four real elements of C<sub>3</sub> vanish. Assumed by the Freeman-Durden and van Zyl
+decompositions. See <a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<p><b>Residue.</b> A 2&times;2 pixel loop whose wrapped phase differences sum to &plusmn;1 cycle. Paths that pass on
+either side of it disagree by 2&pi;, so the unwrapper must place discontinuities between residues. See
+<a href="unwrapping.html">Phase Unwrapping</a>.</p>
+
+<p><b>Roll invariance.</b> A quantity is roll-invariant if it does not change when the target is rotated about the line
+of sight, for example the span, entropy, anisotropy and &alpha;. See <a href="polarimetry.html">Polarimetry
+Primer</a>.</p>
+
+<h2><a name="S">S</a></h2>
+
+<p><b>SBAS (small baseline subset).</b> A time-series method that forms only pairs with short temporal and
+perpendicular baselines, unwraps them, and inverts the network pixel by pixel for the phase at each date. See
+<a href="time_series.html">InSAR Time Series</a>.</p>
+
+<p><b>ScanSAR.</b> A wide-swath mode in which the beam switches between several sub-swaths in bursts, at coarser
+azimuth resolution. TOPS is a ScanSAR variant. See <a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>Shadow.</b> A back slope steeper than 90&deg; &#8722; &theta; is hidden from the beam and contains only noise.
+Value 2 of Terrain Correction's <code>layoverShadowMask</code> (3 = layover and shadow). See
+<a href="geometry.html">SAR Geometry</a>.</p>
+
+<p><b>SHP (statistically homogeneous pixels).</b> Neighbours of a pixel whose amplitude time series pass a two-sample
+test (KS, AD or TLog in SNAP); phase linking averages over them. See <a href="time_series.html">InSAR Time
+Series</a>.</p>
+
+<p><b>Sigma nought (&sigma;<sup>0</sup>).</b> Backscatter normalised by the reference area on the ground. On flat
+ground &sigma;<sup>0</sup><sub>E</sub> = &beta;<sup>0</sup> sin &theta;<sub>E</sub>. It is Calibration's default
+output, <code>Sigma0_&lt;pol&gt;</code>. See <a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>Sinclair matrix (S).</b> The 2&times;2 complex scattering matrix [S<sub>HH</sub> S<sub>HV</sub>;
+S<sub>VH</sub> S<sub>VV</sub>] measured by a quad-pol radar for one resolution cell. See
+<a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<p><b>Slant range / ground range.</b> The radar samples equal steps in slant range (along the line of sight); on flat
+ground a slant step &Delta;r covers a ground step &Delta;r / sin &theta;. SLC products are in slant range, GRD
+products in ground range. See <a href="geometry.html">SAR Geometry</a>.</p>
+
+<p><b>SLC (Single Look Complex).</b> A Level-1 product with complex i/q pixels at full resolution, in slant range and
+zero-Doppler azimuth. Needed for interferometry and polarimetry. See <a href="sar_fundamentals.html">SAR
+Fundamentals</a>.</p>
+
+<p><b>SNAPHU.</b> A statistical-cost, network-flow phase unwrapper (Chen and Zebker). SNAP exports the wrapped phase
+and coherence for it and imports the result as <code>Unw_Phase_ifg_&lt;ref-date&gt;_&lt;sec-date&gt;</code> (for a stack
+with more than one Secondary the band keeps the name <code>UnwPhase_ifg_&lt;tag&gt;</code>); the default cost mode is DEFO.
+See <a href="unwrapping.html">Phase Unwrapping</a>.</p>
+
+<p><b>Span.</b> The total power of the scattering matrix, |S<sub>HH</sub>|&sup2; + |S<sub>HV</sub>|&sup2; +
+|S<sub>VH</sub>|&sup2; + |S<sub>VV</sub>|&sup2;, equal to the trace of C<sub>3</sub> or T<sub>3</sub>. See
+<a href="polarimetry.html">Polarimetry Primer</a>.</p>
+
+<p><b>Speckle.</b> The grainy texture of SAR images, caused by the interference of echoes from many scatterers in one
+resolution cell. It is multiplicative, and single-look intensity is exponentially distributed. See
+<a href="speckle.html">Speckle and Multilooking</a>.</p>
+
+<p><b>Split-spectrum method.</b> Estimation of the ionospheric phase from interferograms formed in a low and a high
+range sub-band, exploiting its 1/f dependence. See <a href="atmosphere.html">Atmospheric and Ionospheric
+Phase</a>.</p>
+
+<p><b>Stokes vector.</b> Four real parameters g<sub>0</sub> to g<sub>3</sub> that describe the polarisation state of
+the received wave in compact polarimetry. See <a href="dual_compact_pol.html">Dual-pol and Compact
+Polarimetry</a>.</p>
+
+<p><b>Stripmap.</b> The basic SAR mode: a fixed beam images one continuous strip. See
+<a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<p><b>Sub-swath.</b> One of the beam positions in elevation of a TOPS or ScanSAR acquisition: IW1 to IW3 in
+Sentinel-1 IW, EW1 to EW5 in EW. Each sub-swath is stored as a separate image, and band names include it (for example
+<code>i_IW1_VV</code>). See <a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<p><b>Swath.</b> The strip of ground imaged by the radar, from near range to far range. See
+<a href="sar_fundamentals.html">SAR Fundamentals</a>.</p>
+
+<h2><a name="T">T</a></h2>
+
+<p><b>T<sub>3</sub>, T<sub>4</sub>.</b> See <a href="#C">Coherency matrix</a>.</p>
+
+<p><b>Temporal coherence (&gamma;<sub>T</sub>).</b> A measure, from 0 to 1, of how well the phases estimated by
+phase linking or SBAS fit the observed pairwise phases. See <a href="time_series.html">InSAR Time Series</a>.</p>
+
+<p><b>Terrain flattening.</b> Radiometric correction that normalises &beta;<sup>0</sup> by the DEM-derived illuminated
+area, giving &gamma;<sup>0</sup><sub>T</sub>. See <a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>Thermal noise removal.</b> Subtraction of the annotated noise power from the intensity. It improves dark areas
+and cross-pol channels but destroys the phase, so it is not used before InSAR or polarimetry. See
+<a href="radiometry.html">Radiometry</a>.</p>
+
+<p><b>TOPS (Terrain Observation by Progressive Scans).</b> A ScanSAR mode in which the beam also sweeps from backward
+to forward in azimuth during each burst, used by Sentinel-1 IW and EW. The sweep gives each burst a Doppler ramp. See
+<a href="tops.html">Sentinel-1 TOPS</a>.</p>
+
+<p><b>Topographic phase.</b> The part of the interferometric phase caused by terrain height above the reference
+surface, proportional to the perpendicular baseline. It is removed with a DEM. See <a href="insar.html">InSAR
+Fundamentals</a>.</p>
+
+<p><b>Tropospheric delay.</b> The non-dispersive delay of the signal in the neutral atmosphere: a stratified part that
+correlates with topography and a turbulent part from water vapour. Changes between dates appear as phase that looks
+like motion. See <a href="atmosphere.html">Atmospheric and Ionospheric Phase</a>.</p>
+
+<h2><a name="U">U</a></h2>
+
+<p><b>Unwrapped phase.</b> Phase with the whole cycles restored, &phi;<sub>u</sub> = &phi;<sub>w</sub> + 2&pi;k. It
+is known only up to an additive constant, so values are relative to a reference area. In SNAP, band names start with
+Unw (<code>Unw_Phase_ifg_</code> from SNAPHU Import, <code>UnwPhase_ifg_</code> from Batch Snaphu Unwrap and from
+SNAPHU Import on a stack with more than one Secondary). SNAPHU Import and Batch Snaphu Unwrap both set the unit
+<code>abs_phase</code>. See <a href="unwrapping.html">Phase Unwrapping</a>.</p>
+
+<h2><a name="W">W</a></h2>
+
+<p><b>Water Cloud Model.</b> A vegetation model that treats a crop canopy as a cloud of water droplets that adds its own
+backscatter and attenuates the soil contribution. See <a href="soil_moisture.html">Soil Moisture from SAR</a>.</p>
+
+<p><b>Wishart distribution.</b> The distribution of a look-averaged polarimetric covariance or coherency matrix of a
+uniform area. It underlies the Wishart classifiers and Polarimetric Change Detection. See
+<a href="wishart.html">Wishart Statistics and Classification</a>.</p>
+
+<p><b>Wrapped phase.</b> The observed interferometric phase, known only modulo 2&pi; and shown in (&#8722;&pi;,
+&pi;]. See <a href="unwrapping.html">Phase Unwrapping</a>.</p>
+
+<h2><a name="Y">Y</a></h2>
+
+<p><b>Yamaguchi decomposition.</b> A model-based decomposition that adds a helix component to the Freeman-Durden
+surface, double-bounce and volume terms, for areas without reflection symmetry such as cities. See
+<a href="decompositions.html">Polarimetric Decompositions</a>.</p>
+
+<h2><a name="Z">Z</a></h2>
+
+<p><b>Zero-Doppler.</b> The focusing convention that places a target at the azimuth time of its closest approach, when
+the line of sight is perpendicular to the platform velocity. See <a href="geometry.html">SAR Geometry</a>.</p>
+
+<h2>See also</h2>
+<ul>
+    <li><a href="../getting_started.html">Microwave Toolbox: Getting Started</a></li>
+    <li><a href="../general/AbstractedMetadata.html">Abstracted Metadata</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

@@ -579,19 +579,20 @@ public class CPM implements PolynomialModel {
             //logger.info("maximum wtest statistic range = {} for window number: {} "+ maxWinP+ index.getQuick(winP));
 
             /** use summed wTest in Azimuth and Range direction for outlier detection */
-            DMatrixRMaj wTestSum = new DMatrixRMaj(numObservations);
+            DMatrixRMaj wTestSum = new DMatrixRMaj(numObservations, 1);
             for (int i = 0; i < numObservations; i++) {
                 wTestSum.set(i, FastMath.pow(wTest_L.get(i), 2) + FastMath.pow(wTest_P.get(i), 2));
             }
 
             // Select the observation to remove in the next iteration: the one with the
-            // largest w-test statistic (the worst outlier). This assignment is essential -
+            // largest summed w-test statistic wTestL^2 + wTestP^2 (Doris COREGPM), so that
+            // azimuth as well as range outliers are removed. This assignment is essential -
             // without it maxWSum_idx stays 0 and the loop removes the head of the GCP list
             // each iteration instead of the actual outlier. Because the slave GCP group is
             // populated by CrossCorrelationOp worker threads in non-deterministic order,
             // removing the head makes the surviving GCP set - and therefore the warp and the
             // interferogram phase - non-deterministic between runs. See CPMTest.
-            maxWSum_idx = absArgmax(wTest_P);
+            maxWSum_idx = absArgmax(wTestSum);
 
             /** Test if we are estimationDone yet */
             // check on number of observations

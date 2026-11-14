@@ -20,13 +20,12 @@ package eu.esa.sar.insar.gpf.timeseries;
  *
  *   phi_closure(a, b, c) = phi_{a,b} + phi_{b,c} - phi_{a,c}
  *
- * A wrap-corrected stack has all closures near zero; multiples of 2 pi
- * indicate unwrapping errors and feed downstream bridging / triplet
- * correction.
- *
- * For each triplet we compute the magnitude of the closure modulo 2 pi
- * (sign carried via atan2 of the residual complex phasor) and aggregate
- * the RMS over the triplet set.
+ * Each closure is wrapped to (-pi, pi] before it is squared, and the RMS is taken over the
+ * triplet set. The wrap removes whole multiples of 2 pi, so this metric does NOT reveal
+ * unwrapping errors (a 2 pi jump in one pair closes to 0); it measures the non-integer
+ * inconsistency of the network (noise, phase-bias / fading signal, filtering artefacts).
+ * When there is no closed triplet the closure is undefined and NaN is returned, so that a
+ * sequential network is not mistaken for a perfectly closed one.
  */
 public final class ClosurePhase {
 
@@ -36,21 +35,38 @@ public final class ClosurePhase {
     /**
      * @param network        the SBAS network
      * @param unwrappedPhase length-M unwrapped phase observations
-     * @return RMS closure phase (radians), or 0 when there are no triplets
+     * @return RMS wrapped closure phase (radians), or NaN when the network has no triplets
      */
     public static double rms(final Network network, final double[] unwrappedPhase) {
+        return rms(network, unwrappedPhase, null);
+    }
+
+    /**
+     * RMS closure over the triplets whose three pairs are all used at this pixel.
+     *
+     * @param network        the SBAS network
+     * @param unwrappedPhase length-M unwrapped phase observations
+     * @param weights        length-M pair weights; a triplet with any weight &lt;= 0 (pair dropped,
+     *                       e.g. below the coherence threshold) is skipped. Null uses every triplet.
+     * @return RMS wrapped closure phase (radians), or NaN when no triplet is usable
+     */
+    public static double rms(final Network network, final double[] unwrappedPhase, final double[] weights) {
         final int Q = network.numTriplets();
-        if (Q == 0) return 0.0;
         double sum = 0.0;
+        int used = 0;
         for (int q = 0; q < Q; q++) {
             final int[] t = network.triplet(q);
+            if (weights != null && (!(weights[t[0]] > 0.0) || !(weights[t[1]] > 0.0) || !(weights[t[2]] > 0.0))) {
+                continue;
+            }
             final double phiAB = unwrappedPhase[t[0]];
             final double phiBC = unwrappedPhase[t[1]];
             final double phiAC = unwrappedPhase[t[2]];
             final double c = wrap(phiAB + phiBC - phiAC);
             sum += c * c;
+            used++;
         }
-        return Math.sqrt(sum / Q);
+        return used == 0 ? Double.NaN : Math.sqrt(sum / used);
     }
 
     /** Wrap an angle to (-pi, pi]. */

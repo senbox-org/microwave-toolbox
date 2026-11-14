@@ -24,7 +24,10 @@
 <p>
     If the orbits for interferometric pair are known, the flat-earth phase is estimated using the orbital
     and metadata information and subtracted from the complex interferogram. The flat-earth phase is the phase
-    present in the interferometric signal due to the curvature of the reference surface. The geometric reference
+    the interferogram would show over a smooth reference surface (the WGS84 ellipsoid) without any topography.
+    It arises because, with a non-zero perpendicular baseline, the look angle changes from near to far range,
+    so the path-length difference between the two acquisitions changes steadily across the swath. This gives
+    a regular pattern of fringes that runs mainly in the range direction. The geometric reference
     system of the reference surface is defined by the reference system of satellite orbits (for now only WGS84
     supported, which the reference system used by all space-borne SAR systems).
 </p>
@@ -47,8 +50,9 @@
 
 <p>
     In order to reduce the noise, as the post-processing step, you can perform multilooking (with Multilook
-    Operator). Multilooking has to be performed separately on 'virtual' bands phase or intensity. In future
-    releases complex Multilook operator will be released.
+    Operator). The Multilook operator can average the complex i/q bands of the interferogram directly
+    (complex multilooking, with "Output Intensity" off, the default); the phase is then derived
+    from the averaged complex values.
     Note that in case of ESA's ERS and Envisat sensors, the factor 5:1 (azimuth:range) or similar ratio
     between the factors is chosen to obtain approximately square pixels (20x20 m^2 for factors 5 and 1).
     Of course the resolution decreases if multilooking is applied.
@@ -57,9 +61,32 @@
 <p>
     <b>Note:</b> The reference phase polynomial is not estimated nor subtracted from the computed interferogram, if the
     flag for NOT performing the reference-phase estimation/subtraction is being marked. Note that if the subtraction of
-    the flat-earth is being skipped the formed interferogram will still have the fringes caused by the earth curvature,
+    the flat-earth is being skipped the formed interferogram will still have the flat-earth fringes,
     and could hamper further interferometric processing and analysis. The intention of computing interferogram without
     the reference-phase being subtracted is only for demonstration and educational purposes.
+</p>
+
+<p>
+    <b>Coherence compared with the Coherence Estimation operator:</b> the coherence band written by this
+    operator is estimated after removing the flat-earth phase (default on) and, only if "Subtract topographic
+    phase" is selected (default off), the topographic phase. No bias correction is applied. The
+    <a href="CoherenceOp.html">Coherence Estimation</a> operator removes the topographic phase by default and
+    also corrects the estimator bias by default. Both default to a 10-pixel range window. In Coherence Estimation, Square Pixel is on by default, so the azimuth window is derived from the pixel spacings (about 10&times;3 for Sentinel-1 IW). In GPT, this operator currently ignores Square Pixel and uses 10&times;10. Compare the two operators only with the same window sizes. For the same
+    window, the two operators give different values: this operator gives higher values where coherence is low
+    (no bias correction) and lower values in steep terrain when the topographic phase is not removed.
+</p>
+
+<p>
+    <b>Geocoded SLC (GSLC) stacks:</b> the operator detects a stack of
+    <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a>
+    products and removes the flat-earth (and, if selected, topographic) phase on the map grid instead of with the
+    polynomial. It also reads each product's <code>gslc_output_flattened</code> stamp. If every product was
+    written with <i>Output phase-flattened complex data</i>, the flat-earth and topographic phase are already
+    removed, so they are not subtracted again. The TOPS carrier difference and the burst seam steps are set up
+    only when <i>Subtract flat-earth phase</i> or <i>Subtract topographic phase</i> is selected, so keep
+    <i>Subtract flat-earth phase</i> ticked on every GSLC stack, flattened ones included: on a flattened stack
+    the flat-earth phase is not subtracted twice, and the carrier difference and seam steps are still handled.
+    A stack that mixes flattened and natural-phase products is refused with an error.
 </p>
 
 <h4>Operator parameters:</h4>&nbsp;&nbsp;
@@ -73,8 +100,8 @@ The following parameters are used by this operator:
         The degree of 2D flat-earth polynomial. Recommended degree, appropriate for most usage cases is 5th degree.
     </li>
     <li>
-        Orbit interpolation method. Defaults to a polynomial of degree (number of state vectors)-1, but smaller
-        than degree 5. Optionally, the degree for the orbit interpolation can be declared. The specified degree has
+        Orbit interpolation degree. Degree of the polynomial used to interpolate the orbit state vectors;
+        values 1 to 5, default 3. The degree has
         to be smaller or equal to (number of state vectors)-1. The positions of state vectors (x,y,z) are
         independently interpolated, the velocities are estimated from the position. The annotated
         velocities, if available, will be used in the interpolation and not computed from the positions.
@@ -84,7 +111,7 @@ The following parameters are used by this operator:
         give better results.
     </li>
     <li>
-        Flag for skipping estimation and subtraction of the reference-phase.</li><li>Flag for subtracting topographic phase</li><li>DEM to be used for subtracting topographic phase</li><li>Extension of tile (%) for DEM simulation (optimization parameter)</li><li>Flag for outputting elevation (if topographic phase subtraction is chosen)</li><li>Flag for outputting orthorectified latitudes and longitudes&nbsp;(if topographic phase subtraction is chosen)</li><li>
+        Flag for estimating and subtracting the reference (flat-earth) phase (default on).</li><li>Flag for subtracting topographic phase</li><li>DEM to be used for subtracting topographic phase</li><li>Extension of tile (%) for DEM simulation (optimization parameter)</li><li>Flag for outputting elevation (if topographic phase subtraction is chosen)</li><li>Flag for outputting orthorectified latitudes and longitudes&nbsp;(if topographic phase subtraction is chosen)</li><li>
         Flag for subtracting burst seam steps (GSLC TOPS stacks only): measures the residual phase
         discontinuity at each burst seam directly, from across-seam multilooked phase differences,
         and subtracts it. Anything continuous across a seam &mdash; deformation, atmosphere, an
@@ -102,5 +129,64 @@ The following parameters are used by this operator:
 
 <br>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Bamler, R., Hartl, P. (1998). Synthetic aperture radar interferometry. <i>Inverse Problems</i>, 14(4), R1&#8211;R54. doi:10.1088/0266-5611/14/4/001</li>
+    <li>Rosen, P. A., Hensley, S., Joughin, I. R., Li, F. K., Madsen, S. N., Rodr&iacute;guez, E., Goldstein, R. M. (2000). Synthetic aperture radar interferometry. <i>Proceedings of the IEEE</i>, 88(3), 333&#8211;382. doi:10.1109/5.838084</li>
+</ol>
+<!-- params:begin op="Interferogram" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Interferogram</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>subtractFlatEarthPhase</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Subtract flat-earth phase</td></tr>
+<tr><td><code>srpPolynomialDegree</code></td><td>int</td><td>5</td><td>1, 2, 3, 4, 5, 6, 7, 8</td><td>&nbsp;</td><td>Order of 'Flat earth phase' polynomial</td></tr>
+<tr><td><code>srpNumberPoints</code></td><td>int</td><td>501</td><td>301, 401, 501, 601, 701, 801, 901, 1001</td><td>&nbsp;</td><td>Number of points for the 'flat earth phase' polynomial estimation</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of orbit (polynomial) interpolator</td></tr>
+<tr><td><code>includeCoherence</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output coherence estimation</td></tr>
+<tr><td><code>cohWinAz</code></td><td>int</td><td>10</td><td>&nbsp;</td><td>&nbsp;</td><td>Size of coherence estimation window in Azimuth direction</td></tr>
+<tr><td><code>cohWinRg</code></td><td>int</td><td>10</td><td>&nbsp;</td><td>&nbsp;</td><td>Size of coherence estimation window in Range direction</td></tr>
+<tr><td><code>cohWinSizeMeters</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Coherence estimation window size in metres. When &gt; 0, overrides cohWinAz/cohWinRg at initialization by converting from the pixel spacing of the inputs. Recommended for GSLC inputs so the multilook support is set in physical units regardless of map-grid pixel size. It yields a window that is square on the ground in both radar and map geometry (the radar branch divides by the ground-range step, rg_spacing / sin(incidence)), making radar-geometry and geocoded results directly comparable.</td></tr>
+<tr><td><code>gslcModeAutoDetected</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Read-only status flag set at initialization when the operator auto-detects GSLC inputs (is_terrain_corrected=1). In GSLC mode the interferogram is the conjugate product with the flat-Earth (and, if enabled, topographic) phase removed in map geometry. Visible for auditability.</td></tr>
+<tr><td><code>squarePixel</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Use ground square pixel</td></tr>
+<tr><td><code>subtractTopographicPhase</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Subtract topographic phase</td></tr>
+<tr><td><code>subtractSeamSteps</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>GSLC TOPS only: measure each burst seam's residual phase discontinuity directly (across-seam multilooked differences) and subtract it. This is NOT a smooth-surface model: anything continuous across a seam - deformation, atmosphere, orbital ramps - cancels in the across-seam difference to the extent that it is locally LINEAR in azimuth, so unlike a fitted surface this cannot absorb a broad signal wholesale; azimuth curvature does leak, and cumulatively with burst index. No effect on stripmap products, which have no burst seams.</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>externalDEMApplyEGM</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM Apply EGM</td></tr>
+<tr><td><code>tileExtensionPercent</code></td><td>String</td><td>100</td><td>&nbsp;</td><td>&nbsp;</td><td>Define extension of tile for DEM simulation (optimization parameter).</td></tr>
+<tr><td><code>outputFlatEarthPhase</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Flat Earth Phase</td></tr>
+<tr><td><code>outputTopoPhase</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Topographic Phase</td></tr>
+<tr><td><code>outputElevation</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Elevation</td></tr>
+<tr><td><code>outputLatLon</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Lat/Lon</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coherence.html">Interferometric Coherence</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_stripmap_dinsar.html">Workflow: Stripmap DInSAR</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/orbits_etad.html">Orbits and timing corrections (ETAD, EAP)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_s1_dinsar.html">Workflow: Sentinel-1 IW DInSAR</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_gslc.html">Workflow: Geocode-First InSAR with GSLC</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered complex SLC stack</li>
+    <li>Sentinel-1 TOPS: <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a> with <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a>; Stripmap: <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CrossCorrelationOp.html">Cross-Correlation</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/WarpOp.html">Warp</a> (or <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/DEMAssistedCoregistrationOp.html">DEM-Assisted Coregistration</a>, not for Sentinel-1 SLC)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPSAR-Deburst</a> (Sentinel-1 TOPS only)</li>
+    <li>Then <a href="SubtRefDemOp.html">Topographic Phase Removal</a></li>
+    <li>Then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a></li>
+    <li>Then <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li>In parallel: <a href="CoherenceOp.html">Coherence</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body></html>

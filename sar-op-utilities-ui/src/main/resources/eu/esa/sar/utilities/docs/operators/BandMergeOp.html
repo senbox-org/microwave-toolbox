@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Band Merge</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css"></head>
+
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">Band Merge<br>
+        </td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Band Merge</h1>
+<p>The Band Merge operator (<code>BandMerge</code>) puts the bands of several products that cover exactly the same
+    pixel grid into one product. Use it to bring results of separate processing chains on the same scene back
+    together, for example a terrain-corrected backscatter product and a product derived from it on the same grid.</p>
+<p>Band Merge has no menu entry. Add it in the
+    <a href="nbdocs://org.esa.snap.snap.graph.builder/org/esa/snap/graphbuilder/docs/operators/graph_builder.html">Graph Builder</a>
+    (operator group <i>Raster</i>) and connect two or more source products to it, or call it with GPT.</p>
+
+<h2>What it does</h2>
+<ul>
+    <li>The <b>first</b> source product is the reference. The output takes its name, product type, size, metadata,
+        tie-point grids and geocoding.</li>
+    <li>Every band of every source product is copied into the output, the reference's bands first. The pixel values
+        are not resampled or changed.</li>
+    <li>When a band name already exists in the output, the copy gets the suffix <code>_2</code>, then
+        <code>_3</code>, and so on.</li>
+    <li>The masks of every source are copied, and their band-grouping patterns are added to the output's.</li>
+</ul>
+<p>The <code>sourceBands</code> parameter and the <i>Source Bands</i> list in the dialog have no effect: the operator
+    always copies all bands. To keep only some bands, add a
+    <a href="BandSelectOp.html">Band Select</a> node before or after Band Merge.</p>
+
+<h2>Compatibility check</h2>
+<p>Every source product must match the reference, or the operator stops with "Product [...] is not compatible to
+    reference product." A source matches when:</p>
+<ul>
+    <li>its width and height in pixels are the same as the reference's;</li>
+    <li>it has geocoding if and only if the reference has;</li>
+    <li>at the centres of the four corner pixels its latitude and longitude differ from the reference's by no more
+        than <code>geographicError</code> degrees (default 1.0E-5, about 1 m).</li>
+</ul>
+<p>Band Merge does not move pixels. Products on different grids must first be brought onto one grid, for example with
+    <a href="nbdocs://org.esa.snap.snap.collocation.ui/org/esa/snap/collocation/docs/collocation/CollocationTool.html">Collocation</a>
+    or, for SAR images, coregistration.</p>
+
+<!-- params:begin op="BandMerge" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>BandMerge</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>geographicError</code></td><td>float</td><td>1.0E-5f</td><td>&nbsp;</td><td>&nbsp;</td><td>Defines the maximum lat/lon error in degree between the products.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration (bringing images onto one grid)</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two or more products with the same size and, within <code>geographicError</code>, the same corner positions.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
+</body>
+</html>

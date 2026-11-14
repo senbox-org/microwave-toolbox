@@ -63,7 +63,7 @@ public class RangeFilterOp extends Operator {
             label = "Hamming Alpha")
     private float alphaHamming = (float) 0.75;
 
-    @Parameter(valueSet = {"5", "10", "15", "20", "25"},
+    @Parameter(valueSet = {"5", "7", "9", "11", "13", "15", "17", "19", "21", "23", "25"},
             description = "Input value for (walking) mean averaging to reduce noise.",
             defaultValue = "15",
             label = "Walking Mean Window") //has to be odd!
@@ -83,7 +83,7 @@ public class RangeFilterOp extends Operator {
 
     @Parameter(valueSet = {"true", "false"},
             description = "Use weight values to bias higher frequencies",
-            defaultValue = "off",
+            defaultValue = "false",
             label = "De-weighting")
     private boolean doWeightCorrel = false;
 

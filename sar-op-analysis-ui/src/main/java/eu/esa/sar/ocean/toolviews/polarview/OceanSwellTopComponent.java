@@ -26,6 +26,7 @@ import org.netbeans.api.annotations.common.NullAllowed;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
 import org.openide.awt.ActionReferences;
+import org.openide.util.HelpCtx;
 import org.openide.util.NbBundle;
 import org.openide.windows.TopComponent;
 import org.openide.windows.WindowManager;
@@ -99,6 +100,11 @@ public class OceanSwellTopComponent extends ToolTopComponent {
     void setSelectedRecord(final Product product, final int recNum) {
         polarView.setProduct(product);
         polarView.showPlot(recNum);
+    }
+
+    @Override
+    public HelpCtx getHelpCtx() {
+        return new HelpCtx("polarView");
     }
 
     public class OSWProductManagerListener implements ProductManager.Listener {

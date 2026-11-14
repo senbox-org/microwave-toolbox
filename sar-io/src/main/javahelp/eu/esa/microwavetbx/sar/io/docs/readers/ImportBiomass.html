@@ -1,6 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import BIOMASS</title>
-    <link rel="stylesheet" href="../style.css"></head>
+<html>
+<head><title>Help - Import BIOMASS</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
 <body>
 <table class="header">
     <tbody>
@@ -11,137 +13,86 @@
     </tbody>
 </table>
 
-<h3>Import BIOMASS Product</h3>
+<p>The <b>BIOMASS</b> reader (<i>File &gt; Import &gt; SAR Sensors &gt; BIOMASS</i>) opens ESA BIOMASS
+Level-1 SAR products and Level-2 forest products.</p>
 
-<p class="MsoNormal"><b>Operator:</b> European Space Agency (ESA) Earth Explorer 7 mission.</p>
-<p class="MsoNormal"><b>Operational:</b> Launched 29 April 2025.</p>
-<p class="MsoNormal"><b>Frequency Band:</b> P-band (435&nbsp;MHz, 6&nbsp;MHz bandwidth) &mdash; first space-borne P-band SAR.</p>
-<p class="MsoNormal"><b>Acquisition Modes:</b> Stripmap; Tomography; PolInSAR. Five-year nominal mission, with
-two interferometric / tomographic phases interleaved with mono-static stripmap mapping.</p>
-<p class="MsoNormal"><b>Polarizations:</b> Quad-pol (HH, HV, VH, VV).</p>
+<h2>Mission</h2>
+<ul>
+    <li><b>Operator:</b> European Space Agency (ESA), Earth Explorer mission.</li>
+    <li><b>Instrument:</b> the first spaceborne P-band SAR: 435&nbsp;MHz centre frequency, 6&nbsp;MHz
+        bandwidth, wavelength about 70&nbsp;cm, fully polarimetric (HH, HV, VH, VV).</li>
+    <li><b>Orbit:</b> sun-synchronous dawn-dusk, about 666&nbsp;km altitude, 3-day repeat. A
+        tomographic phase (stacks of 7 acquisitions) is followed by an interferometric phase (stacks
+        of 3).</li>
+    <li><b>Launch:</b> 29 April 2025; five-year nominal mission.</li>
+</ul>
 
-<h4>Supported Product Types</h4>
-
-<p class="MsoNormal">The reader auto-detects the product type from the filename prefix
-(<code>BIO_S</code>&nbsp;= Level&nbsp;1, <code>BIO_FP</code>&nbsp;= Level&nbsp;2) and routes to the
-appropriate parser. Both directory layouts and ZIP archives are accepted.</p>
-
-<table border="1" cellpadding="5">
-    <tr>
-        <th>Family</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Bands</th>
-    </tr>
-    <tr>
-        <td rowspan="3">Level 1 (SAR)</td>
-        <td>L1A SCS</td>
-        <td>Single-Look Slant-range Complex</td>
-        <td>Amplitude + Phase per pol; virtual <code>i</code>, <code>q</code>, <code>Intensity</code></td>
-    </tr>
-    <tr>
-        <td>L1B DGM</td>
-        <td>Detected Ground Multi-look</td>
-        <td>Amplitude + virtual Intensity per pol</td>
-    </tr>
-    <tr>
-        <td>L1C STA</td>
-        <td>Stack-coregistered SLC (interferometric/tomographic)</td>
-        <td>Amplitude + Phase + virtual i/q/Intensity per pol per scene</td>
-    </tr>
-    <tr>
-        <td rowspan="3">Level 2a (per-stack)</td>
-        <td>FP_FH__L2A</td>
-        <td>Forest Height</td>
-        <td><code>Forest_Height</code>, <code>Forest_Height_Quality</code></td>
-    </tr>
-    <tr>
-        <td>FP_FD__L2A</td>
-        <td>Forest Disturbance</td>
-        <td><code>Forest_Disturbance</code>, <code>Probability_of_Change</code>, <code>Computed_Forest_Mask</code></td>
-    </tr>
-    <tr>
-        <td>FP_GN__L2A</td>
-        <td>Ground Notch</td>
-        <td><code>Ground_Notch_HH</code>, <code>Ground_Notch_VH</code>, <code>Ground_Notch_VV</code></td>
-    </tr>
-    <tr>
-        <td rowspan="3">Level 2b (DGG-tile)</td>
-        <td>FP_FH__L2B</td>
-        <td>Forest Height (cycle-aggregated)</td>
-        <td>Same as L2a FH</td>
-    </tr>
-    <tr>
-        <td>FP_FD__L2B</td>
-        <td>Forest Disturbance (cycle-aggregated)</td>
-        <td>Same as L2a FD</td>
-    </tr>
-    <tr>
-        <td>FP_AGB_L2B</td>
-        <td>Above-Ground Biomass</td>
-        <td><code>AGB</code>, <code>AGB_Std_Dev</code></td>
-    </tr>
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Level</th><th>Type</th><th>Content</th></tr>
+    <tr><td>L1A</td><td>SCS</td><td>Single-look complex, slant range, quad-pol</td></tr>
+    <tr><td>L1B</td><td>DGM</td><td>Detected, ground range, multi-looked</td></tr>
+    <tr><td>L1C</td><td>STA</td><td>Coregistered SLC stack (interferometric/tomographic)</td></tr>
+    <tr><td>L2A</td><td>FP_FH__L2A, FP_FD__L2A, FP_GN__L2A</td><td>Forest height, forest disturbance,
+        ground notch (per stack)</td></tr>
+    <tr><td>L2B</td><td>FP_FH__L2B, FP_FD__L2B, FP_AGB_L2B</td><td>Forest height, forest disturbance,
+        above-ground biomass (global tiles)</td></tr>
 </table>
 
-<h4>Level 1 vs Level 2 &mdash; What the reader does differently</h4>
+<h2>How to open</h2>
+<p>Select the main XML header in the product folder (file name starting with <code>BIO_S</code> for
+Level&nbsp;1 or <code>BIO_FP</code> for Level&nbsp;2, ending in <code>.xml</code>), or the product
+folder itself, or the product ZIP archive.</p>
 
-<table border="1" cellpadding="5">
-    <tr>
-        <th>Aspect</th>
-        <th>Level 1</th>
-        <th>Level 2</th>
-    </tr>
-    <tr>
-        <td>Geocoding</td>
-        <td>Tie-point grid from <code>annotation/*.nc</code> NetCDF LUT</td>
-        <td><code>CrsGeoCoding</code> direct from each Cloud-Optimised GeoTIFF</td>
-    </tr>
-    <tr>
-        <td>SAR metadata (orbit, SRGR, Doppler, PRF)</td>
-        <td>Populated</td>
-        <td>Not applicable &mdash; skipped</td>
-    </tr>
-    <tr>
-        <td>Aux annotations (calibration / noise / RFI)</td>
-        <td>Read from <code>annotation/calibration/</code>, <code>annotation/noise/</code>, <code>annotation/rfi/</code>
-            when present</td>
-        <td>Not applicable</td>
-    </tr>
-    <tr>
-        <td>Radiometric calibration</td>
-        <td>Applicable via the <i>Radiometric Calibration</i> operator (BIOMASS profile)</td>
-        <td>Rejected with a clear error &mdash; L2 values are already geophysical units</td>
-    </tr>
-</table>
+<h2>What you get</h2>
+<ul>
+    <li><b>L1A SCS and L1C STA:</b> <code>Amplitude_HH</code> and <code>Phase_HH</code> per
+        polarisation, plus virtual <code>i_HH</code>, <code>q_HH</code> and <code>Intensity_HH</code>
+        bands, so SAR operators see a complex product.</li>
+    <li><b>L1B DGM:</b> <code>Amplitude_HH</code> per polarisation plus a virtual
+        <code>Intensity_HH</code>.</li>
+    <li><b>Level&nbsp;1 geocoding:</b> latitude/longitude tie-point grids from the annotation, plus
+        orbit, Doppler and slant-to-ground-range metadata. The calibration, noise and RFI
+        (radio-frequency interference) annotations are loaded into the original metadata when present.</li>
+    <li><b>Level&nbsp;2:</b> geophysical bands with map geocoding, for example
+        <code>Forest_Height</code> (m), <code>Forest_Height_Quality</code>,
+        <code>Forest_Disturbance</code>, <code>Probability_of_Change</code>,
+        <code>Computed_Forest_Mask</code>, <code>Ground_Notch_HH/VH/VV</code>, <code>AGB</code> and
+        <code>AGB_Std_Dev</code> (t/ha).</li>
+    <li>Mission and acquisition parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
 
-<h4>RFI Annotation Handling</h4>
+<h2>Known limitations</h2>
+<ul>
+    <li>Level-2 products hold geophysical values. Radiometric Calibration refuses them; calibrate the
+        Level-1 product instead.</li>
+    <li>P-band data are affected by radio-frequency interference. Check the RFI annotation before
+        interpreting backscatter.</li>
+    <li>Outputs of the BioPAL prototype processor are not opened by default. An experimental reader
+        for them is enabled with the Java system property <code>biomass.biopal.reader=true</code>.</li>
+</ul>
 
-<p class="MsoNormal">P-band (435&nbsp;MHz) is heavily contaminated by terrestrial radio-frequency
-interference. BIOMASS L1 products carry RFI detection / suppression metadata as XML files
-in the <code>annotation/rfi/</code> sub-folder. The reader loads every such file under an
-<code>rfi</code> element in the original metadata so downstream operators can inspect which
-pulses / bursts were affected and which suppression method was applied.</p>
+<h2>Recommended next step</h2>
+<ul>
+    <li>Level&nbsp;1:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a>
+        (BIOMASS precise orbit)
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>Quad-pol SCS:
+        <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a>;
+        see <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry concepts</a>.</li>
+    <li>Level&nbsp;2: the products are already geocoded; use them directly in analysis tools.</li>
+</ul>
 
-<p class="MsoNormal">Similarly, radiometric-calibration auxiliary LUTs from
-<code>annotation/calibration/</code> are loaded under <code>calibration</code>, and noise
-(NESZ) tables from <code>annotation/noise/</code> are loaded under <code>noise</code>. All
-three are optional &mdash; older products and the simpler DGM type may not carry them, in
-which case the corresponding metadata element is simply absent.</p>
-
-<h4>Notes</h4>
-
-<p class="MsoNormal">This is the GeoTIFF / GDAL-backed reader for BIOMASS products that
-ship as COG bundles with an XML main product header. Plain ZIP archives are also
-supported &mdash; the reader opens images via GDAL's <code>/vsizip/</code> virtual
-filesystem when possible and falls back to temporary extraction otherwise.</p>
-
-<p class="MsoNormal">See the <i>BIOMASS L2 Reader Spec</i> document
-(<code>docs/BIOMASS-L2-Reader-Spec.md</code>) in the toolbox repository for the file-layout
-details and the current implementation status of each L2 phase.</p>
-
-<p class="MsoNormal"><b>Further Information:</b></p>
-<a href="https://earth.esa.int/eogateway/missions/biomass">https://earth.esa.int/eogateway/missions/biomass</a><br>
-<a href="https://eoportal.org/satellite-missions/biomass">https://eoportal.org/satellite-missions/biomass</a><br>
+<h2>Product format specification</h2>
+<p>ESA publishes the BIOMASS L1a/b/c and Level-2 product format specifications on the BIOMASS
+documentation page:
+<a href="https://earth.esa.int/eogateway/missions/biomass/documentation">https://earth.esa.int/eogateway/missions/biomass/documentation</a>.
+Mission pages: <a href="https://earth.esa.int/eogateway/missions/biomass">https://earth.esa.int/eogateway/missions/biomass</a>,
+<a href="https://www.eoportal.org/satellite-missions/biomass">https://www.eoportal.org/satellite-missions/biomass</a>.</p>
 
 <hr>
-</body></html>
+</body>
+</html>

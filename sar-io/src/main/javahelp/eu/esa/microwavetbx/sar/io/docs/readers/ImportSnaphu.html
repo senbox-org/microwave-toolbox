@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Import SNAPHU</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Import SNAPHU Result</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<p>SNAPHU is an external program for two-dimensional phase unwrapping, based on the algorithm of
+C.&nbsp;W.&nbsp;Chen and H.&nbsp;A.&nbsp;Zebker. The <b>SNAPHU</b> reader opens the unwrapped phase
+that SNAPHU writes after <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a>, so that
+<a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a> can bring it back into SNAP.</p>
+
+<h2>Format</h2>
+<p>Snaphu Export writes a folder with the wrapped phase and coherence as raw binary files with
+ENVI-style headers (<code>.snaphu.hdr</code> and <code>.snaphu.img</code>), the configuration file
+<code>snaphu.conf</code>, and, in advance, the header of the result:
+<code>UnwPhase_ifg_&lt;tag&gt;.snaphu.hdr</code>. Running SNAPHU with <code>snaphu.conf</code> writes the
+unwrapped phase as 32-bit floating-point data to <code>UnwPhase_ifg_&lt;tag&gt;.snaphu.img</code> in the
+same folder.</p>
+
+<h2>Supported data</h2>
+<ul>
+    <li>Real-valued rasters described by a <code>*.snaphu.hdr</code> header (the unwrapped phase).</li>
+    <li>Complex rasters (ENVI data types 6 and 9, pixel-interleaved real and imaginary parts).</li>
+</ul>
+
+<h2>How to open</h2>
+<p>Select the header <code>UnwPhase_ifg_&lt;tag&gt;.snaphu.hdr</code> in the Snaphu Export folder. The
+data file must be in the same folder and have the same name up to the first dot. Usually you do not
+open it on its own: the second reader of the Snaphu Import graph opens it for you. There is no entry
+under <i>File &gt; Import</i>; use <b>File &gt; Open Product</b>.</p>
+
+<h2>What you get</h2>
+<ul>
+    <li>Real data: one band per entry in the header's band names, for the SNAPHU result one band
+        <code>UnwPhase_ifg_&lt;tag&gt;</code> holding the unwrapped phase in radians.</li>
+    <li>Complex data: bands <code>i_band</code> and <code>q_band</code> (units real and imaginary) and a
+        virtual <code>Intensity_band</code>.</li>
+    <li>No SAR metadata and no geocoding: the header written by Snaphu Export has no map information.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>The band has no phase unit and the product has no SAR metadata, so InSAR operators cannot use
+        it directly. Snaphu Import sets the unit to absolute phase and copies the metadata and
+        geocoding of the wrapped interferogram.</li>
+    <li>The reader works on the header file only; it does not open the <code>snaphu.conf</code> or log
+        files.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a> with the wrapped interferogram as first input, then
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">Phase to Displacement</a> or <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToElevationOp.html">Phase to Elevation</a>.</li>
+    <li>Workflow overview: <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuUnwrapping.html">Snaphu Unwrapping</a>. To run SNAPHU on a stack from
+        SNAP, see <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BatchSnaphuUnwrapOp.html">Batch Snaphu Unwrap</a>.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>SNAPHU is distributed, with its documentation and configuration templates, by the Stanford Radar
+Interferometry Research Group:
+<a href="https://web.stanford.edu/group/radar/softwareandlinks/sw/snaphu/">https://web.stanford.edu/group/radar/softwareandlinks/sw/snaphu/</a>.</p>
+
+<hr>
+</body>
+</html>

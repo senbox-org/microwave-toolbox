@@ -922,10 +922,69 @@ public class InterferogramOp extends Operator {
         // the flat-earth + topographic phase. Remove it here (recomputed in map geometry) so the GSLC
         // interferogram matches the traditional flat-earth/topo-removed result instead of showing the
         // raw geometric fringes.
-        gslcRemoveRefPhase = subtractFlatEarthPhase || subtractTopographicPhase;
-        if (gslcRemoveRefPhase) {
+        //
+        // A FLATTENED GSLC stack (GSLCGeocodingOp outputFlattened, stamped gslc_output_flattened=true)
+        // has had the orbit+DEM range phase removed from each leg already, so ref*conj(sec) is
+        // already a flat-Earth- and topography-removed interferogram. Subtracting the reference
+        // phase again would put it back with the opposite sign; skip only that term. The rest of
+        // the setup still runs: flattening touches only the range phase, so the TOPS carrier-model
+        // difference and the seam-step geometry are needed exactly as on a natural-phase stack.
+        // A stack that mixes flattened and natural-phase legs has no meaningful conjugate product:
+        // refuse it.
+        final boolean stackFlattened = isGslcStackFlattened(sourceProduct);
+        final boolean refPhaseRequested = subtractFlatEarthPhase || subtractTopographicPhase;
+        if (refPhaseRequested) {
             setupGSLCReferencePhase();
         }
+        gslcRemoveRefPhase = refPhaseRequested && !stackFlattened;
+        if (refPhaseRequested && stackFlattened) {
+            SystemUtils.LOG.info("InterferogramOp: GSLC stack is phase-flattened (gslc_output_flattened=true "
+                    + "on all legs); flat-Earth/topographic phase is already removed and is not subtracted again.");
+        }
+    }
+
+    /**
+     * Whether every leg of a GSLC stack is phase-flattened, from the {@code gslc_output_flattened}
+     * stamp of the reference (abstracted metadata) and of each Secondary_Metadata element. A missing
+     * stamp means natural (un-flattened) phase, as for {@code CreateStackOp.readMasterFlattenedState}.
+     *
+     * @return true if all legs are flattened, false if none is
+     * @throws OperatorException if the stack mixes flattened and un-flattened legs
+     */
+    static boolean isGslcStackFlattened(final Product product) {
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+        final boolean refFlattened = readGslcFlattenedStamp(absRoot);
+        final java.util.List<String> mismatched = new ArrayList<>();
+        final MetadataElement root = product.getMetadataRoot();
+        MetadataElement secRoot = root.getElement(AbstractMetadata.SECONDARY_METADATA_ROOT);
+        if (secRoot == null) {
+            secRoot = root.getElement(AbstractMetadata.LEGACY_SLAVE_METADATA_ROOT);
+        }
+        if (secRoot != null) {
+            for (final MetadataElement secAbs : secRoot.getElements()) {
+                if (AbstractMetadata.ORIGINAL_PRODUCT_METADATA.equals(secAbs.getName())) {
+                    continue;
+                }
+                if (readGslcFlattenedStamp(secAbs) != refFlattened) {
+                    mismatched.add(secAbs.getName());
+                }
+            }
+        }
+        if (!mismatched.isEmpty()) {
+            throw new OperatorException("GSLC interferogram: the stack mixes phase-flattened and natural-phase "
+                    + "legs (reference gslc_output_flattened=" + refFlattened + ", secondaries " + mismatched
+                    + " differ). Their conjugate product is meaningless. Geocode all products with the same "
+                    + "'Output phase-flattened complex data' setting.");
+        }
+        return refFlattened;
+    }
+
+    private static boolean readGslcFlattenedStamp(final MetadataElement abs) {
+        if (abs == null) {
+            return false;
+        }
+        final String s = abs.getAttributeString("gslc_output_flattened", null);
+        return s != null && Boolean.parseBoolean(s.trim());
     }
 
     /**

@@ -131,4 +131,76 @@ public class TestSBASInversionOp {
         // Closure phase RMS for a consistent phase must be ~0.
         assertTrue("closure phase near 0: " + clPx[0], Math.abs(clPx[0]) < 1.0e-5);
     }
+
+    /** Build a stack whose band for pair (a, b) carries phi = x(b) - x(a), x(i) = 0.3 * i. */
+    private static Product stackWithPairs(final String[] dates, final int[][] pairs, final int w, final int h) {
+        final Product product = TestUtils.createProduct("SLC", w, h);
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(product);
+        absRoot.setAttributeDouble(AbstractMetadata.radar_frequency, 5405.0);
+        for (int[] p : pairs) {
+            final String suffix = dates[p[0]] + "_" + dates[p[1]];
+            final Band phiBand = TestUtils.createBand(product, "Unw_Phase_ifg_IW2_VV_" + suffix,
+                    ProductData.TYPE_FLOAT32, Unit.PHASE, w, h, true);
+            final Band cohBand = TestUtils.createBand(product, "coh_IW2_VV_" + suffix,
+                    ProductData.TYPE_FLOAT32, Unit.COHERENCE, w, h, true);
+            final float[] phiData = new float[w * h];
+            final float[] cohData = new float[w * h];
+            java.util.Arrays.fill(phiData, (float) ((p[1] - p[0]) * 0.3));
+            java.util.Arrays.fill(cohData, 0.9f);
+            phiBand.setData(ProductData.createInstance(phiData));
+            cohBand.setData(ProductData.createInstance(cohData));
+        }
+        return product;
+    }
+
+    private static float readFirst(final Product target, final String band, final int w, final int h)
+            throws Exception {
+        final float[] px = new float[w * h];
+        target.getBand(band).readPixels(0, 0, w, h, px);
+        return px[0];
+    }
+
+    /**
+     * A pair whose band name lists the LATER date first (e.g. from a multi-reference stack) carries
+     * phi = x(earlier) - x(later). The network stores every pair as earlier -> later, so that
+     * observation must be negated. Before the fix it entered the solve with the wrong sign: the
+     * per-epoch phases came out wrong and the closure phase was non-zero for consistent data.
+     */
+    @Test
+    public void later_date_first_pair_is_negated() throws Exception {
+        final int w = 3, h = 3;
+        final String[] dates = {"01Jan2025", "13Jan2025", "25Jan2025", "06Feb2025"};
+        // (3,1) is later-date-first: phi = x1 - x3 = -0.6
+        final int[][] pairs = {{0, 1}, {1, 2}, {2, 3}, {0, 2}, {3, 1}};
+        final SBASInversionOp op = (SBASInversionOp) spi.createOperator();
+        op.setSourceProduct(stackWithPairs(dates, pairs, w, h));
+        op.setParameter("outputClosurePhase", true);
+        final Product target = op.getTargetProduct();
+
+        // reference = median index N/2 = 2 (25Jan2025): phase_i = 0.3 * (i - 2)
+        assertEquals(-0.6, readFirst(target, "phase_01Jan2025", w, h), 1e-5);
+        assertEquals(-0.3, readFirst(target, "phase_13Jan2025", w, h), 1e-5);
+        assertEquals(0.3, readFirst(target, "phase_06Feb2025", w, h), 1e-5);
+        assertEquals("consistent data must close", 0.0, readFirst(target, "closure_phase_rms", w, h), 1e-5);
+        assertTrue("temporal coherence", readFirst(target, "temporal_coherence", w, h) > 0.99);
+    }
+
+    /**
+     * A sequential network has no closed triplet, so there is no closure phase to report. The band
+     * used to read 0, which looks like a perfectly closed network; it must be no-data (NaN).
+     */
+    @Test
+    public void closure_phase_is_nodata_without_triplets() throws Exception {
+        final int w = 3, h = 3;
+        final String[] dates = {"01Jan2025", "13Jan2025", "25Jan2025"};
+        final int[][] pairs = {{0, 1}, {1, 2}};
+        final SBASInversionOp op = (SBASInversionOp) spi.createOperator();
+        op.setSourceProduct(stackWithPairs(dates, pairs, w, h));
+        op.setParameter("outputClosurePhase", true);
+        final Product target = op.getTargetProduct();
+
+        assertTrue("closure with no triplets must be NaN",
+                Float.isNaN(readFirst(target, "closure_phase_rms", w, h)));
+        assertEquals(-0.3, readFirst(target, "phase_01Jan2025", w, h), 1e-5);
+    }
 }

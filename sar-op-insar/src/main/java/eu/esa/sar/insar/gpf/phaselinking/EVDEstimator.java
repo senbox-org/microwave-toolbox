@@ -16,7 +16,7 @@
 package eu.esa.sar.insar.gpf.phaselinking;
 
 /**
- * EVD phase estimator (Ferretti et al., SqueeSAR, IEEE TGRS 2011).
+ * EVD phase estimator (Fornaro et al., IEEE TGRS 2015; Cao et al., 2015).
  *
  * The estimated complex phasor vector u is the dominant eigenvector
  * (largest eigenvalue) of the Hermitian coherence matrix T_hat:

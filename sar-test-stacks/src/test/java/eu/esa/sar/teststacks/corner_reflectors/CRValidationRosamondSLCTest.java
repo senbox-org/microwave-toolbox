@@ -68,13 +68,13 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(product);
 
         TOPSARSplitOp splitOp = new TOPSARSplitOp();
-        splitOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        splitOp.setSourceProduct(target(applyOrbitOp));
         splitOp.setParameter("subswath", "IW2");
         splitOp.setParameter("selectedPolarisations", "VV");
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(splitOp.getTargetProduct());
-        Product trgProduct = deburstOp.getTargetProduct();
+        deburstOp.setSourceProduct(target(splitOp));
+        Product trgProduct = target(deburstOp);
 
         addCornerReflectorPins(csvFile, trgProduct);
 
@@ -95,11 +95,11 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
         splitOp.setParameter("selectedPolarisations", "VV");
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
-        applyOrbitOp.setSourceProduct(splitOp.getTargetProduct());
+        applyOrbitOp.setSourceProduct(target(splitOp));
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
-        Product trgProduct = deburstOp.getTargetProduct();
+        deburstOp.setSourceProduct(target(applyOrbitOp));
+        Product trgProduct = target(deburstOp);
 
         addCornerReflectorPins(csvFile, trgProduct);
 
@@ -120,11 +120,11 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
         splitOp.setParameter("selectedPolarisations", "VV");
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(splitOp.getTargetProduct());
+        deburstOp.setSourceProduct(target(splitOp));
 
         ApplyOrbitFileOp applyOrbitOp = new ApplyOrbitFileOp();
-        applyOrbitOp.setSourceProduct(deburstOp.getTargetProduct());
-        Product trgProduct = applyOrbitOp.getTargetProduct();
+        applyOrbitOp.setSourceProduct(target(deburstOp));
+        Product trgProduct = target(applyOrbitOp);
 
         addCornerReflectorPins(csvFile, trgProduct);
 
@@ -140,7 +140,7 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
         deburstOp.setSourceProduct(srcProduct);
-        Product trgProduct = deburstOp.getTargetProduct();
+        Product trgProduct = target(deburstOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -156,9 +156,9 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
         deburstOp.setSourceProduct(srcProduct);
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(deburstOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(deburstOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -174,8 +174,8 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
-        Product trgProduct = deburstOp.getTargetProduct();
+        deburstOp.setSourceProduct(target(applyOrbitOp));
+        Product trgProduct = target(deburstOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -191,12 +191,12 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        deburstOp.setSourceProduct(target(applyOrbitOp));
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(deburstOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(deburstOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -212,15 +212,15 @@ public class CRValidationRosamondSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        deburstOp.setSourceProduct(target(applyOrbitOp));
 
         MultilookOp multilookOp = new MultilookOp();
-        multilookOp.setSourceProduct(deburstOp.getTargetProduct());
+        multilookOp.setSourceProduct(target(deburstOp));
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(multilookOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(multilookOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }

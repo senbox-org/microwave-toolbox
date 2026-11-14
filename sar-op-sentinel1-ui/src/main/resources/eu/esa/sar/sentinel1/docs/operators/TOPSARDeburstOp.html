@@ -119,5 +119,39 @@ split product.<br>
 
 </p>
 
+<h3>References</h3>
+<ol>
+    <li>De Zan, F., Monti Guarnieri, A. (2006). TOPSAR: Terrain observation by progressive scans. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(9), 2352&#8211;2360. doi:10.1109/TGRS.2006.873853</li>
+    <li>Torres, R., Snoeij, P., Geudtner, D., Bibby, D., Davidson, M., Attema, E., et al. (2012). GMES Sentinel-1 mission. <i>Remote Sensing of Environment</i>, 120, 9&#8211;24. doi:10.1016/j.rse.2011.05.028</li>
+</ol>
+
+<!-- params:begin op="TOPSAR-Deburst" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>TOPSAR-Deburst</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>selectedPolarisations</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of polarisations</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_s1_dinsar.html">Sentinel-1 IW DInSAR</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_gslc.html">GSLC</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Sentinel-1 SLC product in IW or EW mode.</li>
+    <li>Burst geometry must still be present: the product must not already be debursted.</li>
+    <li>For multi-swath input the selected bands must match the swath metadata.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="TOPSARMergeOp.html">TOPS Merge</a> (several sub-swaths)</li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilooking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

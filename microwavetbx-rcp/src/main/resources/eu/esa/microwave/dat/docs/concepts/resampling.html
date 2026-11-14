@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Resampling and Interpolation for SAR Data</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Resampling and Interpolation</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Resampling and Interpolation for SAR Data</h1>
+
+<p class="lead">Whenever an image is moved onto a new grid (geocoding, coregistration of a Secondary, mosaicking,
+    a change of pixel size) each output value is interpolated from neighbouring input samples. The kernel decides how
+    much the result is smoothed or rings and, for complex data, how much coherence survives. The right choice depends
+    on whether the band holds intensity, complex samples or class labels.</p>
+
+<h2>Interpolation as filtering</h2>
+<p>An interpolated value at a non-integer position x (in samples) is a weighted sum of the input samples
+    s<sub>k</sub>:</p>
+<p class="eq">s(x) = &Sigma;<sub>k</sub> h(x &#8722; k) &middot; s<sub>k</sub></p>
+<p>This is a convolution, so the kernel h acts as a filter with frequency response H(f). The ideal kernel for
+    band-limited data, sinc(x) = sin(&pi;x)/(&pi;x), passes everything below half the sampling rate f<sub>s</sub>
+    and removes the spectral replicas around multiples of f<sub>s</sub>. Practical kernels approximate this infinite kernel (Figure 1). <b>Nearest neighbour</b> copies the closest sample: it never invents values, but shifts
+    positions by up to half a pixel and passes much replica energy. <b>Bilinear</b> never overshoots but damps the
+    upper part of the band: it smooths. <b>Cubic convolution</b> (Keys, 1981) uses 4 samples per axis:</p>
+<p class="eq">h(x) = (a + 2)|x|<sup>3</sup> &#8722; (a + 3)|x|<sup>2</sup> + 1 &nbsp;&nbsp; for |x| &lt; 1</p>
+<p class="eq">h(x) = a|x|<sup>3</sup> &#8722; 5a|x|<sup>2</sup> + 8a|x| &#8722; 4a &nbsp;&nbsp; for 1 &le; |x| &lt; 2</p>
+<p>and zero beyond. SNAP uses a = &#8722;0.5, for which the kernel reproduces quadratic signals exactly; its small
+    negative lobes sharpen the passband at the cost of up to about 7% overshoot at a step. The <b>windowed sinc</b>
+    (SNAP's BISINC, N = 5, 11 or 21 points) tapers the sinc with a Hann window, which is zero at the ends, so
+    BISINC_5 has only 4 non-zero taps:</p>
+<p class="eq">h(x) = sinc(x) &middot; 0.5 [1 + cos(2&pi;x / (N &#8722; 1))] &nbsp;&nbsp; for |x| &le; (N &#8722; 1)/2</p>
+<p>The trade-off: short smooth kernels blur; long sinc-like kernels keep the spectrum but ring further from bright targets and cost more.</p>
+<p><img src="images/resampling_1.png" width="560" height="370" alt="Interpolation kernels (nearest neighbour, bilinear, cubic convolution, 5- and 21-point windowed sinc) and their magnitude responses against a signal band of 0.8 times the sampling rate"></p>
+<p class="figcap">Figure 1. SNAP's kernels (left) and their magnitude responses (right). Green shading: the band of a signal
+    oversampled by 1.25 (B/f<sub>s</sub> = 0.8); grey shading: its first replica.</p>
+
+<h2>Detected data: interpolate linear power</h2>
+<p>Interpolate backscatter (&beta;<sup>0</sup>, &sigma;<sup>0</sup>, &gamma;<sup>0</sup>, intensity) in linear power.
+    Interpolating dB values takes a weighted geometric mean, which is biased low on speckle (by up to 2.5 dB for
+    single-look data, see <a href="speckle.html">Speckle</a>). Interpolating amplitude and squaring is biased too:
+    halfway between two independent single-look pixels the expected power is (1 + &pi;/4)/2 &asymp; 0.89 of the mean
+    (&#8722;0.5 dB). Bilinear and cubic kernels average neighbouring speckle (variance drops, mean kept); cubic and sinc kernels can give small negative intensities next to strong targets. For class maps, masks,
+    flags and no-data values only nearest neighbour is valid: other kernels blend codes into meaningless values
+    (classes 1 and 3 become 2).</p>
+
+<h2>Complex data: keep the phase</h2>
+<p>When the Secondary SLC is resampled onto the Reference grid, interpolation errors become interferometric
+    decorrelation and phase noise (Hanssen and Bamler, 1999). Figure 2 computes, for SNAP's kernels, the coherence
+    between the interpolated and the true signal. At baseband with B/f<sub>s</sub> = 0.8, nearest neighbour keeps
+    0.92, bilinear 0.98, cubic convolution 0.99 and BISINC_5 0.985; Warp's 6-point cubic convolution and BISINC_11/21
+    keep 0.999 or more. For the narrower Sentinel-1 IW azimuth band (327 Hz in 486 Hz, B/f<sub>s</sub> &asymp; 0.67)
+    BISINC_5 keeps 0.994. Longer kernels matter most where coherence is high.</p>
+<p><img src="images/resampling_2.png" width="560" height="330" alt="Coherence after interpolation versus the centre frequency of the signal spectrum for six kernels; all kernels degrade as the spectrum moves away from zero frequency"></p>
+<p class="figcap">Figure 2. Coherence between the interpolated and the true complex signal (flat spectrum,
+    B/f<sub>s</sub> = 0.8, random sub-pixel positions) versus the centre f<sub>c</sub> of its spectrum.</p>
+<p>All kernels are low-pass filters centred on zero frequency, so they fail when the spectrum is not at baseband: at
+    f<sub>c</sub> = f<sub>s</sub>/4 every kernel drops to 0.83 to 0.89, at f<sub>s</sub>/2 to 0.5 to 0.6 (averaged
+    over random sub-pixel positions; part of the loss is a phase error that depends on the position). That happens
+    whenever the Doppler centroid is not zero (squinted stripmap, spotlight) and above all in TOPS bursts, whose
+    centroid sweeps several kHz (see <a href="tops.html">TOPS</a>). The data are therefore <i>deramped and
+    demodulated</i> to baseband, interpolated, and <i>reramped</i> at the new positions. Never interpolate a wrapped phase band (values either side of a &plusmn;&pi; jump average to nonsense); interpolate i/q.</p>
+
+<h2>Aliasing, oversampling and pixel spacing</h2>
+<p>A signal of bandwidth B is sampled without aliasing if the spacing is at most 1/B; SAR products are typically
+    sampled 1.1 to 1.5 times faster. Detection doubles the bandwidth (|s|<sup>2</sup> has twice the spectral width of
+    s), so intensity formed on the SLC grid is aliased (its spectrum is 2B wide but sampled at about 1.25B);
+    oversampling the SLC by 2 first avoids this. Oversampling adds pixels, never resolution. Conversely, picking every n-th
+    pixel folds the discarded part of the spectrum back into the image: low-pass (multilook) first.</p>
+<p>For geocoding, choose the pixel spacing from the resolution. About half the resolution keeps all detail
+    (Sentinel-1 IW GRDH: 20 m &times; 22 m resolution at 10 m pixels); much finer spacing only makes bigger files. Where range and azimuth sampling differ (S-1 IW
+    SLC: about 3 to 4.5 m ground range by 14 m azimuth), square pixels either discard range detail or oversample
+    azimuth.</p>
+
+<h2>DEM resampling</h2>
+<p>Geocoding, terrain flattening and DEM-assisted coregistration interpolate the DEM at every output pixel, which adds no detail: a 30 m DEM resampled to 10 m stays a 30 m DEM (see <a href="height_references.html">Height
+    references</a>). Nearest neighbour gives height steps. Bilinear gives continuous heights but slopes that jump at
+    DEM cell edges, which can show in local-incidence-angle and terrain-flattened bands when the output pixel is much
+    finer than the DEM. Bicubic gives continuous slopes.</p>
+
+<h2>In SNAP</h2>
+<p>The snap-core kernel names are <code>NEAREST_NEIGHBOUR</code>, <code>BILINEAR_INTERPOLATION</code>,
+    <code>CUBIC_CONVOLUTION</code> (Keys, a = &#8722;0.5), <code>BISINC_5_POINT_INTERPOLATION</code>,
+    <code>BISINC_11_POINT_INTERPOLATION</code>, <code>BISINC_21_POINT_INTERPOLATION</code> (Hann-windowed sinc) and
+    <code>BICUBIC_INTERPOLATION</code> (a bicubic patch fitted to the 2 &times; 2 neighbours and their derivatives).</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Operator (GPT alias)</th><th>Parameter</th><th>Choices</th><th>Default</th></tr>
+    <tr><td><code>Terrain-Correction</code>, <code>Ellipsoid-Correction-RD</code></td><td>Image Resampling Method</td><td>all seven above</td><td><code>BILINEAR_INTERPOLATION</code></td></tr>
+    <tr><td></td><td>DEM Resampling Method</td><td>all seven + <code>DELAUNAY_INTERPOLATION</code></td><td><code>BILINEAR_INTERPOLATION</code></td></tr>
+    <tr><td><code>GSLC-Terrain-Correction</code></td><td>Image / DEM Resampling Method</td><td>as Terrain-Correction</td><td><code>BISINC_5_POINT_INTERPOLATION</code> / <code>BILINEAR_INTERPOLATION</code></td></tr>
+    <tr><td><code>Back-Geocoding</code>, <code>DEM-Assisted-Coregistration</code></td><td>Resampling Type / DEM Resampling Method</td><td>all seven</td><td><code>BISINC_5_POINT_INTERPOLATION</code> / <code>BICUBIC_INTERPOLATION</code></td></tr>
+    <tr><td><code>Terrain-Flattening</code></td><td>DEM Resampling Method</td><td>all seven</td><td><code>BILINEAR_INTERPOLATION</code></td></tr>
+    <tr><td><code>Warp</code></td><td>Interpolation Method</td><td>nearest, bilinear, bicubic, bicubic2, linear (falls back to bilinear), cubic convolution (4 or 6 points), truncated sinc (6, 8 or 16 points)</td><td>Cubic convolution (6 points)</td></tr>
+    <tr><td><code>CreateStack</code></td><td>Resampling Type</td><td><code>NONE</code> + all seven</td><td><code>NONE</code> (whole-pixel shifts only)</td></tr>
+    <tr><td><code>SAR-Mosaic</code>, <code>SARSim-Terrain-Correction</code>, <code>Ellipsoid-Correction-GG</code></td><td>Resampling Type / Image Resampling Method</td><td>nearest, bilinear, cubic convolution</td><td>nearest (Mosaic), bilinear (others)</td></tr>
+    <tr><td><code>SRGR</code></td><td>Interpolation Method</td><td>nearest, linear, cubic, cubic2, sinc</td><td>Linear interpolation</td></tr>
+</table>
+<ul>
+    <li><b>Terrain-Correction</b> forms intensity from i and q at each SLC sample before interpolating, so intensity
+        is resampled in linear power. Amplitude and dB bands are interpolated as they are, so calibrate to linear
+        &sigma;<sup>0</sup>/&beta;<sup>0</sup> before geocoding. Pixel Spacing 0 means the coarser of azimuth and ground-range spacing, in square pixels (S-1 IW GRDH: 10 m; IW SLC: about 14 m). One kernel serves all bands, so geocode class bands in a separate nearest-neighbour run. For InSAR products
+        with no bands selected it geocodes i and q, not intensity, without deramping: fine for an interferogram, not
+        for TOPS SLC bands.</li>
+    <li><b>GSLC-Terrain-Correction</b> deramps TOPS bursts before the sinc kernel and, by default, leaves the output
+        deramped (<i>Restore TOPS azimuth carrier</i> off, as needed for InSAR); for stripmap it removes the
+        Doppler-centroid azimuth carrier and re-applies it after. Keep its Grid Spacing (default <code>NATIVE_ANISOTROPIC</code>: slant-range step
+        east, azimuth step north) the same for every product of a stack.</li>
+    <li><b>Back-Geocoding</b> deramps and demodulates each Secondary burst, interpolates, and reramps. <b>Warp</b> does
+        not deramp; for data with a non-zero Doppler centroid run <b>Demodulate</b> before it and <b>Remodulate</b>
+        after.</li>
+    <li><b>Oversample</b> zero-pads the spectrum by FFT (default ratio 2.0). It uses the annotated Doppler centroid
+        only for complex ERS and ENVISAT products and assumes zero otherwise, so do not use it on TOPS bursts.</li>
+    <li><b>Undersample</b> offers <code>LowPass Filtering</code> (default; a 3 &times; 3, 5 &times; 5 or 7 &times; 7
+        boxcar; complex input is converted to intensity first and dB is averaged in linear) or <code>Sub-Sampling</code> (plain decimation; complex stays complex), default ratio 0.5.
+        <b>Multilook</b> is usually the better way to coarsen detected data.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li><b>Bilinear or cubic resampling of non-deramped complex data.</b> On TOPS bursts the phase is destroyed. Use
+        Back-Geocoding or GSLC, or deramp first.</li>
+    <li><b>Nearest neighbour for backscatter statistics.</b> Half-pixel shifts and duplicated pixels distort edges and parcel means.</li>
+    <li><b>Upsampling to "gain resolution".</b> Resolution is fixed by the bandwidth.</li>
+    <li><b>Resampling dB or amplitude.</b> Resample linear power; convert to dB for display.</li>
+    <li><b>Decimating without a low-pass.</b> Sub-Sampling or a very coarse pixel spacing aliases; multilook first.</li>
+    <li><b>Interpolating a wrapped phase band.</b> Geocode the complex interferogram instead.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/EllipsoidCorrectionRDOp.html">Ellipsoid Correction RD</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GeolocationGridGeocodingOp.html">Ellipsoid Correction GG</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SARSimTerrainCorrectionOp.html">SAR Simulation Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/TerrainFlatteningOp.html">Terrain Flattening</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/DEMAssistedCoregistrationOp.html">DEM Assisted Coregistration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/WarpOp.html">Warp</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/DemodulateOp.html">Demodulate</a> and
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/RemodulateOp.html">Remodulate</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MosaicOp.html">SAR Mosaic</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SRGROp.html">Slant Range to Ground Range</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.utilities.ui/eu/esa/sar/utilities/docs/operators/OverSampleOp.html">Oversample</a> and
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.utilities.ui/eu/esa/sar/utilities/docs/operators/UnderSampleOp.html">Undersample</a></li>
+</ul>
+<p>See also <a href="tops.html">TOPS</a>, <a href="coregistration.html">Coregistration</a>,
+    <a href="geometry.html">Geometry and terrain correction</a>, <a href="speckle.html">Speckle and multilooking</a>
+    and <a href="coherence.html">Coherence</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Keys, R. (1981). Cubic convolution interpolation for digital image processing. <i>IEEE Transactions on
+        Acoustics, Speech, and Signal Processing</i>, 29(6), 1153-1160. doi:10.1109/TASSP.1981.1163711</li>
+    <li>Hanssen, R., Bamler, R. (1999). Evaluation of interpolation kernels for SAR interferometry. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 37(1), 318-321. doi:10.1109/36.739168</li>
+    <li>Migliaccio, M., Bruno, F. (2003). A new interpolation kernel for SAR interferometric registration. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 41(5), 1105-1110. doi:10.1109/TGRS.2003.810672</li>
+    <li>Cumming, I. G., Wong, F. H. (2005). <i>Digital Processing of Synthetic Aperture Radar Data: Algorithms and
+        Implementation</i>. Artech House, Norwood, MA. ISBN 1-58053-058-3.</li>
+    <li>Yag&uuml;e-Mart&iacute;nez, N., Prats-Iraola, P., Rodr&iacute;guez Gonz&aacute;lez, F., Brcic, R., Shau, R.,
+        Geudtner, D., Eineder, M., Bamler, R. (2016). Interferometric processing of Sentinel-1 TOPS data. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 54(4), 2220&#8211;2234. doi:10.1109/TGRS.2015.2497902</li>
+</ol>
+
+<hr>
+</body>
+</html>

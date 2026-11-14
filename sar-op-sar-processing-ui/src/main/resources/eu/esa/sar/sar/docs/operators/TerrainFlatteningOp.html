@@ -44,14 +44,15 @@ matrices in T3, C3 or C2 format. </li></ul>
     </li>
     <li>DEM resampling Method: resampling method used in getting elevation from DEM.</li><li>External DEM:&nbsp;User specified external DEM file. Currently only DEM in Geotiff format 
         with geographic coordinates (P<sub>lat</sub>, P<sub>lon</sub>, P<sub>h</sub>) 
-        referred to global geodetic ellipsoid reference WGS84 (and height in 
-        meters)&nbsp;is supported.&nbsp;</li><li>DEM No Data Value: No Data Value for user specified external DEM.&nbsp; </li><li>External DEM Apply EGM: checkbox if selected, Earth Gravitional Model will be applied to the user specified external DEM.&nbsp; </li><li>Additional
+        in WGS84 (and height in 
+        meters)&nbsp;is supported.&nbsp;</li><li>DEM No Data Value: No Data Value for user specified external DEM.&nbsp; </li><li>External DEM Apply EGM: if selected, SNAP converts the heights of the external DEM from geoid heights (as in SRTM or Copernicus DEM files) to the ellipsoid heights that SAR geometry needs. Turn it on for geoid (orthometric) heights; leave it off if the file already contains ellipsoid heights. It has no effect on DEMs downloaded by SNAP. Default in this operator: <b>not selected</b> (in Range-Doppler Terrain Correction and GSLC Geocoding it is selected by default).&nbsp; </li><li>Additional
 Overlap Percentage: To perform terrain flattening to a given tile,
 pixels from adjacent tiles are generally needed due to the topography
 in the image area. The overlap percentage is automatically
 computed using the DEM. However, if the computed overlap is not enough,
 then tiling effect can be observed in the terrain flattened image. In
-this case, user can increase the Additional Overlap Percentage to increase the overlap between adjacent tiles. &nbsp;</li><li>Oversampling
+this case, user can increase the Additional Overlap Percentage to increase the overlap between adjacent tiles.
+Despite its name, the value is a fraction of the tile size in [0, 1] (default 0.1), not a percentage. &nbsp;</li><li>Oversampling
 Multiple: The Terrain Flattening algorithm requires that the DEM
 resolution is higher than the image resolution. Therefore, the DEM is
 generally oversampled. The default oversampling factor is automatically computed based on
@@ -60,17 +61,72 @@ Multiple). The default value for&nbsp;Oversampling
 Multiple is 1.0.&nbsp; However, if the&nbsp;oversampling factor is not large enough, then artefacts can be observed
 in the terrain flattened image. In this case user can increase the
 oversampling factor by setting Oversampling
-Multiple to a larger value. </li>
+Multiple to a larger value. The default factor is: for a DEM downloaded by SNAP,
+ceil(DEM spacing / finer pixel spacing) + 1, applied only when a pixel spacing is finer than the DEM spacing
+(otherwise 1); for an external DEM, ceil(DEM pixel width in metres / finer pixel spacing), without the +1.
+Allowed range of the multiple: [1, 4].</li>
+<li>Output Simulated Image (default off): adds the band <code>simulatedImage</code> (unit Ratio), the
+    simulated illuminated area A<sub>&gamma;,T</sub> divided by the reference area A<sub>&beta;</sub>. The output
+    is &beta;<sup>0</sup> divided by this ratio. Multitemporal Compositing needs this band.</li>
+<li>Output Terrain Flattened Sigma0 (default off): also writes a terrain-flattened Sigma0 band.</li>
+<li>Mask out areas without elevation (GPT <code>nodataValueAtSea</code>, default on): pixels where the DEM has
+    no data (often the sea) become no-data. When off, they are processed at the EGM96 geoid height.</li>
+<li>No-data in steep terrain: where the simulated area A<sub>&gamma;,T</sub> is below 5% of the flat-ellipsoid
+    area A<sub>&beta;</sub>/tan &theta;<sub>E</sub> (shadow and near-grazing back-slopes), the output is
+    no-data rather than an unreliable &gamma;<sup>0</sup>.</li>
+<li>Apply Atmospheric Path Delay Correction (<code>applyAPDCorrection</code>, default off) is available only in
+    GPT and graphs; it is not in the dialog.</li>
 </ul>
+<p>Note: External DEM Apply EGM is <b>off</b> by default here but <b>on</b> by default in Range-Doppler Terrain
+    Correction. When you use the same external geoid-height DEM in both, select it in both.</p>
 <img style="width: 435px; height: 441px;" alt="" src="images/TerrainFlatteningOp.jpg"><br>
 
-<p> Reference:&nbsp;</p>
+<h3>References</h3>
+<ol>
+    <li>Small, D. (2011). Flattening gamma: Radiometric terrain correction for SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 49(8), 3081&#8211;3093. doi:10.1109/TGRS.2011.2120616</li>
+</ol>
 
-<p>[1] David Small, "Flattening Gamma:
-    Radiometric Terrain Correction for SAR imagery", IEEE Transaction on
-    Geoscience and Remote Sensing, Vol. 48, No. 8, August 2011<br>
-</p>
-
-
+<!-- params:begin op="Terrain-Flattening" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Terrain-Flattening</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM Resampling Method</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>externalDEMApplyEGM</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM Apply EGM</td></tr>
+<tr><td><code>outputSimulatedImage</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Simulated Image</td></tr>
+<tr><td><code>outputSigma0</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Terrain Flattened Sigma0</td></tr>
+<tr><td><code>nodataValueAtSea</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Mask the sea with no data value (faster)</td></tr>
+<tr><td><code>additionalOverlap</code></td><td>Double</td><td>0.1</td><td>[0, 1]</td><td>&nbsp;</td><td>The additional overlap percentage</td></tr>
+<tr><td><code>oversamplingMultiple</code></td><td>Double</td><td>1.0</td><td>[1, 4]</td><td>&nbsp;</td><td>The oversampling factor</td></tr>
+<tr><td><code>applyAPDCorrection</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Correct for tropospheric path delay (~3 m range improvement) using a standard atmosphere model</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometric Quantities and Calibration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_grd_backscatter.html">Sentinel-1 GRD to Terrain-Flattened Backscatter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/rtc.html">Radiometric Terrain Correction in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/terrain_correction.html">Range-Doppler Terrain Correction in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/multitemporal.html">Multitemporal Backscatter Stacks</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/quality_control.html">Quality Control and Troubleshooting</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product that is not map projected, calibrated with &beta;<sup>0</sup> bands (<a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a> with &quot;Output beta0 band&quot;), or a polarimetric T3, C3 or C2 product. An uncalibrated product is calibrated automatically; a calibrated product without a Beta0 band is refused</li>
+    <li>An incidence angle tie-point grid and an installed DEM (or an external DEM file)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

@@ -60,11 +60,11 @@ public class CPMTest {
         // Two slave orderings of the *same* GCP pairs: natural order and reversed order.
         final ProductNodeGroup<Placemark> masterA = newGroup("masterA");
         final ProductNodeGroup<Placemark> slaveA = newGroup("slaveA");
-        fill(masterA, slaveA, masterPositions, false);
+        fill(masterA, slaveA, masterPositions, false, 25.0, -25.0);
 
         final ProductNodeGroup<Placemark> masterB = newGroup("masterB");
         final ProductNodeGroup<Placemark> slaveB = newGroup("slaveB");
-        fill(masterB, slaveB, masterPositions, true);
+        fill(masterB, slaveB, masterPositions, true, 25.0, -25.0);
 
         final Window window = new Window(0, HEIGHT, 0, WIDTH);
 
@@ -88,6 +88,28 @@ public class CPMTest {
         assertEquals("Exactly the outlier should be removed", masterPositions.size() - 1, survivorsA.size());
     }
 
+    /**
+     * An outlier with an error in the azimuth (line) direction only. Doris COREGPM removes the observation with the
+     * largest summed statistic wTestL^2 + wTestP^2; picking the maximum of the range statistic alone selects an
+     * arbitrary point here (all range residuals are zero) and never removes the azimuth outlier.
+     */
+    @Test
+    public void testAzimuthOnlyOutlierIsRemoved() throws Exception {
+
+        final List<int[]> masterPositions = buildMasterGrid();
+
+        final ProductNodeGroup<Placemark> master = newGroup("master");
+        final ProductNodeGroup<Placemark> slave = newGroup("slave");
+        fill(master, slave, masterPositions, false, 0.0, -25.0);
+
+        final CPM cpm = new CPM(1, 20, CRITICAL_VALUE, new Window(0, HEIGHT, 0, WIDTH), master, slave);
+        cpm.computeCPM();
+
+        final List<String> survivors = survivorNames(cpm);
+        assertFalse("Azimuth outlier GCP must be removed by datasnooping", survivors.contains(OUTLIER_NAME));
+        assertEquals("Exactly the azimuth outlier should be removed", masterPositions.size() - 1, survivors.size());
+    }
+
     private static List<int[]> buildMasterGrid() {
         final List<int[]> positions = new ArrayList<>();
         final int spacingX = WIDTH / (GRID + 1);
@@ -103,7 +125,9 @@ public class CPMTest {
     private void fill(final ProductNodeGroup<Placemark> masterGroup,
                       final ProductNodeGroup<Placemark> slaveGroup,
                       final List<int[]> masterPositions,
-                      final boolean reversed) {
+                      final boolean reversed,
+                      final double outlierDx,
+                      final double outlierDy) {
 
         // master pins are always inserted in the same (deterministic) grid order, mirroring addGCPGrid
         final List<Placemark> masterPins = new ArrayList<>();
@@ -117,8 +141,8 @@ public class CPMTest {
             final double sx;
             final double sy;
             if (name.equals(OUTLIER_NAME)) {
-                sx = m[0] + SHIFT_X + 25.0; // gross outlier
-                sy = m[1] + SHIFT_Y - 25.0;
+                sx = m[0] + SHIFT_X + outlierDx; // gross outlier
+                sy = m[1] + SHIFT_Y + outlierDy;
             } else {
                 sx = m[0] + SHIFT_X;
                 sy = m[1] + SHIFT_Y;

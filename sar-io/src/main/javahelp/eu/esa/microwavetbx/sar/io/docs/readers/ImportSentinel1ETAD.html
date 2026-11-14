@@ -1,0 +1,89 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Import Sentinel-1 ETAD</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Import Sentinel-1 ETAD</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<p>The Sentinel-1 <b>Extended Timing Annotation Dataset (ETAD)</b> is an auxiliary product that
+corrects the timing, and so the geolocation, of Sentinel-1 SLC images. SNAP opens ETAD products with
+the <b>SENTINEL-1 ETAD</b> reader so that you can inspect the correction layers. The image products
+themselves are described on <a href="ImportSentinel1.html">Import Sentinel-1</a>.</p>
+
+<h2>Mission</h2>
+<ul>
+    <li><b>Producer:</b> ESA, with DLR as contractor, for the Copernicus Sentinel-1 mission.</li>
+    <li><b>Content:</b> correction layers for the atmospheric path delays (troposphere and ionosphere),
+        for solid Earth tides, and for effects of the Sentinel-1 SAR processor.</li>
+    <li><b>Sampling:</b> regular grids of about 200&nbsp;m, organised by sub-swath and burst, following
+        the structure of the matching SLC product.</li>
+    <li><b>Coverage:</b> one ETAD product per Sentinel-1 SLC data take.</li>
+</ul>
+
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Product</th><th>Modes</th><th>Packaging</th></tr>
+    <tr><td>ETAD (product type <code>ETA</code>)</td><td>IW and Stripmap (SM) SLC data takes</td>
+        <td>SAFE folder with one NetCDF file and an XML annotation file, or its ZIP archive</td></tr>
+</table>
+
+<h2>How to open</h2>
+<p>Use <b>File &gt; Open Product</b>; there is no entry under <i>File &gt; Import</i>. Select one of:</p>
+<ul>
+    <li>the <code>manifest.safe</code> file inside the <code>S1..._ETA_....SAFE</code> folder;</li>
+    <li>the <code>.SAFE</code> folder itself;</li>
+    <li>the ZIP archive (its name starts with <code>S1</code> and contains <code>_ETA_</code>).</li>
+</ul>
+<p>The <code>_ETA_</code> part of the name is what tells SNAP that the product is ETAD; the normal
+SENTINEL-1 reader does not open these products.</p>
+
+<h2>What you get</h2>
+<ul>
+    <li>One band per correction layer and burst, named
+        <code>&lt;sub-swath&gt;_&lt;burst&gt;_&lt;layer&gt;</code>, for example
+        <code>IW1_Burst0001_troposphericCorrectionRg</code>. Layers include the tropospheric, ionospheric
+        and geodetic range corrections, the azimuth corrections (for example bistatic and FM-rate
+        mismatch) and the sums of all range and all azimuth corrections. The corrections are timing
+        corrections in seconds (unit <code>s</code>); the latitude, longitude and height grids of each
+        burst are also bands. The no-data value is &#8722;999.</li>
+    <li>The bands have different sizes (one grid per burst), so the product is a multi-size product.</li>
+    <li>The XML annotation and the NetCDF attributes are under <i>Original_Product_Metadata &gt;
+        annotation</i>. Product type and acquisition parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+    <li>The geocoding is approximate: a simple corner geocoding built from the bounding box of the
+        footprint in <code>manifest.safe</code>.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>The product contains correction grids, not a radar image; most SAR operators do not accept it.</li>
+    <li>Bursts are not merged on reading, and the approximate geocoding is not suitable for overlaying
+        the layers on other data. Use ETAD Deburst to build one continuous layer.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li>To correct an image: run <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S-1 ETAD Correction</a> on the Sentinel-1 product
+        (a <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARSplitOp.html">TOPSAR-Split</a> sub-swath of an IW SLC, a Stripmap SLC, or a GRD). The
+        operator can download the matching ETAD product itself, or you can point it to the product you
+        opened here.</li>
+    <li>To look at one correction layer as an image: <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/ETADDeburstOp.html">ETAD Deburst</a>.</li>
+    <li>Background: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/orbits_etad.html">Orbits and ETAD</a>.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>The <a href="https://sentiwiki.copernicus.eu/web/s1-products">SentiWiki Sentinel-1 products page</a>
+describes ETAD and links the ETAD Product Specification (ETAD-DLR-PS-0014), the ETAD Product
+Definition Document and the algorithm description (ATBD).</p>
+
+<hr>
+</body>
+</html>

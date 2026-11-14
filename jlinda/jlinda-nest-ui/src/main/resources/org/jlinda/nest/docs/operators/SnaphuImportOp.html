@@ -22,7 +22,7 @@
 
 <p>
     It is strongly advised before executing graph for exporting data for SNAPHU processing for user to get familiar
-    with general principles of doing <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/jlinda/nest/docs/operators/SnaphuUnwrapping.html">phase unwrapping</a>.
+    with general principles of doing <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuUnwrapping.html">phase unwrapping</a>.
 </p>
 
 <h4>
@@ -48,27 +48,35 @@
 <img style="" alt="" src="../images/SnaphuImportGraph_fig0.jpg"><br/>
 
 <p>
-    In the export graph, there are two readers, and one writer. <strong>Two readers</strong> are reading the phase
-    product, constructed during <a href="SnaphuExportOp.html">exporting data for SNAPHU processing</a>, and other reader
-    is reading imported unwrapped result of SNAPHU processing as "Generic Binary". Snaphu Import operator arranges the
-    metadata and bands, and constructs the unwrapped phase product compatible for further utilization within the Toolbox. Finally,
-    writer saves the product in DIMAP format.
+    The graph has two readers and one writer. <strong>1-Read-Phase</strong> reads the wrapped interferogram product
+    that you gave to <a href="SnaphuExportOp.html">Snaphu Export</a> (with geocoding and InSAR metadata).
+    <strong>2-Read-Unwrapped-Phase</strong> reads the SNAPHU result: the ENVI header
+    <code>UnwPhase_ifg_&lt;tag&gt;.snaphu.hdr</code> that Snaphu Export wrote into its sub-folder, or the saved product
+    of <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BatchSnaphuUnwrapOp.html">Batch Snaphu Unwrap</a>
+    (not needed for SBAS Inversion, which reads the Batch Snaphu Unwrap product directly). The writer saves the
+    result in BEAM-DIMAP.
 </p>
 
 <p>Specifically the import graph performs the following:</p>
 
 <dl>
     <dt><strong>1-Read-Phase:</strong></dt>
-    <dd>Reads the "phase-only" interferometric product constructed during Snaphu Data Export step.</dd>
+    <dd>Reads the wrapped interferogram product. It must be the first input: metadata, geocoding and (unless
+    <i>Do NOT save Wrapped interferogram</i> is ticked) all of its bands, including the <code>coh_*</code> coherence
+    bands, are taken from the first input that has geocoding. A Batch Snaphu Unwrap product is also geocoded, so with
+    it the order decides; the wrong order fails with "requires an unwrapped phase product".</dd>
 
-    <dt><strong>2-Read-Unwrapper-Phase:</strong></dt>
-    <dd>Reads the "unwrapped-phase-only" product ingested in the Toolbox using Generic Binary Readers. <b>Note</b> that
-    due to restrictions of the framework currently it is not possible to chain the generic binary reader in the graph, and hence
-    it is not possible to ingest unwrapped data directly into the Toolbox. This has to be done outside Snaphu Import graph.</dd>
+    <dt><strong>2-Read-Unwrapped-Phase:</strong></dt>
+    <dd>Reads the unwrapped phase. Every band whose name contains "unw" or "band" gets the unit
+    <code>abs_phase</code>. If the first input has exactly one Secondary, the band is renamed
+    <code>Unw_Phase_ifg_&lt;ref-date&gt;_&lt;sec-date&gt;</code>; with more than one Secondary the names are kept
+    (<code>UnwPhase_ifg_&lt;tag&gt;</code>).</dd>
 
     <dt><strong>3-SnaphuImport:</strong></dt>
     <dd>Arranges the metadata and merges the bands of the source product into a unwrapped phase product. In this step
         metadata and bands are arranged in a compatible form for further InSAR processing.
+        Leave <i>Do NOT save Wrapped interferogram</i> unticked for SBAS Inversion: ticking it also drops the
+        coherence bands.
     </dd>
 
     <dt><strong>4-Write:</strong></dt>
@@ -76,6 +84,33 @@
 </dl>
 
 <br>
+<!-- params:begin op="SnaphuImport" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SnaphuImport</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>doNotKeepWrapped</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Do NOT save Wrapped interferogram in the target product</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Exactly two source products of equal width and height, in this order: the wrapped interferogram product you exported with <a href="SnaphuExportOp.html">Snaphu Export</a> (with geocoding), then the SNAPHU result (<code>UnwPhase_*.snaphu.hdr</code>) or the saved Batch Snaphu Unwrap product (when you import a multi-pair stack one pair at a time, the first input is the previous Snaphu Import output)</li>
+    <li>The second product must contain a band whose name contains 'unw' or 'band'</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">Phase to Displacement</a> or <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToElevationOp.html">Phase to Elevation</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a> (multi-pair stacks)</li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

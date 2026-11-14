@@ -1,82 +1,98 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import ERS1/2 SAR or ATSR</title>
-
-
-
-
-    
-    <link rel="stylesheet" href="../style.css"></head><body>
+<html>
+<head><title>Help - Import ERS-1/2 SAR</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp;
-            Import ERS-1 SAR
-        </td>
-
+        <td class="header">&nbsp; Import ERS-1/2 SAR</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
 
-<h3>Import ERS-1 Product in ENVISAT or CEOS formats<br>
-</h3>
+<p>This page covers SAR image products from ERS-1 and ERS-2 in both formats SNAP can read:
+<b>Envisat format</b> (opened by SNAP's ENVISAT reader, as for
+<a href="ImportEnvisat.html">ASAR</a>) and <b>CEOS format</b> (reader <b>ERS CEOS</b>, menu
+<i>File &gt; Import &gt; SAR Sensors &gt; ERS 1/2 CEOS</i>).</p>
 
-<p class="MsoNormal" style="text-align: justify;"><span style="background: white none repeat scroll 0% 50%; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">ESA's
-first sun-synchronous polar-orbiting SAR mission acquired more than 1.5 million
-individual scenes.</span> ERS-1&#8217;s greatest contribution was in the field of SAR
-interferometry, where for the first time, precise topographic information could
-be routinely produced from space data.</p>
-
-
-<p class="MsoNormal"><b style="">Operational:</b>
-1991-07-17 to 2000-03-13</p>
-
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-C-band</p>
-
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap</p>
-
-
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
-
+<h2>Mission</h2>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GEC Geocoded Ellipsoid Corrected</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->PRI Precision Image</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SLC Single Look Complex</li>
+    <li><b>Operator:</b> European Space Agency (ESA).</li>
+    <li><b>Instrument:</b> AMI SAR, C-band at 5.3&nbsp;GHz (wavelength about 5.66&nbsp;cm), VV
+        polarisation, about 100&nbsp;km swath and about 30&nbsp;m resolution.</li>
+    <li><b>Orbit:</b> sun-synchronous, 782&ndash;785&nbsp;km altitude; 35-day repeat cycle for most
+        of the mission (ERS-1 also flew 3-day phases).</li>
+    <li><b>ERS-1:</b> launched 17 July 1991, ended 10 March 2000.</li>
+    <li><b>ERS-2:</b> launched 21 April 1995, taken out of service 5 September 2011. During the
+        tandem mission (1995&ndash;1996) ERS-2 followed ERS-1 one day later in the same orbit.</li>
 </ul>
 
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Content</th><th>Envisat format</th><th>CEOS format</th></tr>
+    <tr><td>Single-look complex, slant range</td><td>SAR_IMS_1P</td><td>SLC</td></tr>
+    <tr><td>Precision image, detected ground range</td><td>SAR_IMP_1P</td><td>PRI</td></tr>
+    <tr><td>Medium resolution, detected</td><td>SAR_IMM_1P</td><td>&ndash;</td></tr>
+    <tr><td>Geocoded on the ellipsoid</td><td>SAR_IMG_1P</td><td>GEC</td></tr>
+</table>
+<p>ESA currently distributes ERS SAR products in Envisat format. CEOS products come from older
+processing chains (PGS or VMP processors).</p>
 
+<h2>How to open</h2>
+<ul>
+    <li><b>Envisat format:</b> select the file ending in <code>.E1</code> (ERS-1) or <code>.E2</code>
+        (ERS-2). A <code>.zip</code> or <code>.gz</code> containing it can be selected directly.</li>
+    <li><b>CEOS format:</b> select the volume file whose name starts with <code>VDF</code>. The leader
+        (<code>LEA</code>), image (<code>DAT</code>) and trailer files must be in the same folder. You can
+        also select a ZIP archive whose name starts with <code>ER01</code>, <code>ER02</code>,
+        <code>E1_</code>, <code>E2_</code> or <code>SAR_</code>.</li>
+</ul>
 
+<h2>What you get</h2>
+<ul>
+    <li><b>SLC:</b> complex bands <code>i</code> and <code>q</code> (units real and imaginary) plus a
+        virtual <code>Intensity</code>.</li>
+    <li><b>Detected products:</b> <code>Amplitude</code> plus a virtual <code>Intensity</code>.</li>
+    <li>In CEOS products with several image files the bands get a numeric suffix
+        (<code>Amplitude_1</code>, ...).</li>
+    <li>Tie-point grids (latitude, longitude, slant range time, incidence angle) and orbit state
+        vectors. The mission is recorded as <code>ERS1</code> or <code>ERS2</code> in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
 
+<h2>Known limitations</h2>
+<ul>
+    <li>Only Envisat-format and CEOS-format products are readable. SNAP has no reader for ERS SAR
+        products repackaged in other formats, such as SAFE.</li>
+    <li>After the ERS-2 tape recorders failed in 2003, data were only acquired within view of a ground
+        station (mostly Europe and Canada), so global coverage ends there.</li>
+</ul>
 
+<h2>Recommended next step</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a>
+        (DELFT or PRARE precise orbits)
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>SLC for interferometry: Apply Orbit File &rarr;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>
+        &rarr; <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a>.
+        See <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR concepts</a>.</li>
+</ul>
 
-<p class="MsoNormal"><b style="">Polarizations: </b>All
-modes are Single Pol (VV).</p>
-
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the Volume file for CEOS format products or
-the *.E1 file for ENVISAT format products. Opening zipped products (*.zip)
-directly is also supported.</p>
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="https://earth.esa.int/eogateway/missions/ers">https://earth.esa.int/eogateway/missions/ers</a></p>
-
-
-<p class="MsoNormal"><a href="https://www.eoportal.org/satellite-missions/ers-1">https://www.eoportal.org/satellite-missions/ers-1</a></p>
-
-
-
+<h2>Product format specification</h2>
+<ul>
+    <li>ESA ERS SAR products information, with the product specification for ERS products in Envisat
+        format:
+        <a href="https://earth.esa.int/eogateway/instruments/sar-ers/products-information">https://earth.esa.int/eogateway/instruments/sar-ers/products-information</a></li>
+    <li>Mission: <a href="https://earth.esa.int/eogateway/missions/ers">https://earth.esa.int/eogateway/missions/ers</a>,
+        <a href="https://www.eoportal.org/satellite-missions/ers-1">https://www.eoportal.org/satellite-missions/ers-1</a>,
+        <a href="https://www.eoportal.org/satellite-missions/ers-2">https://www.eoportal.org/satellite-missions/ers-2</a></li>
+</ul>
 
 <hr>
-</body></html>
+</body>
+</html>

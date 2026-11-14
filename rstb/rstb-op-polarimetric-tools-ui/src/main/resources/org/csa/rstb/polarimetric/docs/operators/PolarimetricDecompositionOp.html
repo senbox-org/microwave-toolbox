@@ -19,13 +19,22 @@ decompositions&nbsp;for a full polarimetric SAR product:<br>
     <li>Pauli Decomposition</li>
     <li>Freeman-Durden Decomposition</li>
     <li>Yamaguchi Decomposition</li>
-    <li>H-a Alpha Decomposition</li>
+    <li>H-A-Alpha Quad Pol Decomposition</li>
     <li>Touzi Decomposition</li>
     <li>Van Zyl Decomposition</li>
     <li>Cloude Decomposition</li>
+    <li>Huynen Decomposition</li>
+    <li>Yang Decomposition</li>
+    <li>Krogager Decomposition</li>
+    <li>Cameron Decomposition</li>
     <li>Generalized&nbsp;Freeman-Durden Decomposition</li>
     <li>Model-Free 3-Component Decomposition&nbsp;(MF3CF)</li>
-    <li>Model-Free 4-Component Decomposition&nbsp;(MF4CF)</li><li>Model-Based Dual Pol Decomposition</li>
+    <li>Model-Free 4-Component Decomposition&nbsp;(MF4CF)</li>
+</ul>
+and the following decompositions for a dual polarimetric (C2) SAR product:<br>
+<ul>
+    <li>H-Alpha Dual Pol Decomposition</li>
+    <li>Model-Based Dual Pol Decomposition</li>
 </ul>
 <h4>Sinclair Decomposition</h4>&nbsp;&nbsp; Let&nbsp;<br>
 
@@ -42,20 +51,26 @@ G, B) bands with the following intensities<br>&nbsp;&nbsp;&nbsp; <br>
 image.<br><h4>Pauli Decomposition</h4>&nbsp; &nbsp;The (R, G, B) bands produced by the Pauli decomposition correspond to
 the following intensities [1]:<br>
 <ul>
-    <li><span style="color: red;">Red</span>: 0.5*|S<sub>hh</sub> - S<sub>vv</sub>|<sup>2</sup>,&nbsp;which represents
-        the contribution of&nbsp;single- or odd-bounce scattering to the final measured scattering matrix
+    <li><span style="color: red;">Red</span> (band <code>Pauli_r</code>): 0.5*|S<sub>hh</sub> - S<sub>vv</sub>|<sup>2</sup>,&nbsp;which represents
+        the power scattered by targets characterized by double- or even-bounce scattering, for example
+        a wall and the ground forming a dihedral
     </li>
-    <li><span style="color: rgb(0, 153, 0);">Green</span>:&nbsp;0.5*|S<sub>hv</sub> + S<sub>vh</sub>|<sup>2</sup>,&nbsp;which
+    <li><span style="color: rgb(0, 153, 0);">Green</span> (band <code>Pauli_g</code>):&nbsp;0.5*|S<sub>hv</sub> + S<sub>vh</sub>|<sup>2</sup>,&nbsp;which
         represents the scatter power by targets that are able to return
         the orthogonal polarization, for example the volume scattering produced
         by the forest canopy
     </li>
-    <li><span style="color: rgb(51, 51, 255);">Blue</span>:&nbsp;0.5*|S<sub>hh</sub> + S<sub>vv</sub>|<sup>2</sup>,&nbsp;which&nbsp;represents
-        the power scattered&nbsp;by targets characterized by double- or even-bounce
+    <li><span style="color: rgb(51, 51, 255);">Blue</span> (band <code>Pauli_b</code>):&nbsp;0.5*|S<sub>hh</sub> + S<sub>vv</sub>|<sup>2</sup>,&nbsp;which&nbsp;represents
+        the contribution of&nbsp;single- or odd-bounce scattering, for example from a rough surface
+        (bare soil, water)
     </li>
 </ul>
+&nbsp;&nbsp;&nbsp; So in a Pauli RGB image, buildings tend to look red, forests green and bare
+surfaces or water blue. The three bands are written in dB. For a covariance (C3) or coherency (T3)
+input, the bands are the equivalent diagonal elements T<sub>22</sub>, T<sub>33</sub> and
+T<sub>11</sub> of the coherency matrix.<br>
 <h4>Freeman-Durden Decomposition</h4>&nbsp; &nbsp;The Freeman decomposition models the covariance matrix as the
-contribution of three scattering mechanisms [1]:<br>
+contribution of three scattering mechanisms [7]:<br>
 <ol>
     <li>canopy scatter from a cloud of randomly oriented dipoles, forest for example;</li>
     <li>even- or double-bounce scatter from a pair of orthogonal surfaces with different dielectric constants;</li>
@@ -76,11 +91,11 @@ mechanisms are employed to generate a RGB image as the following:<br>
     </li>
 </ul>
 <h4>Yamaguchi Decomposition</h4>
-&nbsp;&nbsp; The three-component Freeman-Durden decomposition [1] can be
+&nbsp;&nbsp; The three-component Freeman-Durden decomposition [7] can be
 successfully applied to SAR observations under the reflection symmetry
 assumption. However, there exists areas in an SAR image where the
 reflection symmetry condition does not hold. Yamaguchi et al. proposed,
-in 2005, a four-component scattering model by introducing an additional
+in 2005 [8], a four-component scattering model by introducing an additional
 term corresponding to nonreflection symmetric cases. The fourth
 component introduced is equivalent to a helix scattering power. This
 helix scattering power term appears in heterogeneous areas (complicated
@@ -96,7 +111,7 @@ mechanisms:<br>
 </ol>
 <h4>H-A-Alpha Decomposition</h4>
 
-&nbsp; &nbsp;The H-A-Alpha decomposition [1] is based on the eigen decomposition of the coherency matrix [T<sub>3</sub>].
+&nbsp; &nbsp;The H-A-Alpha decomposition [9] is based on the eigen decomposition of the coherency matrix [T<sub>3</sub>].
 Let <span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;; font-style: italic;">&#955;</span><sub style="font-style: italic;">1</sub>, <span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;; font-style: italic;">&#955;</span><sub style="font-style: italic;">2</sub>, and <span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;; font-style: italic;">&#955;</span><sub style="font-style: italic;">3</sub> be the eigenvalues of the coherency matrix (<span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;; font-style: italic;">&#955;</span><sub style="font-style: italic;">1</sub> <span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;">&gt; <span style="font-style: italic;">&#955;</span></span><sub style="font-style: italic;">2</sub> &gt; <span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;; font-style: italic;">&#955;</span><sub style="font-style: italic;">3</sub> &gt; 0), and <span style="font-style: italic;">u</span><sub style="font-style: italic;">1</sub>, <span style="font-style: italic;">u</span><sub style="font-style: italic;">2</sub>
 and <span style="font-style: italic;">u</span><sub style="font-style: italic;">3</sub> be the corresponding eigenvectors
 which can be expressed as the following:<br>
@@ -152,7 +167,7 @@ The roll-invariant incoherent target decomposition, i.e. Touzi decomposition, is
 </ol>
 
 <h4>Van Zyl Decomposition</h4>
-&nbsp; &nbsp;The Van Zyl decomposition [1] assumes that the reflection
+&nbsp; &nbsp;The Van Zyl decomposition [10] assumes that the reflection
 symmetry hypothesis establishes and the correlation between
 co-polarized and cross-polarized channels is zero. The assumption is
 generally true in case of natual media such as soil and forest. With
@@ -163,10 +178,78 @@ matric C<sub>3</sub> can be given&nbsp; analytically&nbsp; and C<sub>3</sub> can
 <br>
 The van Zyl decomposition thus shows that the first two eigenvectors
 represent equivalent scattering matrices that can be interpreted in
-terms of odd and even numbers of reflections.<br><h4>Cloude Decomposition</h4>
-&nbsp; &nbsp;The Cloude decomposition [1] is an eigenvector based
+terms of odd and even numbers of reflections.<br>
+The operator writes the cross-polar eigenvalue as volume (<code>VanZyl_vol_g</code>) and assigns each
+co-polar eigenvalue to surface (<code>VanZyl_surf_b</code>) or double bounce (<code>VanZyl_dbl_r</code>)
+by the type of its eigenvector. Where Re&lt;S<sub>HH</sub>S<sub>VV</sub><sup>*</sup>&gt; &ge; 0 the larger
+eigenvalue is surface; where it is negative (double bounce dominates, for example buildings parallel to the
+track) the larger eigenvalue is double bounce. The three bands are linear powers.<br>
+<b>Changed in SNAP 15:</b> earlier versions always labelled the larger co-polar eigenvalue as surface, so
+in double-bounce-dominated areas their surface and double-bounce bands were swapped.<br><h4>Cloude Decomposition</h4>
+&nbsp; &nbsp;The Cloude decomposition [1][9] is an eigenvector based
 decomposition. It idetifies the dominant scattering mechanism via the
 extraction of the largest eigenvalue. <br>
+
+<h4>Huynen Decomposition</h4>
+&nbsp; &nbsp;The Huynen decomposition splits the window-averaged coherency matrix
+[T<sub>3</sub>] into one equivalent single (pure) target and a residual "noise" part.
+From T<sub>3</sub> the operator computes the Huynen parameters A<sub>0</sub>, B<sub>0</sub>,
+B, C, D, E, F, G and H of the single target. Three of them describe the target in a simple way:
+<ul>
+    <li>2A<sub>0</sub> (band <code>2A0_b</code>, blue): the symmetric, regular part of the target;</li>
+    <li>B<sub>0</sub>+B (band <code>B0_plus_B_r</code>, red): the target irregularity;</li>
+    <li>B<sub>0</sub>&#8722;B (band <code>B0_minus_B_g</code>, green): the target non-symmetry.</li>
+</ul>
+These three bands are written in dB and form an RGB image. Optionally, the operator also writes the
+nine elements of the single-target coherency matrix (bands <code>T11</code>, <code>T12_real</code>,
+<code>T12_image</code>, <code>T13_real</code>, <code>T13_imag</code>, <code>T22</code>,
+<code>T23_real</code>, <code>T23_imag</code>, <code>T33</code>), in linear units.<br>
+
+<h4>Yang Decomposition</h4>
+&nbsp; &nbsp;The Yang decomposition is a more stable form of the Huynen decomposition.
+The Huynen single-target extraction divides by A<sub>0</sub>, so it becomes unreliable when
+A<sub>0</sub> is small. When A<sub>0</sub> is less than 10% of the first element of the Kennaugh
+matrix, the Yang decomposition first rotates the Kennaugh matrix to a polarization basis where
+A<sub>0</sub> is larger, performs the Huynen decomposition there and rotates the result back.
+Otherwise it gives the same result as Huynen. The output bands are the same as for the Huynen
+decomposition.<br>
+
+<h4>Krogager Decomposition</h4>
+&nbsp; &nbsp;The Krogager decomposition [11] describes the target as the sum of three coherent
+scatterers: a sphere (odd-bounce or surface), a diplane (double-bounce) and a helix. The operator
+computes the three weights from the window-averaged coherency matrix [T<sub>3</sub>]:
+<ul>
+    <li><span style="color: red;">Red</span> (band <code>kd_r</code>): k<sub>d</sub>, the diplane (double-bounce) component;</li>
+    <li><span style="color: rgb(0, 153, 0);">Green</span> (band <code>kh_g</code>): k<sub>h</sub>, the helix component;</li>
+    <li><span style="color: rgb(51, 51, 255);">Blue</span> (band <code>ks_b</code>): k<sub>s</sub>, the sphere (surface) component.</li>
+</ul>
+The values are linear amplitudes (square roots of powers), not dB.<br>
+
+<h4>Cameron Decomposition</h4>
+&nbsp; &nbsp;The Cameron decomposition is a coherent decomposition. It works on the scattering
+matrix of each pixel, without a sliding window, so the input must be the full polarimetric
+scattering matrix (I and Q bands), not a C3 or T3 matrix. After averaging HV and VH (reciprocity),
+it splits the scattering matrix into its maximum symmetric component and a non-symmetric remainder.
+The output bands are:
+<ul>
+    <li><code>i_HH</code>, <code>q_HH</code>, <code>i_HV</code>, <code>q_HV</code>, <code>i_VH</code>,
+        <code>q_VH</code>, <code>i_VV</code>, <code>q_VV</code>: the normalised maximum symmetric
+        scattering matrix (unit norm, with HV = VH);</li>
+    <li><code>span</code>: the norm of the scattering matrix (the square root of the total power);</li>
+    <li><code>tau</code>: the angle, in radians, between the scattering matrix and its maximum
+        symmetric component. It is 0 for a symmetric target and grows as the target becomes less
+        symmetric.</li>
+</ul>
+<b>Changed in SNAP 15:</b> <code>tau</code> now uses the Hermitian (conjugate) inner product. Symmetric
+targets with complex eigenvalues, such as a quarter-wave plate, now give 0; earlier versions gave up to
+90&deg;. Real scattering matrices are unchanged.<br>
+
+<h4>H-Alpha Dual Pol Decomposition</h4>
+&nbsp; &nbsp;This is the dual polarimetric version of the H-A-Alpha decomposition. It uses the
+eigenvalues and eigenvectors of the window-averaged 2&times;2 covariance matrix [C<sub>2</sub>] of a
+dual-pol product (for example VV+VH or HH+HV) and outputs the bands <code>Entropy</code>,
+<code>Anisotropy</code> and <code>Alpha</code> (degrees). With only two channels, these values are
+not directly comparable with the quad-pol H-A-Alpha results.<br>
 
 <h4>Generalized&nbsp;Freeman-Durden Decomposition</h4>
 &nbsp; &nbsp;The Generalized Freeman-Durden decomposition in [3] is
@@ -259,8 +342,22 @@ polarization state P.</span></p><p class="MsoNormalCxSpFirst"><span lang="EN-US"
 <h4>Parameters Used</h4>&nbsp;&nbsp; For all decompositions, the following processing parameter is needed (see Figure
 1):<br>
 <ul>
-    <li>Decomposition: the decomposition method</li>
+    <li>Decomposition: the decomposition method. Default: Sinclair Decomposition.</li>
+    <li>Orientation angle correction (GPT and graph XML only): the parameter
+        <code>applyOrientationAngleCorrection</code> (default <code>false</code>) is not shown in the
+        dialog. When set to <code>true</code>, the operator first removes the polarization orientation
+        angle shift from the input (the same processing as the
+        <a href="OrientationAngleCorrectionOp.html">Orientation Angle Correction</a> operator) and then
+        runs the selected decomposition. This reduces the overestimation of volume scattering caused by
+        terrain slopes and buildings that are not aligned with the radar track. It applies only to T3, C3
+        or scattering-matrix input; C4, T4 and dual-pol (C2) input are passed on uncorrected. Do not
+        combine it with the Cameron decomposition: the correction turns a scattering-matrix input into
+        T3, which Cameron cannot use. In SNAP Desktop, run Orientation Angle Correction before the
+        decomposition instead.</li>
 </ul>
+&nbsp;&nbsp; The Window Size used by the decompositions below is the sliding window, in pixels, over which
+the covariance or coherency matrix is averaged. Range 1&ndash;100; default 5. The Sinclair, Pauli and
+Cameron decompositions work on single pixels and do not average.<br>
 <br>
 <img style="width: 500px; height: 500px;" alt="" src="images/polarimetricDecompositionOp.jpeg"><br>
 
@@ -378,25 +475,74 @@ For Model-free 4 component decomposition (MF4CF) decomposition, the following pa
 
 </li></ul>
 
-<p><img style="width: 436px; height: 442px;" alt="" src="images/polarimetricDecompositionOp_ModelBasedC2.jpeg"></p><p style="margin-left: 40px;">Figure 9. Dialog box for Model-Based Dual Pol decomposition</p><p> </p><p>Reference:&nbsp;</p>
+<p><img style="width: 436px; height: 442px;" alt="" src="images/polarimetricDecompositionOp_ModelBasedC2.jpeg"></p><p style="margin-left: 40px;">Figure 9. Dialog box for Model-Based Dual Pol decomposition</p>
+<p>For Huynen and Yang decompositions, the following parameters are used:</p>
+<ul>
+    <li>Window Size: dimension of sliding window for computing mean coherency matrix</li>
+    <li>2A0, B0_plus_B, B0_minus_B (in dB): output the three Huynen parameter bands in dB
+        (GPT parameter <code>outputHuynenParamSet0</code>). Default: on.</li>
+    <li>Pure target T0: output the nine elements of the single-target coherency matrix built from the
+        Huynen parameters (bands T11 to T33; GPT parameter <code>outputHuynenParamSet1</code>).
+        Default: off.</li>
+</ul>
+<p>At least one of the two checkboxes must be selected.</p>
+<p>For Krogager and H-Alpha Dual Pol decompositions, the Window Size is used. The Cameron decomposition
+   has no extra parameters.</p>
+<p> </p><h3>References</h3>
+<ol>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
+    <li>Touzi, R. (2007). Target scattering decomposition in terms of roll-invariant target parameters. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 45(1), 73&#8211;84. doi:10.1109/TGRS.2006.886176</li>
+    <li>Cloude, S. R. (2009). <i>Polarisation: Applications in Remote Sensing</i>. Oxford University Press. doi:10.1093/acprof:oso/9780199569731.001.0001</li>
+    <li>Dey, S., Bhattacharya, A., Ratha, D., Mandal, D., Frery, A. C. (2021). Target characterization and scattering power decomposition for full and compact polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 59(5), 3981&#8211;3998. doi:10.1109/TGRS.2020.3010840</li>
+    <li>Dey, S., Bhattacharya, A., Frery, A. C., L&oacute;pez-Mart&iacute;nez, C., Rao, Y. S. (2021). A model-free four component scattering power decomposition for polarimetric SAR data. <i>IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing</i>, 14, 3887&#8211;3902. doi:10.1109/JSTARS.2021.3069299</li>
+    <li>Mascolo, L., Cloude, S. R., Lopez-Sanchez, J. M. (2022). Model-based decomposition of dual-pol SAR data: application to Sentinel-1. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 60, 1&#8211;19. doi:10.1109/TGRS.2021.3137588</li>
+    <li>Freeman, A., Durden, S. L. (1998). A three-component scattering model for polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 36(3), 963&#8211;973. doi:10.1109/36.673687</li>
+    <li>Yamaguchi, Y., Moriyama, T., Ishido, M., Yamada, H. (2005). Four-component scattering model for polarimetric SAR image decomposition. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 43(8), 1699&#8211;1706. doi:10.1109/TGRS.2005.852084</li>
+    <li>Cloude, S. R., Pottier, E. (1997). An entropy based classification scheme for land applications of polarimetric SAR. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 35(1), 68&#8211;78. doi:10.1109/36.551935</li>
+    <li>van Zyl, J. J. (1989). Unsupervised classification of scattering behavior using radar polarimetry data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 27(1), 36&#8211;45. doi:10.1109/36.20273</li>
+    <li>Krogager, E. (1990). New decomposition of the radar target scattering matrix. <i>Electronics Letters</i>, 26(18), 1525&#8211;1527. doi:10.1049/el:19900979</li>
+</ol>
 
-<p>[1] Jong-Sen Lee and Eric Pottier, Polarimetric Radar Imaging: From Basics to Applications, CRC Press, 2009</p>
-
-<p>[2] R. Touzi, &#8220;Target Scattering Decomposition in Terms of
-    Roll-Invariant Target Parameters,&#8221; IEEE Transactions on Geoscience and
-    Remote Sensing, vol. 45, no. 1, pp. 73&#8211;84, January 2007.</p><p>[3] S.R. Cloude, &#8220;Polarisation: Applications in Remote Sensing&#8221;, Oxford University Press, ISBN 978-0-19-956973-1, 2009. </p>
-    <p>[4]
-S. Dey, A. Bhattacharya, D. Ratha, D. Mandal and A. C. Frery, 2020.
-&#8220;Target characterization and scattering power decomposition for full
-and compact polarimetric SAR data&#8221;, IEEE Transactions on Geoscience and
-Remote Sensing, 59(5), pp.3981-3998. </p>
-    <p>[5] S. Dey, A.
-Bhattacharya, A. C. Frery, C. López-Martínez and Y. S. Rao, 2021. &#8220;A
-Model-free Four Component Scattering Power Decomposition for
-Polarimetric SAR Data&#8221;, IEEE Journal of Selected Topics in Applied
-Earth Observations and Remote Sensing, 14, pp.3887-3902.</p><p>[6] L.
-Mascolo, S. R. Cloude and J. M. Lopez-Sanchez, "Model-based
-decomposition of dual-pol SAR data: application to Sentinel-1," in IEEE
-Transactions on Geoscience and Remote Sensing, doi:
-10.1109/TGRS.2021.3137588.  </p><hr>
+<!-- params:begin op="Polarimetric-Decomposition" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Polarimetric-Decomposition</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>decomposition</code></td><td>String</td><td>Sinclair Decomposition</td><td>Sinclair Decomposition, Pauli Decomposition, Freeman-Durden Decomposition, Generalized Freeman-Durden Decomposition, Yamaguchi Decomposition, van Zyl Decomposition, H-A-Alpha Quad Pol Decomposition, H-Alpha Dual Pol Decomposition, Cloude Decomposition, Touzi Decomposition, Huynen Decomposition, Yang Decomposition, Krogager Decomposition, Cameron Decomposition, Model-free 3-component Decomposition, Model-free 4-component Decomposition, Model-Based Dual Pol Decomposition</td><td>&nbsp;</td><td>Decomposition</td></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>[1, 100]</td><td>&nbsp;</td><td>The sliding window size</td></tr>
+<tr><td><code>applyOrientationAngleCorrection</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Apply polarization orientation angle correction (deshift) to the input T3 / C3 matrix before running the selected decomposition. Equivalent to chaining Orientation-Angle-Correction in front of this operator.</td></tr>
+<tr><td><code>outputHAAlpha</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output entropy, anisotropy, alpha</td></tr>
+<tr><td><code>outputBetaDeltaGammaLambda</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output beta, delta, gamma, lambda</td></tr>
+<tr><td><code>outputAlpha123</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output alpha 1, 2, 3</td></tr>
+<tr><td><code>outputLambda123</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output lambda 1, 2, 3</td></tr>
+<tr><td><code>outputTouziParamSet0</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output psi, tau, alpha, phi</td></tr>
+<tr><td><code>outputTouziParamSet1</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output psi1, tau1, alpha1, phi1</td></tr>
+<tr><td><code>outputTouziParamSet2</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output psi2, tau2, alpha2, phi2</td></tr>
+<tr><td><code>outputTouziParamSet3</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output psi3, tau3, alpha3, phi3</td></tr>
+<tr><td><code>outputHuynenParamSet0</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output 2A0_b, B0_plus_B, B0_minus_B</td></tr>
+<tr><td><code>outputHuynenParamSet1</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output A0, B0, B, C, D, E, F, G, H</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_calibration.html">Polarimetric Calibration and Propagation Effects</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/quality_control.html">Quality Control and Troubleshooting</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_matrices.html">Polarimetric Matrices and Parameters</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>SLC product (not a TOPS burst product: apply TOPS Deburst first)</li>
+    <li>Quad-pol SLC product (scattering matrix, or C3/T3 matrix) for the full-pol decompositions (Cameron needs the scattering-matrix input); dual-pol C2 input for the dual-pol decompositions (H-Alpha Dual Pol Decomposition, Model-Based Dual Pol Decomposition)</li>
+    <li>Orientation-angle correction is available only through GPT or graph XML (parameter applyOrientationAngleCorrection), not in the dialog; otherwise run <a href="OrientationAngleCorrectionOp.html">Orientation Angle Correction</a> first</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+    <li><a href="PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a></li>
+</ul>
+<!-- footer:end -->
+<hr>
 </body></html>

@@ -1,0 +1,235 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Baselines and Stack Design</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Baselines and Stack Design</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Baselines and Stack Design</h1>
+
+<p class="lead">A multi-date InSAR analysis is only as good as its pairs. The Reference date, the pairs and how
+they connect decide how much coherence survives, how much DEM error leaks into the phase, and whether the time
+series can be inverted. Basics are in <a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<h2>Baselines of a pair</h2>
+<p>Four numbers describe a pair: the <b>perpendicular baseline</b> B<sub>&perp;</sub> (height sensitivity,
+geometric decorrelation), the <b>parallel baseline</b> B<sub>&#8741;</sub> (mostly flat-Earth phase), the
+<b>temporal baseline</b> B<sub>t</sub> and the <b>Doppler-centroid difference</b> &Delta;f<sub>DC</sub>. Height
+sensitivity is given by the height of ambiguity h<sub>2&pi;</sub> or the vertical wavenumber k<sub>z</sub>
+(repeat pass; R slant range, &theta; incidence angle, &lambda; wavelength):</p>
+<p class="eq">h<sub>2&pi;</sub> = &lambda; R sin &theta; / (2 B<sub>&perp;</sub>), &nbsp;&nbsp;
+    k<sub>z</sub> = 2&pi; / h<sub>2&pi;</sub> = 4&pi; B<sub>&perp;</sub> / (&lambda; R sin &theta;)</p>
+<p>A height error &Delta;h adds the phase k<sub>z</sub> &Delta;h. For Sentinel-1 IW with
+B<sub>&perp;</sub> = 150 m, k<sub>z</sub> &asymp; 0.062 rad/m (h<sub>2&pi;</sub> &asymp; 100 m): a 10 m DEM
+error mimics about 3 mm of line-of-sight motion.</p>
+
+<h2>Critical baseline</h2>
+<p>Going beyond <a href="insar.html">InSAR Fundamentals</a>: the range spectra of the two images are shifted
+by &Delta;f = &#8722;f<sub>0</sub> B<sub>&perp;</sub> / (R tan(&theta; &#8722; &alpha;)) (Gatelli et al., 1994;
+f<sub>0</sub> carrier frequency, &alpha; terrain slope towards the radar). At |&Delta;f| = B<sub>r</sub>, the
+range bandwidth, nothing is common (Zebker &amp; Villasenor, 1992; c speed of light):</p>
+<p class="eq">B<sub>&perp;,crit</sub> = &lambda; R tan(&theta; &#8722; &alpha;) B<sub>r</sub> / c</p>
+
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Mission (mode)</th><th>&lambda;</th><th>B<sub>r</sub></th><th>R</th><th>&theta;</th>
+        <th>B<sub>&perp;,crit</sub> (flat)</th></tr>
+    <tr><td>Sentinel-1 IW1 / IW2 / IW3</td><td>5.55 cm</td><td>56.5 / 48.2 / 42.8 MHz</td>
+        <td>810 / 865 / 910 km</td><td>33 / 39 / 43&deg;</td><td>5.5 / 6.2 / 6.7 km</td></tr>
+    <tr><td>TerraSAR-X StripMap</td><td>3.11 cm</td><td>150 MHz (100 MHz)</td><td>616 km</td><td>35&deg;</td>
+        <td>6.7 km (4.5 km)</td></tr>
+    <tr><td>ALOS-2 StripMap Ultra-fine</td><td>&asymp; 24 cm</td><td>84 MHz</td><td>750 km</td><td>35&deg;</td>
+        <td>35 km</td></tr>
+    <tr><td>ALOS-2 StripMap Fine</td><td>&asymp; 24 cm</td><td>28 MHz</td><td>750 km</td><td>35&deg;</td>
+        <td>12 km</td></tr>
+    <tr><td>NISAR L-band, 20 MHz</td><td>&asymp; 24 cm</td><td>20 MHz</td><td>909 km</td><td>37&deg;</td>
+        <td>11 km</td></tr>
+</table>
+<p class="figcap">Table 1. Critical baseline on flat terrain (&alpha; = 0). Slant ranges for a spherical Earth from
+orbit heights of 693, 514, 628 and 747 km, as in the <a href="insar.html">InSAR Fundamentals</a> table. A 20&deg;
+slope facing the radar lowers the Sentinel-1 IW2 value from 6.2 to 2.7 km.</p>
+<p>Sentinel-1 baselines (up to about 200 m) use a few percent of this limit; for modern missions time, slope
+and DEM error usually bind first.</p>
+
+<h2>Decorrelation models</h2>
+<p>Coherence is roughly a product of independent factors (volume and thermal terms are in
+<a href="insar.html">InSAR Fundamentals</a>):</p>
+<ul>
+    <li><b>Geometric:</b> 1 &#8722; B<sub>&perp;</sub>/B<sub>&perp;,crit</sub> for flat terrain and a flat range
+        spectrum.</li>
+    <li><b>Temporal:</b> no physical formula; a common empirical form is exponential decay to a floor,
+        &gamma;<sub>&infin;</sub> + (1 &#8722; &gamma;<sub>&infin;</sub>) exp(&#8722;B<sub>t</sub>/&tau;), with
+        &tau; from days (crops at C-band) to years (rock, L-band). Snow and vegetation cycles can make a one-year
+        pair more coherent than a six-month pair.</li>
+    <li><b>Doppler:</b> 1 &#8722; |&Delta;f<sub>DC</sub>|/B<sub>az</sub>, with B<sub>az</sub> the processed
+        azimuth bandwidth. It matters for stripmap data with drifting Doppler centroids; for TOPS see
+        <a href="tops.html">TOPS</a>.</li>
+</ul>
+<p>These are planning models; measure real coherence with the Coherence operator
+(<a href="coherence.html">Coherence</a>). The InSAR Stack Overview multiplies three linear terms
+g(x, c) = 1 &#8722; |x|/c (0.01 when |x| &gt; c), with constants per wavelength band (Table 2). Its C-band
+1200 m and 1380 Hz are ERS-era values (ERS B<sub>&perp;,crit</sub> &asymp; 1.1 km): for Sentinel-1 it
+overstates the geometric loss about fivefold, and its slow linear temporal term overstates long pairs over
+vegetation (Figure 1). Use it to rank dates, not to predict coherence.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Band (&lambda;)</th><th>B<sub>&perp;</sub> constant</th><th>B<sub>t</sub> constant</th>
+        <th>&Delta;f<sub>DC</sub> constant</th></tr>
+    <tr><td>X (2.5&#8211;4 cm)</td><td>600 m</td><td>730 days</td><td>2200 Hz</td></tr>
+    <tr><td>C (4&#8211;8 cm)</td><td>1200 m</td><td>1095 days</td><td>1380 Hz</td></tr>
+    <tr><td>S (8&#8211;15 cm)</td><td>2500 m</td><td>1825 days</td><td>1500 Hz</td></tr>
+    <tr><td>L (15&#8211;30 cm)</td><td>6000 m</td><td>2920 days</td><td>1500 Hz</td></tr>
+    <tr><td>P (30&#8211;100 cm)</td><td>12000 m</td><td>3650 days</td><td>1200 Hz</td></tr>
+</table>
+<p class="figcap">Table 2. Model constants c of the InSAR Stack Overview, chosen from the Reference wavelength
+(C-band if the wavelength is outside these ranges).</p>
+<p><img src="images/stack_design_1.png" width="560" height="300" alt="Geometric and temporal coherence factors against perpendicular and temporal baseline, comparing physical limits with the InSAR Stack Overview model"></p>
+<p class="figcap">Figure 1. (a) Geometric term against B<sub>&perp;</sub> for NISAR 20 MHz (B<sub>&perp;,crit</sub>
+&asymp; 11 km), Sentinel-1 IW2 (6.2 km), IW2 on a 20&deg; slope facing the radar (2.7 km), and the C-band
+InSAR Stack Overview model (1.2 km). The grey band marks typical Sentinel-1 baselines (0&#8211;200 m).
+(b) Temporal term: the model's linear terms (C 1095 days, L 2920 days) and an illustrative exponential
+decay (&tau; = 24 days, floor 0.25), which is an example and not a fit to data.</p>
+
+<h2>Choosing the Reference</h2>
+<p>In a single-reference stack every interferogram contains the Reference. Pick the date with the highest
+modelled stack coherence, the mean modelled coherence over all its pairs (Kampes, 2006): usually a date near the
+middle of the time span and of the B<sub>&perp;</sub> spread (Figure 2a). The model cannot see snow, rain or
+acquisition problems; check the candidate. For small-baseline and phase-linking work the stack Reference only
+provides the geometry.</p>
+<p><img src="images/stack_design_2.png" width="560" height="300" alt="Modelled stack coherence for each candidate Reference date, and a small-baseline network split in two by an acquisition gap"></p>
+<p class="figcap">Figure 2. Synthetic 30-date Sentinel-1-like stack (12-day repeat, seven missed acquisitions,
+|B<sub>&perp;</sub>| &le; 100 m). (a) Modelled stack coherence for each candidate Reference, computed as the InSAR Stack Overview does:
+the first and last dates score lowest, the best date (star) lies well inside the stack, away from both ends.
+(b) Small-baseline network with
+B<sub>t</sub> &le; 48 days and |&Delta;B<sub>&perp;</sub>| &le; 150 m: no pair crosses the gap, so the two
+groups (green, orange) are not connected.</p>
+
+<h2>Network designs</h2>
+<ul>
+    <li><b>Single reference</b> (N&#8722;1 pairs): used by persistent-scatterer methods (Ferretti et al., 2001;
+        Hooper et al., 2004). Point scatterers stay coherent over long baselines.</li>
+    <li><b>Small baselines</b> (Berardino et al., 2002): only pairs below thresholds on B<sub>&perp;</sub> and
+        B<sub>t</sub>. The network must be connected (Figure 2b); Berardino et al. bridge disconnected groups with
+        a minimum-norm SVD solution for the velocities between consecutive dates.</li>
+    <li><b>Sequential</b> (each date with the next, N&#8722;1 pairs): highest coherence per pair, no redundancy.
+        An unwrapping error in one pair shifts every date beyond it, seen from the reference epoch, there are no
+        triplets to check, and the short-baseline bias below is largest.</li>
+    <li><b>Full covariance</b> (all N(N&#8722;1)/2 pairs): <a href="phase_linking.html">phase linking</a> fits one
+        phase per date to all pairs.</li>
+</ul>
+
+<h2>Short-baseline bias and closure phase</h2>
+<p>Multilooked interferograms of distributed scatterers do not close around a triplet of dates
+(<a href="time_series.html">InSAR Time Series</a>). Ansari, De Zan &amp; Parizzi (2021) describe a short-lived
+"fading signal" that is strongest in short-temporal-baseline interferograms and decays with B<sub>t</sub>; a
+network of only short pairs sums it into a velocity bias, so add longer pairs or phase-link first
+(<a href="phase_linking.html">Phase Linking in Depth</a>). SBAS Inversion's <code>closure_phase_rms</code> wraps
+each closure to (&#8722;&pi;, &pi;], so it misses whole-cycle unwrapping errors
+(<a href="quality_control.html">Quality Control</a>).</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>InSAR Stack Overview</b> (<i>Radar &gt; Interferometric &gt; InSAR Stack Overview</i>) reads two or
+        more SLC products, picks the date with the highest modelled stack coherence as Reference and lists, per
+        Secondary, B<sub>&perp;</sub>, B<sub>t</sub>, modelled coherence, h<sub>2&pi;</sub> and
+        &Delta;f<sub>DC</sub>, from metadata only. B<sub>&perp;</sub> and h<sub>2&pi;</sub> are for the
+        scene centre at zero height; B<sub>t</sub> is Reference minus Secondary in days (negative for later dates).
+        The gpt operator <code>InSAR-Overview</code> writes the same to a JSON file (<code>overviewJSONFile</code>,
+        SLC inputs only), with <code>track</code>, <code>pass</code> and <code>mode</code> for every product and an
+        <code>insar_overview</code> block per Secondary.</li>
+    <li><b>Create Stack</b> uses the first product as Reference unless you press <i>Find Optimal Reference</i> in
+        its dialog, which applies the same model. <b>S-1 Back Geocoding</b> always uses the first product in its
+        input list. Both write these values for every pair of dates to a <code>Baselines</code>
+        element in the Abstracted Metadata.</li>
+    <li><b>Multi-Reference InSAR</b> (gpt alias <code>MultiMasterInSAR</code>) forms the pairs given in
+        <code>pairs</code> (<code>ddMMMyyyy-ddMMMyyyy</code>) from one coregistered stack. With
+        <code>pairs</code> empty it forms the sequential network. Its dialog sliders for the maximum temporal, Doppler
+        and spatial baseline differences only fill <code>pairs</code>. The
+        <code>wavenumber</code> bands (on by default, radians/meter) give k<sub>z</sub> of each Secondary
+        relative to the stack Reference; for a pair of two Secondaries, take the difference.</li>
+    <li><b>Split stack into multiple references</b> (<i>Radar &gt; Coregistration &gt; Stack Tools</i>,
+        operator <code>MultiMasterStackGenerator</code>) writes N&#8722;1 consecutive-date pair products
+        (A&#8211;B, B&#8211;C, &#8230;) to an output folder, for external tools such as PyRate. Multi-Reference
+        InSAR does not need it.</li>
+    <li><b>SBAS Inversion</b> solves for the phase of each date. For an ill-conditioned network (such as a
+        disconnected one) it adds Tikhonov damping (not Berardino's minimum-norm velocities), which pulls the
+        group without the reference epoch towards zero mean phase, so the offset across the gap is arbitrary.
+        Pixels with fewer usable pairs (coherence &ge; 0.3) than unknown dates are set to no-data. <code>closure_phase_rms</code> uses only
+        triplets whose three pairs all pass the threshold; where there is none (everywhere, for a sequential
+        network) it is no-data. See <a href="time_series.html">InSAR Time Series</a>.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Keeping the default Reference (the first input product, usually the first date) for a PS stack. In time
+        it is one of the worst choices (Figure 2a).</li>
+    <li>Inverting a disconnected small-baseline network. Bridge gaps with longer pairs or process the groups
+        separately.</li>
+    <li>Mixing tracks, passes or modes in one stack: nothing correlates. Check <code>track</code>,
+        <code>pass</code> and <code>mode</code> in the overview JSON.</li>
+    <li>Copying baseline thresholds in metres between bands. B<sub>&perp;</sub> scales with &lambda;: NISAR
+        needs about 600 m for the h<sub>2&pi;</sub> (about 110 m) of Sentinel-1 at 140 m, and a 150 m threshold
+        gives NISAR h<sub>2&pi;</sub> &asymp; 440 m. Set limits in h<sub>2&pi;</sub> or k<sub>z</sub>.</li>
+    <li>Reading the Stack Overview coherence as a measurement. It is a model.</li>
+    <li>Taking <code>closure_phase_rms</code> as a full network check. A sequential network has no triplets,
+        so the band is no-data, and where it exists it cannot see whole-cycle unwrapping errors.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/InSARStackOverview.html">InSAR Stack Overview</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">S-1 Back Geocoding</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/MultiReferenceInSAROp.html">Multi-Reference InSAR</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/MultiReference.html">Split stack into multiple references</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseLinkingOp.html">Phase Linking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/StampsExportOp.html">StaMPS Export</a></li>
+</ul>
+<p>Related concepts: <a href="insar.html">InSAR</a>, <a href="coherence.html">coherence</a>,
+<a href="coregistration.html">coregistration</a>, <a href="time_series.html">InSAR time series</a>,
+<a href="phase_linking.html">phase linking</a>, <a href="glossary.html">glossary</a>,
+<a href="bibliography.html">bibliography</a>.</p>
+<p>Workflows: <a href="../workflows/workflow_time_series.html">InSAR Time Series</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Zebker, H. A., Villasenor, J. (1992). Decorrelation in interferometric radar echoes. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 30(5), 950&#8211;959. doi:10.1109/36.175330</li>
+    <li>Gatelli, F., Monti Guarnieri, A., Parizzi, F., Pasquali, P., Prati, C., Rocca, F. (1994). The wavenumber
+        shift in SAR interferometry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 32(4),
+        855&#8211;865. doi:10.1109/36.298013</li>
+    <li>Ferretti, A., Prati, C., Rocca, F. (2001). Permanent scatterers in SAR interferometry. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 39(1), 8&#8211;20. doi:10.1109/36.898661</li>
+    <li>Berardino, P., Fornaro, G., Lanari, R., Sansosti, E. (2002). A new algorithm for surface deformation
+        monitoring based on small baseline differential SAR interferograms. <i>IEEE Transactions on Geoscience and
+        Remote Sensing</i>, 40(11), 2375&#8211;2383. doi:10.1109/TGRS.2002.803792</li>
+    <li>Hooper, A., Zebker, H., Segall, P., Kampes, B. (2004). A new method for measuring deformation on volcanoes
+        and other natural terrains using InSAR persistent scatterers. <i>Geophysical Research Letters</i>, 31(23),
+        L23611. doi:10.1029/2004GL021737</li>
+    <li>Kampes, B. M. (2006). <i>Radar Interferometry: Persistent Scatterer Technique</i>. Remote Sensing and
+        Digital Image Processing series. Springer, Dordrecht. doi:10.1007/978-1-4020-4723-7</li>
+    <li>Ansari, H., De Zan, F., Parizzi, A. (2021). Study of systematic bias in measuring surface deformation with
+        SAR interferometry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 59(2), 1285&#8211;1301.
+        doi:10.1109/TGRS.2020.3003421</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic
+        Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+</ol>
+
+<hr>
+</body>
+</html>

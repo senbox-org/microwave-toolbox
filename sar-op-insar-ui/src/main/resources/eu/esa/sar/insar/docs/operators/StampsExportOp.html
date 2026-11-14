@@ -17,5 +17,38 @@ StaMPS applicaiton for Persistent Scattering Interferometry (PSI).</p><p style="
 </li><li>Interferogram for reference/secondary pairs and an elevation band</li></ol><p>Apply precise orbit correction and coregister a stack of SLC products. For S1 TOPS data, use the TOPS backgeocoding to coregister.</p><p>Generate interferograms for the stack. For S1 TOPS data, deburst the interferogram product and the stack product.<br>
 </p><p>Add an elevation band to the interferogram product.</p><br><p>The StaMPS Export will take the coregistered stack and interferogram with elevation and produce an output in Gamma format.</p><p>You must then run the mt_prep_gamma script from StaMPS to prepare the Gamma formatted data.</p><p>Then run stamps in matlab.</p><br>
 
+<h3>References</h3>
+<ol>
+    <li>Hooper, A., Zebker, H., Segall, P., Kampes, B. (2004). A new method for measuring deformation on volcanoes and other natural terrains using InSAR persistent scatterers. <i>Geophysical Research Letters</i>, 31(23), L23611. doi:10.1029/2004GL021737</li>
+    <li>Hooper, A., Segall, P., Zebker, H. (2007). Persistent scatterer interferometric synthetic aperture radar for crustal deformation analysis, with application to Volc&aacute;n Alcedo, Gal&aacute;pagos. <i>Journal of Geophysical Research: Solid Earth</i>, 112(B7), B07407. doi:10.1029/2006JB004763</li>
+</ol>
+<!-- params:begin op="StampsExport" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>StampsExport</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>targetFolder</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The output folder to which the data product is written.</td></tr>
+<tr><td><code>psiFormat</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Format for PSI or SBAS</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/time_series.html">InSAR Time Series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two source products: a coregistered SLC stack (first) and an interferogram product (second)</li>
+    <li>Neither product may be a burst TOPS product: deburst first</li>
+    <li>The stack must contain a reference band; the interferogram must have elevation and orthorectified lat/lon bands</li>
+    <li>A target folder; PSI format only</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Run the StaMPS script mt_prep_gamma outside SNAP, then StaMPS in Matlab</li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body></html>

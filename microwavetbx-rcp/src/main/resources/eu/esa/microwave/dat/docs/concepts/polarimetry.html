@@ -1,0 +1,200 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Polarimetry Primer</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Polarimetry Primer</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Polarimetry Primer</h1>
+
+<p class="lead">A polarimetric SAR transmits and receives in two orthogonal polarisations and records how
+each target changes the polarisation of the wave. That change identifies the scattering mechanism
+(surface, double bounce or volume), which a single intensity image cannot do. Every polarimetric
+operator in SNAP works on the scattering, covariance and coherency matrices described here.</p>
+
+<h2>The scattering matrix</h2>
+<p>For one resolution cell, a fully polarimetric (quad-pol) radar measures four complex numbers. They form
+the Sinclair scattering matrix:</p>
+<p class="eq">S = [ S<sub>HH</sub> &nbsp; S<sub>HV</sub> ; &nbsp; S<sub>VH</sub> &nbsp; S<sub>VV</sub> ]</p>
+<p>H and V are the horizontal and vertical linear polarisations. S<sub>HH</sub> and S<sub>VV</sub> are the
+co-polarised elements, S<sub>HV</sub> and S<sub>VH</sub> the cross-polarised ones. Each element has an
+amplitude and a phase, so only complex (SLC) data carry the full information.</p>
+<p><b>Reciprocity.</b> When the same antenna transmits and receives (monostatic SAR), the two cross-polar
+elements are equal: S<sub>HV</sub> = S<sub>VH</sub>. The matrix then has three independent complex
+elements. Faraday rotation in the ionosphere breaks this equality at L- and P-band, which is why it is
+corrected before any matrix is formed.</p>
+<p><b>Span.</b> The total power is the same in any polarisation basis:</p>
+<p class="eq">Span = |S<sub>HH</sub>|<sup>2</sup> + |S<sub>HV</sub>|<sup>2</sup> + |S<sub>VH</sub>|<sup>2</sup> + |S<sub>VV</sub>|<sup>2</sup></p>
+
+<h2>Target vectors: lexicographic and Pauli</h2>
+<p>The matrix is rearranged into a vector. Under reciprocity there are two standard choices:</p>
+<p class="eq">k<sub>L</sub> = [ S<sub>HH</sub>, &nbsp;&radic;2 S<sub>HV</sub>, &nbsp;S<sub>VV</sub> ]<sup>T</sup></p>
+<p class="eq">k<sub>P</sub> = (1/&radic;2) [ S<sub>HH</sub> + S<sub>VV</sub>, &nbsp;S<sub>HH</sub> &#8722; S<sub>VV</sub>, &nbsp;2 S<sub>HV</sub> ]<sup>T</sup></p>
+<p>The factors &radic;2 keep |k|<sup>2</sup> equal to the span. Both vectors carry the same information and
+are related by a fixed unitary transform. The Pauli vector k<sub>P</sub> is easier to interpret, because
+each element matches one ideal scatterer:</p>
+<ul>
+    <li>S<sub>HH</sub> + S<sub>VV</sub>: odd-bounce scattering, from a flat or slightly rough surface, a
+        sphere or a trihedral corner reflector;</li>
+    <li>S<sub>HH</sub> &#8722; S<sub>VV</sub>: even-bounce scattering, from a dihedral (for example a
+        wall and the ground) aligned with the flight track;</li>
+    <li>S<sub>HV</sub>: depolarisation, from a volume of randomly oriented elements such as a forest
+        canopy, or from a dihedral rotated by 45&deg;.</li>
+</ul>
+
+<h2>Covariance and coherency matrices</h2>
+<p>Natural surfaces and vegetation are distributed targets. Each pixel is the sum of many random
+contributions, so S of a single pixel is speckle, not a property of the target. The stable quantities are
+the second-order averages:</p>
+<p class="eq">C<sub>3</sub> = &lt; k<sub>L</sub> k<sub>L</sub><sup>H</sup> &gt;</p>
+<p class="eq">T<sub>3</sub> = &lt; k<sub>P</sub> k<sub>P</sub><sup>H</sup> &gt;</p>
+<p>Here <sup>H</sup> is the conjugate transpose and &lt; &gt; is the average over looks or a moving window.
+C<sub>3</sub> is the covariance matrix and T<sub>3</sub> the coherency matrix. Both are 3&times;3, Hermitian
+and positive semi-definite, with 9 real parameters, and their trace is the span. They hold the same
+information, and SNAP converts between them exactly. A matrix built from one pixel without averaging has
+rank 1; it describes one deterministic scatterer and gives an entropy of zero. Averaging and its
+statistics are explained on <a href="wishart.html">Polarimetric Speckle, Wishart Statistics and
+Classification</a>.</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Matrix</th><th>Vector</th><th>Size</th><th>Typical use</th></tr>
+    <tr><td>C3 / T3</td><td>k<sub>L</sub> / k<sub>P</sub> (reciprocal)</td><td>3&times;3</td><td>Quad-pol decompositions, classification, speckle filtering</td></tr>
+    <tr><td>C4 / T4</td><td>4 elements, S<sub>HV</sub> and S<sub>VH</sub> kept separate</td><td>4&times;4</td><td>Data where reciprocity has not been imposed</td></tr>
+    <tr><td>C2</td><td>[S<sub>co</sub>, S<sub>cross</sub>] or the two compact-pol channels</td><td>2&times;2</td><td>Dual-pol and compact-pol products</td></tr>
+</table>
+
+<h2>Dual-pol and compact-pol data</h2>
+<p>Many missions record only two channels. A dual-pol product (VV+VH or HH+HV) gives one co-polar and one
+cross-polar channel and the 2&times;2 matrix C<sub>2</sub> = &lt; k k<sup>H</sup> &gt; with k = [S<sub>VV</sub>,
+S<sub>VH</sub>]<sup>T</sup> (or [S<sub>HH</sub>, S<sub>HV</sub>]<sup>T</sup>). The phase between the two
+co-polar channels, which separates surface from double bounce, is missing. Compact polarimetry transmits
+a circular wave and receives H and V coherently. It also gives a C<sub>2</sub>, but one that keeps part of
+the co-polar information. See <a href="dual_compact_pol.html">Dual-pol and Compact Polarimetry</a>.</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Mission</th><th>Band</th><th>Polarimetric modes</th></tr>
+    <tr><td>Sentinel-1</td><td>C</td><td>Single or dual-pol (VV+VH or HH+HV); no quad-pol</td></tr>
+    <tr><td>RADARSAT-2</td><td>C</td><td>Quad-pol, dual-pol</td></tr>
+    <tr><td>RADARSAT Constellation Mission (RCM)</td><td>C</td><td>Dual-pol, compact-pol; one quad-pol mode</td></tr>
+    <tr><td>ALOS-2 PALSAR-2</td><td>L</td><td>Quad-pol, dual-pol</td></tr>
+    <tr><td>BIOMASS</td><td>P</td><td>Quad-pol</td></tr>
+</table>
+
+<h2>Reflection symmetry and roll invariance</h2>
+<p>Many natural media are statistically symmetric about the plane of incidence. For them the co-polar and
+cross-polar channels are uncorrelated: &lt;S<sub>HH</sub> S<sub>HV</sub><sup>*</sup>&gt; =
+&lt;S<sub>VV</sub> S<sub>HV</sub><sup>*</sup>&gt; = 0, so four real elements of C<sub>3</sub> (and of
+T<sub>3</sub>) vanish. This reflection symmetry is assumed by the Freeman-Durden and van Zyl
+decompositions. Terrain slopes in azimuth and buildings that are not parallel to the flight track rotate
+the scattering matrix about the line of sight and break the symmetry. Quantities that do not change
+under this rotation, such as the span, the eigenvalues of T<sub>3</sub> and the entropy and alpha angle
+derived from them, are called roll-invariant. See <a href="decompositions.html">Polarimetric
+Decompositions</a>.</p>
+
+<h2>Reading a Pauli RGB image</h2>
+<p>The Pauli RGB composite displays the diagonal of T<sub>3</sub>:</p>
+<ul>
+    <li><b>Red</b> = |S<sub>HH</sub> &#8722; S<sub>VV</sub>|<sup>2</sup>/2 = T<sub>22</sub>: double
+        bounce. Buildings, tree trunks over flooded ground.</li>
+    <li><b>Green</b> = |S<sub>HV</sub> + S<sub>VH</sub>|<sup>2</sup>/2 = T<sub>33</sub> (= 2|S<sub>HV</sub>|<sup>2</sup>):
+        volume. Forest canopy, also buildings oriented at an angle to the track.</li>
+    <li><b>Blue</b> = |S<sub>HH</sub> + S<sub>VV</sub>|<sup>2</sup>/2 = T<sub>11</sub>: odd bounce.
+        Bare soil, rough water surfaces, flat roofs.</li>
+</ul>
+<p><img src="images/polarimetry_1.png" width="560" height="340" alt="Three canonical scatterers and the fraction of their power in the Pauli red, green and blue channels"></p>
+<p class="figcap">Figure 1. Ideal scatterers and their Pauli signatures, as a fraction of the span. A
+surface or trihedral puts all its power in blue, a dihedral aligned with the track all in red. A cloud of
+randomly oriented thin dipoles (T<sub>3</sub> = diag(2, 1, 1)/4) puts half in blue and a quarter each in red
+and green. Forests still look green in a Pauli RGB because each channel is contrast-stretched separately
+and the cross-polar (green) power is much higher over forest than over other land cover, not because green
+carries most of the power.</p>
+<p>Real pixels mix mechanisms, so the colour shows only the dominant one. A rough Bragg surface, where
+|S<sub>VV</sub>| &gt; |S<sub>HH</sub>|, adds a little red to blue; a rotated building can appear green.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Input bands.</b> Quad-pol SLC products carry the real and imaginary parts of each element as
+        <code>i_HH</code>, <code>q_HH</code>, <code>i_HV</code>, <code>q_HV</code>, <code>i_VH</code>,
+        <code>q_VH</code>, <code>i_VV</code> and <code>q_VV</code>. Calibrate them with complex output
+        first (Calibration, option <i>Save in complex</i>).</li>
+    <li><b>Polarimetric Matrix Generation</b> (<code>Polarimetric-Matrices</code>) builds
+        <code>C2</code>, <code>C3</code>, <code>C4</code>, <code>T3</code> (default) or <code>T4</code>. It
+        needs an SLC input. C2 needs a dual-pol (HH+HV, VV+VH, HH+VV) or compact-pol product; a quad-pol
+        product must first be reduced to two polarisations with Band Select.</li>
+    <li><b>Band names.</b> Diagonal elements are real powers in linear units (<code>T11</code>,
+        <code>T22</code>, <code>T33</code>). Off-diagonal elements are stored as real and imaginary parts:
+        <code>T12_real</code>, <code>T12_imag</code>, <code>T13_real</code>, <code>T13_imag</code>,
+        <code>T23_real</code>, <code>T23_imag</code>; likewise <code>C11</code> ... <code>C33</code> and the
+        4&times;4 forms up to <code>C44</code> / <code>T44</code>. C2 has <code>C11</code>,
+        <code>C12_real</code>, <code>C12_imag</code>, <code>C22</code>. For VV+VH, <code>C11</code> is the
+        VV power and <code>C22</code> the VH power; for HH+HV, HH and HV.</li>
+    <li><b>No averaging.</b> Matrix Generation writes the single-pixel matrix. The averaging comes from the
+        Polarimetric Speckle Filter or from the <i>Window Size</i> of the decomposition and classification
+        operators.</li>
+    <li><b>Conversions.</b> A C3 product can be turned into T3 and vice versa. A 3&times;3 matrix cannot be
+        expanded to 4&times;4.</li>
+    <li><b>Pauli RGB.</b> Polarimetric Decomposition with <i>Pauli Decomposition</i> writes
+        <code>Pauli_r</code>, <code>Pauli_g</code> and <code>Pauli_b</code> in dB, pixel by pixel without a
+        window. For C3 or T3 input it uses T<sub>22</sub>, T<sub>33</sub> and T<sub>11</sub>.</li>
+    <li><b>Usual order.</b> Calibration (complex) &#8594; [Polarimetric Calibration, experimental, only for
+        data that are not polarimetrically calibrated] &#8594; [Faraday Rotation Correction, at L- and P-band]
+        &#8594; [Cross Channel SNR Correction] &#8594; Matrix Generation &#8594; Polarimetric Speckle Filter
+        &#8594; [Orientation Angle Correction] &#8594; Decomposition or Classification &#8594; Terrain
+        Correction of the results. Steps in brackets are optional. The steps before Matrix Generation need the
+        scattering matrix, and Faraday correction must come before the SNR correction (see
+        <a href="pol_calibration.html">Polarimetric Calibration and Propagation Effects</a>).</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Starting from GRD or other detected data. Without phase there is no matrix; Matrix Generation
+        rejects non-SLC input.</li>
+    <li>Running a decomposition on unaveraged single-pixel matrices (window size 1). Every pixel then looks
+        like a pure, zero-entropy target.</li>
+    <li>Reading the Pauli green channel as "forest". Buildings at an angle to the track are green too.</li>
+    <li>Geocoding the SLC before polarimetric processing. Do the polarimetric steps in radar geometry and
+        terrain-correct the outputs.</li>
+    <li>Ignoring channel imbalance. An HH/VV imbalance moves power between the Pauli red and blue channels.
+        Distributed-target calibration cannot measure it (Polarimetric Calibration leaves it untouched by default;
+        its optional scene estimate assumes equal HH and VV power); it needs a corner reflector or the product's own calibration. See <a href="pol_calibration.html">Polarimetric Calibration</a>.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrix Generation</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/OrientationAngleCorrectionOp.html">Polarimetric Orientation Angle Correction</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricCalibrationOp.html">Polarimetric Calibration</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/FaradayRotationCorrectionOp.html">Faraday Rotation Correction</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/CrossChannelSNRCorrectionOp.html">Cross Channel SNR Correction</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricParametersOp.html">Polarimetric Parameters</a></li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
+    <li>Cloude, S. R., Pottier, E. (1996). A review of target decomposition theorems in radar polarimetry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 34(2), 498&#8211;518. doi:10.1109/36.485127</li>
+    <li>Lee, J.-S., Schuler, D. L., Ainsworth, T. L. (2000). Polarimetric SAR data compensation for terrain azimuth slope variation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(5), 2153&#8211;2163. doi:10.1109/36.868874</li>
+    <li>Freeman, A., Durden, S. L. (1998). A three-component scattering model for polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 36(3), 963&#8211;973. doi:10.1109/36.673687</li>
+</ol>
+
+<hr>
+</body>
+</html>

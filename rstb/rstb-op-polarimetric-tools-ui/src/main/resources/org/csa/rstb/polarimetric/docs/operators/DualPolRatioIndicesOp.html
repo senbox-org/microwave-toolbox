@@ -9,7 +9,7 @@
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; Dual-pol Ratio Indices (RFDI / Cross-Ratio / Span)</td>
-        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
@@ -33,11 +33,37 @@
    Set &gt; 1 for noisier scenes; the existing PolarimetricSpeckleFilter operator is generally preferred.</p>
 
 <h3>Reference</h3>
-<p>Mitchard, E.T.A., Saatchi, S.S., White, L.J.T., et al., 2012.
-   <i>Mapping tropical forest biomass with radar and spaceborne LiDAR in Lop&eacute; National Park,
-   Gabon: overcoming problems of high biomass and persistent cloud.</i>
-   Carbon Balance and Management 7, 1.</p>
+<ol>
+    <li>Mitchard, E. T. A., Saatchi, S. S., White, L. J. T., Abernethy, K. A., Jeffery, K. J., Lewis, S. L., Collins, M., Lefsky, M. A., Leal, M. E., Woodhouse, I. H., Meir, P. (2012). Mapping tropical forest biomass with radar and spaceborne LiDAR in Lop&eacute; National Park, Gabon: overcoming problems of high biomass and persistent cloud. <i>Biogeosciences</i>, 9(1), 179&#8211;191. doi:10.5194/bg-9-179-2012</li>
+</ol>
 
+<!-- params:begin op="Dual-Pol-Ratio-Indices" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Dual-Pol-Ratio-Indices</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>1</td><td>[1, 100]</td><td>&nbsp;</td><td>The sliding window size</td></tr>
+<tr><td><code>outputRFDI</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output RFDI = (c11-c22)/(c11+c22)</td></tr>
+<tr><td><code>outputCR</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Cross-Ratio = c22/c11</td></tr>
+<tr><td><code>outputCRdB</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Cross-Ratio in dB = 10&#183;log10(c22/c11)</td></tr>
+<tr><td><code>outputSpan</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output span = c11 + c22</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Dual-pol C2 covariance matrix product (create it with <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a>); other product types are rejected</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

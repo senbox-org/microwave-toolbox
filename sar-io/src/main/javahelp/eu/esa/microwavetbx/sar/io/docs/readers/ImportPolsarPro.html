@@ -1,44 +1,71 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head><title>Help - Import PolsarPro</title>
-
-    <link rel="stylesheet" href="../style.css">
-</head>
+<html><head><title>Help - Import PolSARPro</title>
+    <link rel="stylesheet" href="../style.css"></head>
 <body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import PolsarPro</td>
+        <td class="header">&nbsp; Import PolSARPro</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg"
                                                                                  border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import PolsarPro Product</h3>
 
-<p>This option allows to import PolsarPro products stored in the ENVI format.</p>
+<p>PolSARPro is ESA's open-source polarimetric SAR toolbox. The <b>PolSARPro</b> reader opens a
+PolSARPro output folder as one SNAP product.</p>
 
-<p>If you select the ENVI .hdr file then it will import only that one band into a product.</p>
+<h2>Format</h2>
+<p>PolSARPro stores polarimetric matrices such as <code>T3</code> or <code>C3</code> as one binary
+file per matrix element (<code>.bin</code>) with an ENVI header (<code>.bin.hdr</code>), plus a
+<code>config.txt</code> file in the folder.</p>
 
-<p>If you select the folder, it will import all bands within the folder as one product.</p>
+<h2>Supported data</h2>
+<p>PolSARPro output folders, for example <code>T3</code> or <code>C3</code> folders, and folders that SNAP
+wrote when it exported a product in PolSARPro format.</p>
 
-<p>Metadata from PolsarPro will be imported if a metadata.xml file or PolSARPro_NEST_metadata.xml exists.<br></p><h4>
-    Replacing Metadata</h4>
+<h2>How to open</h2>
+<p>Select the folder's <code>config.txt</code> file or one of its <code>*.bin.hdr</code> header files. The
+folder must contain both <code>config.txt</code> and at least one <code>*.bin.hdr</code> file. The reader
+then loads every band in the folder that has a header and a data file.</p>
 
-<p>You may also want to replace the metadata in the newly imported PolsarPro output with the metadata from the original
-    product. To
-    do so, both products must be of the same dimensions and both must be
-    currently opened in SNAP. Select the PolsarPro product and from the
-    Utilities -&gt; Metadata menu select Replace Metadata. Then in the
-    dialog that pops up select the original product where the metadata will
-    come from. This will replace the PolsarPro's empty metadata with that
-    of the original product.</p>
+<h2>What you get</h2>
+<ul>
+  <li>One band per <code>.bin</code> file, named from its ENVI header (normally the matrix
+      element, for example <code>T11</code>, <code>T12_real</code>, <code>T12_imag</code>).</li>
+  <li>Complex ENVI data are split into <code>i_</code> and <code>q_</code> bands with a virtual
+      intensity band.</li>
+  <li>The product is marked as polarimetric data in its Abstracted Metadata.</li>
+  <li>Geocoding from the ENVI <code>map info</code>, if the header has one.</li>
+</ul>
+<h3>Restoring the SAR metadata</h3>
+<p>PolSARPro output carries no SAR metadata. The reader loads it from an XML file if one is present:
+first a file with the same name as the selected file and the extension <code>.xml</code>, otherwise a
+<code>metadata.xml</code> file in the same folder. SNAP writes such files when it exports a product in
+PolSARPro format.</p>
+<p>You can also copy the metadata from the original product:</p>
+<ol>
+  <li>Open the original product and the PolSARPro product. Both must have the same raster size.</li>
+  <li>Select the PolSARPro product and choose <b>Tools &gt; Metadata &gt; Replace Metadata</b>.</li>
+  <li>In the dialog, select the original product as the metadata source.</li>
+</ol>
+<p>In a graph, use the <code>ReplaceMetadata</code> operator. Connect the product that receives the
+metadata first and the original product second. The resulting
+<a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a> allows operators such as terrain correction to run.</p>
 
-<p>This
-    can also be done from a graph using the ReplaceMetadata operator. The
-    operator takes two products as input. The first product connected should
-    be the original product where you want the metadata to come from.</p>
-<br>
+<h2>Known limitations</h2>
+<ul>
+  <li>Without the metadata step, operators that need orbit or timing information cannot be used.</li>
+  <li>Only one product per folder: the reader always loads the whole folder.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a> or <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a>.</p>
+
+<h2>Product format specification</h2>
+<p>PolSARPro and its documentation are distributed through ESA's STEP platform:
+<a href="https://step.esa.int/main/toolboxes/polsarpro-v6-0-biomass-edition-toolbox/">https://step.esa.int/main/toolboxes/polsarpro-v6-0-biomass-edition-toolbox/</a>.
+The headers follow the ENVI header format; see the SNAP <a href="nbdocs://org.esa.snap.snap.envi.reader/org/esa/snap/snap/envi/reader/docs/envireader/EnviReader.html">ENVI reader</a> page.</p>
+
 <hr>
-</body>
-</html>
+</body></html>

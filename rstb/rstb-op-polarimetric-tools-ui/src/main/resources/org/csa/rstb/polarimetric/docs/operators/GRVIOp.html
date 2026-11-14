@@ -46,9 +46,12 @@ dihedral (Knd). The final formulation of GRVI [2] is as follows:</p>
 <p align="center"><img src="images/grviworkflow.JPG"></p>
 
 
-<p>Ref:</br>
-[1] D. Mandal, V. Kumar, D. Ratha, J. M. Lopez-Sanchez, A. Bhattacharya, H. McNairn, Y. S. Rao, and K. V. Ramana, “Assessment of rice growth conditions in a semi-arid region of India using the Generalized Radar Vegetation Index derived from RADARSAT-2 polarimetric SAR data,” Remote Sensing of Environment, 237: 111561, 2020.</br>
-[2] D. Ratha, D. Mandal, V. Kumar, H. McNairn, A. Bhattacharya, and A. C. Frery, “A Generalized Volume Scattering Model-Based Vegetation Index From Polarimetric SAR Data,” IEEE Geoscience and Remote Sensing Letters, 16 (11), pp. 1791-1795, 2019. doi:10.1109/LGRS.2019.2907703.	</p>	
+<h4>References</h4>
+<ol>
+    <li>Mandal, D., Kumar, V., Ratha, D., Lopez-Sanchez, J. M., Bhattacharya, A., McNairn, H., Rao, Y. S., Ramana, K. V. (2020). Assessment of rice growth conditions in a semi-arid region of India using the Generalized Radar Vegetation Index derived from RADARSAT-2 polarimetric SAR data. <i>Remote Sensing of Environment</i>, 237, 111561. doi:10.1016/j.rse.2019.111561</li>
+    <li>Ratha, D., Mandal, D., Kumar, V., McNairn, H., Bhattacharya, A., Frery, A. C. (2019). A generalized volume scattering model-based vegetation index from polarimetric SAR data. <i>IEEE Geoscience and Remote Sensing Letters</i>, 16(11), 1791&#8211;1795. doi:10.1109/LGRS.2019.2907703</li>
+</ol>
+	
 		
 		
 
@@ -66,6 +69,29 @@ grvi image-->data type: float32</p>
 
 
 <br>
+<!-- params:begin op="Generalized-Radar-Vegetation-Index" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Generalized-Radar-Vegetation-Index</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>[1, 100]</td><td>&nbsp;</td><td>The sliding window size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Quad-pol product: full scattering matrix, or C3 covariance / T3 coherency matrix (create with <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a>); dual-pol and compact-pol products are rejected</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

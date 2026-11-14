@@ -90,18 +90,22 @@ Detailed steps for the estimation&nbsp;are given below:<br>
 
 <div style="margin-left: 40px;">where <span style="font-style: italic;">&#952;</span> is the incidence angle and &#945;
     is set to 1.<br></div>
-<br>&nbsp;&nbsp;&nbsp; For details of the CMOD5 model, the readers are referred to [1].<br><h4>Products Supported</h4>
+<br>&nbsp;&nbsp;&nbsp; For details of the CMOD5 model, the readers are referred to [1].<br>
+<p class="note"><b>Changed in SNAP 15:</b> three of the 28 CMOD5 coefficients (c9 to c11) now match the published
+    CMOD5 set [1]. Earlier versions modelled &sigma;<sup>0</sup> about 0.4 to 0.8 dB too low, so they reported wind
+    speeds about 0.6 m/s too high. Expect slightly lower speeds than with earlier versions.</p>
+<h4>Products Supported</h4>
 <ul>
     <li>&nbsp; &nbsp;The
-        operator now is only supported for ERS and ENVISAT (VV- and
-        HH-polarized) products. The source product is assumed to have been calibrated
+        operator is supported for ERS, ENVISAT, Sentinel-1 and RADARSAT-2 (VV- and
+        HH-polarized) products. Sentinel-1 TOPS SLC burst products are not accepted; use detected (GRD) products. The source product is assumed to have been calibrated
         before applying the operator.
     </li>
 </ul>
 <h4>Parameters Used</h4>&nbsp;&nbsp;&nbsp;The following parameters are used by the operator:
 <ol>
     <li>Source Bands: All bands (real or virtual) of the source product.
-        User can select one or more bands for producing multi-looked images. If
+        User can select one or more bands for wind field estimation. If
         no bands are selected, then by default all bands are selected.
     </li>
     <li>Window Size: The dimension of a window for which wind direction and speed are estimated.</li>
@@ -127,7 +131,7 @@ hence not displayed.<br><br>
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 2. Example of wind direction display<br><h4>Wind Field
     Retrieval Result Report</h4>&nbsp;&nbsp;&nbsp;The
 wind field estimation&nbsp;results are saved into an xml file
-.s1tbx/log/wind_field_report.xml with the following information given
+<code>&lt;product name&gt;_wind_field_report.xml</code> in the <code>.snap/var/log</code> folder of your user directory, with the following information given
 for each window in which wind estimation is made:<br>
 <ol>
     <li><span style="font-style: italic;">lat</span>: Latitude of the central point in the window.</li>
@@ -142,17 +146,39 @@ for each window in which wind estimation is made:<br>
         speaking,&nbsp;the smaller the ratio value, the more reliable the
         estimated wind direction.<br></li>
 </ol>
-<p style="font-style: italic;">Reference:</p>
+<h3>References</h3>
+<ol>
+    <li>Hersbach, H., Stoffelen, A., de Haan, S. (2007). An improved C-band scatterometer ocean geophysical model function: CMOD5. <i>Journal of Geophysical Research: Oceans</i>, 112(C3), C03006. doi:10.1029/2006JC003743</li>
+    <li>Wackerman, C. C., Pichel, W. G., Clemente-Colon, P. (2003). Automated estimation of wind vectors from SAR. <i>12th Conference on Interactions of the Sea and Atmosphere</i>, American Meteorological Society, paper 10.5. <a href="https://ams.confex.com/ams/annual2003/techprogram/paper_58270.htm">ams.confex.com</a></li>
+</ol>
 
-<p>
-    [1] H. Hersbach, CMOD5, &#8220;An Improved Geophysical Model Function for ERS
-    C-Band Scatterometry&#8221;, Report of the European Centre Medium-Range
-    Weather Forecasts (ECMWF), 2003.</p>
-
-<p>[2] C. C. Wackerman, W. G.
-    Pichel, P. Clemente-Colon, &#8220;Automated Estimation of Wind Vectors from
-    SAR&#8221;, 12th Conference on Interactions of the Sea and Atmosphere, 2003.<br></p>
-
+<!-- params:begin op="Wind-Field-Estimation" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Wind-Field-Estimation</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>windowSizeInKm</code></td><td>double</td><td>20.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Window size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/ocean.html">Ocean SAR: wind, ships and oil</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_ocean.html">Ocean applications</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Calibrated product; a Sentinel-1 TOPS product must already be debursted.</li>
+    <li>Mission ERS, ENVISAT, SENTINEL-1 or RS2.</li>
+    <li>An incidence angle tie-point grid.</li>
+    <li>A calibrated intensity band (intensity or intensity_dB; amplitude is rejected) in HH or VV polarisation.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

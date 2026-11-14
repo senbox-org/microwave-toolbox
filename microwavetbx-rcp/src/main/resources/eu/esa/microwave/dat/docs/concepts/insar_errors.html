@@ -1,0 +1,262 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - InSAR Error Budget</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: InSAR Error Budget</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>InSAR Error Budget</h1>
+
+<p class="lead">An InSAR displacement is only as good as the phase terms you did not model. For one Sentinel-1
+    12-day pair the troposphere usually dominates, at 1&#8211;3 cm and sometimes more than 10 cm, while
+    decorrelation noise after multilooking is 0.5&#8211;3 mm. Most other terms are millimetres, but ionospheric
+    ramps (ascending dusk passes, solar maximum) and tides can reach a centimetre or more across a scene. In a multi-year time
+    series the random terms average down to below about 1 mm/year in velocity, and the limit becomes the systematic
+    ones: seasonal stratified delay, long-wavelength ionosphere and plate motion, phase bias, unwrapping errors and
+    the choice of reference point.</p>
+
+<h2>Error sources</h2>
+<p>All magnitudes are in line of sight (LOS) for Sentinel-1 IW (&lambda; = 5.55 cm, so 1 rad = 4.4 mm and one
+    fringe = 2.8 cm). The phase terms themselves are introduced in <a href="insar.html">InSAR Fundamentals</a>.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Source</th><th>Typical magnitude (S-1)</th><th>Spatial signature</th><th>Mitigation in SNAP / elsewhere</th></tr>
+    <tr><td>Decorrelation noise</td><td>0.5&#8211;3 mm per pair after multilooking; up to random phase at low
+        coherence</td><td>uncorrelated from pixel to pixel</td><td>multilooking, Goldstein filtering, Phase
+        Linking / PS selection</td></tr>
+    <tr><td>Troposphere, turbulent</td><td>1&#8211;3 cm per pair; averages down in a series</td>
+        <td>blobs and streaks, km to tens of km</td><td>stacking; weather models or GACOS outside SNAP</td></tr>
+    <tr><td>Troposphere, stratified</td><td>cm to dm in high relief; seasonal</td><td>follows topography</td>
+        <td>Empirical Tropospheric Correction; ETAD troposphere</td></tr>
+    <tr><td>Ionosphere</td><td>1.4 cm per TECU of differential TEC</td><td>long-wavelength ramps; azimuth
+        streaks (mainly L-band, high and equatorial latitudes)</td><td>Ionospheric Correction (split spectrum);
+        ETAD ionosphere</td></tr>
+    <tr><td>Orbit</td><td>about 2 mm across the swath per cm of baseline error</td><td>planar ramp</td>
+        <td>Apply Orbit File (precise orbits)</td></tr>
+    <tr><td>DEM error</td><td>B<sub>&perp;</sub>&Delta;h/(R sin &theta;): 1.8 mm for &Delta;h = 10 m and B<sub>&perp;</sub> = 100 m</td>
+        <td>follows DEM errors: buildings, forest edges, recent surface change</td><td>accurate DEM, short
+        B<sub>&perp;</sub>; DEM-error estimation outside SNAP</td></tr>
+    <tr><td>TOPS azimuth misregistration</td><td>0.25 mm for 0.001 pixel, 2.5 mm for 0.01 pixel</td>
+        <td>steps at burst seams</td><td>ESD (Enhanced Spectral Diversity)</td></tr>
+    <tr><td>Unwrapping errors</td><td>whole cycles of 2.8 cm</td><td>patches bounded by low coherence, water or
+        tile edges</td><td>multilook and filter first; redundant networks</td></tr>
+    <tr><td>Solid-Earth tide</td><td>up to about 25 cm vertical; differential ramp of about a centimetre per
+        scene</td><td>very long wavelength</td><td>ETAD (geodetic layer)</td></tr>
+    <tr><td>Ocean-tide loading</td><td>up to cm near coasts with large tides</td><td>long wavelength, coastal</td>
+        <td>outside SNAP</td></tr>
+    <tr><td>Plate motion</td><td>mm/year over hundreds of km (in velocity)</td><td>cross-track gradient</td>
+        <td>plate-motion model, outside SNAP</td></tr>
+    <tr><td>Thermal dilation</td><td>mm to cm, seasonal</td><td>on structures only</td><td>temperature term,
+        outside SNAP</td></tr>
+    <tr><td>Short-baseline phase bias</td><td>systematic, can look like slow motion</td><td>vegetated and farmed
+        land</td><td>Phase Linking, longer pairs</td></tr>
+    <tr><td>Reference point</td><td>everything above, at the reference</td><td>constant offset over the whole
+        map</td><td>stable, coherent, nearby reference</td></tr>
+</table>
+<p class="figcap">Table 1. Error sources for Sentinel-1 InSAR. Magnitudes are orders of magnitude, not
+    specifications.</p>
+
+<h3>Decorrelation noise</h3>
+<p>For L independent looks of a pair with coherence |&gamma;|, the phase standard deviation is bounded below by the
+    Cram&eacute;r&#8211;Rao bound (Rodr&iacute;guez and Martin, 1992):</p>
+<p class="eq">&sigma;<sub>&phi;</sub> = &radic;(1 &#8722; |&gamma;|&sup2;) / ( |&gamma;| &radic;(2L) )</p>
+<p class="eq">&sigma;<sub>d</sub> = (&lambda; / 4&pi;) &middot; &sigma;<sub>&phi;</sub></p>
+<p>The bound holds only for many looks and moderate to high coherence (Figure 1). For L = 64 it is within about
+    6&#160;% of the true value above |&gamma;| = 0.3; for L = 4 it is up to about 25&#160;% low between |&gamma;| = 0.3 and 0.9, and below about 0.25 it is meaningless (it even exceeds the uniform-phase limit).
+    At very low coherence the phase becomes uniform (1.81 rad). L counts <i>independent</i> looks, which are fewer
+    than the pixels in the window, and the estimated coherence is biased upward (see
+    <a href="coherence.html">Coherence</a>). Plugging an estimated coherence into the bound therefore understates
+    the noise where coherence is low.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>|&gamma;|</th><th>L</th><th>&sigma;<sub>&phi;</sub> bound (rad)</th><th>&sigma;<sub>&phi;</sub>
+        simulated (rad)</th><th>&sigma;<sub>d</sub> simulated (mm)</th></tr>
+    <tr><td>0.3</td><td>20</td><td>0.50</td><td>0.63</td><td>2.8</td></tr>
+    <tr><td>0.5</td><td>20</td><td>0.27</td><td>0.30</td><td>1.3</td></tr>
+    <tr><td>0.7</td><td>20</td><td>0.16</td><td>0.17</td><td>0.7</td></tr>
+    <tr><td>0.5</td><td>100</td><td>0.12</td><td>0.12</td><td>0.5</td></tr>
+    <tr><td>0.9</td><td>4</td><td>0.17</td><td>0.21</td><td>0.9</td></tr>
+</table>
+<p class="figcap">Table 2. Phase noise per pair (simulation: circular Gaussian scatterers, 40&#160;000
+    trials).</p>
+<p><img src="images/insar_errors_1.png" width="560" height="340" alt="Phase standard deviation versus coherence for 4, 16 and 64 looks, with the Cramer-Rao bound"></p>
+<p class="figcap">Figure 1. Phase standard deviation against true coherence for L = 4, 16 and 64 independent looks
+    (solid: simulation; dashed: Cram&eacute;r&#8211;Rao bound). Right axis: Sentinel-1 LOS displacement.</p>
+
+<h3>Atmosphere</h3>
+<p>Tropospheric delay has a stratified, height-correlated part and a turbulent part. Differential delays are
+    typically 1&#8211;3 cm per pair and can exceed 10 cm in humid or mountainous areas (Zebker, Rosen and Hensley,
+    1997). The ionospheric phase scales as 1/f, and its LOS equivalent as 1/f&sup2;: one TECU of differential TEC is
+    1.4 cm at C-band and about 25 cm at L-band. At C-band it mostly appears as a long-wavelength ramp. Mechanisms and
+    corrections are on the <a href="atmosphere.html">Atmospheric and Ionospheric Phase</a> page.</p>
+
+<h3>Orbit and DEM errors</h3>
+<p>An error &delta;B<sub>&perp;</sub> in the perpendicular baseline leaves a residual ramp of about
+    &delta;B<sub>&perp;</sub>&middot;&Delta;&theta; in LOS, where &Delta;&theta; &asymp; 0.22 rad is the span of
+    look angles across the IW swath: about 2 mm across the swath per centimetre of baseline error. With precise
+    (POEORB) orbits this is millimetres or less; see <a href="orbits_etad.html">Orbits and ETAD</a>.</p>
+<p>A DEM error &Delta;h leaves residual topographic phase that looks like displacement:</p>
+<p class="eq">&delta;d = B<sub>&perp;</sub> &Delta;h / (R sin &theta;)</p>
+<p>with R the slant range and &theta; the incidence angle (R sin &theta; &asymp; 544 km for S-1 IW). Small for
+    one pair, it matters where the DEM is tens of metres wrong (new buildings, felled forest, mines, glaciers). In a
+    time series the error follows B<sub>&perp;</sub> from date to date, so it is not random in time; Fattahi and
+    Amelung (2013) estimate &Delta;h jointly with the displacement.</p>
+
+<h3>Coregistration and unwrapping</h3>
+<p>For TOPS, an azimuth misregistration of 0.001 pixel gives about 3&deg; of phase jump at the burst seams, 0.01
+    pixel about 30&deg; (see <a href="tops.html">TOPS</a>). Unwrapping errors are whole cycles: 2.8 cm steps that
+    usually follow coherence boundaries (see <a href="unwrapping.html">Phase Unwrapping</a>).</p>
+
+<h3>Geophysical and systematic terms</h3>
+<p>The solid-Earth body tide moves the ground by up to about 25 cm vertically within a day. Its wavelength is
+    thousands of kilometres, so within one scene the difference between two dates is a gentle ramp of about a centimetre. Ocean-tide loading adds centimetres near coasts with large tides. These terms also shift the geometry: correcting the
+    ionosphere, solid-Earth tides and troposphere reduced Sentinel-1 range misregistration by more than a factor of
+    four (Yunjun et al., 2022). In multi-year velocities, rigid plate motion of centimetres per year, seen with an
+    incidence angle that changes across the swath, gives gradients of millimetres per year over hundreds of
+    kilometres (Stephenson et al., 2022). Metal and concrete structures expand with temperature, which gives seasonal
+    signals on persistent scatterers. Over distributed scatterers, short-baseline networks accumulate a
+    systematic phase bias (see <a href="phase_linking.html">Phase Linking in Depth</a>).</p>
+
+<h3>Reference point</h3>
+<p>Displacement is relative to a reference area, so every error at that area is copied, with opposite sign, to the
+    whole map (see <a href="displacement.html">From Phase to Displacement</a>).</p>
+
+<h2>Combining errors</h2>
+<p>Independent terms add in variance:</p>
+<p class="eq">&sigma;<sub>total</sub>&sup2; = &sigma;<sub>noise</sub>&sup2; + &sigma;<sub>tropo</sub>&sup2; +
+    &sigma;<sub>iono</sub>&sup2; + &sigma;<sub>orbit</sub>&sup2; + &#8230;</p>
+<p>What matters for a displacement map is the error of the <i>difference</i> between two points a distance r
+    apart, described by the structure function D(r) = E[(d(x + r) &#8722; d(x))&sup2;]. Decorrelation noise is
+    independent between pixels, so it adds &radic;2&middot;&sigma; whatever the distance. Atmosphere, orbit and
+    tides are spatially correlated: two nearby points share most of the delay, and the difference grows with
+    distance. From GPS in southern California, Emardson et al. (2003) found an atmospheric standard deviation of
+    about 2.5&middot;&radic;(r / 1 km) mm, i.e. 8 mm at 10 km and 25 mm at 100 km. A point next to the reference is
+    therefore far more accurate than one 100 km away (Figure 2).</p>
+<p><img src="images/insar_errors_2.png" width="560" height="340" alt="Standard deviation of the LOS difference between two points against their distance for several error sources"></p>
+<p class="figcap">Figure 2. Illustrative error of the LOS difference between two points against their distance,
+    for one Sentinel-1 pair. Troposphere: Emardson et al. (2003), zenith delay, stated valid for 10&#8211;800 km
+    (dotted below). The coefficient is site-dependent; LOS values are about 25&#160;% larger than zenith. Ionosphere
+    and orbit: linear ramps for the stated examples. Black: root-sum-square.</p>
+<p>In a series of N dates spanning T years, a per-date error &sigma; that is random in time gives a velocity
+    error of about</p>
+<p class="eq">&sigma;<sub>v</sub> &asymp; &sigma; &radic;(12 / N) / T</p>
+<p>For &sigma; = 10 mm, N = 150 and T = 5 years this is 0.6 mm/year. Errors that are not random in time
+    (seasonal delays, DEM error correlated with B<sub>&perp;</sub>, plate motion, phase bias) do not average out in
+    this way.</p>
+
+<h2>In SNAP</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Error</th><th>Operator</th><th>What it does</th></tr>
+    <tr><td>Orbit</td><td>Apply Orbit File (<code>Apply-Orbit-File</code>)</td><td>Default <i>Sentinel Precise
+        (Auto Download)</i>; replaces the annotated state vectors.</td></tr>
+    <tr><td>Troposphere, ionosphere, solid-Earth tide (S-1)</td><td>S1 ETAD Correction
+        (<code>S1-ETAD-Correction</code>)</td><td><i>Apply range-delay phase correction</i>
+        (<code>outputPhaseCorrections</code>, off by default) uses the
+        tropospheric, geodetic (tide) and ionospheric range layers. Used alone (<i>Resample image</i> off) it writes
+        an <code>etadPhaseCorrection</code> grid, which Interferogram subtracts only if both images carry it; with both
+        switches on (IW only, the GSLC set-up) the phase is removed from the pixels. Model based: it captures the
+        long-wavelength and height-dependent part, not turbulence.</td></tr>
+    <tr><td>Stratified troposphere</td><td>Empirical Tropospheric Correction
+        (<code>EmpiricalTropoCorrection</code>)</td><td>Phase&#8211;elevation regression (<code>linear</code> or
+        <code>quadratic</code>) on unwrapped phase, on a sample grid (every 20 pixels), skipping pixels with coherence below 0.3 when a coherence band is present.</td></tr>
+    <tr><td>Ionosphere</td><td>Band Pass Filter (<code>BandPassFilter</code>), Ionospheric Correction
+        (<code>IonosphericCorrection</code>)</td><td>Split-spectrum estimate from full, low and high sub-band
+        unwrapped interferograms; writes <code>ionosphericPhase</code>.</td></tr>
+    <tr><td>TOPS misregistration</td><td>Enhanced Spectral Diversity
+        (<code>Enhanced-Spectral-Diversity</code>)</td><td>Azimuth shift from the burst overlaps, single pair or
+        network.</td></tr>
+    <tr><td>Decorrelation noise</td><td>Goldstein Phase Filtering, Phase Linking</td><td>Goldstein smooths the
+        wrapped phase for unwrapping; it copies the coherence band unchanged. Phase Linking reduces noise over
+        distributed scatterers.</td></tr>
+    <tr><td>Noise in a time series</td><td>SBAS Inversion (<code>SBASInversion</code>)</td><td>Weights each pair
+        by the inverse of the Cram&eacute;r&#8211;Rao variance with L = <code>coherenceLooks</code> (100) and ignores a pair at pixels where its coherence is below <code>coherenceMin</code> (0.3).</td></tr>
+</table>
+<p>Points to note:</p>
+<ul>
+    <li><b>GSLC switches.</b> <i>Apply Solid Earth Tide correction</i> and <i>Apply tropospheric correction</i> in
+        GSLC Terrain Correction change the <code>flatteningPhase</code> band and the flattened output. With the
+        default (natural-phase) output Interferogram does not read them, so they do not correct the interferogram;
+        in a stack where every date is flattened, the modelled tide and dry delay are removed from it (see
+        <a href="gslc.html">Geocoded SLC</a>).</li>
+    <li><b>Not in SNAP:</b> weather-model or GACOS delays (import them as a band and subtract with Band Maths),
+        DEM-error estimation, ocean-tide loading, plate-motion and thermal-dilation models. The <code>velocity</code> of SBAS Inversion is a straight-line fit only (no seasonal or DEM-error term).</li>
+    <li><b><code>velocity_uncertainty</code></b> from SBAS Inversion is the formal error of that line fit, from
+        the scatter of the dates about it at that pixel. It contains neither spatially correlated errors nor the
+        error of your reference area.</li>
+    <li><b><code>closure_phase_rms</code></b> wraps every triplet closure to (&#8722;&pi;, &pi;], so it cannot
+        show whole-cycle unwrapping errors. Look instead at <code>temporal_coherence</code> and the
+        <code>residual_*</code> bands (<i>Output Residuals</i>), or form Unw<sub>12</sub> + Unw<sub>23</sub>
+        &#8722; Unw<sub>13</sub> in Band Maths: after referencing all three to the same point, patches near &plusmn;2&pi; mark an unwrapping error.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Reading a long-wavelength ramp as deformation. Orbit, ionosphere, tides and plate motion all produce
+        ramps; check an independent pair or GNSS first.</li>
+    <li>Ignoring DEM error over buildings or changed land, especially in pairs with long B<sub>&perp;</sub>.</li>
+    <li>Estimating coherence or phase noise from a Goldstein-filtered interferogram. Filtering smooths the phase,
+        so such a coherence is too high; use the coherence of the unfiltered pair.</li>
+    <li>Choosing a reference point that moves, decorrelates or lies far from the area of interest.</li>
+    <li>Quoting <code>velocity_uncertainty</code> as the accuracy of the velocity map.</li>
+    <li>Trusting <code>closure_phase_rms</code> to reveal unwrapping errors.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S1 ETAD Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/EmpiricalTropoCorrectionOp.html">Empirical Tropospheric Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/IonosphericCorrectionOp.html">Ionospheric Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseLinkingOp.html">Phase Linking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">Phase to Displacement</a></li>
+</ul>
+<p>Related concepts: <a href="coherence.html">Coherence</a>, <a href="atmosphere.html">Atmospheric and Ionospheric
+    Phase</a>, <a href="time_series.html">InSAR Time Series</a>, <a href="unwrapping.html">Phase Unwrapping</a>,
+    <a href="quality_control.html">Quality Control</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Rodr&iacute;guez, E., Martin, J. M. (1992). Theory and design of interferometric synthetic aperture radars.
+        <i>IEE Proceedings F (Radar and Signal Processing)</i>, 139(2), 147&#8211;159. doi:10.1049/ip-f-2.1992.0018</li>
+    <li>Bamler, R., Hartl, P. (1998). Synthetic aperture radar interferometry. <i>Inverse Problems</i>, 14(4),
+        R1&#8211;R54. doi:10.1088/0266-5611/14/4/001</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic
+        Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+    <li>Zebker, H. A., Rosen, P. A., Hensley, S. (1997). Atmospheric effects in interferometric synthetic aperture
+        radar surface deformation and topographic maps. <i>Journal of Geophysical Research: Solid Earth</i>,
+        102(B4), 7547&#8211;7563. doi:10.1029/96JB03804</li>
+    <li>Emardson, T. R., Simons, M., Webb, F. H. (2003). Neutral atmospheric delay in interferometric synthetic
+        aperture radar applications: Statistical description and mitigation. <i>Journal of Geophysical Research:
+        Solid Earth</i>, 108(B5), 2231. doi:10.1029/2002JB001781</li>
+    <li>Fattahi, H., Amelung, F. (2013). DEM error correction in InSAR time series. <i>IEEE Transactions on
+        Geoscience and Remote Sensing</i>, 51(7), 4249&#8211;4259. doi:10.1109/TGRS.2012.2227761</li>
+    <li>Yunjun, Z., Fattahi, H., Pi, X., Rosen, P., Simons, M., Agram, P., Aoki, Y. (2022). Range geolocation
+        accuracy of C-/L-band SAR and its implications for operational stack coregistration. <i>IEEE Transactions on
+        Geoscience and Remote Sensing</i>, 60, 5227219. doi:10.1109/TGRS.2022.3168509</li>
+    <li>Stephenson, O. L., Liu, Y.-K., Yunjun, Z., Simons, M., Rosen, P., Xu, X. (2022). The impact of plate motions
+        on long-wavelength InSAR-derived velocity fields. <i>Geophysical Research Letters</i>, 49(21),
+        e2022GL099835. doi:10.1029/2022GL099835</li>
+</ol>
+
+<hr>
+</body>
+</html>

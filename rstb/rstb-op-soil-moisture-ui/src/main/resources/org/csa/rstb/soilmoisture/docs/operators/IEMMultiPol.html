@@ -88,8 +88,44 @@ status of the pixel:<br>
 <p>The
     output of this optional outlier band is controlled by setting a
     preference called "snap.soil_moisture.output_outlier" in the
-    snap.properties file in &nbsp;the folder
-    "snap-desktop\snap-application\target\snap\etc".</p>
+    snap.properties file. Add the line
+    <code>snap.soil_moisture.output_outlier=true</code> to
+    <code>$SNAP_HOME/etc/snap.properties</code> (or to your user copy in
+    <code>~/.snap/etc/snap.properties</code>) and restart SNAP. The band is written only
+    when N is greater than 1.</p>
+<h3>References</h3>
+<ol>
+    <li>Fung, A. K., Li, Z., Chen, K. S. (1992). Backscattering from a randomly rough dielectric surface. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 30(2), 356&#8211;369. doi:10.1109/36.134085</li>
+</ol>
+
+<!-- params:begin op="IEM-Multi-Pol-Inversion" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>IEM-Multi-Pol-Inversion</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>N</code></td><td>Integer</td><td>5</td><td>&nbsp;</td><td>&nbsp;</td><td># closest sigma match from LUT search</td></tr>
+<tr><td><code>M</code></td><td>Integer</td><td>5</td><td>&nbsp;</td><td>&nbsp;</td><td>Length (pixels) of side of square neighbourhood (M)</td></tr>
+<tr><td><code>doRemainingOutliersFilter</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Replace remaining outlier with neighbours's average</td></tr>
+<tr><td><code>lutFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The look-up table (LUT) file used for the inversion</td></tr>
+<tr><td><code>outputRMS</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Optional rms in output</td></tr>
+<tr><td><code>thresholdRDC</code></td><td>Double</td><td>0.5</td><td>&nbsp;</td><td>&nbsp;</td><td>RDC deviation threshold</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/soil_moisture.html">Soil Moisture from SAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Single calibrated image with Sigma0 HH, Sigma0 VV and a local incidence-angle band ("incidenceAngle" or "LIA" in the name); the operator stops if a band is missing</li>
+    <li>IEM look-up table (.mat or .csv, see <a href="IEM-LUT.html">IEM Look Up Table</a>); if none is selected the operator picks one from the LUT folder. Recommended: a LUT matching the sensor, since the supplied tables are derived from RADARSAT-2 (5.405 GHz)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="SMDielectricModel.html">SM Dielectric Modeling</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

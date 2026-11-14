@@ -18,6 +18,7 @@
             </tocitem>
             <tocitem text="Sentinel-1 TOPS" mergetype="javax.help.SortMerge">
                 <tocitem text="Sentinel1 SLC to GRD" target="Sentinel1SLCtoGRD"/>
+                <tocitem text="GRD Post-Processing" target="GRDPostProcessOp"/>
                 <tocitem text="TOPSAR Deburst" target="TOPSARDeburstOp"/>
                 <tocitem text="TOPSAR Split" target="TOPSARSplitOp"/>
                 <tocitem text="Slice Assembly" target="SliceAssemblyOp"/>

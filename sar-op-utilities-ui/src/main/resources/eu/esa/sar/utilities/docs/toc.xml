@@ -9,7 +9,11 @@
             <tocitem text="Data Conversion">
                 <tocitem text="Band Select" target="BandSelectOp"/>
                 <tocitem text="Set No-Data Value" target="SetNoDataValueOp"/>
+                <tocitem text="Band Merge" target="BandMergeOp"/>
             </tocitem>
+        </tocitem>
+        <tocitem text="Tools">
+            <tocitem text="Tile Writer" target="TileWriterOp"/>
         </tocitem>
         <tocitem text="Radar">
             <tocitem text="SAR Utilities">

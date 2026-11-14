@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - SAOCOM Thermal Noise Removal</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+<tbody>
+<tr class="header">
+<td class="header">&nbsp; SAOCOM Thermal Noise Removal</td>
+<td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+</tr>
+</tbody>
+</table>
+<h3>SAOCOM Thermal Noise Removal Operator</h3>
+<p>Removes (or re-introduces) the thermal noise of SAOCOM-1A/1B products, using the noise vectors (NESZ,
+noise equivalent sigma zero) delivered with the product. Open it from
+<b>Radar &gt; Radiometric &gt; SAOCOM Thermal Noise Removal</b>, or use the GPT operator
+<code>SAOCOM-Thermal-Noise-Removal</code>. The operator refuses products of any other mission.</p>
+
+<p><b>Note:</b> on complex (SLC) products, i and q are scaled by the same factor, so the phase is kept and only the
+amplitude changes. The noise vector geometry is approximate (see <i>Noise data</i> below), so the corrected
+amplitudes are approximate too.</p>
+
+<h4>Noise data</h4>
+<ul>
+    <li>The noise vectors are read from the <i>noiseLut*.xml</i> files in the product's <i>Calibration</i> folder.
+        The SAOCOM reader stores them under <i>Abstracted_Metadata &gt; noise</i>. The polarisation of each file is
+        taken from its file name (HH, HV, VH or VV).</li>
+    <li>Each polarisation has one noise vector along range. It is stretched linearly over the image width (first
+        value at the first column, last value at the last column), and the same value is used for every line.
+        There is no azimuth variation.</li>
+    <li>If the product has no noise files, the operator writes a warning to the log and removes nothing.</li>
+</ul>
+
+<h4>Processing</h4>
+<p>The noise is handled in linear power. SAOCOM Level-1 images are delivered already calibrated in
+&sigma;<sup>0</sup> (CONAE product format, section 2.4.2.1), so the noise vector is subtracted from the pixel
+power without any further calibration factor:</p>
+<ul>
+    <li><b>Intensity bands</b> (the <i>Sigma0_POL</i> bands of DI, GEC and GTC products as read by SNAP): the noise
+        is subtracted and the band keeps its name and unit, so intensity bands are returned as intensity (power).
+        Note that the CONAE format specification describes these images as amplitude values, while the SNAP reader
+        labels them as intensity; check the units of your product before relying on the result.</li>
+    <li><b>Amplitude bands</b>: the noise is subtracted from the power (amplitude<sup>2</sup>), then the square root
+        is taken, so amplitude bands are returned as amplitude, with their name and unit kept. With
+        <b>Clip Negative Values</b> the floor is applied to the power before the square root; without it, a negative
+        power gives an amplitude of 0. Without noise data, amplitude bands are copied unchanged.</li>
+    <li><b>Complex (i/q) bands</b> (SLC): the noise is subtracted from the power i<sup>2</sup>+q<sup>2</sup>, then
+        i and q are both multiplied by &radic;(new power / old power). The phase is kept. Without noise data, i and q
+        are copied unchanged.</li>
+    <li>Pixels equal to the band's no-data value stay no-data.</li>
+    <li>Virtual bands are copied unchanged. Bands that are not real, imaginary, amplitude or intensity bands are
+        not copied to the output.</li>
+    <li>After removal the attribute <i>thermal_noise_removed</i> in <i>Abstracted_Metadata</i> is set to
+        <i>true</i>, and after re-introduction to <i>false</i>. It is written only when noise data was applied.
+        The operator refuses to remove the noise from a product where it is already <i>true</i>, and to
+        re-introduce it where it is not <i>true</i>.</li>
+</ul>
+
+<h4>Parameters</h4>
+<ul>
+    <li><b>Polarisations</b> &ndash; The polarisations to process. Only bands of the selected polarisations are
+        processed and written to the output (empty = all). A selection that matches no band is an error.</li>
+    <li><b>Remove Thermal Noise</b> &ndash; Subtract the thermal noise (default: on).</li>
+    <li><b>Re-Introduce Thermal Noise</b> &ndash; Add the noise to the data instead (default: off). Turn
+        <b>Remove Thermal Noise</b> off when using it; selecting both is an error.</li>
+    <li><b>Clip Negative Values</b> &ndash; Replace values that become negative after noise subtraction by a small
+        positive floor value of 1.0E-5 (linear power; amplitude bands then get the square root of this floor, and
+        i/q pairs a magnitude of that size) (default: on). Disable it when the output will be multilooked,
+        speckle filtered or otherwise averaged, since clipping before averaging biases the result upwards.</li>
+</ul>
+
+<h3>References</h3>
+<ol>
+    <li>Comisi&oacute;n Nacional de Actividades Espaciales (CONAE) (2020). <i>SAOCOM-1 SAR Level-1 Products Format</i>.
+        Buenos Aires, 13 January 2020. https://catalogos.conae.gov.ar/catalogo/docs/SAOCOM/SAOCOM-1_SAR_Level-1_Product-Format_13Jan2020.pdf</li>
+</ol>
+<!-- params:begin op="SAOCOM-Thermal-Noise-Removal" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SAOCOM-Thermal-Noise-Removal</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>selectedPolarisations</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of polarisations</td></tr>
+<tr><td><code>removeThermalNoise</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Remove thermal noise</td></tr>
+<tr><td><code>reIntroduceThermalNoise</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Re-introduce thermal noise</td></tr>
+<tr><td><code>clipNegativeValues</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Clip negative values after noise removal</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometric Quantities and Calibration</a></li>
+    <li><a href="ThermalNoiseRemoval.html">S-1 Thermal Noise Removal</a> (thermal noise and clipping explained)</li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAOCOM product opened with the <a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportSAOCOM.html">SAOCOM reader</a>, with noise files in its <i>Calibration</i> folder; a DI or SLC product</li>
+    <li>Run it on the full-width product, before range subsetting, multilooking or terrain correction: the noise vector is stretched over the image width</li>
+    <li>Thermal noise must not already be removed (unless re-introducing)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilooking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
+<hr>
+</body></html>

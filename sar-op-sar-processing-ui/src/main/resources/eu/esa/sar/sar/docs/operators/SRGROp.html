@@ -49,11 +49,42 @@ following major steps:
         select one or more bands for producing ground range images. If no bands are
         selected, then by default all bands are selected.
     </li>
-    <li>Warp Polynomial Order: The degree of WARP polynomial. It should be a positive integer.</li>
+    <li>Warp Polynomial Order: The degree of WARP polynomial. Values 1, 2, 3 or 4; default 4.</li>
     <li>Interpolation Method: User can select interpolation method used in SRGR conversion.</li>
 </ol>
 <img style="width: 500px; height: 500px;" alt="" src="images/srgr_dlg.jpg"><br>
 
+<h3>References</h3>
+<ol>
+    <li>Curlander, J.C., McDonough, R.N. (1991). <i>Synthetic Aperture Radar: Systems and Signal Processing</i>. Wiley, New York. ISBN 978-0-471-85770-9</li>
+</ol>
+<!-- params:begin op="SRGR" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SRGR</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>warpPolynomialOrder</code></td><td>int</td><td>4</td><td>1, 2, 3, 4</td><td>&nbsp;</td><td>The order of WARP polynomial function</td></tr>
+<tr><td><code>interpolationMethod</code></td><td>String</td><td>Linear interpolation</td><td>Nearest-neighbor interpolation, Linear interpolation, Cubic interpolation, Cubic2 interpolation, Sinc interpolation</td><td>&nbsp;</td><td>Interpolation Method</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product that is not map projected, not a TOPS burst product, with an incidence angle tie-point grid, and not already converted to ground range</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="SpeckleFilterOp.html">Speckle Filter</a></li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

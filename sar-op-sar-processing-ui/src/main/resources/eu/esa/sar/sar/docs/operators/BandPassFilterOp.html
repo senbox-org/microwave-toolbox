@@ -47,5 +47,34 @@ interferometric operations can work as expected.
     </li>
 </ul>
 
+<h3>References</h3>
+<ol>
+    <li>Gomba, G., Parizzi, A., De Zan, F., Eineder, M., Bamler, R. (2016). Toward operational compensation of ionospheric effects in SAR interferograms: The split-spectrum method. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 54(3), 1446&#8211;1461. doi:10.1109/TGRS.2015.2481079</li>
+</ol>
+<!-- params:begin op="BandPassFilter" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>BandPassFilter</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>subband</code></td><td>String</td><td>low</td><td>low, high</td><td>&nbsp;</td><td>Subband</td></tr>
+<tr><td><code>alpha</code></td><td>double</td><td>1</td><td>0.5, 0.75, 0.8, 0.9, 1</td><td>&nbsp;</td><td>Hamming alpha</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/atmosphere.html">Atmospheric and Ionospheric Phase</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Recommended: an SLC product with I/Q bands, as described on this page (the operator source has no explicit check)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a> and interferogram formation</li>
+</ul>
+<!-- footer:end -->
 </body>
 </html>

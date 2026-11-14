@@ -103,7 +103,19 @@ public class MultitemporalCompositingOp extends Operator {
 
         final String[] sourceBandNames = sourceProduct.getBandNames();
         for (String srcBandName : sourceBandNames) {
-            if (srcBandName.contains(SECONDARY_TAG) || srcBandName.contains(SIMULATED_IMAGE)) {
+            if (srcBandName.contains(SIMULATED_IMAGE)) {
+                continue;
+            }
+            if (getStackKey(srcBandName) == null) {
+                throw new OperatorException("Band " + srcBandName + " has no " + REFERENCE_TAG + " or "
+                        + SECONDARY_TAG + " suffix. The input must be a Create Stack product of terrain-flattened"
+                        + " images with their simulatedImage bands.");
+            }
+            if (getSimulatedImageBand(srcBandName) == null) {
+                throw new OperatorException("No " + SIMULATED_IMAGE + " band found for band " + srcBandName
+                        + ". Run Terrain Flattening with Output Simulated Image selected.");
+            }
+            if (srcBandName.contains(SECONDARY_TAG)) {
                 continue;
             }
             final String tgtBandName = srcBandName.substring(0, srcBandName.indexOf(REFERENCE_TAG));
@@ -133,19 +145,21 @@ public class MultitemporalCompositingOp extends Operator {
             final int yMax = y0 + h;
 
             final String targetBandName = targetBand.getName();
+            // Pair each source band with the simulated image of the same acquisition (same
+            // _ref/_sec date suffix), not by band order.
             final List<Band> sourceBandList = new ArrayList<>();
             final List<Band> simImgBandList = new ArrayList<>();
             for (Band srcBand : sourceProduct.getBands()) {
                 final String srcBandName = srcBand.getName();
-                if(srcBandName.contains(targetBandName)) {
-                    sourceBandList.add(srcBand);
-                } else if (srcBandName.contains(SIMULATED_IMAGE)) {
-                    simImgBandList.add(srcBand);
+                if (srcBandName.contains(SIMULATED_IMAGE) || !srcBandName.contains(targetBandName)) {
+                    continue;
                 }
-            }
-
-            if (sourceBandList.size() != simImgBandList.size()) {
-                throw new OperatorException("Source bands and Simulated image bands do not match");
+                final Band simImgBand = getSimulatedImageBand(srcBandName);
+                if (simImgBand == null) {
+                    throw new OperatorException("No " + SIMULATED_IMAGE + " band found for band " + srcBandName);
+                }
+                sourceBandList.add(srcBand);
+                simImgBandList.add(simImgBand);
             }
 
             final Band[] sourceBands = sourceBandList.toArray(new Band[0]);
@@ -221,15 +235,48 @@ public class MultitemporalCompositingOp extends Operator {
         }
     }
 
+    /**
+     * Role + date key of a stack band name, ignoring CreateStack's per-band secondary counter:
+     * "Gamma0_VV_sec1_13Jan2020" and "simulatedImage_sec2_13Jan2020" both give "_sec_13Jan2020",
+     * "Gamma0_VV_ref_01Jan2020" gives "_ref_01Jan2020".
+     *
+     * @return the key, or null if the name carries neither the reference nor the secondary tag.
+     */
+    private static String getStackKey(final String bandName) {
+        final int idx = Math.max(bandName.lastIndexOf(REFERENCE_TAG), bandName.lastIndexOf(SECONDARY_TAG));
+        if (idx < 0) {
+            return null;
+        }
+        final String role = bandName.substring(idx, idx + REFERENCE_TAG.length());
+        int end = idx + role.length();
+        while (end < bandName.length() && Character.isDigit(bandName.charAt(end))) {
+            end++;
+        }
+        return role + bandName.substring(end);
+    }
+
+    /**
+     * @return the simulatedImage band with the same role and date as the given band, or null if none.
+     * @throws OperatorException if more than one simulatedImage band has that role and date
+     */
     private Band getSimulatedImageBand(final String srcBandName) {
 
-        final String date = srcBandName.substring(srcBandName.lastIndexOf("_"));
+        final String key = getStackKey(srcBandName);
+        if (key == null) {
+            return null;
+        }
+        Band match = null;
         for (Band band:sourceProduct.getBands()) {
-            if (band.getName().contains(SIMULATED_IMAGE) && band.getName().contains(date)) {
-                return band;
+            if (band.getName().contains(SIMULATED_IMAGE) && key.equals(getStackKey(band.getName()))) {
+                if (match != null) {
+                    throw new OperatorException("Cannot pair band " + srcBandName + " with its simulated image: "
+                            + match.getName() + " and " + band.getName() + " have the same date. Composite "
+                            + "acquisitions from the same date in separate stacks.");
+                }
+                match = band;
             }
         }
-        return null;
+        return match;
     }
 
 

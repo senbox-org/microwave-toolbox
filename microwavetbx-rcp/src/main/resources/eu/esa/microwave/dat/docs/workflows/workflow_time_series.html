@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - InSAR Time Series</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Workflows: InSAR Time Series</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>InSAR Time Series</h1>
+
+<p class="lead">From a stack of Sentinel-1 IW SLCs of one track you get displacement per date and mean velocity. You
+can do this inside SNAP (optional Phase Linking, a network of interferograms, SNAPHU, SBAS Inversion), or prepare the
+data for StaMPS or PyRate. All routes start from the same coregistered, debursted stack.</p>
+
+<h2>Before you start</h2>
+<ul>
+    <li><b>Data:</b> many IW SLCs of one relative orbit covering the same bursts. The code accepts 3 epochs, but robust
+        velocities need many more dates over a period much longer than the seasonal signals.</li>
+    <li><b>Network:</b> open Radar &gt; Interferometric &gt;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/InSARStackOverview.html">InSAR Stack Overview</a>
+        to see the baselines and pick a central Reference date.</li>
+    <li><b>Orbits, DEM, SNAPHU:</b> as for a single pair (see the
+        <a href="workflow_s1_dinsar.html">Sentinel-1 DInSAR workflow</a>).</li>
+    <li><b>Ready-made graphs:</b> Radar &gt; Coregistration &gt; S1 TOPS Coregistration has <i>S-1 TOPS Split Apply
+        Orbit</i> and <i>S-1 TOPS Joint Coregistration (write shifts to file)</i> (Back-Geocoding and ESD on a product
+        set). Radar &gt; Interferometric &gt; PSI\SBAS &gt; <i>StaMPS Export</i> is also a graph.</li>
+</ul>
+
+<h2>Steps: the coregistered stack</h2>
+<ol>
+    <li><b>S-1 TOPS Split</b> and <b>Apply Orbit File</b> on every date, with the same sub-swath and bursts.</li>
+    <li><b>S-1 Back Geocoding</b> (<code>Back-Geocoding</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">help</a>)
+        with all dates at once; the first product is the Reference.</li>
+    <li><b>S-1 Enhanced Spectral Diversity</b> (<code>Enhanced-Spectral-Diversity</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">help</a>).
+        For a stack it estimates shifts over a network: <i>Temporal baseline type</i> <code>Number of images</code>,
+        <i>Maximum temporal baseline</i> 4 and <i>Integration method</i> <code>L1 and L2</code> by default.</li>
+    <li><b>S-1 TOPS Deburst</b> (<code>TOPSAR-Deburst</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">help</a>).
+        Phase Linking and StaMPS Export both refuse burst products. For StaMPS, form the interferograms first (see
+        below).</li>
+</ol>
+
+<h2>Steps: in-SNAP route</h2>
+<ol start="5">
+    <li><b>Phase Linking</b>, optional (<code>PhaseLinking</code>, Radar &gt; Interferometric &gt; Phase Linking;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseLinkingOp.html">help</a>).
+        Worth it over distributed scatterers (fields, rangeland). Defaults: SHP window 21 (azimuth) &times; 7 (range),
+        <i>SHP Test</i> <code>KS</code>, <i>Minimum SHPs</i> 20, <i>Phase Estimator</i> <code>EVD</code>,
+        <i>Temporal Coherence Threshold</i> 0.6, Reference epoch = median date. It writes <code>i_pl_*</code> /
+        <code>q_pl_*</code> bands and <code>tempCoh_&lt;pol&gt;</code>. It estimates the whole stack at once, so stacks of more than
+        about 50 dates are slow.</li>
+    <li><b>Multi-Reference InSAR</b> (<code>MultiMasterInSAR</code>, Radar &gt; Interferometric &gt; Products;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/MultiReferenceInSAROp.html">help</a>).
+        List the <i>InSAR pairs</i> as <code>ddMMMyyyy-ddMMMyyyy</code> (either date may come first). The coherence window is
+        10 &times; 10 by default. <i>Add elevation band</i> is on by default (DEM <code>Copernicus 30m Global
+        DEM</code>); the band is needed to remove the topographic phase.</li>
+    <li><b>Goldstein Phase Filtering</b> (optional), then
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a>,
+        then <b>Batch Snaphu Unwrap</b> (<code>BatchSnaphuUnwrapOp</code>, Radar &gt; Interferometric &gt; Unwrapping;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BatchSnaphuUnwrapOp.html">help</a>).
+        Give it the same interferogram product and, as <i>Snaphu Export folder</i>, the sub-folder that Snaphu Export
+        created inside its target folder (named after the product). It runs SNAPHU on every pair and replaces each
+        wrapped phase band with an <code>UnwPhase_ifg_&lt;tag&gt;</code> band (unit <code>abs_phase</code>); the
+        <code>coh_&lt;tag&gt;</code> bands are passed through. It uses an existing snaphu executable in the
+        <i>Snaphu Install Location</i>. On Linux install SNAPHU yourself (or <code>chmod +x</code> the downloaded
+        <code>snaphu</code> binary) and point the tool at its folder, because the automatic download does not set the
+        executable bit; on macOS SNAPHU must always be installed by you.
+        This is the product SBAS Inversion reads. (This direct route follows from the code but has not yet been run end
+        to end; a glance at the statistics of the <code>UnwPhase_ifg</code> bands costs little.)</li>
+    <li><b>Snaphu Import</b> (<code>SnaphuImport</code>, Radar &gt; Interferometric &gt; Unwrapping;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">help</a>),
+        only if you ran SNAPHU outside SNAP instead of Batch Snaphu Unwrap (the command line is in the header of each
+        <code>&lt;date&gt;_&lt;date&gt;snaphu.conf</code>). Import the results
+        (<code>UnwPhase_ifg_&lt;tag&gt;.snaphu.hdr</code>) one at a time, each time with the previous import (at first
+        the interferogram product) as the first input. Leave <i>Do NOT save Wrapped interferogram</i> unticked, or the
+        coherence bands and earlier pairs are lost. For a stack with more than one Secondary, Snaphu Import keeps the
+        <code>UnwPhase_ifg_&lt;tag&gt;</code> names, sets the unit <code>abs_phase</code> and copies the
+        <code>coh_&lt;tag&gt;</code> bands from the first input.</li>
+    <li><b>SBAS Inversion</b> (<code>SBASInversion</code>, Radar &gt; Interferometric &gt; PSI\SBAS;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">help</a>).
+        Defaults: <i>Reference Epoch Date</i> empty (median date), <i>Coherence Threshold</i> 0.3, <i>Coherence
+        Looks</i> 100. Tikhonov regularisation (weight 0.001) switches on when the condition number exceeds
+        10<sup>6</sup>. <i>Output Velocity</i> and <i>Output Closure Phase RMS</i> are on. Outputs:
+        <code>displacement_&lt;date&gt;</code> (mm), <code>velocity</code> and <code>velocity_uncertainty</code>
+        (mm/year), <code>temporal_coherence</code>, <code>closure_phase_rms</code> (no-data where no closed triplet
+        of usable pairs exists, for example in a sequential network).</li>
+    <li><b>Range-Doppler Terrain Correction</b> of the results.</li>
+</ol>
+
+<h2>Export routes</h2>
+<ul>
+    <li><b>StaMPS (PS):</b> on the burst stack run Interferogram, then TOPSAR-Deburst, then Topographic Phase Removal
+        with <i>Output elevation band</i> and <i>Output lat/lon band</i> ticked. Feed the debursted SLC stack (first) and
+        this interferogram product (second) to
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/StampsExportOp.html">StaMPS Export</a>
+        and choose a target folder. Only the PSI format is implemented.</li>
+    <li><b>PyRate (SBAS):</b> run Multi-Reference InSAR, optional Goldstein filtering, and Snaphu Export. Then
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/PyRateExportOp.html">Export to PyRate</a>
+        (Radar &gt; Interferometric &gt; PSI\SBAS &gt; Export to Pyrate) runs a graph of
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BatchSnaphuUnwrapOp.html">Batch Snaphu Unwrap</a>,
+        Terrain Correction and the PyRate writer (File &gt; Export &gt; SAR Formats &gt; PyRate export). It writes
+        GeoTIFFs with GAMMA-style headers and <code>input_parameters.conf</code>; run
+        <code>pyrate workflow -f input_parameters.conf</code>.</li>
+</ul>
+
+<h2>Check the result</h2>
+<ul>
+    <li><code>temporal_coherence</code> close to 1 and a small <code>closure_phase_rms</code> mark pixels whose
+        network is consistent. A high closure RMS shows sub-cycle inconsistency (for example soil moisture or
+        vegetation change). Each closure is wrapped to (&#8722;&pi;, &pi;], so whole-cycle unwrapping errors do not
+        show in it; check them with a stable reference area or redundant pairs.</li>
+    <li>A stable area (bedrock, a GNSS station) should show velocity near zero after you subtract the reference.</li>
+    <li>Phase Linking: inspect <code>tempCoh</code>. Pixels below the threshold keep their original phase.</li>
+</ul>
+
+<h2>Common pitfalls</h2>
+<ul>
+    <li>Treating SBAS results as absolute. Displacement is relative to the reference epoch (velocity is not), and both
+        carry an arbitrary spatial constant because no reference point is subtracted; subtract a stable area.</li>
+    <li>A disconnected network. The regularised solution is then a smoothed guess across the gap.</li>
+    <li>Using Phase Linking for isolated point targets. It averages over similar pixels; use StaMPS for PS.</li>
+    <li>Only short pairs over vegetation. Check <code>closure_phase_rms</code>; add longer pairs or use Phase
+        Linking.</li>
+</ul>
+
+<h2>Background</h2>
+<ul>
+    <li><a href="../concepts/time_series.html">InSAR time series</a></li>
+    <li><a href="../concepts/coherence.html">Coherence</a></li>
+    <li><a href="../concepts/unwrapping.html">Phase unwrapping</a></li>
+    <li><a href="../concepts/displacement.html">From phase to displacement</a></li>
+    <li><a href="../concepts/atmosphere.html">Atmospheric phase</a></li>
+    <li><a href="../concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

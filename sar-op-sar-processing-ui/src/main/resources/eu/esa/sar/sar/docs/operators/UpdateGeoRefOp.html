@@ -41,7 +41,7 @@ the source image, and mathematical modeling of SAR imaging geometry.<br>
 <p>By default the&nbsp;following DEMs are available:</p>
 
 <ul>
-<li> ACE</li><li>GETASSE30</li><li> SRTM 3Sec GeoTiff</li><li>ASTER GDEM</li>
+<li>Copernicus 30m Global DEM (default)</li><li>ACE</li><li>ASTER 1sec GDEM</li><li>GETASSE30</li><li>SRTM 1Sec HGT</li><li>SRTM 3Sec</li>
 </ul>
 
 <p>Since
@@ -50,7 +50,7 @@ the source image, and mathematical modeling of SAR imaging geometry.<br>
     relative to the WGS84 ellipsoid.&nbsp;</p>
 
 
-<p>User can also use external DEM file which, as specified above, must be WGS84 <span style="font-size: 11pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">(</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488; </span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488;</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span><span style="font-size: 8pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">h</span></i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">)</span>&nbsp;DEM in meters.</p>
+<p>User can also use an external DEM file in geographic coordinates on WGS84, with heights in metres above the EGM96 geoid (SNAP always adds EGM96 here).</p>
 <h4>Parameters Used</h4>
 &nbsp;&nbsp;&nbsp;The following parameters are used by the operator:
 <ol>
@@ -80,5 +80,40 @@ geocoding.<br>
 </ol>
 <img style="width: 450px; height: 450px;" alt="" src="images/UpdateGeoRefOp.jpg"><br>
 
+<h3>References</h3>
+<ol>
+    <li>Small, D., Schubert, A. (2008). <i>Guide to ASAR Geocoding</i>. RSL-ASAR-GC-AD, Issue 1.0, 19 March 2008, Remote Sensing Laboratories, University of Zurich.</li>
+    <li>Schreier, G. (Ed.) (1993). <i>SAR Geocoding: Data and Systems</i>. Herbert Wichmann Verlag, Karlsruhe.</li>
+</ol>
+
+<!-- params:begin op="Update-Geo-Reference" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Update-Geo-Reference</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>ACE, ASTER 1sec GDEM, GETASSE30, SRTM 1Sec HGT, SRTM 3Sec, Copernicus 30m Global DEM</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BICUBIC_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM Resampling Method</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>reGridMethod</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Re-grid method (slower)</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product with a geo-coding and orbit state vectors; an installed DEM (or an external DEM file)</li>
+    <li>Recommended: <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a></li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

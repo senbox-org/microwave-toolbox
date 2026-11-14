@@ -65,7 +65,7 @@ public class CRValidationRosamondGRDTest extends BaseCRTest {
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
         terrainCorrectionOp.setSourceProduct(product);
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         addCornerReflectorPins(csvFile, trgProduct);
 
@@ -84,9 +84,9 @@ public class CRValidationRosamondGRDTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(product);
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(applyOrbitOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         addCornerReflectorPins(csvFile, trgProduct);
 
@@ -103,7 +103,7 @@ public class CRValidationRosamondGRDTest extends BaseCRTest {
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
         terrainCorrectionOp.setSourceProduct(srcProduct);
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -119,9 +119,9 @@ public class CRValidationRosamondGRDTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(applyOrbitOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -137,12 +137,12 @@ public class CRValidationRosamondGRDTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         MultilookOp multilookOp = new MultilookOp();
-        multilookOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        multilookOp.setSourceProduct(target(applyOrbitOp));
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(multilookOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(multilookOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }

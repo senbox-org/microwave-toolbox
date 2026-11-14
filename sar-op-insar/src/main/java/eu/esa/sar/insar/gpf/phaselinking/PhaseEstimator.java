@@ -19,7 +19,7 @@ package eu.esa.sar.insar.gpf.phaselinking;
  * Per-pixel phase estimator over an N x N Hermitian coherence matrix.
  *
  * Implementations: {@link EVDEstimator} (largest eigenvector of T_hat,
- * Ferretti SqueeSAR 2011) and {@link EMIEstimator} (smallest eigenvector of
+ * Fornaro et al. 2015, Cao et al. 2015) and {@link EMIEstimator} (smallest eigenvector of
  * |T_hat|^{-1} (elementwise) * T_hat, Ansari/De Zan/Bamler 2018).
  *
  * Future v2: iterative MLE / CRLB refinement, sequential / ministack PL.

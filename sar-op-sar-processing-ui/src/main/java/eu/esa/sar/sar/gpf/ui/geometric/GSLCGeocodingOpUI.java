@@ -78,7 +78,7 @@ public class GSLCGeocodingOpUI extends BaseOperatorUI {
     final JLabel sourcePixelSpacingsLabelPart2 = new JLabel("0.0(m) x 0.0(m)");
 
     final JCheckBox nodataValueAtSeaCheckBox = new JCheckBox("Mask out areas without elevation");
-    final JCheckBox outputFlattenedCheckBox = new JCheckBox("Output flattened complex data (not for InSAR)");
+    final JCheckBox outputFlattenedCheckBox = new JCheckBox("Output phase-flattened complex data");
     final JCheckBox outputAzimuthCarrierCheckBox = new JCheckBox("Restore TOPS azimuth carrier (not for InSAR)");
     final JCheckBox outputPhaseTermsCheckBox = new JCheckBox(
             "Output phase-term bands (enables exact carrier-difference InSAR)", true);

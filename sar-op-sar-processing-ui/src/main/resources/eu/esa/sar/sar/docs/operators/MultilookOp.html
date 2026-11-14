@@ -97,6 +97,43 @@ multilooked phase band.&nbsp;</li></ul><h4>Parameters Used</h4>&nbsp;&nbsp;&nbsp
 <br>
 <img style="width: 436px; height: 445px;" alt="" src="images/multilook_dlg.jpg"><br>
 
-<p> Reference:&nbsp;Small D., Schubert A.,&nbsp;Guide to ASAR Geocoding, RSL-ASAR-GC-AD, Issue 1.0, March 2008</p>
+<h3>References</h3>
+<ol>
+    <li>Small, D., Schubert, A. (2008). <i>Guide to ASAR Geocoding</i>. RSL-ASAR-GC-AD, Issue 1.0, 19 March 2008, Remote Sensing Laboratories, University of Zurich.</li>
+    <li>Oliver, C., Quegan, S. (1998). <i>Understanding Synthetic Aperture Radar Images</i>. Artech House, Boston (reprinted SciTech Publishing, 2004). ISBN 1-891121-31-6</li>
+</ol>
+<!-- params:begin op="Multilook" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Multilook</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>nRgLooks</code></td><td>int</td><td>1</td><td>[1, *)</td><td>&nbsp;</td><td>The user defined number of range looks</td></tr>
+<tr><td><code>nAzLooks</code></td><td>int</td><td>1</td><td>[1, *)</td><td>&nbsp;</td><td>The user defined number of azimuth looks</td></tr>
+<tr><td><code>outputIntensity</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>For complex product output intensity or i and q</td></tr>
+<tr><td><code>grSquarePixel</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Use ground square pixel</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and Multilooking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_grd_backscatter.html">Sentinel-1 GRD to Terrain-Flattened Backscatter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/terrain_correction.html">Range-Doppler Terrain Correction in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/rtc.html">Radiometric Terrain Correction in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product; a Sentinel-1 TOPS burst product must be debursted first (<a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPS Deburst</a>)</li>
+    <li>Recommended: <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>; for Sentinel-1, thermal noise removal must come before multilooking</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="SpeckleFilterOp.html">Speckle Filter</a></li>
+    <li><a href="RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

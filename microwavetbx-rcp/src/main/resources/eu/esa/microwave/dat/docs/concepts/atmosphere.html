@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Atmospheric and Ionospheric Phase</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Atmospheric and Ionospheric Phase</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Atmospheric and Ionospheric Phase</h1>
+
+<p class="lead">On its way to the ground and back, the radar signal is slowed by the troposphere and advanced by the
+ionosphere. Whatever changes between the two acquisition dates ends up in the interferogram as phase that looks
+exactly like ground motion. In most deformation studies the atmosphere is the largest error source: centimetres for
+the troposphere, and decimetres to metres for the ionosphere at L-band.</p>
+
+<h2>Troposphere</h2>
+<p>The tropospheric delay has two parts. The <b>hydrostatic</b> (dry) part is about 2.3 m at zenith. It depends on
+surface pressure and varies smoothly. The <b>wet</b> part comes from water vapour. It is smaller (from near zero up to
+a few decimetres at zenith) but varies strongly in space and time. Only differences matter: between the two dates,
+and between one pixel and another.</p>
+<p>The interferometric phase picks up the difference in one-way slant delay between the two dates,
+&delta;L = L<sub>sec</sub> &#8722; L<sub>ref</sub>:</p>
+<p class="eq">&phi;<sub>tropo</sub> = (4&pi; / &lambda;) &middot; &delta;L</p>
+<p>The troposphere is <b>non-dispersive</b> at radar frequencies. The delay in centimetres is the same at every
+frequency, so the same delay gives about twice as many fringes at X-band as at C-band. Two mechanisms create
+&delta;L:</p>
+<ul>
+    <li><b>Stratified</b>: the delay depends on the height of the air column, so the phase correlates with
+        topography. Interferograms of mountains or volcanoes show fringes that follow the contour lines.</li>
+    <li><b>Turbulent</b>: water-vapour mixing makes blobs and streaks a few km to tens of km across. They are
+        random from date to date and do not correlate with the terrain.</li>
+</ul>
+<p>Typical differential delays are 1 to 3 cm, and in humid or high-relief areas they can exceed 10 cm.</p>
+
+<h3>Mitigation</h3>
+<ul>
+    <li><b>Empirical phase&#8211;elevation regression.</b> Fit &phi; = c<sub>0</sub> + c<sub>1</sub>z (or with a
+        z&sup2; term) to coherent pixels and subtract the model. This removes only the stratified part. It also
+        removes any deformation that correlates with elevation (for example inflation of a volcano), and it fails if
+        the stratification varies across a large scene.</li>
+    <li><b>Weather models and GNSS.</b> Delay maps from weather models (e.g. ERA5), or from services that combine
+        them with GNSS such as GACOS, capture the stratified part well and the turbulent part only partly. SNAP
+        does not read these products; apply them outside SNAP, or import them as a band and subtract it with Band
+        Maths.</li>
+    <li><b>Time series.</b> Turbulent delays are random in time, so they average down in a stack (see
+        <a href="time_series.html">InSAR time series</a>). Stratified delays are seasonal and do not average out
+        as easily.</li>
+</ul>
+<p>No single method is best everywhere. When you can, check against GNSS.</p>
+
+<h2>Ionosphere</h2>
+<p>The ionosphere is a plasma, and its effect is <b>dispersive</b>. It advances the carrier phase by an amount
+proportional to the total electron content (TEC) along the path and inversely proportional to the frequency f.
+The ionospheric path change is negative (a phase advance). As a path change and as interferometric phase:</p>
+<p class="eq">&delta;L<sub>iono</sub> = &#8722;K &middot; &Delta;TEC / f<sup>2</sup></p>
+<p class="eq">&phi;<sub>iono</sub> = &#8722;4&pi;K &middot; &Delta;TEC / (c f)</p>
+<p>Here K = 40.28 m<sup>3</sup>s<sup>&#8722;2</sup>, c is the speed of light, and &Delta;TEC =
+TEC<sub>sec</sub> &#8722; TEC<sub>ref</sub> is the change in slant TEC between the dates, in electrons/m&sup2;
+(1 TECU = 10<sup>16</sup> el/m&sup2;). With SNAP's convention, extra tropospheric delay on the Secondary date looks
+like motion away from the satellite, and extra TEC looks like motion towards it (see
+<a href="displacement.html">phase to displacement</a>). The table gives magnitudes for a differential 1 TECU, which
+is a modest amount.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Band</th><th>Example</th><th>LOS-equivalent shift</th><th>Phase</th></tr>
+    <tr><td>X, 9.65 GHz</td><td>TerraSAR-X</td><td>0.4 cm</td><td>1.7 rad</td></tr>
+    <tr><td>C, 5.405 GHz</td><td>Sentinel-1</td><td>1.4 cm</td><td>3.1 rad</td></tr>
+    <tr><td>S, 3.2 GHz</td><td>NISAR</td><td>3.9 cm</td><td>5.3 rad</td></tr>
+    <tr><td>L, 1.26 GHz</td><td>ALOS-2, NISAR</td><td>25 cm</td><td>13 rad</td></tr>
+    <tr><td>P, 435 MHz</td><td>BIOMASS</td><td>2.1 m</td><td>39 rad</td></tr>
+</table>
+<p><img src="images/atmosphere_1.png" width="560" height="290" alt="Ionospheric and tropospheric delay against frequency"></p>
+<p class="figcap">Figure 1. Left: LOS-equivalent path change for a differential 1 TECU of ionosphere
+(proportional to 1/f&sup2;) and for a 2 cm tropospheric delay (independent of frequency). Right: the same
+expressed as interferometric phase. The ionospheric phase falls as 1/f; the tropospheric phase grows with f.</p>
+<p>Ionospheric effects are strongest at high latitudes (auroral activity), near the geomagnetic equator (evening
+irregularities) and around solar maximum. At L- and P-band they also cause azimuth streaks and Faraday rotation.
+At C-band they are usually smaller than the troposphere, but they can still add long-wavelength ramps across a
+250 km Sentinel-1 scene. These ramps matter for slow, large-scale signals such as interseismic strain.</p>
+
+<h2>Split-spectrum correction</h2>
+<p>The ionospheric phase scales as 1/f, and everything else (geometry, deformation, troposphere) scales as f.
+The range bandwidth is therefore cut into a low and a high sub-band (centre frequencies f<sub>L</sub>,
+f<sub>H</sub>), and an interferogram is made and unwrapped for each. The ionospheric phase at the full-band centre
+frequency f<sub>0</sub> is then</p>
+<p class="eq">&phi;<sub>iono</sub> = f<sub>L</sub>f<sub>H</sub> / [f<sub>0</sub>(f<sub>H</sub><sup>2</sup> &#8722;
+    f<sub>L</sub><sup>2</sup>)] &middot; (&phi;<sub>L</sub>f<sub>H</sub> &#8722; &phi;<sub>H</sub>f<sub>L</sub>)</p>
+<p>The sub-bands are only a small fraction of the carrier apart, so noise in &phi;<sub>L</sub> and
+&phi;<sub>H</sub> is strongly amplified. Because the ionosphere is smooth, the estimate can be filtered heavily. The
+method works best where the bandwidth is large relative to the carrier frequency, as at L-band. At C-band it needs
+high coherence and strong filtering (see Fattahi et al., 2017, for a time-series extension).</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Empirical Tropospheric Correction</b> (<code>EmpiricalTropoCorrection</code>) fits phase against DEM
+        height on a sample grid (<code>sampleStride</code> 20 px) using pixels with coherence &ge; 0.3 and height
+        &gt; 1 m. The model is <code>linear</code> (default) or <code>quadratic</code>. It fits and subtracts each band
+        separately. It processes <i>every</i> band with unit <code>phase</code> or
+        <code>abs_phase</code> and keeps band names and units, so run it on unwrapped phase only. For the coherence
+        mask it looks for a coherence band whose name ends with the part of the phase-band name after its first
+        underscore; otherwise it uses the only coherence band in the product. With several coherence bands and
+        SNAPHU-style <code>Unw_Phase_ifg_*</code> names this match usually fails, and the fit then runs without a
+        coherence mask (subset to one pair first).</li>
+    <li><b>Ionospheric Correction</b> (<code>IonosphericCorrection</code>) takes three products: full-band, low and
+        high sub-band interferograms. It tells them apart by the <code>radar_frequency</code> in their metadata. The
+        sub-band SLCs come from <b>BandPassFilter</b> (<code>subband</code> <code>low</code>/<code>high</code>: one
+        third of the range bandwidth B, centred B/3 below or above the carrier). Each product needs an
+        <code>Unw_Phase_ifg</code> band, and the full-band one also needs a coherence band. The raw estimate is smoothed with a coherence-weighted Gaussian (<code>sigma</code> 81 px; coherence
+        below <code>coherenceThreshold</code> 0.6 gets zero weight). It writes <code>ionosphericPhase</code>
+        (unwrapped), and wrapped <code>wrappedIonosphericPhase</code>, <code>wrappedOriginalPhase</code> and
+        <code>wrappedCorrectedPhase</code>. Output pixels with coherence below <code>minCoherence</code> (0.2) are
+        masked. The corrected phase is written wrapped only; to correct an unwrapped band, subtract
+        <code>ionosphericPhase</code> with Band Maths.</li>
+    <li><b>Sentinel-1 ETAD</b>: the ETAD product contains model-based tropospheric and ionospheric range delays.
+        S1 ETAD Correction can apply them through its <i>Tropospheric Correction (Range)</i> and <i>Ionospheric
+        Correction (Range)</i> options (both off by default). They correct geolocation timing and, with
+        <i>Output Phase Corrections</i>, can also be removed from the interferometric phase by Interferogram. Being
+        model-based, they capture mainly the long-wavelength part. See <a href="orbits_etad.html">orbits and
+        ETAD</a>.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Using the phase&#8211;elevation regression where the deformation itself correlates with height (volcanoes,
+        slopes). The signal you want is removed with the atmosphere.</li>
+    <li>Running Empirical Tropospheric Correction on a product that still contains wrapped phase bands. They are
+        "corrected" too, and the result is meaningless.</li>
+    <li>Reading an isolated fringe pattern in a single interferogram as deformation. Check it against a second,
+        independent pair: atmosphere changes from date to date, deformation does not.</li>
+    <li>Applying split-spectrum with a small sigma, or to low-coherence sub-band interferograms. The amplified
+        noise ends up in the correction.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/EmpiricalTropoCorrectionOp.html">Empirical Tropospheric Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/IonosphericCorrectionOp.html">Ionospheric Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BandPassFilterOp.html">Band Pass Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S1 ETAD Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+</ul>
+<p>Related concepts: <a href="insar.html">InSAR</a>, <a href="displacement.html">phase to displacement</a>,
+<a href="time_series.html">InSAR time series</a>, <a href="orbits_etad.html">orbits and ETAD</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Zebker, H. A., Rosen, P. A., Hensley, S. (1997). Atmospheric effects in interferometric synthetic aperture
+        radar surface deformation and topographic maps. <i>Journal of Geophysical Research: Solid Earth</i>,
+        102(B4), 7547&#8211;7563. doi:10.1029/96JB03804</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic
+        Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+    <li>Doin, M.-P., Lasserre, C., Peltzer, G., Cavali&eacute;, O., Doubre, C. (2009). Corrections of stratified
+        tropospheric delays in SAR interferometry: Validation with global atmospheric models. <i>Journal of Applied
+        Geophysics</i>, 69(1), 35&#8211;50. doi:10.1016/j.jappgeo.2009.03.010</li>
+    <li>Bekaert, D. P. S., Walters, R. J., Wright, T. J., Hooper, A. J., Parker, D. J. (2015). Statistical comparison
+        of InSAR tropospheric correction techniques. <i>Remote Sensing of Environment</i>, 170, 40&#8211;47.
+        doi:10.1016/j.rse.2015.08.035</li>
+    <li>Yu, C., Li, Z., Penna, N. T., Crippa, P. (2018). Generic atmospheric correction model for Interferometric
+        Synthetic Aperture Radar observations. <i>Journal of Geophysical Research: Solid Earth</i>, 123(10),
+        9202&#8211;9222. doi:10.1029/2017JB015305</li>
+    <li>Gomba, G., Parizzi, A., De Zan, F., Eineder, M., Bamler, R. (2016). Toward operational compensation of
+        ionospheric effects in SAR interferograms: The split-spectrum method. <i>IEEE Transactions on Geoscience and
+        Remote Sensing</i>, 54(3), 1446&#8211;1461. doi:10.1109/TGRS.2015.2481079</li>
+    <li>Fattahi, H., Simons, M., Agram, P. (2017). InSAR time-series estimation of the ionospheric phase delay: An
+        extension of the split range-spectrum technique. <i>IEEE Transactions on Geoscience and Remote Sensing</i>,
+        55(10), 5984&#8211;5996. doi:10.1109/TGRS.2017.2718566</li>
+</ol>
+
+<hr>
+</body>
+</html>

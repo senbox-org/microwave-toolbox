@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Speckle and Multilooking</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Speckle and Multilooking</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Speckle and Multilooking</h1>
+
+<p class="lead">Speckle is the grainy texture of every SAR image. It is not noise from the sensor but the interference of
+echoes from many scatterers inside one resolution cell, and it makes a single pixel a poor estimate of the backscatter.
+Multilooking and speckle filters trade spatial detail for radiometric precision; how you make that trade decides what
+you can measure.</p>
+
+<h2>Where speckle comes from</h2>
+<p>A resolution cell of a natural surface holds many elementary scatterers: soil clods, leaves, branches. Their echoes
+add as complex numbers with effectively random phases, so the sum is a random walk in the complex plane. Small changes
+in viewing geometry change the sum completely. When no single scatterer dominates, speckle is <i>fully developed</i>:
+the complex signal is circular Gaussian, the amplitude is Rayleigh distributed, and the intensity I is exponential:</p>
+<p class="eq">p(I) = (1/&mu;) &middot; exp(&#8722;I/&mu;)</p>
+<p>&mu; is the mean intensity, proportional to the backscatter coefficient. The standard deviation equals the mean: about 10% of
+single-look pixels fall below a tenth of the true value, and 5% above three times it. Speckle is multiplicative:
+I = &mu; &middot; n, with n a unit-mean random variable independent of &mu;.</p>
+<p>Speckle is deterministic. The same scene seen from the same geometry gives the same speckle pattern, which is why
+interferometry works (see <a href="coherence.html">Coherence</a>). Do not speckle-filter data you will use for
+interferometry or polarimetry; those workflows have their own estimators.</p>
+
+<h2>Looks and the equivalent number of looks</h2>
+<p>Averaging L independent intensity samples of the same &mu; gives a Gamma distribution (Figure 1):</p>
+<p class="eq">p(I) = (L/&mu;)<sup>L</sup> &middot; I<sup>L&#8722;1</sup> &middot; exp(&#8722;L I/&mu;) / &Gamma;(L)</p>
+<p>The ratio of standard deviation to mean falls as 1/&radic;L. Real looks overlap and are unequally weighted, so the
+<i>equivalent number of looks</i> (ENL) describes the effective value:</p>
+<p class="eq">ENL = (mean of I)<sup>2</sup> / variance of I</p>
+<p>Estimate it over a large homogeneous area (a uniform field or a forest stand, several hundred pixels or more) in
+linear intensity, not amplitude or dB. Avoid very dark water, where thermal noise changes the statistics. A
+Sentinel-1 IW GRDH product, made with 5 &times; 1 looks, has an ENL of about 4.4.</p>
+<p><img src="images/speckle_1.png" width="560" height="290" alt="Gamma distributions of L-look intensity for L = 1, 4, 16"></p>
+<p class="figcap">Figure 1. Distribution of normalised intensity I/&mu; over a homogeneous area for 1, 4 and 16 looks.
+One look is the exponential distribution; more looks concentrate the values around the mean.</p>
+
+<h2>Multilooking</h2>
+<p>Multilooking averages adjacent pixels in intensity. N independent pixels reduce the variance by N and the
+resolution by the same factor. It also sets the output pixel shape. SAR pixels are rarely square: a Sentinel-1 IW SLC
+has about 2.3 m slant-range and 14 m azimuth spacing. On the ground the range spacing is &Delta;r / sin &theta;, so
+for square ground pixels</p>
+<p class="eq">n<sub>az</sub> = round(n<sub>rg</sub> &middot; (&Delta;r / sin &theta;) / &Delta;az)</p>
+<p>where n<sub>rg</sub> and n<sub>az</sub> are the range and azimuth looks, &Delta;r and &Delta;az the pixel spacings,
+and &theta; the incidence angle at mid-swath. For Sentinel-1 IW SLC, 4 range looks and 1 azimuth look give pixels of
+roughly 13 m (far range) to 19 m (near range) in ground range by 14 m in azimuth.</p>
+
+<h2>Spatial speckle filters</h2>
+<p>Adaptive filters estimate the local mean and variance in a moving window. Where the local variation matches pure
+speckle, they average strongly; near edges and bright targets they average less. The adaptive ones assume the
+multiplicative model and the ENL of the input.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Filter</th><th>Principle</th><th>Strengths</th><th>Weaknesses</th></tr>
+    <tr><td>Boxcar (mean)</td><td>Window average</td><td>Strongest smoothing; unbiased mean</td><td>Blurs edges and smears point targets</td></tr>
+    <tr><td>Median</td><td>Window median</td><td>Robust to outliers</td><td>Biased: the median of single-look speckle is 0.69&mu; (&#8722;1.6 dB)</td></tr>
+    <tr><td>Lee (Lee, 1980)</td><td>Local minimum mean-square error estimate from local mean and variance</td><td>Simple, fast, keeps the mean</td><td>Leaves speckle next to edges</td></tr>
+    <tr><td>Refined Lee</td><td>Lee filter in one of eight edge-aligned sub-windows of a 7 &times; 7 window</td><td>Sharper edges</td><td>Blocky texture in homogeneous areas</td></tr>
+    <tr><td>Lee Sigma (Lee et al., 2009)</td><td>Averages only pixels within a sigma range of the estimated mean; keeps detected point targets</td><td>Good balance of smoothing, edges and point targets; low bias</td><td>Looks and sigma settings must suit the data</td></tr>
+    <tr><td>Frost</td><td>Exponential kernel whose width adapts to local variation</td><td>Adaptive edge preservation</td><td>Damping factor needs tuning</td></tr>
+    <tr><td>Gamma Map (Lopes et al., 1990)</td><td>Maximum a posteriori estimate with a Gamma prior on the backscatter</td><td>Handles textured areas</td><td>Assumes the Gamma texture model</td></tr>
+    <tr><td>IDAN</td><td>Grows an adaptive neighbourhood of similar pixels</td><td>Large averaging regions with preserved shapes</td><td>Slower</td></tr>
+    <tr><td>MuLoG (Deledalle et al., 2017)</td><td>Log transform, then a Gaussian denoiser inside an iterative scheme</td><td>Strong smoothing with detail kept</td><td>Slow; sensitive to the assumed looks</td></tr>
+</table>
+<p>For general land mapping, Lee Sigma or Refined Lee are reasonable starting points; for maximum precision over
+homogeneous parcels, average over the parcel instead of filtering.</p>
+
+<h2>Multitemporal filtering</h2>
+<p>A coregistered, calibrated time series offers another way to average: across dates instead of across space. Quegan
+et al. (2000) filter each date k of N dates as</p>
+<p class="eq">J<sub>k</sub> = (E[I<sub>k</sub>] / N) &middot; &Sigma;<sub>i</sub> I<sub>i</sub> / E[I<sub>i</sub>]</p>
+<p>where E[I] is a local spatial mean. Each date keeps its own local mean, so changes between dates survive, while the
+speckle variance falls by up to a factor N when the speckle of different dates is uncorrelated. Quegan and Yu (2001)
+extend this to correlated channels.</p>
+
+<h2>Point targets and units</h2>
+<p>Bright point targets (corner reflectors, ships, building corners) do not follow speckle statistics. Averaging
+lowers their peak and spreads them. Use unfiltered data, or Lee Sigma with point-target detection, for target
+detection. Filter only linear intensity (or &beta;<sup>0</sup>, &sigma;<sup>0</sup>, &gamma;<sup>0</sup>): filtering dB
+values biases the result low (see <a href="radiometry.html">Radiometry</a>).</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Speckle Filter</b> (<code>Speckle-Filter</code>) offers None, Boxcar, Median, Frost, Gamma Map, Lee, Refined
+        Lee, <b>Lee Sigma</b> (default), IDAN and MuLoG. Lee Sigma defaults: Window Size 7x7, point target window 3x3,
+        sigma 0.9, Number of Looks 1 (choices 1 to 4; use 4 for Sentinel-1 GRDH). Boxcar, Median, Frost, Gamma Map and
+        Lee use Size X/Y (default 3) and Lee and Gamma Map use the number of looks (default 1.0) unless "Estimate
+        Equivalent Number of Looks" is ticked, which estimates it from each processing tile. Refined Lee always uses
+        7 &times; 7. IDAN uses Adaptive Neighbourhood Size 50. MuLoG runs with fixed internal settings (L = 1,
+        10 iterations, a non-local-means denoiser), so it assumes single-look speckle; on GRD or multilooked data it
+        over-smooths.</li>
+    <li>Complex i/q input is converted to an <code>Intensity</code> band; the filters do not convert dB input to linear.
+        Speckle Filter rejects TOPS burst products; deburst first.</li>
+    <li><b>Multilook</b> (<code>Multilook</code>): <code>nRgLooks</code> and <code>nAzLooks</code> default to 1.
+        <b>GR Square Pixel</b> (default on) derives the azimuth looks from the range looks with the formula above, using
+        the incidence angle at the centre range pixel for slant-range input. When the derived azimuth looks would be
+        below 1, it sets them to 1 and increases the range looks instead: a Sentinel-1 IW SLC with the defaults gets
+        about 3 or 4 range looks by 1 azimuth look, depending on the sub-swath. Amplitude bands are averaged as
+        &radic;(mean of amplitude<sup>2</sup>) and dB bands are averaged in linear units, so both keep an unbiased
+        mean.</li>
+    <li>For complex input, tick <b>Output Intensity</b> (not for interferograms: there a complex multilook is
+        wanted, see <a href="insar.html">InSAR</a>). With it off (the default), Multilook averages i and q
+        separately: a coherent average that coarsens resolution but does not reduce speckle.</li>
+    <li><b>Multi-Temporal Speckle Filter</b> (<code>Multi-Temporal-Speckle-Filter</code>) implements the
+        Quegan et al. formula; the spatial filter chosen (default Lee Sigma) provides the local means E[I]. It needs at
+        least two amplitude or intensity bands.</li>
+    <li>For polarimetric matrices use the
+        <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a>,
+        which preserves the covariance structure (see <a href="polarimetry.html">Polarimetry</a>).</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Filtering or multilooking dB images with a spatial filter: the mean is biased low and edges are treated wrongly.</li>
+    <li>Speckle-filtering SLC data before coregistration or interferogram formation: the phase is destroyed.</li>
+    <li>Multilooking an SLC with Output Intensity off and expecting less speckle.</li>
+    <li>Leaving Lee Sigma, IDAN (or Lee, Gamma Map) at 1 look for a GRD product with ENL about 4.4: the filter assumes more
+        speckle than there is and over-smooths edges and texture.</li>
+    <li>Estimating the ENL over a heterogeneous area: texture inflates the variance and the ENL comes out too low.</li>
+    <li>Filtering before ship or point-target detection: targets lose contrast.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultiTemporalSpeckleFilterOp.html">Multi-Temporal Speckle Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/ChangeDetection.html">Log Ratio Change Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/ObjectDetection.html">Object Detection</a></li>
+</ul>
+<p>Workflows: <a href="../workflows/workflow_grd_backscatter.html">GRD to Terrain-Flattened Backscatter</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Goodman, J.W. (1976). Some fundamental properties of speckle. <i>Journal of the Optical Society of America</i>,
+        66(11), 1145&#8211;1150. doi:10.1364/JOSA.66.001145</li>
+    <li>Lee, J.-S. (1980). Digital image enhancement and noise filtering by use of local statistics. <i>IEEE
+        Transactions on Pattern Analysis and Machine Intelligence</i>, PAMI-2(2), 165&#8211;168.
+        doi:10.1109/TPAMI.1980.4766994</li>
+    <li>Lopes, A., Touzi, R., Nezry, E. (1990). Adaptive speckle filters and scene heterogeneity. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 28(6), 992&#8211;1000. doi:10.1109/36.62623</li>
+    <li>Lee, J.-S., Wen, J.-H., Ainsworth, T. L., Chen, K.-S., Chen, A. J. (2009). Improved sigma filter for speckle filtering of SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 47(1), 202&#8211;213. doi:10.1109/TGRS.2008.2002881</li>
+    <li>Deledalle, C.-A., Denis, L., Tabti, S., Tupin, F. (2017). MuLoG, or how to apply Gaussian denoisers to multi-channel SAR speckle reduction? <i>IEEE Transactions on Image Processing</i>, 26(9), 4389&#8211;4403. doi:10.1109/TIP.2017.2713946</li>
+    <li>Quegan, S., Le Toan, T., Yu, J.J., Ribbes, F., Floury, N. (2000). Multitemporal ERS SAR analysis applied to
+        forest mapping. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(2), 741&#8211;753.
+        doi:10.1109/36.842003</li>
+    <li>Quegan, S., Yu, J.J. (2001). Filtering of multichannel SAR images. <i>IEEE Transactions on Geoscience and
+        Remote Sensing</i>, 39(11), 2373&#8211;2379. doi:10.1109/36.964973</li>
+    <li>Argenti, F., Lapini, A., Bianchi, T., Alparone, L. (2013). A tutorial on speckle reduction in synthetic aperture
+        radar images. <i>IEEE Geoscience and Remote Sensing Magazine</i>, 1(3), 6&#8211;35. doi:10.1109/MGRS.2013.2277512</li>
+</ol>
+
+<hr>
+</body>
+</html>

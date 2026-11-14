@@ -100,13 +100,38 @@
 <br>
 
 <h4>References</h4>
-
 <ol>
-    <li>G. Gomba, A. Parizzi, F. De Zan, M. Eineder and R. Bamler, "Toward Operational Compensation of Ionospheric
-        Effects in SAR Interferograms: The Split-Spectrum Method," in IEEE Transactions on Geoscience and Remote
-        Sensing, vol. 54, no. 3, pp. 1446-1461, March 2016, doi: 10.1109/TGRS.2015.2481079.
-    </li>
+    <li>Gomba, G., Parizzi, A., De Zan, F., Eineder, M., Bamler, R. (2016). Toward operational compensation of ionospheric effects in SAR interferograms: The split-spectrum method. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 54(3), 1446&#8211;1461. doi:10.1109/TGRS.2015.2481079</li>
 </ol>
+
+<!-- params:begin op="IonosphericCorrection" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>IonosphericCorrection</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sigma</code></td><td>int</td><td>81</td><td>&nbsp;</td><td>&nbsp;</td><td>Standard deviation for Gaussian filter</td></tr>
+<tr><td><code>coherenceThreshold</code></td><td>double</td><td>0.6</td><td>[0, 1]</td><td>&nbsp;</td><td>Coherence threshold</td></tr>
+<tr><td><code>minCoherence</code></td><td>double</td><td>0.2</td><td>[0, 1]</td><td>&nbsp;</td><td>Minimum coherence for output mask</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/atmosphere.html">Atmospheric and Ionospheric Phase</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Three unwrapped interferogram products of the same scene (low, full and high sub-band) with equal dimensions</li>
+    <li>Different centre frequencies in the three products</li>
+    <li>An unwrapped phase band named 'Unw_Phase_ifg...' in each product, from <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a></li>
+    <li>A coherence band (name containing 'coh') in the full-bandwidth product</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the corrected phase, for example the 'wrappedCorrectedPhase' band</li>
+</ul>
+<!-- footer:end -->
 
 </body>
 </html>

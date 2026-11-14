@@ -17,17 +17,31 @@
 <h3>Coherence estimation</h3>
 
 <p>
-    This operator computes/estimates the coherence image, with or without subtraction
-    of the reference phase. The reference phase is subtracted if there is a 2d-polynomial
-    computed -- result of "Compute Interferogram" operator. While, it is not subtracted
-    if this information is not in the metadata, or if the number of polynomial coefficients
-    in "Compute Interferogram" operator is set to 0.
+    This operator estimates the interferometric coherence (0 = no correlation, 1 = full correlation)
+    between the Reference and each Secondary of a coregistered stack, in a moving window.
+    For complex (SLC) data, the operator first removes phase that would otherwise lower the
+    estimate inside the window: the flat-earth phase, which it estimates itself from the orbits
+    and product metadata (it does not need a polynomial from Interferogram Formation), and, by
+    default, the topographic phase simulated from a DEM. It then applies a bias correction.
 </p>
 
 <p>
     Note that this is a "general" coherence estimation operator and not exclusive only for InSAR
     applications. It can be utilized to estimate the coherence information from
-    any stack of coregistered complex images.
+    any stack of coregistered complex images. For detected (amplitude) stacks a coherence band is
+    computed for each Secondary band against the Reference band of the same quantity; the
+    flat-earth, topographic-phase and bias options then have no effect.
+</p>
+
+<p>
+    <b>Why the values differ from the Interferogram Formation coherence:</b> with default settings
+    this operator removes the flat-earth <i>and</i> the topographic phase before estimating
+    coherence, and then corrects the estimator bias. The coherence band written by
+    <a href="InterferogramOp.html">Interferogram Formation</a> removes only the flat-earth phase by
+    default (topographic phase only if "Subtract topographic phase" is selected there), and it applies
+    no bias correction. Both default to a 10-pixel range window. Here, Square Pixel is on by default, so the azimuth window is derived from the pixel spacings (about 10&times;3 for Sentinel-1 IW); if that derived azimuth window would be below 1, the range window is adjusted instead. In a graph (GPT), Interferogram Formation currently ignores Square Pixel and uses 10&times;10. Compare the two operators only with the same window sizes. For the same window,
+    this operator gives lower values where coherence is low (bias correction) and higher values
+    in steep terrain (topographic fringes removed).
 </p>
 
 <p>
@@ -37,17 +51,104 @@
     Of course the resolution decreases if multilooking is applied.
 </p>
 
-<h4>Operator parameters:</h4>&nbsp;&nbsp;
-<p>
-    The input parameters are size of the shifting window for the coherence estimation. The window size is
-    defined, in both azimuth and range directions.
-</p>
+<h4>Operator parameters:</h4>
+<ul>
+    <li><b>Coherence Range Window Size</b> (<code>cohWinRg</code>): window size in range, in pixels;
+        range 2&ndash;90, default 10.</li>
+    <li><b>Coherence Azimuth Window Size</b> (<code>cohWinAz</code>): window size in azimuth, in
+        pixels; range 2&ndash;90, default 10. With <b>Square Pixel</b> on, this value is not used
+        (see below).</li>
+    <li><b>Square Pixel</b> / <b>Independent Window Sizes</b> (<code>squarePixel</code>): default
+        Square Pixel (on). The azimuth window size is computed from the range window size and the
+        ground-range and azimuth pixel spacings, so that the window is about square on the ground.
+        With Independent Window Sizes, both window sizes are used as entered.</li>
+    <li><b>Subtract flat-earth phase</b> (<code>subtractFlatEarthPhase</code>): remove the
+        flat-earth phase before estimating coherence. Default: on. Complex data only.</li>
+    <li><b>Degree of "Flat Earth" polynomial</b> (<code>srpPolynomialDegree</code>): degree of the
+        2-D polynomial fitted to the flat-earth phase; values 1&ndash;8, default 5.</li>
+    <li><b>Number of "Flat Earth" estimation points</b> (<code>srpNumberPoints</code>): number of
+        points at which the flat-earth phase is computed for the polynomial fit; values 301, 401,
+        ..., 1001, default 501.</li>
+    <li><b>Orbit interpolation degree</b> (<code>orbitDegree</code>): degree of the orbit
+        interpolation polynomial; values 1&ndash;5, default 3.</li>
+    <li><b>Subtract topographic phase</b> (<code>subtractTopographicPhase</code>): simulate the
+        topographic phase from a DEM and remove it before estimating coherence. Default: on.
+        Complex data only.</li>
+    <li><b>Digital Elevation Model</b> (<code>demName</code>): DEM used for the topographic phase;
+        default Copernicus 30m Global DEM. Choose "External DEM" to use your own file.</li>
+    <li><b>External DEM</b> (<code>externalDEMFile</code>): the external DEM file. No default.</li>
+    <li><b>DEM No Data Value</b> (<code>externalDEMNoDataValue</code>): no-data value of the
+        external DEM; default 0.</li>
+    <li><b>Apply Earth Gravitational Model</b> (<code>externalDEMApplyEGM</code>): convert the
+        external DEM heights from geoid to ellipsoid heights with the EGM; default on.</li>
+    <li><b>Tile Extension [%]</b> (<code>tileExtensionPercent</code>): how much each tile is
+        extended for the DEM simulation (an optimisation setting); default 100. The dialog offers
+        20, 40, 60, 80, 100, 150, 200.</li>
+    <li><b>Correct Coherence Bias</b> (<code>correctCoherenceBias</code>): reduce the positive bias
+        of the coherence estimate, which is largest for low coherence and small windows. The
+        corrected value is &gamma; &#8722; (1 &#8722; &gamma;<sup>2</sup>) / (2N), where N is the
+        number of pixels in the window, and it is not allowed to go below 0. Default: on.
+        Complex data only.</li>
+    <li><b>Remove Local Phase Ramp</b> (<code>removeLocalPhaseRamp</code>): in each window, estimate
+        a linear phase ramp and remove it before estimating coherence. This reduces the loss of
+        coherence caused by fringes that remain inside the window. Default: off.</li>
+    <li><b>Single Reference</b> (<code>singleMaster</code>): default on. On: coherence between the
+        stack Reference and each Secondary. Off: coherence between successive acquisitions
+        (each acquisition paired with the next one, ordered by absolute orbit number).</li>
+</ul>
 
 <h4>Source bands:</h4>&nbsp;&nbsp;
 <p> Source Bands are set of, usually coregistered, bands of the complex product.</p>
 
 <br>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Touzi, R., Lopes, A., Bruniquel, J., Vachon, P. W. (1999). Coherence estimation for SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 37(1), 135&#8211;149. doi:10.1109/36.739146</li>
+    <li>Zebker, H. A., Villasenor, J. (1992). Decorrelation in interferometric radar echoes. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 30(5), 950&#8211;959. doi:10.1109/36.175330</li>
+</ol>
+<!-- params:begin op="Coherence" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Coherence</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>cohWinAz</code></td><td>int</td><td>10</td><td>(1, 90]</td><td>&nbsp;</td><td>Size of coherence estimation window in Azimuth direction</td></tr>
+<tr><td><code>cohWinRg</code></td><td>int</td><td>10</td><td>(1, 90]</td><td>&nbsp;</td><td>Size of coherence estimation window in Range direction</td></tr>
+<tr><td><code>subtractFlatEarthPhase</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Subtract flat-earth phase in coherence phase</td></tr>
+<tr><td><code>srpPolynomialDegree</code></td><td>int</td><td>5</td><td>1, 2, 3, 4, 5, 6, 7, 8</td><td>&nbsp;</td><td>Order of 'Flat earth phase' polynomial</td></tr>
+<tr><td><code>srpNumberPoints</code></td><td>int</td><td>501</td><td>301, 401, 501, 601, 701, 801, 901, 1001</td><td>&nbsp;</td><td>Number of points for the 'flat earth phase' polynomial estimation</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of orbit (polynomial) interpolator</td></tr>
+<tr><td><code>squarePixel</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Use ground square pixel</td></tr>
+<tr><td><code>subtractTopographicPhase</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Subtract topographic phase</td></tr>
+<tr><td><code>correctCoherenceBias</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Correct Coherence Bias</td></tr>
+<tr><td><code>removeLocalPhaseRamp</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Remove Local Phase Ramp</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>externalDEMApplyEGM</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM Apply EGM</td></tr>
+<tr><td><code>tileExtensionPercent</code></td><td>String</td><td>100</td><td>&nbsp;</td><td>&nbsp;</td><td>Define extension of tile for DEM simulation (optimization parameter).</td></tr>
+<tr><td><code>singleMaster</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Single Reference</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coherence.html">Interferometric Coherence</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered SAR stack with complex bands, at least a reference and a secondary</li>
+    <li>Sentinel-1 TOPS: coregister with <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a> first</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPS Deburst</a> (Sentinel-1 TOPS), then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> to geocode the coherence</li>
+    <li>Use the coherence band in <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a> or <a href="SnaphuExportOp.html">Snaphu Export</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

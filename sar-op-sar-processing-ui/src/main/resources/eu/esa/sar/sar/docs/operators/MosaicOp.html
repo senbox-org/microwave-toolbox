@@ -41,17 +41,17 @@
         select one or more bands. If no bands are
         selected, then by default all bands will be processed.
     </li>
-    <li>Resampling Method: Choice of Nearest Neighbour, Bilinear, Cubic, Bi-Sinc or Bi-Cubic resampling.</li>
+    <li>Resampling Method: Nearest Neighbour (default), Bilinear or Cubic convolution resampling.</li>
     <li>Pixel Size (m): The output scene pixel spacing in meters.<br>
     </li>
     <li>Scene Width (pixels): The output scene width in pixels.</li>
     <li>Scene Height (pixels): The output scene height in pixels.</li>
     <li>Feather (pixels): The number of pixels skipped on the boundary of the source images.<br>
     </li>
-    <li>Weight Average of Overlap: Averaging option to blend overlapping pixels. To achieve better mosaic result, the
-        Normalizer checkbox below should be selected as well.<br>
+    <li>Weighted Average of Overlap (<code>average</code>): Averaging option to blend overlapping pixels. To achieve better mosaic result, the
+        Normalize checkbox below should be selected as well.<br>
     </li>
-    <li>Normalizer: Normalization option to remove mean and normalize standard deviation.&nbsp;</li>
+    <li>Normalize (<code>normalizeByMean</code>): Normalization option to remove mean and normalize standard deviation.&nbsp;</li>
 </ol>
 <br>
 
@@ -60,6 +60,42 @@
     have been&nbsp;normalized and averaged.&nbsp;</p>
 
 <p><img style="width: 1117px; height: 781px;" alt="" src="images/mosaic_australia.jpg"></p>
+<!-- params:begin op="SAR-Mosaic" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SAR-Mosaic</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>resamplingMethod</code></td><td>String</td><td>NEAREST_NEIGHBOUR</td><td>NEAREST_NEIGHBOUR, BILINEAR_INTERPOLATION, CUBIC_CONVOLUTION</td><td>&nbsp;</td><td>The method to be used when resampling the secondary grid onto the reference grid.</td></tr>
+<tr><td><code>average</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Average the overlapping areas</td></tr>
+<tr><td><code>normalizeByMean</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Normalize by Mean</td></tr>
+<tr><td><code>gradientDomainMosaic</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Gradient Domain Mosaic</td></tr>
+<tr><td><code>pixelSize</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Pixel Size (m)</td></tr>
+<tr><td><code>sceneWidth</code></td><td>int</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Target width</td></tr>
+<tr><td><code>sceneHeight</code></td><td>int</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Target height</td></tr>
+<tr><td><code>feather</code></td><td>int</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Feather amount around source image</td></tr>
+<tr><td><code>maxIterations</code></td><td>int</td><td>5000</td><td>&nbsp;</td><td>&nbsp;</td><td>Maximum number of iterations</td></tr>
+<tr><td><code>convergenceThreshold</code></td><td>double</td><td>1e-4</td><td>&nbsp;</td><td>&nbsp;</td><td>Convergence threshold for Relaxed Gauss-Seidel method</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometric Quantities and Calibration</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_grd_backscatter.html">Sentinel-1 GRD to Terrain-Flattened Backscatter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Every input product must have a geo-coding, normally geocoded with <a href="RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+    <li>Recommended: two or more products, calibrated and terrain-corrected</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

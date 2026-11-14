@@ -15,9 +15,9 @@
 </table>
 <h3>Ellipsoid Correction GG Operator</h3>
 
-<p>The operator implements the Geolocation-Grid (GG) method [1]. The implementation is exactly the same as for the&nbsp;<a href="RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction operator</a>
-    except that the slant range is computed from slant range time tie point of the source product&nbsp;instead of using
-    DEM.</p><h4>Major Processing Steps</h4>
+<p>The operator implements the Geolocation-Grid (GG) method [1]. Unlike the&nbsp;<a href="RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction operator</a>
+    it uses neither the orbit nor a DEM: positions come from the product's latitude/longitude tie-point grids and
+    the slant range from its slant range time tie-point grid, so relief displacement is not corrected.</p><h4>Major Processing Steps</h4>
 
 <p>
     Some major steps of the algorithm are given below:
@@ -37,13 +37,17 @@
         </li>
         <li> Compute slant range R for the cell using slant range time and bi-quadratic interpolation;</li>
         <li> Compute zero Doppler time T for the cell;</li>
-        <li> Compute bias-corrected zero Doppler time Tc = T + R*2/C, where C is the light speed;</li>
+        <li> Compute bias-corrected zero Doppler time Tc = T + R*2/C, where C is the light speed
+            (not applied to COSMO-SkyMed, TerraSAR-X and RADARSAT-2 products);</li>
         <li> Compute azimuth index Ia using zero Doppler time Tc;</li>
         <li> Compute range image index Ir using slant range R;</li>
         <li> Compute pixel value x(Ia,Ir) using bi-linear interpolation and set it for current sample in target image.
         </li>
     </ol>
-</ol><h4>Parameters Used</h4>
+</ol>
+<p>Note on step (e): the code adds the full two-way travel time 2R/c. Range-Doppler Terrain Correction adds
+    R/c (half the two-way travel time) for the same bistatic correction, so the two operators place pixels at
+    different azimuth positions. Do not mix their outputs in one stack.</p><h4>Parameters Used</h4>
 
 <p>
     The following parameters are used by the operator:
@@ -55,7 +59,7 @@
     </li>
     <li value="2">Image resampling method: Interpolation methods for
         obtaining pixel values from
-        source image.
+        source image: nearest neighbour, bilinear (default) or cubic convolution.
     </li>
     <li>Map Projection: The map projection types. The orthorectified image will&nbsp;be presented with the user selected
         map projection.
@@ -63,14 +67,43 @@
 </ol>
 <ol>
 </ol>
-<p>The output will be expressed in WGS84 latlong geographic
-    coodinate.</p>
+<p>By default (<code>WGS84(DD)</code>) the output is in WGS84 geographic latitude/longitude; the Map Projection
+    parameter selects another coordinate reference system.</p>
 
 <p><img style="width: 500px; height: 500px;" alt="" src="images/ellipsoid_correction_gg_dlg.jpg"><br>
 </p>
 
-<p>[1] Small D., Schubert A., Guide to
-    ASAR Geocoding, Issue 1.0, 19.03.2008</p>
-<br>
+<h3>References</h3>
+<ol>
+    <li>Small, D., Schubert, A. (2008). <i>Guide to ASAR Geocoding</i>. RSL-ASAR-GC-AD, Issue 1.0, 19 March 2008, Remote Sensing Laboratories, University of Zurich.</li>
+    <li>Schreier, G. (Ed.) (1993). <i>SAR Geocoding: Data and Systems</i>. Herbert Wichmann Verlag, Karlsruhe.</li>
+</ol>
+<!-- params:begin op="Ellipsoid-Correction-GG" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Ellipsoid-Correction-GG</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>imgResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>NEAREST_NEIGHBOUR, BILINEAR_INTERPOLATION, CUBIC_CONVOLUTION</td><td>&nbsp;</td><td>Image Resampling Method</td></tr>
+<tr><td><code>mapProjection</code></td><td>String</td><td>WGS84(DD)</td><td>&nbsp;</td><td>&nbsp;</td><td>The coordinate reference system in well known text format</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/terrain_correction.html">Range-Doppler Terrain Correction in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product that is not map projected; TOPS burst products must be debursted first</li>
+    <li>A product with a slant range time tie-point grid</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

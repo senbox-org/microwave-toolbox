@@ -689,6 +689,7 @@ public class CreateStackOp extends Operator {
                             params.put("azimuthOffsetPixels", dAzimuthPixels);
                         }
                         applyMasterGridLockParams(params, referenceProduct);
+                        applyMasterModelParams(params, referenceProduct);
                         final Product corrected = createOperatorTargetProduct(
                                 "GSLC-Terrain-Correction", params, job.slaveSlc);
 
@@ -1696,6 +1697,7 @@ public class CreateStackOp extends Operator {
                 params.put("rangeOffsetPixels", 0.0);
                 params.put("azimuthOffsetPixels", 0.0);
                 applyMasterGridLockParams(params, masterGslc);
+                applyMasterModelParams(params, masterGslc);
                 placeholder = createOperatorTargetProduct("GSLC-Terrain-Correction", params, slaveSlc);
             } catch (Throwable t) {
                 throw new OperatorException(
@@ -1880,6 +1882,121 @@ public class CreateStackOp extends Operator {
             }
         }
         return false;
+    }
+
+    private static final String GSLC_OPERATOR_ALIAS = "GSLC-Terrain-Correction";
+
+    /**
+     * Forward the reference GSLC's range-model settings (DEM, solid Earth tide, troposphere) to a
+     * secondary that CreateStack geocodes itself, as is done for flattening and the azimuth carrier.
+     * Without this the secondary used the GSLC defaults (Copernicus 30 m, no SET, no troposphere)
+     * whatever the reference used, so the two legs' modelled range — and with it the flattened
+     * output, the flatteningPhase band and the DEM-driven geolocation — differed.
+     * <p>
+     * Source of truth is the reference's {@code Processing_Graph} node of the GSLC operator (GPF writes
+     * every parameter value there). When that is absent only the DEM is recovered, from the
+     * abstracted-metadata {@code DEM} stamp (a DEM name, or an external DEM file path, which is
+     * forwarded as demName "External DEM" plus externalDEMFile).
+     *
+     * @throws OperatorException if the reference used an external DEM file that does not exist here
+     */
+    static void applyMasterModelParams(final java.util.Map<String, Object> params,   // package-visible for tests
+                                       final Product masterGslc) {
+        if (masterGslc == null) return;
+        final MetadataElement gslcParams = findLastGslcNodeParameters(masterGslc);
+        if (gslcParams != null) {
+            final String demName = nonBlank(gslcParams.getAttributeString("demName", null));
+            if (demName != null) params.put("demName", demName);
+            final String demResampling = nonBlank(gslcParams.getAttributeString("demResamplingMethod", null));
+            if (demResampling != null) params.put("demResamplingMethod", demResampling);
+            final String extDem = nonBlank(gslcParams.getAttributeString("externalDEMFile", null));
+            // GSLC reads the file only when demName selects "External DEM" (GSLCGeocodingOp
+            // getElevationModel); otherwise the reference ignored it and so must the secondary.
+            if (extDem != null && demName != null && demName.contains(EXTERNAL_DEM_NAME)) {
+                params.put("externalDEMFile", requireExternalDem(extDem));
+                final String noData = nonBlank(gslcParams.getAttributeString("externalDEMNoDataValue", null));
+                if (noData != null) {
+                    try {
+                        params.put("externalDEMNoDataValue", Double.parseDouble(noData));
+                    } catch (NumberFormatException ignored) {
+                        // keep the operator default
+                    }
+                }
+                final String applyEgm = nonBlank(gslcParams.getAttributeString("externalDEMApplyEGM", null));
+                if (applyEgm != null) params.put("externalDEMApplyEGM", Boolean.parseBoolean(applyEgm));
+            }
+            for (final String flag : new String[]{"applySolidEarthTide", "applyTroposphericCorrection"}) {
+                final String v = nonBlank(gslcParams.getAttributeString(flag, null));
+                if (v != null) params.put(flag, Boolean.parseBoolean(v));
+            }
+            return;
+        }
+        final MetadataElement abs = AbstractMetadata.getAbstractedMetadata(masterGslc);
+        final String dem = abs == null ? null : nonBlank(abs.getAttributeString(AbstractMetadata.DEM, null));
+        if (dem != null && !AbstractMetadata.NO_METADATA_STRING.equals(dem)) {
+            // GSLC stamps an external DEM by its file path, a built-in DEM by its name.
+            if (looksLikeDemFilePath(dem)) {
+                params.put("demName", EXTERNAL_DEM_NAME);
+                params.put("externalDEMFile", requireExternalDem(dem));
+            } else {
+                params.put("demName", dem);
+            }
+        }
+    }
+
+    /** {@code GSLCGeocodingOp} demName value that selects {@code externalDEMFile}. */
+    private static final String EXTERNAL_DEM_NAME = "External DEM";
+
+    /**
+     * The reference's external DEM, which the secondary must also use. A missing file is an error,
+     * not a silent switch to another DEM: the two legs would be geolocated (and, if flattened,
+     * phase-modelled) on different terrain.
+     */
+    private static java.io.File requireExternalDem(final String path) {
+        final java.io.File f = new java.io.File(path);
+        if (!f.isFile()) {
+            throw new OperatorException("The reference GSLC was geocoded with the external DEM '" + path
+                    + "', which is not found on this machine. CreateStack geocodes the secondary with the "
+                    + "reference's DEM; make that file available at the same path, or geocode the "
+                    + "secondary yourself with GSLC-Terrain-Correction.");
+        }
+        return f;
+    }
+
+    /** True if a DEM stamp is a file path rather than a built-in DEM name. */
+    private static boolean looksLikeDemFilePath(final String dem) {
+        if (dem.indexOf('/') >= 0 || dem.indexOf('\\') >= 0 || new java.io.File(dem).isFile()) {
+            return true;
+        }
+        return dem.toLowerCase().matches(".*\\.(tif|tiff|dem|hgt|img|bil|zip|asc|adf|dt[0-2])$");
+    }
+
+    /** The {@code parameters} element of the last GSLC operator node in the product's processing graph. */
+    private static MetadataElement findLastGslcNodeParameters(final Product product) {
+        final MetadataElement graph = product.getMetadataRoot().getElement("Processing_Graph");
+        if (graph == null) return null;
+        MetadataElement found = null;
+        int foundIdx = -1;
+        for (final MetadataElement node : graph.getElements()) {
+            if (!node.getName().startsWith("node")) continue;
+            if (!GSLC_OPERATOR_ALIAS.equals(node.getAttributeString("operator", null))) continue;
+            int idx;
+            try {
+                idx = Integer.parseInt(node.getName().substring(node.getName().indexOf('.') + 1));
+            } catch (RuntimeException e) {
+                idx = foundIdx + 1;
+            }
+            final MetadataElement p = node.getElement("parameters");
+            if (p != null && idx >= foundIdx) {
+                found = p;
+                foundIdx = idx;
+            }
+        }
+        return found;
+    }
+
+    private static String nonBlank(final String s) {
+        return (s == null || s.trim().isEmpty()) ? null : s.trim();
     }
 
     private static void applyMasterGridLockParams(final java.util.Map<String, Object> params,

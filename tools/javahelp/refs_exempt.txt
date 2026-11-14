@@ -1,0 +1,33 @@
+# Operator pages that implement no published method (pure data handling / graph wrappers). Phase 5, docs/plans/2026-11-12-javahelp-overhaul-plan.md
+sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/ALOSDeskewingOp.html|no published method identified in code or review
+sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/WSSDeburstOp.html|ASAR WSS data handling only
+sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/WSSMosaicOp.html|graph-only page
+sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/SLCtoPRI.html|graph-only page
+sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/PyRateExportOp.html|graph/export wrapper (PyRate URL already on page)
+sar-op-calibration-ui/src/main/resources/eu/esa/sar/calibration/docs/operators/importXCAProduct.html|viewer/import wrapper
+sar-op-utilities-ui/src/main/resources/eu/esa/sar/utilities/docs/operators/BandSelectOp.html|pure data handling
+sar-op-utilities-ui/src/main/resources/eu/esa/sar/utilities/docs/operators/SetNoDataValueOp.html|pure data handling
+sar-op-utilities-ui/src/main/resources/eu/esa/sar/utilities/docs/operators/OverSampleOp.html|generic resampling, no method paper
+sar-op-utilities-ui/src/main/resources/eu/esa/sar/utilities/docs/operators/UnderSampleOp.html|generic resampling/kernel filter, no method paper
+sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/CreateStackOp.html|stack assembly, no published method
+sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/MultiReference.html|stack split/pair selection wrapper
+sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/PCAOp.html|generic PCA (textbook candidate Richards&Jia unverified)
+sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/StackAveragingOp.html|trivial averaging
+sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/StackSplitOp.html|data handling
+sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/WarpOp.html|polynomial warp; candidate Baarda 1968 unverified
+jlinda/jlinda-nest-ui/src/main/resources/org/jlinda/nest/docs/operators/Slant2HeightOp.html|deprecated (Schw&auml;bisch 1995 unverified)
+jlinda/jlinda-nest-ui/src/main/resources/org/jlinda/nest/docs/operators/SnaphuImportOp.html|import wrapper
+sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/RangeShiftOp.html|legacy chain step (generic incoherent cross-correlation, superseded by ESD); no distinct published method
+sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/Sentinel1SLCtoGRD.html|graph-only page; its component operators are cited on their own pages
+sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/SliceAssemblyOp.html|pure data assembly (product-spec rule; no method paper)
+sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/TOPSARSplitOp.html|subset-like tool
+sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/TOPSARMergeOp.html|sub-swath mosaicking/data handling; method context is on TOPSARDeburst and the tops concept page
+sar-op-feature-extraction-ui/src/main/resources/eu/esa/sar/fex/docs/operators/DecisionTreeOp.html|user-defined Band Maths rule tree; no method paper
+sar-op-analysis-ui/src/main/resources/eu/esa/sar/analysis/docs/rcp/TimeSeries.html|interactive viewer tool, not an algorithm
+sar-op-analysis-ui/src/main/resources/eu/esa/sar/ocean/docs/wave/PolarView.html|spectrum display tool (Hasselmann & Hasselmann 1991 is on the ocean concept page)
+rstb/rstb-op-soil-moisture-ui/src/main/resources/org/csa/rstb/soilmoisture/docs/operators/MultiAnglePreProcessing.html|graph-only preprocessing (calibration, speckle filter, terrain correction cited elsewhere)
+rstb/rstb-op-soil-moisture-ui/src/main/resources/org/csa/rstb/soilmoisture/docs/operators/MultiPolPreProcessing.html|graph-only preprocessing
+sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/MosaicOp.html|pure data handling: mosaicking/resampling utility, no published method
+sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/GRDPostProcessOp.html|metadata relabelling only (SLC to GRD product type/name); no published method
+sar-op-utilities-ui/src/main/resources/eu/esa/sar/utilities/docs/operators/TileWriterOp.html|pure data handling: splits a product into tiled files
+sar-op-utilities-ui/src/main/resources/eu/esa/sar/utilities/docs/operators/BandMergeOp.html|pure data handling: copies bands of co-gridded products into one

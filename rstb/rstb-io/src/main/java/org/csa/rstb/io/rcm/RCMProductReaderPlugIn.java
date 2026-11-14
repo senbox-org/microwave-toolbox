@@ -32,7 +32,9 @@ import java.util.Locale;
 public class RCMProductReaderPlugIn implements ProductReaderPlugIn {
 
     private final static String[] FORMAT_NAMES = {"RCM"};
-    private final static String[] FORMAT_FILE_EXTENSIONS = {"xml", "zip"};
+    // getDecodeQualification accepts an RCM*.zip, an RCM* product folder or the manifest.safe inside it;
+    // product.xml is not accepted, so "xml" must not be offered (it hid manifest.safe in the import dialog).
+    private final static String[] FORMAT_FILE_EXTENSIONS = {".safe", ".zip"};
     final static String PRODUCT_PREFIX = "RCM";
     final static String[] PRODUCT_HEADER_PREFIX = {"MANIFEST"};
     final static String[] PRODUCT_HEADER_EXT = {".SAFE"};
@@ -161,7 +163,7 @@ public class RCMProductReaderPlugIn implements ProductReaderPlugIn {
 
         public FileFilter() {
             super();
-            setFormatName(FORMAT_FILE_EXTENSIONS[0]);
+            setFormatName(FORMAT_NAMES[0]);
             setExtensions(FORMAT_FILE_EXTENSIONS);
             setDescription(PLUGIN_DESCRIPTION);
         }

@@ -13,12 +13,38 @@ import org.esa.snap.engine_utilities.util.TestUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class RangeFilterOpTest {
 
     private final static OperatorSpi spi = new RangeFilterOp.Spi();
+
+    /** RangeFilter.sanityChecks rejects an even walking-mean window, so the value set must offer odd values only. */
+    @Test
+    public void testWalkingMeanValueSetIsOddOnly() throws Exception {
+        final org.esa.snap.core.gpf.annotations.Parameter p = parameter("nlMean");
+        for (String v : p.valueSet()) {
+            assertTrue("nlMean value " + v + " must be odd", Integer.parseInt(v) % 2 == 1);
+        }
+        assertTrue(Arrays.asList(p.valueSet()).contains(p.defaultValue()));
+    }
+
+    @Test
+    public void testDeWeightingDefaultIsABoolean() throws Exception {
+        assertEquals("false", parameter("doWeightCorrel").defaultValue());
+    }
+
+    private static org.esa.snap.core.gpf.annotations.Parameter parameter(final String fieldName) throws Exception {
+        final Field f = RangeFilterOp.class.getDeclaredField(fieldName);
+        final org.esa.snap.core.gpf.annotations.Parameter p = f.getAnnotation(org.esa.snap.core.gpf.annotations.Parameter.class);
+        assertNotNull(p);
+        return p;
+    }
 
     @Test
     @STTM("SNAP-3848")

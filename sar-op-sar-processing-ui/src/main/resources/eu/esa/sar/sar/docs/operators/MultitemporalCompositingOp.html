@@ -24,22 +24,62 @@ noise level. Also the effects of spatially varying local resolution can
 be compensated if images of both ascending and descending views are
 combined. This operator generates a composite SAR image from a stack of
 terrain-flattened and geometrically terrain corrected images together
-with their simulated local illuminated areas.<br><br>The operation requires input images in map geometry. Therefore the processing chain should be as the follows:<br><ol><li>Run Terrain Flattening operator with Output Simulate Image option selected;</li><li>Run Range Doppler Geocoding operator with the terrain-flattened images as input;</li><li>Run Create Stack with Maximum Extent option selected;</li><li>Run this operator with the stack created above as input.</li></ol><h4>Input and Output</h4><ul><li>The
+with their simulated local illuminated areas.<br><br>The operation requires input images in map geometry. Therefore the processing chain should be as follows:<br><ol><li>Run Terrain Flattening operator with the Output Simulated Image option selected (this writes the <code>simulatedImage</code> band);</li><li>Run Range Doppler Geocoding operator with the terrain-flattened images as input, keeping the <code>simulatedImage</code> band;</li><li>Run Create Stack with Maximum Extent option selected. Maximum (and Minimum) extent needs a Resampling Type other than NONE; the dialog sets this automatically for map-projected input, but in GPT and graphs you must set it yourself;</li><li>Run this operator with the stack created above as input.</li></ol><h4>Input and Output</h4><ul><li>The
 input to this operator should be a stack of terrain-flattened images. For polarimetric SAR
 product, it should be in T3, C3, C2 matrix format.&nbsp;</li><li>The
 output of this operator is a multitemporal composite&nbsp;image for each band in the reference product. For polarimetric
 SAR product, the output is terrain flattened coherency or covariance
-matrices in T3, C3 or C2 format. </li></ul>
+matrices in T3, C3 or C2 format. </li>
+<li>Each output pixel is the weighted mean &Sigma;(&gamma;<sub>i</sub>/A<sub>i</sub>) / &Sigma;(1/A<sub>i</sub>), with
+    A<sub>i</sub> the simulated area of date i. Dates where the area or &gamma;<sup>0</sup> is no-data, zero or NaN
+    are skipped.</li>
+<li>Output bands are named after the Reference band without the <code>_ref</code> date suffix. The output product
+    name gets the suffix <code>_MC</code>.</li>
+<li>Each backscatter band is paired with the <code>simulatedImage</code> band of the same acquisition: the same
+    role (<code>_ref</code> or <code>_sec</code>) and the same date. The counter that Create Stack adds after
+    <code>_sec</code> is ignored, so <code>Gamma0_VV_sec1_13Jan2020</code> is paired with
+    <code>simulatedImage_sec2_13Jan2020</code>. The band order in the stack does not matter.</li>
+<li>Stack only the backscatter and <code>simulatedImage</code> bands. Any other Reference band (for example
+    <code>layoverShadowMask</code>) is composited too. The operator stops with an error naming the band when a band
+    has no <code>_ref</code> or <code>_sec</code> suffix, when a band has no <code>simulatedImage</code> band of
+    the same date, or when two Secondaries share a date (for example an ascending and a descending pass on the
+    same day). Composite such same-day acquisitions in separate stacks.</li></ul>
 <h4>Parameters Used</h4>&nbsp;&nbsp; No processing parameters are needed for this operator.<br>
 <ul></ul>
 <img style="width: 436px; height: 443px;" alt="" src="images/MultitemporalCompositingOp.jpg"><br>
 
-<p>Reference:</p><p>[1] Small, D. "SAR backscatter multitemporal
-compositing via local resolution weighting." In 2012 IEEE International
-Geoscience and Remote Sensing Symposium, pp. 4521-4524. IEEE, 2012<br></p>
+<h3>References</h3>
+<ol>
+    <li>Small, D. (2012). SAR backscatter multitemporal compositing via local resolution weighting. <i>2012 IEEE International Geoscience and Remote Sensing Symposium (IGARSS)</i>, 4521&#8211;4524. doi:10.1109/IGARSS.2012.6350465</li>
+    <li>Small, D. (2011). Flattening gamma: Radiometric terrain correction for SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 49(8), 3081&#8211;3093. doi:10.1109/TGRS.2011.2120616</li>
+</ol>
 
 
 
 
+<!-- params:begin op="Multitemporal-Compositing" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Multitemporal-Compositing</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<p>This operator has no processing parameters.</p>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometric Quantities and Calibration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and Multilooking</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_grd_backscatter.html">Sentinel-1 GRD to Terrain-Flattened Backscatter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/multitemporal.html">Multitemporal Backscatter Stacks</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/rtc.html">Radiometric Terrain Correction in Depth</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered, calibrated, map-projected stack of terrain-flattened and terrain-corrected images</li>
+    <li>The matching <code>simulatedImage</code> bands, from <a href="TerrainFlatteningOp.html">Terrain Flattening</a> with Output Simulated Image selected and kept through Terrain Correction and Create Stack; one per acquisition date</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

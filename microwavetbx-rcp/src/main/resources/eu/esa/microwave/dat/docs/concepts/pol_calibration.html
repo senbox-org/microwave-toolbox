@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Polarimetric Calibration and Propagation Effects</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Polarimetric Calibration and Propagation Effects</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Polarimetric Calibration and Propagation Effects</h1>
+
+<p class="lead">The scattering matrix a radar records is not the one the target produced. Antenna cross-talk,
+unequal channel gains, ionospheric Faraday rotation and thermal noise all move power between the surface,
+double-bounce and volume terms of a decomposition. Know which of them your data still contain before you
+interpret a polarimetric result.</p>
+
+<h2>The distortion model</h2>
+<p>For one pixel, the measured matrix M is related to the true scattering matrix S by</p>
+<p class="eq">M = A e<sup>j&phi;</sup> &middot; R &middot; F(&Omega;) &middot; S &middot; F(&Omega;) &middot; T + N</p>
+<p class="eq">R = [ 1 &nbsp; &delta;<sub>1</sub> ; &nbsp; &delta;<sub>2</sub> &nbsp; f<sub>r</sub> ], &nbsp;&nbsp;
+    T = [ 1 &nbsp; &delta;<sub>3</sub> ; &nbsp; &delta;<sub>4</sub> &nbsp; f<sub>t</sub> ], &nbsp;&nbsp;
+    F(&Omega;) = [ cos &Omega; &nbsp; sin &Omega; ; &nbsp; &#8722;sin &Omega; &nbsp; cos &Omega; ]</p>
+<p>R acts on the received wave and T on the transmitted wave. A and &phi; are the absolute gain and phase,
+&delta;<sub>1</sub>...&delta;<sub>4</sub> the <b>cross-talk</b> terms (leakage between H and V),
+f<sub>r</sub> and f<sub>t</sub> the complex <b>channel imbalances</b>, F(&Omega;) the one-way Faraday rotation
+(applied on the way down and on the way up), and N additive noise. Without cross-talk and rotation,
+M<sub>VV</sub> = f<sub>r</sub>f<sub>t</sub> S<sub>VV</sub>: f<sub>r</sub>f<sub>t</sub> is the co-polar
+imbalance, and the two cross-polar channels differ by the factor f<sub>r</sub>/f<sub>t</sub>.</p>
+<p>A co-polar amplitude error moves power between the Pauli blue (T<sub>11</sub>) and red (T<sub>22</sub>)
+channels; a phase error shifts the HH&#8722;VV phase that separates odd bounce (near 0) from double bounce (near
+&pi;). Cross-talk leaks co-polar signal into HV and VH: for a target with HV 15 dB below HH, &#8722;25 dB of
+cross-talk raises HV by 0.4&ndash;1.2 dB and &#8722;30 dB by 0.1&ndash;0.4 dB, depending on the cross-talk
+phases. That extra power appears as "volume" and entropy in
+<a href="decompositions.html">decompositions</a>.</p>
+
+<h2>Calibrating the system distortions</h2>
+<p><b>Distributed targets.</b> Quegan (1994) estimates cross-talk and the cross-polar imbalance from the
+4&times;4 covariance of the scene, assuming reciprocity (S<sub>HV</sub> = S<sub>VH</sub>) and reflection
+symmetry (co- and cross-polar channels uncorrelated). Ainsworth et al. (2006) use reciprocity alone and iterate,
+which preserves the orientation-angle signal of sloped terrain. Neither can find the co-polar imbalance
+f<sub>r</sub>f<sub>t</sub>: that needs a target with a known HH/VV ratio and phase. At L- and P-band, part of
+any Faraday rotation is absorbed into distributed-target cross-talk estimates.</p>
+<p><b>Point targets.</b> A trihedral corner reflector has S<sub>HH</sub> = S<sub>VV</sub> and no cross-polar
+return. It fixes the co-polar imbalance and, from its known radar cross-section, the absolute gain (van Zyl 1990;
+Freeman 1992). Rotated dihedrals and polarimetric active radar calibrators (PARCs) give strong known cross-polar
+responses.</p>
+
+<h2>Faraday rotation</h2>
+<p>In the Earth's magnetic field the ionosphere rotates the plane of polarisation by a one-way angle</p>
+<p class="eq">&Omega; = K &middot; B<sub>L</sub> &middot; TEC<sub>s</sub> / f<sup>2</sup>, &nbsp;&nbsp;
+    K = e<sup>3</sup> / (8&pi;<sup>2</sup> &epsilon;<sub>0</sub> m<sub>e</sub><sup>2</sup> c) &asymp; 2.365&times;10<sup>4</sup> A m<sup>2</sup> kg<sup>&#8722;1</sup></p>
+<p>Here &Omega; is in radians, B<sub>L</sub> is the geomagnetic field component along the propagation path (T),
+TEC<sub>s</sub> the slant total electron content (electrons/m<sup>2</sup>; 1 TECU = 10<sup>16</sup>
+m<sup>&#8722;2</sup>) and f the radar frequency (Hz). Since f = c/&lambda;, &Omega; grows with
+&lambda;<sup>2</sup>. B<sub>L</sub> depends on latitude and look direction; TEC on time of day, season and the
+solar cycle.</p>
+<p><img src="images/pol_calibration_1.png" width="560" height="330" alt="One-way Faraday rotation angle against radar frequency for slant TEC of 5, 20 and 50 TECU"></p>
+<p class="figcap">Figure 1. One-way Faraday rotation against frequency for B<sub>L</sub> = 40 &micro;T. The
+dashed lines mark 5&deg;, above which Wright et al. (2003) expect geophysical retrievals such as forest biomass
+to be degraded, and 45&deg;, beyond which the estimator in SNAP becomes ambiguous.</p>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Band, frequency</th><th>Missions</th><th>5 TECU</th><th>20 TECU</th><th>50 TECU</th></tr>
+    <tr><td>P, 435 MHz</td><td>BIOMASS</td><td>14&deg;</td><td>57&deg;</td><td>143&deg;</td></tr>
+    <tr><td>L, 1.26 GHz</td><td>ALOS-2, NISAR</td><td>1.7&deg;</td><td>6.9&deg;</td><td>17&deg;</td></tr>
+    <tr><td>S, 3.2 GHz</td><td>NISAR</td><td>0.26&deg;</td><td>1.1&deg;</td><td>2.7&deg;</td></tr>
+    <tr><td>C, 5.405 GHz</td><td>Sentinel-1, RADARSAT-2</td><td>0.09&deg;</td><td>0.37&deg;</td><td>0.93&deg;</td></tr>
+    <tr><td>X, 9.65 GHz</td><td>TerraSAR-X</td><td>0.03&deg;</td><td>0.12&deg;</td><td>0.29&deg;</td></tr>
+</table>
+<p>Faraday rotation breaks S<sub>HV</sub> = S<sub>VH</sub> and mixes co-polar signal into the cross-polar
+channels: 5&deg; raises HV by about 2 dB for a target with HV 15 dB below HH.</p>
+<p><b>Estimation.</b> Bickel and Bates (1965) showed that the rotation appears as a phase between the two
+circular cross-polar terms. In SNAP's convention (the F(&Omega;) above):</p>
+<p class="eq">Z<sub>12</sub> = M<sub>HV</sub> &#8722; M<sub>VH</sub> + j(M<sub>HH</sub> + M<sub>VV</sub>), &nbsp;&nbsp;
+    Z<sub>21</sub> = M<sub>VH</sub> &#8722; M<sub>HV</sub> + j(M<sub>HH</sub> + M<sub>VV</sub>)</p>
+<p class="eq">&Omega; = &#8722;&frac14; arg &lt; Z<sub>12</sub> Z<sub>21</sub><sup>*</sup> &gt;</p>
+<p>The estimate is unambiguous only for |&Omega;| &lt; 45&deg;, and residual cross-talk, imbalance and noise
+bias it (Freeman 2004 shows that the best of three estimators reaches about &plusmn;3&ndash;5&deg; for
+reasonable residuals). R and T sit outside F(&Omega;), so system distortions are removed first. Some processors
+already remove Faraday rotation; check the product annotation.</p>
+
+<h2>Noise in the cross-polar channels</h2>
+<p>The cross-polar channels are often only a few dB above the noise floor (NESZ; see
+<a href="radiometry.html">Radiometry</a>), so noise makes dark areas look like volume. HV and VH carry the same
+signal P but independent noise N, so their coherence is &gamma; = P / (P + N) and the
+noise-free power is &gamma;&middot;&lt;|M<sub>HV</sub>|<sup>2</sup>&gt;. Averaging HV and VH, as SNAP does when
+it forms T<sub>3</sub> or C<sub>3</sub>, improves the cross-polar signal-to-noise ratio by 3 dB.</p>
+
+<h2>Polarisation orientation angle</h2>
+<p>A surface tilted in azimuth rotates the scattering matrix about the line of sight by an angle &theta;. Without
+a range slope, tan &theta; = tan &omega; / sin &phi;, where &omega; is the azimuth slope and &phi; the look angle
+(Lee et al. 2000): a 10&deg; slope seen at 35&deg; gives &theta; &asymp; 17&deg;. Buildings not parallel to the
+track do the same, moving power from T<sub>22</sub> into T<sub>33</sub> (apparent volume). The correction rotates T<sub>3</sub> back by the angle that sets Re(T<sub>23</sub>)
+to zero; roll-invariant quantities such as entropy and &alpha; do not change.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Polarimetric Calibration</b> (<code>Polarimetric-Calibration</code>) accepts only a quad-pol
+        scattering-matrix product (8 i/q bands). It estimates the four cross-talk terms with a 2&times;2 solve
+        in the form of Quegan (1994), which assumes reflection symmetry. <code>method</code> sets only the
+        number of passes (Quegan 1; Ainsworth <code>numIterations</code>, default 4); the passes converge, but
+        the full Ainsworth et al. fit is not implemented. Its model has one co-polar imbalance f
+        (f<sub>r</sub> = f<sub>t</sub> = f, so VV is scaled by f<sup>2</sup>). By default only the cross-talk
+        is estimated and the co-polar imbalance is left untouched (f = 1), so the scene's HH/VV ratio is kept,
+        as the distributed-target methods above require. The option
+        <code>estimateCoPolImbalance</code> estimates f from the scene by assuming equal HH and VV power and
+        zero HH&#8211;VV phase; this forces VV/HH to 0&nbsp;dB, and the phase of f is ambiguous by &pi;. Use
+        it only when that assumption holds; for a true co-polar imbalance, use a trihedral corner reflector.
+        No cross-polar imbalance is estimated. The estimates are stored in the metadata element
+        <code>Polarimetric_Calibration</code> (<code>channelImbalance</code> is the one-way f that was
+        applied, 1 + 0j by default); its <code>delta1</code>...<code>delta4</code> are numbered differently from the
+        &delta;<sub>1</sub>...&delta;<sub>4</sub> above. The operator is experimental: check its output
+        against corner reflectors or a reference processor before using it.</li>
+    <li><b>Faraday Rotation Correction</b> (<code>Faraday-Rotation-Correction</code>) accepts only the quad-pol
+        scattering matrix. It estimates &Omega; as above over a sliding window (<code>windowSize</code> 10, i.e.
+        11&times;11 pixels) and applies F(&#8722;&Omega;) on both sides of M. The angle is not written out.</li>
+    <li><b>Cross Channel SNR Correction</b> (<code>Cross-Channel-SNR-Correction</code>) accepts only the quad-pol
+        scattering matrix. It computes &gamma; between HV and VH in a 5&times;5 window (<code>windowSize</code> 5)
+        and multiplies HV and VH by &radic;&gamma;; HH and VV pass unchanged. This scales the power by
+        &gamma;, so under the model above the corrected power equals the signal power P. Anything else that
+        lowers &gamma; (residual cross-talk, Faraday rotation) is removed as if it were noise. The algorithm
+        is specific to SNAP.</li>
+    <li><b>Polarimetric Orientation Angle Correction</b> (<code>Orientation-Angle-Correction</code>) accepts the
+        scattering matrix or a C3, C4, T3 or T4 product, writes T3, and estimates &theta; pixel by pixel, so
+        speckle-filter first. Parameters and the GPT-only decomposition option are on the
+        <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/OrientationAngleCorrectionOp.html">operator page</a>.</li>
+    <li><b>Order for quad-pol data.</b> Matrix Generation replaces HV and VH by
+        (S<sub>HV</sub> + S<sub>VH</sub>)/&radic;2, so steps 1&ndash;4 must run on the scattering matrix:
+        <ol>
+            <li>Calibration with <i>Save as complex output</i> (<code>outputImageInComplex</code>);</li>
+            <li>Polarimetric Calibration &#8212; experimental, see above; only for data that are not
+                polarimetrically calibrated, and validate the result;</li>
+            <li>Faraday Rotation Correction, at L- and P-band;</li>
+            <li>Cross Channel SNR Correction, optional;</li>
+            <li>Polarimetric Matrix Generation (T3 or C3), then the Polarimetric Speckle Filter;</li>
+            <li>Polarimetric Orientation Angle Correction;</li>
+            <li>Decomposition or classification, then Terrain Correction.</li>
+        </ol>
+        Faraday correction must come before the SNR correction, because rotation itself decorrelates HV and VH:
+        &Omega; = 2&deg; already lowers the HV&#8211;VH coherence to about 0.8 (the SNR correction would then cut
+        HV by about 1 dB), and 5&deg; to about 0.2.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Running Polarimetric Calibration on provider-calibrated data. Operational spaceborne quad-pol products
+        are normally delivered polarimetrically calibrated (check the product documentation).</li>
+    <li>Confusing it with radiometric Calibration to &sigma;<sup>0</sup>, which every workflow needs.</li>
+    <li>Forming T3 or C3 before Faraday or cross-channel correction; those operators reject matrix products.</li>
+    <li>Ignoring Faraday rotation in L-band dual-pol data: it still leaks HH into HV but cannot be removed.</li>
+    <li>Expecting a reliable Faraday estimate at P-band, where |&Omega;| may exceed 45&deg;.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricCalibrationOp.html">Polarimetric Calibration</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/FaradayRotationCorrectionOp.html">Faraday Rotation Correction</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/CrossChannelSNRCorrectionOp.html">Cross Channel SNR Correction</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/OrientationAngleCorrectionOp.html">Polarimetric Orientation Angle Correction</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrix Generation</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a></li>
+</ul>
+<p>See also <a href="polarimetry.html">Polarimetry Primer</a>, <a href="decompositions.html">Polarimetric
+Decompositions</a> and <a href="atmosphere.html">Atmospheric and Ionospheric Phase</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Quegan, S. (1994). A unified algorithm for phase and cross-talk calibration of polarimetric data &#8212; theory and observations. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 32(1), 89&#8211;99. doi:10.1109/36.285192</li>
+    <li>Ainsworth, T. L., Ferro-Famil, L., Lee, J.-S. (2006). Orientation angle preserving a posteriori polarimetric SAR calibration. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(4), 994&#8211;1003. doi:10.1109/TGRS.2005.862508</li>
+    <li>van Zyl, J. J. (1990). Calibration of polarimetric radar images using only image parameters and trihedral corner reflector responses. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 28(3), 337&#8211;348. doi:10.1109/36.54360</li>
+    <li>Freeman, A. (1992). SAR calibration: an overview. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 30(6), 1107&#8211;1121. doi:10.1109/36.193786</li>
+    <li>Bickel, S. H., Bates, R. H. T. (1965). Effects of magneto-ionic propagation on the polarization scattering matrix. <i>Proceedings of the IEEE</i>, 53(8), 1089&#8211;1091. doi:10.1109/PROC.1965.4097</li>
+    <li>Freeman, A. (2004). Calibration of linearly polarized polarimetric SAR data subject to Faraday rotation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 42(8), 1617&#8211;1624. doi:10.1109/TGRS.2004.830161</li>
+    <li>Wright, P. A., Quegan, S., Wheadon, N. S., Hall, C. D. (2003). Faraday rotation effects on L-band spaceborne SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 41(12), 2735&#8211;2744. doi:10.1109/TGRS.2003.815399</li>
+    <li>Lee, J.-S., Schuler, D. L., Ainsworth, T. L. (2000). Polarimetric SAR data compensation for terrain azimuth slope variation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(5), 2153&#8211;2163. doi:10.1109/36.868874</li>
+</ol>
+
+<hr>
+</body>
+</html>

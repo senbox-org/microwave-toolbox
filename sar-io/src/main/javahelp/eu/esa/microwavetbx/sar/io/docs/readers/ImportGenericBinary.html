@@ -1,7 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head><title>Help - Import Generic Binary</title>
-
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -9,27 +8,69 @@
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; Import Generic Binary</td>
-        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg"
-                                                                                 border="0"></a></td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import Generic Binary Product</h3>
 
-<p>This option allows to import Generic Binary.</p>
+<p>The <b>Generic Binary</b> reader opens a raw binary raster whose layout you describe yourself. For
+complex (i/q) data use <a href="ImportComplexGenericBinary.html">Import Complex Generic Binary</a>.</p>
 
-<p>By
-    selecting the Generic Binary Reader from the Product Readers menu, a
-    dialog will prompt you for the input file. A second dialog will then
-    come up asking you to enter the dimensions of the image, data type,
-    number of bands, byte order and the number bytes to skip for the header.</p>
+<h2>Format</h2>
+<p>A headerless (or fixed-size header) binary file of real-valued samples, stored line after line,
+band after band (band sequential, BSQ). No mission is implied.</p>
 
+<h2>Supported data</h2>
+<ul>
+    <li>Data types: <code>int8</code>, <code>uint8</code>, <code>int16</code>, <code>uint16</code>,
+        <code>int32</code>, <code>uint32</code>, <code>float32</code>, <code>float64</code>.</li>
+    <li>Byte order: big endian or little endian.</li>
+    <li>Interleave: BSQ only.</li>
+</ul>
+
+<h2>How to open</h2>
+<ol>
+    <li>Choose <i>File &gt; Import &gt; SAR Formats &gt; Generic Binary</i> and select the file. The
+        file filter suggests <code>.bin</code>, <code>.bil</code>, <code>.bsq</code>, <code>.bip</code>,
+        <code>.img</code>, <code>.ras</code> and <code>.dat</code>, but any file can be selected. The
+        extension does not change how the file is read.</li>
+    <li>In the second dialog, enter <b>Width</b>, <b>Height</b>, <b>Number Of Bands</b>,
+        <b>Data Type</b>, <b>Header Bytes</b> (bytes to skip at the start of the file) and
+        <b>Byte Order</b>.</li>
+</ol>
 <p style="text-align: left;"><img style="width: 221px; height: 232px;" alt="" src="images/generic_reader.jpg"></p>
+<p>This reader is not used by <i>File &gt; Open Product</i>; use the import menu.</p>
 
-<p></p>
+<h2>What you get</h2>
+<ul>
+    <li>Bands named <code>band1</code>, <code>band2</code>, ... with no unit. The product type is
+        <code>Generic</code>.</li>
+    <li>No geocoding and no SAR metadata, unless an XML metadata file is found: a file with the same
+        name and the extension <code>.xml</code>, or <code>metadata.xml</code> in the same folder. Such a
+        file (as written by SNAP) is loaded into the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>,
+        including any tie-point grids it holds.</li>
+</ul>
 
-<p>Note: The Generic Binary reader currently only supports BSQ
-    formatted data.</p>
+<h2>Known limitations</h2>
+<ul>
+    <li>Only single-band files are read correctly. With <b>Number Of Bands</b> greater than 1, every
+        band currently shows the data of the first band.</li>
+    <li>Multi-band BIL and BIP layouts are not supported, even though the file filter lists their
+        extensions.</li>
+    <li>Without a metadata file, SAR operators that need orbit, timing or geocoding information cannot
+        run.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<p>Check the image in the viewer, set the band unit in the band properties if you know it, and work
+with <a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/desktop/BandMaths.html">Band Maths</a>.
+When the data came from a supported mission, open the original product with its mission reader
+instead.</p>
+
+<h2>Product format specification</h2>
+<p>None: this is a user-described raw format.</p>
+
 <hr>
 </body>
 </html>

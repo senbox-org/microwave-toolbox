@@ -116,6 +116,38 @@
 
 <br><img style="width: 500px; height: 500px;" alt="" src="images/over_sample_dlg_3.jpg">&nbsp;<br>
 
+<!-- params:begin op="Oversample" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Oversample</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>outputImageBy</code></td><td>String</td><td>Ratio</td><td>Image Size, Ratio, Pixel Spacing</td><td>&nbsp;</td><td>Output Image By:</td></tr>
+<tr><td><code>targetImageHeight</code></td><td>int</td><td>1000</td><td>&nbsp;</td><td>&nbsp;</td><td>The row dimension of the output image</td></tr>
+<tr><td><code>targetImageWidth</code></td><td>int</td><td>1000</td><td>&nbsp;</td><td>&nbsp;</td><td>The col dimension of the output image</td></tr>
+<tr><td><code>widthRatio</code></td><td>float</td><td>2.0</td><td>&nbsp;</td><td>&nbsp;</td><td>The width ratio of the output/input images</td></tr>
+<tr><td><code>heightRatio</code></td><td>float</td><td>2.0</td><td>&nbsp;</td><td>&nbsp;</td><td>The height ratio of the output/input images</td></tr>
+<tr><td><code>rangeSpacing</code></td><td>float</td><td>12.5</td><td>&nbsp;</td><td>&nbsp;</td><td>The range pixel spacing</td></tr>
+<tr><td><code>azimuthSpacing</code></td><td>float</td><td>12.5</td><td>&nbsp;</td><td>&nbsp;</td><td>The azimuth pixel spacing</td></tr>
+<tr><td><code>usePRFTileSize</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>use PRF as azimuth tile size and range line as range tile size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product that is not map projected, with Doppler centroid metadata; I and Q bands must be selected in pairs</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

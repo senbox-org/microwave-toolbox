@@ -26,7 +26,7 @@
 
 <p>
     The following filtering methods are implemented: Goldstein method ("goldstein"), and Spatial Convolution
-    ("spatialconv"). Functionality to load and support user defined filters will be soon implemented.
+    ("convolution"). Functionality to load and support user defined filters will be soon implemented.
 </p>
 
 <p>
@@ -76,13 +76,13 @@ The following input parameters are used by this operator:
         one.
     </li>
     <li>
-        <b>Filtering kernel:</b> This input parameter is for methods "goldstein" and "spatialconv" only. It defines the
+        <b>Filtering kernel:</b> This input parameter is for both methods, "goldstein" and "convolution". It defines the
         one-dimension kernel function used to perform convolution. A number of the pre-defined kernels is offered,
         while future releases will have functionality that can allow users to define their own 1D filtering kernels.
-        For method GOLDSTEIN: default to kernel is [1 2 3 2 1]. This kernel is used to smooth the amplitude
+        For method "goldstein" the default kernel is [1 2 3 2 1]. This kernel is used to smooth the amplitude
         of the spectrum of the complex interferogram. The spectrum is later scaled by the smoothed spectrum to the
         power alpha.
-        For method SPATIALCONV: Default is a 3 point moving average [1 1 1] convolution. The real and imaginary part
+        For method "convolution" the default kernel is also [1 2 3 2 1]; select "1 1 1" for a 3 point moving average. The real and imaginary part
         is averaged separately this way. For more info see implementation section.
     </li>
 
@@ -137,6 +137,38 @@ The following input parameters are used by this operator:
 </ol>
 <br>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Goldstein, R. M., Werner, C. L. (1998). Radar interferogram filtering for geophysical applications. <i>Geophysical Research Letters</i>, 25(21), 4035&#8211;4038. doi:10.1029/1998GL900033</li>
+</ol>
+<!-- params:begin op="PhaseFilter" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>PhaseFilter</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>method</code></td><td>String</td><td>goldstein</td><td>goldstein, convolution</td><td>&nbsp;</td><td>Select filtering method</td></tr>
+<tr><td><code>alpha</code></td><td>float</td><td>0.5</td><td>0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1</td><td>&nbsp;</td><td>Smoothing parameter, 0 (no filtering) -&gt; 1 (most filtering)</td></tr>
+<tr><td><code>blockSize</code></td><td>int</td><td>32</td><td>16, 32, 64</td><td>&nbsp;</td><td>Size of data blocks for filtering</td></tr>
+<tr><td><code>overlap</code></td><td>int</td><td>8</td><td>2, 4, 8, 10, 12, 16, 20</td><td>&nbsp;</td><td>Half of overlap between consecutive filtering tiles</td></tr>
+<tr><td><code>kernelInput</code></td><td>String</td><td>1 2 3 2 1</td><td>none, 1 1 1 1 1, 1 2 2 2 1, 1 2 3 2 1, 1 1 1, 1 2 1</td><td>&nbsp;</td><td>Set of pre-defined kernels for filtering</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Recommended: an interferogram product from <a href="InterferogramOp.html">Interferogram</a> (the operator has no explicit check)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="SnaphuExportOp.html">Snaphu Export</a> to unwrap the filtered phase</li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

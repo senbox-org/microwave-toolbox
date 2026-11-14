@@ -145,4 +145,51 @@ public class TestPhaseToElevationOp {
         band.setUnit(unit);
         return band;
     }
+
+    // ---- bistatic (TanDEM-X CoSSC) height scaling ------------------------------------------------
+
+    /**
+     * Closed form: X band lambda = 0.031 m, R = 600 km, theta = 35 deg, Bperp = 150 m, Bpar = 0,
+     * scene-centre column (dTheta = 0). Height of ambiguity 2 pi |dh/dphi|:
+     * repeat-pass lambda R sin(theta) / (2 Bperp) = 35.5617 m, bistatic lambda R sin(theta) / Bperp = 71.1235 m.
+     */
+    @Test
+    public void testHeightOfAmbiguityRepeatPassVsBistatic() {
+        final double lambda = 0.031, r = 600000.0, theta = Math.toRadians(35.0), bperp = 150.0;
+        final double k = 2.0 * Math.PI / lambda;
+        final double hoaRepeat = 2.0 * Math.PI * Math.abs(
+                PhaseToElevationOp.heightPerPhase(r, theta, k, 0.0, bperp, 0.0, false));
+        final double hoaBistatic = 2.0 * Math.PI * Math.abs(
+                PhaseToElevationOp.heightPerPhase(r, theta, k, 0.0, bperp, 0.0, true));
+        assertEquals(lambda * r * Math.sin(theta) / (2.0 * bperp), hoaRepeat, 1e-9);
+        assertEquals(35.5617, hoaRepeat, 1e-4);
+        assertEquals(lambda * r * Math.sin(theta) / bperp, hoaBistatic, 1e-9);
+        assertEquals(71.1235, hoaBistatic, 1e-4);
+        // Schwabisch path: bistatic phase is converted to the repeat-pass equivalent
+        assertEquals(2.0, PhaseToElevationOp.repeatPassPhaseScale(true), 0.0);
+        assertEquals(1.0, PhaseToElevationOp.repeatPassPhaseScale(false), 0.0);
+    }
+
+    /** The operator reads the bistatic_stack metadata flag. */
+    @Test
+    public void testBistaticFlagReadFromMetadata() throws Exception {
+        for (final int flag : new int[]{0, 1}) {
+            final Product p = new Product("cossc", "SLC", 10, 10);
+            final org.esa.snap.core.datamodel.MetadataElement abs =
+                    org.esa.snap.engine_utilities.datamodel.AbstractMetadata.addAbstractedMetadataHeader(p.getMetadataRoot());
+            abs.setAttributeDouble(org.esa.snap.engine_utilities.datamodel.AbstractMetadata.radar_frequency, 9650.0);
+            abs.setAttributeInt(org.esa.snap.engine_utilities.datamodel.AbstractMetadata.bistatic_stack, flag);
+
+            final PhaseToElevationOp op = new PhaseToElevationOp();
+            final Field src = PhaseToElevationOp.class.getDeclaredField("sourceProduct");
+            src.setAccessible(true);
+            src.set(op, p);
+            final java.lang.reflect.Method getMetadata = PhaseToElevationOp.class.getDeclaredMethod("getMetadata");
+            getMetadata.setAccessible(true);
+            getMetadata.invoke(op);
+            final Field bistatic = PhaseToElevationOp.class.getDeclaredField("isBistatic");
+            bistatic.setAccessible(true);
+            assertEquals("bistatic_stack=" + flag, flag == 1, bistatic.getBoolean(op));
+        }
+    }
 }

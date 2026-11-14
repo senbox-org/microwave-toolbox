@@ -77,17 +77,55 @@ with multiple calibrated and co-registered bands.
     <li>Window
         Size: Dimension of the sliding window that is used in computing spatial
         average in each image of the temporal sequence. The supported window sizes are
-        3x3, 5x5, 7x7, 9x9 and 11x11.
+        5x5, 7x7 (default), 9x9, 11x11, 13x13, 15x15 and 17x17.
     </li>
 </ol>
 <img style="width: 500px; height: 500px;" alt="" src="images/multi_temporal_filter_dlg.jpg">
 <br>
 <br>
 <br>
-Reference: S. Quegan, T. L. Toan, J. J. Yu, F. Ribbes and N. Floury, &#8220;Multitemporal
-ERS SAR Analysis Applied to Forest Mapping&#8221;, IEEE Transactions on
-Geoscience and Remote Sensing, vol. 38, no. 2, March 2000.
+<h3>References</h3>
+<ol>
+    <li>Quegan, S., Le Toan, T., Yu, J.J., Ribbes, F., Floury, N. (2000). Multitemporal ERS SAR analysis applied to forest mapping. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(2), 741&#8211;753. doi:10.1109/36.842003</li>
+    <li>Quegan, S., Yu, J.J. (2001). Filtering of multichannel SAR images. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 39(11), 2373&#8211;2379. doi:10.1109/36.964973</li>
+</ol>
 
+<!-- params:begin op="Multi-Temporal-Speckle-Filter" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Multi-Temporal-Speckle-Filter</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>filter</code></td><td>String</td><td>Lee Sigma</td><td>None, Boxcar, Median, Frost, Gamma Map, Lee, Refined Lee, Lee Sigma, IDAN</td><td>&nbsp;</td><td>Filter</td></tr>
+<tr><td><code>filterSizeX</code></td><td>int</td><td>3</td><td>(1, 100]</td><td>&nbsp;</td><td>The kernel x dimension</td></tr>
+<tr><td><code>filterSizeY</code></td><td>int</td><td>3</td><td>(1, 100]</td><td>&nbsp;</td><td>The kernel y dimension</td></tr>
+<tr><td><code>dampingFactor</code></td><td>int</td><td>2</td><td>(0, 100]</td><td>&nbsp;</td><td>The damping factor (Frost filter only)</td></tr>
+<tr><td><code>estimateENL</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Estimate Equivalent Number of Looks</td></tr>
+<tr><td><code>enl</code></td><td>double</td><td>1.0</td><td>(0, *)</td><td>&nbsp;</td><td>The number of looks</td></tr>
+<tr><td><code>numLooksStr</code></td><td>String</td><td>1</td><td>1, 2, 3, 4</td><td>&nbsp;</td><td>Number of Looks</td></tr>
+<tr><td><code>windowSize</code></td><td>String</td><td>7x7</td><td>5x5, 7x7, 9x9, 11x11, 13x13, 15x15, 17x17</td><td>&nbsp;</td><td>Window Size</td></tr>
+<tr><td><code>targetWindowSizeStr</code></td><td>String</td><td>3x3</td><td>3x3, 5x5</td><td>&nbsp;</td><td>Point target window Size</td></tr>
+<tr><td><code>sigmaStr</code></td><td>String</td><td>0.9</td><td>0.5, 0.6, 0.7, 0.8, 0.9</td><td>&nbsp;</td><td>Sigma value (probability range) used by the Lee Sigma filter</td></tr>
+<tr><td><code>anSize</code></td><td>int</td><td>50</td><td>(1, 200]</td><td>&nbsp;</td><td>The Adaptive Neighbourhood size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and Multilooking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/change_detection.html">SAR Change Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/multitemporal.html">Multitemporal Backscatter Stacks</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A stack of at least two amplitude or intensity bands (the operator refuses a single source band); TOPS burst products must be debursted first</li>
+    <li>Recommended: calibrated, coregistered images (<a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

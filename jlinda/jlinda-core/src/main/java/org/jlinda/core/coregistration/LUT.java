@@ -253,14 +253,16 @@ public class LUT {
     //   - x-axis
     // output:
     //  - y=f(x); function evaluated at x
+    // Keys (1981), IEEE Trans. ASSP 29(6):1153-1160, eq. (15) with a = -1/2: the weights sum to 1
+    // and linear ramps are reproduced exactly (third-order accurate).
     public double[] cc4(final double[] x) {
 
-        final double alpha = -1.0;
+        final double alpha = -0.5;
         final double[] y = new double[x.length];
 
         for (int i = 0; i < y.length; i++) {
-            final double xx2 = Math.sqrt(x[i]);
-            final double xx = Math.sqrt(xx2);
+            final double xx2 = x[i] * x[i];
+            final double xx = Math.abs(x[i]);
             if (xx < 1)
                 y[i] = (alpha + 2) * xx2 * xx - (alpha + 3) * xx2 + 1;
             else if (xx < 2)

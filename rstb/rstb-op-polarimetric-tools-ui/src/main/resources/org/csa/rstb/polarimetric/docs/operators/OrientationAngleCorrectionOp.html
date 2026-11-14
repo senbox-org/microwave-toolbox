@@ -76,13 +76,49 @@ is real, therefore, the orientation angle shift <i style="">&#952;</i> can be de
 </ul>
 <ol>
 </ol>
-<h4>Parameters Used</h4>&nbsp;&nbsp; No processing parameter is required for this operator.<br><br>
+<h4>Parameters Used</h4>
+<ul>
+    <li><b>Output Orientation Angle</b>: when checked, adds a band <code>Ori_Ang</code> with the
+        estimated orientation angle shift <i>&#952;</i> of each pixel, in radians, between
+        &#8722;&pi;/4 and &pi;/4. Default: off.</li>
+</ul>
+<p>In SNAP Desktop, run this operator before Polarimetric Decomposition to correct the input of a
+   decomposition. In GPT or a graph XML file, the Polarimetric Decomposition operator can instead run
+   the correction itself when its parameter <code>applyOrientationAngleCorrection</code> is set to
+   <code>true</code>. That parameter is not shown in the decomposition dialog.</p>
 
-<p> Reference:&nbsp;</p>
+<h3>References</h3>
+<ol>
+    <li>Lee, J.-S., Schuler, D. L., Ainsworth, T. L. (2000). Polarimetric SAR data compensation for terrain azimuth slope variation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(5), 2153&#8211;2163. doi:10.1109/36.868874</li>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
+</ol>
 
-<p>[1] Jong-Sen Lee and Eric Pottier, Polarimetric Radar Imaging: From Basics to Applications, CRC Press, 2009</p>
-
-
+<!-- params:begin op="Orientation-Angle-Correction" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Orientation-Angle-Correction</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>outputOrientationAngle</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Orientation Angle</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_calibration.html">Polarimetric Calibration and Propagation Effects</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>SLC product (not a TOPS burst product: apply TOPS Deburst first)</li>
+    <li>Quad-pol scattering matrix, or T3, T4, C3 or C4 matrix product; dual-pol products are rejected</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+    <li><a href="PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

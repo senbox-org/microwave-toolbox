@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Interferometric Coherence</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Interferometric Coherence</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Interferometric Coherence</h1>
+
+<p class="lead">Coherence measures how similar the complex signals of two SAR images are within a small
+    neighbourhood, on a scale from 0 (unrelated) to 1 (identical). It sets the noise level of the interferometric
+    phase, so it decides where an interferogram can be trusted. It is also a useful product in its own right for
+    mapping change and land cover.</p>
+
+<h2>Definition</h2>
+<p>For two coregistered complex images s<sub>1</sub> (Reference) and s<sub>2</sub> (Secondary), the complex
+    coherence is the normalised cross-correlation</p>
+<p class="eq">&gamma; = E[s<sub>1</sub> s<sub>2</sub><sup>*</sup>] / &radic;( E[|s<sub>1</sub>|<sup>2</sup>]
+    E[|s<sub>2</sub>|<sup>2</sup>] )</p>
+<p>where E[&middot;] is the expectation and * the complex conjugate. Its magnitude |&gamma;| lies between 0 and 1;
+    its phase is the interferometric phase. The expectation is unknown, so it is estimated by averaging over a
+    window of N pixels:</p>
+<p class="eq">|&gamma;<sub>est</sub>| = |&Sigma; s<sub>1</sub> s<sub>2</sub><sup>*</sup> e<sup>&#8722;j&phi;<sub>ref</sub></sup>|
+    / &radic;( &Sigma; |s<sub>1</sub>|<sup>2</sup> &middot; &Sigma; |s<sub>2</sub>|<sup>2</sup> )</p>
+<p>&phi;<sub>ref</sub> is the deterministic phase that varies inside the window: the flat-Earth phase and, in
+    hilly terrain, the topographic phase. If it is not removed first, fringes inside the window partly cancel in
+    the sum and the coherence comes out too low. The phase noise of the interferogram falls as coherence and the
+    number of looks increase.</p>
+<p>Coherence is reduced by several independent effects (geometric, Doppler, volume, temporal and thermal
+    decorrelation), explained in <a href="insar.html">InSAR Fundamentals</a>.</p>
+
+<h2>Estimator bias</h2>
+<p>The sample estimator is biased upward, strongly so for few looks and low coherence. Even two completely
+    unrelated images give a mean estimate of about &radic;(&pi;/4N) for N independent looks: 0.22 for N = 16 and
+    0.09 for N = 100. Figure 1 shows the expected estimate against the true coherence.</p>
+<p><img src="images/coherence_1.png" width="560" height="360" alt="Mean estimated coherence versus true coherence for several numbers of looks"></p>
+<p class="figcap">Figure 1. Mean of the sample coherence versus true coherence for N independent looks
+    (closed form of Touzi et al. 1999, checked by simulation). The dashed line is the N = 16 estimate after the
+    bias correction used by the Coherence operator: it removes only a small part of the bias at low coherence.
+    Above about 0.5 it slightly over-corrects (for N = 16, 0.6 becomes about 0.59).</p>
+<p>Adjacent SLC pixels are not independent, because the data are oversampled and spectrally weighted. The number
+    of independent looks is therefore smaller than the number of pixels in the window, and the real bias is larger
+    than the curve for N = window pixels suggests. Above about 0.5 the bias is small for any practical window.</p>
+
+<h2>Window size and resolution</h2>
+<p>A larger window gives less bias and less noise but a coarser coherence map. It also mixes surfaces at their
+    boundaries, so a coherent road through a forest is smeared out. Make the window roughly square on the ground.
+    A Sentinel-1 IW SLC pixel is about 2.3 m in slant range (about 3.7 m on the ground at 39&deg; incidence) by
+    about 14 m in azimuth. A 10 &times; 10 pixel window therefore covers about 37 m &times; 140 m, while 10 range
+    &times; 3 azimuth pixels covers about 37 m &times; 42 m.</p>
+
+<h2>Interpreting coherence</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Surface</th><th>C-band, 6&#8211;12 days</th><th>L-band</th><th>Why</th></tr>
+    <tr><td>Open water</td><td>estimator floor (&asymp; 0)</td><td>estimator floor</td>
+        <td>surface changes between passes</td></tr>
+    <tr><td>Dense forest</td><td>low</td><td>moderate</td>
+        <td>volume and temporal decorrelation in the canopy; L-band penetrates to the more stable trunks and
+            ground</td></tr>
+    <tr><td>Crops, grassland</td><td>variable</td><td>moderate to high</td>
+        <td>growth, harvest, ploughing and rain change the scatterers</td></tr>
+    <tr><td>Bare soil, rock, dry desert</td><td>high</td><td>high</td><td>stable scatterers</td></tr>
+    <tr><td>Urban areas</td><td>high</td><td>high</td><td>stable, bright man-made scatterers</td></tr>
+    <tr><td>Wet snow, active glaciers</td><td>low</td><td>low to moderate</td><td>melt and flow</td></tr>
+</table>
+<p class="figcap">Table 1. Qualitative guide. Actual values depend on the temporal and perpendicular baselines,
+    the season, the weather and the window size.</p>
+<p>Coherence is commonly used as a quality mask. Pixels below about 0.2&#8211;0.3 carry phase that is mostly noise;
+    exclude them from interpretation, unwrapping checks and time-series inversion. A drop in coherence between two
+    otherwise stable pairs is itself a sign of change, such as flooding, building damage or harvest.</p>
+
+<h2>In SNAP</h2>
+<p>Two operators produce coherence from a coregistered complex stack. They write the same band name,
+    <code>coh_&lt;tag&gt;</code> (unit <code>coherence</code>), where the tag is
+    <code>&lt;subswath&gt;_&lt;pol&gt;_&lt;ref-date&gt;_&lt;sec-date&gt;</code> (subswath and polarisation are omitted when the product has none), but their defaults differ:</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Setting</th><th>Coherence (<code>Coherence</code>)</th><th>Interferogram (<code>Interferogram</code>)</th></tr>
+    <tr><td>Window</td><td>10 range pixels; with <i>Square Pixel</i> on (default) the azimuth size is derived for a
+        square ground footprint (about 3 for S1 IW)</td>
+        <td>10 range pixels. In the SNAP Desktop and Graph Builder dialog, <i>Square Pixel</i> (on by default) fills
+        in the azimuth size for a square ground footprint (about 3 for S1 IW) before the run; from gpt with default
+        parameters the window is 10 &times; 10 because the operator itself ignores squarePixel. <i>Coherence
+        Window (m)</i> overrides both.</td></tr>
+    <tr><td>Flat-Earth phase removed</td><td>yes</td><td>yes</td></tr>
+    <tr><td>Topographic phase removed</td><td>yes (DEM, default Copernicus 30 m)</td><td>no (<i>Subtract topographic
+        phase</i> is off)</td></tr>
+    <tr><td>Bias correction</td><td>yes (<i>Correct Coherence Bias</i>)</td><td>no</td></tr>
+</table>
+<p>So the two numbers differ for the same pair. In hilly terrain the Interferogram coherence is lower because of the
+    topographic fringes inside its window. At low coherence the Coherence result is lower because of the bias
+    correction. If Interferogram was run from gpt with its defaults, its 10 &times; 10 window also gives a smoother, less
+    biased map. Pick one operator and
+    one window for any comparison.</p>
+<p>The bias correction in the Coherence operator is</p>
+<p class="eq">&gamma;<sub>c</sub> = max(0, |&gamma;<sub>est</sub>| &#8722; (1 &#8722; |&gamma;<sub>est</sub>|<sup>2</sup>) / (2N))</p>
+<p>with N the number of pixels in the window. It is a small first-order adjustment (Figure 1), not a full
+    removal of the bias. Above about 0.5 it slightly over-corrects (for N = 16, 0.6 becomes about 0.59).</p>
+<p>Coherence on a <i>detected</i> (amplitude or intensity) stack is something else. In that case the Coherence
+    operator writes <code>Coherence_sec&lt;n&gt;</code> bands: a normalised correlation of real-valued images,
+    without bias correction. It is not interferometric coherence.</p>
+<p>Goldstein Phase Filtering uses the coherence band to adapt its filter strength. Its optional coherence mask
+    has a default threshold of 0.2. SNAPHU Export requires a coherence band, which SNAPHU uses to weight its
+    unwrapping costs (see <a href="unwrapping.html">Phase Unwrapping</a>).</p>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Comparing coherence computed with different operators, windows or bias settings.</li>
+    <li>Reading values of 0.2&#8211;0.3 from a small window as real coherence. They may be the estimator floor.</li>
+    <li>Estimating coherence in mountains without removing the topographic phase. The result is too low on
+        steep slopes.</li>
+    <li>Multilooking a coherence band and treating it as a larger-window estimate. Averaging biased values does
+        not remove the bias; compute coherence with the larger window instead.</li>
+    <li>Using a 10 &times; 10 pixel window on Sentinel-1 IW data and expecting a square ground footprint. It is
+        about four times longer in azimuth than in range.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/CoherenceOp.html">Coherence</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">SNAPHU Export</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseLinkingOp.html">Phase Linking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+</ul>
+<p>Workflows: <a href="../workflows/workflow_s1_dinsar.html">Sentinel-1 TOPS DInSAR</a> and <a href="../workflows/workflow_stripmap_dinsar.html">Stripmap DInSAR</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Touzi, R., Lopes, A., Bruniquel, J., Vachon, P. W. (1999). Coherence estimation for SAR imagery. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 37(1), 135&#8211;149. doi:10.1109/36.739146</li>
+    <li>Zebker, H. A., Villasenor, J. (1992). Decorrelation in interferometric radar echoes. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 30(5), 950&#8211;959. doi:10.1109/36.175330</li>
+    <li>Just, D., Bamler, R. (1994). Phase statistics of interferograms with applications to synthetic aperture
+        radar. <i>Applied Optics</i>, 33(20), 4361&#8211;4368. doi:10.1364/AO.33.004361</li>
+    <li>Bamler, R., Hartl, P. (1998). Synthetic aperture radar interferometry. <i>Inverse Problems</i>, 14(4),
+        R1&#8211;R54. doi:10.1088/0266-5611/14/4/001</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic
+        Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+</ol>
+
+<hr>
+</body>
+</html>

@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sar.gpf.ui.geometric;
 
+import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.graphbuilder.rcp.utils.DialogUtils;
 import org.esa.snap.ui.AppContext;
 
@@ -35,6 +36,12 @@ public class SARSimTerrainCorrectionOpUI extends RangeDopplerGeocodingOpUI {
     private boolean openShiftsFile = false;
     private final JCheckBox openResidualsFileCheckBox = new JCheckBox("Show Residuals");
     private boolean openResidualsFile = false;
+
+    {
+        // SARSimTerrainCorrectionOp accepts fewer kernels than the Range Doppler list inherited from the parent UI
+        imgResamplingMethod.setModel(new DefaultComboBoxModel<>(new String[]{ResamplingFactory.NEAREST_NEIGHBOUR_NAME,
+                ResamplingFactory.BILINEAR_INTERPOLATION_NAME, ResamplingFactory.CUBIC_CONVOLUTION_NAME}));
+    }
 
     @Override
     public JComponent CreateOpTab(String operatorName, Map<String, Object> parameterMap, AppContext appContext) {

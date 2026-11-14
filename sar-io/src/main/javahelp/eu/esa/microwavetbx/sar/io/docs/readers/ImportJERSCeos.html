@@ -1,8 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import JERS1</title>
-
-    <link rel="stylesheet" href="../style.css"></head><body>
-
+<html><head><title>Help - Import JERS-1</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
 <table class="header">
 
     <tbody>
@@ -19,54 +18,57 @@
     </tbody>
 </table>
 
+<p>JERS-1 was a Japanese Earth-resources satellite with an L-band SAR. SNAP reads its SAR
+products in CEOS format with the <b>JERS CEOS</b> reader.</p>
 
-<h3>Import JERS Product</h3>
-
-<p class="MsoNormal" style="text-align: justify;">Japanese Earth Resources
-Satellite 1 (JERS-1) was a satellite launched in 1992 by the Japan Aerospace
-Exploration Agency (JAXA). It carried a L-band SAR and a nadir point optical
-and side looking optical sensors.</p>
-
-
-<p class="MsoNormal"><b style="">Operational:</b>
-1992-02-11 to 1998-10-01</p>
-
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-L-band</p>
-
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap</p>
-
-
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
-
+<h2>Mission</h2>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GEC Geocoded Ellipsoid Corrected</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->PRI Precision Image</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SLC Single Look Complex</li>
+  <li><b>Developer:</b> NASDA, the National Space Development Agency of Japan (now part of JAXA).</li>
+  <li><b>Radar:</b> L-band, 1.275 GHz (wavelength about 23.5 cm), HH polarisation.</li>
+  <li><b>Orbit:</b> about 568 km altitude, 44-day repeat cycle.</li>
+  <li><b>Lifetime:</b> launched 11 February 1992; operations ended in October 1998.</li>
 </ul>
 
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Product</th><th>Content</th><th>Mode / polarisation</th></tr>
+  <tr><td>SLC</td><td>Single Look Complex, slant range</td><td>Stripmap, HH</td></tr>
+  <tr><td>PRI</td><td>Precision Image, detected, ground range</td><td>Stripmap, HH</td></tr>
+  <tr><td>GEC</td><td>Geocoded Ellipsoid Corrected, detected</td><td>Stripmap, HH</td></tr>
+</table>
 
-<p class="MsoNormal"><b style="">Polarizations: </b>All
-modes are Single Pol (HH).</p>
+<h2>How to open</h2>
+<p>Select the CEOS <b>volume file</b> (name starting with <code>VDF</code>, <code>VOL</code> or
+<code>01</code>, or a <code>J1*.01</code> file). The leader, image and trailer files must be in the
+same folder. A zipped product whose name starts with <code>J1</code> can be opened directly.</p>
 
+<h2>What you get</h2>
+<ul>
+  <li>SLC: bands <code>i</code> and <code>q</code> (real and imaginary parts) and a virtual
+      <code>Intensity</code> band.</li>
+  <li>PRI and GEC: an <code>Amplitude</code> band and a virtual <code>Intensity</code> band.</li>
+  <li>When a product holds more than one image file, the bands get a number suffix
+      (<code>Amplitude_1</code>, <code>Amplitude_2</code>, ...).</li>
+  <li>Geocoding from the scene corners in the leader file, plus tie-point grids.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
 
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the Volume file. Opening zipped products
-(*.zip) directly is also supported.</p>
+<h2>Known limitations</h2>
+<ul>
+  <li>SNAP has no radiometric calibrator for JERS-1, so the
+      <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a> operator does not accept these products.</li>
+  <li>The Apply Orbit File operator has no orbit source for JERS-1; the orbit comes from the leader file.</li>
+  <li>Band names carry no polarisation; the polarisation is always HH.</li>
+</ul>
 
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a> or <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> the detected product, then
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> to map-project it.</p>
 
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/j/jers-1">https://directory.eoportal.org/web/eoportal/satellite-missions/j/jers-1</a><b style=""></b></p>
-
+<h2>Product format specification</h2>
+<p>No public format document is linked here. Mission background:
+<a href="https://earth.esa.int/eogateway/missions/jers-1">ESA Earth Online: JERS-1</a> and
+<a href="https://www.eoportal.org/satellite-missions/jers-1">eoPortal: JERS-1</a>.</p>
 
 <hr>
 </body></html>

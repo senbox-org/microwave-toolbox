@@ -329,21 +329,19 @@
             <folder name="Interferometric">
                 <attr name="position" intvalue="700"/>
                 <folder name="PSI\SBAS">
-                    <attr name="position" intvalue="400">
-                        <file name="eu-esa-sar-sar-gpf-pyrate-PyrateExport-Action.shadow">
-                            <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sar-gpf-pyrate-PyrateExport-Action.instance"/>
-                            <attr name="position" intvalue="220"/>
-                        </file>
-                    </attr>
+                    <attr name="position" intvalue="400"/>
+                    <file name="eu-esa-sar-sar-gpf-pyrate-PyrateExport-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sar-gpf-pyrate-PyrateExport-Action.instance"/>
+                        <attr name="position" intvalue="220"/>
+                    </file>
                 </folder>
 
                 <folder name="Unwrapping">
-                    <attr name="position" intvalue="300">
-                        <file name="eu-esa-sar-sar-gpf-pyrate-BatchSnaphuUnwrapOp-Action.shadow">
-                            <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sar-gpf-pyrate-BatchSnaphuUnwrapOp-Action.instance"/>
-                            <attr name="position" intvalue="320"/>
-                        </file>
-                    </attr>
+                    <attr name="position" intvalue="300"/>
+                    <file name="eu-esa-sar-sar-gpf-pyrate-BatchSnaphuUnwrapOp-Action.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-sar-gpf-pyrate-BatchSnaphuUnwrapOp-Action.instance"/>
+                        <attr name="position" intvalue="320"/>
+                    </file>
                 </folder>
 
 

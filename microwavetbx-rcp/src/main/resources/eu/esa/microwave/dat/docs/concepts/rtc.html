@@ -1,0 +1,195 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Radiometric Terrain Correction in Depth</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Radiometric Terrain Correction in Depth</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Radiometric Terrain Correction in Depth</h1>
+
+<p class="lead">Radiometric terrain correction (RTC) removes the brightness that relief adds to a SAR image, so that a
+slope facing the radar and one facing away give similar values for the same surface. The result,
+terrain-flattened &gamma;<sup>0</sup> (&gamma;<sup>0</sup><sub>T</sub>), is the basis of analysis-ready backscatter. How
+it is computed, and with which DEM, decides how far you can trust values on slopes.</p>
+
+<h2>Why terrain changes brightness</h2>
+<p>The radar sorts echoes by slant range. A slope facing the radar packs more ground into one range cell and returns
+more power; a slope facing away spreads the cell over less ground. The flat-ellipsoid conversion
+&gamma;<sup>0</sup><sub>E</sub> = &beta;<sup>0</sup> &middot; tan &theta;<sub>E</sub> (see
+<a href="radiometry.html">Radiometry</a>) ignores this. For a planar slope tilted by &alpha; in the range direction (positive towards
+the radar) and a surface of uniform &gamma;<sup>0</sup>,</p>
+<p class="eq">&gamma;<sup>0</sup><sub>E</sub> / &gamma;<sup>0</sup> = tan &theta;<sub>E</sub> / tan(&theta;<sub>E</sub> &#8722; &alpha;)</p>
+<p>where &theta;<sub>E</sub> is the ellipsoid incidence angle and &theta;<sub>E</sub> &#8722; &alpha; the local
+incidence angle (see <a href="geometry.html">SAR geometry</a>).</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Range slope &alpha;</th><th>&#8722;30&deg;</th><th>&#8722;15&deg;</th><th>&#8722;5&deg;</th><th>+5&deg;</th><th>+15&deg;</th><th>+25&deg;</th><th>+30&deg;</th></tr>
+    <tr><td>&theta;<sub>E</sub> = 30&deg; (Sentinel-1 IW near range)</td><td>&#8722;4.8</td><td>&#8722;2.4</td><td>&#8722;0.8</td><td>+0.9</td><td>+3.3</td><td>+8.2</td><td>layover onset</td></tr>
+    <tr><td>&theta;<sub>E</sub> = 35&deg;</td><td>&#8722;4.9</td><td>&#8722;2.3</td><td>&#8722;0.8</td><td>+0.8</td><td>+2.8</td><td>+6.0</td><td>+9.0</td></tr>
+    <tr><td>&theta;<sub>E</sub> = 45&deg; (Sentinel-1 IW far range)</td><td>&#8722;5.7</td><td>&#8722;2.4</td><td>&#8722;0.8</td><td>+0.8</td><td>+2.4</td><td>+4.4</td><td>+5.7</td></tr>
+</table>
+<p class="figcap">Table 1. Terrain-induced error of &gamma;<sup>0</sup><sub>E</sub> in dB for a uniform surface, from the
+equation above. Negative slopes face away from the radar.</p>
+
+<h2>Angle-based versus area-based normalisation</h2>
+<p><b>Angle-based</b> methods replace &theta;<sub>E</sub> by a DEM-derived angle for each output pixel, e.g.
+&sigma;<sup>0</sup> = &beta;<sup>0</sup> &middot; sin &theta;<sub>proj</sub> and &gamma;<sup>0</sup> =
+&sigma;<sup>0</sup> / cos &theta;<sub>proj</sub>, with &theta;<sub>proj</sub> the local incidence angle projected
+into the range plane (Ulander 1996; Kellndorfer et al. 1998). This assumes that each image pixel sees one planar
+facet.</p>
+<p><b>Area-based</b> normalisation (Small 2011) simulates the image instead. Every DEM facet is placed in radar
+geometry, its area projected perpendicular to the line of sight is added to the pixel(s) it falls into, and</p>
+<p class="eq">&gamma;<sup>0</sup><sub>T</sub> = &beta;<sup>0</sup> &middot; A<sub>&beta;</sub> / A<sub>&gamma;,T</sub></p>
+<p>where A<sub>&beta;</sub> is the pixel area in slant-range geometry and A<sub>&gamma;,T</sub> the summed
+projected facet area. For a planar slope tilted only in range both give the same answer. They differ where a pixel collects several
+facets: in layover and strong foreshortening, on slopes tilted in azimuth, and wherever the DEM is finer than the
+pixel. There the single angle is wrong or undefined (it does not exist once &alpha; &gt; &theta;<sub>E</sub>), while
+the summed area stays finite (Frey et al. 2013). Figure 1 shows the difference.</p>
+<p><img src="images/rtc_1.png" width="560" height="440" alt="Terrain profile with layover and shadow, and the error of ellipsoid, angle-based and area-based gamma0 along it"></p>
+<p class="figcap">Figure 1. (a) Synthetic ridge at &theta;<sub>E</sub> = 35&deg; with layover (orange) and shadow
+(grey). (b) Error of the retrieved &gamma;<sup>0</sup> for a uniform surface, simulated with 1 m facets and 10 m
+slant-range pixels. The angle-based value stays within about 0.5 dB on ordinary slopes but fails in layover.
+&gamma;<sup>0</sup><sub>T</sub> uses the same area model as the simulation, so it is exact outside shadow.</p>
+
+<h2>What Terrain Flattening computes</h2>
+<ol>
+    <li>It reads the DEM over each tile plus an overlap: the estimated terrain displacement plus <b>Additional
+        Overlap</b> (a fraction of the tile size, default 0.1).</li>
+    <li>It oversamples the DEM. For a built-in DEM coarser than the pixels the factor is ceil(DEM spacing / finest
+        pixel spacing) + 1, e.g. 4 for the 30 m Copernicus DEM and 10 m pixels; for an external DEM it is ceil(DEM
+        spacing / finest pixel spacing). <b>Oversampling Multiple</b> (default 1, range 1 to 4) multiplies it.</li>
+    <li>Each DEM cell, as two triangles, is projected onto the plane perpendicular to the line of sight. Its area goes,
+        by bilinear weights, to the four radar pixels around its Range-Doppler position.</li>
+    <li>Along each east-west DEM row, cells whose look angle is smaller than that of a cell nearer the radar are in
+        shadow and contribute nothing.</li>
+    <li>Each <code>Beta0</code> band is divided by A<sub>&gamma;,T</sub> / A<sub>&beta;</sub>. Pixels whose
+        A<sub>&gamma;,T</sub> is below 5% (for GRD input effectively 5%/sin &theta;<sub>E</sub>) of the
+        flat-ellipsoid value A<sub>&beta;</sub> / tan &theta;<sub>E</sub> (in practice shadow and slopes near grazing)
+        become no-data.</li>
+</ol>
+<p>Layover pixels are not masked: they receive area from several facets, so their &gamma;<sup>0</sup><sub>T</sub> is a
+valid average but mixes different ground positions. <b>Output Terrain Flattened Sigma0</b> uses the facet area on the
+ground, A<sub>&sigma;,T</sub>, instead: &sigma;<sup>0</sup><sub>T</sub> = &beta;<sup>0</sup> &middot;
+A<sub>&beta;</sub> / A<sub>&sigma;,T</sub>.</p>
+
+<h2>DEM requirements</h2>
+<ul>
+    <li><b>Resolution.</b> Use a DEM as fine as the output pixels or finer. Oversampling adds no slope detail;
+        multilooking the image towards the DEM resolution is often better.</li>
+    <li><b>Height datum.</b> Built-in DEMs are converted to ellipsoidal heights automatically. For an external DEM,
+        <b>External DEM Apply EGM</b> is off by default in Terrain Flattening but on in Terrain Correction; see
+        <a href="height_references.html">DEMs and height references</a>.</li>
+    <li><b>DEM errors become radiometric errors.</b> If the DEM makes a 20&deg; fore-slope 5&deg; too steep at
+        &theta;<sub>E</sub> = 35&deg;, &gamma;<sup>0</sup><sub>T</sub> comes out about 1.8 dB too low; the same error on a
+        back-slope gives about 0.8 dB too high. A DEM shifted against the image leaves bright and dark seams along ridges.
+        Canopy and buildings in a surface model count as terrain.</li>
+</ul>
+
+<h2>Processing order</h2>
+<p>Calibrate to &beta;<sup>0</sup> (linear), multilook if wanted, run Terrain Flattening in radar geometry, then Terrain
+Correction. Flattening comes first because facet areas add up in the radar pixel they share; after resampling to a map
+grid, layover contributions can no longer be separated. Terrain Flattening refuses map-projected input. Full chain:
+<a href="../workflows/workflow_grd_backscatter.html">GRD to Terrain-Flattened Backscatter</a>.</p>
+
+<h2>Combining geometries</h2>
+<p>Local resolution weighting (Small 2012) composites several &gamma;<sup>0</sup><sub>T</sub> images, weighting each
+by the inverse of its contributing area, so the best-resolved pass dominates each pixel. See
+<a href="multitemporal.html">Multitemporal backscatter stacks</a>.</p>
+
+<h2>CEOS-ARD Normalised Radar Backscatter</h2>
+<p>The CEOS-ARD NRB specification (v5.5) requires at threshold level: linear &gamma;<sup>0</sup><sub>T</sub> per
+polarisation from a published area-modelling algorithm; one named DEM (and EGM) for flattening and geocoding; a data
+mask with layover and shadow as invalid; a local incidence angle image; a snapped grid; and source, noise-removal and
+geolocation metadata. Target level adds a finer DEM, scattering-area, &gamma;-to-&sigma; ratio, ellipsoid-angle and
+DEM layers, and separate layover and shadow flags.</p>
+<p>SNAP produces most layers: <code>Gamma0</code>, <code>Sigma0</code> (their ratio is the &gamma;-to-&sigma; ratio)
+and <code>simulatedImage</code> from Terrain Flattening; angle bands, DEM, <code>layoverShadowMask</code> and grid
+alignment from Terrain Correction. It writes no NRB metadata or self-assessment, so its output is not CEOS-ARD compliant
+by itself.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Terrain Flattening</b> (<code>Terrain-Flattening</code>) reads bands whose names start with
+        <code>Beta0</code>, or T3, C3, C2 matrix bands, and writes <code>Gamma0_&lt;pol&gt;</code> (linear intensity)
+        in radar geometry (product suffix <code>_RTC</code>). Defaults: <code>Copernicus 30m Global DEM</code>,
+        <code>BILINEAR_INTERPOLATION</code>. Uncalibrated input is calibrated to &beta;<sup>0</sup> first (no noise
+        removal); a calibrated product without <code>Beta0</code> bands fails with "TerrainFlattening requires beta0 or
+        T3, C3, C2 as input". Matrix elements are divided by the same area ratio.</li>
+    <li><b>Output Simulated Image</b> adds <code>simulatedImage</code>, the ratio A<sub>&gamma;,T</sub> /
+        A<sub>&beta;</sub>, so &gamma;<sup>0</sup><sub>T</sub> = &beta;<sup>0</sup> / <code>simulatedImage</code>. It is
+        the weight input of Multitemporal Compositing.</li>
+    <li><b>Mask out areas without elevation</b> (<code>nodataValueAtSea</code>, default on) leaves DEM gaps as no-data;
+        off, gaps are filled with the EGM96 geoid height (sea level).</li>
+    <li><b>Terrain Correction</b>'s "Apply radiometric normalization" is the angle-based method (sines and tangents of
+        the ellipsoid, local or, by default, projected local incidence angle). Use it instead of Terrain Flattening,
+        never after it; see <a href="terrain_correction.html">Terrain correction</a>. For Sentinel-1, Terrain
+        Correction's derived <code>Gamma0</code>/<code>Beta0</code> mix the ellipsoid &sigma;<sup>0</sup> from the
+        product LUT with a projected local angle and are not a consistent normalisation.</li>
+    <li>Quick check: over flat ground, <code>Gamma0</code> from Terrain Flattening should agree with
+        &beta;<sup>0</sup> &middot; tan &theta;<sub>E</sub> to within a few tenths of a dB. A systematic offset across
+        flat areas points to a processing problem (see <a href="quality_control.html">Quality control</a>).</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Running Terrain Flattening on dB data. It does not check the unit: <code>Beta0_VV_dB</code> is accepted and
+        divided as if linear.</li>
+    <li>Calibrating to <code>Sigma0</code> only. Terrain Flattening needs <code>Beta0</code>; &sigma;<sup>0</sup> already
+        contains a flat-earth correction.</li>
+    <li>Using a DEM much coarser than the image and expecting slope detail; or different DEMs or EGM settings in
+        Terrain Flattening and Terrain Correction.</li>
+    <li>Comparing &gamma;<sup>0</sup><sub>T</sub> from ascending and descending orbits as if identical. RTC removes the
+        area effect, not the dependence of scattering on the local incidence angle, which on a slope differs strongly
+        between passes. Compare within one relative orbit, or composite with weights.</li>
+    <li>Reading layover pixels as surface values. They are averages over several ground positions; mask them with
+        <code>layoverShadowMask</code>.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/TerrainFlatteningOp.html">Terrain Flattening</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultitemporalCompositingOp.html">Multitemporal Compositing</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a></li>
+</ul>
+<p>Workflows: <a href="../workflows/workflow_grd_backscatter.html">GRD to Terrain-Flattened Backscatter</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Small, D. (2011). Flattening gamma: Radiometric terrain correction for SAR imagery. <i>IEEE Transactions on
+        Geoscience and Remote Sensing</i>, 49(8), 3081&#8211;3093. doi:10.1109/TGRS.2011.2120616</li>
+    <li>Ulander, L.M.H. (1996). Radiometric slope correction of synthetic-aperture radar images. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 34(5), 1115&#8211;1122. doi:10.1109/36.536527</li>
+    <li>Kellndorfer, J.M., Pierce, L.E., Dobson, M.C., Ulaby, F.T. (1998). Toward consistent regional-to-global-scale
+        vegetation characterization using orbital SAR systems. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, 36(5), 1396&#8211;1411. doi:10.1109/36.718844</li>
+    <li>Frey, O., Santoro, M., Werner, C.L., Wegm&uuml;ller, U. (2013). DEM-based SAR pixel-area estimation for enhanced
+        geocoding refinement and radiometric normalization. <i>IEEE Geoscience and Remote Sensing Letters</i>, 10(1),
+        48-52. doi:10.1109/LGRS.2012.2192093</li>
+    <li>Small, D. (2012). SAR backscatter multitemporal compositing via local resolution weighting. <i>2012 IEEE
+        International Geoscience and Remote Sensing Symposium (IGARSS)</i>, 4521&#8211;4524.
+        doi:10.1109/IGARSS.2012.6350465</li>
+    <li>CEOS (2021). <i>Analysis Ready Data for Land (CARD4L) Product Family Specification: Normalised Radar
+        Backscatter</i>, version 5.5. Committee on Earth Observation Satellites.
+        https://ceos.org/ard/files/PFS/NRB/v5.5/CARD4L-PFS_NRB_v5.5.pdf</li>
+</ol>
+
+<hr>
+</body>
+</html>

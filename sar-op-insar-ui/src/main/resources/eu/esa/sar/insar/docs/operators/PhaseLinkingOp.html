@@ -43,20 +43,20 @@
 <h4>Where this fits in the InSAR pipeline</h4>
 <pre>
    TOPS                                  Stripmap
-   ─────────────                         ────────────────────
+   &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;                         &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
    TOPSAR-Split                          Apply-Orbit-File
    Apply-Orbit-File
    Back-Geocoding                        Coregistration
    Enhanced-Spectral-Diversity
-   TOPSAR-Deburst              ← required
-                              ↓
-   1. Phase Linking            (this operator)  →  _PL stack
-                              ↓
+   TOPSAR-Deburst              &larr; required
+                              &darr;
+   1. Phase Linking            (this operator)  &rarr;  _PL stack
+                              &darr;
    2. Interferogram  OR  Multi-Reference InSAR
    3. TopoPhase-Removal (if not done by step 2)
    4. Goldstein Phase Filtering
-   5. SnaphuExport → snaphu (external) → SnaphuImport
-   6. SBAS Inversion           →  velocity / displacement time series
+   5. SnaphuExport &rarr; snaphu (external) &rarr; SnaphuImport
+   6. SBAS Inversion           &rarr;  velocity / displacement time series
    7. Range-Doppler-Terrain-Correction  (optional, geocodes the result)
 </pre>
 <p>Phase Linking only modifies phase &mdash; amplitudes are preserved &mdash;
@@ -67,14 +67,28 @@
 
 <h4>Output</h4>
 <ul>
-    <li><code>i_pl_&lt;swath&gt;_&lt;POL&gt;_&lt;date&gt;</code> /
-        <code>q_pl_&lt;swath&gt;_&lt;POL&gt;_&lt;date&gt;</code> &mdash; one
-        complex pair per epoch with the phase-linked phase.</li>
-    <li><code>tempCoh</code> (optional, default on) &mdash; Pepe-Lanari
-        goodness-of-fit temporal coherence per pixel, range [0, 1].</li>
-    <li><code>numSHP</code> (optional, default off) &mdash; count of SHP
-        neighbours used per pixel.</li>
+    <li><code>i_pl_&lt;swath&gt;_&lt;POL&gt;_ref_&lt;date&gt;</code> /
+        <code>q_pl_&lt;swath&gt;_&lt;POL&gt;_ref_&lt;date&gt;</code> for the
+        Reference epoch and
+        <code>i_pl_&lt;swath&gt;_&lt;POL&gt;_sec&lt;k&gt;_&lt;date&gt;</code> /
+        <code>q_pl_&lt;swath&gt;_&lt;POL&gt;_sec&lt;k&gt;_&lt;date&gt;</code> for
+        each Secondary &mdash; one complex pair per epoch with the
+        phase-linked phase. The swath and polarisation parts are left out
+        when the input has none.</li>
+    <li><code>tempCoh_&lt;POL&gt;</code> (optional, default on) &mdash;
+        Pepe-Lanari goodness-of-fit temporal coherence per pixel, range [0, 1];
+        NaN (no-data) where the pixel had too few SHPs. Named
+        <code>tempCoh</code> when the input has no polarisation.</li>
+    <li><code>numSHP_&lt;POL&gt;</code> (optional, default off) &mdash; count
+        of SHP neighbours used per pixel; 0 is no-data. Named
+        <code>numSHP</code> when the input has no polarisation.</li>
 </ul>
+<p>Pixels are <b>passed through</b> (the output keeps the original SLC
+    samples) in two cases: when fewer than max(Minimum SHPs, <i>N</i>) SHPs
+    are found (<code>tempCoh</code> is then no-data), and when the temporal
+    coherence is below the Temp. Coherence Threshold (<code>tempCoh</code>
+    then still records the value). Not every pixel of the output is therefore
+    phase-linked; mask on <code>tempCoh</code> if you need to know.</p>
 
 <h4>Parameters</h4>
 <table border="1" cellpadding="3" cellspacing="0">
@@ -82,7 +96,11 @@
     <tr><td>Window Azimuth</td><td>21</td>
         <td>SHP search window height in pixels (forced odd).</td></tr>
     <tr><td>Window Range</td><td>7</td>
-        <td>SHP search window width in pixels (forced odd).</td></tr>
+        <td>SHP search window width in pixels (forced odd). On Sentinel-1 IW
+            the default 21 az &times; 7 rg covers about 290 m &times; 26 m on
+            the ground, a long azimuth strip; Phase Linking in Depth advises
+            7 az &times; 21 rg (about 100 m &times; 80 m, same pixel
+            count).</td></tr>
     <tr><td>SHP Test</td><td>KS</td>
         <td>Two-sample amplitude test:
             <b>KS</b> (Kolmogorov-Smirnov, default, SqueeSAR / FRInGE),
@@ -97,8 +115,8 @@
             (a rank-deficient covariance cannot be phase-linked, especially by
             EMI, which inverts it).</td></tr>
     <tr><td>Estimator</td><td>EVD</td>
-        <td><b>EVD</b>: dominant eigenvector of <b>T</b> (Ferretti SqueeSAR
-            2011). <b>EMI</b>: lower-bias variant &mdash; smallest-eigenvalue
+        <td><b>EVD</b>: dominant eigenvector of <b>T</b> (Fornaro <i>et al.</i>
+            2015; Cao, Lee, Jung 2015). <b>EMI</b>: lower-bias variant &mdash; smallest-eigenvalue
             eigenvector of <b>&Gamma;</b><sup>&minus;1</sup>&nbsp;&odot;&nbsp;<b>T</b>,
             where <b>&Gamma;</b>&nbsp;=&nbsp;|<b>T</b>| and
             <b>&Gamma;</b><sup>&minus;1</sup> is its matrix inverse (Ansari,
@@ -108,7 +126,9 @@
             is the zero-phase datum; its band is written real-valued (only
             relative phases matter downstream).</td></tr>
     <tr><td>Temp. Coherence Threshold</td><td>0.6</td>
-        <td>Pixels below this are masked out.</td></tr>
+        <td>Pixels whose temporal coherence is below this are not masked:
+            they are passed through with their original SLC samples, and
+            <code>tempCoh</code> records the value.</td></tr>
     <tr><td>Coherence Magnitude Bias Correction</td><td>off</td>
         <td>Removes the positive bias of the sample coherence magnitude
             (first-order number-of-looks correction). Beneficial with the
@@ -125,17 +145,55 @@
     <li>TOPS bursts must be merged upstream (TOPSAR-Deburst).</li>
 </ul>
 
-<h4>References</h4>
+<h3>References</h3>
+<ol>
+    <li>Monti Guarnieri, A., Tebaldini, S. (2008). On the exploitation of target statistics for SAR interferometry applications. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 46(11), 3436&#8211;3443. doi:10.1109/TGRS.2008.2001756</li>
+    <li>Ferretti, A., Fumagalli, A., Novali, F., Prati, C., Rocca, F., Rucci, A. (2011). A new algorithm for processing interferometric data-stacks: SqueeSAR. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 49(9), 3460&#8211;3470. doi:10.1109/TGRS.2011.2124465</li>
+    <li>Fornaro, G., Verde, S., Reale, D., Pauciullo, A. (2015). CAESAR: An approach based on covariance matrix decomposition to improve multibaseline&#8211;multitemporal interferometric SAR processing. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 53(4), 2050&#8211;2065. doi:10.1109/TGRS.2014.2352853</li>
+    <li>Ansari, H., De Zan, F., Bamler, R. (2018). Efficient phase estimation for interferogram stacks. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 56(7), 4109&#8211;4125. doi:10.1109/TGRS.2018.2826045</li>
+    <li>Cao, N., Lee, H., Jung, H. C. (2015). Mathematical framework for phase-triangulation algorithms in distributed-scatterer interferometry. <i>IEEE Geoscience and Remote Sensing Letters</i>, 12(9), 1838&#8211;1842. doi:10.1109/LGRS.2015.2430752</li>
+</ol>
+<p>See also (not implemented in SNAP; non-linear phase linking is future work):</p>
 <ul>
-    <li>Ferretti, A. <i>et al.</i> (2011). A new algorithm for processing
-        interferometric data-stacks: SqueeSAR. <i>IEEE TGRS</i> 49(9),
-        3460-3470.</li>
-    <li>Ansari, H., De Zan, F., Bamler, R. (2018). Efficient phase estimation
-        for interferogram stacks. <i>IEEE TGRS</i> 56(7), 4109-4125.</li>
-    <li>Mirzaee, S., Amelung, F., Fattahi, H. (2023). Non-linear phase
-        linking using joined distributed and persistent scatterers.
-        <i>Computers &amp; Geosciences</i> 171.</li>
+    <li>Mirzaee, S., Amelung, F., Fattahi, H. (2023). Non-linear phase linking using joined distributed and persistent scatterers. <i>Computers &amp; Geosciences</i>, 171, 105291. doi:10.1016/j.cageo.2022.105291</li>
 </ul>
+
+<!-- params:begin op="PhaseLinking" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>PhaseLinking</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowAzimuth</code></td><td>int</td><td>21</td><td>&nbsp;</td><td>&nbsp;</td><td>SHP search window size in azimuth (pixels)</td></tr>
+<tr><td><code>windowRange</code></td><td>int</td><td>7</td><td>&nbsp;</td><td>&nbsp;</td><td>SHP search window size in range (pixels)</td></tr>
+<tr><td><code>shpTest</code></td><td>String</td><td>KS</td><td>KS, AD, TLog</td><td>&nbsp;</td><td>Two-sample amplitude test used to select SHPs</td></tr>
+<tr><td><code>shpAlpha</code></td><td>double</td><td>0.05</td><td>&nbsp;</td><td>&nbsp;</td><td>SHP test significance level</td></tr>
+<tr><td><code>shpMin</code></td><td>int</td><td>20</td><td>&nbsp;</td><td>&nbsp;</td><td>Minimum number of SHPs required to phase-link a pixel</td></tr>
+<tr><td><code>estimator</code></td><td>String</td><td>EVD</td><td>EVD, EMI</td><td>&nbsp;</td><td>Phase estimator (EVD: dominant eigenvector; EMI: lower-bias variant)</td></tr>
+<tr><td><code>referenceEpochDate</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Reference epoch date (ddMMMyyyy, e.g. 14Sep2020). If null/empty the median epoch is used.</td></tr>
+<tr><td><code>tempCohMin</code></td><td>double</td><td>0.6</td><td>&nbsp;</td><td>&nbsp;</td><td>Pixels whose temporal coherence is below this threshold are not phase-linked: they keep their original SLC samples, and the tempCoh band still records the value</td></tr>
+<tr><td><code>coherenceBiasCorrection</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Remove the positive bias of the sample coherence magnitude (first-order number-of-looks correction). Recommended with the EVD estimator; may degrade EMI at low coherence.</td></tr>
+<tr><td><code>outputTempCoherence</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Emit temporal coherence diagnostic band</td></tr>
+<tr><td><code>outputShpCount</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Emit SHP count diagnostic band</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/time_series.html">InSAR Time Series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/phase_linking.html">Phase Linking in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coherence.html">Interferometric Coherence</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_time_series.html">Workflow: InSAR Time Series</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered complex SLC stack of at least 3 epochs</li>
+    <li>Burst TOPS products are refused: run <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPSAR-Deburst</a> first</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the phase-linked i/q bands and the temporal coherence band</li>
+</ul>
+<!-- footer:end -->
 
 <hr>
 </body>

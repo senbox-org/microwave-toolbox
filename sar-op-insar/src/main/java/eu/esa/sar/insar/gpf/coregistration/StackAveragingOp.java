@@ -293,30 +293,17 @@ public class StackAveragingOp extends Operator {
         return expression.toString();
     }
 
-    private static String mean4(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0)
-                expression.append(" + ");
-            expression.append("pow(");
-            expression.append(band.getName());
-            expression.append(", 4)");
-            ++cnt;
-        }
-        expression.append(") / ");
-        expression.append(sourceBands.length);
-
-        return expression.toString();
-    }
-
     private static String stddev(final Band[] sourceBands) {
         return "sqrt( " + mean2(sourceBands) + " - " + "sq(" + mean(sourceBands) + "))";
     }
 
+    /**
+     * Coefficient of variation of the input samples: population standard deviation / mean.
+     * (It used to be computed on the squared samples, and the unparenthesised divisor also
+     * divided by N a second time.)
+     */
     private static String coefVar(final Band[] sourceBands) {
-        final String m2 = mean2(sourceBands);
-        return "sqrt( " + mean4(sourceBands) + " - " + "sq(" + m2 + ")) / " + m2;
+        return "(" + stddev(sourceBands) + ") / (" + mean(sourceBands) + ")";
     }
 
     private static class BandInfo {

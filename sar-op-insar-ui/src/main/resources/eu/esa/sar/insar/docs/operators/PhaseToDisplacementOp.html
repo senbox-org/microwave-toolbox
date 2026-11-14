@@ -61,11 +61,34 @@ This operator converts interferometric phase to displacement map.
 </li>
 </ul>
 <br>
-<p> Reference:&nbsp;</p>
+<h3>References</h3>
+<ol>
+    <li>Ferretti, A., Monti-Guarnieri, A., Prati, C., Rocca, F., Massonnet, D. (2007). <i>InSAR Principles: Guidelines for SAR Interferometry Processing and Interpretation</i>. ESA TM-19, ESA Publications, Noordwijk. ISBN 92-9092-233-8. https://www.esa.int/publications/about-us/publications/insar-principles-guidelines-for-sar-interferometry-processing-and-interpretation-esa-tm-19</li>
+    <li>Massonnet, D., Feigl, K. L. (1998). Radar interferometry and its application to changes in the Earth's surface. <i>Reviews of Geophysics</i>, 36(4), 441&#8211;500. doi:10.1029/97RG03139</li>
+</ol>
+<!-- params:begin op="PhaseToDisplacement" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>PhaseToDisplacement</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<p>This operator has no processing parameters.</p>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>An unwrapped phase band: the first band whose name starts with 'unw' is used</li>
+    <li>In practice this is the output of <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a> after <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuUnwrapping.html">Snaphu Unwrapping</a></li>
+    <li>Sign: positive = motion towards the satellite (uplift); no reference point is subtracted: subtract a stable area (see <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a>).</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> to geocode the displacement map</li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 
-
-[1] Ferretti A., Massonet D., Monti Guarnieri A., Prati C., Rocca F.,
-2007, InSAR Principles: Guidelines for SAR Interferometry Processing
-and Interpretation, ESA TM-19<br>
-
-    </body></html>
+</body></html>

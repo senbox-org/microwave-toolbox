@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
-<head><title>Help - DEM Generation</title>
+<head><title>Help - Phase to Elevation</title>
 
 
     <link rel="stylesheet" href="../style.css">
@@ -9,18 +9,19 @@
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; DEM Generation<br>
+        <td class="header">&nbsp; Phase to Elevation<br>
         </td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg"
                                                                                  border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>DEM Generation Operator</h3>This operator converts interferometric phase to digital elevation map. <h4>Input and
+<h3>Phase to Elevation Operator</h3>This operator converts unwrapped interferometric phase to a digital elevation model (DEM). <h4>Input and
     Output</h4>
 <ul>
     <li>The
-        input to this operator the output of Stitch operator.
+        input to this operator is an interferogram product with an unwrapped phase band, usually
+        the output of <b>Snaphu Import</b>.
     </li>
     <li>The unwrapped phase band is located by unit (<i>abs_phase</i>, as set by Snaphu Import),
         falling back to a band name starting with &quot;Unw&quot;.
@@ -43,7 +44,7 @@
         and parallel baseline. Requires a DEM and the latitude, longitude,
         incidence angle and slant range time tie point grids.
     </li>
-    <li><b>Schwabisch</b> &mdash; the Doris polynomial method. Reference phase is
+    <li><b>Schw&auml;bisch</b> (value <code>Schwabisch</code>) &mdash; the Doris polynomial method [2]. Reference phase is
         evaluated from the precise orbits at several altitudes in a set of points
         distributed over the scene; a 1D polynomial in phase is fitted for the
         height at each point, and each of its coefficients is then modelled as a
@@ -53,11 +54,22 @@
         &quot;Phase to Height&quot; operator, which is now deprecated.
     </li>
 </ul>
+<p class="MsoNormal">
+    <b>Bistatic stacks.</b> A single-pass bistatic pair (TanDEM-X CoSSC, one transmitter and two receivers) is
+    detected from the <code>bistatic_stack</code> metadata flag. Its phase is 2&pi;/&lambda; times the range
+    difference instead of 4&pi;/&lambda;, so both methods use the bistatic height of ambiguity
+    &lambda;R&nbsp;sin&theta;/B<sub>&perp;</sub>, twice the repeat-pass value
+    &lambda;R&nbsp;sin&theta;/(2B<sub>&perp;</sub>).
+</p>
+<p class="MsoNormal">
+    <b>Changed in SNAP 15:</b> earlier versions treated bistatic pairs as repeat-pass, so their heights came out at
+    half scale about the reference height. Repeat-pass results are unchanged.
+</p>
 
 <h4>Parameters Used</h4>&nbsp;&nbsp; The following processing parameters are needed for this operator (see Figure
 1):<br>
 <ul>
-    <li>Method: DEM Seed or Schwabisch, as described above.</li>
+    <li>Method: <code>DEM Seed</code> or <code>Schwabisch</code> (the Schw&auml;bisch method), as described above.</li>
     <li>Orbit Interpolation Degree: Degree of the polynomial orbit interpolator.</li>
 </ul>
 &nbsp;&nbsp; DEM Seed only:
@@ -66,7 +78,7 @@
     <li>DEM Resampling Method: The resampling method used in getting elevation from DEM.<br>
     </li>
 </ul>
-&nbsp;&nbsp; Schwabisch only:
+&nbsp;&nbsp; Schw&auml;bisch only:
 <ul>
     <li>Number of estimation points: Number of points at which reference phase is evaluated.
         Must be at least the number of coefficients of the 2D polynomial.
@@ -78,23 +90,52 @@
 <img style="width: 450px; height: 450px;" alt="" src="images/dem_generation_ui.jpg"><br>
 <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-Figure 1. DEM Generation operator UI<br>
+Figure 1. Phase to Elevation operator UI<br>
 <br>
 
-<p> Reference:&nbsp;</p>
-
-<p>[1] MARK A. RICHARDS, "A Beginner&#8217;s Guide to
-    Interferometric SAR Concepts and Signal Processing," IEEE A&amp;E
-    SYSTEMS MAGAZINE VOL. 22, NO. 9 SEPTEMBER 2007<br>
-    <br>
-</p>
-
-<p>[2] Bert Kampes, Stefania Usai, "Doris: The Delft Object-oriented Radar
-    Interferometric Software," 2nd International Symposium on Operationalization
-    of Remote Sensing, Enschede, 1999. (Schwabisch slant-to-height method)<br>
-    <br>
-</p>
-
+<h3>References</h3>
+<ol>
+    <li>Richards, M. A. (2007). A beginner's guide to interferometric SAR concepts and signal processing. <i>IEEE Aerospace and Electronic Systems Magazine</i>, 22(9), 5&#8211;29. doi:10.1109/MAES.2007.4350281</li>
+    <li>Kampes, B., Usai, S. (1999). Doris: The Delft Object-oriented Radar Interferometric Software. 2nd International Symposium on Operationalization of Remote Sensing, Enschede.</li>
+    <li>Zebker, H. A., Goldstein, R. M. (1986). Topographic mapping from interferometric synthetic aperture radar observations. <i>Journal of Geophysical Research: Solid Earth</i>, 91(B5), 4993&#8211;4999. doi:10.1029/JB091iB05p04993</li>
+</ol>
+<!-- params:begin op="PhaseToElevation" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>PhaseToElevation</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>method</code></td><td>String</td><td>DEM Seed</td><td>DEM Seed, Schwabisch</td><td>&nbsp;</td><td>DEM Seed: linearise the phase-to-height relation about a reference point solved from low-slope DEM seeds (requires a DEM). Schwabisch: fit reference phase at several altitudes with a 1D polynomial per point and a 2D polynomial across the scene (requires no DEM).</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM Resampling Method</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>nPoints</code></td><td>int</td><td>200</td><td>100, 200, 300, 400, 500</td><td>&nbsp;</td><td>Schwabisch only: number of points at which reference phase is evaluated.</td></tr>
+<tr><td><code>nHeights</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Schwabisch only: number of height samples in the range [0, 5000) m.</td></tr>
+<tr><td><code>degree1D</code></td><td>int</td><td>2</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Schwabisch only: degree of the 1D polynomial fitting height against reference phase.</td></tr>
+<tr><td><code>degree2D</code></td><td>int</td><td>5</td><td>1, 2, 3, 4, 5, 6, 7, 8</td><td>&nbsp;</td><td>Schwabisch only: degree of the 2D polynomial fitting the 1D coefficients across the scene.</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of the polynomial orbit interpolator.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_dem_generation.html">Workflow: InSAR DEM Generation</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Radar geometry: run before terrain correction</li>
+    <li>An interferometric product with secondary metadata and latitude, longitude, incidence angle and slant range time tie point grids</li>
+    <li>An unwrapped phase band: unit abs_phase or a name starting with 'Unw', from <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a></li>
+    <li>DEM Seed method: an installed DEM</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> to geocode the elevation band</li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 
 <hr>
 </body>

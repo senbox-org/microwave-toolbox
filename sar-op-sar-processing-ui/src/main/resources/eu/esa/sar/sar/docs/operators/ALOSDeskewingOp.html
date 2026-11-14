@@ -51,5 +51,32 @@ like geometry. Notice the gap along the top of the image.</span>
 
 
 <img style="width: 1136px; height: 880px;" alt="" src="images/deskewed_image.jpg"><br>
+<p>The operator source code refers to the ALOS PALSAR FAQ (ALOS-PALSAR-FAQ-001, ESRIN Contract No. 20700/07/I-OL, IDEAS QC PALSAR Team) for the deskewing approach. This document could not be independently checked.</p>
+
+<!-- params:begin op="ALOS-Deskewing" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>ALOS-Deskewing</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>An ALOS PALSAR-1 Level 1.1 SLC product (ALOS-2 and other missions are refused) with valid orbit state vectors</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a></li>
+    <li><a href="RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

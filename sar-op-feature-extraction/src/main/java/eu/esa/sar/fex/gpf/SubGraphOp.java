@@ -30,7 +30,7 @@ import java.io.File;
         description = "Encapsulates a graph within a graph.")
 public class SubGraphOp extends Operator {
 
-    @Parameter
+    @Parameter(description = "The graph file (XML) to execute as a sub-graph")
     private File graphFile;
 
     @Override

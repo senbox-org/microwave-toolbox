@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Interferogram Formation and Phase Filtering</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Interferogram Formation and Phase Filtering</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Interferogram Formation and Phase Filtering</h1>
+
+<p class="lead">Between a coregistered SLC stack and an interferogram ready for unwrapping lie several steps:
+    removing the reference phase, optional spectral filtering, multilooking and phase filtering. Each trades
+    resolution for phase quality and changes what the phase and the coherence mean; order and settings decide
+    whether the result can be trusted.</p>
+
+<h2>From coregistered SLCs to an interferogram</h2>
+<p>The interferogram is the Reference times the complex conjugate of the Secondary, with phase
+    &phi; = (4&pi;/&lambda;)(R<sub>sec</sub> &#8722; R<sub>ref</sub>); <a href="insar.html">InSAR Fundamentals</a>
+    lists the terms it contains. Most raw fringes are the <i>flat-Earth</i> phase, the phase the ellipsoid alone
+    would produce. The look angle changes across the swath, so for a fixed baseline the range difference changes
+    steadily across the swath, at a rate</p>
+<p class="eq">|d&phi;<sub>flat</sub>/dR| = 4&pi; B<sub>&perp;</sub> / (&lambda; R tan &theta;)</p>
+<p>where B<sub>&perp;</sub> is the perpendicular baseline, R the slant range and &theta; the incidence angle;
+    Earth curvature modifies this only slightly. For Sentinel-1 IW (&lambda; = 5.55 cm, R &asymp; 865 km,
+    &theta; &asymp; 39&deg;) each 100 m of B<sub>&perp;</sub> gives about 5 fringes per km of slant range, one
+    every 80 or so range pixels. The flat-Earth phase is computed from the orbits and removed first; the
+    topographic phase is then simulated from a DEM and subtracted. Deformation, atmosphere, orbit and DEM errors,
+    and noise remain.</p>
+
+<h2>Spectral shift and common-band filtering</h2>
+<p>The two look angles map the ground to slightly different range frequencies.
+    The range spectra of Reference and Secondary are shifted against each other by (Gatelli et al., 1994)</p>
+<p class="eq">&Delta;f = &#8722;f<sub>0</sub> B<sub>&perp;</sub> / (R tan(&theta; &#8722; &zeta;))</p>
+<p>where f<sub>0</sub> is the carrier frequency and &zeta; the terrain slope in range, positive for slopes facing
+    the radar; the sign only says which spectrum lies higher. Only the overlap is correlated (Figure 1). On flat terrain the
+    geometric coherence falls roughly as 1 &#8722; |&Delta;f|/B<sub>r</sub>, with B<sub>r</sub> the range
+    bandwidth, reaching zero at the critical baseline (Zebker and Villasenor, 1992). Foreslopes increase
+    |&Delta;f|, without limit as &zeta; approaches &theta;. On flat terrain &Delta;f equals the flat-Earth fringe
+    rate expressed as a range frequency, so it can be estimated from the interferogram itself.</p>
+<p><img src="images/interferogram_formation_1.png" width="560" height="290" alt="Shifted range spectra with the common band shaded, and the non-overlapping fraction of the bandwidth versus perpendicular baseline for four of the missions in Table 1"></p>
+<p class="figcap">Figure 1. Left: the range spectra of Reference and Secondary are shifted by &Delta;f; only the
+    shaded common band is correlated. Right: &Delta;f/B<sub>r</sub> versus B<sub>&perp;</sub> on flat terrain,
+    computed with the inputs of Table 1. ALOS-2 lies just below NISAR and is not drawn.</p>
+
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Mission (mode)</th><th>f<sub>0</sub></th><th>B<sub>r</sub></th><th>R, &theta;</th>
+        <th>&Delta;f per 100 m B<sub>&perp;</sub></th><th>&Delta;f/B<sub>r</sub>, flat</th>
+        <th>&Delta;f/B<sub>r</sub>, 15&deg; foreslope</th></tr>
+    <tr><td>ERS (for comparison)</td><td>5.30 GHz</td><td>15.55 MHz</td><td>853 km, 23&deg;</td>
+        <td>1.46 MHz</td><td>9.4 %</td><td>28 %</td></tr>
+    <tr><td>Sentinel-1 (IW2)</td><td>5.405 GHz</td><td>48.2 MHz</td><td>865 km, 39&deg;</td>
+        <td>0.77 MHz</td><td>1.6 %</td><td>2.9 %</td></tr>
+    <tr><td>TerraSAR-X (StripMap)</td><td>9.65 GHz</td><td>150 MHz (100 MHz in far-range beams)</td><td>616 km, 35&deg;</td>
+        <td>2.24 MHz</td><td>1.5 %</td><td>2.9 %</td></tr>
+    <tr><td>ALOS-2 (StripMap Ultrafine)</td><td>1.2575 GHz</td><td>84 MHz</td><td>750 km, 35&deg;</td>
+        <td>0.24 MHz</td><td>0.3 %</td><td>0.5 %</td></tr>
+    <tr><td>NISAR (L-band, 20 MHz)</td><td>1.229 GHz</td><td>20 MHz</td><td>909 km, 37&deg;</td>
+        <td>0.18 MHz</td><td>0.9 %</td><td>1.7 %</td></tr>
+</table>
+<p class="figcap">Table 1. Range spectral shift per 100 m of perpendicular baseline at mid-swath. Scale linearly
+    for other baselines; L-band pairs often have B<sub>&perp;</sub> of several hundred metres or more.</p>
+
+<p><b>Range filtering</b> cuts both spectra down to the common band. It pays off when |&Delta;f| is a sizeable
+    fraction of B<sub>r</sub>: ERS-era pairs, long baselines, steep foreslopes. For Sentinel-1 small-baseline
+    stacks the loss is a percent or two: little gain, lost range resolution.
+    <b>Azimuth filtering</b> does the same for the azimuth spectra, centred on each image's Doppler centroid:
+    a difference &Delta;f<sub>DC</sub> leaves a fraction |&Delta;f<sub>DC</sub>|/B<sub>az</sub> of the azimuth
+    bandwidth unshared. If the centroids in the metadata differ by only a few percent of B<sub>az</sub>, skip it.</p>
+<p><b>TOPS.</b> Within a TOPS burst the azimuth spectrum sweeps across several kilohertz (see
+    <a href="tops.html">TOPS</a>), so a filter that assumes one Doppler centroid per image does not fit.
+    Back-Geocoding deramps the bursts before resampling, and Sentinel-1 keeps repeat-pass bursts synchronised to a
+    few milliseconds, so their azimuth spectra largely overlap. Azimuth Filter is not for TOPS data.</p>
+
+<h2>Multilooking the interferogram</h2>
+<p>Multilooking averages the <i>complex</i> interferogram over N pixels and takes the phase. Averaging
+    phase values is wrong because the phase wraps: the mean of +3.1 and &#8722;3.1 rad is 0, not &pi;. Fringes
+    inside the cell partly cancel, so remove the flat-Earth phase (and, in steep terrain, the topographic phase)
+    first. For N independent looks the phase noise approaches the Cram&eacute;r-Rao bound (Bamler and Hartl,
+    1998; Hanssen, 2001)</p>
+<p class="eq">&sigma;<sub>&phi;</sub> &asymp; &radic;(1 &#8722; &gamma;<sup>2</sup>) / (&gamma; &radic;(2N))</p>
+<p>with &gamma; the coherence: about 0.27 rad (16&deg;) for &gamma; = 0.5 and 20 looks. Choose looks that give
+    roughly square ground cells. For Sentinel-1 IW (about 3.7 m ground range by 14 m azimuth), 4 &times; 1 looks
+    give about 15 m &times; 14 m and 20 &times; 5 about 74 m &times; 70 m. Averaging the coherence band keeps its
+    estimator bias (see <a href="coherence.html">Coherence</a>); use a matching window instead.</p>
+
+<h2>Phase filtering</h2>
+<p>The Goldstein filter (Goldstein and Werner, 1998) cuts the interferogram into overlapping blocks, computes
+    the 2-D spectrum Z(u, v) of each, and weights it by its own smoothed magnitude:</p>
+<p class="eq">Z<sub>filt</sub>(u, v) = Z(u, v) &middot; [ S{|Z(u, v)|} ]<sup>&alpha;</sup></p>
+<p>S{&middot;} is a small smoothing window and the exponent &alpha;, from 0 (no change) to 1 (strong), sets the
+    strength. Dominant local fringe frequencies are kept and broadband noise is suppressed,
+    so even dense fringes survive. Baran et al. (2003)
+    tied the strength to coherence, &alpha; = 1 &#8722; mean(&gamma;) over the patch (SNAP: the whole FFT block): noisy blocks are
+    filtered strongly, coherent ones lightly.</p>
+<p><img src="images/interferogram_formation_2.png" width="560" height="195" alt="Simulated interferogram before and after adaptive Goldstein filtering, and the map of the adaptive filter exponent"></p>
+<p class="figcap">Figure 2. Simulated 4-look interferogram with coherence 0.7 and a decorrelated patch (white
+    outline). (a) Input phase. (b) After Goldstein filtering as SNAP does it (adaptive &alpha;, quarter-block steps),
+    with 32 &times; 32 blocks for this small image: the phase error in the coherent area drops from
+    0.49 to 0.18 rad. Inside the patch the output is still noise, but along its edge the filter carries the
+    neighbouring fringes a few pixels into it. (c) The exponent: about 0.4 in the coherent area (the estimated coherence there is about 0.6, lowered by
+    fringes inside the estimation window), 0.9 in the patch.</p>
+<p>Filtering alters the phase and correlates neighbouring pixels. Use the filtered phase for display and
+    unwrapping, where fewer residues help (see <a href="unwrapping.html">Phase Unwrapping</a>), but estimate
+    coherence from unfiltered data. Do not feed filtered pairs into a <a href="time_series.html">time-series</a> inversion
+    unless the method expects it: each pair is filtered differently, which adds closure errors.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Order.</b> TOPS: Back-Geocoding &rarr; Enhanced Spectral Diversity &rarr; Interferogram &rarr;
+        TOPSAR-Deburst &rarr; TopoPhaseRemoval &rarr; Multilook &rarr; GoldsteinPhaseFiltering; TopoPhaseRemoval
+        and Multilook refuse burst products. Stripmap: coregistration &rarr; (RangeFilter, AzimuthFilter) &rarr;
+        Interferogram &rarr; TopoPhaseRemoval &rarr; Multilook &rarr; GoldsteinPhaseFiltering.</li>
+    <li><b>Interferogram</b> fits the flat-Earth phase as a 2-D polynomial (degree 5, 501 points, one per burst
+        for TOPS) computed on the ellipsoid, with orbits interpolated at degree 3. Band names are given in
+        <a href="insar.html">InSAR Fundamentals</a>; <i>Output Flat Earth Phase</i> and <i>Output Topographic
+        Phase</i> add <code>fep_&lt;tag&gt;</code> and (with topographic subtraction on) <code>topo_&lt;tag&gt;</code>. <code>coh</code> is estimated
+        from the full-resolution SLCs after flat-Earth (and, if selected, topographic) removal;
+        <i>Coherence Window (m)</i> makes its window square on the ground. GSLC stacks
+        are processed on the map grid; a stack of phase-flattened GSLCs is not flattened again, and a stack mixing
+        flattened and natural-phase GSLCs is refused (see <a href="gslc.html">GSLC</a>).</li>
+    <li><b>TopoPhaseRemoval</b> writes new <code>i_ifg</code>/<code>q_ifg</code> bands with a virtual
+        <code>Phase_ifg_srd_&lt;pol&gt;_&lt;dates&gt;</code> (no subswath), and copies <code>coh</code> through
+        unchanged. For coherence free of topographic fringes, select <i>Subtract topographic phase</i> in
+        Interferogram instead.</li>
+    <li><b>RangeFilter</b> estimates the shift adaptively, from the spectral peak of a locally formed
+        interferogram. <b>AzimuthFilter</b> uses one constant
+        Doppler centroid per image and refuses TOPS (IW/EW) input; RangeFilter does not check for it. Both are
+        meant for one Reference and one Secondary.</li>
+    <li><b>Multilook</b> with <i>Output Intensity</i> off and no bands selected averages <code>i</code> and
+        <code>q</code> (a complex average) and recreates the virtual phase band. A <code>Phase</code> band you
+        select yourself is averaged as plain numbers; <code>coh</code> is averaged too.</li>
+    <li><b>Goldstein Phase Filtering</b> uses 64 &times; 64 FFT blocks stepped by a quarter block, a 3 &times; 3
+        spectral smoothing window and, by default, the adaptive &alpha; limited to [0.2, 1.0]. The fixed &alpha;
+        (default 1.0) applies only without a coherence band or with adaptive &alpha; off; coherence no-data (0) is
+        left out of the block mean. The first coherence band
+        drives every interferogram in the product. <i>FFT Block Extent (m)</i> makes blocks square on the
+        ground. <code>coh</code> passes through unfiltered. <i>Use coherence mask</i> (off; threshold 0.2) restores the unfiltered values of
+        low-coherence pixels; no-data coherence does not trigger it.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Estimating coherence from a filtered
+        interferogram: it comes out far too high.</li>
+    <li>Running Azimuth Filter on TOPS bursts, whose Doppler centroid is not constant.</li>
+    <li>Multilooking the <code>Phase</code> band instead of <code>i</code>/<code>q</code>. Wrapped phase averages
+        wrongly near &plusmn;&pi;.</li>
+    <li>Unwrapping without flat-Earth removal. Hundreds of fringes per subswath remain; multilooking then
+        cancels or aliases them.</li>
+    <li>Trusting smooth filtered phase in low-coherence areas. The filter cannot recover missing signal but carries
+        neighbouring fringes into decorrelated areas. Mask with the unfiltered coherence.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SubtRefDemOp.html">Topographic Phase Removal</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/DInSAROp.html">Three-pass Differential InSAR</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/RangeFilterOp.html">Range Filter</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/AzimuthFilterOp.html">Azimuth Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/PhaseFilterOp.html">Phase Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPSAR Deburst</a></li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Gatelli, F., Monti Guarnieri, A., Parizzi, F., Pasquali, P., Prati, C., Rocca, F. (1994). The wavenumber
+        shift in SAR interferometry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 32(4),
+        855&#8211;865. doi:10.1109/36.298013</li>
+    <li>Goldstein, R. M., Werner, C. L. (1998). Radar interferogram filtering for geophysical applications.
+        <i>Geophysical Research Letters</i>, 25(21), 4035&#8211;4038. doi:10.1029/1998GL900033</li>
+    <li>Baran, I., Stewart, M. P., Kampes, B. M., Perski, Z., Lilly, P. (2003). A modification to the Goldstein
+        radar interferogram filter. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 41(9),
+        2114&#8211;2118. doi:10.1109/TGRS.2003.817212</li>
+    <li>Zebker, H. A., Villasenor, J. (1992). Decorrelation in interferometric radar echoes. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 30(5), 950&#8211;959. doi:10.1109/36.175330</li>
+    <li>Bamler, R., Hartl, P. (1998). Synthetic aperture radar interferometry. <i>Inverse Problems</i>, 14(4),
+        R1&#8211;R54. doi:10.1088/0266-5611/14/4/001</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic
+        Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+</ol>
+
+<hr>
+</body>
+</html>

@@ -36,7 +36,9 @@ import java.util.Map;
 public class GeolocationGridGeocodingOpUI extends BaseOperatorUI {
 
     private final JList bandList = new JList();
-    private final JComboBox imgResamplingMethod = new JComboBox(ResamplingFactory.resamplingNames);
+    // only the kernels GeolocationGridGeocodingOp accepts (its imgResamplingMethod valueSet)
+    private final JComboBox imgResamplingMethod = new JComboBox(new String[]{ResamplingFactory.NEAREST_NEIGHBOUR_NAME,
+            ResamplingFactory.BILINEAR_INTERPOLATION_NAME, ResamplingFactory.CUBIC_CONVOLUTION_NAME});
     private final JButton crsButton = new JButton();
     private final MapProjectionHandler mapProjHandler = new MapProjectionHandler();
 

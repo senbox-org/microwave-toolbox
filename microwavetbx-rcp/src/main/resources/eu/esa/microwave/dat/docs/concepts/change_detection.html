@@ -1,0 +1,171 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - SAR Change Detection</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: SAR Change Detection</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>SAR Change Detection</h1>
+
+<p class="lead">Change detection compares SAR images of the same place taken at different times. Because speckle is
+multiplicative, SAR change is measured with ratios rather than differences, and the false-alarm rate is set by the
+number of looks and the threshold. Many apparent changes come from the acquisitions themselves, so compare images with
+the same geometry and processing.</p>
+
+<h2>Why ratios</h2>
+<p>An intensity pixel is the backscatter times a unit-mean speckle term: I = &mu; &middot; n (see
+<a href="speckle.html">Speckle</a>). For two dates,</p>
+<p class="eq">I<sub>1</sub> / I<sub>2</sub> = (&mu;<sub>1</sub> / &mu;<sub>2</sub>) &middot; (n<sub>1</sub> / n<sub>2</sub>)</p>
+<p>Where nothing has changed (&mu;<sub>1</sub> = &mu;<sub>2</sub>), the ratio depends only on speckle, so its
+distribution is the same in dark fields and bright towns. A difference I<sub>1</sub> &#8722; I<sub>2</sub> has a
+standard deviation proportional to &mu;: bright areas would produce far more false alarms than dark ones (Rignot and
+van Zyl, 1993). The logarithm makes the ratio symmetric, so a halving and a doubling are equally large:</p>
+<p class="eq">D = ln(I<sub>1</sub> / I<sub>2</sub>)</p>
+<p class="eq">D<sub>dB</sub> = 10 &middot; log<sub>10</sub>(I<sub>1</sub> / I<sub>2</sub>) = 4.34 &middot; D</p>
+<p>The difference of two images already in dB is this log-ratio in dB. Use calibrated, linear intensity
+(&sigma;<sup>0</sup> or &gamma;<sup>0</sup>) as input. With amplitude, the log-ratio is half as large, and thresholds
+chosen for intensity no longer apply.</p>
+
+<h2>Thresholds and false alarms</h2>
+<p>For two unchanged L-look intensities, D follows a known distribution whose width shrinks with L (Figure 1). A threshold
+that looks generous can still flag most unchanged pixels. At &plusmn;3 dB (a factor of 2) the false-alarm rate is 67%
+for single-look data, 32% at the ENL of a Sentinel-1 GRDH product (4.4), and 5% at 16 looks. Speckle reduction is
+therefore a prerequisite, not an option: multilook, filter both dates the same way, or average over objects such as
+fields.</p>
+<p><img src="images/change_detection_1.png" width="560" height="340" alt="Log-ratio distribution of unchanged pixels for 1, 4.4 and 16 looks with thresholds"></p>
+<p class="figcap">Figure 1. Distribution of the log-ratio D of two unchanged images with L looks each:
+p(D) = &Gamma;(2L) / &Gamma;(L)<sup>2</sup> &middot; e<sup>LD</sup> / (1 + e<sup>D</sup>)<sup>2L</sup>. Dashed lines:
+&plusmn;3 dB and the SNAP default &plusmn;2 (a factor of e<sup>2</sup> &asymp; 7.4, or 8.7 dB).</p>
+<p>Thresholds can be set from the no-change statistics for a chosen false-alarm rate, or found automatically from the
+histogram of D. Bazi et al. (2005) model the changed and unchanged classes with generalised Gaussian distributions and
+pick the threshold that minimises the classification error. Bovolo and Bruzzone (2005) analyse the log-ratio at several
+scales to keep detail near edges. A minimum mapping unit (ignoring isolated changed pixels) removes many remaining false
+alarms.</p>
+
+<h2>Time series</h2>
+<p>A long stack gives better statistics than a pair and shows when a change happened.</p>
+<ul>
+    <li><b>Temporal coefficient of variation</b> (REACTIV, Colin Koeniguer and Nicolas, 2020). For each pixel, the
+        coefficient of variation CV = standard deviation / mean of the amplitude over N dates. A stable pixel has a CV
+        set by speckle alone: about 0.52 for single-look amplitude and 0.23 for about 5 looks. Changes and transient
+        objects raise it. REACTIV shows the result in HSV colour: hue = date of the maximum, saturation = scaled CV,
+        value = brightness (temporal maximum plus mean, normalised). Bright saturated colours mark changes, and their hue tells when.</li>
+    <li><b>Robust principal component analysis</b> (Cand&egrave;s et al., 2011). The stack is arranged as a matrix X,
+        one column per date, and split into a low-rank part L (the stable scene) and a sparse part S (changes and
+        transient targets such as ships or vehicles) by minimising ||L||<sub>*</sub> + &lambda; ||S||<sub>1</sub>
+        subject to X = L + S. ||L||<sub>*</sub> is the sum of singular values of L, ||S||<sub>1</sub> the sum of
+        absolute values of S, and &lambda; sets how sparse S is. Schwartz et al. (2020) apply it to SAR change
+        detection.</li>
+    <li><b>Polarimetric change detection</b> compares full covariance matrices with a likelihood-ratio test
+        (Conradsen et al., 2003); see <a href="wishart.html">Wishart statistics</a>.</li>
+</ul>
+
+<h2>Confounders</h2>
+<ul>
+    <li><b>Geometry.</b> Always compare the same relative orbit: same incidence angle, look direction and layover or
+        shadow pattern. &sigma;<sup>0</sup> of most surfaces falls with incidence angle, and ascending and descending
+        passes see slopes and buildings from opposite sides (see <a href="geometry.html">Geometry</a>).</li>
+    <li><b>Soil moisture and rain.</b> Wetting raises &sigma;<sup>0</sup> of bare soil and sparse vegetation by several
+        dB without any land-cover change. Wet snow lowers it strongly; freezing changes it too.</li>
+    <li><b>Wind on water.</b> Calm water is dark, wind-roughened water can be as bright as land. This dominates false
+        alarms in flood and water mapping.</li>
+    <li><b>Vegetation phenology and farming.</b> Growth, harvest and ploughing are real changes but often not the ones you
+        are looking for.</li>
+    <li><b>Processing.</b> Different calibration or noise removal, misregistration (which creates false changes along
+        edges), and thermal noise in dark or cross-polarised areas.</li>
+</ul>
+
+<h2>In SNAP</h2>
+<p>All operators below need coregistered input: a stack from Create Stack or Coregistration, or, for Polarimetric
+Change Detection, two coregistered products.</p>
+<ul>
+    <li><b>Log Ratio Change Detection</b> (<code>Change-Detection</code>, menu Raster &gt; Change Detection) uses
+        exactly two bands and divides the first selected band by the second. With no selection it takes the first two
+        intensity bands, else the first two amplitude bands. In a dual-pol or multi-date stack, select the two bands
+        explicitly; automatic selection may pair two polarisations of the same date. It writes <code>log_ratio</code> (natural logarithm,
+        default) and optionally <code>difference</code>, <code>ratio</code> and <code>normalized_ratio</code>
+        (I<sub>1</sub> &#8722; I<sub>2</sub>) / (I<sub>1</sub> + I<sub>2</sub>). Each output gets a mask
+        <code>&lt;band&gt;_change</code>: +1 above the upper threshold (default 2.0), &#8722;1 below the lower threshold
+        (default &#8722;2.0), else 0. The same two thresholds apply to every output, whatever its scale. Pixels where
+        either input is zero, negative or no-data are set to 0, so dB input (negative values) does not work.</li>
+    <li><b>REACTIV Change Detection</b> (<code>REACTIV-Change-Detection</code>) needs band names that end with the
+        acquisition date (<code>_ddMMMyyyy</code>, as written by Create Stack) and amplitude or intensity bands;
+        complex input is converted to intensity. It writes <code>hue</code>, <code>saturation</code> and
+        <code>value</code>, and a mask <code>change</code> where saturation exceeds the Mask threshold (default 0.8).
+        With several polarisations it uses the largest CV. The saturation scale is centred on a CV of 0.2286, the
+        theoretical value for amplitude with about 4.9 looks, so it suits amplitude GRD stacks. Intensity input roughly
+        doubles the CV of stable pixels and shifts them up the scale.</li>
+    <li><b>RPCA Change Detection</b> (<code>RPCA-Change-Detection</code>) writes <code>&lt;band&gt;_sparse</code> per
+        input band and a mask <code>&lt;band&gt;_change</code> where the sparse part exceeds the Mask threshold
+        (default 0.05, in the units of the input band). Lambda defaults to 0.01. The <code>_sparse</code> band itself is
+        clipped at 0, so only pixels brighter than the stable scene appear; darkening never does. The matrix has one
+        column per selected band (dates and polarisations alike), and the decomposition runs per processing tile.</li>
+    <li><b>Polarimetric Change Detection</b> (<code>Polarimetric-Change-Detection</code>) takes a reference and a
+        secondary C2, C3, T3 or quad-pol product and writes <code>TestStatistic</code>, <code>ChangeProbability</code> and
+        <code>ChangeMask</code> (window 5, ENL 5 and significance level 0.0001 by default).</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Using dB bands as input to Log Ratio Change Detection: negative values are treated as invalid and the output
+        is mostly 0.</li>
+    <li>Keeping the default &plusmn;2 thresholds for every output. They mean a factor of 7.4 for
+        <code>log_ratio</code>, a meaningless value for <code>normalized_ratio</code> (which lies between &#8722;1 and
+        1), and depend on the image units for <code>difference</code>.</li>
+    <li>Comparing images from different relative orbits, or ascending with descending.</li>
+    <li>Thresholding single-look or unfiltered data: most of the "changes" are speckle.</li>
+    <li>Reading every detected change as land-cover change without checking rain, wind or harvest dates.</li>
+    <li>Reversing the band order and inverting the sign: positive <code>log_ratio</code> means the first band is
+        brighter.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/ChangeDetection.html">Log Ratio Change Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/REACTIVChangeDetectionOp.html">REACTIV Change Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/RPCAChangeDetectionOp.html">RPCA Change Detection</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricChangeDetectionOp.html">Polarimetric Change Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultiTemporalSpeckleFilterOp.html">Multi-Temporal Speckle Filter</a></li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Rignot, E. J. M., van Zyl, J. J. (1993). Change detection techniques for ERS-1 SAR data. <i>IEEE Transactions on
+        Geoscience and Remote Sensing</i>, 31(4), 896&#8211;906. doi:10.1109/36.239913</li>
+    <li>Bazi, Y., Bruzzone, L., Melgani, F. (2005). An unsupervised approach based on the generalized Gaussian model to
+        automatic change detection in multitemporal SAR images. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, 43(4), 874&#8211;887. doi:10.1109/TGRS.2004.842441</li>
+    <li>Bovolo, F., Bruzzone, L. (2005). A detail-preserving scale-driven approach to change detection in multitemporal
+        SAR images. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 43(12), 2963&#8211;2972.
+        doi:10.1109/TGRS.2005.857987</li>
+    <li>Conradsen, K., Nielsen, A. A., Schou, J., Skriver, H. (2003). A test statistic in the complex Wishart distribution
+        and its application to change detection in polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, 41(1), 4&#8211;19. doi:10.1109/TGRS.2002.808066</li>
+    <li>Cand&egrave;s, E. J., Li, X., Ma, Y., Wright, J. (2011). Robust principal component analysis? <i>Journal of the
+        ACM</i>, 58(3), article 11. doi:10.1145/1970392.1970395</li>
+    <li>Colin Koeniguer, E., Nicolas, J.-M. (2020). Change detection based on the coefficient of variation in SAR
+        time-series of urban areas. <i>Remote Sensing</i>, 12(13), 2089. doi:10.3390/rs12132089</li>
+    <li>Schwartz, C., Ramos, L. P., Duarte, L. T., Pinho, M. S., Pettersson, M. I., Vu, V. T., Machado, R. (2020). Change
+        detection in UWB SAR images based on robust principal component analysis. <i>Remote Sensing</i>, 12(12), 1916.
+        doi:10.3390/rs12121916</li>
+</ol>
+
+<hr>
+</body>
+</html>

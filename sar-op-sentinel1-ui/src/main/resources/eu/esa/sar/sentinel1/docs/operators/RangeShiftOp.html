@@ -94,4 +94,33 @@ considered valid, otherwise invalid.<br>
 </ul>
 <img style="width: 450px; height: 450px;" alt="" src="images/RangeShiftUI.jpg"><br>
 
+<!-- params:begin op="Range-Shift" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Range-Shift</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>fineWinWidthStr</code></td><td>String</td><td>512</td><td>32, 64, 128, 256, 512, 1024, 2048</td><td>&nbsp;</td><td>Registration Window Width</td></tr>
+<tr><td><code>fineWinHeightStr</code></td><td>String</td><td>512</td><td>32, 64, 128, 256, 512, 1024, 2048</td><td>&nbsp;</td><td>Registration Window Height</td></tr>
+<tr><td><code>fineWinAccAzimuth</code></td><td>String</td><td>16</td><td>2, 4, 8, 16, 32, 64</td><td>&nbsp;</td><td>Search Window Accuracy in Azimuth Direction</td></tr>
+<tr><td><code>fineWinAccRange</code></td><td>String</td><td>16</td><td>2, 4, 8, 16, 32, 64</td><td>&nbsp;</td><td>Search Window Accuracy in Range Direction</td></tr>
+<tr><td><code>fineWinOversampling</code></td><td>String</td><td>128</td><td>32, 64, 128, 256</td><td>&nbsp;</td><td>Window oversampling factor</td></tr>
+<tr><td><code>xCorrThreshold</code></td><td>double</td><td>0.1</td><td>(0, *)</td><td>&nbsp;</td><td>The peak cross-correlation threshold</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_s1_dinsar.html">Sentinel-1 IW DInSAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Sentinel-1 product that is a split product with a single sub-swath.</li>
+    <li>Recommended: the coregistered output of <a href="BackGeocodingOp.html">Back Geocoding</a>, as the page describes (the code does not check for it).</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="AzimuthShiftOp.html">Azimuth Shift</a></li>
+</ul>
+<!-- footer:end -->
 <hr></body></html>

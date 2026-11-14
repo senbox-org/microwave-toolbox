@@ -22,7 +22,7 @@
 
 
 <p>It is possible to stack several interferograms of the same site to increase their clarity or reduce the number of
-    fringes, thus creating an integer interferogram combination (IIC) [R13]. The combined interferogram can
+    fringes, thus creating an integer interferogram combination (IIC) [1]. The combined interferogram can
     have a better altitude of ambiguity <i>h<sub>a</sub></i> than any of the source interferograms.</p>
 
 <p>After correction for topographic and orbital contributions,
@@ -83,6 +83,32 @@
 
 <br>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Massonnet, D., Vadon, H., Rossi, M. (1996). Reduction of the need for phase unwrapping in radar interferometry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 34(2), 489&#8211;497. doi:10.1109/36.485126</li>
+    <li>Massonnet, D., Feigl, K. L. (1998). Radar interferometry and its application to changes in the Earth's surface. <i>Reviews of Geophysics</i>, 36(4), 441&#8211;500. doi:10.1029/97RG03139</li>
+</ol>
+<!-- params:begin op="IntegerInterferogram" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>IntegerInterferogram</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<p>This operator has no processing parameters.</p>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two coregistered stack products of SAR data, each with secondary metadata</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a> to unwrap the integer interferogram</li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Supported Missions</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Supported Missions and Readers</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<p>This page lists the product readers of the Microwave Toolbox for SAR missions, SAR file formats and
+the CIMR radiometer, with the files each one opens and a link to its help page. Most readers are under
+<i>File &gt; Import &gt; SAR Sensors</i> or <i>SAR Formats</i>. <b>File &gt; Open Product</b> picks the
+reader automatically, except for Generic Binary and Complex Generic Binary, which need their import
+dialog.</p>
+
+<h2>Readers</h2>
+<p>The reader column gives the format name used in <i>File &gt; Open Product</i>, in graphs
+(<code>Read</code> operator, <code>formatName</code>) and in <code>gpt</code>. "(folder or file name)"
+means that the reader recognises the product by its file names rather than by an extension.</p>
+<!-- missions:begin -->
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Mission or format</th><th>Reader (format name)</th><th>File extensions</th><th>Help page</th></tr>
+    <tr><td>ALOS PALSAR</td><td>ALOS PALSAR CEOS</td><td>VOL-ALPSR volume file, .zip</td><td><a href="readers/ImportAlosPalsar.html">ALOS PALSAR</a></td></tr>
+    <tr><td>ALOS-2</td><td>ALOS-2 CEOS</td><td>VOL-ALOS2 volume file, .zip</td><td><a href="readers/ImportAlos2.html">ALOS-2</a></td></tr>
+    <tr><td>ALOS-2</td><td>ALOS-2 GeoTIFF</td><td>.tif (summary.txt alongside)</td><td><a href="readers/ImportAlos2.html">ALOS-2</a></td></tr>
+    <tr><td>ALOS-4</td><td>ALOS-4 CEOS</td><td>VOL-ALOS4 volume file, .zip</td><td><a href="readers/ImportAlos4.html">ALOS-4</a></td></tr>
+    <tr><td>ALOS-4</td><td>ALOS-4 GeoTIFF</td><td>.tif (summary-*.txt alongside)</td><td><a href="readers/ImportAlos4.html">ALOS-4</a></td></tr>
+    <tr><td>BIOMASS</td><td>BIOMASS</td><td>.xml, .zip</td><td><a href="readers/ImportBiomass.html">BIOMASS</a></td></tr>
+    <tr><td>Capella</td><td>Capella</td><td>.json</td><td><a href="readers/ImportCapella.html">Capella</a></td></tr>
+    <tr><td>CEOS (generic fallback)</td><td>Basic CEOS</td><td>VDF or VOL volume file</td><td><a href="readers/ImportBasicCeos.html">CEOS (generic fallback)</a></td></tr>
+    <tr><td>CIMR (microwave radiometer)</td><td>CIMR-L1B</td><td>.nc</td><td><a href="readers/ImportCimrL1B.html">CIMR (microwave radiometer)</a></td></tr>
+    <tr><td>Complex generic binary (format)</td><td>Complex Binary</td><td>.bin, .raw, .cpx, .cr4, .ci2</td><td><a href="readers/ImportComplexGenericBinary.html">Complex generic binary (format)</a></td></tr>
+    <tr><td>COSMO-SkyMed</td><td>CosmoSkymed</td><td>.h5</td><td><a href="readers/ImportCosmoSkymed.html">COSMO-SkyMed</a></td></tr>
+    <tr><td>COSMO-SkyMed</td><td>CosmoSkymedGDAL</td><td>.tif, .attribs.xml</td><td><a href="readers/ImportCosmoSkymed.html">COSMO-SkyMed</a></td></tr>
+    <tr><td>DLR RAT (format)</td><td>RAT</td><td>.rat.hdr</td><td><a href="readers/ImportRAT.html">DLR RAT (format)</a></td></tr>
+    <tr><td>Envisat ASAR</td><td>ENVISAT (SNAP core)</td><td>.n1, .zip, .gz</td><td><a href="readers/ImportEnvisat.html">Envisat ASAR</a></td></tr>
+    <tr><td>EOS-04</td><td>EOS-04</td><td>BAND_META.txt</td><td><a href="readers/ImportRISAT.html#eos04">EOS-04</a></td></tr>
+    <tr><td>ERS-1/2</td><td>ENVISAT (SNAP core)</td><td>.e1, .e2, .zip, .gz</td><td><a href="readers/ImportErs.html">ERS-1/2</a></td></tr>
+    <tr><td>ERS-1/2</td><td>ERS CEOS</td><td>VDF volume file, .zip</td><td><a href="readers/ImportErs.html">ERS-1/2</a></td></tr>
+    <tr><td>Gamma (format)</td><td>Gamma</td><td>.par, .diff_par</td><td><a href="readers/ImportGamma.html">Gamma (format)</a></td></tr>
+    <tr><td>Gaofen-3</td><td>Gaofen3</td><td>.meta.xml</td><td><a href="readers/ImportGaofen3.html">Gaofen-3</a></td></tr>
+    <tr><td>Generic binary (format)</td><td>Generic Binary</td><td>.bin, .bil, .bsq, .bip, .img, .ras, .dat</td><td><a href="readers/ImportGenericBinary.html">Generic binary (format)</a></td></tr>
+    <tr><td>ICEYE</td><td>ICEYE (legacy HDF5)</td><td>.h5, .xml</td><td><a href="readers/ImportIceye.html">ICEYE</a></td></tr>
+    <tr><td>ICEYE</td><td>ICEYE COG</td><td>.tif, .xml, .json</td><td><a href="readers/ImportIceyeCOG.html">ICEYE</a></td></tr>
+    <tr><td>JERS-1</td><td>JERS CEOS</td><td>VDF, VOL or 01 volume file, .zip</td><td><a href="readers/ImportJERSCeos.html">JERS-1</a></td></tr>
+    <tr><td>KOMPSAT-5</td><td>Kompsat5</td><td>.h5, .tif, .aux.xml</td><td><a href="readers/ImportKompsat-5.html">KOMPSAT-5</a></td></tr>
+    <tr><td>NISAR</td><td>NISAR</td><td>.h5</td><td><a href="readers/ImportNisar.html">NISAR</a></td></tr>
+    <tr><td>PAZ</td><td>PAZ</td><td>.xml</td><td><a href="readers/ImportPaz.html">PAZ</a></td></tr>
+    <tr><td>PCIDSK (format)</td><td>GDAL-PCIDSK-READER (SNAP core)</td><td>.pix</td><td><a href="readers/ImportPCIDSK.html">PCIDSK (format)</a></td></tr>
+    <tr><td>PolSARPro (format)</td><td>PolSARPro</td><td>.hdr (config.txt alongside)</td><td><a href="readers/ImportPolsarPro.html">PolSARPro (format)</a></td></tr>
+    <tr><td>QPS-SAR</td><td>QPS-SAR</td><td>.tif, .xml, .json</td><td><a href="readers/ImportQPSSAR.html">QPS-SAR</a></td></tr>
+    <tr><td>RADARSAT Constellation Mission (RCM)</td><td>RCM</td><td>product folder, manifest.safe, .zip</td><td><a href="nbdocs://org.csa.rstb.rstb.io/org/csa/rstb/rstb/io/docs/readers/ImportRCM.html">RADARSAT Constellation Mission (RCM)</a></td></tr>
+    <tr><td>RADARSAT-1</td><td>RADARSAT-1</td><td>VDF or VOL volume file, .zip</td><td><a href="nbdocs://org.csa.rstb.rstb.io/org/csa/rstb/rstb/io/docs/readers/ImportRadarsat1.html">RADARSAT-1</a></td></tr>
+    <tr><td>RADARSAT-2</td><td>RADARSAT-2</td><td>.xml, .zip</td><td><a href="nbdocs://org.csa.rstb.rstb.io/org/csa/rstb/rstb/io/docs/readers/ImportRadarsat2.html">RADARSAT-2</a></td></tr>
+    <tr><td>RISAT-1</td><td>RISAT-1</td><td>.txt, .zip</td><td><a href="readers/ImportRISAT.html">RISAT-1</a></td></tr>
+    <tr><td>SAOCOM</td><td>SAOCOM</td><td>.xemt</td><td><a href="readers/ImportSAOCOM.html">SAOCOM</a></td></tr>
+    <tr><td>Seasat</td><td>SeaSat</td><td>.xml, .zip</td><td><a href="readers/ImportSeaSat.html">Seasat</a></td></tr>
+    <tr><td>Sentinel-1</td><td>SENTINEL-1</td><td>.safe, .zip</td><td><a href="readers/ImportSentinel1.html">Sentinel-1</a></td></tr>
+    <tr><td>Sentinel-1</td><td>SENTINEL-1 COG</td><td>.safe, .zip</td><td><a href="readers/ImportSentinel1.html">Sentinel-1</a></td></tr>
+    <tr><td>Sentinel-1 ETAD</td><td>SENTINEL-1 ETAD</td><td>.safe, .zip</td><td><a href="readers/ImportSentinel1ETAD.html">Sentinel-1 ETAD</a></td></tr>
+    <tr><td>SNAPHU (format)</td><td>SNAPHU</td><td>.snaphu.hdr</td><td><a href="readers/ImportSnaphu.html">SNAPHU (format)</a></td></tr>
+    <tr><td>Spacety</td><td>Spacety</td><td>.safe, .zip</td><td><a href="readers/ImportSpacety.html">Spacety</a></td></tr>
+    <tr><td>StriX</td><td>StriX</td><td>VOL-STRIX volume file, .zip</td><td><a href="readers/ImportStriX.html">StriX</a></td></tr>
+    <tr><td>StriX</td><td>StriX GRD</td><td>.xml</td><td><a href="readers/ImportStriX.html">StriX</a></td></tr>
+    <tr><td>TerraSAR-X / TanDEM-X</td><td>TerraSarX</td><td>.xml</td><td><a href="readers/ImportTerraSarX.html">TerraSAR-X / TanDEM-X</a></td></tr>
+    <tr><td>UAVSAR</td><td>UAVSAR</td><td>.slc, .mlc, .grd (.ann alongside)</td><td><a href="readers/ImportUAVSAR.html">UAVSAR</a></td></tr>
+</table>
+<!-- missions:end -->
+
+<h2>Notes</h2>
+<ul>
+    <li>Readers marked "(SNAP core)" belong to SNAP itself; their pages here describe the SAR products.</li>
+    <li>The table is generated from the reader sources with <code>tools/javahelp/gen_missions.py</code>.</li>
+</ul>
+
+<hr>
+</body>
+</html>

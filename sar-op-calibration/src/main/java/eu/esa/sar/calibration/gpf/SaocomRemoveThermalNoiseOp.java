@@ -33,7 +33,9 @@ import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
 
 import java.awt.*;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -80,6 +82,9 @@ public class SaocomRemoveThermalNoiseOp extends Operator {
 
     private static final float FLOOR_VALUE = 1e-5f;
 
+    /** Abstracted-metadata flag written by this operator: "true" after removal, "false" after re-introduction. */
+    static final String NOISE_REMOVED_FLAG = "thermal_noise_removed";
+
     @Override
     public void initialize() throws OperatorException {
         try {
@@ -88,6 +93,16 @@ public class SaocomRemoveThermalNoiseOp extends Operator {
             final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION);
             if (!mission.equalsIgnoreCase("SAOCOM")) {
                 throw new OperatorException("This operator only supports SAOCOM products. Found: " + mission);
+            }
+            if (removeThermalNoise && reIntroduceThermalNoise) {
+                throw new OperatorException("Select either remove or re-introduce thermal noise");
+            }
+            final boolean noiseRemoved = Boolean.parseBoolean(absRoot.getAttributeString(NOISE_REMOVED_FLAG, "false"));
+            if (removeThermalNoise && noiseRemoved) {
+                throw new OperatorException("Thermal noise has already been removed");
+            }
+            if (reIntroduceThermalNoise && !noiseRemoved) {
+                throw new OperatorException("Thermal noise has not been removed");
             }
 
             imageWidth = sourceProduct.getSceneRasterWidth();
@@ -221,9 +236,18 @@ public class SaocomRemoveThermalNoiseOp extends Operator {
 
         ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
+        final List<String> selected = selectedPolarisations == null || selectedPolarisations.length == 0 ? null :
+                Arrays.stream(selectedPolarisations).map(String::toUpperCase).toList();
+        boolean noiseApplied = false;
+
         for (Band srcBand : sourceProduct.getBands()) {
             final String unit = srcBand.getUnit();
             if (unit == null) continue;
+
+            final String pol = OperatorUtils.getPolarizationFromBandName(srcBand.getName());
+            if (selected != null && (pol == null || !selected.contains(pol.toUpperCase()))) {
+                continue;
+            }
 
             if (srcBand instanceof VirtualBand) {
                 ProductUtils.copyVirtualBand(targetProduct, (VirtualBand) srcBand, srcBand.getName());
@@ -235,6 +259,9 @@ public class SaocomRemoveThermalNoiseOp extends Operator {
 
                 final Band targetBand = ProductUtils.copyBand(srcBand.getName(), sourceProduct, targetProduct, false);
                 targetBand.setSourceImage(null);
+                if (pol != null && noiseLuts.containsKey(pol.toUpperCase())) {
+                    noiseApplied = true;
+                }
 
                 if (isComplex) {
                     // Complex bands come in I/Q pairs
@@ -262,9 +289,15 @@ public class SaocomRemoveThermalNoiseOp extends Operator {
             }
         }
 
-        // Update metadata
-        final MetadataElement tgtAbsRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
-        tgtAbsRoot.setAttributeString("thermal_noise_removed", "true");
+        if (selected != null && targetBandNameToSourceBandName.isEmpty()) {
+            throw new OperatorException("No bands found for the selected polarisations " + selected);
+        }
+
+        // Record the noise state only when a noise LUT was actually applied
+        if (noiseApplied && (removeThermalNoise || reIntroduceThermalNoise)) {
+            final MetadataElement tgtAbsRoot = AbstractMetadata.getAbstractedMetadata(targetProduct);
+            tgtAbsRoot.setAttributeString(NOISE_REMOVED_FLAG, String.valueOf(removeThermalNoise));
+        }
     }
 
     @Override
@@ -296,7 +329,12 @@ public class SaocomRemoveThermalNoiseOp extends Operator {
                 srcData2 = getSourceTile(sourceBand2, rect).getDataBuffer();
             }
 
-            final Unit.UnitType bandUnit = Unit.getUnitType(sourceBand1);
+            // Unit of the band being written: a q target band reads {i, q} but must write q
+            final Unit.UnitType bandUnit = Unit.getUnitType(targetBand);
+            final boolean complexComponent = bandUnit == Unit.UnitType.REAL || bandUnit == Unit.UnitType.IMAGINARY;
+            // i, q and amplitude are amplitude-domain samples: the noise is handled in power, and the sample
+            // is then scaled by sqrt(P'/P) so the band keeps its unit (amplitude in, amplitude out)
+            final boolean scaledComponent = complexComponent || bandUnit == Unit.UnitType.AMPLITUDE;
             final String bandPol = OperatorUtils.getPolarizationFromBandName(targetBand.getName());
             final double[] noiseLut = bandPol != null ? noiseLuts.get(bandPol.toUpperCase()) : null;
 
@@ -317,29 +355,34 @@ public class SaocomRemoveThermalNoiseOp extends Operator {
                     final int tgtIdx = tgtIndex.getIndex(x);
 
                     double dn2;
+                    double component = 0;   // the i, q or amplitude sample of this target band
+                    // The source sample itself (amplitude, i or intensity) is tested against no-data, never the
+                    // derived power: a fill of -9999 has amp^2 = 99980001 and would otherwise be processed as data
+                    final double sample = srcData1.getElemDoubleAt(srcIdx);
 
                     if (bandUnit == Unit.UnitType.AMPLITUDE) {
-                        double amp = srcData1.getElemDoubleAt(srcIdx);
-                        dn2 = amp * amp;
-                    } else if (bandUnit == Unit.UnitType.REAL) {
-                        double i = srcData1.getElemDoubleAt(srcIdx);
+                        component = sample;
+                        dn2 = component * component;
+                    } else if (complexComponent) {
+                        double i = sample;
                         double q = srcData2 != null ? srcData2.getElemDoubleAt(srcIdx) : 0;
+                        component = bandUnit == Unit.UnitType.IMAGINARY ? q : i;
                         dn2 = i * i + q * q;
                     } else if (bandUnit == Unit.UnitType.INTENSITY) {
-                        dn2 = srcData1.getElemDoubleAt(srcIdx);
+                        dn2 = sample;
                     } else {
-                        tgtData.setElemDoubleAt(tgtIdx, srcData1.getElemDoubleAt(srcIdx));
+                        tgtData.setElemDoubleAt(tgtIdx, sample);
                         continue;
                     }
 
-                    if (dn2 == noDataValue) {
+                    if (sample == noDataValue) {
                         tgtData.setElemDoubleAt(tgtIdx, noDataValue);
                         continue;
                     }
 
                     if (noiseLut == null || noiseLut.length == 0) {
                         // No noise data available — pass through
-                        tgtData.setElemDoubleAt(tgtIdx, dn2);
+                        tgtData.setElemDoubleAt(tgtIdx, scaledComponent ? component : dn2);
                         continue;
                     }
 
@@ -357,14 +400,13 @@ public class SaocomRemoveThermalNoiseOp extends Operator {
                         value = dn2;
                     }
 
-                    // For complex data, preserve the phase by scaling amplitude
-                    if (isComplex && bandUnit == Unit.UnitType.REAL && dn2 > 0) {
-                        double scale = Math.sqrt(Math.max(value, 0) / dn2);
-                        tgtData.setElemDoubleAt(tgtIdx, srcData1.getElemDoubleAt(srcIdx) * scale);
-                    } else if (isComplex && bandUnit == Unit.UnitType.IMAGINARY && dn2 > 0) {
-                        // For imaginary band, get the matching real value to compute power
-                        // The noise was already subtracted from the real band's power
-                        tgtData.setElemDoubleAt(tgtIdx, srcData1.getElemDoubleAt(srcIdx));
+                    // For complex data, preserve the phase: i and q are both scaled by the same
+                    // real factor sqrt(|z'|^2 / |z|^2), so only the amplitude changes.
+                    // For amplitude bands the same factor gives amp' = sqrt(max(P', 0)), with the
+                    // clip floor already applied in power; amp = 0 gives 0.
+                    if (scaledComponent) {
+                        final double scale = dn2 > 0 ? Math.sqrt(Math.max(value, 0) / dn2) : 0;
+                        tgtData.setElemDoubleAt(tgtIdx, component * scale);
                     } else {
                         tgtData.setElemDoubleAt(tgtIdx, value);
                     }

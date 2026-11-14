@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Sentinel-1 GRD to Terrain-Flattened Backscatter</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Workflows: Sentinel-1 GRD to Terrain-Flattened Backscatter</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Sentinel-1 GRD to Terrain-Flattened Backscatter</h1>
+
+<p class="lead">This chain turns a Sentinel-1 GRD product into terrain-flattened &gamma;<sup>0</sup>
+(&gamma;<sup>0</sup><sub>T</sub>) on a map grid. The backscatter is normalised by the true illuminated area, so values
+can be compared across dates, orbits and slopes. This is what is usually called analysis-ready backscatter. Input: one
+Sentinel-1 IW or EW GRD product.</p>
+
+<h2>Before you start</h2>
+<ul>
+    <li><b>Data:</b> a Sentinel-1 GRD product (<code>.SAFE</code> folder or zip). For a time series, process every date
+        with the same chain and the same DEM.</li>
+    <li><b>Orbits:</b> precise orbit files are downloaded automatically. They exist about 20 days after acquisition;
+        for newer data use restituted orbits.</li>
+    <li><b>DEM:</b> Terrain Flattening and Terrain Correction both download the Copernicus 30 m DEM by default. Use the
+        same DEM in both steps.</li>
+    <li><b>Graphs:</b> SNAP ships no ready-made graph for the full chain. Build it once in the Graph Builder, save it,
+        and run it on many products with Batch Processing. The Graph Builder menu <i>Graphs &gt; Radar &gt; Standard
+        Graphs</i> holds partial graphs (Calibrate, Orthorectify).</li>
+</ul>
+
+<h2>Steps</h2>
+<ol>
+    <li><b>Apply Orbit File</b> (<code>Apply-Orbit-File</code>, Radar menu;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">help</a>).
+        <i>Orbit State Vectors</i> defaults to <code>Sentinel Precise (Auto Download)</code>. Switch to
+        <code>Sentinel Restituted</code> for data younger than about three weeks. <i>Do not fail if new orbit file is
+        not found</i> is off by default, so the run stops rather than silently keeping the annotated orbit.</li>
+    <li><b>S-1 Remove GRD Border Noise</b> (<code>Remove-GRD-Border-Noise</code>, Radar &gt; Sentinel-1 TOPS;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/RemoveGRDBorderNoise.html">help</a>).
+        Apply it first: it refuses calibrated input, and after Thermal Noise Removal dark surfaces at the image edge are
+        more easily mistaken for border noise (the Bidirectional method logs a warning). <i>Border detection method</i> defaults to
+        <code>Auto</code>. Products from IPF 2.90 onwards are already masked by the processor and pass through unchanged,
+        unless you tick <i>Also process products from IPF 2.90 and later</i> (off by default).</li>
+    <li><b>S-1 Thermal Noise Removal</b> (<code>ThermalNoiseRemoval</code>, Radar &gt; Radiometric;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/ThermalNoiseRemoval.html">help</a>).
+        <i>Remove Thermal Noise</i> is on by default. <i>Clip Negative Values</i> is also on (floor
+        10<sup>&#8722;5</sup>). Turn it off if you will average the result later (composites, large-window statistics),
+        because clipping biases averages upward. The operator refuses multilooked or resampled input and products from
+        IPF versions older than 2.50.</li>
+    <li><b>Calibrate</b> (<code>Calibration</code>, Radar &gt; Radiometric;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">help</a>).
+        Tick <i>Output beta0 band</i>; by default only <i>Output sigma0 band</i> is on. Leave <i>Scale in dB</i> off
+        (the default). If you skip this step, Terrain Flattening calibrates uncalibrated input to &beta;<sup>0</sup>
+        itself.</li>
+    <li><b>Radiometric Terrain Flattening</b> (<code>Terrain-Flattening</code>, Radar &gt; Radiometric;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/TerrainFlatteningOp.html">help</a>).
+        It reads the <code>Beta0_&lt;pol&gt;</code> bands and writes &gamma;<sup>0</sup><sub>T</sub> as
+        <code>Gamma0_&lt;pol&gt;</code>, still in radar geometry. <i>Digital Elevation Model</i> defaults to
+        <code>Copernicus 30m Global DEM</code>. <i>Output Terrain Flattened Sigma0</i> is off by default. With an external
+        DEM in geoid heights, tick <i>External DEM Apply EGM</i>: here it is off by default, unlike in Terrain
+        Correction.</li>
+    <li><b>Speckle filtering</b>, optional (<code>Speckle-Filter</code>, Radar &gt; Speckle Filtering &gt; Single
+        Product Speckle Filter;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">help</a>).
+        The default filter is <code>Lee Sigma</code>. For a stack of dates the Multi-temporal Speckle Filter keeps more
+        spatial detail. Skip this step if you will average over fields or polygons anyway.</li>
+    <li><b>Range-Doppler Terrain Correction</b> (<code>Terrain-Correction</code>, Radar &gt; Geometric &gt; Terrain
+        Correction;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">help</a>).
+        Use the same DEM as in step 5 (default <code>Copernicus 30m Global DEM</code>). <i>Pixel Spacing (m)</i> 0, the
+        default, takes the finer of the ground-range and azimuth spacing: 10 m for IW GRDH. <i>Map Projection</i> defaults
+        to <code>WGS84(DD)</code>; choose a UTM zone if you need metric pixels. Leave <i>Apply radiometric
+        normalization</i> off and tick <i>Save layover shadow mask</i> for quality control.</li>
+    <li><b>Convert to dB</b> for display only (<code>LinearToFromdB</code>, Raster &gt; Data Conversion). Keep the
+        linear bands for any averaging or statistics.</li>
+</ol>
+
+<h2>Check the result</h2>
+<ul>
+    <li><b>Slopes:</b> in mountains, slopes facing the radar and slopes facing away should have similar brightness
+        over the same land cover. Bright foreslopes mean that flattening was not applied, or that you are looking at the
+        <code>Gamma0</code> band from Calibrate instead of the one from Terrain Flattening.</li>
+    <li><b>Layover and shadow:</b> overlay <code>layoverShadowMask</code>. Values inside layover (1), shadow (2) or both
+        (3) are not reliable.</li>
+    <li><b>Edges and seams:</b> there should be no bright or dark strips along the near- and far-range borders, and no
+        noise bands at the sub-swath seams of the cross-polarised channel.</li>
+    <li><b>Geolocation:</b> coastlines and roads should line up with a reference map. A systematic shift points to a
+        missing orbit update or an external DEM in the wrong height datum.</li>
+</ul>
+
+<h2>Common pitfalls</h2>
+<ul>
+    <li>Calibrating to Sigma0 only: Terrain Flattening then stops with "TerrainFlattening requires beta0 or T3, C3, C2
+        as input".</li>
+    <li>Ticking <i>Scale in dB</i> before Terrain Flattening. It does not check the unit and treats
+        <code>Beta0_VV_dB</code> as linear.</li>
+    <li>Ticking <i>Apply radiometric normalization</i> in Terrain Correction on Terrain Flattening output. The
+        incidence correction is then applied twice.</li>
+    <li>Comparing a <code>Gamma0</code> band from Calibrate (ellipsoid &gamma;<sup>0</sup>) with one from Terrain
+        Flattening. They have the same name but are different quantities; check the processing graph in the
+        metadata.</li>
+    <li>Averaging or compositing in dB. The mean of dB values is biased low.</li>
+</ul>
+
+<h2>Background</h2>
+<ul>
+    <li><a href="../concepts/radiometry.html">Radiometric quantities and calibration</a></li>
+    <li><a href="../concepts/geometry.html">SAR geometry and geometric distortions</a></li>
+    <li><a href="../concepts/height_references.html">DEMs and height references</a></li>
+    <li><a href="../concepts/speckle.html">Speckle and multilooking</a></li>
+    <li><a href="../concepts/orbits_etad.html">Orbits and timing corrections</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

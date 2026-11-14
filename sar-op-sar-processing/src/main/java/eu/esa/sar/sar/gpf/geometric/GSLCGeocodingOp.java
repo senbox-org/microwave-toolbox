@@ -104,7 +104,8 @@ public class GSLCGeocodingOp extends Operator {
                     + "for Sentinel-1 IW that is the azimuth spacing (~14 m) while native ground-range "
                     + "sampling is ~3.5 m, so about 4x of range detail is discarded. "
                     + "NATIVE_ANISOTROPIC (default): rectangular cells at native sampling on both axes — "
-                    + "nothing discarded, ~4x the pixels of SQUARE_COARSEST. "
+                    + "nothing discarded, ~6x the pixels of SQUARE_COARSEST (the range step is the "
+                    + "slant-range spacing, ~2.3 m for Sentinel-1 IW, so range is slightly oversampled). "
                     + "SQUARE_FINEST: square cells at the finer axis — nothing discarded and pixels stay "
                     + "square, but ~16x the pixels. "
                     + "Each choice yields a different grid step and therefore a different standard-grid "
@@ -204,21 +205,25 @@ public class GSLCGeocodingOp extends Operator {
     private boolean saveLayoverShadowMask = false;
 
     /**
-     * When {@code true}, the geometric carrier {@code exp(-j·4π·R(P_terrain)/λ)} is removed
-     * from each output complex pixel, leaving only the local scattering coefficient σ(P).
-     * That looks tidy, but it also <em>destroys</em> the InSAR signal: for a master/slave
-     * pair, both legs collapse to σ(P) and their conjugate product is identically real —
-     * no fringes. The default is therefore {@code false}, which keeps the natural SLC
-     * carrier so that downstream {@code master · conj(slave)} carries the differential
-     * phase {@code -j·4π·(R_M − R_S)/λ} (the flat-Earth + topographic + deformation +
-     * atmospheric signal). Set {@code true} only for non-InSAR use cases (e.g. amplitude
-     * analysis where you want a phase-clean complex band).
+     * When {@code true}, each resampled pixel is multiplied by {@code exp(+j·4π·R_mod/λ)}
+     * AFTER the interpolation kernel, where {@code R_mod} is the orbit+DEM slant-range model.
+     * This removes the modelled range phase only: the output keeps the scattering phase plus
+     * the unmodelled range (deformation, atmosphere, DEM and orbit errors), so a flattened
+     * Reference/Secondary pair is already a topography-removed interferogram. SNAP's
+     * Interferogram reads the {@code gslc_output_flattened} stamp: when every leg of the stack
+     * is flattened it does not subtract the flat-Earth/reference phase again, and it refuses a
+     * stack that mixes flattened and natural-phase legs. The default is {@code false}: the output
+     * keeps the natural SLC phase {@code -4π·R/λ + ψ_scat} and {@code ref · conj(sec)} carries
+     * {@code exp(-j·4π·(R_ref − R_sec)/λ)}. Either way the modelled phase is written to the
+     * {@code flatteningPhase} band when {@link #outputPhaseTerms} is on.
      */
-    @Parameter(defaultValue = "false", label = "Output phase-flattened complex data (not for InSAR)",
-            description = "If true, removes the SLC geometric carrier (4π·R/λ) so each " +
-                    "complex pixel holds only the local scattering coefficient. This makes " +
-                    "the GSLC unusable for InSAR — the (R_master − R_slave) phase difference " +
-                    "is zeroed out. Leave false (default) for InSAR pipelines.")
+    @Parameter(defaultValue = "false", label = "Output phase-flattened complex data",
+            description = "If true, multiplies each resampled pixel by exp(+j·4π·R_mod/λ), removing " +
+                    "the orbit+DEM range phase; deformation, atmosphere, DEM and orbit errors remain, so " +
+                    "a flattened pair is already a topography-removed interferogram. Interferogram " +
+                    "supports this when every product in the stack is flattened (it then does not " +
+                    "subtract the flat-Earth phase again); it refuses a stack that mixes flattened " +
+                    "and un-flattened products.")
     private boolean outputFlattened = false;
 
     @Parameter(description = "Restore the native TOPS azimuth (deramp) carrier in the output. " +
@@ -291,8 +296,8 @@ public class GSLCGeocodingOp extends Operator {
     @Parameter(defaultValue = "0.0",
             label = "Slant-range offset (pixels)",
             description = "Constant offset (in slant-range pixels) added to the geometric " +
-                    "sampling position. Used to apply a cross-correlation-derived (master − " +
-                    "slave) bias when geocoding a slave for InSAR.")
+                    "sampling position. Used to apply a cross-correlation-derived (Secondary − " +
+                    "Reference) bias when geocoding a Secondary for InSAR.")
     private double rangeOffsetPixels = 0.0;
 
     /**
@@ -305,7 +310,7 @@ public class GSLCGeocodingOp extends Operator {
             label = "Azimuth offset (pixels)",
             description = "Constant offset (in azimuth pixels) added to the geometric " +
                     "sampling position. Pairs with rangeOffsetPixels for scalar-bias " +
-                    "coregistration of an InSAR slave.")
+                    "coregistration of an InSAR Secondary.")
     private double azimuthOffsetPixels = 0.0;
 
     /**
@@ -340,14 +345,21 @@ public class GSLCGeocodingOp extends Operator {
 
     @Parameter(defaultValue = "false",
             label = "Apply Solid Earth Tide correction",
-            description = "Apply solid Earth tide displacement to the target geometry " +
-                    "before slant-range computation (~10 cm peak; required for displacement-grade InSAR).")
+            description = "Displace each ground point by the modelled solid Earth body tide " +
+                    "(IERS 2010, up to ~30 cm vertical) before the range solve. This shifts the sampling " +
+                    "position by a sub-pixel amount and changes the modelled range. In the default " +
+                    "(unflattened) mode only the flatteningPhase band (written when Output separable phase terms is on) carries the tide phase. With " +
+                    "phase-flattened output the modelled tide is also removed from the pixels, so the " +
+                    "differential tide is removed from an Interferogram of a fully flattened stack.")
     private boolean applySolidEarthTide = false;
 
     @Parameter(defaultValue = "false",
             label = "Apply tropospheric correction",
-            description = "Apply the Saastamoinen dry tropospheric path delay to the slant range " +
-                    "before phase computation. Uses a standard atmosphere model (no real-time meteo).")
+            description = "Add the Saastamoinen dry tropospheric path delay (standard atmosphere, " +
+                    "no meteorological data) to the modelled slant range; the sampling position is not " +
+                    "changed. In the default (unflattened) mode only the flatteningPhase band (written when Output separable phase terms is on) changes. " +
+                    "With phase-flattened output the modelled delay is also removed from the pixels, so " +
+                    "the differential delay is removed from an Interferogram of a fully flattened stack.")
     private boolean applyTroposphericCorrection = false;
 
     private MetadataElement absRoot = null;
@@ -429,6 +441,18 @@ public class GSLCGeocodingOp extends Operator {
     private int subSwathIndex = 0;
 
     public static final String externalDEMStr = "External DEM";
+
+    /**
+     * Value for the abstracted-metadata DEM stamp, which CreateStack reads back to geocode
+     * Secondaries on the same DEM. The external file is stamped only when demName selects it
+     * (as in getElevationModel); otherwise the file was never read.
+     */
+    static String getDemStamp(final String demName, final File externalDEMFile) {
+        if (demName != null && demName.contains(externalDEMStr) && externalDEMFile != null) {
+            return externalDEMFile.getPath();
+        }
+        return demName;
+    }
     private static final String PRODUCT_SUFFIX = "_GSLC";
     private static final double lightSpeedInMetersPerSecond = 299792458.0;
 
@@ -1793,11 +1817,7 @@ public class GSLCGeocodingOp extends Operator {
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.map_projection, targetCRS.getName().getCode());
         
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.is_terrain_corrected, 1);
-        if (externalDEMFile != null) {
-            AbstractMetadata.setAttribute(absTgt, AbstractMetadata.DEM, externalDEMFile.getPath());
-        } else {
-            AbstractMetadata.setAttribute(absTgt, AbstractMetadata.DEM, demName);
-        }
+        AbstractMetadata.setAttribute(absTgt, AbstractMetadata.DEM, getDemStamp(demName, externalDEMFile));
 
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.geo_ref_system, "WGS84");
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.lat_pixel_res, delLat);

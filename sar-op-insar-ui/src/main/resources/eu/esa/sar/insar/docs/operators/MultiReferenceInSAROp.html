@@ -124,9 +124,54 @@
 </h4>
 <p class="MsoNormal">If you are using GPT, the pair selection is done through the <b>pairs</b> parameter. This allows for explicitly listing the pairs, which provides more flexibility than the UI sliders.
 For example, <b>pairs</b> could be set to: <b>06Jan2018-12Apr2018,06Jan2018-09Oct2018,06Jan2018-01Jan2019</b>.
+If <b>pairs</b> is empty, the operator forms the sequential network: each date paired with the next one.
 
 <p class="MsoNormal">
 It is recommended to use the Graph Builder for quickly generating the pairs (by using the sliders) and subsequently saving the processing graph. The graph file can then be edited (optionally) and executed from the command line.
+
+<h3>References</h3>
+<ol>
+    <li>Berardino, P., Fornaro, G., Lanari, R., Sansosti, E. (2002). A new algorithm for surface deformation monitoring based on small baseline differential SAR interferograms. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 40(11), 2375&#8211;2383. doi:10.1109/TGRS.2002.803792</li>
+</ol>
+<!-- params:begin op="MultiMasterInSAR" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>MultiMasterInSAR</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>4</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of orbit (polynomial) interpolator</td></tr>
+<tr><td><code>pairs</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>List of interferometric pairs</td></tr>
+<tr><td><code>includeWavenumber</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Include wavenumber</td></tr>
+<tr><td><code>includeIncidenceAngle</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Include incidence angle</td></tr>
+<tr><td><code>includeLatLon</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Include latitude and longitude</td></tr>
+<tr><td><code>cohWindowAz</code></td><td>int</td><td>10</td><td>&nbsp;</td><td>&nbsp;</td><td>Size of coherence estimation window in azimuth</td></tr>
+<tr><td><code>cohWindowRg</code></td><td>int</td><td>10</td><td>&nbsp;</td><td>&nbsp;</td><td>Size of coherence estimation window in range</td></tr>
+<tr><td><code>addElevation</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Add an elevation band (from a DEM) automatically when the input stack does not already contain one. The elevation band is required to remove the reference/topographic phase, so the operator cannot run without it. Leave this on to avoid having to run the Add Elevation Band operator beforehand.</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model used when 'Add elevation band' adds a missing band.</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>Resampling method used when reading the DEM.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/time_series.html">InSAR Time Series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration of SAR Images</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/phase_linking.html">Phase Linking in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_time_series.html">Workflow: InSAR Time Series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered SLC stack, made with <a href="CreateStackOp.html">Create Stack</a> or <a href="DEMAssistedCoregistrationOp.html">DEM-Assisted Coregistration</a> (<a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a> plus <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a> for Sentinel-1 TOPS)</li>
+    <li>An elevation band; it is added automatically when 'Add elevation band' is on, which is the default</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a>, then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BatchSnaphuUnwrapOp.html">Batch Snaphu Unwrap</a> (all pairs), then <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a> with this product as the first input and the Batch Snaphu Unwrap product as the second</li>
+    <li><a href="SBASInversionOp.html">SBAS Inversion</a> on the Snaphu Import result</li>
+</ul>
+<!-- footer:end -->
 
 </body>
 </html>

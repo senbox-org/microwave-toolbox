@@ -10,5 +10,7 @@
     <mapID target="OverSampleOp" url="operators/OverSampleOp.html"/>
     <mapID target="UnderSampleOp" url="operators/UnderSampleOp.html"/>
     <mapID target="SetNoDataValueOp" url="operators/SetNoDataValueOp.html"/>
+    <mapID target="BandMergeOp" url="operators/BandMergeOp.html"/>
+    <mapID target="TileWriterOp" url="operators/TileWriterOp.html"/>
 
 </map>

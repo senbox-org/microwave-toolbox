@@ -1,0 +1,182 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Radiometric Quantities and Calibration</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Radiometric Quantities and Calibration</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Radiometric Quantities and Calibration</h1>
+
+<p class="lead">Calibration turns the digital numbers of a SAR product into backscatter coefficients: &beta;<sup>0</sup>,
+&sigma;<sup>0</sup> and &gamma;<sup>0</sup>. They describe the same echo divided by different reference areas. Picking the
+right one, and keeping it in linear units until the end, decides whether your values can be compared across dates,
+incidence angles and terrain.</p>
+
+<h2>From digital numbers to backscatter</h2>
+<p>A detected or complex pixel holds a digital number (DN). Its squared magnitude |DN|<sup>2</sup> is proportional to
+the received power, scaled by processor gains. Calibration removes those gains. For Sentinel-1, the product carries
+look-up tables (LUTs) of calibration constants A along range and azimuth, and</p>
+<p class="eq">&sigma;<sup>0</sup> = |DN|<sup>2</sup> / A<sub>&sigma;</sub><sup>2</sup></p>
+<p>with separate tables A<sub>&beta;</sub> and A<sub>&gamma;</sub> for the other two coefficients. Every backscatter
+coefficient is a radar cross-section per unit reference area, so it is dimensionless (m<sup>2</sup>/m<sup>2</sup>).</p>
+
+<h2>Three reference areas</h2>
+<p>The radar resolves a cell of fixed extent &delta;r along the line of sight. The three coefficients divide its echo
+by three different areas (Figure 1a):</p>
+<ul>
+    <li><b>&beta;<sup>0</sup></b> (radar brightness): area A<sub>&beta;</sub> in slant-range geometry. It is what the
+        radar measures and needs no terrain model.</li>
+    <li><b>&sigma;<sup>0</sup></b> (sigma nought): area A<sub>&sigma;</sub> on the ground.</li>
+    <li><b>&gamma;<sup>0</sup></b> (gamma nought): area A<sub>&gamma;</sub> in the plane perpendicular to the line of
+        sight.</li>
+</ul>
+<p>On a flat ellipsoid, with &theta;<sub>E</sub> the ellipsoid incidence angle:</p>
+<p class="eq">&sigma;<sup>0</sup><sub>E</sub> = &beta;<sup>0</sup> &middot; sin &theta;<sub>E</sub></p>
+<p class="eq">&gamma;<sup>0</sup><sub>E</sub> = &sigma;<sup>0</sup><sub>E</sub> / cos &theta;<sub>E</sub> = &beta;<sup>0</sup> &middot; tan &theta;<sub>E</sub></p>
+<p>The subscript E marks values that assume flat terrain. At &theta;<sub>E</sub> = 35&deg;,
+&gamma;<sup>0</sup><sub>E</sub> is 0.87 dB higher than &sigma;<sup>0</sup><sub>E</sub>. Many vegetated surfaces change
+less across the swath in &gamma;<sup>0</sup> than in &sigma;<sup>0</sup>, which is one reason &gamma;<sup>0</sup> is
+preferred for land.</p>
+<p><img src="images/radiometry_1.png" width="560" height="300" alt="Reference areas of beta0, sigma0 and gamma0, and the same range cell on a slope"></p>
+<p class="figcap">Figure 1. (a) Cross-section of one range cell on flat ground: A<sub>&beta;</sub> along the line of
+sight, A<sub>&sigma;</sub> on the ground, A<sub>&gamma;</sub> perpendicular to the line of sight. (b) The same range
+cell &delta;r on a slope facing the radar covers more ground and returns more power.</p>
+
+<h2>Terrain-flattened gamma nought</h2>
+<p>Ellipsoid-based values assume flat ground. On real terrain the area that falls into one range cell depends on the
+local slope (Figure 1b). Slopes facing the radar collect echoes from a larger area and look bright; slopes facing away
+look dark. This brightness is geometry, not a property of the surface.</p>
+<p>Small (2011) removes it by measuring the illuminated area directly. A DEM is projected into radar geometry, and the
+area of every DEM facet that maps into a pixel, projected perpendicular to the line of sight, is summed into
+A<sub>&gamma;,T</sub>. Then</p>
+<p class="eq">&gamma;<sup>0</sup><sub>T</sub> = &beta;<sup>0</sup> &middot; A<sub>&beta;</sub> / A<sub>&gamma;,T</sub></p>
+<p>Summing the area handles foreshortened and layover pixels, which receive several facets; a single local
+incidence angle cannot. &gamma;<sup>0</sup><sub>T</sub> keeps what the surface does (moisture, roughness, vegetation)
+plus any DEM errors. Layover and shadow stay unreliable; see <a href="geometry.html">SAR geometry</a>.</p>
+
+<h2>Thermal noise and NESZ</h2>
+<p>The receiver adds noise power to every pixel: the measured power is signal plus noise. The noise-equivalent sigma
+zero (NESZ) is the &sigma;<sup>0</sup> at which the signal power equals the noise power. Sentinel-1 is specified at
+&#8722;22 dB or better. The noise level varies along range with the antenna pattern, so uncorrected images show stripes
+at sub-swath boundaries. Noise matters for dark targets: calm water, smooth surfaces, and cross-polarised
+(VH, HV) channels, which are often only a few dB above the noise floor.</p>
+<p>Thermal noise removal subtracts the annotated noise power from the intensity. Over dark areas the result can be
+negative; it is either clipped to a small positive floor, or left negative when the data will be averaged so the mean
+stays unbiased. The subtraction works on power, so it destroys the phase of
+complex data.</p>
+
+<h2>Linear units and decibels</h2>
+<p class="eq">x<sub>dB</sub> = 10 &middot; log<sub>10</sub>(x)</p>
+<p>Speckle is multiplicative, and the average of logarithms is not the logarithm of the average. Averaging single-look
+intensities in dB underestimates the mean by 2.51 dB; at the equivalent number of looks of a Sentinel-1 IW GRDH product
+(4.4) the bias is still 0.51 dB (Figure 2). Taking more pixels does not reduce it. Calibrate, filter, multilook,
+terrain-flatten, resample and average in linear units. Convert to dB only for display, for thresholds you define in dB,
+and for statistics that assume log-transformed data. A ratio of two linear images is a difference in dB.</p>
+<p><img src="images/radiometry_2.png" width="560" height="280" alt="Bias of averaging in dB versus number of looks"></p>
+<p class="figcap">Figure 2. Bias of a mean taken in dB, relative to the true mean intensity, for fully developed
+speckle with L looks per pixel: (10 / ln 10)(&psi;(L) &#8722; ln L), where &psi; is the digamma function.</p>
+
+<h2>Typical values at C-band</h2>
+<p>The ranges below are indicative, for orientation only (&sigma;<sup>0</sup>, incidence about 30&deg; to 45&deg;).
+Actual values depend on incidence angle, moisture, roughness, wind, season and polarisation.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Surface</th><th>&sigma;<sup>0</sup> VV (dB)</th><th>&sigma;<sup>0</sup> VH (dB)</th><th>Main mechanism</th></tr>
+    <tr><td>Calm open water</td><td>below &#8722;20</td><td>below &#8722;25, often at the noise floor</td><td>mirror reflection away from the sensor</td></tr>
+    <tr><td>Wind-roughened water</td><td>&#8722;15 to &#8722;5</td><td>below &#8722;22</td><td>Bragg scattering; rises with wind speed</td></tr>
+    <tr><td>Bare soil</td><td>&#8722;20 to &#8722;8</td><td>&#8722;28 to &#8722;16</td><td>surface scattering; rises with moisture and roughness</td></tr>
+    <tr><td>Crops and grassland</td><td>&#8722;15 to &#8722;7</td><td>&#8722;22 to &#8722;14</td><td>volume and surface; changes through the season</td></tr>
+    <tr><td>Forest</td><td>&#8722;9 to &#8722;6</td><td>&#8722;15 to &#8722;11</td><td>volume scattering in the canopy</td></tr>
+    <tr><td>Urban</td><td>&#8722;5 to +5, point targets above +10</td><td>&#8722;12 to &#8722;2</td><td>double bounce between walls and ground</td></tr>
+</table>
+
+<h2>In SNAP</h2>
+<p><b>Recommended chain, Sentinel-1 GRD to &gamma;<sup>0</sup><sub>T</sub>:</b></p>
+<ol>
+    <li>Apply Orbit File (<code>Apply-Orbit-File</code>).</li>
+    <li>Remove GRD Border Noise (<code>Remove-GRD-Border-Noise</code>). Apply it first, before Thermal Noise Removal and
+        Calibration: after noise removal, dark surfaces at the image edge are more easily mistaken for border noise.
+        Products from IPF 2.90 on are already masked and pass through unchanged.</li>
+    <li>Thermal Noise Removal (<code>ThermalNoiseRemoval</code>).</li>
+    <li>Calibration (<code>Calibration</code>) with <b>Output beta0 band</b> selected and <b>Scale in dB</b> off.</li>
+    <li>Terrain Flattening (<code>Terrain-Flattening</code>).</li>
+    <li>Range Doppler Terrain Correction (<code>Terrain-Correction</code>).</li>
+</ol>
+<p>Speckle filtering, if wanted, goes on the linear &beta;<sup>0</sup> or &gamma;<sup>0</sup><sub>T</sub> (see
+<a href="speckle.html">Speckle</a>). For Sentinel-1 TOPS SLC, calibrate before TOPS Deburst.</p>
+<ul>
+    <li><b>Calibration</b> writes <code>Sigma0_&lt;pol&gt;</code> by default, plus <code>Gamma0_&lt;pol&gt;</code> and
+        <code>Beta0_&lt;pol&gt;</code> on request, in linear intensity. <b>Scale in dB</b> appends <code>_dB</code>.
+        <b>Create gamma0 virtual band</b> adds a virtual <code>Gamma0_&lt;pol&gt;</code> computed as Sigma0 divided by the
+        cosine of the <code>incident_angle</code> tie-point grid: the ellipsoid &gamma;<sup>0</sup><sub>E</sub>, not a
+        terrain-flattened value.</li>
+    <li><b>Thermal Noise Removal</b> writes <code>Intensity_&lt;pol&gt;</code> for uncalibrated input, or keeps the
+        <code>Sigma0</code>/<code>Beta0</code>/<code>Gamma0</code> name for calibrated detected input. <b>Output Noise</b> adds the noise level in dB as
+        <code>NEP_&lt;pol&gt;</code> (uncalibrated) or <code>NESZ_&lt;pol&gt;</code> (for &sigma;<sup>0</sup>).
+        <b>Clip Negative Values</b> is on by default (floor 10<sup>&#8722;5</sup>).</li>
+    <li><b>Terrain Flattening</b> uses bands whose names start with <code>Beta0</code> (or C2, C3, T3 matrix bands).
+        Uncalibrated input is calibrated to &beta;<sup>0</sup> automatically; a calibrated product without
+        <code>Beta0</code> bands fails with "TerrainFlattening requires beta0 or T3, C3, C2 as input". The output
+        &gamma;<sup>0</sup><sub>T</sub> band is named <code>Gamma0_&lt;pol&gt;</code>, the same name Calibration uses for
+        the ellipsoid value. <b>Output Terrain Flattened Sigma0</b> adds <code>Sigma0_&lt;pol&gt;</code>. The default DEM is
+        <code>Copernicus 30m Global DEM</code>.</li>
+    <li>The "Apply radiometric normalization" option of <b>Terrain Correction</b> is an incidence-angle correction,
+        not area-based flattening. Do not apply it to Terrain Flattening output.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Calibrating to Sigma0 only and then running Terrain Flattening: it needs <code>Beta0</code> bands.</li>
+    <li>Ticking <b>Scale in dB</b> before Terrain Flattening, filtering or multilooking. Terrain Flattening does not
+        check the unit and treats <code>Beta0_VV_dB</code> as linear.</li>
+    <li>Averaging, compositing or computing statistics of backscatter in dB: the mean is biased low by up to
+        2.5 dB.</li>
+    <li>Running Thermal Noise Removal on SLC data intended for InSAR or polarimetry: the output is intensity only.</li>
+    <li>Comparing a <code>Gamma0</code> band from Calibration with one from Terrain Flattening. Same name, different
+        quantity; check the processing history in the metadata.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/ThermalNoiseRemoval.html">Thermal Noise Removal</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/RCMThermalNoiseRemoval.html">RCM Thermal Noise Removal</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/RemoveGRDBorderNoise.html">Remove GRD Border Noise</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/RemoveAntennaPatternOp.html">Remove Antenna Pattern</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/TerrainFlatteningOp.html">Terrain Flattening</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultitemporalCompositingOp.html">Multitemporal Compositing</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a></li>
+</ul>
+<p>Workflows: <a href="../workflows/workflow_grd_backscatter.html">GRD to Terrain-Flattened Backscatter</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Freeman, A. (1992). SAR calibration: an overview. <i>IEEE Transactions on Geoscience and Remote Sensing</i>,
+        30(6), 1107&#8211;1121. doi:10.1109/36.193786</li>
+    <li>Ulander, L.M.H. (1996). Radiometric slope correction of synthetic-aperture radar images. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 34(5), 1115&#8211;1122. doi:10.1109/36.536527</li>
+    <li>Small, D. (2011). Flattening gamma: Radiometric terrain correction for SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 49(8), 3081&#8211;3093. doi:10.1109/TGRS.2011.2120616</li>
+    <li>Miranda, N., Meadows, P. J. (2015). <i>Radiometric Calibration of S-1 Level-1 Products Generated by the S-1 IPF</i>. ESA technical note ESA-EOPG-CSCOP-TN-0002, Issue 1, Revision 0, 21 May 2015. https://sentinels.copernicus.eu/documents/247904/685163/S1-Radiometric-Calibration-V1.0.pdf</li>
+    <li>Ulaby, F.T., Long, D.G. (2014). <i>Microwave Radar and Radiometric Remote Sensing</i>. University of Michigan
+        Press. doi:10.3998/0472119356</li>
+</ol>
+
+<hr>
+</body>
+</html>

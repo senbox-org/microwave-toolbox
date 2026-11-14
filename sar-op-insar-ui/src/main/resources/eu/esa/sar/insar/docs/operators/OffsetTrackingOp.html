@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Cross Correlation Operator</title>
+<html><head><title>Help - Offset Tracking Operator</title>
 
 
   
@@ -51,9 +51,20 @@ user specified maximum velocity will be marked as outlier.<br>
 <h4>Offset Tracking with SNAP</h4>
 
 
-<p>The reference and secondary images used in offset tracking should be
-coregistered first by DEM assisted coregistration. The following steps
-should be followed: <br>
+<p>The input must be a coregistered stack. Any stack marked as coregistered
+passes the input check (Create Stack, Warp and Back-Geocoding stacks too).
+DEM-Assisted
+Coregistration is <i>recommended</i>: its offsets come from orbits and the DEM
+only, whereas a Cross-Correlation and Warp stack fits, and so removes, part of
+the surface motion. For Sentinel-1 IW SLC (refused by DEM-Assisted
+Coregistration) use TOPSAR-Split, Back-Geocoding and TOPS Deburst, and skip
+Enhanced Spectral Diversity: its azimuth shift estimate includes the motion.</p>
+
+<p>The operator correlates the first amplitude or intensity band of the
+Reference and of the Secondary as stored (de-meaned, not converted), so use
+linear bands, not dB.</p>
+
+<p>For a stripmap or GRD pair the steps are: <br>
 </p>
 <ol>
   <li>Run Apply Orbit File operator respectively with reference and secondary
@@ -65,9 +76,13 @@ secondary output from step 1 as input to coregister reference and secondary imag
   <li>Run Offset Tracking operator with the coregistered stack as input to produce the glacier velocity map. <br>
   </li>
   <li>To display the glacier velocity map, double click on the velocity
-band name. To show the glacier velocity vectors, click on "Layer
-Manager" and add "Coregistered GCP Movement Vector" layer. The velocity
-vectors on the user specified GCP grid will be displayed.<br>
+band name. The band is the magnitude of the offset in m/day and has no
+direction. For the direction, open the <code>Velocity</code> vector data
+node: each grid point carries <code>heading</code>, <code>range_shift</code>
+and <code>azimuth_shift</code>. The shifts are in metres, Reference minus
+Secondary position; on slant-range products the range shift is in slant
+range. To draw the GCP offsets as arrows, open the velocity band and add
+the <i>Coregistered GCP Movement Vector</i> layer in the Layer Manager.<br>
   </li>
 </ol>
 
@@ -90,6 +105,10 @@ vectors on the user specified GCP grid will be displayed.<br>
 cross-correlation. </li>
 <li>Registration Window Height: The window height for
 cross-correlation. </li>
+  <li>Registration Oversampling: The oversampling factor of the
+correlation surface around its peak. The size of that search region (the
+search accuracy) is fixed at 16 samples in azimuth and range and is not a
+parameter. </li>
   <li>Cross-Correlation Threshold: Threshold
 for normalized cross-correlation value. If the cross-correlation value
 is greater than the threshold, then the estimated offset is
@@ -103,6 +122,52 @@ for hole filling. For GCP that has no valid offset, a window with given
 radius centered at the GCP is defined. Offsets from valid GCPs within
 the window are used in interpolating the offset for the current GCP.<br>
 </li></ol><br>
+
+<h3>References</h3>
+<ol>
+    <li>Michel, R., Avouac, J.-P., Taboury, J. (1999). Measuring ground displacements from SAR amplitude images: Application to the Landers earthquake. <i>Geophysical Research Letters</i>, 26(7), 875&#8211;878. doi:10.1029/1999GL900138</li>
+    <li>Strozzi, T., Luckman, A., Murray, T., Wegm&uuml;ller, U., Werner, C. L. (2002). Glacier motion estimation using SAR offset-tracking procedures. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 40(11), 2384&#8211;2391. doi:10.1109/TGRS.2002.805079</li>
+</ol>
+<!-- params:begin op="Offset-Tracking" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Offset-Tracking</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>gridAzimuthSpacing</code></td><td>int</td><td>40</td><td>(1, *)</td><td>&nbsp;</td><td>The output grid azimuth spacing in pixels</td></tr>
+<tr><td><code>gridRangeSpacing</code></td><td>int</td><td>40</td><td>(1, *)</td><td>&nbsp;</td><td>The output grid range spacing in pixels</td></tr>
+<tr><td><code>registrationWindowWidth</code></td><td>String</td><td>128</td><td>32, 64, 128, 256, 512, 1024, 2048</td><td>&nbsp;</td><td>Registration Window Width</td></tr>
+<tr><td><code>registrationWindowHeight</code></td><td>String</td><td>128</td><td>32, 64, 128, 256, 512, 1024, 2048</td><td>&nbsp;</td><td>Registration Window Height</td></tr>
+<tr><td><code>xCorrThreshold</code></td><td>double</td><td>0.1</td><td>(0, *)</td><td>&nbsp;</td><td>The cross-correlation threshold</td></tr>
+<tr><td><code>registrationOversampling</code></td><td>String</td><td>16</td><td>2, 4, 8, 16, 32, 64, 128, 256, 512</td><td>&nbsp;</td><td>Window oversampling factor</td></tr>
+<tr><td><code>averageBoxSize</code></td><td>String</td><td>5</td><td>3, 5, 9, 11</td><td>&nbsp;</td><td>Averaging Box Size</td></tr>
+<tr><td><code>maxVelocity</code></td><td>double</td><td>5.0</td><td>(0, *)</td><td>&nbsp;</td><td>The threshold for eliminating invalid GCPs</td></tr>
+<tr><td><code>radius</code></td><td>int</td><td>4</td><td>(0, *)</td><td>&nbsp;</td><td>Radius for Hole-Filling</td></tr>
+<tr><td><code>resamplingType</code></td><td>String</td><td>BICUBIC_INTERPOLATION</td><td>NEAREST_NEIGHBOUR, BILINEAR_INTERPOLATION, BICUBIC_INTERPOLATION, BISINC_5_POINT_INTERPOLATION, CUBIC_CONVOLUTION</td><td>&nbsp;</td><td>Methods for velocity interpolation.</td></tr>
+<tr><td><code>spatialAverage</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Spatial Average</td></tr>
+<tr><td><code>fillHoles</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Fill Holes</td></tr>
+<tr><td><code>roiVector</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>ROI Vector</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/offset_tracking.html">Offset Tracking (Amplitude Correlation)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration of SAR Images</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_offset_tracking.html">Workflow: Offset Tracking</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered stack, made with <a href="CreateStackOp.html">Create Stack</a> or <a href="DEMAssistedCoregistrationOp.html">DEM-Assisted Coregistration</a></li>
+    <li>Reference and secondary amplitude or intensity bands in that stack</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> to geocode the velocity bands</li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 
 <hr>
 </body></html>

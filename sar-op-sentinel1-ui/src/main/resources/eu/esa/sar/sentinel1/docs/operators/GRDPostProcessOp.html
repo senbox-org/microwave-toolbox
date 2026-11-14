@@ -1,0 +1,75 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - GRD Post-Processing</title>
+
+
+    <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+    <link href="../style.css" rel="stylesheet">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; GRD Post-Processing<br>
+        </td>
+        <td align="right" class="header"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img border="0"
+                                                                                 src="../images/snap_header.jpg"></a></td>
+    </tr>
+    </tbody>
+</table>
+<h3>GRD Post-Processing</h3>
+<p>The GRD Post-Processing operator (<code>GRD-Post</code>) is the last step of the
+    <a href="Sentinel1SLCtoGRD.html">Sentinel-1 SLC to GRD</a> graph. It relabels a Sentinel-1 SLC product that has
+    already been detected, debursted and merged so that SNAP treats it as a GRD product. It does not change any pixel
+    values.</p>
+
+<h4>What it does</h4>
+<ul>
+    <li>Copies every band of the input unchanged. Virtual bands stay virtual.</li>
+    <li>Renames the product: <code>SLC_</code> in the product name becomes <code>GRDH</code>. The product type
+        becomes <code>GRD</code>.</li>
+    <li>Updates the abstracted metadata in the same way: <code>SLC_</code> becomes <code>GRDH</code> in
+        <code>PRODUCT</code>, <code>SLC</code> becomes <code>GRD</code> in <code>SPH_DESCRIPTOR</code>, and
+        <code>PRODUCT_TYPE</code> is set to <code>GRD</code>.</li>
+</ul>
+<p>The label is always <code>GRDH</code>, whatever pixel spacing the earlier multilooking produced. The operator does
+    not resample, rescale or convert the data type, and it does not apply any of the IPF GRD processing itself. Those
+    steps are done, or not done, by the operators that come before it in the graph.</p>
+
+<h4>Input</h4>
+<p>The operator refuses the input unless all of these hold:</p>
+<ul>
+    <li>It is a SAR product from Sentinel-1.</li>
+    <li>Its abstracted metadata still has product type <code>SLC</code>.</li>
+    <li>It is detected, not complex. Otherwise: "Data should not be complex. Please first apply SLC to GRD
+        processing."</li>
+    <li>Its sub-swaths are merged. A product with bands named after two IW sub-swaths (<code>IW1</code> and
+        <code>IW2</code>) or two EW sub-swaths (<code>EW1</code> and <code>EW2</code>) is refused with "Data should not
+        be in separate swaths."</li>
+</ul>
+
+<h4>Output</h4>
+<p>The same image and bands, with the product name, product type and metadata relabelled as above.</p>
+
+<!-- params:begin op="GRD-Post" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>GRD-Post</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<p>This operator has no processing parameters.</p>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR fundamentals</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_grd_backscatter.html">GRD to terrain-flattened backscatter</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A Sentinel-1 SLC product that has been detected and merged into one image, for example by the earlier steps of the <a href="Sentinel1SLCtoGRD.html">Sentinel-1 SLC to GRD</a> graph (Thermal Noise Removal, Calibration, TOPS Deburst, Multilook, Speckle Filter, Slant Range to Ground Range).</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
+</body>
+</html>

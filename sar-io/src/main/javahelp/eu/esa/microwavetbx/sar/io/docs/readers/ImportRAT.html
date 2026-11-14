@@ -1,24 +1,54 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head><title>Help - Import DLR RAT</title>
-
-    <link rel="stylesheet" href="../style.css">
-</head>
+<html><head><title>Help - Import DLR RAT</title>
+    <link rel="stylesheet" href="../style.css"></head>
 <body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import TerraSarX SAR</td>
+        <td class="header">&nbsp; Import RAT</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg"
                                                                                  border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import RAT Product</h3>
 
-<p>This option allows to import DLR RAT format products into SNAP.</p>
+<p>The <b>RAT</b> reader opens raster files in the RAT format as used by DLR's TAXI processing
+software. It is a file format, not a mission.</p>
 
+<h2>Format</h2>
+<p>A RAT product is a binary image file (<code>.rat</code>) with an ENVI-style text header next to it
+(<code>.rat.hdr</code>).</p>
+
+<h2>Supported data</h2>
+<ul>
+  <li>Complex data (ENVI complex float32 or float64), stored pixel-interleaved (I, Q per pixel).</li>
+  <li>Any other ENVI data type, read like an ENVI file.</li>
+</ul>
+
+<h2>How to open</h2>
+<p>Use <b>File &gt; Import &gt; SAR Formats &gt; RAT</b> or <b>File &gt; Open Product</b> and select the
+header file, <code>&lt;name&gt;.rat.hdr</code>. The image data must be in <code>&lt;name&gt;.rat</code>
+in the same folder.</p>
+
+<h2>What you get</h2>
+<ul>
+  <li>Complex data: bands <code>i_band</code> and <code>q_band</code> (real and imaginary parts) and a
+      virtual <code>Intensity_band</code>.</li>
+  <li>Other data types: the bands as described in the header.</li>
+  <li>Geocoding from the header's <code>map info</code>, if present. The header's description and
+      fields are kept in the metadata.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<p>No SAR metadata is read: the product has no orbit, timing or radar parameters in its
+<a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>. Operators that need them, such as Calibration or Range-Doppler
+Terrain Correction, cannot be used.</p>
+
+<h2>Recommended next step</h2>
+<p>Display the bands, or derive values with <a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/desktop/BandMaths.html">Band Maths</a>.</p>
+
+<h2>Product format specification</h2>
+<p>The header follows the ENVI header format; see the SNAP <a href="nbdocs://org.esa.snap.snap.envi.reader/org/esa/snap/snap/envi/reader/docs/envireader/EnviReader.html">ENVI reader</a> page.</p>
 
 <hr>
-</body>
-</html>
+</body></html>

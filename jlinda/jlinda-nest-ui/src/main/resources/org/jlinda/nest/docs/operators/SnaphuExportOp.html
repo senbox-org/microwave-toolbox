@@ -34,6 +34,42 @@
     </li>
 </ol>
 
+<p>
+    The input must be a coregistered interferogram product that contains a wrapped phase band and a
+    coherence band; the operator stops with an error if either is missing.
+</p>
+
+<h4>Parameters</h4>
+<p>
+    The SNAPHU parameters below are written into <b><code>snaphu.conf</code></b>; they control the
+    later SNAPHU run, not the export itself.
+</p>
+<ul>
+    <li><b>Target folder</b> (<code>targetFolder</code>): folder the exported files and
+        <code>snaphu.conf</code> are written to. Required; it is created if it does not exist.</li>
+    <li><b>Statistical-cost mode</b> (<code>statCostMode</code>, SNAPHU <code>STATCOSTMODE</code>):
+        <code>TOPO</code>, <code>DEFO</code>, <code>SMOOTH</code> or <code>NOSTATCOSTS</code>;
+        default <code>DEFO</code>. Use <code>TOPO</code> for topographic (DEM) interferograms,
+        <code>DEFO</code> for deformation interferograms, <code>SMOOTH</code> for generic smooth
+        data, and <code>NOSTATCOSTS</code> to run without statistical costs.</li>
+    <li><b>Initial method</b> (<code>initMethod</code>, SNAPHU <code>INITMETHOD</code>): algorithm
+        for the initial unwrapped solution, <code>MST</code> (minimum spanning tree) or
+        <code>MCF</code> (minimum cost flow); default <code>MST</code>.</li>
+    <li><b>Number of Tile Rows</b> (<code>numberOfTileRows</code>, SNAPHU <code>NTILEROW</code>) and
+        <b>Number of Tile Columns</b> (<code>numberOfTileCols</code>, SNAPHU <code>NTILECOL</code>):
+        SNAPHU splits the image into this many tiles and unwraps them in parallel; default 10
+        each. Set both to 1 to unwrap the image as a single tile.</li>
+    <li><b>Number of Processors</b> (<code>numberOfProcessors</code>, SNAPHU <code>NPROC</code>):
+        number of SNAPHU processes run at the same time; default 4.</li>
+    <li><b>Row Overlap</b> (<code>rowOverlap</code>, SNAPHU <code>ROWOVRLP</code>) and
+        <b>Column Overlap</b> (<code>colOverlap</code>, SNAPHU <code>COLOVRLP</code>): overlap
+        between neighbouring tiles, in pixels; default 200 each.</li>
+    <li><b>Tile Cost Threshold</b> (<code>tileCostThreshold</code>, SNAPHU
+        <code>TILECOSTTHRESH</code>): cost threshold for the boundaries of reliable regions
+        when tiles are joined (dimensionless); default 500. A larger value gives smaller
+        regions: safer, but slower.</li>
+</ul>
+
 <h4>
     External processing with SNAPHU
 </h4>
@@ -48,11 +84,13 @@
 
 <p>
     where <b><code>YOUR_PHASE_BAND.img</code></b> stands for the name of the phase band that is to be unwrapped, and
-    <b><code>99999</code></b> represents the number of lines of the <code>YOUR_PHASE_BAND</code>. <strong>Note</strong>
+    <b><code>99999</code></b> stands for the line length of <code>YOUR_PHASE_BAND</code>: the number of samples
+    per line, i.e. the number of range samples (columns, the image width in pixels), not the number of lines.
+    <strong>Note</strong>
     that
     the command to be externally called for the phase unwrapping is listed in the header of <b><code>snaphu.conf</code></b>
     file
-    that is created with the SNAPHU writer.
+    that is created with the SNAPHU writer, with the correct line length already filled in.
 </p>
 
 <p>
@@ -62,5 +100,46 @@
 
 
 <br>
+<h3>References</h3>
+<ol>
+    <li>Chen, C. W., Zebker, H. A. (2001). Two-dimensional phase unwrapping with use of statistical models for cost functions in nonlinear optimization. <i>Journal of the Optical Society of America A</i>, 18(2), 338&#8211;351. doi:10.1364/JOSAA.18.000338</li>
+    <li>Chen, C. W., Zebker, H. A. (2002). Phase unwrapping for large SAR interferograms: Statistical segmentation and generalized network models. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 40(8), 1709&#8211;1719. doi:10.1109/TGRS.2002.802453</li>
+</ol>
+<!-- params:begin op="SnaphuExport" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SnaphuExport</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>targetFolder</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The output folder to which the data product is written.</td></tr>
+<tr><td><code>statCostMode</code></td><td>String</td><td>DEFO</td><td>TOPO, DEFO, SMOOTH, NOSTATCOSTS</td><td>&nbsp;</td><td>Statistical cost mode used by SNAPHU: TOPO (topographic data), DEFO (deformation), SMOOTH (generic smooth surfaces) or NOSTATCOSTS (no statistical costs)</td></tr>
+<tr><td><code>initMethod</code></td><td>String</td><td>MST</td><td>MST, MCF</td><td>&nbsp;</td><td>Algorithm used for initialization of the wrapped phase values</td></tr>
+<tr><td><code>numberOfTileRows</code></td><td>int</td><td>10</td><td>&nbsp;</td><td>&nbsp;</td><td>Divide the image into tiles and process in parallel. Set to 1 for single tiled.</td></tr>
+<tr><td><code>numberOfTileCols</code></td><td>int</td><td>10</td><td>&nbsp;</td><td>&nbsp;</td><td>Divide the image into tiles and process in parallel. Set to 1 for single tiled.</td></tr>
+<tr><td><code>numberOfProcessors</code></td><td>int</td><td>4</td><td>&nbsp;</td><td>&nbsp;</td><td>Number of concurrent processing threads. Set to 1 for single threaded.</td></tr>
+<tr><td><code>rowOverlap</code></td><td>int</td><td>200</td><td>&nbsp;</td><td>&nbsp;</td><td>Overlap, in pixels, between neighboring tiles.</td></tr>
+<tr><td><code>colOverlap</code></td><td>int</td><td>200</td><td>&nbsp;</td><td>&nbsp;</td><td>Overlap, in pixels, between neighboring tiles.</td></tr>
+<tr><td><code>tileCostThreshold</code></td><td>int</td><td>500</td><td>&nbsp;</td><td>&nbsp;</td><td>Cost threshold to use for determining boundaries of reliable regions<br>(long, dimensionless; scaled according to other cost constants).<br>Larger cost threshold implies smaller regions---safer, but more expensive computationally.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered stack with interferogram phase</li>
+    <li>A coherence band (unit coherence)</li>
+    <li>A wrapped phase band (unit phase, name not containing 'topo')</li>
+    <li>A target folder</li>
+    <li>Recommended: filter the phase first (<a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a> or <a href="PhaseFilterOp.html">Phase Filtering</a>)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="SnaphuUnwrapping.html">Snaphu Unwrapping</a>, then <a href="SnaphuImportOp.html">Snaphu Import</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body></html>

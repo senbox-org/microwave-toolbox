@@ -20,7 +20,7 @@
 <h3>Sentinel-1 Enhanced Spectral Diversity<br>
 </h3>
 <p class="MsoNormal"><span>
-  This operator implements the Network Enhanced Spectral Diversity (NESD) method for TOPS coregistration [1]. It
+  This operator implements the Network Enhanced Spectral Diversity (NESD) method for TOPS coregistration [4]. It
   performs the joint coregistration of a Sentinel-1 stack by creating a network (graph) of images and then estimating
   range and azimuth offsets by solving an optimization problem.
   This operator estimates rigid azimuth and range offsets (i.e., constant for each image) with respect to a reference
@@ -198,7 +198,7 @@
 <h5>Distributed workflow (recommended for Cloud deployments)</h5>
 
 <p class="MsoNormal"><span>
-This worklfow has two stages.
+This workflow has two stages.
 </span></p>
 
 <h6>1. Compute range and azimuth shifts</h6>
@@ -212,7 +212,7 @@ This worklfow has two stages.
 <p class="MsoNormal"><span>It is recommended to use a smaller tile size in the azimuth direction (i.e., the tile height) so that wasteful processing is minimized when Back Geocoding is applied to burst overlaps (note that we are assuming Back Geocoding and Enhanced Spectral Diversity are included in the same graph). For example, this can be configured when calling GPT by passing <b>-Dsnap.dataio.reader.tileWidth=500 -Dsnap.dataio.reader.tileHeight=75</b> as parameters.
 </span></p>
 
-<p class="MsoNormal"><span>If you are editing the graph' xml file, set <b>doNotWriteTargetBands</b> to <b>false</b>.
+<p class="MsoNormal"><span>If you are editing the graph' xml file, set <b>doNotWriteTargetBands</b> to <b>true</b>.
 </span></p>
 
 
@@ -230,7 +230,7 @@ This worklfow has two stages.
 </span></p>
 
 <p class="MsoNormal"><span>If you editing the graph's xml file, set <b>useSuppliedRangeShift</b> and <b>useSuppliedAzimuthShift</b>
-    to <b>true</b>; and <b>useSuppliedRangeShift</b> and <b>useSuppliedAzimuthShift</b> to the corresponding shifts.
+    to <b>true</b>; and set <b>overallRangeShift</b> and <b>overallAzimuthShift</b> (in pixels) to the corresponding shifts.
 </span></p>
 
 <p class="MsoNormal"><span>
@@ -238,20 +238,58 @@ This worklfow has two stages.
 </span></p>
 
 
-<h4>References</h4>
-
+<h3>References</h3>
 <ol>
-    <li>H. Fattahi, P. Agram, and M. Simons. "A network-based enhanced spectral diversity approach for TOPS time-series
-        analysis". In: IEEE Transactions on Geoscience and Remote Sensing, vol. 55, no. 2, pp. 777-786. February 2017.
-        DOI:10.1109/TGRS.2016.2614925
-    </li>
-    <li>N. Yague-Martinez, P. Prats-Iraola, F. Rodriguez Gonzalez, R. Brcic, R. Shau, D. Geudtner, M. Eineder, and
-        R. Bamler. "Interferometric Processing of Sentinel-1 TOPS Data". In: IEEE Transactions on
-        Geoscience and Remote Sensing, vol. 54, no. 4, pp. 2220-2234, April 2016. ISSN:0196-2892.
-        DOI:10.1109/TGRS.2015.2497902
-    </li>
+    <li>Scheiber, R., Moreira, A. (2000). Coregistration of interferometric SAR images using spectral diversity. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(5), 2179&#8211;2191. doi:10.1109/36.868876</li>
+    <li>Prats-Iraola, P., Scheiber, R., Marotti, L., Wollstadt, S., Reigber, A. (2012). TOPS interferometry with TerraSAR-X. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 50(8), 3179&#8211;3188. doi:10.1109/TGRS.2011.2178247</li>
+    <li>Yag&uuml;e-Mart&iacute;nez, N., Prats-Iraola, P., Rodr&iacute;guez Gonz&aacute;lez, F., Brcic, R., Shau, R., Geudtner, D., Eineder, M., Bamler, R. (2016). Interferometric processing of Sentinel-1 TOPS data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 54(4), 2220&#8211;2234. doi:10.1109/TGRS.2015.2497902</li>
+    <li>Fattahi, H., Agram, P., Simons, M. (2017). A network-based enhanced spectral diversity approach for TOPS time-series analysis. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 55(2), 777&#8211;786. doi:10.1109/TGRS.2016.2614925</li>
 </ol>
 
+<!-- params:begin op="Enhanced-Spectral-Diversity" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Enhanced-Spectral-Diversity</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>fineWinWidthStr</code></td><td>String</td><td>512</td><td>32, 64, 128, 256, 512, 1024, 2048</td><td>&nbsp;</td><td>Registration Window Width</td></tr>
+<tr><td><code>fineWinHeightStr</code></td><td>String</td><td>512</td><td>32, 64, 128, 256, 512, 1024, 2048</td><td>&nbsp;</td><td>Registration Window Height</td></tr>
+<tr><td><code>fineWinAccAzimuth</code></td><td>String</td><td>16</td><td>2, 4, 8, 16, 32, 64</td><td>&nbsp;</td><td>Search Window Accuracy in Azimuth Direction</td></tr>
+<tr><td><code>fineWinAccRange</code></td><td>String</td><td>16</td><td>2, 4, 8, 16, 32, 64</td><td>&nbsp;</td><td>Search Window Accuracy in Range Direction</td></tr>
+<tr><td><code>fineWinOversampling</code></td><td>String</td><td>128</td><td>32, 64, 128, 256</td><td>&nbsp;</td><td>Window oversampling factor</td></tr>
+<tr><td><code>xCorrThreshold</code></td><td>double</td><td>0.1</td><td>(0, *)</td><td>&nbsp;</td><td>The peak cross-correlation threshold</td></tr>
+<tr><td><code>cohThreshold</code></td><td>double</td><td>0.3</td><td>(0, 1]</td><td>&nbsp;</td><td>The coherence threshold for outlier removal</td></tr>
+<tr><td><code>numBlocksPerOverlap</code></td><td>int</td><td>10</td><td>[1, 20]</td><td>&nbsp;</td><td>The number of windows per overlap for ESD</td></tr>
+<tr><td><code>esdEstimator</code></td><td>String</td><td>Periodogram</td><td>Average, Periodogram</td><td>&nbsp;</td><td>ESD estimator used for azimuth shift computation</td></tr>
+<tr><td><code>weightFunc</code></td><td>String</td><td>Inv Quadratic</td><td>None, Linear, Quadratic, Inv Quadratic</td><td>&nbsp;</td><td>Weight function of the coherence to use for azimuth shift estimation</td></tr>
+<tr><td><code>temporalBaselineType</code></td><td>String</td><td>Number of images</td><td>Number of images, Number of days</td><td>&nbsp;</td><td>Baseline type for building the integration network</td></tr>
+<tr><td><code>maxTemporalBaseline</code></td><td>int</td><td>4</td><td>&nbsp;</td><td>&nbsp;</td><td>Maximum temporal baseline (in days or number of images depending on the Temporal baseline type) between pairs of images to construct the network. Any number &lt; 1 will generate a network with all of the possible pairs.</td></tr>
+<tr><td><code>integrationMethod</code></td><td>String</td><td>L1 and L2</td><td>L1, L2, L1 and L2</td><td>&nbsp;</td><td>Method used for integrating the shifts network.</td></tr>
+<tr><td><code>doNotWriteTargetBands</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Do not write target bands</td></tr>
+<tr><td><code>useSuppliedRangeShift</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Use user supplied range shift</td></tr>
+<tr><td><code>overallRangeShift</code></td><td>double</td><td>0.0</td><td>&nbsp;</td><td>&nbsp;</td><td>The overall range shift</td></tr>
+<tr><td><code>useSuppliedAzimuthShift</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Use user supplied azimuth shift</td></tr>
+<tr><td><code>overallAzimuthShift</code></td><td>double</td><td>0.0</td><td>&nbsp;</td><td>&nbsp;</td><td>The overall azimuth shift</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_s1_dinsar.html">Sentinel-1 IW DInSAR</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_time_series.html">InSAR time series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/orbits_etad.html">Orbits and timing corrections (ETAD, EAP)</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Sentinel-1 product coregistered with <a href="BackGeocodingOp.html">Back Geocoding</a>.</li>
+    <li>Split product with a single sub-swath.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="TOPSARDeburstOp.html">TOPS Deburst</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

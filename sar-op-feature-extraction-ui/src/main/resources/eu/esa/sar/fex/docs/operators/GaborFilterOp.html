@@ -47,7 +47,7 @@
 <p class="MsoNormal">
     One real-valued response band per selected source band. To build a multi-feature
     Gabor bank, run the operator multiple times with different <i>theta</i> values
-    and stack the outputs (e.g., 4 orientations × 2 scales = 8 features).
+    and stack the outputs (e.g., 4 orientations &times; 2 scales = 8 features).
 </p>
 
 <h4>Parameters</h4>
@@ -56,6 +56,8 @@
     <li><b>theta:</b> kernel orientation in radians (default 0.6 rad &asymp; 34&deg;). Build
         a multi-orientation feature bank by re-running with theta = 0, &pi;/4, &pi;/2, 3&pi;/4.</li>
 </ul>
+<p class="note"><b>Changed in SNAP 15:</b> earlier versions ran with theta = 0 when it was left at its default,
+    in the dialog and in GPT. Set theta = 0 explicitly to reproduce earlier default results.</p>
 
 <p class="MsoNormal">
     The remaining Gabor parameters are fixed in the current implementation:
@@ -63,15 +65,26 @@
     ratio &gamma; = 2.0, phase offset &psi; = 0.3.
 </p>
 
-<h4>References</h4>
+<h3>References</h3>
 <ol>
-    <li>Daugman, J. G. (1985). <i>Uncertainty relation for resolution in space, spatial
-        frequency, and orientation optimized by two-dimensional visual cortical filters.</i>
-        Journal of the Optical Society of America A, 2(7).</li>
-    <li>Manjunath, B. S., Ma, W. Y. (1996). <i>Texture features for browsing and retrieval
-        of image data.</i> IEEE Transactions on Pattern Analysis and Machine Intelligence
-        18(8), 837&ndash;842.</li>
+    <li>Daugman, J. G. (1985). Uncertainty relation for resolution in space, spatial frequency, and orientation optimized by two-dimensional visual cortical filters. <i>Journal of the Optical Society of America A</i>, 2(7), 1160&#8211;1169. doi:10.1364/JOSAA.2.001160</li>
+    <li>Manjunath, B. S., Ma, W. Y. (1996). Texture features for browsing and retrieval of image data. <i>IEEE Transactions on Pattern Analysis and Machine Intelligence</i>, 18(8), 837&#8211;842. doi:10.1109/34.531803</li>
 </ol>
 
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and multilooking</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>None.</li>
+    <li>Recommended: a calibrated, multilooked, terrain-corrected intensity image, as the page describes.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Use the response bands as features for classification, or export the result</li>
+</ul>
+<!-- footer:end -->
 </body>
 </html>

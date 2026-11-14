@@ -16,79 +16,139 @@
 <p class="MsoNormal">
     Computes a configurable bank of general-purpose polarimetric scalar parameters
     and channel-algebra outputs from a quad-pol, dual-pol or compact-pol SAR product.
-    The operator works on either the original complex scattering matrix or on the
-    locally averaged coherency / covariance matrix produced by spatial multilooking
-    inside a sliding window.
+    Span, Pedestal Height and the complex-input RVI are computed from the coherency matrix
+    T<sub>3</sub>, averaged in a sliding window when <b>Use Mean Matrix</b> is on. All other outputs
+    are computed pixel by pixel from the input.
 </p>
 
 <h4>Input modes (auto-detected)</h4>
 <ul>
-    <li><b>Intensity bands</b> &mdash; the source product carries named intensity bands
-        (<code>_HH</code>, <code>_HV</code>, <code>_VV</code>, <code>_VH</code>). Channel ratios
-        and indices (RFDI, CSI, VSI, BMI, ITI) are derived directly from those bands.</li>
-    <li><b>Matrix elements</b> &mdash; the source is a C2 / C3 / T3 / FULL covariance or coherency
-        matrix product produced by <i>Polarimetric Matrix Generation</i>. Diagonal elements give
-        the channel intensities; off-diagonal elements give the complex correlations used for
-        the Phase and Coherence outputs.</li>
+    <li><b>Intensity bands</b> &mdash; the source product carries intensity bands
+        (<code>_HH</code>, <code>_HV</code>, <code>_VV</code>, <code>_VH</code>), for example the Intensity
+        bands of an SLC or a detected dual-pol (GRD) or quad-pol product. The channel ratios and indices are
+        computed from those bands. When intensity bands are present they are always used, so on an SLC the
+        <code>Coh_</code> and <code>Phase_</code> outputs are refused.</li>
+    <li><b>Matrix elements</b> &mdash; the source is a C2, C3 or T3 product from <i>Polarimetric Matrix
+        Generation</i> (or the speckle filter). Diagonal elements give the channel powers; off-diagonal
+        elements give the complex correlations used for the Phase and Coherence outputs.</li>
 </ul>
-<p>For dual-pol C2 input the available channels depend on the polarisation pair encoded in the
-   product (HH+HV, VV+VH or HH+VV); outputs that need missing channels are rejected at validation.</p>
+<p>The C2 band names do not say which two channels the product holds. The operator reads the pair from
+   the polarisation metadata that Matrix Generation copies (HH+HV, VV+VH or HH+VV); a Sentinel-1 VV+VH C2
+   gives <code>VVVHRatio</code>, <code>Coh_VVVH</code> and <code>Phase_VVVH</code>. Without that metadata
+   (and for compact-pol C2) the pair is treated as HH and VV. Outputs that need a missing channel are
+   rejected at validation.</p>
+<p>On a coregistered stack each date gets its own output bands, named with the date suffix.</p>
 
 <h4>Available outputs</h4>
+<p>All channel values are linear power (intensity, for example &sigma;<sup>0</sup>), not amplitude and not
+   dB.</p>
 <ul>
-    <li><b>Span</b> &mdash; total backscattered power, sum of |S<sub>HH</sub>|<sup>2</sup>,
-        2|S<sub>HV</sub>|<sup>2</sup>, |S<sub>VV</sub>|<sup>2</sup> for quad-pol. Requires a
-        complex C3/T3/FULL input.</li>
-    <li><b>Pedestal Height</b> &mdash; ratio of the smallest to the largest eigenvalue of
-        the coherency matrix; a measure of polarimetric noise / depolarisation floor.
-        Requires a complex C3/T3/FULL input.</li>
-    <li><b>Radar Vegetation Index (RVI)</b> &mdash; ratio of cross-pol to total power, sensitive
-        to volume scattering from canopies.</li>
-    <li><b>Radar Forest Degradation Index (RFDI)</b> &mdash; (HH&minus;HV) / (HH+HV).</li>
-    <li><b>Canopy Structure Index (CSI)</b>, <b>Volume Scattering Index (VSI)</b>,
-        <b>Biomass Index (BMI)</b>, <b>Interaction Index (ITI)</b> &mdash; structural indices
-        from Pope et al. (1994).</li>
-    <li><b>Ratios</b>: HH/VV, HH/HV, VV/VH (linear power).</li>
+    <li><b>Span</b> &mdash; total power, the trace of T<sub>3</sub>:
+        |S<sub>HH</sub>|<sup>2</sup> + 2|S<sub>HV</sub>|<sup>2</sup> + |S<sub>VV</sub>|<sup>2</sup>.
+        Requires a complex C3/T3/FULL input. Unit intensity.</li>
+    <li><b>Pedestal Height</b> &mdash; &lambda;<sub>3</sub>/&lambda;<sub>1</sub>, the smallest over the
+        largest eigenvalue of T<sub>3</sub>; a measure of the depolarised (random) part of the return.
+        Requires a complex C3/T3/FULL input. Dimensionless.</li>
+    <li><b>Radar Vegetation Index (RVI)</b> &mdash; requires quad-pol input, in one of two forms.
+        On complex input (SLC, C3, T3) it is the eigenvalue form
+        4&lambda;<sub>3</sub> / (&lambda;<sub>1</sub> + &lambda;<sub>2</sub> + &lambda;<sub>3</sub>) of
+        T<sub>3</sub>. On detected quad-pol intensities it is the Kim and van Zyl (2009) form
+        8&sigma;<sub>HV</sub> / (&sigma;<sub>HH</sub> + &sigma;<sub>VV</sub> + 2&sigma;<sub>HV</sub>).
+        Both are 0 for a pure surface and 1 for a cloud of random dipoles, but they differ in between, so do
+        not mix them. Dimensionless.</li>
+    <li><b>Radar Forest Degradation Index (RFDI)</b> &mdash; (HH&minus;HV) / (HH+HV) (Mitchard et al.
+        2012). Dimensionless.</li>
+    <li><b>Canopy Structure Index (CSI)</b> = VV/(VV+HH), <b>Volume Scattering Index (VSI)</b> =
+        (HV+VH)/(HH+VV+HV+VH), <b>Biomass Index (BMI)</b> = (HH+VV)/2 and <b>Interaction Index (ITI)</b> =
+        HH/VV, from Pope et al. (1994). BMI is a power (unit intensity); the others are dimensionless.
+        ITI and the HH/VV ratio are the same quantity by definition; both bands are kept.</li>
+    <li><b>Ratios</b>: HH/VV, HH/HV, VV/VH. Dimensionless.</li>
     <li><b>Complex Correlation</b> (matrix input only) &mdash; |c<sub>ij</sub>| / &radic;(c<sub>ii</sub>&middot;c<sub>jj</sub>)
-        between channel pairs in [0, 1]. Output bands: <code>Coh_HHVV</code>,
-        <code>Coh_HHHV</code>, <code>Coh_VVVH</code> as available per input mode.</li>
+        between channel pairs, in [0, 1]. Output bands: <code>Coh_HHVV</code>,
+        <code>Coh_HHHV</code>, <code>Coh_VVVH</code> as available per input mode. Unit coherence.</li>
     <li><b>Off-diagonal Phase</b> (matrix input only) &mdash; arg(c<sub>ij</sub>) in radians.
-        Output bands: <code>Phase_HHVV</code>, <code>Phase_HHHV</code>, <code>Phase_VVVH</code>
-        as available per input mode.</li>
+        Output bands: <code>Phase_HHVV</code> = arg&lt;S<sub>HH</sub>S<sub>VV</sub><sup>*</sup>&gt;,
+        <code>Phase_HHHV</code> = arg&lt;S<sub>HH</sub>S<sub>HV</sub><sup>*</sup>&gt; and
+        <code>Phase_VVVH</code> = arg&lt;S<sub>VV</sub>S<sub>VH</sub><sup>*</sup>&gt; (the same order for
+        quad-pol and dual-pol input), as available per input mode. Unit phase.</li>
 </ul>
 
 <h4>Notes on Phase and Coherence outputs</h4>
 <ul>
+    <li>They are computed from the input matrix of each pixel; the window is not applied. On a single-look
+        matrix every <code>Coh_</code> band is 1 and the phases are noise, so run the
+        <a href="PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a> first.</li>
     <li>For C3 / T3 / FULL input these are the C3 lex-basis correlations &mdash; T3 input is
         converted to C3 internally so the user always sees HH/HV/VV-named outputs regardless of
-        whether the matrix product was generated as T or C.</li>
-    <li>The C3 c<sub>22</sub> element stores 2|HV|<sup>2</sup>, so |HV| amplitudes and HV-paired
+        whether the matrix product was generated as T or C. HV stands for (S<sub>HV</sub> + S<sub>VH</sub>)/2.</li>
+    <li>The C3 c<sub>22</sub> element stores 2|HV|<sup>2</sup>, so the HV power and HV-paired
         correlations are normalised by the &radic;2 basis factor before being written.</li>
     <li>For C2 dual-pol input only one phase/coherence is meaningful (between the two channels
         actually present); the corresponding Phase_/Coh_ band carries that pair.</li>
 </ul>
 
+<p><b>Changed in SNAP 15.</b> Span is now the trace of T<sub>3</sub> (half the earlier value); RVI on
+   complex input now follows the eigenvalue formula above (earlier values were wrong); the ratios and indices use power instead of amplitude (the
+   ratios are the squares of the earlier values); quad-pol <code>Phase_VVVH</code> changed sign; and a
+   Sentinel-1 C2 product gets VV/VH bands instead of HH/VV bands. Do not compare these outputs with results
+   from earlier SNAP versions.</p>
+
 <h4>Parameters</h4>
 <ul>
-    <li><b>Use Mean Matrix</b> &mdash; when <i>true</i>, Span / Pedestal / RVI are computed on the
-        locally averaged coherency matrix (recommended). When <i>false</i>, they are computed on
-        the per-pixel single-look matrix (noisier).</li>
+    <li><b>Use Mean Matrix</b> &mdash; when <i>true</i>, Span, Pedestal Height and the complex-input RVI are
+        computed on the coherency matrix averaged over the window (recommended). When <i>false</i>, they are
+        computed on the per-pixel single-look matrix (noisier). The other outputs are always per pixel.</li>
     <li><b>Window Size X / Y</b> &mdash; sliding window for the mean matrix. Default 5&times;5.</li>
     <li><b>Output flags</b> &mdash; one boolean per output band.</li>
 </ul>
 
 <h4>References</h4>
 <ol>
-    <li>Pope, K. O., Rey-Benayas, J. M., Paris, J. F. (1994). <i>Radar remote sensing of forest
-        and wetland ecosystems in the Central American tropics.</i> Remote Sensing of
-        Environment 48(2), 205&ndash;219.</li>
-    <li>Mitchard, E. T. A., et al. (2012). <i>Mapping tropical forest biomass with radar and
-        spaceborne LiDAR in Lop&eacute; National Park, Gabon.</i> Carbon Balance and Management
-        7, 1.&nbsp;(RFDI definition.)</li>
-    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to
-        Applications.</i> CRC Press. (Coherency / covariance statistics and polarimetric scalar
-        descriptors.)</li>
+    <li>Pope, K. O., Rey-Benayas, J. M., Paris, J. F. (1994). Radar remote sensing of forest and wetland ecosystems in the Central American tropics. <i>Remote Sensing of Environment</i>, 48(2), 205&#8211;219. doi:10.1016/0034-4257(94)90142-2</li>
+    <li>Mitchard, E. T. A., Saatchi, S. S., White, L. J. T., Abernethy, K. A., Jeffery, K. J., Lewis, S. L., Collins, M., Lefsky, M. A., Leal, M. E., Woodhouse, I. H., Meir, P. (2012). Mapping tropical forest biomass with radar and spaceborne LiDAR in Lop&eacute; National Park, Gabon: overcoming problems of high biomass and persistent cloud. <i>Biogeosciences</i>, 9(1), 179&#8211;191. doi:10.5194/bg-9-179-2012</li>
+    <li>Kim, Y., van Zyl, J. J. (2009). A time-series approach to estimate soil moisture using polarimetric radar data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 47(8), 2519&#8211;2527. doi:10.1109/TGRS.2009.2014944</li>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
 </ol>
 
+<!-- params:begin op="Polarimetric-Parameters" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Polarimetric-Parameters</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>useMeanMatrix</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Use mean coherency or covariance matrix</td></tr>
+<tr><td><code>windowSizeXStr</code></td><td>String</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size X</td></tr>
+<tr><td><code>windowSizeYStr</code></td><td>String</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size Y</td></tr>
+<tr><td><code>outputSpan</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Span</td></tr>
+<tr><td><code>outputPedestalHeight</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output pedestal height</td></tr>
+<tr><td><code>outputRVI</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output RVI</td></tr>
+<tr><td><code>outputRFDI</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output RFDI = (HH-HV)/(HH+HV)</td></tr>
+<tr><td><code>outputCSI</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output CSI = VV/(VV+HH)</td></tr>
+<tr><td><code>outputVSI</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output VSI = (HV+VH)/(HH+VV+HV+VH)</td></tr>
+<tr><td><code>outputBMI</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output BMI = (HH+VV)/2</td></tr>
+<tr><td><code>outputITI</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output ITI = HH/VV</td></tr>
+<tr><td><code>outputHHVVRatio</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output HH/VV intensity ratio</td></tr>
+<tr><td><code>outputHHHVRatio</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output HH/HV intensity ratio</td></tr>
+<tr><td><code>outputVVVHRatio</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output VV/VH intensity ratio</td></tr>
+<tr><td><code>outputCoherence</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output complex-correlation magnitude |c_ij|/sqrt(c_ii*c_jj) for off-diagonal channel pairs (matrix input only)</td></tr>
+<tr><td><code>outputPhase</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output complex-correlation phase arg(c_ij) for off-diagonal channel pairs in radians (matrix input only)</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_matrices.html">Polarimetric Matrices and Parameters</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Polarimetric SAR product containing the channels that the selected outputs need (for example HH and HV for RFDI, all four channels for VSI); a missing channel stops the operator</li>
+    <li>Quad-pol C3/T3/scattering-matrix input for Span, Pedestal Height and RVI; Span and Pedestal Height also need complex (SLC-derived) data</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 </body>
 </html>

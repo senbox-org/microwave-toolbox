@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Soil Moisture from SAR</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Soil Moisture from SAR</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Soil Moisture from SAR</h1>
+
+<p class="lead">Water raises the dielectric constant of soil, and that raises radar backscatter. Retrieving
+moisture means separating this effect from surface roughness and vegetation, which change backscatter
+just as strongly. SNAP does it in two steps: invert a surface-scattering model (IEM) for the dielectric
+constant, then convert the dielectric constant to volumetric moisture.</p>
+
+<h2>Dielectric constant and moisture</h2>
+<p>The relative permittivity &epsilon;<sub>r</sub> = &epsilon;&#8242; &#8722; j&epsilon;&#8243; is a
+dimensionless ratio to the permittivity of free space. Dry soil has &epsilon;&#8242; of a few units; liquid
+water at C-band has about 70 to 80. Adding water therefore raises &epsilon;&#8242; steeply (Figure 1). The
+moisture is expressed as volumetric content m<sub>v</sub> in m&sup3;/m&sup3; (0 to about 0.5).</p>
+<p>Hallikainen et al. (1985) fitted measurements on five soils between 1.4 and 18 GHz with a polynomial in
+moisture and texture, one set of coefficients per frequency:</p>
+<p class="eq">&epsilon;&#8242; = (a<sub>0</sub> + a<sub>1</sub>S + a<sub>2</sub>C) + (b<sub>0</sub> + b<sub>1</sub>S + b<sub>2</sub>C) m<sub>v</sub> + (c<sub>0</sub> + c<sub>1</sub>S + c<sub>2</sub>C) m<sub>v</sub><sup>2</sup></p>
+<p>S and C are the sand and clay contents in percent. Clay holds part of the water as bound water, which
+has a much lower permittivity than free water, so clay-rich soils have a lower &epsilon;&#8242; at the
+same moisture. Dobson et al. (1985) model this with a semi-empirical mixing model of soil, air, bound and
+free water. Mironov et al. (2009) use a spectroscopic model driven by clay content and frequency.</p>
+<p><img src="images/soil_moisture_1.png" width="560" height="320" alt="Permittivity versus soil moisture for two textures"></p>
+<p class="figcap">Figure 1. &epsilon;&#8242; versus m<sub>v</sub> from the Hallikainen polynomial with the
+coefficients SNAP uses (6 GHz fit). At m<sub>v</sub> = 0.3 the sandy loam reaches about 18 and the clay-rich
+soil about 13.</p>
+
+<h2>Surface roughness</h2>
+<p>A bare soil surface is described statistically by the rms height s (vertical roughness) and the
+correlation length l (horizontal distance over which heights stay correlated), together with the shape of
+the autocorrelation function (ACF), which describes how height correlation decays with distance.
+Roughness is expressed relative to the wavelength as k&middot;s and
+k&middot;l, with k = 2&pi;/&lambda;. A rougher field is brighter, so a dry rough field and a wet smooth
+field can give the same &sigma;<sup>0</sup>. Roughness also changes with tillage and rain, so it cannot be
+treated as known.</p>
+
+<h2>The IEM and why inversion is ill-posed</h2>
+<p>The Integral Equation Model (Fung, Li and Chen 1992) predicts co-polarised backscatter from a randomly
+rough dielectric surface:</p>
+<p class="eq">&sigma;<sup>0</sup><sub>pp</sub> = f(&epsilon;<sub>r</sub>, s, l, ACF, &theta;, &lambda;), &nbsp; pp = HH or VV</p>
+<p>It is a forward model. Inverting it means finding &epsilon;<sub>r</sub>, s and l from one to four
+measured backscatter values, each with speckle (after multilooking) and calibration errors of a fraction of a dB. Different
+combinations of roughness and moisture predict nearly the same &sigma;<sup>0</sup>, so the solution is not
+unique. Inversion is practical only with a reduced number of unknowns and several independent
+observations.</p>
+<p><b>Calibrated IEM.</b> The correlation length is the hardest parameter to measure and the least
+reliable. Baghdadi et al. (2004, 2006) replace it with an empirical "optimal" correlation length, a
+function of rms height, incidence angle and polarisation, fitted to C-band SAR data and field
+measurements. The model then has two unknowns, s and &epsilon;<sub>r</sub>.</p>
+
+<h2>Inversion strategies</h2>
+<p>SNAP inverts by lookup table (LUT). The LUT holds IEM backscatter for many combinations of s, l (or s
+only for the calibrated IEM) and &epsilon;&#8242;, at each integer incidence angle. For each pixel, the N
+LUT entries whose backscatter is closest to the measurement are candidates.</p>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Approach</th><th>Input images</th><th>Observations</th><th>Unknowns</th><th>LUT</th></tr>
+    <tr><td>Multi-polarisation</td><td>1 (HH and VV)</td><td>2</td><td>s, &epsilon;&#8242;</td><td>calibrated IEM</td></tr>
+    <tr><td>Multi-angle</td><td>2 at different incidence angles, one polarisation each</td><td>2</td><td>s, &epsilon;&#8242;</td><td>calibrated IEM</td></tr>
+    <tr><td>Hybrid</td><td>2 at different incidence angles, HH and VV each</td><td>4</td><td>s, l, &epsilon;&#8242;</td><td>original IEM</td></tr>
+</table>
+<p>The two images of the multi-angle and hybrid approaches come from different passes over the same field
+(for example ascending and descending, called AM and PM in SNAP) and must be acquired while moisture and
+roughness are unchanged.</p>
+
+<h2>Vegetation</h2>
+<p>The IEM describes bare soil. A crop canopy adds its own backscatter and attenuates the soil
+contribution. The Water Cloud Model (Attema and Ulaby 1978) treats the canopy as a cloud of water droplets.
+In its commonly used form:</p>
+<p class="eq">&sigma;<sup>0</sup> = A V<sub>1</sub> cos &theta; (1 &#8722; &tau;<sup>2</sup>) + &tau;<sup>2</sup> &sigma;<sup>0</sup><sub>soil</sub>, &nbsp; &tau;<sup>2</sup> = exp(&#8722;2 B V<sub>2</sub> / cos &theta;)</p>
+<p>V<sub>1</sub> and V<sub>2</sub> describe the vegetation (for example its water content), and A and B are
+fitted per crop. SNAP's IEM chain has no vegetation correction. Results are meaningful for bare or sparsely
+vegetated fields; at C-band, sensitivity to soil moisture drops as the canopy grows.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>IEM-Multi-Pol-Inversion</b>, <b>IEM-Multi-Angle-Inversion</b> and <b>IEM-Hybrid-Inversion</b>
+        (Radar &gt; SAR Applications &gt; Soil Moisture) need one product holding calibrated
+        &sigma;<sup>0</sup> bands (names containing <code>Sigma0_HH</code>/<code>HH</code> and
+        <code>Sigma0_VV</code>/<code>VV</code>, linear or dB) and an incidence-angle band (name containing
+        <code>incidenceAngle</code> or <code>LIA</code>, in degrees). Two-image inputs are stacked into one
+        product first.</li>
+    <li>Outputs: <code>RDC</code> (real relative dielectric constant, dimensionless, with no band unit),
+        optional <code>rms</code> (cm) and <code>cl</code> (cm, hybrid
+        only). An <code>outlier</code> flag band is added only when the preference
+        <code>snap.soil_moisture.output_outlier</code> is true.</li>
+    <li>Without a <code>lutFile</code>, the bundled RADARSAT-2 C-band LUTs are used: calibrated IEM for
+        multi-pol and multi-angle, original IEM for hybrid. They cover incidence angles 18&deg; to 61&deg;,
+        s = 0.3 to 2.6 cm, l = 1 to 25 cm and &epsilon;&#8242; = 3.1 to 38.7.</li>
+    <li>Outlier control: <code>N</code> (default 5) nearest LUT entries per pixel are compared with the
+        mean &epsilon;&#8242; of an M &times; M neighbourhood (<code>M</code>, default 5). A candidate is
+        accepted when its relative deviation is within <code>thresholdRDC</code> (default 0.5); otherwise
+        the neighbourhood average is used if "Filter remaining outliers" is on (default).</li>
+    <li><b>SM-Dielectric-Modeling</b> converts <code>RDC</code> to the <code>sm</code> band
+        (m&sup3;/m&sup3;) and a <code>quality index</code> (0 = good, 1 = min/max limit reached, 10 = no
+        RDC, 11 = no sand/clay, 12 = no solution). <code>modelToUse</code> is Hallikainen (default; needs
+        bands named <code>Sand</code> and <code>Clay</code> in percent) or Mironov (needs <code>Clay</code>,
+        the radar frequency from the metadata and <code>effectiveSoilTemperature</code>, default
+        18 &deg;C). <code>minSM</code>/<code>maxSM</code> default to 0 and 0.55. Dobson is not
+        offered.</li>
+    <li>The Hallikainen coefficients are fixed in <code>auxdata/sm_luts/soil_moisture.config</code> and
+        are the 6 GHz fit, whatever the sensor frequency.</li>
+    <li>The menu graphs add sand, clay and crop maps with AddLandCover (AAFC Canada layers) and mask
+        non-crop pixels. Outside Canada you must supply your own texture bands.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Inverting over forest, tall crops or urban land. The IEM assumes bare soil.</li>
+    <li>Using the ellipsoid incidence angle on sloping fields. The IEM needs the local incidence angle,
+        and the bundled pre-processing graph writes the ellipsoid one.</li>
+    <li>Pairing images acquired days apart for multi-angle or hybrid inversion. Rain between the passes
+        breaks the assumption of equal moisture.</li>
+    <li>Applying the bundled RADARSAT-2 LUT to another frequency, or to angles outside 18&deg; to
+        61&deg; (Sentinel-1 uses the same 5.405 GHz; L- or X-band data do not).</li>
+    <li>Reading <code>RDC</code> as a value in Farad/m. It is a dimensionless ratio.</li>
+    <li>Skipping speckle filtering. Single-look &sigma;<sup>0</sup> errors of several dB map into large
+        moisture errors.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.soil.moisture.ui/org/csa/rstb/soilmoisture/docs/operators/IEMMultiPol.html">IEM Multi-Polarisation Inversion</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.soil.moisture.ui/org/csa/rstb/soilmoisture/docs/operators/IEMMultiAngle.html">IEM Multi-Angle Inversion</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.soil.moisture.ui/org/csa/rstb/soilmoisture/docs/operators/IEMHybrid.html">IEM Hybrid Inversion</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.soil.moisture.ui/org/csa/rstb/soilmoisture/docs/operators/SMDielectricModel.html">Soil Moisture Dielectric Modeling</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.soil.moisture.ui/org/csa/rstb/soilmoisture/docs/operators/MultiPolSoilMoisture.html">Multi-Polarisation Soil Moisture</a>,
+        <a href="nbdocs://org.csa.rstb.rstb.op.soil.moisture.ui/org/csa/rstb/soilmoisture/docs/operators/MultiAngleSoilMoisture.html">Multi-Angle Soil Moisture</a>,
+        <a href="nbdocs://org.csa.rstb.rstb.op.soil.moisture.ui/org/csa/rstb/soilmoisture/docs/operators/HybridSoilMoisture.html">Hybrid Soil Moisture</a></li>
+    <li>See also <a href="radiometry.html">Radiometry</a> and <a href="speckle.html">Speckle</a>.</li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Hallikainen, M. T., Ulaby, F. T., Dobson, M. C., El-Rayes, M. A., Wu, L.-K. (1985). Microwave
+        dielectric behavior of wet soil &#8212; Part I: Empirical models and experimental observations.
+        <i>IEEE Transactions on Geoscience and Remote Sensing</i>, GE-23(1), 25&#8211;34.
+        doi:10.1109/TGRS.1985.289497</li>
+    <li>Dobson, M. C., Ulaby, F. T., Hallikainen, M. T., El-Rayes, M. A. (1985). Microwave dielectric
+        behavior of wet soil &#8212; Part II: Dielectric mixing models. <i>IEEE Transactions on Geoscience
+        and Remote Sensing</i>, GE-23(1), 35&#8211;46. doi:10.1109/TGRS.1985.289498</li>
+    <li>Mironov, V. L., Kosolapova, L. G., Fomin, S. V. (2009). Physically and mineralogically based
+        spectroscopic dielectric model for moist soils. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, 47(7), 2059&#8211;2070. doi:10.1109/TGRS.2008.2011631</li>
+    <li>Fung, A. K., Li, Z., Chen, K. S. (1992). Backscattering from a randomly rough dielectric surface.
+        <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 30(2), 356&#8211;369.
+        doi:10.1109/36.134085</li>
+    <li>Baghdadi, N., Gherboudj, I., Zribi, M., Sahebi, M., King, C., Bonn, F. (2004). Semi-empirical
+        calibration of the IEM backscattering model using radar images and moisture and roughness field
+        measurements. <i>International Journal of Remote Sensing</i>, 25(18), 3593&#8211;3623.
+        doi:10.1080/01431160310001654392</li>
+    <li>Baghdadi, N., Holah, N., Zribi, M. (2006). Calibration of the Integral Equation Model for SAR data
+        in C-band and HH and VV polarizations. <i>International Journal of Remote Sensing</i>, 27(4),
+        805&#8211;816. doi:10.1080/01431160500212278</li>
+    <li>Attema, E. P. W., Ulaby, F. T. (1978). Vegetation modeled as a water cloud. <i>Radio Science</i>,
+        13(2), 357&#8211;364. doi:10.1029/RS013i002p00357</li>
+</ol>
+
+<hr>
+</body>
+</html>

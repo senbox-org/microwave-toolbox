@@ -36,6 +36,28 @@
                 <attr name="helpId" stringvalue="ThermalNoiseRemoval"/>
                 <attr name="icon" stringvalue="esaIcon"/>
             </file>
+            <file name="eu-esa-sar-calibration-gpf-RCMRemoveThermalNoiseOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="RCM Thermal Noise Removal"/>
+                <attr name="operatorName" stringvalue="RCM-Thermal-Noise-Removal"/>
+                <attr name="dialogTitle" stringvalue="RCM Thermal Noise Removal"/>
+                <attr name="ShortDescription" stringvalue="Removes thermal noise from RCM products"/>
+                <attr name="targetProductNameSuffix" stringvalue="_tnr"/>
+                <attr name="helpId" stringvalue="RCMThermalNoiseRemoval"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
+            <file name="eu-esa-sar-calibration-gpf-SaocomRemoveThermalNoiseOp-Action.instance">
+                <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
+                <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
+                <attr name="displayName" stringvalue="SAOCOM Thermal Noise Removal"/>
+                <attr name="operatorName" stringvalue="SAOCOM-Thermal-Noise-Removal"/>
+                <attr name="dialogTitle" stringvalue="SAOCOM Thermal Noise Removal"/>
+                <attr name="ShortDescription" stringvalue="Removes thermal noise from SAOCOM products"/>
+                <attr name="targetProductNameSuffix" stringvalue="_tnr"/>
+                <attr name="helpId" stringvalue="SaocomThermalNoiseRemoval"/>
+                <attr name="icon" stringvalue="esaIcon"/>
+            </file>
             <file name="eu-esa-sar-calibration-gpf-importXCAProduct-Action.instance">
                 <attr name="instanceCreate" methodvalue="org.openide.awt.Actions.alwaysEnabled"/>
                 <attr name="delegate" methodvalue="org.esa.snap.rcp.actions.file.ImportProductAction.create"/>
@@ -75,6 +97,14 @@
                 <file name="eu-esa-sar-calibration-gpf-Sentinel1RemoveThermalNoiseOp.shadow">
                     <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-calibration-gpf-Sentinel1RemoveThermalNoiseOp-Action.instance"/>
                     <attr name="position" intvalue="300"/>
+                </file>
+                <file name="eu-esa-sar-calibration-gpf-RCMRemoveThermalNoiseOp.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-calibration-gpf-RCMRemoveThermalNoiseOp-Action.instance"/>
+                    <attr name="position" intvalue="310"/>
+                </file>
+                <file name="eu-esa-sar-calibration-gpf-SaocomRemoveThermalNoiseOp.shadow">
+                    <attr name="originalFile" stringvalue="Actions/Operators/eu-esa-sar-calibration-gpf-SaocomRemoveThermalNoiseOp-Action.instance"/>
+                    <attr name="position" intvalue="320"/>
                 </file>
             </folder>
             <folder name="Sentinel-1 TOPS">
