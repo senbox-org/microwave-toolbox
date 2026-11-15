@@ -33,6 +33,7 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
+import org.esa.snap.runtime.Config;
 
 import java.awt.*;
 import java.io.File;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ServiceLoader;
 
 /**
  * Calibration for Sentinel1 data products.
@@ -58,6 +60,11 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
     private CALTYPE dataType = null;
     private int subsetOffsetX = 0;
     private int subsetOffsetY = 0;
+
+    /** Preference that enables the optional accelerated tile loop (see {@link Sentinel1TileAccelerator}). */
+    public static final String USE_TORNADOVM_PREFERENCE = "s1tbx.calibration.useTornadoVM";
+    private static volatile boolean acceleratorFailed = false;
+    private boolean useAccelerator = false;
 
     public enum CALTYPE {SIGMA0, BETA0, GAMMA, DN}
 
@@ -134,6 +141,9 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
             getVectors();
 
             createTargetBandToCalInfoMap();
+
+            useAccelerator = Config.instance().preferences().getBoolean(USE_TORNADOVM_PREFERENCE, false) &&
+                    AcceleratorHolder.INSTANCE != null;
 
             if (mustUpdateMetadata) {
                 updateTargetProductMetadata();
@@ -375,6 +385,11 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
             }
             final CALTYPE calType = getCalibrationType(targetBandName);
 
+            if (useAccelerator && computeTileAccelerated(calInfo, calType, srcData1, srcIndex, trgIndex,
+                    tgtData, x0, y0, w, h, noDataValue, srcBandUnit)) {
+                return;
+            }
+
             double dn = 0.0, i, q, muX, lutVal, retroLutVal = 1.0, calValue, calibrationFactor, phaseTerm = 0.0;
             int srcIdx;
             int pixelIdx = -1;
@@ -458,6 +473,85 @@ public final class Sentinel1Calibrator extends BaseCalibrator implements Calibra
             OperatorUtils.catchOperatorException(calibrationOp.getId(), e);
         } finally {
             pm.done();
+        }
+    }
+
+    /**
+     * Computes the tile with the optional {@link Sentinel1TileAccelerator}. Only detected amplitude
+     * input (GRD) is offloaded. Returns false, without touching the target tile, for anything else or
+     * on failure; the caller then runs the Java loop, which stays the reference implementation.
+     */
+    private boolean computeTileAccelerated(final CalibrationInfo calInfo, final CALTYPE calType,
+                                           final ProductData srcData, final TileIndex srcIndex,
+                                           final TileIndex trgIndex, final ProductData tgtData,
+                                           final int x0, final int y0, final int w, final int h,
+                                           final double noDataValue, final Unit.UnitType srcBandUnit) {
+        if (acceleratorFailed || srcBandUnit != Unit.UnitType.AMPLITUDE || (isComplex && outputImageInComplex)
+                || srcData.getType() == ProductData.TYPE_FLOAT64) {
+            return false;
+        }
+
+        final float[] amplitude = new float[w * h];
+        final int[] rowVectorIndex = new int[h];
+        final float[] rowMuY = new float[h];
+        for (int y = y0, k = 0; y < y0 + h; ++y) {
+            srcIndex.calculateStride(y);
+            for (int x = x0; x < x0 + w; ++x, ++k) {
+                amplitude[k] = (float) srcData.getElemDoubleAt(srcIndex.getIndex(x));
+            }
+            final int calVecIdx = calInfo.getCalibrationVectorIndex(subsetOffsetY + y);
+            final Sentinel1Utils.CalibrationVector vec0 = calInfo.getCalibrationVector(calVecIdx);
+            final Sentinel1Utils.CalibrationVector vec1 = calInfo.getCalibrationVector(calVecIdx + 1);
+            final double azTime = calInfo.firstLineTime + (subsetOffsetY + y) * calInfo.lineTimeInterval;
+            rowVectorIndex[y - y0] = calVecIdx;
+            rowMuY[y - y0] = (float) ((azTime - vec0.timeMJD) / (vec1.timeMJD - vec0.timeMJD));
+        }
+
+        final float[] target = new float[w * h];
+        final Sentinel1TileAccelerator.Request request = new Sentinel1TileAccelerator.Request(
+                w, h, subsetOffsetX + x0, amplitude, (float) noDataValue,
+                calInfo.calibrationVectorList, calType, rowVectorIndex, rowMuY, target);
+        try {
+            if (!AcceleratorHolder.INSTANCE.calibrate(request)) {
+                return false;
+            }
+        } catch (Throwable t) {
+            acceleratorFailed = true;
+            SystemUtils.LOG.warning("Sentinel-1 calibration: accelerated path failed, using the Java " +
+                    "implementation from now on: " + t);
+            return false;
+        }
+
+        for (int y = y0, k = 0; y < y0 + h; ++y) {
+            trgIndex.calculateStride(y);
+            for (int x = x0; x < x0 + w; ++x, ++k) {
+                tgtData.setElemDoubleAt(trgIndex.getIndex(x), target[k]);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Looks up the optional tile accelerator the first time a calibrator is initialised with the
+     * {@value #USE_TORNADOVM_PREFERENCE} preference set.
+     */
+    private static final class AcceleratorHolder {
+        static final Sentinel1TileAccelerator INSTANCE = load();
+
+        private static Sentinel1TileAccelerator load() {
+            try {
+                for (Sentinel1TileAccelerator accelerator : ServiceLoader.load(
+                        Sentinel1TileAccelerator.class, Sentinel1Calibrator.class.getClassLoader())) {
+                    SystemUtils.LOG.info("Sentinel-1 calibration: using " + accelerator.getClass().getName());
+                    return accelerator;
+                }
+                SystemUtils.LOG.warning("Sentinel-1 calibration: " + USE_TORNADOVM_PREFERENCE +
+                        " is set but no accelerator is installed; using the Java implementation");
+            } catch (Throwable t) {
+                SystemUtils.LOG.warning("Sentinel-1 calibration: could not load the accelerator, using the " +
+                        "Java implementation: " + t);
+            }
+            return null;
         }
     }
 

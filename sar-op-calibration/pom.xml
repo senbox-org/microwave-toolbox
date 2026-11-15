@@ -126,4 +126,97 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- Optional TornadoVM backend for the Sentinel-1 calibration tile loop (see Sentinel1TileAccelerator).
+         Not part of the default build. Build with -Ptornadovm on JDK 21: the jdk21 TornadoVM artifacts
+         use the Foreign Function and Memory API, which is a preview feature in Java 21, so the profile
+         compiles with enable-preview and the JVM that runs it needs enable-preview too. -->
+    <profiles>
+        <profile>
+            <id>tornadovm</id>
+            <properties>
+                <tornadovm.version>8.1.0-jdk21</tornadovm.version>
+                <surefire.jvm.extra.args>--enable-preview --enable-native-access=ALL-UNNAMED</surefire.jvm.extra.args>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.beehive-lab</groupId>
+                    <artifactId>tornado-api</artifactId>
+                    <version>${tornadovm.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>io.github.beehive-lab</groupId>
+                    <artifactId>tornado-runtime</artifactId>
+                    <version>${tornadovm.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>io.github.beehive-lab</groupId>
+                    <artifactId>tornado-drivers-opencl</artifactId>
+                    <version>${tornadovm.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>io.github.beehive-lab</groupId>
+                    <artifactId>tornado-drivers-cuda</artifactId>
+                    <version>${tornadovm.version}</version>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>add-tornadovm-sources</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/tornadovm/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>add-tornadovm-resources</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>add-resource</goal>
+                                </goals>
+                                <configuration>
+                                    <resources>
+                                        <resource>
+                                            <directory>src/tornadovm/resources</directory>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>add-tornadovm-test-sources</id>
+                                <phase>generate-test-sources</phase>
+                                <goals>
+                                    <goal>add-test-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/tornadovm/test</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <compilerArgs>
+                                <arg>--enable-preview</arg>
+                            </compilerArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
