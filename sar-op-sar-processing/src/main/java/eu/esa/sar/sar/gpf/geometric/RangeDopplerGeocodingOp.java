@@ -80,7 +80,8 @@ import java.util.logging.Logger;
  * (8.2) Convert (lat(i,j), lon(i,j), h(i,j)) to global Cartesian coordinates p(Px, Py, Pz);
  * (8.3) Compute zero Doppler time t(i,j) for point p(Px, Py, Pz) using Doppler frequency function;
  * (8.4) Compute satellite position s(i,j) and slant range r(i,j) = |s(i,j) - p| for zero Doppler time t(i,j);
- * (8.5) Compute bias-corrected zero Doppler time tc(i,j) = t(i,j) + r(i,j)*2/c, where c is the light speed;
+ * (8.5) Compute bias-corrected zero Doppler time tc(i,j) = t(i,j) + r(i,j)/c, where c is the light speed
+ *       (skipped if bistatic_correction_applied, except for the Sentinel-1 range-dependent residual);
  * (8.6) Update satellite position s(tc(i,j)) and slant range r(tc(i,j)) = |s(tc(i,j)) - p| for time tc(i,j);
  * (8.7) Compute azimuth image index Ia using zero Doppler time tc(i,j);
  * (8.8) Compute range image index Ir using slant range r(tc(i,j)) or ground range;
@@ -203,12 +204,14 @@ public class RangeDopplerGeocodingOp extends Operator {
 
     @Parameter(valueSet = {SARGeocoding.USE_INCIDENCE_ANGLE_FROM_ELLIPSOID, SARGeocoding.USE_LOCAL_INCIDENCE_ANGLE_FROM_DEM,
             SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM},
-            defaultValue = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM, label = "")
+            defaultValue = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM,
+            description = "Incidence angle used when computing sigma0: ellipsoid, local (DEM) or projected local (DEM)", label = "")
     private String incidenceAngleForSigma0 = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM;
 
     @Parameter(valueSet = {SARGeocoding.USE_INCIDENCE_ANGLE_FROM_ELLIPSOID, SARGeocoding.USE_LOCAL_INCIDENCE_ANGLE_FROM_DEM,
             SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM},
-            defaultValue = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM, label = "")
+            defaultValue = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM,
+            description = "Incidence angle used when computing gamma0: ellipsoid, local (DEM) or projected local (DEM)", label = "")
     private String incidenceAngleForGamma0 = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM;
 
     @Parameter(valueSet = {CalibrationOp.LATEST_AUX, CalibrationOp.PRODUCT_AUX, CalibrationOp.EXTERNAL_AUX},

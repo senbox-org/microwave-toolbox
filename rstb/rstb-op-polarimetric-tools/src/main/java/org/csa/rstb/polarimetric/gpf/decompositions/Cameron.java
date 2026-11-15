@@ -242,12 +242,13 @@ public class Cameron extends DecompositionBase implements Decomposition, QuadPol
         final double sMaxVVi = dsVVi / dsNorm;
         final double sMaxVVq = dsVVq / dsNorm;
 
-        // Compute S*DS
-        final double sDsR = sHHr * dsHHi - sHHi * dsHHq + 2.0 * (sHVr * dsHVi - sHVi * dsHVq) + sVVr * dsVVi - sVVi * dsVVq;
-        final double sDsI = sHHr * dsHHq + sHHi * dsHHi + 2.0 * (sHVr * dsHVq + sHVi * dsHVi) + sVVr * dsVVq + sVVi * dsVVi;
+        // Compute the Hermitian inner product <S, DS> = sum S_ij * conj(DS_ij). Without the conjugate a
+        // symmetric target such as diag(1, i) (for which DS = S) would get tau = 90 deg instead of 0.
+        final double sDsR = sHHr * dsHHi + sHHi * dsHHq + 2.0 * (sHVr * dsHVi + sHVi * dsHVq) + sVVr * dsVVi + sVVi * dsVVq;
+        final double sDsI = sHHi * dsHHi - sHHr * dsHHq + 2.0 * (sHVi * dsHVi - sHVr * dsHVq) + sVVi * dsVVi - sVVr * dsVVq;
 
         // Compute tau as in Eq. 46
-        final double tau = Math.acos(Math.sqrt(sDsR * sDsR + sDsI * sDsI) / (a * dsNorm));
+        final double tau = Math.acos(Math.min(1.0, Math.sqrt(sDsR * sDsR + sDsI * sDsI) / (a * dsNorm)));
 
         // Output Smax, span and tau
         return new CDD(sMaxHHi, sMaxHHq, sMaxHVi, sMaxHVq, sMaxVVi, sMaxVVq, a, tau);

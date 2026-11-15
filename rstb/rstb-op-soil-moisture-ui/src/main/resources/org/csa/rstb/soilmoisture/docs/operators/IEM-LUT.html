@@ -25,15 +25,21 @@
     n<br>Number_of_rows_per_angle = k<br>where<br>m is an integer that represents the start incidence angle in
     degrees<br>n is an integer that represents the stop incidence angle in degrees<br>k is the number of rows per
     integral angle<br><br>The data file can be a binary Matlab file (extension ".mat") or a text CSV file (extension
-    ".csv").<br><br>An Original IEM LUT must have exactly 5 columns in this order:<br>rms (cm), cl (cm), RDC (Farad/m),
+    ".csv").<br><br>An Original IEM LUT must have exactly 5 columns in this order:<br>rms (cm), cl (cm), RDC (dimensionless),
     sigmaHH (dB), sigmaVV (dB)<br><br>A Calibrated IEM LUT must have exactly 4 columns in this order:<br>rms (cm), RDC
-    (Farad/m), sigmaHH (dB), sigmaVV (dB)<br><br>The number of rows in the LUT should be:<br>Number_of_rows_per_angle *
+    (dimensionless), sigmaHH (dB), sigmaVV (dB)<br><br>RDC is the real part of the soil's relative
+    dielectric constant (relative permittivity). It is a ratio to the permittivity of free space, so it has
+    no unit.<br><br>The number of rows in the LUT should be:<br>Number_of_rows_per_angle *
     (Stop_angle - Start_angle + 1)<br><br>The
     (rms, cl, RDC) block in an Original IEM LUT are assumed to be
     replicated across angles, meaning that the (rms, cl, RDC) values
     corresponding to the same row of two different angle blocks are the
     same. The same assumption applies to a Calibrated IEM LUT.</p>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Fung, A. K., Li, Z., Chen, K. S. (1992). Backscattering from a randomly rough dielectric surface. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 30(2), 356&#8211;369. doi:10.1109/36.134085</li>
+</ol>
 <hr>
 </body>
 </html>

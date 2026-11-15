@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Ocean SAR: Wind, Ships and Oil</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Ocean SAR: Wind, Ships and Oil</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Ocean SAR: Wind, Ships and Oil</h1>
+
+<p class="lead">Over the sea, a SAR sees centimetre-scale waves raised by the local wind. Their strength sets
+the backscatter, so the image can be turned into wind speed. Oil films that smooth these waves appear dark,
+and ships appear as bright points on the darker sea.</p>
+
+<h2>Bragg scattering</h2>
+<p>At incidence angles between about 20&deg; and 60&deg;, most of the echo from the sea comes from surface
+waves, travelling toward or away from the radar, whose wavelength resonates with the radar (Valenzuela
+1978). Echoes from successive crests add in phase when the
+two-way path difference equals one radar wavelength (Figure 1):</p>
+<p class="eq">&lambda;<sub>B</sub> = &lambda; / (2 sin &theta;)</p>
+<p>&lambda; is the radar wavelength, &theta; the local incidence angle and &lambda;<sub>B</sub> the resonant
+(Bragg) water wavelength. These short waves grow and decay quickly as the wind changes, so backscatter
+follows the local wind. Longer waves tilt and modulate the
+Bragg waves, which is how swell becomes visible.</p>
+<p><img src="images/ocean_1.png" width="560" height="300" alt="Bragg resonance geometry"></p>
+<p class="figcap">Figure 1. Two rays hitting neighbouring crests differ by 2&lambda;<sub>B</sub> sin &theta; in
+two-way path. When this equals &lambda;, the echoes add in phase.</p>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Band (mission)</th><th>&lambda;</th><th>&lambda;<sub>B</sub> at 20&deg;</th><th>at 35&deg;</th><th>at 45&deg;</th></tr>
+    <tr><td>X (TerraSAR-X, 9.65 GHz)</td><td>3.1 cm</td><td>4.5 cm</td><td>2.7 cm</td><td>2.2 cm</td></tr>
+    <tr><td>C (Sentinel-1, 5.405 GHz)</td><td>5.5 cm</td><td>8.1 cm</td><td>4.8 cm</td><td>3.9 cm</td></tr>
+    <tr><td>S (NISAR, 3.2 GHz)</td><td>9.4 cm</td><td>13.7 cm</td><td>8.2 cm</td><td>6.6 cm</td></tr>
+    <tr><td>L (ALOS-2, NISAR, 1.257 GHz)</td><td>23.8 cm</td><td>34.9 cm</td><td>20.8 cm</td><td>16.9 cm</td></tr>
+</table>
+
+<h2>Wind from backscatter</h2>
+<p>A geophysical model function (GMF) gives &sigma;<sup>0</sup> as a function of the 10 m wind speed
+v, the angle &phi; between the wind direction and the radar look direction, and the incidence angle. The
+C-band CMOD family has the form</p>
+<p class="eq">&sigma;<sup>0</sup><sub>VV</sub> = B<sub>0</sub>(v, &theta;) &middot; [1 + B<sub>1</sub>(v, &theta;) cos &phi; + B<sub>2</sub>(v, &theta;) cos 2&phi;]<sup>1.6</sup></p>
+<p>B<sub>0</sub> carries the speed dependence. B<sub>1</sub> makes looking upwind brighter than
+downwind, and B<sub>2</sub> makes both brighter than crosswind (Figure 2). CMOD4 and its successor CMOD5
+(Hersbach et al. 2007) were fitted to ERS scatterometer data. CMOD5.N (Hersbach 2008) refits the 28 CMOD5
+coefficients for equivalent-neutral wind; its winds are about 0.7 m/s stronger. All are VV models.
+For HH data, &sigma;<sup>0</sup><sub>HH</sub> is first converted with a polarisation ratio, for example the
+form of Thompson et al. (1998):</p>
+<p class="eq">PR = &sigma;<sup>0</sup><sub>VV</sub> / &sigma;<sup>0</sup><sub>HH</sub> = (1 + 2 tan<sup>2</sup>&theta;)<sup>2</sup> / (1 + &alpha; tan<sup>2</sup>&theta;)<sup>2</sup></p>
+<p>&alpha; = 0 gives the Bragg ratio for a highly conducting surface (sea water is close to this);
+&alpha; = 2 gives PR = 1.</p>
+<p><img src="images/ocean_2.png" width="560" height="320" alt="CMOD5.N backscatter versus wind speed"></p>
+<p class="figcap">Figure 2. CMOD5.N &sigma;<sup>0</sup><sub>VV</sub> at 35&deg; incidence (coefficients from
+Hersbach 2008, Table 1). At 10 m/s, upwind is about 4 dB brighter than crosswind.</p>
+<p><b>Direction ambiguity.</b> A scatterometer views each cell from several azimuths. A SAR
+gives one &sigma;<sup>0</sup> for two unknowns, speed and direction. The direction must come from
+elsewhere: a numerical weather prediction model, or the orientation of wind streaks (boundary-layer
+rolls) in the image. Streaks fix the direction only to within 180&deg;. A wrong direction biases the
+speed, because upwind and crosswind backscatter differ by several dB (Figure 2).</p>
+
+<h2>Oil slicks and look-alikes</h2>
+<p>Oil films damp the short waves that carry the Bragg signal, so a slick appears as a dark patch. Detection
+needs enough wind to roughen the clean sea around it; about 3 to 10 m/s is commonly quoted. Below that
+range the whole sea is dark. Above it the oil is mixed into the water. Many other things also look dark:
+low-wind areas, natural biogenic films, rain cells, grease ice and cold upwelling water. Solberg et al.
+(1999) and Brekke and Solberg (2005) classify dark spots using their shape, contrast and context. A dark
+spot detector alone cannot tell oil from these look-alikes.</p>
+
+<h2>Ship detection</h2>
+<p>A ship (metal, corners, superstructure) is usually much brighter than the sea around it. A
+constant-false-alarm-rate (CFAR) detector compares each pixel with local sea statistics measured in a
+background ring, outside a guard area that excludes the ship itself:</p>
+<p class="eq">detect if I<sub>target</sub> &gt; &mu;<sub>b</sub> + t &middot; &sigma;<sub>b</sub></p>
+<p>&mu;<sub>b</sub> and &sigma;<sub>b</sub> are the background mean and standard deviation. t is set by the
+probability of false alarm (PFA). Sea clutter at high resolution has heavier tails than a Gaussian. The
+K-distribution is a common model for it; Crisp (2004) reviews CFAR detectors and clutter models. A Gaussian threshold gives more false alarms than
+the nominal PFA in rough seas. Cross-polarisation (HV, VH) gives the best ship-to-sea contrast, because
+sea clutter is weak there. Land must be masked first, or the coast fills the result with detections.</p>
+
+<h2>Waves and wave mode</h2>
+<p>Long swell is imaged through tilt and hydrodynamic modulation, and through velocity bunching caused by
+the orbital motion of the water. This mapping is non-linear.
+Waves travelling in azimuth are lost below an azimuth cut-off wavelength (Hasselmann and Hasselmann 1991).
+Sentinel-1 Wave mode (WV) acquires small vignettes of about 20 km &times; 20 km over the open ocean. The
+Level-2 OCN product contains the inverted swell spectrum for each vignette (the OSW component).</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Wind-Field-Estimation</b> (Radar &gt; SAR Applications &gt; Ocean) needs a calibrated
+        &sigma;<sup>0</sup> band in HH or VV (linear intensity or dB), an <code>incidence_angle</code>
+        tie-point grid and an ERS, ENVISAT, Sentinel-1 or RADARSAT-2 product. Within each window
+        (<code>windowSizeInKm</code>, default 20 km), it takes the direction from the wind-streak spectrum
+        (streaks of 3 to 15 km wavelength) and inverts CMOD5 (Hersbach et al. 2007) for speed between 0.1 and
+        20 m/s; stronger winds are reported as 20 m/s. The direction keeps the 180&deg; ambiguity, so the upwind/downwind term uses an
+        arbitrary sign. HH is converted with the ratio above with &alpha; = 1. Results go to a
+        <code>WindField</code> vector (speed, heading) and to
+        <code>&lt;product&gt;_wind_field_report.xml</code> in the SNAP log folder
+        (<code>.snap/var/log</code>).</li>
+    <li><b>Land.</b> The wind, oil and ship tools ignore no-data pixels, which is how masked land is
+        excluded. Wind windows that are at least half no-data are skipped. Run Land-Sea-Mask first. The menu graphs for all three applications do
+        this.</li>
+    <li><b>Oil-Spill-Detection</b> flags a pixel when &sigma;<sup>0</sup> &lt; (background mean) /
+        10<sup>k/10</sup>. Parameters: background window <code>backgroundWindowDim</code> in
+        <b>km</b> (default 0.5; the menu graph uses 4.5) and threshold shift <code>k</code> in dB (default
+        2.0). The output band is <code>&lt;band&gt;_oil_spill_bit_msk</code>. <b>Oil-Spill-Clustering</b>
+        then removes clusters smaller than <code>minClusterSizeInKm2</code> (default 0.1 km&sup2;).</li>
+    <li><b>Ship Detection</b> chains Land-Sea-Mask, Calibration, <b>AdaptiveThresholding</b> and
+        <b>Object-Discrimination</b>. AdaptiveThresholding is a two-parameter Gaussian CFAR. Its windows
+        are in metres: target 50 m, guard 500 m and background 800 m by default. PFA is entered as an
+        exponent x, PFA = 10<sup>&#8722;x</sup> (default 6.5; the menu graph uses 12.5). It picks the band
+        itself: HV if present, else VH, else HH, else the remaining intensity bands (one per polarisation). The output is <code>&lt;band&gt;_ship_bit_msk</code>.
+        Object-Discrimination keeps targets whose bounding-box diagonal is between 50 and 600 m. It writes
+        the <code>ShipDetections</code> vector and <code>&lt;product&gt;_object_detection_report.xml</code>.</li>
+    <li><b>Ocean Swell</b> tool window (View &gt; Tool Windows &gt; Radar) shows the polar wave spectrum
+        of each record of a Sentinel-1 L2 OCN WV product (<code>oswPolSpec</code>) or of an ASAR wave
+        product, together with record metadata such as wind speed and direction.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Running wind, oil or ship tools on uncalibrated data. All three refuse products that are not
+        calibrated to &sigma;<sup>0</sup>.</li>
+    <li>Treating every dark patch as oil. Check the local wind and the shape before reporting a spill.</li>
+    <li>Entering the oil background window in pixels. It is in kilometres; 0.5 km is only 50 pixels at
+        10 m spacing.</li>
+    <li>Trusting the streak direction. It is ambiguous by 180&deg;; compare it with a weather-model
+        wind.</li>
+    <li>Using a nominal PFA as the real false-alarm rate. The Gaussian assumption under-estimates
+        heavy-tailed sea clutter, and the target window is not one pixel.</li>
+    <li>Skipping the land mask. Coasts, piers and islands become ships.</li>
+    <li>Feeding dB bands to Oil-Spill-Detection or AdaptiveThresholding: both tests assume linear
+        &sigma;<sup>0</sup>; remove dB virtual bands first.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/WindFieldEstimationOp.html">Wind Field Estimation</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/OilSpillDetectionOp.html">Oil Spill Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/ObjectDetection.html">Ship Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.analysis.ui/eu/esa/sar/ocean/docs/wave/PolarView.html">Ocean Swell polar view</a></li>
+    <li>See also <a href="radiometry.html">Radiometry</a> and <a href="speckle.html">Speckle</a>.</li>
+</ul>
+<p>Workflows: <a href="../workflows/workflow_ocean.html">Ocean Applications</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Valenzuela, G. R. (1978). Theories for the interaction of electromagnetic and oceanic waves &#8212; a
+        review. <i>Boundary-Layer Meteorology</i>, 13(1&#8211;4), 61&#8211;85. doi:10.1007/BF00913863</li>
+    <li>Hersbach, H., Stoffelen, A., de Haan, S. (2007). An improved C-band scatterometer ocean geophysical
+        model function: CMOD5. <i>Journal of Geophysical Research: Oceans</i>, 112(C3), C03006.
+        doi:10.1029/2006JC003743</li>
+    <li>Hersbach, H. (2008). CMOD5.N: A C-band geophysical model function for equivalent neutral wind.
+        ECMWF Technical Memorandum 554, ECMWF, Reading, UK.</li>
+    <li>Thompson, D. R., Elfouhaily, T. M., Chapron, B. (1998). Polarization ratio for microwave
+        backscattering from the ocean surface at low to moderate incidence angles. <i>Proc. IGARSS 1998</i>,
+        vol. 3, 1671&#8211;1673. doi:10.1109/IGARSS.1998.692411</li>
+    <li>Solberg, A. H. S., Storvik, G., Solberg, R., Volden, E. (1999). Automatic detection of oil spills in
+        ERS SAR images. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 37(4), 1916&#8211;1924.
+        doi:10.1109/36.774704</li>
+    <li>Brekke, C., Solberg, A. H. S. (2005). Oil spill detection by satellite remote sensing. <i>Remote
+        Sensing of Environment</i>, 95(1), 1&#8211;13. doi:10.1016/j.rse.2004.11.015</li>
+    <li>Crisp, D. J. (2004). <i>The State-of-the-Art in Ship Detection in Synthetic Aperture Radar
+        Imagery</i>. DSTO-RR-0272, Defence Science and Technology Organisation, Australia.</li>
+    <li>Hasselmann, K., Hasselmann, S. (1991). On the nonlinear mapping of an ocean wave spectrum into a
+        synthetic aperture radar image spectrum and its inversion. <i>Journal of Geophysical Research:
+        Oceans</i>, 96(C6), 10713&#8211;10729. doi:10.1029/91JC00302</li>
+</ol>
+
+<hr>
+</body>
+</html>

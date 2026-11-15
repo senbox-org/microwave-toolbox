@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Phase Unwrapping</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Phase Unwrapping</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Phase Unwrapping</h1>
+
+<p class="lead">An interferogram records phase only modulo 2&pi;. Phase unwrapping restores the missing whole
+    cycles so that the phase becomes a continuous measurement, which you need before converting phase to
+    displacement or height. It is also the step most likely to add large errors that are hard to see.</p>
+
+<h2>Wrapped and unwrapped phase</h2>
+<p>The wrapped phase &phi;<sub>w</sub> lies in (&#8722;&pi;, &pi;]. The unwrapped phase is</p>
+<p class="eq">&phi;<sub>u</sub> = &phi;<sub>w</sub> + 2&pi;k</p>
+<p>with an unknown integer k for each pixel. Along a profile, unwrapping is easy if the true phase changes by less
+    than &pi; between neighbouring pixels. You then wrap each pixel-to-pixel difference into (&#8722;&pi;, &pi;] and
+    add the differences up. Noise or steep phase gradients break that condition, and a single wrong step shifts
+    everything after it by 2&pi; (Figure 1).</p>
+<p><img src="images/unwrapping_1.png" width="560" height="420" alt="Wrapped, unwrapped and erroneously unwrapped phase profiles"></p>
+<p class="figcap">Figure 1. Top: the true phase and the wrapped phase that the interferogram records. Bottom: a
+    correct unwrapping and one where a noisy patch made the unwrapper pick the wrong cycle, leaving a 2&pi; step.</p>
+
+<h2>Residues</h2>
+<p>In two dimensions, different integration paths between two pixels must give the same result. Add the wrapped
+    differences around the smallest closed loop of 2 &times; 2 pixels. For consistent data the sum is zero. Where it
+    is &plusmn;1 cycle, the loop encloses a <i>residue</i> (Goldstein, Zebker and Werner, 1988), and paths that pass
+    on either side of it disagree by 2&pi;.</p>
+<p><img src="images/unwrapping_2.png" width="560" height="280" alt="Consistent 2 by 2 loop and a residue"></p>
+<p class="figcap">Figure 2. Wrapped phase (in cycles) at the corners of a 2 &times; 2 loop. Each difference is
+    wrapped into [&#8722;0.5, 0.5) cycles. Left: the differences sum to zero. Right: they sum to +1, a residue.</p>
+<p>Residues come from phase noise in low-coherence areas, from layover, and from true phase gradients steeper than
+    &pi; per pixel. Examples are steep terrain with a large perpendicular baseline, or the deformation field close to
+    an earthquake rupture. Every unwrapper has to decide where to put the 2&pi; discontinuities that connect the
+    residues; it differs only in how it makes that choice.</p>
+
+<h2>Why filtering and multilooking help</h2>
+<p>Multilooking and adaptive filtering, such as the Goldstein filter, reduce phase noise, so far fewer residues
+    remain. They also shrink the data volume. The limit is the fringe density: after multilooking, a fringe must
+    still span several pixels, otherwise real gradients become aliased and create residues themselves.</p>
+
+<h2>SNAPHU and its cost modes</h2>
+<p>SNAPHU (Chen and Zebker, 2001) treats unwrapping as a statistical estimation problem. It asks which set of
+    cycle jumps is most probable, given the wrapped phase, the coherence and the amplitude. It then solves the
+    problem approximately with network-flow optimisation. Placing a jump is cheap where the coherence is low and
+    expensive where it is high, so errors are pushed into the noisy areas. The statistical cost mode chooses the model:</p>
+<ul>
+    <li><b>DEFO</b>: deformation. The phase is mostly smooth but may contain discontinuities, such as at a fault.
+        This is SNAP's default.</li>
+    <li><b>TOPO</b>: topography. It uses the imaging geometry and amplitude to model layover and steep slopes; use it
+        for DEM generation.</li>
+    <li><b>SMOOTH</b>: a generic smooth surface.</li>
+    <li><b>NOSTATCOSTS</b>: turns the statistical cost models off.</li>
+</ul>
+<p>SNAP's export writes only the phase and coherence files; no amplitude file is passed to SNAPHU, although
+    the TOPO model can use one to detect layover.</p>
+<p>Large interferograms are split into tiles that are unwrapped separately, with an overlap, and then joined by a
+    second optimisation over reliable regions (Chen and Zebker, 2002). The tile cost threshold controls the size of
+    these regions: a larger threshold gives smaller, safer regions at a higher computing cost.</p>
+
+<h2>Reference point and errors</h2>
+<p>Unwrapped phase is relative. The whole image is known only up to an additive constant. Coherent areas that are
+    separated by water or decorrelated ground (islands, valley sides) each get their own arbitrary multiple of
+    2&pi;. Before you interpret values, subtract the mean phase of a stable, coherent reference area close to the
+    area of interest. All results are then relative to that area.</p>
+<p>Unwrapping errors appear as steps of exactly 2&pi; (&lambda;/2 of line-of-sight motion, 2.8 cm at C-band).
+    They tend to follow coherence boundaries, rivers, or tile edges. To find them:</p>
+<ul>
+    <li>Overlay the coherence. Steps along low-coherence lines are suspect.</li>
+    <li>Draw profiles across the suspect line. A real signal is rarely a clean 2&pi; step.</li>
+    <li>In a network of interferograms, check triplet closure: the unwrapped phases of the pairs (1,2) and (2,3)
+        minus (1,3) should sum to zero. A non-zero multiple of 2&pi; marks an unwrapping error.</li>
+</ul>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>SNAPHU Export</b> (<code>SnaphuExport</code>) needs a wrapped phase band (unit <code>phase</code>; bands
+        whose name contains "topo" are skipped) and a coherence band. It writes them as float files into a sub-folder named after the
+        product inside the target folder, for example
+        <code>Phase_ifg_&lt;tag&gt;.snaphu.img</code> and <code>coh_&lt;tag&gt;.snaphu.img</code>, together with a
+        <code>snaphu.conf</code> and an ENVI header for the result, <code>UnwPhase_ifg_&lt;tag&gt;.snaphu.hdr</code>. The tag is
+        <code>&lt;subswath&gt;_&lt;pol&gt;_&lt;ref-date&gt;_&lt;sec-date&gt;</code> (subswath and polarisation are omitted when the product has none).
+        Defaults: cost mode DEFO, initialisation MST, 10 &times; 10 tiles, 200 pixels row and column overlap, tile
+        cost threshold 500, 4 processors.</li>
+    <li>Run SNAPHU in that sub-folder (it is also the folder to give Batch Snaphu Unwrap) with the command written in the header of <code>snaphu.conf</code>
+        (<code>snaphu -f snaphu.conf &lt;phase file&gt; &lt;width&gt;</code>). SNAP does not write a mask file, so
+        SNAPHU unwraps every pixel.</li>
+    <li><b>SNAPHU Import</b> (<code>SnaphuImport</code>) takes two inputs: the wrapped-phase product you exported
+        and the <code>UnwPhase_*.hdr</code> result. For a stack with one Secondary it names the band
+        <code>Unw_Phase_ifg_&lt;ref-date&gt;_&lt;sec-date&gt;</code> with unit <code>abs_phase</code>. It keeps
+        the wrapped bands unless <i>Do NOT save Wrapped interferogram</i> is selected.</li>
+    <li><b>Batch Snaphu Unwrap</b> (<code>BatchSnaphuUnwrapOp</code>) runs SNAPHU itself on every per-interferogram
+        <code>&lt;pair&gt;snaphu.conf</code> in a SNAPHU Export sub-folder. It uses the snaphu executable that
+        <i>Snaphu Install Location</i> points at, or one already in that folder; only if there is none does it
+        download SNAPHU there. On Linux the automatic download does not set the executable bit, so the run fails:
+        install SNAPHU yourself (or <code>chmod +x</code> the downloaded <code>snaphu</code> binary) and point the
+        tool at its folder. No download is offered for macOS: install SNAPHU yourself. The export sub-folder is
+        only where SNAPHU runs and where the log is written. It needs at least two wrapped phase bands and a coherence
+        band. Each wrapped phase band is replaced by <code>UnwPhase_ifg_&lt;tag&gt;</code> with unit
+        <code>abs_phase</code>, and the coherence and other bands are passed through, so the output feeds SBAS
+        Inversion directly.</li>
+    <li>Downstream operators expect the <code>Unw</code> prefix. Phase to Displacement uses the first band whose name
+        starts with "unw" and computes &#8722;&lambda;/(4&pi;) &middot; &phi; in metres. It does not subtract a
+        reference point; do that first, for example with Band Maths.</li>
+    <li>SBAS Inversion writes a <code>closure_phase_rms</code> band by default, an RMS of triplet closures per
+        pixel. Each closure is wrapped to (&#8722;&pi;, &pi;] first, so the band shows sub-cycle inconsistency and
+        does not reveal whole-cycle unwrapping errors; check for those with the unwrapped triplet sum above.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Unwrapping a noisy, full-resolution interferogram. Multilook and filter first.</li>
+    <li>Converting unwrapped phase to displacement without a reference area, then reading the absolute values.</li>
+    <li>Trusting unwrapped values in low-coherence areas. Mask them after import.</li>
+    <li>Using 10 &times; 10 tiles on a small multilooked image. With a 200-pixel overlap the tiles overlap almost
+        completely; use one tile instead.</li>
+    <li>Comparing displacement across water or other decorrelated gaps. The two sides can differ by an arbitrary
+        number of cycles.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">SNAPHU Export</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuUnwrapping.html">SNAPHU Unwrapping</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">SNAPHU Import</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BatchSnaphuUnwrapOp.html">Batch Snaphu Unwrap</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToElevationOp.html">Phase to Elevation</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+</ul>
+<p>Workflows: <a href="../workflows/workflow_s1_dinsar.html">Sentinel-1 TOPS DInSAR</a> and <a href="../workflows/workflow_stripmap_dinsar.html">Stripmap DInSAR</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Goldstein, R. M., Zebker, H. A., Werner, C. L. (1988). Satellite radar interferometry: Two-dimensional
+        phase unwrapping. <i>Radio Science</i>, 23(4), 713&#8211;720. doi:10.1029/RS023i004p00713</li>
+    <li>Chen, C. W., Zebker, H. A. (2001). Two-dimensional phase unwrapping with use of statistical models for cost
+        functions in nonlinear optimization. <i>Journal of the Optical Society of America A</i>, 18(2),
+        338&#8211;351. doi:10.1364/JOSAA.18.000338</li>
+    <li>Chen, C. W., Zebker, H. A. (2002). Phase unwrapping for large SAR interferograms: Statistical segmentation
+        and generalized network models. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 40(8),
+        1709&#8211;1719. doi:10.1109/TGRS.2002.802453</li>
+    <li>Goldstein, R. M., Werner, C. L. (1998). Radar interferogram filtering for geophysical applications.
+        <i>Geophysical Research Letters</i>, 25(21), 4035&#8211;4038. doi:10.1029/1998GL900033</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic
+        Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+</ol>
+
+<hr>
+</body>
+</html>

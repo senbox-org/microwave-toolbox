@@ -1,73 +1,101 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import CosmoSkymed</title>
-
-
-
-    <link rel="stylesheet" href="../style.css"></head><body>
+<html>
+<head><title>Help - Import COSMO-SkyMed</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import Cosmo-Skymed</td>
+        <td class="header">&nbsp; Import COSMO-SkyMed</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import Cosmo-Skymed Product</h3>&nbsp; Cosmo-Skymed is a dual use constellation of SAR satellites
-developed by ASI. Both first generation (CSK, 4 satellites) and second generation (CSG, 2 satellites) products are supported.
 
-<p class="MsoNormal"><b style="">Operational:</b>
-2007-06-08 to present (CSK), 2022 to present (CSG)</p>
+<p>SNAP reads COSMO-SkyMed first-generation (CSK) and second-generation (CSG) products with two
+readers: one for HDF5 files (menu <i>File &gt; Import &gt; SAR Sensors &gt; COSMO-SKYMED</i>) and one
+for CSG GeoTIFF files. <i>File &gt; Open Product</i> picks the right reader for either format.</p>
 
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-X-band</p>
-
-
-<p class="MsoNormal"><b style="">Acquisition Modes: </b>Stripmap,
-ScanSAR Huge, ScanSAR Wide, Spotlight</p>
-
-
-<p class="MsoNormal"><b style="">Product Types</b>:</p>
-
-
+<h2>Mission</h2>
 <ul>
-  <li>SCS Single Look Complex slant range</li>
-  <li>DGM Multi-look ground range</li>
-  <li>GEC Geocoded Ellipsoid Corrected</li>
-  <li>GTC Geocoded and Terrain Corrected using a DEM</li>
+    <li><b>Operator:</b> Italian Space Agency (ASI) and Italian Ministry of Defence (dual use).</li>
+    <li><b>Instrument:</b> X-band SAR at 9.6&nbsp;GHz (wavelength about 3.1&nbsp;cm).</li>
+    <li><b>Orbit:</b> sun-synchronous dawn-dusk, 619.6&nbsp;km altitude, 16-day repeat cycle per
+        satellite.</li>
+    <li><b>CSK:</b> four satellites launched 8 June 2007, 9 December 2007, 25 October 2008 and
+        6 November 2010. CSK-3 was decommissioned in April 2022 and CSK-1 in April 2025.</li>
+    <li><b>CSG:</b> CSG-1 launched 18 December 2019, CSG-2 on 31 January 2022 and CSG-3 on
+        3 January 2026.</li>
 </ul>
 
-
-<p class="MsoNormal"><b style="">File Formats</b>:</p>
-
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Level</th><th>Type</th><th>Content</th></tr>
+    <tr><td>1A</td><td>SCS</td><td>Single-look complex, slant range, zero Doppler</td></tr>
+    <tr><td>1B</td><td>DGM</td><td>Detected, multi-looked, ground range</td></tr>
+    <tr><td>1C</td><td>GEC</td><td>Geocoded on the ellipsoid</td></tr>
+    <tr><td>1D</td><td>GTC</td><td>Geocoded and terrain corrected with a DEM</td></tr>
+</table>
 <ul>
-  <li>HDF5 (.h5) - both CSK and CSG products</li>
-  <li>GeoTIFF (.tif) with XML metadata (.attribs.xml) - CSG products</li>
+    <li><b>Modes:</b> Spotlight, Stripmap (CSK HIMAGE), PingPong, ScanSAR (CSK WideRegion and
+        HugeRegion), and on CSG an experimental quad-pol mode.</li>
+    <li><b>Polarisations:</b> single (HH, VV, HV or VH); PingPong alternates two polarisations.</li>
+    <li><b>Formats:</b> HDF5 (<code>.h5</code>) for CSK and CSG; GeoTIFF with an
+        <code>.attribs.xml</code> metadata file for CSG.</li>
 </ul>
 
-
-<p class="MsoNormal"><b style="">Polarizations:</b>
-Single Pol, non-coherent Dual Pol in Ping Pong Stripmap mode</p>
-
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the *.h5 file (HDF5 format), the *.tif file, or the *.attribs.xml file (GeoTIFF format).
-Opening zipped products (*.zip) directly is also supported.</p>
-
-
-<p class="MsoNormal"><b style="">Special
-Considerations:</b><span style="">&nbsp; </span>Currently the SCS
-ScanSAR Huge Region is not supported</p>
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/c-missions/cosmo-skymed">https://directory.eoportal.org/web/eoportal/satellite-missions/c-missions/cosmo-skymed</a></p>
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/c-missions/cosmo-skymed-second-generation">https://directory.eoportal.org/web/eoportal/satellite-missions/c-missions/cosmo-skymed-second-generation</a></p>
-
-
+<h2>How to open</h2>
 <ul>
+    <li><b>HDF5:</b> select the <code>.h5</code> file. Its name must start with <code>CSK</code> or
+        <code>CSG</code>.</li>
+    <li><b>GeoTIFF:</b> with <i>File &gt; Open Product</i>, select the <code>.tif</code> image or the
+        <code>.attribs.xml</code> file (name starting with <code>CSK</code> or <code>CSG</code>).</li>
+    <li>ZIP archives are not opened directly: unpack them first.</li>
 </ul>
+
+<h2>What you get</h2>
+<ul>
+    <li><b>SCS:</b> complex bands <code>i_HH</code> and <code>q_HH</code> (units real and imaginary)
+        per polarisation, plus a virtual <code>Intensity_HH</code>.</li>
+    <li><b>DGM, GEC, GTC:</b> <code>Amplitude_HH</code> per polarisation, plus a virtual
+        <code>Intensity_HH</code>.</li>
+    <li>Tie-point grids (geolocation, and for HDF5 also incidence angle and slant range time) and orbit
+        state vectors from the product. Both generations are labelled mission <code>CSK</code>.</li>
+    <li>Acquisition parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>Complex (SCS) ScanSAR HugeRegion products are refused by the HDF5 reader.</li>
+    <li>Radiometric Calibration does not support the <code>SCS_U</code> product type.</li>
+    <li>Apply Orbit File has no COSMO-SkyMed orbit type; SNAP uses the orbit in the product.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li>DGM:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>SCS for interferometry:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>
+        &rarr; <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a>.</li>
+    <li>GEC and GTC are already map projected; do not terrain-correct them again.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<ul>
+    <li>COSMO-SkyMed SAR Products Handbook, linked from ESA's COSMO-SkyMed catalogue page:
+        <a href="https://earth.esa.int/eogateway/catalog/cosmo-skymed-full-archive-and-tasking">https://earth.esa.int/eogateway/catalog/cosmo-skymed-full-archive-and-tasking</a></li>
+    <li>ASI, COSMO-SkyMed Second Generation System and Products Description:
+        <a href="https://www.asi.it/wp-content/uploads/2021/03/CSG-Mission-and-Products-Description-defpdf.pdf">https://www.asi.it/wp-content/uploads/2021/03/CSG-Mission-and-Products-Description-defpdf.pdf</a></li>
+    <li>Mission overviews:
+        <a href="https://www.eoportal.org/satellite-missions/cosmo-skymed">https://www.eoportal.org/satellite-missions/cosmo-skymed</a>,
+        <a href="https://www.eoportal.org/satellite-missions/cosmo-skymed-second-generation">https://www.eoportal.org/satellite-missions/cosmo-skymed-second-generation</a></li>
+</ul>
+
 <hr>
-</body></html>
+</body>
+</html>

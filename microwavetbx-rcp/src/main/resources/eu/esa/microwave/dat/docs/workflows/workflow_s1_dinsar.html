@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Sentinel-1 IW DInSAR</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Workflows: Sentinel-1 IW DInSAR</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Sentinel-1 IW DInSAR (Classical TOPS Chain)</h1>
+
+<p class="lead">From two Sentinel-1 IW SLC products of the same track you get a differential interferogram, coherence,
+unwrapped phase and line-of-sight displacement on a map grid. This is the classical chain: coregister the bursts in
+radar geometry with orbits, a DEM and Enhanced Spectral Diversity, form the interferogram, then deburst and geocode
+last.</p>
+
+<h2>Before you start</h2>
+<ul>
+    <li><b>Data:</b> two IW SLC products from the same relative orbit that cover the same bursts. Use the shortest
+        temporal baseline you can, and check the perpendicular baseline with Radar &gt; Interferometric &gt;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/InSARStackOverview.html">InSAR Stack Overview</a>.</li>
+    <li><b>Orbits and DEM:</b> precise orbits (about 20 days after acquisition) and the Copernicus 30 m DEM are
+        downloaded automatically.</li>
+    <li><b>Unwrapping:</b> SNAPHU runs outside the SNAP operators; install it or let a SNAPHU tool download it.</li>
+    <li><b>Ready-made graphs:</b> Radar &gt; Coregistration &gt; S1 TOPS Coregistration &gt; <i>S-1 TOPS Coregistration
+        with ESD</i> runs steps 1 to 4 on a pair. In the Graph Builder, <i>Graphs &gt; Radar &gt; InSAR Graphs</i> has
+        <i>TOPSAR Coreg Interferogram</i> (one sub-swath) and <i>TOPSAR Coreg Interferogram IW All Swaths</i> (three
+        sub-swaths, merged). Neither contains ESD; add it. <i>TOPSAR Slices Coreg Interferogram</i> assembles slices
+        first and includes ESD.</li>
+</ul>
+
+<h2>Steps</h2>
+<ol>
+    <li><b>S-1 TOPS Split</b> (<code>TOPSAR-Split</code>, Radar &gt; Sentinel-1 TOPS;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARSplitOp.html">help</a>),
+        on each product. Choose the <i>Subswath</i> (IW1 to IW3) and the bursts: <i>First/Last Burst Index</i> default to
+        1 and 9999 (all), or give a <i>WKT Area of Interest</i>. Keep at least two bursts so that ESD has an overlap.</li>
+    <li><b>Apply Orbit File</b> (<code>Apply-Orbit-File</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">help</a>),
+        on each product; default <code>Sentinel Precise (Auto Download)</code>. The menu graph <i>S-1 TOPS Split Apply
+        Orbit</i> does steps 1 and 2 together. Optionally run
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S-1 ETAD Correction</a>
+        here, on both dates or on neither.</li>
+    <li><b>S-1 Back Geocoding</b> (<code>Back-Geocoding</code>, Radar &gt; Coregistration &gt; S1 TOPS Coregistration;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">help</a>).
+        The first product is the Reference. Both must be split products of the same sub-swath and polarisation. Defaults:
+        DEM <code>Copernicus 30m Global DEM</code>, <i>Resampling Type</i> <code>BISINC_5_POINT_INTERPOLATION</code>.</li>
+    <li><b>S-1 Enhanced Spectral Diversity</b> (<code>Enhanced-Spectral-Diversity</code>, Radar &gt; Coregistration &gt;
+        S1 TOPS Coregistration;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">help</a>).
+        The defaults suit a pair: <i>Coherence Threshold for Outlier Removal</i> 0.3, 10 windows per overlap,
+        <i>ESD Estimator</i> <code>Periodogram</code>. In low-coherence scenes few windows pass the threshold; check the
+        per-overlap estimates before you lower it.</li>
+    <li><b>Interferogram Formation</b> (<code>Interferogram</code>, Radar &gt; Interferometric &gt; Products;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">help</a>).
+        <i>Subtract flat-earth phase</i> is on (polynomial degree 5, 501 points) and <i>Output coherence estimation</i> is
+        on, with a window of 10 range pixels. In the dialog, <i>Square Pixel</i> (on) fills in the azimuth size (about 3
+        for IW); from gpt the default window is 10 &times; 10. <i>Coherence Window (m)</i> overrides both with a window
+        that is square on the ground. <i>Subtract topographic phase</i> is off by default; either tick it here or run step 7.</li>
+    <li><b>S-1 TOPS Deburst</b> (<code>TOPSAR-Deburst</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">help</a>).
+        If you processed several sub-swaths separately, join them now with
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARMergeOp.html">S-1 TOPS Merge</a>.</li>
+    <li><b>Topographic Phase Removal</b> (<code>TopoPhaseRemoval</code>, Radar &gt; Interferometric &gt; Products;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SubtRefDemOp.html">help</a>).
+        Default DEM <code>Copernicus 30m Global DEM</code>; use the DEM of step 3. The elevation and lat/lon output bands
+        (off by default) are only needed for StaMPS export.</li>
+    <li><b>Multilooking</b> (<code>Multilook</code>, Radar &gt; SAR Utilities;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">help</a>).
+        With <i>GR Square Pixel</i> on (default) you set the range looks and the azimuth looks follow. For IW, 4 range
+        looks give 1 azimuth look (pixels of about 15 m), 8 give 2 (about 30 m). <i>Output Intensity</i> is off by default,
+        so i and q are averaged: a complex multilook.</li>
+    <li><b>Goldstein Phase Filtering</b> (<code>GoldsteinPhaseFiltering</code>, Radar &gt; Interferometric &gt;
+        Filtering;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">help</a>).
+        <i>Use adaptive alpha</i> is on by default; it uses the coherence band if present, otherwise the fixed
+        exponent <i>alpha</i> (1.0). <i>FFT Size</i> 64 and <i>Window Size</i>
+        3 are the defaults; <i>FFT Block Extent (m)</i> makes the block square on the ground.</li>
+    <li><b>Unwrapping:</b>
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a>
+        (<code>SnaphuExport</code>, Radar &gt; Interferometric &gt; Unwrapping), then SNAPHU with the command in the
+        header of <code>snaphu.conf</code> (or
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuUnwrapping.html">Snaphu Unwrapping</a>),
+        then
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a>.
+        Keep <i>Statistical-cost mode</i> <code>DEFO</code> (default). The default 10 &times; 10 tiles with 200 pixels of
+        overlap are too many for a small multilooked image; use fewer.</li>
+    <li><b>Phase to Displacement</b> (<code>PhaseToDisplacement</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">help</a>).
+        No parameters. It writes <code>displacement</code> in metres from the first band whose name starts with "unw" and
+        subtracts no reference point.</li>
+    <li><b>Range-Doppler Terrain Correction</b> (<code>Terrain-Correction</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">help</a>).
+        Geocode the displacement product. To geocode the interferogram and coherence too, run Terrain Correction on the
+        Goldstein output: with no bands selected, an InSAR product is geocoded as complex i/q, so the wrapped phase stays
+        correct.</li>
+</ol>
+
+<h2>Check the result</h2>
+<ul>
+    <li><b>Burst seams:</b> in <code>Phase_ifg</code> after debursting, look across the seams between bursts. A phase
+        jump along every seam means azimuth misregistration: ESD was skipped or failed.</li>
+    <li><b>ESD:</b> the shifts are stored in the <code>ESD Measurement</code> metadata element. The per-overlap values
+        should agree. The
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/DoubleDifferenceInterferogramOp.html">S-1 Double Difference Interferogram</a>
+        of the overlaps should be noise around zero.</li>
+    <li><b>Coherence:</b> high on towns and bare rock, low on vegetation, near the estimator floor on water.</li>
+    <li><b>Residual fringes:</b> after topographic phase removal, fringes that follow the terrain point to a DEM or
+        geometry problem. A smooth ramp across the scene is usually orbit error or ionosphere.</li>
+    <li><b>Unwrapping:</b> steps of exactly 2&pi; along low-coherence lines are unwrapping errors.</li>
+</ul>
+
+<h2>Common pitfalls</h2>
+<ul>
+    <li>Debursting before Back-Geocoding (it is refused) or before ESD (it needs the burst overlaps).</li>
+    <li>Selecting different bursts for the two dates, or a single burst. ESD then has no common overlap.</li>
+    <li>Running Thermal Noise Removal on the SLCs. It outputs intensity and destroys the phase.</li>
+    <li>Reading the displacement as absolute or vertical. It is line-of-sight motion relative to an arbitrary
+        constant; subtract a stable reference area.</li>
+    <li>Selecting the virtual Phase band explicitly in Terrain Correction. The wrapped phase is then interpolated
+        across &plusmn;&pi;.</li>
+</ul>
+
+<h2>Background</h2>
+<ul>
+    <li><a href="../concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+    <li><a href="../concepts/insar.html">InSAR fundamentals</a></li>
+    <li><a href="../concepts/coherence.html">Coherence</a></li>
+    <li><a href="../concepts/unwrapping.html">Phase unwrapping</a></li>
+    <li><a href="../concepts/displacement.html">From phase to displacement</a></li>
+    <li><a href="../concepts/orbits_etad.html">Orbits and timing corrections</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

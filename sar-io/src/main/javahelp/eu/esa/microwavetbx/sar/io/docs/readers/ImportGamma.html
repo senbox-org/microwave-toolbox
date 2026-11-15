@@ -1,24 +1,75 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head><title>Help - Import Gamma</title>
-
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import TerraSarX SAR</td>
-        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg"
-                                                                                 border="0"></a></td>
+        <td class="header">&nbsp; Import Gamma</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import Gamma Product</h3>
 
-<p>This option allows to import Gamma format products into SNAP.</p>
+<p>The <b>Gamma</b> reader (<i>File &gt; Import &gt; SAR Formats &gt; Gamma</i>) opens raster files
+written by the GAMMA SAR and interferometry software, as used in StaMPS processing chains. Each raster
+is a plain binary file described by a text parameter file.</p>
 
-<p>The Gamma reader only supports data products as used by StaMPS.</p>
+<h2>Format</h2>
+<ul>
+    <li>A parameter file with the extension <code>.par</code> (or <code>.diff_par</code>) holds the
+        image size, data type, byte order, timing, radar frequency, PRF, looks and pixel spacing.</li>
+    <li>The data file has the same name without the <code>.par</code> extension, for example
+        <code>20200101.rslc</code> for <code>20200101.rslc.par</code>.</li>
+    <li>No mission is implied: the sensor name is copied from the parameter file.</li>
+</ul>
+
+<h2>Supported data</h2>
+<ul>
+    <li><b>Complex:</b> files whose name before <code>.par</code> ends in <code>slc</code> (this
+        includes coregistered <code>.rslc</code>) or <code>diff</code>. Data types
+        <code>SCOMPLEX</code> (16-bit integer pairs) and <code>FCOMPLEX</code> (32-bit float pairs).</li>
+    <li><b>Real-valued:</b> any other file, read as 32-bit float.</li>
+</ul>
+
+<h2>How to open</h2>
+<p>Select the parameter file, for example <code>20200101.rslc.par</code>. The data file must be in the
+same folder. Every file in that folder whose name starts with the parameter file's base name is
+loaded as a band.</p>
+
+<h2>What you get</h2>
+<ul>
+    <li><b>Complex files:</b> bands <code>i_&lt;data file name&gt;</code> and
+        <code>q_&lt;data file name&gt;</code> (units real and imaginary), plus virtual intensity and
+        phase bands.</li>
+    <li><b>Real-valued files:</b> one band named after the data file, without a unit.</li>
+    <li>Product type <code>SLC</code> for complex data, otherwise the data type from the header.
+        Coregistered <code>.rslc</code> files are flagged as a coregistered stack.</li>
+    <li>Timing, radar frequency, PRF, looks and pixel spacing are copied into the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>The reader was written for the GAMMA products used in StaMPS processing; other GAMMA outputs
+        may not open correctly.</li>
+    <li>No geocoding and no orbit state vectors are created. Operators that need them, such as terrain
+        correction, coregistration and interferogram formation, cannot be run on the imported
+        product.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<p>Inspect the bands in the viewer or derive values with
+<a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/desktop/BandMaths.html">Band Maths</a>.
+To prepare SNAP interferograms for StaMPS, use
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/StampsExportOp.html">StaMPS Export</a>;
+to write a SNAP product in GAMMA format, use <i>File &gt; Export &gt; SAR Formats &gt; Gamma</i>.</p>
+
+<h2>Product format specification</h2>
+<p>The format is defined in the documentation of the GAMMA software (GAMMA Remote Sensing AG); no public
+specification is linked here.</p>
 
 <hr>
 </body>

@@ -55,28 +55,27 @@
 </ul>
 <h4>DEM Supported</h4>
 
-<p>Currently, only the DEMs with geographic coordinates (P<sub>lat</sub>, P<sub>lon</sub>, P<sub>h</sub>) referred to
-    global geodetic ellipsoid reference WGS84 (and height in meters) are properly supported.</p>
+<p>Currently, only DEMs in geographic coordinates (P<sub>lat</sub>, P<sub>lon</sub>, P<sub>h</sub>) on the
+    WGS84 datum, with heights in metres, are properly supported.</p>
 
 <p>Various different types of Digital Elevation
-    models can be used (ACE, GETASSE30,&nbsp;ASTER, SRTM 3Sec&nbsp;GeoTiff).</p><p>The STRM v.4 (3&#8221; tiles) from the Joint Research Center
-    FTP (xftp.jrc.it) will automatically be downloaded in tiles for&nbsp; the area covered by the image to be
-    orthorectified. The tiles will be downloaded to the folder .snap\AuxData\DEMs\SRTM_DEM\tiff.</p>
+    models can be used (ACE, GETASSE30,&nbsp;ASTER, SRTM 3Sec&nbsp;GeoTiff).</p><p>DEM tiles are downloaded automatically from the selected source for the area covered by the image to be orthorectified. The default is the Copernicus 30m Global DEM. Downloaded tiles are stored under <code>~/.snap/auxdata/dem</code> (Windows: <code>%USERPROFILE%\.snap\auxdata\dem</code>).</p>
 
 
 
 <p>Please
-    note that for ACE and SRTM, the height information (being referred to
-    geoid EGM96) is automatically corrected to obtain height relative to
-    the WGS84 ellipsoid. For Aster Dem height correction is not yet
-    applied. </p>
+    note that the DEMs downloaded by SNAP (ACE, ASTER, Copernicus and SRTM) give heights relative to
+    a geoid, not to the WGS84 ellipsoid. SRTM, ACE and ASTER are referred to the geoid EGM96; the
+    Copernicus DEM (GLO-30/GLO-90) is referred to EGM2008. SNAP converts these heights automatically to
+    heights relative to the WGS84 ellipsoid; this includes ASTER. SNAP currently converts Copernicus heights (and, in this operator, every external DEM) using EGM96; the difference from EGM2008 is mostly below 1 m but can reach a few metres in mountainous areas.</p>
 
 <p>Note also that the SRTM DEM covers area between -60
     and 60 degrees latitude. Therefore, for orthorectification of product
     of high latitude area, different DEM should be used. </p>
 
-<p>User can also use external DEM file in Geotiff format which, as specified above, must be with geographic coordinates&nbsp;(P<sub>lat</sub>,
-    P<sub>lon</sub>, P<sub>h</sub>) referred to global geodetic ellipsoid reference WGS84 (and height in meters).</p>
+<p>User can also use an external DEM file in GeoTIFF format which, as specified above, must be in geographic coordinates&nbsp;(P<sub>lat</sub>,
+    P<sub>lon</sub>, P<sub>h</sub>) on WGS84 and hold heights in metres above the EGM96 geoid (SNAP always adds EGM96
+    here, even if Apply EGM was switched off in SAR Simulation).</p>
 
 <p>Note that the same DEM is used by both SAR simulation and Terrain correction. The DEM is selected through SAR
     Simulation UI.</p><h4>Pixel Spacing</h4>
@@ -129,8 +128,7 @@
 <ul>
     <li><span style="font-weight: bold;">Latest AUX File</span>&nbsp;(&amp; use projected local incidence angle computed
         from DEM):<p>&nbsp;The
-            most recent ASAR XCA available from C:\Program
-            Files\NEST4A\auxdata\envisat compatible with product date is
+            most recent ASAR XCA available from <code>~/.snap/auxdata/AuxCal/ENVISAT</code> compatible with product date is
             automatically selected. According to this XCA file, calibration
             constant, range spreading loss and antenna pattern gain are obtained.</p></li>
     <ul>
@@ -146,8 +144,7 @@
     </ul>
     <li><span style="font-weight: bold;">External AUX File</span>&nbsp;(&amp; use projected local incidence angle
         computed from DEM):<p>&nbsp;User
-            can select a specific ASAR XCA file available from C:\Program
-            Files\NEST4A\auxdata\envisat or from another repository. According to
+            can select a specific ASAR XCA file available from <code>~/.snap/auxdata/AuxCal/ENVISAT</code> or from another repository. According to
             this selected XCA file, calibration constant, range spreading loss and
             antenna pattern gain are computed.</p></li>
     <ul>
@@ -166,8 +163,7 @@
 <ul>
     <li><span style="font-weight: bold;">Latest AUX File</span>&nbsp;(&amp; use projected local incidence angle computed
         from DEM):<p>The
-            most recent ASAR XCA available from C:\Program
-            Files\NEST4A\auxdata\envisat compatible with product date is
+            most recent ASAR XCA available from <code>~/.snap/auxdata/AuxCal/ENVISAT</code> compatible with product date is
             automatically selected. Basically with this option all the correction
             factors applied to the original SAR image based on product XCA file
             used during the focusing, such as antenna pattern gain and range
@@ -316,12 +312,12 @@ Please note that the simplified approach&nbsp; where Noise Equivalent Beta Naugh
 <h4>Cosmo-SkyMed</h4>
 <ul>
     <li>In case of "USE projected angle from the DEM" selection, the radiometric normalisation is performed deriving
-        <span style="font-style: italic;">&#963;</span><sup style="font-style: italic;"><sub>0</sub></sup><sub style="font-style: italic;">Ellipsoid</sub> [7] and then multiplying by (sin<span style="font-style: italic;">&#952;</span><sub style="font-style: italic;">DEM</sub> /&nbsp;sin<span style="font-style: italic;">&#952;</span><sub style="font-style: italic;">el</sub>), where <span style="font-style: italic;">&#952;</span><sub style="font-style: italic;">DEM</sub>&nbsp;is the
+        <span style="font-style: italic;">&#963;</span><sup style="font-style: italic;"><sub>0</sub></sup><sub style="font-style: italic;">Ellipsoid</sub> [8] and then multiplying by (sin<span style="font-style: italic;">&#952;</span><sub style="font-style: italic;">DEM</sub> /&nbsp;sin<span style="font-style: italic;">&#952;</span><sub style="font-style: italic;">el</sub>), where <span style="font-style: italic;">&#952;</span><sub style="font-style: italic;">DEM</sub>&nbsp;is the
         projected local incidence angle into the range plane and <span style="font-style: italic;">&#952;</span><sub style="font-style: italic;">el</sub>&nbsp;is the incidence angle computed from the tie point grid
         respect to ellipsoid.
     </li>
     <li>In case of selection of "USE incidence angle from Ellipsoid", the radiometric normalisation is performed
-        deriving <span style="font-style: italic;">&#963;</span><sup style="font-style: italic;"><sub>0</sub></sup><sub style="font-style: italic;">Ellipsoid</sub> [7] <br></li>
+        deriving <span style="font-style: italic;">&#963;</span><sup style="font-style: italic;"><sub>0</sub></sup><sub style="font-style: italic;">Ellipsoid</sub> [8] <br></li>
 </ul>
 <span style="text-decoration: underline; font-weight: bold;">Definitions:</span><br>
 <ol>
@@ -366,19 +362,18 @@ Please note that the simplified approach&nbsp; where Noise Equivalent Beta Naugh
     band as a layer.</p><h4>Parameters Used</h4>&nbsp; &nbsp;The following parameters are used by the Terrain Correction
 step:
 <ol>
-    <li>RMS Threshold: The criterion for eliminating invalid GCPs. (see Help for
-        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/WarpOp.html">Warp Operator</a> for detail)
+    <li>RMS Threshold (default 1.0 pixel): The criterion for eliminating invalid GCPs. This operator always
+        uses the RMS-threshold method: it fits the warp polynomial to the GCPs, then repeatedly removes the GCPs
+        whose residual is above the threshold (up to 20 iterations) and refits. It has no w-test option.
     </li>
     <li>WARP Polynomial Order: The degree of the WARP polynomial. The valid values are
-        1, 2 and 3. (see Help for <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/WarpOp.html">Warp Operator</a> for detail)
+        1, 2 and 3. Default: 1.
     </li>
-    <li>DEM Resampling Method: Interpolation method for obtaining elevation values
-        from the original DEM file. The following interpolation methods are available:
-        nearest neighbour, bi-linear, cubic convolution, bi-sinc and bi-cubic interpolations.
+    <li>DEM and DEM Resampling Method: not set in this step. The operator uses the DEM and DEM resampling
+        method of the SAR Simulation step, read from the product metadata.
     </li>
-    <li>Image Resampling Method: Interpolation methods for obtaining pixel values
-        from the source image. Three interpolation methods are available:
-        nearest neighbour, bi-linear, cubic and bi-sinc interpolations.
+    <li>Image Resampling Method: Interpolation method for obtaining pixel values
+        from the source image: nearest neighbour, bilinear (default) or cubic convolution.
     </li>
     <li>Pixel Spacing (m): User can specify pixel spacing&nbsp;in meters for orthorectified image. If
         no pixel spacing is specified,&nbsp;then default&nbsp;pixel spacing
@@ -470,31 +465,69 @@ File</span> (for detected product only) and <span style="font-weight: bold;">Ext
 
 <p></p>
 
-<p style="font-weight: bold;">Reference:</p>
+<h3>References</h3>
+<ol>
+    <li>Small, D., Schubert, A. (2008). <i>Guide to ASAR Geocoding</i>. RSL-ASAR-GC-AD, Issue 1.0, 19 March 2008, Remote Sensing Laboratories, University of Zurich.</li>
+    <li>Schreier, G. (Ed.) (1993). <i>SAR Geocoding: Data and Systems</i>. Herbert Wichmann Verlag, Karlsruhe.</li>
+    <li>Rosich, B., Meadows, P. (2004). <i>Absolute Calibration of ASAR Level 1 Products</i>. ESA/ESRIN technical note ENVI-CLVL-EOPG-TN-03-0010, Issue 1, Revision 5, October 2004.</li>
+    <li>Laur, H., Bally, P., Meadows, P., S&aacute;nchez, J., Sch&auml;ttler, B., Lopinto, E., Esteban, D. (2004). <i>ERS SAR calibration: Derivation of &#963;<sup>0</sup> in ESA ERS SAR PRI products</i>. ESA/ESRIN technical note ES-TN-RS-PM-HL09, Issue 2, Revision 5f, November 2004.</li>
+    <li>RADARSAT-2 PRODUCT FORMAT DEFINITION - RN-RP-51-2713 Issue 1/7: March 14, 2008</li>
+    <li>Radiometric Calibration of TerraSAR-X data - TSXX-ITD-TN-0049-radiometric_calculations_I1.00.doc, 2008</li>
+    <li>Liu, H., Zhao, Z., Jezek, K. C. (2004). Correction of positional errors and geometric distortions in topographic maps and DEMs using a rigorous SAR simulation technique. <i>Photogrammetric Engineering &amp; Remote Sensing</i>, 70(9), 1031&#8211;1042. doi:10.14358/PERS.70.9.1031</li>
+    <li>Kellndorfer, J.M., Pierce, L.E., Dobson, M.C., Ulaby, F.T. (1998). Toward consistent regional-to-global-scale vegetation characterization using orbital SAR systems. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 36(5), 1396&#8211;1411. doi:10.1109/36.718844</li>
+    <li>For further details about COSMO-SkyMed calibration, contact the COSMO-SkyMed Help Desk at <a href="mailto:info.cosmo@e-geos.it">info.cosmo@e-geos.it</a>.</li>
+</ol>
 
-<p>[1] Small D., Schubert A.,
-    Guide to ASAR Geocoding, RSL-ASAR-GC-AD, Issue 1.0, March 2008</p>
-
-<p>[2]&nbsp;Schreier G., <span style="font-style: italic;">SAR geocoding: data and systems</span>, Wichmann-Verlag,
-    Karlsruhe, Germany, 1993</p>
-
-<p>[3] Rosich B., Meadows P., Absolute calibration of ASAR Level 1 products,
-    ESA/ESRIN, ENVI-CLVL-EOPG-TN-03-0010, Issue 1, Rev. 5, October 2004</p>
-
-<p>[4]
-    Laur H., Bally P., Meadows P., S&aacute;nchez J., Sch&auml;ttler B., Lopinto E.
-    &amp; Esteban D., ERS SAR Calibration: Derivation of &#963;0 in ESA ERS SAR
-    PRI Products, ESA/ESRIN, ES-TN-RS-PM-HL09, Issue 2, Rev. 5f, November
-    2004&nbsp;</p>
-
-<p>[5] RADARSAT-2 PRODUCT FORMAT DEFINITION - RN-RP-51-2713 Issue 1/7: March 14, 2008</p>
-
-<p>[6] Radiometric Calibration of TerraSAR-X data - TSXX-ITD-TN-0049-radiometric_calculations_I1.00.doc, 2008</p>
-
-<p>[7] For further details about Cosmo-SkyMed calibration please contact Cosmo-SkyMed Help Desk at&nbsp;<font color="black" face="Arial" size="2"><span style="font-size: 10pt; font-family: Arial;" lang="EN-GB"><a href="mailto:info.cosmo@e-geos.it" moz-do-not-send="true">info.cosmo@e-geos.it</a></span></font></p>
-
-<p></p>
-<br>
-
+<!-- params:begin op="SARSim-Terrain-Correction" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SARSim-Terrain-Correction</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>rmsThreshold</code></td><td>float</td><td>1.0</td><td>(0, *)</td><td>&nbsp;</td><td>The RMS threshold for eliminating invalid GCPs</td></tr>
+<tr><td><code>warpPolynomialOrder</code></td><td>int</td><td>1</td><td>1, 2, 3</td><td>&nbsp;</td><td>The order of WARP polynomial function</td></tr>
+<tr><td><code>imgResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>NEAREST_NEIGHBOUR, BILINEAR_INTERPOLATION, CUBIC_CONVOLUTION</td><td>&nbsp;</td><td>Image Resampling Method</td></tr>
+<tr><td><code>pixelSpacingInMeter</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>The pixel spacing in meters</td></tr>
+<tr><td><code>pixelSpacingInDegree</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>The pixel spacing in degrees</td></tr>
+<tr><td><code>mapProjection</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The coordinate reference system in well known text format</td></tr>
+<tr><td><code>alignToStandardGrid</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Force the image grid to be aligned with a specific point</td></tr>
+<tr><td><code>standardGridOriginX</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>x-coordinate of the standard grid's origin point</td></tr>
+<tr><td><code>standardGridOriginY</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>y-coordinate of the standard grid's origin point</td></tr>
+<tr><td><code>saveDEM</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save DEM as band</td></tr>
+<tr><td><code>saveLatLon</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save latitude and longitude as band</td></tr>
+<tr><td><code>saveLocalIncidenceAngle</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save local incidence angle as band</td></tr>
+<tr><td><code>saveProjectedLocalIncidenceAngle</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save projected local incidence angle as band</td></tr>
+<tr><td><code>saveSelectedSourceBand</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Save selected source band</td></tr>
+<tr><td><code>outputComplex</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output complex data</td></tr>
+<tr><td><code>applyRadiometricNormalization</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Apply radiometric normalization</td></tr>
+<tr><td><code>saveSigmaNought</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save Sigma0 as a band</td></tr>
+<tr><td><code>saveGammaNought</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save Gamma0 as a band</td></tr>
+<tr><td><code>saveBetaNought</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save Beta0 as a band</td></tr>
+<tr><td><code>incidenceAngleForSigma0</code></td><td>String</td><td>Use projected local incidence angle from DEM</td><td>Use incidence angle from Ellipsoid, Use projected local incidence angle from DEM, Use local incidence angle from DEM</td><td>&nbsp;</td><td>Incidence angle used when computing sigma0: ellipsoid, local (DEM) or projected local (DEM)</td></tr>
+<tr><td><code>incidenceAngleForGamma0</code></td><td>String</td><td>Use projected local incidence angle from DEM</td><td>Use incidence angle from Ellipsoid, Use projected local incidence angle from DEM, Use local incidence angle from DEM</td><td>&nbsp;</td><td>Incidence angle used when computing gamma0: ellipsoid, local (DEM) or projected local (DEM)</td></tr>
+<tr><td><code>auxFile</code></td><td>String</td><td>Latest Auxiliary File</td><td>Latest Auxiliary File, Product Auxiliary File, External Auxiliary File</td><td>&nbsp;</td><td>The auxiliary file</td></tr>
+<tr><td><code>externalAuxFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The antenne elevation pattern gain auxiliary data file.</td></tr>
+<tr><td><code>openShiftsFile</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Show range and azimuth shifts file in a text viewer</td></tr>
+<tr><td><code>openResidualsFile</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Show the Residuals file in a text viewer</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometric Quantities and Calibration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/terrain_correction.html">Range-Doppler Terrain Correction in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A product that holds the simulated intensity band as well as the source band(s), produced by <a href="SARSimulationOp.html">SAR Simulation</a>; it must not be map projected</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="MultitemporalCompositingOp.html">Multitemporal Compositing</a></li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

@@ -92,7 +92,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
         deburstOp.setSourceProduct(srcProduct);
-        Product trgProduct = deburstOp.getTargetProduct();
+        Product trgProduct = target(deburstOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -108,10 +108,10 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
         deburstOp.setSourceProduct(srcProduct);
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(deburstOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(deburstOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
         terrainCorrectionOp.setParameter("pixelSpacingInMeter", getGroundPixelSpacingInMeters(srcProduct));
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -127,8 +127,8 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
-        Product trgProduct = deburstOp.getTargetProduct();
+        deburstOp.setSourceProduct(target(applyOrbitOp));
+        Product trgProduct = target(deburstOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -144,13 +144,13 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        deburstOp.setSourceProduct(target(applyOrbitOp));
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(deburstOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(deburstOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
         terrainCorrectionOp.setParameter("pixelSpacingInMeter", getGroundPixelSpacingInMeters(srcProduct));
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -166,13 +166,13 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        deburstOp.setSourceProduct(target(applyOrbitOp));
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(deburstOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(deburstOp));
         terrainCorrectionOp.setParameter("demName", "SRTM 3sec");
         terrainCorrectionOp.setParameter("pixelSpacingInMeter", getGroundPixelSpacingInMeters(srcProduct));
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -188,23 +188,23 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        deburstOp.setSourceProduct(target(applyOrbitOp));
 
         CalibrationOp calibrationOp = new CalibrationOp();
-        calibrationOp.setSourceProduct(deburstOp.getTargetProduct());
+        calibrationOp.setSourceProduct(target(deburstOp));
         calibrationOp.setParameter("outputSigmaBand", false);
         calibrationOp.setParameter("outputBetaBand", true);
         calibrationOp.setParameter("outputGammaBand", false);
 
         TerrainFlatteningOp terrainFlatteningOp = new TerrainFlatteningOp();
-        terrainFlatteningOp.setSourceProduct(calibrationOp.getTargetProduct());
+        terrainFlatteningOp.setSourceProduct(target(calibrationOp));
         terrainFlatteningOp.setParameter("demName", "Copernicus 30m Global DEM");
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(terrainFlatteningOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(terrainFlatteningOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
         terrainCorrectionOp.setParameter("pixelSpacingInMeter", getGroundPixelSpacingInMeters(srcProduct));
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -220,16 +220,16 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         TOPSARDeburstOp deburstOp = new TOPSARDeburstOp();
-        deburstOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        deburstOp.setSourceProduct(target(applyOrbitOp));
 
         MultilookOp multilookOp = new MultilookOp();
-        multilookOp.setSourceProduct(deburstOp.getTargetProduct());
+        multilookOp.setSourceProduct(target(deburstOp));
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(multilookOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(multilookOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
         terrainCorrectionOp.setParameter("pixelSpacingInMeter", getGroundPixelSpacingInMeters(srcProduct));
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -245,7 +245,7 @@ public class CRValidationSuratSLCTest extends BaseCRTest {
         terrainCorrectionOp.setSourceProduct(srcProduct);
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
         terrainCorrectionOp.setParameter("pixelSpacingInMeter", getGroundPixelSpacingInMeters(srcProduct));
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }

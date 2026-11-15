@@ -17,7 +17,7 @@
 <h3>Create Stack Operator</h3>
 
 <p>
-    Create Stack is a component of <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/tutorials/coregistering_products.html">coregistration.</a>
+    Create Stack is a component of <a href="Coregistration.html">coregistration.</a>
     The <span style="font-style: italic;">Create Stack</span><em> </em>Operator
     allows&nbsp;collocating two spatially overlapping products. Collocating two
     products implies that the pixel values of one product (the <em>secondary</em>)
@@ -52,10 +52,25 @@ methods:<br>
 </ul>
 <h4>Output Extents</h4>&nbsp;&nbsp; User can select one of the following three extents for the collocated images:<br>
 <ul>
-    <li>Reference: the reference image extents (Reference extents are always used with "None" resampling)</li>
+    <li>Master (the reference image extents; value <code>Master</code>)</li>
     <li>Maximum: both the common coverage and the non overlapping areas</li>
     <li>Minimum: only the common coverage</li>
 </ul>
+With Resampling Type <code>NONE</code> only <code>Master</code> is allowed; <code>Minimum</code> or
+<code>Maximum</code> stop with "Please select only <code>Master</code> extents when resampling type is None".
+To use them, choose a resampling method.<br>
+<h4>Initial Offset Method</h4>&nbsp;&nbsp; With Resampling Type <code>NONE</code> the Secondary
+is not resampled but shifted by a whole-pixel offset. The Initial Offset Method sets how that offset
+is found:<br>
+<ul>
+    <li><code>Orbit</code> (default): from the orbits, at the centre of the Reference scene. For
+        geocoded inputs (GSLC) the offset is taken from the geocoding instead.</li>
+    <li><code>Product Geolocation</code>: from the geocoding of each product, at a point in the
+        common coverage.</li>
+</ul>
+With any other resampling type this parameter is not used. When the Reference is map-projected (and
+not a GSLC), the dialog selects <code>Product Geolocation</code> and changes a <code>NONE</code>
+resampling to <code>BISINC_5_POINT_INTERPOLATION</code>; GPT and graphs do not.<br>
 <h4>Parameters Used</h4>&nbsp;&nbsp; The following parameters are used by this operator:
 <ol>
     <li>Reference Band: All bands (real or virtual) of the selected product. User can select
@@ -70,50 +85,62 @@ methods:<br>
     <li>Output Extents: The output image extent.</li>
 </ol>
 <br>
-<a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/tutorials/coregistering_products.html"></a>
 <br><img style="width: 600px; height: 500px;" alt="" src="images/create_stack_dlg.JPG">
-<br><br><br><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/tutorials/coregistering_products.html"></a><br>
+<br><br><br><br>
 
 <h4>GSLC Auto-Coregistration</h4>
 <p>When at least one source product is a Geocoded SLC (output of
-    <a href="nbdocs://eu.esa.microwavetbx.sar-op-sar-processing-ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC-Terrain-Correction</a>),
+    <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC-Terrain-Correction</a>),
     CreateStack switches to a geocoded-stacking path that avoids any complex resampling
     of the carrier-bearing data &mdash; resampling a GSLC would destroy the phase needed
     for InSAR.</p>
 <p>If the inputs are <em>mixed</em> (a geocoded reference plus one or more raw slant-range
     SLC secondaries), the secondaries are automatically promoted to GSLCs on the reference's
-    grid. The promotion does three things:</p>
+    grid. The promotion does four things:</p>
 <ol>
-    <li>Reads the reference GSLC's pixel size and CRS, and locks each new slave GSLC to
+    <li>Reads the reference GSLC's pixel size and CRS, and locks each new Secondary GSLC to
         exactly that grid &mdash; same lat/lon spacing, same standard-grid origin, so the
-        master-to-slave offset is exactly an integer number of pixels.</li>
+        Reference-to-Secondary offset is exactly an integer number of pixels.</li>
     <li>Inherits the reference GSLC's <code>gslc_output_flattened</code> metadata stamp,
-        so the slave is built with the same flattening state. Mixing flattened and
-        non-flattened bands in the stack would otherwise yield a noise interferogram.</li>
+        so the Secondary is built with the same flattening state. Interferogram refuses a
+        stack that mixes flattened and non-flattened legs.</li>
+    <li>Uses the Reference's DEM (including an external DEM file with its no-data value and
+        EGM setting), DEM resampling method, <i>Apply Solid Earth Tide correction</i> and
+        <i>Apply tropospheric correction</i> settings, read from the Reference's processing
+        graph (or, without one, only the DEM from its metadata). If the Reference used an
+        external DEM file that is not found on this machine, Create Stack stops with an error
+        naming the file: make it available at the same path, or geocode the Secondary
+        yourself.</li>
     <li>If the reference carries a <code>gslc_source_slc_path</code> stamp (or its source
-        SLC can be found by name in the reference's directory), the master SLC is reloaded
-        and cross-correlated against each slave's source SLC. The median GCP offset is
-        passed back to GSLC-Terrain-Correction as <code>rangeOffsetPixels</code> /
-        <code>azimuthOffsetPixels</code> so the slave GSLC samples the source SLC at the
-        bias-corrected position. This recovers sub-pixel alignment that orbit + DEM alone
-        cannot provide.</li>
+        SLC can be found by name in the reference's directory), the Reference SLC is reloaded
+        and the residual offset of each Secondary it geocodes is measured: for TOPS a constant
+        (range, azimuth) shift from Back-Geocoding and Enhanced Spectral Diversity, for stripmap
+        a smooth polynomial offset field fitted to cross-correlation GCPs. If the correction stays
+        below 0.05 pixel everywhere in the scene it is ignored; otherwise the Secondary is
+        geocoded again with it (<code>rangeOffsetPixels</code> / <code>azimuthOffsetPixels</code>,
+        or <code>rangeOffsetPoly</code> / <code>azimuthOffsetPoly</code> for a stripmap field).
+        This recovers sub-pixel alignment that orbit + DEM alone cannot provide.</li>
 </ol>
-<p>If the cross-correlation step cannot run (the master SLC isn't reachable on disk),
+<p>A Secondary that is already a GSLC on the Reference's grid, with the same flattening and
+    azimuth-carrier settings, is stacked as it is: it is not geocoded again and no bias is
+    estimated for it. The bias estimate above applies only to Secondaries that Create Stack
+    geocodes itself.</p>
+<p>If the bias estimation cannot run (the Reference SLC isn't reachable on disk),
     CreateStack falls back to pure geometric coregistration (bias = 0). The stack will
     still produce a recognisable interferogram, but the residual sub-pixel offset will
     degrade coherence.</p>
 <p>Two parameters control this behaviour:</p>
 <ul>
-    <li><b>Auto-coregister GSLC slaves</b> (default <i>true</i>) &mdash; master switch
+    <li><b><code>Auto-coregister GSLC slaves</code></b> (the dialog label; these are the Secondaries) (default <i>true</i>) &mdash; main switch
         for the GSLC path. Disable only for unit tests or when you want to coregister
         manually with explicit GSLC-Terrain-Correction nodes for each secondary.</li>
     <li><b>Skip GSLC bias estimation (geometric only)</b> (default <i>false</i>) &mdash;
-        keep auto-coregister on but skip the slow cross-correlation step. Useful for fast
-        iteration on full-resolution stacks where CC takes several minutes; turn it off
+        keep auto-coregister on but skip the slow bias estimation. Useful for fast
+        iteration on full-resolution stacks where it takes several minutes; turn it off
         for final quality.</li>
 </ul>
 <p>For GSLC inputs the operator forces <i>Resampling Type</i> = <code>NONE</code> and the
-    Output Extent = <i>Reference</i>. Other settings are ignored on that path.</p>
+    Output Extent = <i>Master</i> (the reference extent). Other settings are ignored on that path.</p>
 
 <h4>Mutual no-data propagation</h4>
 <p>For every target pixel, both the reference and the (offset-corrected) secondary are
@@ -121,6 +148,46 @@ methods:<br>
     pixel is set to no-data. This guarantees that the intersection of the two scenes is
     the only region with valid data in the stack &mdash; downstream interferogram /
     coherence rasters then have clean no-data borders matching that intersection.</p>
+
+<!-- params:begin op="CreateStack" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>CreateStack</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>masterBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>resamplingType</code></td><td>String</td><td>NONE</td><td>&nbsp;</td><td>&nbsp;</td><td>The method to be used when resampling the secondary grid onto the reference grid.</td></tr>
+<tr><td><code>extent</code></td><td>String</td><td>Master</td><td>Master, Minimum, Maximum</td><td>&nbsp;</td><td>The output image extents.</td></tr>
+<tr><td><code>initialOffsetMethod</code></td><td>String</td><td>Orbit</td><td>Orbit, Product Geolocation</td><td>&nbsp;</td><td>Method for computing initial offset between reference and secondary</td></tr>
+<tr><td><code>autoCoregisterGSLC</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Auto-estimate cross-correlation bias and re-geocode GSLC slaves when the input stack contains geocoded products.</td></tr>
+<tr><td><code>skipBiasEstimation</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Skip the cross-correlation refinement step; use pure geometric coregistration. Faster but less accurate.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: Bursts, Deramping and ESD</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration of SAR Images</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/gslc.html">Geocoded SLC (Geocode-First InSAR)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/multitemporal.html">Multitemporal Backscatter Stacks</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_stripmap_dinsar.html">Workflow: Stripmap DInSAR</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_gslc.html">Workflow: Geocode-First InSAR with GSLC</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two or more SAR products</li>
+    <li>Sentinel-1 TOPS SLC burst products are refused here; coregister them with <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a> plus <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a> instead, unless the Reference is a GSLC (with GSLC auto-coregistration on, the default): raw split burst SLCs are then geocoded onto its grid (see the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_gslc.html">GSLC workflow</a>)</li>
+    <li>Recommended: precise orbits applied to every input (<a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a>)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="CrossCorrelationOp.html">Cross-Correlation</a>, then <a href="WarpOp.html">Warp</a> to coregister a Stripmap stack</li>
+    <li>Instead of Create Stack + Cross-Correlation + Warp: <a href="DEMAssistedCoregistrationOp.html">DEM-Assisted Coregistration</a> on the original products</li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+</ul>
+<!-- footer:end -->
 
 <hr>
 </body>

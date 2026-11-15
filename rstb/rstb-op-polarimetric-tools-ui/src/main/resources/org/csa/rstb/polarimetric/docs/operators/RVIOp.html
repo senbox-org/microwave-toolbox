@@ -50,10 +50,12 @@ dual-pol SAR data. The scattering randomness is then obtained by
 subtracting m x beta from unity, as given in the following equation by Mandal et al. (2020).</p>
 <p align="center"><img src="images/dprvieq.PNG"></p>
 
-<p>Ref:</br>
-[1] Barakat, R., 1977. Degree of polarization and the principal idempotents of the coherency
-matrix. Opt. Commun. 23 (2), 147-150.</br>
-[2] D. Mandal, V. Kumar, D. Ratha, S. Dey, A. Bhattacharya, J. M. Lopez-Sanchez, H. McNairn, Y. S. Rao, "Dual Polarimetric Radar Vegetation Index for Crop Growth Monitoring Using Sentinel-1 SAR Data," Remote Sensing of Environment, 247: 111954, 2020, DOI:10.1016/j.rse.2020.111954.</p>
+<h4>References</h4>
+<ol>
+    <li>Barakat, R. (1977). Degree of polarization and the principal idempotents of the coherency matrix. <i>Optics Communications</i>, 23(2), 147&#8211;150. doi:10.1016/0030-4018(77)90292-9</li>
+    <li>Mandal, D., Kumar, V., Ratha, D., Dey, S., Bhattacharya, A., Lopez-Sanchez, J. M., McNairn, H., Rao, Y. S. (2020). Dual polarimetric radar vegetation index for crop growth monitoring using Sentinel-1 SAR data. <i>Remote Sensing of Environment</i>, 247, 111954. doi:10.1016/j.rse.2020.111954</li>
+</ol>
+
 
 <h3>2. DpRVI Algorithm Specification </h3>
 <p>The general workflow to generate DpRVI from Sentinel-1 SLC products is highlighted in the following figure.</p>
@@ -79,6 +81,29 @@ dprvi image-->data type: float32</p>
 <h3>4. DpRVI Results Analysis Help </h3>
 <p>For results analysis please follow the article "D. Mandal, V. Kumar, D. Ratha, S. Dey, A. Bhattacharya, J. M. Lopez-Sanchez, H. McNairn, Y. S. Rao, "Dual Polarimetric Radar Vegetation Index for Crop Growth Monitoring Using Sentinel-1 SAR Data," Remote Sensing of Environment, 247: 111954, 2020, DOI:10.1016/j.rse.2020.111954."</p>
 <br>
+<!-- params:begin op="Radar-Vegetation-Index" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Radar-Vegetation-Index</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>[1, 100]</td><td>&nbsp;</td><td>The sliding window size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Dual-pol C2 covariance matrix product (create it with <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a>); other product types are rejected</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

@@ -1,0 +1,113 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Offset Tracking</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Workflows: Offset Tracking</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Offset Tracking for Glaciers and Landslides</h1>
+
+<p class="lead">Offset tracking measures how far image features moved between two dates by cross-correlating small
+image patches. It uses amplitude, not phase, so it works where InSAR decorrelates and for motion of metres to tens of
+metres: glaciers, ice streams, fast landslides. The result is a velocity map in metres per day. Input: two detected
+(GRD) or SLC products of the same track and geometry.</p>
+
+<h2>Before you start</h2>
+<ul>
+    <li><b>Data:</b> two images from the same relative orbit. For Sentinel-1 use GRD: DEM Assisted Coregistration
+        refuses Sentinel-1 SLC, and on slant-range products the range offsets are converted with the slant-range
+        spacing.</li>
+    <li><b>Time interval:</b> the motion must be clearly larger than the matching noise (a fraction of a pixel), but
+        the surface must still look similar on both dates. Fresh snow, melt or crevasse changes break the match; short
+        intervals help.</li>
+    <li><b>Orbits and DEM:</b> precise orbits and the Copernicus 30 m DEM (default) are downloaded automatically.</li>
+    <li><b>Graphs:</b> the menu entry Radar &gt; Coregistration &gt; DEM-Assisted Coregistration &gt; DEM Assisted
+        Coregistration is itself a small graph (product set, DEM-Assisted-Coregistration, Write). SNAP ships no graph
+        for the whole chain.</li>
+</ul>
+
+<h2>Steps</h2>
+<ol>
+    <li><b>Apply Orbit File</b> (<code>Apply-Orbit-File</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">help</a>)
+        on both products; default <code>Sentinel Precise (Auto Download)</code>. A spatial subset around the glacier
+        afterwards saves a lot of time.</li>
+    <li><b>DEM Assisted Coregistration</b> (<code>DEM-Assisted-Coregistration</code>, Radar &gt; Coregistration &gt;
+        DEM-Assisted Coregistration;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/DEMAssistedCoregistrationOp.html">help</a>).
+        The first product is the Reference. Defaults: DEM <code>Copernicus 30m Global DEM</code>, <i>Resampling
+        Type</i> <code>BISINC_5_POINT_INTERPOLATION</code>, <i>Mask out areas with no elevation</i> on. Orbits and DEM
+        alone align stable ground, so the remaining offsets are the surface motion. Offset Tracking stops if its input
+        is not a coregistered stack.</li>
+    <li><b>Offset Tracking</b> (<code>Offset-Tracking</code>, Radar &gt; SAR Applications &gt; Ice;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/OffsetTrackingOp.html">help</a>).
+        Parameters that matter:
+        <ul>
+            <li><i>Grid Azimuth/Range Spacing in Pixels</i>: 40 &times; 40 by default. Smaller spacing gives more
+                detail and longer run times.</li>
+            <li><i>Registration Window Width/Height</i>: 128 &times; 128 by default. The window must contain
+                recognisable texture and be clearly larger than the expected offset in pixels.</li>
+            <li><i>Cross-Correlation Threshold</i>: 0.1 by default. Matches with a lower normalised correlation are
+                rejected.</li>
+            <li><i>Max Velocity (m/day)</i>: 5.0 by default. Offsets larger than this velocity times the time interval
+                are treated as outliers. Raise it for fast outlet glaciers; lower it to clean a slow landslide.</li>
+            <li><i>Spatial Average</i> (box 5) and <i>Fill Holes</i> (radius 4) are on by default.</li>
+        </ul>
+        The output band <code>Velocity_&lt;suffix&gt;</code> (unit m/day) is the magnitude of the range and azimuth
+        offsets in metres divided by the time interval in days. For the direction, open the <code>Velocity</code>
+        vector data node: each point carries <code>heading</code>, <code>range_shift</code> and <code>azimuth_shift</code>.
+        To draw the offsets as arrows, open the velocity band and add the <i>Coregistered GCP Movement Vector</i>
+        layer in the Layer Manager.</li>
+    <li><b>Range-Doppler Terrain Correction</b> (<code>Terrain-Correction</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">help</a>)
+        of the velocity band, to put it on a map.</li>
+</ol>
+
+<h2>Check the result</h2>
+<ul>
+    <li><b>Stable ground</b> (rock outcrops, moraines) should show velocities near zero. Its spread is your noise
+        level: roughly the matching error in pixels times the pixel spacing, divided by the number of days. With 10 m
+        pixels, a 0.1-pixel error over 12 days is about 0.08 m/day.</li>
+    <li><b>Vectors</b> should point downhill and follow the flow lines of the glacier.</li>
+    <li><b>Holes and smears:</b> large filled areas mean that matching failed (no texture, surface change); the filled
+        values are interpolated, not measured.</li>
+</ul>
+
+<h2>Common pitfalls</h2>
+<ul>
+    <li>A registration window smaller than the expected offset. The true peak lies outside the search, and the
+        velocity is wrong or rejected.</li>
+    <li>Leaving <i>Max Velocity</i> at 5 m/day on a glacier that moves faster. The fast centre is removed as outliers
+        and filled from the slow margins.</li>
+    <li>Reading the velocity as three-dimensional. It is the magnitude of the 2-D offset in ground range and azimuth;
+        vertical motion (and terrain not removed by the DEM) leaks into the range offset.</li>
+    <li>Pairs from different tracks or modes. Their geometries differ and the offsets contain parallax.</li>
+</ul>
+
+<h2>Background</h2>
+<ul>
+    <li><a href="../concepts/geometry.html">SAR geometry and geometric distortions</a></li>
+    <li><a href="../concepts/displacement.html">From phase to displacement (InSAR alternative)</a></li>
+    <li><a href="../concepts/coherence.html">Coherence (why InSAR fails on fast ice)</a></li>
+    <li><a href="../concepts/orbits_etad.html">Orbits and timing corrections</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

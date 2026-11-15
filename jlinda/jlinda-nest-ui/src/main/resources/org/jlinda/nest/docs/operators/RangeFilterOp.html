@@ -19,10 +19,10 @@
 <p>
     This operator filters the spectras, of stack of SLC images, in the range direction. This is an
     optional step in interferometric processing chain.
-    The filtering in range direction of master and slave image increases Signal-to-Noise Ration (SNR) in the
+    The filtering in range direction of reference and secondary image increases Signal-to-Noise Ration (SNR) in the
     interferogram.
     This noise reduction results from filtering out non overlapping parts of the spectrum.
-    This spectral non overlap in range between master and slave is caused by a slightly different viewing angle of both
+    This spectral non overlap in range between reference and secondary is caused by a slightly different viewing angle of both
     sensors. The longer the perpendicular baseline, the smaller the overlapping part. Eventually
     a baseline of about 1100 m results in no overlap at all (that is also critical
     baseline for ERS). Assuming no local terrain slope, a reduction of typically 10-20% in the number of residues can be
@@ -30,11 +30,12 @@
 </p>
 
 <p>
-    The range filtering should be performed after coregistration (after slave images
-    are resampled/warped to the master grid), because the fringe frequency is estimated from the interferogram (that is
-    temporary computed). It is performed simultaneously for the master and slave image, unless there are multiple slave
-    images in the stack. If later is the case, as with Azimuth Filtering Operator, only slave images will be filtered
-    while the master image will be left in its original state.
+    The range filtering should be performed after coregistration (after secondary images
+    are resampled/warped to the reference grid), because the fringe frequency is estimated from the interferogram (that is
+    temporary computed). It is performed simultaneously for the reference and secondary image. Current limits: with
+    several secondary images in one polarisation, only one Reference/Secondary pair is written to the output and the
+    other Secondaries are dropped, so filter one pair at a time; and on a product with more than one polarisation only
+    the Secondary is filtered, while the Reference is left in its original state.
 </p>
 
 <h4>Implementation Details</h4>
@@ -46,7 +47,7 @@
 
 <p>
     Adaptive range filtering algorithm builds on the local fringe frequency estimated from the locally computed
-    interferogram. After the warping/resampling of the slave on the master grid the local fringe frequency is
+    interferogram. After the warping/resampling of the secondary on the reference grid the local fringe frequency is
     estimated using peak analysis of the power of the spectrum of the complex interferogram. The warping/resampling
     is required since the local fringe frequency is estimated from the interferogram. The fringe frequency is
     directly related to the spectral shift in range direction. (Note: that this shift is not an actual shift, but
@@ -57,7 +58,8 @@
 
 <ul>
     <li>
-        <b>FFT Window Length:</b> Length of the estimation window, a peak is estimated for parts of this length.
+        <b>FFT Window Length:</b> Currently has no effect: the FFT length is set by the processing tile width
+        (rounded up to a power of 2).
     </li>
     <!--<li>-->
         <!--<b>Range Filter Overlap:</b> Overlap between tiles in range direction.-->
@@ -68,21 +70,25 @@
     </li>
     <li>
         <b>Walking Mean Window:</b> Number of lines over which the (walking) mean will be computed. This parameter reduces
-        noise for the peak estimation. The parameter has to be an odd number. Logically, the walking mean can be
+        noise for the peak estimation. Odd values from 5 to 25; default 15. Logically, the walking mean can be
         compared with the principles of periodogram estimation.
     </li>
     <li>
-        <b>SNR Threshold:</b> In peak estimation, weight values to bias higher frequencies. The reasoning for this parameter is
-        that the low frequencies are (for small Oversample factors) aliased after interferogram generation. The
-        de-weighting is done by a dividing by a triangle function (convolution of 2 rect window functions,  the shape of
-        the range spectrum). Effect of this parameter may be negligible to overall results.
+        <b>SNR Threshold:</b> Minimum signal-to-noise ratio of the spectral peak (default 5). A line whose peak SNR is
+        below it reuses the spectral shift of the previous line that passed; before the first such line in a tile no
+        shift is applied, so those lines get no common-band filtering.
     </li>
     <li>
-        <b>Oversampling factor:</b> Oversample master and slave(s) with this factor before computing the complex interferogram
-        for the peak estimation. This factor has to be a power of 2. 2 is default, and with this factor the filter is
+        <b>De-weighting:</b> In peak estimation, weight values to bias higher frequencies (default off). The reasoning for
+        this parameter is that the low frequencies are (for small Oversample factors) aliased after interferogram
+        generation. The de-weighting is done by a dividing by a triangle function (convolution of 2 rect window
+        functions, the shape of the range spectrum). Effect of this parameter may be negligible to overall results.
+    </li>
+    <li>
+        <b>Oversampling factor:</b> Oversample the Reference and Secondary image(s) with this factor before computing the complex interferogram
+        for the peak estimation. Values 1, 2 and 4; the default is 1 (no oversampling). With a factor of 2 or more the filter is
         able to estimate the peak for frequency shifts larger than half the bandwidth. A factor of 4 for example might
-        give a better estimate, since the interval between shifts that can be estimated is in that case halfed
-        (fixed FFT Window Length).
+        give a better estimate, since the interval between shifts that can be estimated is in that case halfed.
     </li>
 </ul>
 
@@ -95,6 +101,39 @@
 
 <br>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Gatelli, F., Monti Guarnieri, A., Parizzi, F., Pasquali, P., Prati, C., Rocca, F. (1994). The wavenumber shift in SAR interferometry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 32(4), 855&#8211;865. doi:10.1109/36.298013</li>
+</ol>
+<!-- params:begin op="RangeFilter" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>RangeFilter</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>fftLength</code></td><td>int</td><td>8</td><td>8, 16, 32, 64, 128, 256, 512, 1024</td><td>&nbsp;</td><td>Length of filtering window</td></tr>
+<tr><td><code>alphaHamming</code></td><td>float</td><td>0.75</td><td>0.5, 0.75, 0.8, 0.9, 1</td><td>&nbsp;</td><td>Weight for Hamming filter (1 is rectangular window)</td></tr>
+<tr><td><code>nlMean</code></td><td>int</td><td>15</td><td>5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25</td><td>&nbsp;</td><td>Input value for (walking) mean averaging to reduce noise.</td></tr>
+<tr><td><code>snrThresh</code></td><td>float</td><td>5</td><td>3, 4, 5, 6, 7</td><td>&nbsp;</td><td>Threshold on SNR for peak estimation</td></tr>
+<tr><td><code>ovsmpFactor</code></td><td>int</td><td>1</td><td>1, 2, 4</td><td>&nbsp;</td><td>Oversampling factor (in range only).</td></tr>
+<tr><td><code>doWeightCorrel</code></td><td>boolean</td><td>false</td><td>true, false</td><td>&nbsp;</td><td>Use weight values to bias higher frequencies</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coherence.html">Interferometric Coherence</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered SLC stack with reference and secondary bands; apply before the other InSAR steps</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="InterferogramOp.html">Interferogram</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

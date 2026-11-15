@@ -79,5 +79,38 @@ shifts. </li>
 <ul>
 <li style="margin-top: 4pt; margin-bottom: 4pt;">Coherence Threshold for Outlier Removal:<span> Pixels with coherence higher than the threshold are used in azimuth shift estimation. </span><br></li><li style="margin-top: 4pt; margin-bottom: 4pt;">Number of Windows Per Overlap for ESD: The number of windows for azimuth shift estimation for each overlap area.</li></ul><img style="width: 434px; height: 440px;" alt="" src="images/AzimuthShiftEstimationUsingESDOp.jpg"><ul>
 </ul>
+<h3>References</h3>
+<ol>
+    <li>Scheiber, R., Moreira, A. (2000). Coregistration of interferometric SAR images using spectral diversity. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(5), 2179&#8211;2191. doi:10.1109/36.868876</li>
+    <li>Prats-Iraola, P., Scheiber, R., Marotti, L., Wollstadt, S., Reigber, A. (2012). TOPS interferometry with TerraSAR-X. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 50(8), 3179&#8211;3188. doi:10.1109/TGRS.2011.2178247</li>
+    <li>Yag&uuml;e-Mart&iacute;nez, N., Prats-Iraola, P., Rodr&iacute;guez Gonz&aacute;lez, F., Brcic, R., Shau, R., Geudtner, D., Eineder, M., Bamler, R. (2016). Interferometric processing of Sentinel-1 TOPS data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 54(4), 2220&#8211;2234. doi:10.1109/TGRS.2015.2497902</li>
+</ol>
+
+<!-- params:begin op="Azimuth-Shift-Estimation-ESD" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Azimuth-Shift-Estimation-ESD</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>cohThreshold</code></td><td>double</td><td>0.15</td><td>(0, 1]</td><td>&nbsp;</td><td>The coherence threshold for outlier removal</td></tr>
+<tr><td><code>numBlocksPerOverlap</code></td><td>int</td><td>10</td><td>[1, 20]</td><td>&nbsp;</td><td>The number of windows per overlap for ESD</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_s1_dinsar.html">Sentinel-1 IW DInSAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Sentinel-1 split product with a single sub-swath.</li>
+    <li>Coregistered stack: the product must carry secondary metadata, so run <a href="BackGeocodingOp.html">Back Geocoding</a> first.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="TOPSARDeburstOp.html">TOPS Deburst</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

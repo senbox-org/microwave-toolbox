@@ -74,14 +74,48 @@ operator computes the following Stokes child parameters:<br>
     Compact Polarimetric Stokes Parameter Generation operator<br></div>
 <br><br>
 
-<p> Reference:&nbsp;</p>
+<h3>References</h3>
+<ol>
+    <li>Raney, R. K. (2007). Hybrid-polarity SAR architecture. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 45(11), 3397&#8211;3404. doi:10.1109/TGRS.2007.895883</li>
+    <li>Raney, R. K., Cahill, J. T. S., Patterson, G. W., Bussey, D. B. J. (2012). The m-chi decomposition of hybrid dual-polarimetric radar data with application to lunar craters. <i>Journal of Geophysical Research: Planets</i>, 117(E12), E00H21. doi:10.1029/2011JE003986</li>
+    <li>Cloude, S. R., Goodenough, D. G., Chen, H. (2012). Compact decomposition theory. <i>IEEE Geoscience and Remote Sensing Letters</i>, 9(1), 28&#8211;32. doi:10.1109/LGRS.2011.2158983</li>
+</ol>
 
-<p>[1] R. K. Raney, P. Spudis, B. Bussey, J. R. Jensen, B. Marinelli, P. McKerracher, R. Schulze, H. Sequeira, and H.
-    Winters,
-    "Compact Polarimetry at the Moon: The Mini-RF Radars", POLinSAR, Frascati, Italy, 24-29 Jan. 2011.<br>
-    .<br>
-    <br>
-</p>
-
+<!-- params:begin op="CP-Stokes-Parameters" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>CP-Stokes-Parameters</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSizeXStr</code></td><td>String</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size X</td></tr>
+<tr><td><code>windowSizeYStr</code></td><td>String</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size Y</td></tr>
+<tr><td><code>outputStokesVector</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Stokes vector</td></tr>
+<tr><td><code>outputDegreeOfPolarization</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output degree of polarization</td></tr>
+<tr><td><code>outputDegreeOfDepolarization</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output degree of depolarization</td></tr>
+<tr><td><code>outputDegreeOfCircularity</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output degree of circularity</td></tr>
+<tr><td><code>outputDegreeOfEllipticity</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output degree of ellipticity</td></tr>
+<tr><td><code>outputCPR</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output circular polarization ratio</td></tr>
+<tr><td><code>outputLPR</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output linear polarization ratio</td></tr>
+<tr><td><code>outputRelativePhase</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output relative phase</td></tr>
+<tr><td><code>outputAlphas</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output alphas</td></tr>
+<tr><td><code>outputConformity</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output conformity coefficient</td></tr>
+<tr><td><code>outputPhasePhi</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output phase phi</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Complex (SLC) compact-pol product (right/left circular hybrid) or C2 covariance matrix; create it with <a href="CompactPolDataSimulationOp.html">Compact Pol Data Simulation</a> or <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a> (C2)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="CompactPolDecompositionOp.html">Compact Polarimetric Decomposition</a></li>
+    <li><a href="CPRVIOp.html">Compact-pol Radar Vegetation Index</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

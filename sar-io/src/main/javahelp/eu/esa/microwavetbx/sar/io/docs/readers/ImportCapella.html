@@ -1,69 +1,87 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import Capella</title>
-
-
-  
-
-  
-  
-  <link rel="stylesheet" href="../style.css"></head><body>
+<html>
+<head><title>Help - Import Capella</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
 <table class="header">
-
-  <tbody>
+    <tbody>
     <tr class="header">
-      <td class="header">&nbsp; Import Capella</td>
-      <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header">&nbsp; Import Capella</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
-  </tbody>
+    </tbody>
 </table>
 
-<h3>Import Capella Product</h3>
+<p>The <b>Capella</b> reader (<i>File &gt; Import &gt; SAR Sensors &gt; CAPELLA</i>) opens Capella
+Space SAR products delivered as GeoTIFF with JSON metadata.</p>
 
-<p class="MsoNormal"><b style="">Operational:</b> late 2020<br>
-</p>
-
-
-<p class="MsoNormal"><b style="">Frequency Band:</b> X-band</p>
-
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, Multi-swath Stripmap, Spotlight, Staring Spotlight<br>
-</p>
-
-
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
-
+<h2>Mission</h2>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GEO</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SLC</li></ul>
-
-
-
-
-
-
-
-
-
-
-<p class="MsoNormal"><b style="">Polarizations: <span style="">&nbsp;</span></b>Single Pol HH</p>
-<p class="MsoNormal"><br>
-</p>
-
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p><a href="https://www.capellaspace.com/">https://www.capellaspace.com/</a><br>
-<br>
-<a href="https://directory.eoportal.org/web/eoportal/satellite-missions/content/-/article/capella-x-sar">https://directory.eoportal.org/web/eoportal/satellite-missions/content/-/article/capella-x-sar</a><br>
-<ul>
+    <li><b>Operator:</b> Capella Space (USA), a commercial constellation of small X-band SAR
+        satellites.</li>
+    <li><b>Instrument:</b> X-band SAR, 9.4&ndash;9.9&nbsp;GHz (wavelength about 3&nbsp;cm), up to
+        700&nbsp;MHz bandwidth.</li>
+    <li><b>Orbit:</b> low Earth orbits at several inclinations (about 45&deg;, 53&deg; and 97&deg;
+        sun-synchronous), roughly 450&ndash;650&nbsp;km altitude depending on the launch.</li>
+    <li><b>Launch:</b> first satellite 3 December 2018; more satellites have been launched since.</li>
 </ul>
 
-<ul>
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Product</th><th>Content</th><th>Read by this reader</th></tr>
+    <tr><td>SLC</td><td>Single-look complex, slant range, GeoTIFF + JSON</td><td>Yes</td></tr>
+    <tr><td>GEO</td><td>Detected, geocoded and terrain corrected, GeoTIFF + JSON</td><td>Yes</td></tr>
+    <tr><td>GEC</td><td>Detected, geocoded to the ellipsoid, GeoTIFF + JSON</td><td>Yes</td></tr>
+    <tr><td>SICD, SIDD, CPHD</td><td>NITF / phase-history formats</td><td>No</td></tr>
+</table>
+<p>Acquisition modes: Spotlight, Sliding Spotlight and Stripmap. Polarisation: single, HH or VV.</p>
 
+<h2>How to open</h2>
+<p>Select the metadata file <code>CAPELLA_..._extended.json</code>. You can also select the product
+folder, the GeoTIFF when its <code>_extended.json</code> file lies beside it, or a ZIP archive whose
+name starts with <code>CAPELLA_</code>.</p>
+
+<h2>What you get</h2>
+<ul>
+    <li><b>SLC:</b> complex bands <code>i_HH</code> and <code>q_HH</code> (float, units real and
+        imaginary), a virtual <code>Intensity_HH</code>, and tie-point grids for incidence angle and
+        slant range time.</li>
+    <li><b>GEO and GEC:</b> one detected band. When the metadata states the radiometric scale, the
+        band is named <code>Sigma0_HH</code>, <code>Beta0_HH</code> or <code>Gamma0_HH</code> (intensity);
+        otherwise it is <code>Amplitude_HH</code> with a virtual <code>Intensity_HH</code>. The map
+        geocoding comes from the GeoTIFF. SNAP labels all detected products with product type
+        <code>GEO</code>.</li>
+    <li>Orbit state vectors and acquisition parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
 </ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>SICD and SIDD (NITF) and CPHD products cannot be opened. Order the GeoTIFF products.</li>
+    <li>GEO and GEC products are already map projected. Do not apply Range Doppler Terrain Correction
+        to them.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li>SLC:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>,
+        or <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>
+        for interferometry.</li>
+    <li>GEO and GEC:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>
+        or direct analysis. See
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometry concepts</a>.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>Capella's product overview and specifications are in the Capella support centre:
+<a href="https://support.capellaspace.com/what-sar-imagery-products-are-available-with-capella">https://support.capellaspace.com/what-sar-imagery-products-are-available-with-capella</a>.
+Mission overview: <a href="https://www.eoportal.org/satellite-missions/capella-x-sar">https://www.eoportal.org/satellite-missions/capella-x-sar</a>.</p>
 
 <hr>
-</body></html>
+</body>
+</html>

@@ -115,7 +115,7 @@ P<sub>v</sub><sup>CP</sup> is the diffused power component.
         product in complex scattering vector or complex covariance matrix
         format.
     </li>
-    <li>The output of this operator is the m-chi, m-delta, H-Alpha or RVOG decomposition result represented by RGB
+    <li>The output of this operator is the m-chi, m-delta, m-alpha, H-Alpha, RVOG or model-free 3-component decomposition result represented by RGB
         colours.
     </li>
 </ul>
@@ -142,28 +142,41 @@ P<sub>v</sub><sup>CP</sup> is the diffused power component.
     Compact Polarimetric Decomposition operator<br></div>
 <br><br>
 
-<p> Reference:&nbsp;</p>
+<h4>References</h4>
+<ol>
+    <li>Raney, R. K., Cahill, J. T. S., Patterson, G. W., Bussey, D. B. J. (2012). The m-chi decomposition of hybrid dual-polarimetric radar data with application to lunar craters. <i>Journal of Geophysical Research: Planets</i>, 117(E12), E00H21. doi:10.1029/2011JE003986</li>
+    <li>Raney, R. K. (2007). Hybrid-polarity SAR architecture. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 45(11), 3397&#8211;3404. doi:10.1109/TGRS.2007.895883</li>
+    <li>Cloude, S. R., Goodenough, D. G., Chen, H. (2012). Compact decomposition theory. <i>IEEE Geoscience and Remote Sensing Letters</i>, 9(1), 28&#8211;32. doi:10.1109/LGRS.2011.2158983</li>
+    <li>Dey, S., Bhattacharya, A., Ratha, D., Mandal, D., Frery, A. C. (2021). Target characterization and scattering power decomposition for full and compact polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 59(5), 3981&#8211;3998. doi:10.1109/TGRS.2020.3010840</li>
+    <li>Dey, S., Bhattacharya, A., Frery, A. C., L&oacute;pez-Mart&iacute;nez, C., Rao, Y. S. (2021). A model-free four component scattering power decomposition for polarimetric SAR data. <i>IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing</i>, 14, 3887&#8211;3902. doi:10.1109/JSTARS.2021.3069299</li>
+</ol>
 
-<p>[1] R. K. Raney, J. T. S. Cahill, G. W. Patterson, and B. J. Bussey,
-    "The m-chi decomposition of hybrid dual-polarimetric radar data with
-    application to lunar craters", Journal of Geophysical Research, Vol.
-    117, E00H21, doi:10.1029/2011JE003986, 2012.<br>
-</p>
-
-<p>[2] R. K. Raney, "Hybrid-Polarity SAR Architecture", IEEE
-    transaction on Geoscience and Remote Sensing, Vol. 45, No. 11, Nov,
-    2007.</p>
-
-<p>[3] S. R. Cloude, D. G. Goodenough, H. Chen, "Compact Decomposition
-    Theory", IEEE Geoscience and Remote Sensing Letters, Vol. 9, No. 1,
-    Jan. 2012.<br>
-    <br>
-    <p>[4] S. Dey, A. Bhattacharya, D. Ratha, D. Mandal and A. C. Frery, 2020. 
-        &#8220;Target characterization and scattering power decomposition for 
-        full and compact polarimetric SAR data&#8221;, IEEE Transactions on 
-        Geoscience and Remote Sensing, 59(5), pp.3981-3998. </p>
-</p>
-
-
+<!-- params:begin op="CP-Decomposition" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>CP-Decomposition</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>decomposition</code></td><td>String</td><td>M-Chi Decomposition</td><td>M-Chi Decomposition, M-Delta Decomposition, M-Alpha Decomposition, H-Alpha Decomposition, 2 Layer RVOG Model Based Decomposition, Model-free 3-component decomposition</td><td>&nbsp;</td><td>Decomposition</td></tr>
+<tr><td><code>windowSizeXStr</code></td><td>String</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size X</td></tr>
+<tr><td><code>windowSizeYStr</code></td><td>String</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size Y</td></tr>
+<tr><td><code>computeAlphaByT3</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Compute alpha by coherency matrix T3</td></tr>
+<tr><td><code>outputRVOG</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output RVOG parameters mv, ms, alphaS and phi</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Complex (SLC) compact-pol product (right/left circular hybrid) or C2 covariance matrix; create it with <a href="CompactPolDataSimulationOp.html">Compact Pol Data Simulation</a> or <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a> (C2)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

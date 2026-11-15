@@ -189,5 +189,29 @@ polynomial order.</li>
 
 <br>
 
+<h3>References</h3>
+<ol>
+    <li>Scheiber, R., Moreira, A. (2000). Coregistration of interferometric SAR images using spectral diversity. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(5), 2179&#8211;2191. doi:10.1109/36.868876</li>
+    <li>Sansosti, E., Berardino, P., Manunta, M., Serafino, F., Fornaro, G. (2006). Geometrical SAR image registration. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(10), 2861&#8211;2870. doi:10.1109/TGRS.2006.875787</li>
+    <li>Yag&uuml;e-Mart&iacute;nez, N., Prats-Iraola, P., Rodr&iacute;guez Gonz&aacute;lez, F., Brcic, R., Shau, R., Geudtner, D., Eineder, M., Bamler, R. (2016). Interferometric processing of Sentinel-1 TOPS data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 54(4), 2220&#8211;2234. doi:10.1109/TGRS.2015.2497902</li>
+</ol>
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration of SAR Images</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two or more products of the same area</li>
+    <li>Precise orbits applied to every input (<a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a>)</li>
+    <li>Sentinel-1 TOPS SLC burst products are refused by Create Stack; coregister them with <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a> instead</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a> for a coregistered SLC stack</li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/ChangeDetection.html">Change Detection</a> for a coregistered detected stack</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

@@ -75,16 +75,36 @@
 
 <p></p>
 
-<p>Reference:</p>
+<h3>References</h3>
+<ol>
+    <li>Rosich, B., Meadows, P. (2004). <i>Absolute Calibration of ASAR Level 1 Products</i>. ESA/ESRIN technical note ENVI-CLVL-EOPG-TN-03-0010, Issue 1, Revision 5, October 2004.</li>
+    <li>Laur, H., Bally, P., Meadows, P., S&aacute;nchez, J., Sch&auml;ttler, B., Lopinto, E., Esteban, D. (2004). <i>ERS SAR calibration: Derivation of &#963;<sup>0</sup> in ESA ERS SAR PRI products</i>. ESA/ESRIN technical note ES-TN-RS-PM-HL09, Issue 2, Revision 5f, November 2004.</li>
+</ol>
 
-<p>[1] Rosich B., Meadows P., Absolute calibration of ASAR Level 1 products,
-    ESA/ESRIN, ENVI-CLVL-EOPG-TN-03-0010, Issue 1, Rev. 5, October 2004</p>
-
-<p> [2] Laur H., Bally P., Meadows P., S&aacute;nchez J., Sch&auml;ttler B., Lopinto E.
-    &amp; Esteban D., ERS SAR Calibration: Derivation of &#963;0 in ESA ERS SAR PRI
-    Products, ESA/ESRIN, ES-TN-RS-PM-HL09, Issue 2, Rev. 5f, November 2004</p>
-
-<p></p>
+<!-- params:begin op="RemoveAntennaPattern" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>RemoveAntennaPattern</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometric Quantities and Calibration</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>An ENVISAT ASAR or ERS product in ground range (ASAR IMS/APS slant-range complex products are not valid inputs); it must not be multilooked</li>
+    <li>Amplitude or intensity bands that have a unit</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> with radiometric normalization (ERS)</li>
+    <li><a href="CalibrationOp.html">Calibration</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

@@ -1,0 +1,116 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Ocean Applications</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Workflows: Ocean Applications</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Ocean Applications: Wind, Ships and Oil</h1>
+
+<p class="lead">Three short chains turn a calibrated SAR image of the sea into a wind field, a list of ship detections,
+or a mask of possible oil slicks. All three start the same way: mask the land and calibrate to &sigma;<sup>0</sup>.
+Input: a detected product such as Sentinel-1 IW/EW GRD; wind estimation also accepts ERS, ENVISAT and RADARSAT-2.</p>
+
+<h2>Before you start</h2>
+<ul>
+    <li><b>Data:</b> a GRD product over open water, in radar geometry. Wind estimation needs a VV or HH band and the
+        <code>incidence_angle</code> tie-point grid, so run it before any terrain correction.</li>
+    <li><b>Ready-made graphs:</b> the three menu entries under Radar &gt; SAR Applications &gt; Ocean are graphs. The same
+        chains are in the Graph Builder under <i>Graphs &gt; Radar &gt; SAR Applications</i> (WindFieldEstimation,
+        ShipDetection, OilSpillDetection). The menu graphs use some settings that differ from the operator defaults;
+        they are noted below.</li>
+</ul>
+
+<h2>Common first steps</h2>
+<ol>
+    <li><b>Land/Sea Mask</b> (<code>Land-Sea-Mask</code>, Raster &gt; Masks). <i>Mask the Land</i> is on by default.
+        <i>Use SRTM 3sec</i> is on by default: pixels where SRTM has no data are treated as sea. SRTM covers only about
+        60&deg;N to 56&deg;S, so outside that band nothing is masked. There, untick it (the coarse ACE2 5-minute model
+        is used) or supply a vector. <i>Extend shoreline by this many pixels</i> defaults to 0; the ship and oil menu
+        graphs use 10.</li>
+    <li><b>Calibrate</b> (<code>Calibration</code>, Radar &gt; Radiometric;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">help</a>)
+        to Sigma0 (the default output). All three applications refuse uncalibrated input.</li>
+</ol>
+
+<h2>Wind field</h2>
+<ol start="3">
+    <li><b>Wind Field Estimation</b> (<code>Wind-Field-Estimation</code>, Radar &gt; SAR Applications &gt; Ocean;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/WindFieldEstimationOp.html">help</a>).
+        <i>Window Size (km)</i> defaults to 20. In each window the direction comes from the wind streaks and the speed
+        from the CMOD5 model. The result is a <code>WindField</code> vector (speed, heading) and a
+        <code>&lt;product&gt;_wind_field_report.xml</code> in the SNAP log folder. Smaller windows give more detail but
+        fewer streaks to fix the direction.</li>
+</ol>
+
+<h2>Ship detection</h2>
+<ol start="4">
+    <li><b>Adaptive Thresholding</b> (<code>AdaptiveThresholding</code>), a two-parameter CFAR detector. Its windows are
+        in metres: target 50, guard 500, background 800 (defaults). The guard window must be larger than the largest
+        ship. <i>PFA</i> is entered as the exponent x of 10<sup>&#8722;x</sup>: 6.5 by default, 12.5 in the menu
+        graph. With no band selected it picks HV, then VH, then HH if available.</li>
+    <li><b>Object Discrimination</b> (<code>Object-Discrimination</code>). It keeps targets between <i>Minimum Target
+        Size</i> and <i>Maximum Target Size</i>: 50 and 600 m by default; the menu graph uses 30 m as the minimum. It
+        writes the <code>ShipDetections</code> vector and an object-detection report.</li>
+</ol>
+<p>Run both through Radar &gt; SAR Applications &gt; Ocean &gt; Ocean Object Detection
+(<a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/ObjectDetection.html">help</a>).</p>
+
+<h2>Oil spill detection</h2>
+<ol start="6">
+    <li><b>Oil Spill Detection</b> (<code>Oil-Spill-Detection</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/OilSpillDetectionOp.html">help</a>).
+        A pixel is flagged when it is darker than the local background mean by more than the <i>Threshold Shift</i>
+        (2.0 dB, default). <i>Background Window Dimension (km)</i> is 0.5 by default and 4.5 in the menu graph; it must
+        be larger than the slicks you look for. Output: <code>&lt;band&gt;_oil_spill_bit_msk</code>.</li>
+    <li><b>Oil Spill Clustering</b> (<code>Oil-Spill-Clustering</code>). It removes clusters smaller than <i>Minimum
+        Cluster Size (sq km)</i>, 0.1 by default.</li>
+</ol>
+
+<h2>Check the result</h2>
+<ul>
+    <li><b>Wind:</b> compare speed and direction with a weather-model or scatterometer wind. The streak direction is
+        ambiguous by 180&deg;.</li>
+    <li><b>Ships:</b> compare detections with AIS. Detections in a line along the coast mean the land mask is too
+        tight; clusters in rough water mean the PFA exponent is too small.</li>
+    <li><b>Oil:</b> check the local wind. Slicks are usually only visible in a moderate wind; about 3 to 10 m/s is
+        commonly quoted. Low-wind areas, rain cells, biogenic films and upwelling look the same.</li>
+</ul>
+
+<h2>Common pitfalls</h2>
+<ul>
+    <li>Skipping the land mask. Coasts, piers and islands become ships and the wind windows mix in land.</li>
+    <li>Relying on the SRTM mask in polar seas. Above 60&deg;N nothing is masked.</li>
+    <li>Treating every dark patch as oil. The detector finds dark spots; deciding what they are needs wind, shape and
+        context.</li>
+    <li>Taking the PFA as the real false-alarm rate. Sea clutter has heavier tails than the Gaussian model.</li>
+    <li>Entering the oil background window in pixels. It is in kilometres.</li>
+</ul>
+
+<h2>Background</h2>
+<ul>
+    <li><a href="../concepts/ocean.html">Ocean SAR: wind, ships and oil</a></li>
+    <li><a href="../concepts/radiometry.html">Radiometric quantities and calibration</a></li>
+    <li><a href="../concepts/speckle.html">Speckle and multilooking</a></li>
+    <li><a href="../concepts/polarimetry.html">Polarimetry (why cross-pol helps ship detection)</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

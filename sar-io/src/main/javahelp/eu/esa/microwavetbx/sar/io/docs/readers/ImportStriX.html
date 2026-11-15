@@ -11,30 +11,62 @@
     </tbody>
 </table>
 
-<h3>Import StriX Product</h3>
+<p>StriX is the X-band small-SAR constellation of the Japanese company Synspective. SNAP has two
+readers: <b>StriX</b> for SLC products in CEOS format and <b>StriX GRD</b> for GRD products in
+XML + GeoTIFF format.</p>
 
-<p class="MsoNormal"><b>Operator:</b> Synspective Inc. (Japan) &mdash; StriX commercial SAR constellation.</p>
-<p class="MsoNormal"><b>Operational:</b> StriX-&alpha; launched December 2020; operational fleet from 2022.</p>
-<p class="MsoNormal"><b>Frequency Band:</b> X-band.</p>
-<p class="MsoNormal"><b>Acquisition Modes:</b> Stripmap, Sliding Spotlight (sub-metre).</p>
-<p class="MsoNormal"><b>Product Types:</b></p>
+<h2>Mission</h2>
 <ul>
-    <li>SLC (Single Look Complex, range-Doppler grid)</li>
-    <li>GRD (Ground Range Detected, multilooked)</li>
-    <li>GEC (Geocoded Ellipsoid Corrected)</li>
-    <li>GTC (Geocoded Terrain Corrected)</li>
+  <li><b>Operator:</b> Synspective Inc. (Japan).</li>
+  <li><b>Radar:</b> X-band, about 9.65 GHz (wavelength about 3.1 cm), VV.</li>
+  <li><b>Lifetime:</b> first satellite (StriX-&alpha;) launched 15 December 2020; more
+      satellites have been launched since, and the constellation is in operation.</li>
+  <li><b>Orbit:</b> sun-synchronous orbits at about 570&ndash;580 km, and inclined orbits (35&deg;) for
+      later satellites.</li>
+  <li><b>Modes:</b> Stripmap (about 3 m, 10&ndash;30 km swath) and Sliding Spotlight (below 1 m,
+      about 10 km swath).</li>
 </ul>
-<p class="MsoNormal"><b>Polarizations:</b> Single-pol HH or VV.</p>
 
-<p class="MsoNormal"><b>Notes:</b> The reader parses the StriX product manifest (XML metadata + GeoTIFF
-imagery) and applies the calibration LUTs published in the auxiliary files.
-Use <i>Apply Orbit File</i> with caution &mdash; precise orbits are not always
-delivered with commercial X-band products; the bundled state vectors are
-generally sufficient for InSAR baselines below a few weeks.</p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Product</th><th>Format</th><th>Reader</th></tr>
+  <tr><td>SLC (Single Look Complex)</td><td>CEOS: volume, leader, image and trailer files</td><td>StriX</td></tr>
+  <tr><td>GRD (Ground Range Detected)</td><td>XML metadata + GeoTIFF image</td><td>StriX GRD</td></tr>
+</table>
 
-<p class="MsoNormal"><b>Further Information:</b></p>
-<a href="https://synspective.com/strix/">https://synspective.com/strix/</a><br>
-<a href="https://eoportal.org/satellite-missions/strix">https://eoportal.org/satellite-missions/strix</a><br>
+<h2>How to open</h2>
+<ul>
+  <li><b>SLC:</b> select the volume file (<code>VOL-STRIX...</code>), the product folder, or a
+      <code>.zip</code> that contains the volume file.</li>
+  <li><b>GRD:</b> select the metadata file <code>PAR-*.xml</code>; the matching <code>.tif</code> must be
+      in the same folder. A <code>.zip</code> whose name starts with <code>PAR-</code> also works.</li>
+</ul>
+
+<h2>What you get</h2>
+<ul>
+  <li>SLC: <code>i_VV</code> and <code>q_VV</code> bands and a virtual <code>Intensity_VV</code> band;
+      tie-point grids for latitude, longitude, incidence angle and slant-range time.</li>
+  <li>GRD: an <code>Amplitude_VV</code> band and a virtual <code>Intensity_VV</code> band, with the
+      geocoding of the GeoTIFF and, when the metadata gives near and far incidence angles, an
+      incidence-angle tie-point grid.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>GRD metadata contains no orbit state vectors, so operators that need the orbit, such as
+      Range-Doppler Terrain Correction, cannot be used on GRD products.</li>
+  <li>Apply Orbit File has no StriX orbit source.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a> (StriX is supported), then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a> and
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>. Map-project SLC-derived products with
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>.</p>
+
+<h2>Product format specification</h2>
+<p>No public format document is linked here. Mission background:
+<a href="https://www.eoportal.org/satellite-missions/synspective">eoPortal: StriX (Synspective)</a>.</p>
 
 <hr>
 </body></html>

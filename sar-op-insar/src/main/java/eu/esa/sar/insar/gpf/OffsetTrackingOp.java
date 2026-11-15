@@ -211,7 +211,7 @@ public class OffsetTrackingOp extends Operator {
             refAbsRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
             if (refAbsRoot != null && refAbsRoot.getAttributeInt(AbstractMetadata.coregistered_stack, 0) != 1) {
                 throw new OperatorException(
-                        "Source product should be a coregistered stack created by DEM-Assisted Coregistration");
+                        "Source product should be a coregistered stack (DEM Assisted Coregistration is recommended)");
             }
 
             selectedResampling = ResamplingFactory.createResampling(resamplingType);
@@ -657,73 +657,102 @@ public class OffsetTrackingOp extends Operator {
 
         final StatusProgressMonitor status = new StatusProgressMonitor(StatusProgressMonitor.TYPE.SUBTASK);
         status.beginTask("Average Offsets... ", numGCPsPerAzLine * numGCPsPerRgLine);
-
-        final ThreadExecutor executor = new ThreadExecutor();
         try {
-            for (int i = 0; i < numGCPsPerAzLine; i++) {
-                for (int j = 0; j < numGCPsPerRgLine; j++) {
-                    checkForCancellation();
-                    final int iIdx = i;
-                    final int jIdx = j;
-
-                    if (velocityData.secGCPx[i][j] == invalidIndex || velocityData.secGCPy[i][j] == invalidIndex) {
-                        continue;
-                    }
-
-                    final ThreadRunnable worker = new ThreadRunnable() {
-                        @Override
-                        public void process() {
-
-                            final int i0 = Math.max(iIdx - halfAvgWindowSize, 0);
-                            final int iN = Math.min(iIdx + halfAvgWindowSize, numGCPsPerAzLine - 1);
-                            final int j0 = Math.max(jIdx - halfAvgWindowSize, 0);
-                            final int jN = Math.min(jIdx + halfAvgWindowSize, numGCPsPerRgLine - 1);
-
-                            int count = 0;
-                            double rangeShiftSum = 0.0, azimuthShiftSum = 0.0;
-                            for (int ii = i0; ii <= iN; ii++) {
-                                for (int jj = j0; jj <= jN; jj++) {
-                                    if (velocityData.secGCPx[ii][jj] != invalidIndex &&
-                                            velocityData.secGCPy[ii][jj] != invalidIndex) {
-
-                                        rangeShiftSum += velocityData.rangeShift[ii][jj];
-                                        azimuthShiftSum += velocityData.azimuthShift[ii][jj];
-                                        count++;
-                                    }
-                                }
-                            }
-
-                            if (count > 0) {
-                                final double xShift = rangeShiftSum / count;
-
-                                final double yShift = azimuthShiftSum / count;
-
-                                final double secGCPx = velocityData.refGCPx[iIdx][jIdx] - xShift / rangeSpacing;
-
-                                final double secGCPy = velocityData.refGCPy[iIdx][jIdx] - yShift / azimuthSpacing;
-
-                                saveOffset(xShift, yShift, secGCPx, secGCPy);
-                            }
-                        }
-
-                        private synchronized void saveOffset(
-                                final double xShift, final double yShift, final double secGCPx, final double secGCPy) {
-                            velocityData.rangeShift[iIdx][jIdx] = xShift;
-                            velocityData.azimuthShift[iIdx][jIdx] = yShift;
-                            velocityData.secGCPx[iIdx][jIdx] = secGCPx;
-                            velocityData.secGCPy[iIdx][jIdx] = secGCPy;
-                        }
-                    };
-                    executor.execute(worker);
-                    status.worked(1);
-                }
-            }
+            averageOffsets(velocityData, halfAvgWindowSize, rangeSpacing, azimuthSpacing,
+                    this::checkForCancellation, status);
             status.done();
-            executor.complete();
-
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException("averageOffsets", e);
         }
+    }
+
+    /**
+     * Box-average the GCP offsets over a (2*halfWin+1)^2 window of valid GCPs, in parallel.
+     * <p>
+     * Every worker reads its neighbours from snapshots taken before any worker starts. The
+     * averaging used to read the live arrays that other workers were overwriting with their
+     * already-averaged values, so the result depended on thread scheduling (and, even when run
+     * sequentially, on the visiting order).
+     *
+     * @param cancelCheck called once per GCP before its worker is queued; may throw to cancel
+     * @param status      progress monitor, advanced once per queued GCP (may be null)
+     */
+    static void averageOffsets(final VelocityData velocityData, final int halfWin,
+                               final double rangeSpacing, final double azimuthSpacing,
+                               final Runnable cancelCheck, final StatusProgressMonitor status) throws Exception {
+
+        final int numAz = velocityData.refGCPx.length;
+        final int numRg = numAz == 0 ? 0 : velocityData.refGCPx[0].length;
+
+        final double[][] rangeShiftIn = deepCopy(velocityData.rangeShift);
+        final double[][] azimuthShiftIn = deepCopy(velocityData.azimuthShift);
+        final boolean[][] validIn = new boolean[numAz][numRg];
+        for (int i = 0; i < numAz; i++) {
+            for (int j = 0; j < numRg; j++) {
+                validIn[i][j] = velocityData.secGCPx[i][j] != invalidIndex
+                        && velocityData.secGCPy[i][j] != invalidIndex;
+            }
+        }
+
+        final ThreadExecutor executor = new ThreadExecutor();
+        for (int i = 0; i < numAz; i++) {
+            for (int j = 0; j < numRg; j++) {
+                if (cancelCheck != null) {
+                    cancelCheck.run();
+                }
+                if (!validIn[i][j]) {
+                    continue;
+                }
+                final int iIdx = i;
+                final int jIdx = j;
+
+                final ThreadRunnable worker = new ThreadRunnable() {
+                    @Override
+                    public void process() {
+
+                        final int i0 = Math.max(iIdx - halfWin, 0);
+                        final int iN = Math.min(iIdx + halfWin, numAz - 1);
+                        final int j0 = Math.max(jIdx - halfWin, 0);
+                        final int jN = Math.min(jIdx + halfWin, numRg - 1);
+
+                        int count = 0;
+                        double rangeShiftSum = 0.0, azimuthShiftSum = 0.0;
+                        for (int ii = i0; ii <= iN; ii++) {
+                            for (int jj = j0; jj <= jN; jj++) {
+                                if (validIn[ii][jj]) {
+                                    rangeShiftSum += rangeShiftIn[ii][jj];
+                                    azimuthShiftSum += azimuthShiftIn[ii][jj];
+                                    count++;
+                                }
+                            }
+                        }
+
+                        if (count > 0) {
+                            final double xShift = rangeShiftSum / count;
+                            final double yShift = azimuthShiftSum / count;
+                            // each worker writes only its own cell, which no worker reads
+                            velocityData.rangeShift[iIdx][jIdx] = xShift;
+                            velocityData.azimuthShift[iIdx][jIdx] = yShift;
+                            velocityData.secGCPx[iIdx][jIdx] = velocityData.refGCPx[iIdx][jIdx] - xShift / rangeSpacing;
+                            velocityData.secGCPy[iIdx][jIdx] = velocityData.refGCPy[iIdx][jIdx] - yShift / azimuthSpacing;
+                        }
+                    }
+                };
+                executor.execute(worker);
+                if (status != null) {
+                    status.worked(1);
+                }
+            }
+        }
+        executor.complete();
+    }
+
+    private static double[][] deepCopy(final double[][] a) {
+        final double[][] c = new double[a.length][];
+        for (int i = 0; i < a.length; i++) {
+            c[i] = a[i].clone();
+        }
+        return c;
     }
 
     private void fillHoles() {

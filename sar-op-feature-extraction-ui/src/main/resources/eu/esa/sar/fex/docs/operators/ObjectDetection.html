@@ -97,6 +97,9 @@
 <div style="margin-left: 80px;"><p><img style="width: 255px; height: 34px;" alt="" src="images/object_detection_window_eq_6.jpg"></p></div>
 <p>where <span style="font-style: italic;">&#956;</span><sub style="font-style: italic;">t</sub> is the&nbsp;mean value
     of pixels in the target window. In this case, <span style="font-style: italic;">t</span> should be replaced by <span style="font-style: italic;">t</span>&#8730;<span style="font-style: italic;">n</span> (where <span style="font-style: italic;">n</span> is the number of pixels in the target window) in the PFA calculation.
+    The operator does not apply this correction: it computes <span style="font-style: italic;">t</span> from the PFA
+    as for a single pixel, whatever the target window size. Under the Gaussian model the actual false-alarm rate is
+    then lower than the PFA you enter.
 </p><h4>Adaptive Threshold Algorithm</h4>
 
 <p>The object detection&nbsp;is performed in an adaptive manner by the Adaptive
@@ -146,6 +149,45 @@
         eliminated.
     </li>
 </ol>
+<h4>How the sub-steps chain</h4>
+<p>The menu entry Radar &gt; SAR Applications &gt; Ocean &gt; Ocean Object Detection runs a graph:
+    Read &#8594; Land-Sea-Mask &#8594; Calibration &#8594; <b>AdaptiveThresholding</b> &#8594;
+    <b>Object-Discrimination</b> &#8594; Write. The two detection operators have no menu entries of their own. To run
+    them separately, add them in the Graph Builder. The menu graph sets PFA to 12.5 and the minimum target size to 30 m;
+    the operator defaults are 6.5 and 50 m.</p>
+<p><b>Step 1: Adaptive Thresholding</b> (<code>AdaptiveThresholding</code>) flags bright pixels.</p>
+<ul>
+    <li>The input must be calibrated. Sentinel-1 TOPS data must be debursted.</li>
+    <li>The window sizes in metres are converted to pixels with the mean pixel spacing, (range spacing + azimuth
+        spacing) / 2, plus one pixel. For slant-range products the range spacing is first divided by the sine of the
+        incidence angle at the scene centre.</li>
+    <li>You cannot choose the band. The operator uses HV if present, else VH, else HH, else every amplitude or
+        intensity band.</li>
+    <li>For each pixel it compares the target-window mean with &#956;<sub>b</sub> + t&#963;<sub>b</sub>, where
+        &#956;<sub>b</sub> and &#963;<sub>b</sub> come from the pixels inside the background window but outside the
+        guard window. Pixels with more than 10% no-data pixels in the target window are not flagged, nor (when
+        <i>Estimate background</i> is off) pixels with a target-window mean below 0.005.</li>
+    <li>With <i>Estimate background</i> on, it uses one threshold per processing tile instead, computed from all tile
+        pixels below 0.5. This is faster but coarser.</li>
+    <li>Output: all source bands plus one mask band <code>&lt;band&gt;_ship_bit_msk</code> per tested band (1 =
+        flagged, 0 = not flagged; 0 is the no-data value). The product name gets the suffix <code>_THR</code>.</li>
+</ul>
+<p><b>Step 2: Object Discrimination</b> (<code>Object-Discrimination</code>) turns the flagged pixels into targets.</p>
+<ul>
+    <li>It reads every <code>_ship_bit_msk</code> band and groups touching flagged pixels (including diagonal
+        neighbours) into clusters.</li>
+    <li>For each cluster, width = number of columns &times; range pixel spacing and length = number of rows &times;
+        azimuth pixel spacing. The size compared with <i>Minimum</i> and <i>Maximum Target Size</i> is the diagonal
+        &#8730;(width&sup2; + length&sup2;). Clusters outside the range are dropped.</li>
+    <li>Each kept cluster becomes a point at the centre of its bounding box in the <code>ShipDetections</code> vector,
+        with the attributes <code>Detected_x</code>, <code>Detected_y</code>, <code>Detected_lat</code>,
+        <code>Detected_lon</code>, <code>Detected_width</code> and <code>Detected_length</code> (metres).</li>
+    <li>When processing ends, the same list is written to the XML report described below. Its path is also stored in
+        the <code>target_report_file</code> metadata attribute. The bands pass through unchanged, and the product name
+        gets the suffix <code>_SHP</code>.</li>
+    <li>Clusters are searched one processing tile at a time, with a 10-pixel margin. A target that crosses a tile edge
+        can therefore be reported once from each tile.</li>
+</ul>
 <h4>Parameters Used</h4>
 
 <p>For Adaptive Thresholding operator,&nbsp;the following parameters are used (see Figure 2):
@@ -200,8 +242,8 @@ dialog box.<br><h4>Visualize Detected Objects</h4>
 <p>The
     detected object will be circled
     on top of the image view (see example in the figure below).&nbsp;An
-    Object Detection Report will also be produced in XML in the .s1tbx/log
-    folder.</p>
+    Object Detection Report will also be produced in XML in the <code>.snap/var/log</code>
+    folder of your user directory (file name <code>&lt;product name&gt;_object_detection_report.xml</code>).</p>
 
 <p></p>
 
@@ -235,10 +277,49 @@ no vectors get copied. However, if the object detection and terrain
 correction are run in two separate graphs, then there is no such a
 problem. <br>
 <br>
-<p style="font-style: italic;">Reference:</p>
+<h3>References</h3>
+<ol>
+    <li>Crisp, D. J. (2004). <i>The State-of-the-Art in Ship Detection in Synthetic Aperture Radar Imagery</i>. DSTO-RR-0272, Defence Science and Technology Organisation, Australia.</li>
+</ol>
 
-<p>[1] D. J. Crisp, "The State-of-the-Art in Ship
-    Detection in Synthetic Aperture Radar Imagery." DSTO&#8211;RR&#8211;0272, 2004-05.</p>
-
+<!-- params:begin op="AdaptiveThresholding" -->
+<h3>Processing parameters (reference) &#8212; AdaptiveThresholding</h3>
+<p>GPT operator: <code>AdaptiveThresholding</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>targetWindowSizeInMeter</code></td><td>int</td><td>50</td><td>&nbsp;</td><td>&nbsp;</td><td>Target window size</td></tr>
+<tr><td><code>guardWindowSizeInMeter</code></td><td>double</td><td>500.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Guard window size</td></tr>
+<tr><td><code>backgroundWindowSizeInMeter</code></td><td>double</td><td>800.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Background window size</td></tr>
+<tr><td><code>pfa</code></td><td>double</td><td>6.5</td><td>&nbsp;</td><td>&nbsp;</td><td>Probability of false alarm</td></tr>
+<tr><td><code>estimateBackground</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Rough estimation of background threshold for quicker processing</td></tr>
+</table>
+<!-- params:end -->
+<!-- params:begin op="Object-Discrimination" -->
+<h3>Processing parameters (reference) &#8212; Object-Discrimination</h3>
+<p>GPT operator: <code>Object-Discrimination</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>minTargetSizeInMeter</code></td><td>double</td><td>50.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Minimum target size</td></tr>
+<tr><td><code>maxTargetSizeInMeter</code></td><td>double</td><td>600.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Maximum target size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/ocean.html">Ocean SAR: wind, ships and oil</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_ocean.html">Ocean applications</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Calibrated product; a Sentinel-1 TOPS product must already be debursted.</li>
+    <li>An <code>incidence_angle</code> tie-point grid and amplitude or intensity bands.</li>
+    <li>Recommended: apply a land-sea mask first so that land is not detected as ships (as the page describes).</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Object Discrimination (rejects detections outside the minimum and maximum target size)</li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

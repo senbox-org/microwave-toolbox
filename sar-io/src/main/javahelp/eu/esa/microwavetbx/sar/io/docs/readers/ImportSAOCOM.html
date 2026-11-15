@@ -1,9 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head><title>Help - Import SAOCOM</title>
-
-
-
-    <link rel="stylesheet" href="../style.css"></head><body>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
@@ -13,56 +11,60 @@
     </tbody>
 </table>
 
-<h3>Import SAOCOM Product</h3>
+<p>SAOCOM is Argentina's L-band SAR mission. Its two satellites fly together with Italy's
+COSMO-SkyMed in the SIASGE system. SNAP reads SAOCOM Level-1 products with the <b>SAOCOM</b> reader.</p>
 
-<p class="MsoNormal">SAOCOM is an Argentine L-band SAR mission operated by CONAE, consisting of two satellites
-forming part of the Italian-Argentine SIASGE constellation (together with COSMO-SkyMed).</p>
-
-<p class="MsoNormal"><b>Satellites:</b></p>
+<h2>Mission</h2>
 <ul>
-    <li>SAOCOM-1A (launched 2018-10-07, operational)</li>
-    <li>SAOCOM-1B (launched 2020-08-30, operational)</li>
+  <li><b>Operator:</b> CONAE, the Argentine space agency.</li>
+  <li><b>Radar:</b> L-band, 1.275 GHz (wavelength about 23.5 cm).</li>
+  <li><b>Orbit:</b> sun-synchronous at about 620 km; 16-day repeat per satellite, 8 days for the pair.</li>
+  <li><b>Satellites:</b> SAOCOM-1A launched 7 October 2018, SAOCOM-1B launched 30 August 2020.</li>
+  <li><b>Modes:</b> Stripmap, TOPSAR Narrow and TOPSAR Wide.</li>
+  <li><b>Polarisation:</b> single (HH or VV), dual (HH+HV or VV+VH) or quad.</li>
 </ul>
 
-<p class="MsoNormal"><b style="">Frequency Band:</b> L-band (1.275 GHz)</p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Level</th><th>Product</th><th>Content</th></tr>
+  <tr><td>L1A</td><td>SLC</td><td>Single Look Complex, slant range</td></tr>
+  <tr><td>L1B</td><td>DI</td><td>Detected Image, multi-looked</td></tr>
+  <tr><td>L1C</td><td>GEC</td><td>Geocoded Ellipsoid Corrected</td></tr>
+  <tr><td>L1D</td><td>GTC</td><td>Geocoded Terrain Corrected</td></tr>
+</table>
 
+<h2>How to open</h2>
+<p>A SAOCOM delivery is an <code>.xemt</code> metadata file plus the product data, either unpacked in a
+folder or as a <code>.zip</code> with the same name. Select the <code>.xemt</code> file (names start with
+<code>S1A</code> or <code>S1B</code>), or the folder that contains it. Keep the <code>.zip</code> next to
+the <code>.xemt</code>; the reader opens it directly.</p>
 
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, TopSAR Narrow, TopSAR Wide, TopSAR Full, Spotlight</p>
-
-
-<p class="MsoNormal"><b style="">Product Types:</b></p>
-
+<h2>What you get</h2>
 <ul>
-    <li>SLC (L1A) Single Look Complex - complex data in slant range</li>
-    <li>DI (L1B) Detected Image - multi-looked, slant range</li>
-    <li>GEC (L1C) Ground Ellipsoid Corrected - map projected</li>
-    <li>GTC (L1D) Ground Terrain Corrected - terrain corrected, map projected</li>
+  <li>SLC: <code>i_</code> and <code>q_</code> bands per polarisation and virtual
+      <code>Intensity_</code> bands. TOPSAR products get one set per sub-swath, for example
+      <code>i_S1_HH</code>, <code>i_S2_HH</code>.</li>
+  <li>DI, GEC, GTC: <code>Sigma0_</code> bands per polarisation. They are already calibrated to
+      &sigma;&deg; (linear intensity).</li>
+  <li>Incidence-angle and slant-range-time tie-point grids; GEC and GTC take the map geocoding of the
+      GeoTIFF.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>Only SLC products need <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>; detected products are already &sigma;&deg;.</li>
+  <li>Apply Orbit File has no SAOCOM orbit source; the reader uses the orbit in the annotation.</li>
 </ul>
 
-<p class="MsoNormal"><b style="">File Format:</b> XEMT metadata (.xemt XML) with GeoTIFF imagery (one .tif per polarization channel).
-Products may include calibration LUTs and noise annotations in the Calibration/ directory.</p>
+<h2>Recommended next step</h2>
+<p>For SLC: <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>, then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a> or an InSAR or polarimetric chain.
+For DI: <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>.</p>
 
-<p class="MsoNormal"><b style="">Polarizations:</b> Single Pol, Dual Pol (HH+HV, VV+VH),
-Full Pol (HH+HV+VV+VH, Stripmap only), Compact Pol (RH+RV, LH+LV)</p>
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the .xemt metadata file, the product directory, or a ZIP archive.
-The reader supports both Stripmap and TopSAR burst products.</p>
-
-<p class="MsoNormal"><b style="">Data Access:</b></p>
-<ul>
-    <li>CONAE Catalogue: <a href="https://catalogos.conae.gov.ar">https://catalogos.conae.gov.ar</a></li>
-    <li>ESA Third Party Mission programme</li>
-    <li>ASF DAAC: <a href="https://search.asf.alaska.edu">https://search.asf.alaska.edu</a></li>
-</ul>
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-<p class="MsoNormal"><a href="https://www.argentina.gob.ar/ciencia/conae/misiones-espaciales/saocom">https://www.argentina.gob.ar/ciencia/conae/misiones-espaciales/saocom</a></p>
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/s/saocom">https://directory.eoportal.org/web/eoportal/satellite-missions/s/saocom</a></p>
-
+<h2>Product format specification</h2>
+<p><a href="https://catalogos.conae.gov.ar/catalogo/docs/SAOCOM/SAOCOM-1_SAR_Level-1_Product-Format_13Jan2020.pdf">SAOCOM-1 SAR Level-1 Product Format (CONAE, PDF)</a>.
+Mission background: <a href="https://www.argentina.gob.ar/ciencia/conae/misiones-espaciales/saocom">CONAE: SAOCOM</a>
+and <a href="https://www.eoportal.org/satellite-missions/saocom">eoPortal: SAOCOM</a>.</p>
 
 <hr>
 </body></html>

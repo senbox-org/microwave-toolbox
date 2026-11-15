@@ -40,7 +40,7 @@ import java.util.*;
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2019 by SkyWatch Space Applications",
-        description = "Bursts co-registration using orbit and DEM")
+        description = "Deramp and demodulate the azimuth spectrum of TOPS bursts")
 public final class TOPSARDerampDemodOp extends Operator {
 
     @SourceProduct(alias = "source")

@@ -1,58 +1,71 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import Kompsat-5</title>
-
-
-
-
-
-    <link rel="stylesheet" href="../style.css"></head><body>
+<html><head><title>Help - Import KOMPSAT-5</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import Kompsat-5</td>
+        <td class="header">&nbsp; Import KOMPSAT-5</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import Kompsat-5 Product</h3>
 
-<p class="MsoNormal" style="text-align: justify;">KOMPSAT-5 (Korean Multi-Purpose
-Satellite) is a commercial SAR mission operated by KARI and distributed by
-SIIS. Kompsat-5 will be followed by a second SAR satellite Kompsat-6 in 2020.</p>
+<p>KOMPSAT-5 (Korea Multi-Purpose Satellite 5) is a Korean X-band SAR satellite. SNAP reads its
+products with the <b>Kompsat5</b> reader, in both the HDF5 and the GeoTIFF delivery.</p>
 
+<h2>Mission</h2>
+<ul>
+  <li><b>Operator:</b> KARI, the Korea Aerospace Research Institute.</li>
+  <li><b>Radar:</b> X-band, 9.66 GHz (wavelength about 3.2 cm); HH, HV, VH or VV, one polarisation per acquisition.</li>
+  <li><b>Orbit:</b> sun-synchronous dawn-dusk orbit at about 550 km, 28-day repeat cycle.</li>
+  <li><b>Lifetime:</b> launched 22 August 2013; in extended operations.</li>
+  <li><b>Modes:</b> High Resolution (spotlight, about 1 m, 5 km swath), Standard (stripmap, about 3 m,
+      30 km swath) and Wide Swath (ScanSAR, about 20 m, 100 km swath).</li>
+</ul>
 
-<p class="MsoNormal"><b style="">Operational:</b>
-2013-08-22 to present</p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Product</th><th>Content</th></tr>
+  <tr><td>SCS</td><td>Single-look Complex Slant: complex, slant range</td></tr>
+  <tr><td>GEC</td><td>Geocoded Ellipsoid Corrected: detected, map projected</td></tr>
+  <tr><td>GTC</td><td>Geocoded Terrain Corrected: detected, map projected with a DEM</td></tr>
+  <tr><td>WEC, WTC</td><td>Wide-swath versions of GEC and GTC</td></tr>
+</table>
 
+<h2>How to open</h2>
+<p>File names start with <code>K5_</code>. Select one of:</p>
+<ul>
+  <li>the <code>K5_*_Aux.xml</code> metadata file,</li>
+  <li>the <code>K5_*.h5</code> image (HDF5 delivery) or the <code>K5_*.tif</code> image (GeoTIFF delivery),</li>
+  <li>or the product folder.</li>
+</ul>
+<p>When you select the <code>Aux.xml</code> file, the reader uses the <code>.h5</code> or
+<code>.tif</code> file in the same folder.</p>
 
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-X-band</p>
+<h2>What you get</h2>
+<ul>
+  <li>SCS: <code>i_</code> and <code>q_</code> bands per polarisation (for example <code>i_HH</code>,
+      <code>q_HH</code>) and a virtual <code>Intensity_HH</code> band.</li>
+  <li>GEC, GTC, WEC, WTC: an <code>Amplitude_</code> band and a virtual <code>Intensity_</code> band.</li>
+  <li>Tie-point grids for latitude, longitude, incidence angle and slant-range time.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
 
+<h2>Known limitations</h2>
+<ul>
+  <li>Precise orbits are not downloaded automatically. To use Apply Orbit File, place the Kompsat-5
+      orbit files in the folder named by the operator's error message.</li>
+</ul>
 
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, ScanSAR, Spotlight</p>
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a> (if you have precise orbit files), then <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>.
+For SCS products continue with <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a> or an InSAR chain; for detected products with
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Terrain Correction</a>.</p>
 
+<h2>Product format specification</h2>
+<p>No public format document is linked here. Mission background:
+<a href="https://www.eoportal.org/satellite-missions/kompsat-5">eoPortal: KOMPSAT-5</a>.</p>
 
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span>SCS, GEC, WEC, GTC, WTC</p>
-
-
-<p class="MsoNormal"><b style="">Polarizations: </b>All
-modes are Single Pol (HH, HV, VV, VH).</p>
-
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the *_aux.xml file.</p>
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="http://www.si-imaging.com/products">http://www.si-imaging.com/products</a><b style=""></b></p>
-
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/k/kompsat-5">https://directory.eoportal.org/web/eoportal/satellite-missions/k/kompsat-5</a><b style=""></b></p>
-
-
-<ul></ul>
 <hr>
 </body></html>

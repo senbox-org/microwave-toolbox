@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - InSAR Time Series</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: InSAR Time Series</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>InSAR Time Series: PS, SBAS and Distributed Scatterers</h1>
+
+<p class="lead">A single interferogram mixes ground motion with atmosphere, orbit errors and decorrelation noise.
+Time-series methods use many acquisitions of the same area to separate slow, consistent motion from errors that are
+random from date to date, and they give a displacement value for every date. The three families differ in which
+pixels they trust and which interferograms they form.</p>
+
+<h2>Why a stack</h2>
+<p>Turbulent atmosphere (see <a href="atmosphere.html">atmospheric phase</a>) is close to random in time, while
+deformation is usually smooth. A velocity from N dates averages many independent atmospheric states, and its
+uncertainty falls as the observation period grows. A stack also shows which pixels keep a stable phase over time.</p>
+
+<h2>Persistent scatterers (PS)</h2>
+<p>Some pixels are dominated by one strong, stable reflector, such as a building corner or a rock face. Their phase
+stays coherent even in interferograms with long temporal and perpendicular baselines. PS methods pair every
+acquisition with one common Reference (a single-reference, or "star", network), work at full resolution, and select
+the stable pixels from the time series itself. The original permanent-scatterer method of Ferretti et al. (2001)
+selects pixels by amplitude stability. StaMPS (Hooper et al., 2004) selects them by phase stability, which also
+works in natural terrain. PS gives dense points in cities and on bare rock, few in vegetation. As a guide, it needs about
+20 or more acquisitions.</p>
+
+<h2>Small baselines (SBAS)</h2>
+<p>SBAS forms only interferograms with short temporal and perpendicular baselines, which decorrelate least. It
+multilooks them, unwraps each one, and inverts the network pixel by pixel for the phase at each date. For a pair k
+between epochs m(k) and s(k):</p>
+<p class="eq">&Delta;&phi;<sub>k</sub> = &phi;<sub>s(k)</sub> &#8722; &phi;<sub>m(k)</sub>, &nbsp;&nbsp; k = 1 &#8230; M</p>
+<p>M equations in N&#8722;1 unknowns (one epoch is the reference, set to zero) are solved by weighted least squares.
+The network must be <b>connected</b>: if it falls apart into groups of dates with no pair between them, the system is
+rank-deficient. Berardino et al. (2002) bridge the gaps with an SVD minimum-norm solution. Every extra pair adds
+redundancy, which helps find unwrapping errors.</p>
+<p><img src="images/time_series_1.png" width="560" height="290" alt="Single-reference and small-baseline networks"></p>
+<p class="figcap">Figure 1. Interferogram networks for a synthetic 20-date, 12-day stack, plotted as time against
+perpendicular baseline B<sub>&perp;</sub>. (a) Single-reference network, as used for PS analysis. (b) Small-baseline
+network (pairs at most 36 days and 150 m apart), as used for SBAS.</p>
+
+<h2>Distributed scatterers and phase linking</h2>
+<p>Most natural surfaces (fields, debris, sparse vegetation) contain many small scatterers per resolution cell. Every
+single interferogram of such a <b>distributed scatterer</b> (DS) is noisy. However, the N&times;N coherence matrix of
+all pairs holds redundant information. Phase-linking methods first select <b>statistically homogeneous pixels</b>
+(SHPs): neighbours whose amplitude time series pass a two-sample test. They then estimate the covariance matrix over
+the SHPs and find the N phases &theta;<sub>n</sub> that best fit all N(N&#8722;1)/2 pairwise phases at once. The
+estimators differ:</p>
+<ul>
+    <li><b>Maximum likelihood / phase triangulation</b> (Guarnieri &amp; Tebaldini, 2008), the estimator used in
+        SqueeSAR (Ferretti et al., 2011).</li>
+    <li><b>EVD</b>: the dominant eigenvector of the coherence matrix (Fornaro et al., 2015).</li>
+    <li><b>EMI</b>: an eigen-decomposition-based approximation of the maximum-likelihood estimate (Ansari, De Zan &amp;
+        Bamler, 2018).</li>
+</ul>
+<p>The fit quality is measured by the <b>temporal coherence</b> (0 = random, 1 = perfect), where
+&phi;<sub>ij</sub> is the phase of the estimated coherence between dates i and j:</p>
+<p class="eq">&gamma;<sub>T</sub> = 2 / (N(N&#8722;1)) &middot; | &Sigma;<sub>i&lt;j</sub>
+    exp( j(&phi;<sub>ij</sub> &#8722; (&theta;<sub>i</sub> &#8722; &theta;<sub>j</sub>)) ) |</p>
+
+<h2>Closure phase and short-baseline bias</h2>
+<p>For a single point scatterer, phases add up around a triplet of dates:
+&phi;<sub>12</sub> + &phi;<sub>23</sub> &#8722; &phi;<sub>13</sub> = 0. Multilooked DS interferograms violate this.
+Changes in soil moisture and vegetation leave a non-zero <b>closure phase</b> (De Zan et al., 2014). A network built
+only from very short pairs then accumulates a systematic bias that does not average out and can look like slow
+motion (Ansari, De Zan &amp; Parizzi, 2021). Phase linking over all pairs, or adding longer pairs to the network,
+reduces the bias. An unwrapping error instead leaves a closure of a whole multiple of 2&pi;. SBAS Inversion's
+<code>closure_phase_rms</code> wraps each closure to (&#8722;&pi;, &pi;], so it shows the sub-cycle closure phase
+but does not reveal whole-cycle unwrapping errors.</p>
+
+<h2>In SNAP</h2>
+<p>The in-house chain for a coregistered stack (Back-Geocoding + ESD and TOPSAR-Deburst for Sentinel-1 TOPS) is:</p>
+<ol>
+    <li><b>Phase Linking</b> (optional, for DS). It needs at least 3 epochs and refuses burst (non-debursted) TOPS
+        input. It searches for SHPs in a 21 (azimuth) &times; 7 (range) window with a <code>KS</code>,
+        <code>AD</code> or <code>TLog</code> test, using the <code>EVD</code> (default) or <code>EMI</code>
+        estimator. The reference epoch defaults to the median date.
+        It writes phase-linked SLC bands <code>i_pl_*</code>/<code>q_pl_*</code> (amplitude unchanged) and a
+        <code>tempCoh_&lt;pol&gt;</code> band. Pixels with fewer than max(<code>shpMin</code> = 20, N) SHPs, or with
+        &gamma;<sub>T</sub> below <code>tempCohMin</code> (0.6), are passed through with their original SLC values.
+        It estimates the full stack at once, so very long stacks (more than about 50 dates) are slow.</li>
+    <li><b>Multi-Reference InSAR</b>: forms the chosen pairs with coherence. Either date may come first in a pair
+        (see below).</li>
+    <li>Goldstein filtering (optional), then SNAPHU Export and Batch Snaphu Unwrap (runs SNAPHU on every pair). Batch
+        Snaphu Unwrap replaces each wrapped phase band with an <code>UnwPhase_ifg_&lt;tag&gt;</code> band (unit
+        <code>abs_phase</code>) and passes the <code>coh_*</code> bands through, so its output feeds SBAS Inversion
+        directly. If you unwrap the pairs outside SNAP instead, import each result with SNAPHU Import, each time with
+        the previous import (at first the interferogram product) as the first input; for a stack with more than one
+        Secondary it keeps the <code>UnwPhase_ifg_&lt;tag&gt;</code> names, sets the unit <code>abs_phase</code> and
+        copies the <code>coh_*</code> bands from the first input. Leave <i>Do NOT save Wrapped interferogram</i>
+        unticked, or the coherence bands and earlier pairs are lost.</li>
+    <li><b>SBAS Inversion</b> uses bands with unit <code>phase</code> or <code>abs_phase</code> and "unw" in the
+        name; bands without a unit are skipped. It reads the pair dates from the last two
+        <code>ddMMMyyyy</code> tokens of each unwrapped band name and pairs each with the <code>coh_*</code> band
+        that has the same dates. Pairs are keyed by these two dates only, so keep one polarisation and one
+        sub-swath per product. At least 3 epochs are required. Equations with coherence below 0.3 are dropped, and
+        the rest are weighted by coherence (<code>coherenceLooks</code> 100). When the condition number exceeds
+        10<sup>6</sup> (for example a disconnected network), it applies Tikhonov regularisation (weight 10<sup>&#8722;3</sup>)
+        instead of SVD. Outputs: <code>phase_&lt;date&gt;</code> (rad), <code>displacement_&lt;date&gt;</code> (mm),
+        <code>velocity</code> and <code>velocity_uncertainty</code> (mm/year), <code>temporal_coherence</code>
+        (|mean exp(j&middot;residual)|), <code>closure_phase_rms</code> (default on; no-data where no triplet has
+        all three pairs above the coherence threshold, for example in a sequential network) and optional
+        <code>residual_*</code> bands. The <code>velocity</code> is an unweighted least-squares line through the
+        per-epoch phases. Results are relative to the reference epoch, not to a reference point; see
+        <a href="displacement.html">phase to displacement</a>.</li>
+</ol>
+<p>SBAS Inversion orders the epochs by date and negates the phase of a pair whose first date is the later one, so
+either order is accepted. This also covers interferograms from a single-reference stack whose Reference is not the
+earliest date. The <code>residual_*</code> band of such a pair is named and signed in date order (earlier date
+first).</p>
+<p><b>Export to external tools:</b></p>
+<ul>
+    <li><b>StaMPS Export</b> writes a coregistered SLC stack plus an interferogram product with an elevation band
+        to Gamma format (<code>rslc</code>, <code>diff0</code>, <code>geo</code>, <code>dem</code> folders) for
+        StaMPS PS processing. Only the PSI format is implemented; setting <code>psiFormat</code> to false stops with
+        "SBAS format is not yet supported". It does not accept burst TOPS input.</li>
+    <li><b>PyRate export</b> is a product writer (format "PyRate export") with a ready-made workflow. It writes
+        unwrapped phase, coherence and DEM as GeoTIFF with GAMMA-style headers and a PyRate configuration file.</li>
+    <li>MintPy is not driven from SNAP, but its documentation lists SNAP among its supported input formats.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Treating SBAS <code>velocity</code> as absolute. Subtract a stable reference area first.</li>
+    <li>Building a network of only the shortest pairs over vegetated or agricultural land. Check
+        <code>closure_phase_rms</code> and add longer pairs or use phase linking.</li>
+    <li>Ignoring a disconnected network. The regularisation then pulls the phases towards zero, so the offset between the disconnected groups is
+        arbitrary and displacement across the gap is meaningless. Check the
+        dates and baselines (InSAR Stack Overview) before you invert.</li>
+    <li>Using Phase Linking for point targets. It averages over SHPs and brings no gain on isolated PS; use StaMPS
+        Export instead.</li>
+    <li>Over-interpreting short stacks. The code accepts 3 epochs, but robust velocities need many more dates and a
+        time span much longer than the seasonal signals.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseLinkingOp.html">Phase Linking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/MultiReferenceInSAROp.html">Multi-Reference InSAR</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/StampsExportOp.html">StaMPS Export</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/PyRateExportOp.html">PyRate Export</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/InSARStackOverview.html">InSAR Stack Overview</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/StackSplitOp.html">Stack Split</a></li>
+</ul>
+<p>Related concepts: <a href="insar.html">InSAR</a>, <a href="coherence.html">coherence</a>,
+<a href="unwrapping.html">phase unwrapping</a>, <a href="displacement.html">phase to displacement</a>,
+<a href="atmosphere.html">atmospheric phase</a>.</p>
+<p>Workflows: <a href="../workflows/workflow_time_series.html">InSAR Time Series</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Ferretti, A., Prati, C., Rocca, F. (2001). Permanent scatterers in SAR interferometry. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 39(1), 8&#8211;20. doi:10.1109/36.898661</li>
+    <li>Berardino, P., Fornaro, G., Lanari, R., Sansosti, E. (2002). A new algorithm for surface deformation
+        monitoring based on small baseline differential SAR interferograms. <i>IEEE Transactions on Geoscience and
+        Remote Sensing</i>, 40(11), 2375&#8211;2383. doi:10.1109/TGRS.2002.803792</li>
+    <li>Hooper, A., Zebker, H., Segall, P., Kampes, B. (2004). A new method for measuring deformation on volcanoes
+        and other natural terrains using InSAR persistent scatterers. <i>Geophysical Research Letters</i>, 31(23),
+        L23611. doi:10.1029/2004GL021737</li>
+    <li>Monti Guarnieri, A., Tebaldini, S. (2008). On the exploitation of target statistics for SAR interferometry
+        applications. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 46(11), 3436&#8211;3443.
+        doi:10.1109/TGRS.2008.2001756</li>
+    <li>Ferretti, A., Fumagalli, A., Novali, F., Prati, C., Rocca, F., Rucci, A. (2011). A new algorithm for
+        processing interferometric data-stacks: SqueeSAR. <i>IEEE Transactions on Geoscience and Remote Sensing</i>,
+        49(9), 3460&#8211;3470. doi:10.1109/TGRS.2011.2124465</li>
+    <li>Fornaro, G., Verde, S., Reale, D., Pauciullo, A. (2015). CAESAR: An approach based on covariance matrix
+        decomposition to improve multibaseline&#8211;multitemporal interferometric SAR processing. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 53(4), 2050&#8211;2065. doi:10.1109/TGRS.2014.2352853</li>
+    <li>Ansari, H., De Zan, F., Bamler, R. (2018). Efficient phase estimation for interferogram stacks. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 56(7), 4109&#8211;4125. doi:10.1109/TGRS.2018.2826045</li>
+    <li>De Zan, F., Parizzi, A., Prats-Iraola, P., L&oacute;pez-Dekker, P. (2014). A SAR interferometric model for
+        soil moisture. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 52(1), 418&#8211;425.
+        doi:10.1109/TGRS.2013.2241069</li>
+    <li>Ansari, H., De Zan, F., Parizzi, A. (2021). Study of systematic bias in measuring surface deformation with
+        SAR interferometry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 59(2), 1285&#8211;1301.
+        doi:10.1109/TGRS.2020.3003421</li>
+</ol>
+
+<hr>
+</body>
+</html>

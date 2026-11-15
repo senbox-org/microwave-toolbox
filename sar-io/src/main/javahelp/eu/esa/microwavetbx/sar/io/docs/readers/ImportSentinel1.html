@@ -1,12 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head>
-  <title>Help - Import Sentinel-1</title>
-
-  
-  
-  <link rel="stylesheet" href="../style.css">
-
-</head><body>
+<html><head><title>Help - Import Sentinel-1</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
 <table class="header">
 
   <tbody>
@@ -17,208 +12,94 @@
   </tbody>
 </table>
 
-<h3>Import Sentinel-1&nbsp;Product</h3>
+<p>Sentinel-1 is the C-band SAR mission of the EU Copernicus programme, operated by ESA. SNAP reads
+Sentinel-1 SAFE products with the <b>SENTINEL-1</b> reader, and GRD products in Cloud-Optimised
+GeoTIFF packaging with the <b>SENTINEL-1 COG</b> reader.</p>
 
-<p>
-</p>
-
-<p class="MsoNormal"><b style="">Operational: </b>S1A
-2014-04-03 to present, S1B 2016-04-25 to present</p>
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-C-band</p>
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b><span style="">&nbsp;
-</span>Interferometric Wideswath (IW), Extra
-Wideswath (EW), Stripmap (SM) and Wave (WV)</p>
-
-<p class="MsoNormal"><b style="">Product Types:</b>
-Single Look Complex (SLC), Ground Range Detected (GRD), Ocean (OCN)</p>
-
+<h2>Mission</h2>
 <ul>
+  <li><b>Radar:</b> C-band, 5.405 GHz (wavelength about 5.55 cm).</li>
+  <li><b>Orbit:</b> sun-synchronous at 693 km; 12-day repeat per satellite, 6 days with two satellites.</li>
+  <li><b>Modes:</b> Stripmap (SM), Interferometric Wide swath (IW, 250 km, three TOPS sub-swaths),
+      Extra Wide swath (EW, five sub-swaths) and Wave (WV).</li>
+  <li><b>Polarisation:</b> SM, IW and EW single (HH or VV) or dual (HH+HV or VV+VH); WV single only.</li>
+</ul>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Satellite</th><th>Launch</th><th>Status</th></tr>
+  <tr><td>Sentinel-1A</td><td>3 April 2014</td><td>operations ended 29 June 2026</td></tr>
+  <tr><td>Sentinel-1B</td><td>25 April 2016</td><td>no data since an anomaly on 23 December 2021; end of mission announced 3 August 2022</td></tr>
+  <tr><td>Sentinel-1C</td><td>5 December 2024</td><td>in service</td></tr>
+  <tr><td>Sentinel-1D</td><td>4 November 2025</td><td>in service since spring 2026</td></tr>
+</table>
 
-  <li>Level-1 SLC for IW, EW, SM modes</li>
-  <li>Level-1 GRD for IW, EW, SM modes</li>
-  <li>Level-2 OCN for IW, EW, SM, WV modes</li>
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Level</th><th>Product</th><th>Modes</th><th>Reader</th></tr>
+  <tr><td>0</td><td>RAW</td><td>SM, IW, EW</td><td>SENTINEL-1 (metadata only, no image bands)</td></tr>
+  <tr><td>1</td><td>SLC, Single Look Complex</td><td>SM, IW, EW, WV</td><td>SENTINEL-1</td></tr>
+  <tr><td>1</td><td>GRD, Ground Range Detected</td><td>SM, IW, EW</td><td>SENTINEL-1</td></tr>
+  <tr><td>1</td><td>GRD in COG packaging (<code>_COG.SAFE</code>)</td><td>SM, IW, EW</td><td>SENTINEL-1 COG</td></tr>
+  <tr><td>2</td><td>OCN (wind, wave, radial velocity)</td><td>SM, IW, EW, WV</td><td>SENTINEL-1</td></tr>
+</table>
+
+<h2>How to open</h2>
+<p>Select the <code>manifest.safe</code> file inside the <code>.SAFE</code> folder, the
+<code>.SAFE</code> folder itself, or the downloaded <code>.zip</code> (name starting with
+<code>S1</code>). SNAP picks the right reader: GRD products whose measurement files end in
+<code>cog.tiff</code> go to the COG reader. The Copernicus Data Space Ecosystem distributes GRD
+as COG packaging, where only the measurement GeoTIFFs differ from the classic SAFE.</p>
+
+<h2>What you get</h2>
+<ul>
+  <li><b>IW and EW SLC:</b> one <code>i_</code>/<code>q_</code> band pair per sub-swath and
+      polarisation, for example <code>i_IW1_VV</code> and <code>q_IW1_VV</code>, plus a virtual
+      <code>Intensity_IW1_VV</code>. Each sub-swath still contains its separate bursts; see
+      <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">TOPS</a>.</li>
+  <li><b>SM SLC:</b> <code>i_VV</code>, <code>q_VV</code>, <code>Intensity_VV</code>. <b>WV SLC:</b>
+      one set per vignette, for example <code>i_WV1_IMG001_VV</code>.</li>
+  <li><b>GRD:</b> <code>Amplitude_VV</code>, <code>Amplitude_VH</code> (16-bit) with virtual
+      <code>Intensity_</code> bands.</li>
+  <li><b>Tie-point grids:</b> <code>latitude</code>, <code>longitude</code>,
+      <code>incident_angle</code>, <code>elevation_angle</code>, <code>slant_range_time</code>
+      (prefixed with the sub-swath for IW/EW SLC, for example <code>IW1_latitude</code>).</li>
+  <li>Calibration and noise look-up tables, read from the annotation, for Calibration and Thermal
+      Noise Removal.</li>
+  <li><b>OCN:</b> the geophysical variables (<code>owi</code>, <code>osw</code>, <code>rvl</code>
+      groups) as bands.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
+
+<h3>ETAD products</h3>
+<p>Sentinel-1 ETAD (Extended Timing Annotation Dataset) products, with <code>_ETA_</code> in the
+name, are not read by these readers. They open with the separate <b>SENTINEL-1 ETAD</b> reader
+(select the ETAD <code>manifest.safe</code> or <code>.zip</code>); see
+<a href="ImportSentinel1ETAD.html">Import Sentinel-1 ETAD</a>. Use them with
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S-1 ETAD Correction</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/ETADDeburstOp.html">ETAD Deburst</a>; background in
+<a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/orbits_etad.html">Orbits and ETAD</a>.</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>Level-0 products open for inspection of their metadata only; SNAP does not focus raw data.</li>
+  <li>Bursts are not merged on reading. Run <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPSAR-Deburst</a> before
+      operators that need a continuous image.</li>
 </ul>
 
-<p class="MsoNormal"><span style="">SENTINEL data
-products are distributed using a SENTINEL-specific variation of the
-Standard
-Archive Format for Europe (SAFE) format specification. The SAFE format
-has been
-designed to act as a common format for archiving and conveying data
-within ESA
-Earth Observation archiving facilities.&nbsp;</span></p>
-
-<p class="MsoNormal"><span style="">The SENTINEL-SAFE
-format wraps a folder containing image data in a binary data format and
-product
-metadata in XML. This flexibility allows the format to be scalable
-enough to
-represent all levels of SENTINEL products.</span></p>
-
-<p class="MsoNormal"><span style="">A SENTINEL product
-refers to a directory folder that contains a collection of information.
-It
-includes:</span></p>
-
-<ul style="margin-top: 0cm;" type="disc">
-
-  <li class="MsoNormal" style=""><span style="">a 'manifest.safe' file
-which holds the general product information in XML</span></li>
-  <li class="MsoNormal" style=""><span style="">subfolders for
-measurement datasets containing image data in various binary formats</span></li>
-  <li class="MsoNormal" style=""><span style="">a preview folder
-containing 'quicklooks' in PNG format, Google Earth overlays in KML
-format and HTML preview files</span></li>
-  <li class="MsoNormal" style=""><span style="">an annotation folder
-containing the product metadata in XML as well as calibration data</span></li>
-  <li class="MsoNormal" style=""><span style="">a support folder
-containing the XML schemes describing the product XML.</span></li>
+<h2>Recommended next step</h2>
+<ul>
+  <li><b>GRD:</b> <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a> &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/RemoveGRDBorderNoise.html">Remove GRD Border Noise</a> &rarr;
+      <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/ThermalNoiseRemoval.html">Thermal Noise Removal</a> &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a> &rarr;
+      <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>.</li>
+  <li><b>IW SLC for InSAR:</b> <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARSplitOp.html">TOPSAR-Split</a> &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a> &rarr;
+      <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a> &rarr; <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram Formation</a> &rarr;
+      <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPSAR-Deburst</a>.</li>
 </ul>
 
-<p class="MsoNormal"><span style="">The manifest file
-is an XML file containing the mandatory product metadata common to all
-SENTINEL-1
-products.</span></p>
-
-<p class="MsoNormal"><span style="">Annotated data sets
-contain metadata describing the properties and characteristics of the
-measurement data or how they were generated. For each band of data
-there is a
-product annotation data set that contains metadata describing the main
-characteristics corresponding to that band such as the state of the
-platform
-during acquisition, image properties, polarisation, Doppler
-information, swath
-merging and geographic location. Calibration annotations contain
-calibration
-information and the beta nought, sigma nought, gamma and digital number
-look-up
-tables that can be used for absolute product calibration. Noise data
-annotations contain the estimated thermal noise look-up tables.
-Annotated data
-sets are provided in XML format. Level-2 products do not contain
-annotation
-data sets as all product metadata is contained within the netCDF
-product file.</span></p>
-
-<p class="MsoNormal"><span style="">In the preview
-folder, quicklook data sets are power detected, averaged and decimated
-to
-produce a lower resolution version of the image. Single polarisation
-products
-are represented with a greyscale image. Dual polarisation products are
-represented by a single composite colour image in RGB with the red
-channel (R)
-representing the first polarisation, the green channel (G) represents
-the
-second polarisation and the blue channel (B) represents an average of
-the
-absolute values of the two polarisations. Level-2 OCN products do not
-contain
-quicklooks.</span></p>
-
-<p class="MsoNormal"><span style="">Representation data
-sets found in the support folder contain information about the format
-or syntax
-of the measurement and annotated data sets and can be used to validate
-and
-exploit these data. Representation data sets are provided as XML
-schemas.</span></p>
-
-<p class="MsoNormal"><span style="">Measurement data
-sets contain the binary information of the actual acquired or processed
-data.
-For Level-0 this is the instrument data, for Level-1 it is the
-processed images
-and for Level-2 it is the derived data. There is one measurement data
-set per
-polarisation and per swath. TOPSAR SLC products contain one complex
-measurement
-dataset in GeoTIFF format per swath per polarisation. Level-1 GRD
-products
-contain one detected measurement dataset in GeoTIFF format per
-polarisation.</span></p>
-
-<p class="MsoNormal"><span style="">Measurement data
-sets are provided in GeoTIFF format for Level-1 products and netCDF
-format for
-Level-2 products. The Level-2 OCN products in netCDF format include
-both the
-annotation and measurement datasets described as netCDF attributes,
-dimensions
-and variables in one self-describing, self-contained file.</span></p>
-
-<p class="MsoNormal"><b><u><span style="">Level 1 SLC</span></u></b><span style="">: </span><span style="">L1 Single Look
-Complex (SLC) products consists of focused SAR data geo-referenced
-using orbit
-and attitude data from the satellite and provided in zero-Doppler
-slant-range
-geometry. The products include the full TX signal bandwidth and uses
-complex
-samples preserving the phase information. Stripmap SLCs contain one
-image per swath
-and polarization band. SM contains 1 image per polarization band. IW,
-having 3
-swaths, has 3 images in single pol and 6 images for dual pol. EW,
-having 5
-swaths, has 5 image for single pol and 10 image for dual pol. Each
-sub-swath
-consists of a series of bursts. Each burst has been processed as a
-separate SLC
-image.</span></p>
-
-<p class="MsoNormal"><b><u><span style="">Level 1 GRD</span></u></b><b><span style="">: </span></b><span style="">L1 Ground Range Detected (GRD)
-products
-consist of focused SAR data that has been projected to ground range
-using an
-Earth ellipsoid model, detected and multilooked. Phase information is
-lost.</span><span style=""> </span><span style="">GRD products
-can be in one of three resolutions Full Resolution (FR), High
-Resolution (HR),
-or Medium Resolution (MR). L1 GRD products come in MR and HR for IW and
-EW
-modes, MR for WV mode and MR, HR and FR or SM mode.</span></p>
-
-<p class="MsoNormal"><b><u><span style="">Level 2 OCN</span></u></b><u><span style="">: </span></u><span style="">The L2 Ocean
-products may include Ocean WInd field (OWI), Ocean SWell spectra (OSW)
-and
-surface Radial VeLocity (RVL) information derived from the SAR data.
-The OWI is
-a ground range gridded estimate of the surface wind speed and direction
-at 10m
-above the surface derived from the L1 GRD images of SM, IW or EW modes.
-The OSW
-is a two-dimensional ocean surface swell spectra and also includes an
-estimate
-of the wind speed and direction per swell spectrum. The OSW is
-generated from
-SM and WV modes only. For SM, there are multiple spectras derived from
-the L1
-SLC image. For WV, there is one spectra per vignette. The RVL is a
-ground range
-gridded difference between the measured L2 Doppler grid and the L1
-calculated
-geometrical Doppler.</span></p>
-
-<p class="MsoNormal"><b style="">Polarizations:</b> Dual
-Pol VV+VH or HH+HV</p>
-
-<p class="MsoNormal"><b style="">Primary metadata
-file: </b>manifest.safe</p>
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the manifest.safe file. Opening
-zipped
-products (*.zip) directly is also supported.</p>
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-<p class="MsoNormal"><a href="https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar">https://sentinel.esa.int/web/sentinel/user-guides/sentinel-1-sar</a></p>
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/c-missions/copernicus-sentinel-1">https://directory.eoportal.org/web/eoportal/satellite-missions/c-missions/copernicus-sentinel-1</a></p>
+<h2>Product format specification</h2>
+<p><a href="https://sentiwiki.copernicus.eu/web/s1-products">SentiWiki: Sentinel-1 products</a> links the
+Sentinel-1 Product Specification and the ETAD product specification.
+<a href="https://documentation.dataspace.copernicus.eu/Data/Others/Sentinel1_COG.html">Copernicus Data Space Ecosystem: Sentinel-1 COG</a>
+describes the COG packaging. Mission:
+<a href="https://sentiwiki.copernicus.eu/web/s1-mission">SentiWiki: Sentinel-1 mission</a>.</p>
 
 <hr>
 </body></html>

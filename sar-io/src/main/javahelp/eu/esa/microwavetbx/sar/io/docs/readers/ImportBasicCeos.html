@@ -1,0 +1,79 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Import Basic CEOS</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Import Basic CEOS</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<p>The <b>Basic CEOS</b> reader is a generic fallback for SAR products in CEOS format that no mission
+reader recognises. Use a mission reader whenever one exists: it reads the mission-specific records
+and sets the metadata that calibration and other operators need.</p>
+
+<h2>Format</h2>
+<p>A CEOS SAR product is a set of binary files: a volume directory file, a leader file with the
+scene, processing and orbit records, one image file per channel or polarisation, and optionally a
+trailer file. Each agency defines its own variant of the records.</p>
+
+<h2>Supported data</h2>
+<table border="1" cellpadding="4">
+    <tr><th>File</th><th>Name starts with</th></tr>
+    <tr><td>Volume directory</td><td><code>VDF</code> or <code>VOL</code> (or ends with <code>.VDF</code> /
+        <code>.VOL</code>)</td></tr>
+    <tr><td>Leader</td><td><code>LEA</code> or <code>SARL</code></td></tr>
+    <tr><td>Image</td><td><code>DAT</code>, <code>IM</code> or <code>SARD</code></td></tr>
+    <tr><td>Trailer (optional)</td><td><code>TR</code> or <code>SART</code></td></tr>
+</table>
+<p>The mission readers (for example ERS, JERS-1, ALOS PALSAR, ALOS-2, ALOS-4, RADARSAT-1 and StriX)
+claim their products first; Basic CEOS only reports itself as "suitable", so it is chosen when no
+mission reader accepts the volume file.</p>
+
+<h2>How to open</h2>
+<p>Use <b>File &gt; Open Product</b> and select the volume directory file. The leader, image and
+trailer files must be in the same folder. There is no entry under <i>File &gt; Import</i>.</p>
+
+<h2>What you get</h2>
+<ul>
+    <li>Complex products (product type containing <code>SLC</code>, <code>COMPLEX</code>,
+        <code>SLANT</code> or <code>1.1</code>): bands <code>i</code> and <code>q</code> (units real and
+        imaginary) and a virtual <code>Intensity</code> band.</li>
+    <li>Detected products: an <code>Amplitude</code> band and a virtual <code>Intensity</code> band.</li>
+    <li>With several image files, the band names get a suffix <code>_1</code>, <code>_2</code>, &hellip;</li>
+    <li>Tie-point grids (slant range time, incidence angle, latitude, longitude) and the orbit state
+        vectors from the leader file. The values read are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>The reader records the mission as <code>RS1</code> (RADARSAT-1) whatever the satellite, so
+        mission-specific operators such as Calibration do not handle the product correctly.</li>
+    <li>All image files must have the same size.</li>
+    <li>Records that differ from the RADARSAT-1 layout can give wrong or missing metadata. Check the
+        Abstracted Metadata before processing.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li>Detected products: <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a> &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>, which uses the orbit from the leader
+        file.</li>
+    <li>If your mission has its own reader (see <a href="../SupportedMissions.html">Supported Missions</a>),
+        open the product with that reader instead.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>There is no single CEOS SAR specification; each agency publishes the format description of its
+products. See the mission pages, for example JAXA's ALOS-2 format documents:
+<a href="https://www.eorc.jaxa.jp/ALOS-2/en/doc/format.htm">https://www.eorc.jaxa.jp/ALOS-2/en/doc/format.htm</a>.</p>
+
+<hr>
+</body>
+</html>

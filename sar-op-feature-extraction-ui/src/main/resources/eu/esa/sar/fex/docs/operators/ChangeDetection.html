@@ -40,5 +40,42 @@ with&nbsp;value that is less than this threshold will be masked as
 -1. Anything between the two thresholds will be masked as 0.</span></li><li>Include
 source bands: If the checkbox is selected, the two source bands
 selected by the user will be output in the target product.</li><li>Output Difference:&nbsp;If the checkbox is selected, then the "difference" band (<span style="font-weight: bold;">B0</span> -&nbsp;<span style="font-weight: bold;">B1</span>) will be output.&nbsp;</li><li>Output Ratio:&nbsp;If the checkbox is selected, then the "ratio" band (<span style="font-weight: bold;">B0</span> /&nbsp;<span style="font-weight: bold;">B1</span>) will be output.&nbsp;</li><li>Output Log Ratio:&nbsp;If the checkbox is selected, then the "log_ratio" band (log(<span style="font-weight: bold;">B0</span> /&nbsp;<span style="font-weight: bold;">B1</span>)) will be output.</li><li>Output Normalized Ratio: If the checkbox is selected, then the "normalized_ratio" band ((<span style="font-weight: bold;">B0</span> -&nbsp;<span style="font-weight: bold;">B1</span>) / (<span style="font-weight: bold;">B0</span> + <span style="font-weight: bold;">B1</span>)) will be output.</li></ol><div style="margin-left: 40px;"><img style="width: 436px; height: 443px;" alt="" src="images/log_ratio_change_detection_dlg.jpg">&nbsp;<br></div>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. Log Ratio Change Detection dialog box<br><br><hr>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. Log Ratio Change Detection dialog box<br><br>
+<h3>References</h3>
+<ol>
+    <li>Rignot, E. J. M., van Zyl, J. J. (1993). Change detection techniques for ERS-1 SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 31(4), 896&#8211;906. doi:10.1109/36.239913</li>
+</ol>
+
+<!-- params:begin op="Change-Detection" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Change-Detection</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>maskUpperThreshold</code></td><td>float</td><td>2.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Mask upper threshold</td></tr>
+<tr><td><code>maskLowerThreshold</code></td><td>float</td><td>-2.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Mask lower threshold</td></tr>
+<tr><td><code>includeSourceBands</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Include source bands</td></tr>
+<tr><td><code>outputDifference</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Difference</td></tr>
+<tr><td><code>outputRatio</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Ratio</td></tr>
+<tr><td><code>outputLogRatio</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Log Ratio</td></tr>
+<tr><td><code>outputNormalizedRatio</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Normalized Ratio</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/change_detection.html">SAR change detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and multilooking</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>At least one output must be selected, and exactly two source bands; with none selected the first two intensity or amplitude bands are used.</li>
+    <li>Recommended: a coregistered stack of two calibrated images (Create Stack); the code does not check this.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
+<hr>
 </body></html>

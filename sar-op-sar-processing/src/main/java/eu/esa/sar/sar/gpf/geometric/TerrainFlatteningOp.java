@@ -944,8 +944,9 @@ public final class TerrainFlatteningOp extends Operator {
                                 v = sourceData.getElemDoubleAt(srcIdx);
                                 targetData.setElemDoubleAt(tgtIdx, v / simVal);
                             } else {
-                                // Foreshortening/layover region — simulated area is too small
-                                // for a reliable gamma0; write noDataValue rather than leaving
+                                // Simulated area below threshold (5%) of the flat-terrain area:
+                                // shadow or near-grazing back-slopes (layover gets MORE area).
+                                // Gamma0 is unreliable there; write noDataValue rather than leaving
                                 // the float default 0.0 that downstream would mistake for valid.
                                 targetData.setElemDoubleAt(tgtIdx, noDataValue);
                             }
@@ -1009,7 +1010,7 @@ public final class TerrainFlatteningOp extends Operator {
                                 v = sourceData.getElemDoubleAt(srcIdx);
                                 targetData.setElemDoubleAt(tgtIdx, v / simVal);
                             } else {
-                                // Foreshortening/layover — write noData (see twin block above).
+                                // Area below 5% threshold (shadow / grazing back-slope) — write noData (see twin block above).
                                 targetData.setElemDoubleAt(tgtIdx, noDataValue);
                             }
                         } else {

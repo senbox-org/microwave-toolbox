@@ -75,10 +75,10 @@
         PM acquistions in a coregistered stack.
     </li>
     <li>There
-        is a "master" band and the rest are "slave" bands. The name of the
-        "master" band is assumed to contain "mst". The "slave" bands are
-        assumed to be numbered such that their names contain "slvx" where x =
-        1, 2, 3, ... , and so on. Assign the number 0 to the "master" band so
+        is a Reference band and the rest are Secondary bands. The name of the
+        Reference band is assumed to contain <code>ref</code> (or the older <code>mst</code>). The Secondary bands are
+        assumed to be numbered such that their names contain <code>secx</code> (or the older <code>slvx</code>) where x =
+        1, 2, 3, ... , and so on. Assign the number 0 to the Reference band so
         that each band has a unique number. The bands are grouped into two
         images by their number order. The bands with lower numbers are grouped
         into one image while the bands with higher numbers are grouped into
@@ -86,6 +86,20 @@
     </li>
 </ol>
 <p></p>
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/soil_moisture.html">Soil Moisture from SAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two C-band quad-pol SLC products of the same area and date (one in Read, one in Read(2)); the graph calibrates each to Sigma0 and terrain-corrects it</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="MultiAngleSoilMoisture.html">Multi-Angle IEM Soil Moisture Retrieval</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

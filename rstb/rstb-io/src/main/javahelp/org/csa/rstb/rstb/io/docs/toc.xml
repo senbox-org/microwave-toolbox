@@ -11,9 +11,9 @@
             <tocitem text="Import and Export">
                 <tocitem text="Import Raster Data">
                     <tocitem text="SAR Sensors">
-                        <tocitem text="Radarsat-1" target="ImportRadarsat1"/>
-                        <tocitem text="Radarsat-2" target="ImportRadarsat2"/>
-						<tocitem text="RCM" target="ImportRCM"/>
+                        <tocitem text="RADARSAT-1" target="ImportRadarsat1"/>
+                        <tocitem text="RADARSAT-2" target="ImportRadarsat2"/>
+						<tocitem text="RADARSAT Constellation Mission (RCM)" target="ImportRCM"/>
                     </tocitem>
                 </tocitem>
             </tocitem>

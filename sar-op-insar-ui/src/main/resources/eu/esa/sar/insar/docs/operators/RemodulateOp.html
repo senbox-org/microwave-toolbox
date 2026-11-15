@@ -32,5 +32,33 @@
     </li>
 </ul>
 
+<h3>References</h3>
+<ol>
+    <li>De Zan, F., Monti Guarnieri, A. (2006). TOPSAR: Terrain observation by progressive scans. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(9), 2352&#8211;2360. doi:10.1109/TGRS.2006.873853</li>
+    <li>Yag&uuml;e-Mart&iacute;nez, N., Prats-Iraola, P., Rodr&iacute;guez Gonz&aacute;lez, F., Brcic, R., Shau, R., Geudtner, D., Eineder, M., Bamler, R. (2016). Interferometric processing of Sentinel-1 TOPS data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 54(4), 2220&#8211;2234. doi:10.1109/TGRS.2015.2497902</li>
+</ol>
+<!-- params:begin op="Remodulate" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Remodulate</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<p>This operator has no processing parameters.</p>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: Bursts, Deramping and ESD</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration of SAR Images</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Recommended: the output of <a href="DemodulateOp.html">Demodulate</a> after resampling (Remodulate removes the demodulation-phase bands that Demodulate adds; there is no explicit check)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+</ul>
+<!-- footer:end -->
+
 </body>
 </html>

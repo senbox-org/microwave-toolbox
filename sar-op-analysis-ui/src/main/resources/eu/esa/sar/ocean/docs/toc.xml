@@ -8,7 +8,13 @@
 <toc version="2.0" categoryclosedimage="folder" categoryopenimage="folder" topicimage="doc">
 
     <tocitem text="Sentinel Toolbox Application">
-
+        <tocitem text="Radar">
+            <tocitem text="SAR Applications">
+                <tocitem text="Ocean Tools">
+                    <tocitem text="Ocean Swell Polar View" target="polarView"/>
+                </tocitem>
+            </tocitem>
+        </tocitem>
     </tocitem>
 
 </toc>

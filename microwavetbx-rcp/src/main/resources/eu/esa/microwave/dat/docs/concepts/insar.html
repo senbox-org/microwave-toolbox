@@ -1,0 +1,204 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - InSAR Fundamentals</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: InSAR Fundamentals</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>InSAR Fundamentals</h1>
+
+<p class="lead">SAR interferometry (InSAR) compares the phase of two complex SAR images of the same area, taken
+    from almost the same position. The phase difference measures changes in the radar-to-ground distance to a
+    fraction of the wavelength, so it carries topography, ground motion and atmospheric delay. To read an
+    interferogram you have to know which of these terms is present and how the baseline geometry scales them.</p>
+
+<h2>The interferogram</h2>
+<p>Each pixel of a single-look complex (SLC) image is a complex number s = |s| exp(j&psi;). Its phase &psi; is
+    the two-way path phase &#8722;4&pi;R/&lambda; (R is the slant range, &lambda; the radar wavelength) plus a
+    scattering phase that is random from pixel to pixel. If the scatterers have not changed, the scattering phase
+    is the same in both images and cancels in the product of the Reference image with the complex conjugate of
+    the Secondary image:</p>
+<p class="eq">I = s<sub>ref</sub> &middot; s<sub>sec</sub><sup>*</sup> = |s<sub>ref</sub>| |s<sub>sec</sub>| exp(j&phi;),
+    &nbsp;&nbsp; &phi; = &psi;<sub>ref</sub> &#8722; &psi;<sub>sec</sub></p>
+<p>With the phase convention above, this gives</p>
+<p class="eq">&phi; = (4&pi;/&lambda;) (R<sub>sec</sub> &#8722; R<sub>ref</sub>) &nbsp;&nbsp;(modulo 2&pi;)</p>
+<p>SNAP uses this Reference &times; conj(Secondary) order. See <a href="displacement.html">Displacement</a> for
+    how the sign carries through to displacement products.</p>
+
+<h2>What the phase contains</h2>
+<p class="eq">&phi; = &phi;<sub>flat</sub> + &phi;<sub>topo</sub> + &phi;<sub>defo</sub> +
+    &phi;<sub>atmo</sub> + &phi;<sub>orbit</sub> + &phi;<sub>noise</sub></p>
+<ul>
+    <li><b>&phi;<sub>flat</sub></b> (flat-Earth phase): the phase that a smooth reference surface (the
+        ellipsoid) would produce. The look angle changes across the swath, so this term gives dense, regular
+        fringes in range. It is computed from the orbits and removed first.</li>
+    <li><b>&phi;<sub>topo</sub></b>: terrain height above that surface. It is proportional to the perpendicular
+        baseline and is removed with a DEM.</li>
+    <li><b>&phi;<sub>defo</sub></b> = &#8722;(4&pi;/&lambda;) d: ground displacement d along the line of sight
+        (LOS) from the Reference date to the Secondary date, positive toward the radar.</li>
+    <li><b>&phi;<sub>atmo</sub></b>: differences in tropospheric and ionospheric delay between the dates, usually
+        a few millimetres to centimetres of apparent motion (see <a href="atmosphere.html">Atmosphere</a>).</li>
+    <li><b>&phi;<sub>orbit</sub></b>: residual orbit errors, which give long-wavelength ramps.</li>
+    <li><b>&phi;<sub>noise</sub></b>: decorrelation and thermal noise (see <a href="coherence.html">Coherence</a>).</li>
+</ul>
+<p>Only &phi; modulo 2&pi; is observed. SNAP shows it wrapped into (&#8722;&pi;, &pi;]. One full colour cycle
+    is a <i>fringe</i>. For deformation, one fringe is &lambda;/2 of LOS motion: about 2.8 cm at C-band,
+    1.6 cm at X-band and 12 cm at L-band. For topography, one fringe is the height of ambiguity defined below.
+    Recovering the absolute phase is the job of <a href="unwrapping.html">phase unwrapping</a>.</p>
+
+<h2>Baselines and height of ambiguity</h2>
+<p>The baseline B is the vector between the two antenna positions. Its component along the line of sight,
+    B<sub>&#8741;</sub>, mainly adds the smooth flat-Earth phase. The component at right angles to it, the
+    perpendicular baseline B<sub>&perp;</sub>, sets the sensitivity to height. The temporal baseline is the
+    time between the two acquisitions; it controls how much the scene and the atmosphere change.</p>
+<p><img src="images/insar_1.png" width="560" height="380" alt="Repeat-pass InSAR geometry with baseline components"></p>
+<p class="figcap">Figure 1. Repeat-pass geometry. The baseline B splits into B<sub>&#8741;</sub> along the
+    Reference line of sight and B<sub>&perp;</sub> across it. A target P at height h is seen at ranges
+    R<sub>1</sub> and R<sub>2</sub>; &theta; is the look angle. The formulas below use the incidence angle, which equals the look
+    angle only on a flat Earth. Not to scale.</p>
+<p>For repeat-pass (monostatic) InSAR, a height change h changes the phase by (in magnitude)</p>
+<p class="eq">&Delta;&phi;<sub>topo</sub> = 4&pi; B<sub>&perp;</sub> h / (&lambda; R sin &theta;)</p>
+<p>where &theta; is the incidence angle (equal to the look angle on a flat Earth). The height that produces one
+    fringe is the <i>height of ambiguity</i>:</p>
+<p class="eq">h<sub>2&pi;</sub> = &lambda; R sin &theta; / (2 B<sub>&perp;</sub>)</p>
+<p>For single-pass bistatic systems such as TanDEM-X, where only one antenna transmits, the factor 2 is dropped.
+    A small h<sub>2&pi;</sub> means high height sensitivity: good for DEM generation, bad for deformation, because
+    DEM errors leak into the phase as residual topography.</p>
+
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Mission (mode)</th><th>&lambda;</th><th>One fringe (&lambda;/2)</th><th>R</th><th>&theta; (incidence)</th>
+        <th>Example B<sub>&perp;</sub></th><th>h<sub>2&pi;</sub></th></tr>
+    <tr><td>Sentinel-1 (IW), C-band</td><td>5.55 cm</td><td>2.8 cm</td><td>865 km</td><td>39&deg;</td>
+        <td>50 m / 150 m</td><td>302 m / 101 m</td></tr>
+    <tr><td>TerraSAR-X (StripMap), X-band</td><td>3.11 cm</td><td>1.6 cm</td><td>616 km</td><td>35&deg;</td>
+        <td>100 m / 300 m</td><td>55 m / 18 m</td></tr>
+    <tr><td>ALOS-2 (StripMap), L-band</td><td>&asymp; 24 cm</td><td>&asymp; 12 cm</td><td>750 km</td><td>35&deg;</td>
+        <td>300 m / 1000 m</td><td>171 m / 51 m</td></tr>
+    <tr><td>NISAR, L-band</td><td>&asymp; 24 cm</td><td>&asymp; 12 cm</td><td>909 km</td><td>37&deg;</td>
+        <td>200 m / 500 m</td><td>326 m / 130 m</td></tr>
+</table>
+<p class="figcap">Table 1. Height of ambiguity for repeat-pass pairs. Slant ranges are computed for a spherical
+    Earth from orbit heights of 693, 514, 628 and 747 km. The B<sub>&perp;</sub> values are examples, not mission
+    specifications; the InSAR Stack Overview tool lists the B<sub>&perp;</sub> of your pairs.</p>
+
+<h2>Critical baseline</h2>
+<p>The two images see the ground from slightly different angles, so their range spectra are shifted against each
+    other. When the shift equals the range bandwidth, nothing is common and the interferogram is pure noise. This
+    happens at the critical baseline</p>
+<p class="eq">B<sub>&perp;,crit</sub> = &lambda; R tan &theta; / (2 &rho;<sub>r</sub>)</p>
+<p>where &rho;<sub>r</sub> is the slant-range resolution. On flat terrain the geometric coherence falls roughly
+    linearly, as 1 &#8722; B<sub>&perp;</sub>/B<sub>&perp;,crit</sub>. Terrain sloping toward the radar reduces
+    the effective incidence angle and with it B<sub>&perp;,crit</sub>. For Sentinel-1 IW (about 48 MHz range
+    bandwidth, &rho;<sub>r</sub> &asymp; 3.1 m) B<sub>&perp;,crit</sub> is about 6 km, far larger than typical
+    baselines. For ERS (&rho;<sub>r</sub> &asymp; 9.6 m) it was about 1.1 km and limited many pairs.</p>
+
+<h2>Sources of decorrelation</h2>
+<p>The total coherence is approximately the product of independent factors:</p>
+<ul>
+    <li><b>Geometric</b>: the range spectral shift described above. It grows with B<sub>&perp;</sub> and slope.
+        Range common-band filtering recovers part of it for stripmap data.</li>
+    <li><b>Doppler (azimuth)</b>: different Doppler centroids give non-overlapping azimuth spectra. Azimuth filtering
+        helps for stripmap; it does not apply to TOPS bursts.</li>
+    <li><b>Volume</b>: the wave penetrates a canopy, snow or dry soil, and scatterers at different heights add with
+        different phases. It grows with B<sub>&perp;</sub>; for a given B<sub>&perp;</sub> it is stronger at shorter
+        wavelengths, because the height sensitivity is higher.</li>
+    <li><b>Temporal</b>: the scatterers change between the dates (vegetation, wind, wet snow, ploughing). Open water is
+        always decorrelated in repeat-pass pairs.</li>
+    <li><b>Thermal</b>: receiver noise. For equal signal-to-noise ratio in both images,
+        &gamma;<sub>thermal</sub> = 1 / (1 + SNR<sup>&#8722;1</sup>). It matters on dark surfaces and in radar
+        shadow.</li>
+</ul>
+<p>Coregistration errors add a further loss; see <a href="tops.html">TOPS</a> for why Sentinel-1 IW needs
+    azimuth coregistration to about a thousandth of a pixel.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Interferogram</b> (<code>Interferogram</code>) forms Reference &times; conj(Secondary) for each Secondary
+        in a coregistered stack. By default it subtracts the flat-Earth phase (polynomial of degree 5 fitted to 501
+        points); <i>Subtract topographic phase</i> is off by default. It writes <code>i_ifg_&lt;tag&gt;</code> and
+        <code>q_ifg_&lt;tag&gt;</code>, a virtual <code>Phase_ifg_&lt;tag&gt;</code> band (unit <code>phase</code>,
+        radians) and, by default, <code>coh_&lt;tag&gt;</code>. The tag is
+        <code>&lt;subswath&gt;_&lt;pol&gt;_&lt;ref-date&gt;_&lt;sec-date&gt;</code> (subswath and polarisation are omitted when the product has none), for example
+        <code>Phase_ifg_IW2_VV_03Jan2024_15Jan2024</code>.</li>
+    <li><b>Sentinel-1 IW (TOPS) chain:</b> TOPSAR-Split &rarr; Apply-Orbit-File &rarr; Back-Geocoding &rarr;
+        Enhanced-Spectral-Diversity &rarr; Interferogram &rarr; TOPSAR-Deburst &rarr; TopoPhaseRemoval &rarr;
+        Multilook &rarr; GoldsteinPhaseFiltering &rarr; SnaphuExport. Run the chain once per subswath, or merge
+        the subswaths with TOPSAR-Merge after debursting.</li>
+    <li><b>Stripmap chain</b> (S1 SM, TerraSAR-X, ALOS-2, ERS/Envisat): Apply-Orbit-File &rarr;
+        CreateStack &rarr; Cross-Correlation &rarr; Warp (or DEM-Assisted-Coregistration, not for any Sentinel-1
+        SLC) &rarr; Interferogram
+        &rarr; TopoPhaseRemoval &rarr; Multilook &rarr; GoldsteinPhaseFiltering &rarr; unwrapping.</li>
+    <li><b>Geocode-first (GSLC) chain:</b> Apply-Orbit-File &rarr; (TOPSAR-Split) &rarr; GSLC-Terrain-Correction
+        &rarr; CreateStack &rarr; Interferogram &rarr; GoldsteinPhaseFiltering &rarr; unwrapping. Interferogram
+        detects the geocoded input and removes the flat-Earth (and, if selected, topographic) phase on the map
+        grid.</li>
+    <li>With <i>Output Intensity</i> off (the default), Multilook averages the <code>i</code> and <code>q</code>
+        bands, which is a complex average of the interferogram.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Running Thermal Noise Removal or any step that outputs intensity before InSAR. The phase is lost.</li>
+    <li>Reading one fringe as &lambda; of motion, or as vertical motion. It is &lambda;/2 along the line of sight.</li>
+    <li>Interpreting fringes before the topographic phase is removed. With a large B<sub>&perp;</sub> they are
+        mostly topography.</li>
+    <li>Choosing a large B<sub>&perp;</sub> for deformation work. DEM errors then appear as phase:
+        a 10 m DEM error with h<sub>2&pi;</sub> = 100 m gives a tenth of a fringe.</li>
+    <li>Using long temporal baselines over vegetation or agriculture at C- or X-band. The pair decorrelates
+        whatever the baseline.</li>
+    <li>Applying azimuth common-band filtering to TOPS data.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SubtRefDemOp.html">Topographic Phase Removal</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/CoherenceOp.html">Coherence</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/DEMAssistedCoregistrationOp.html">DEM-Assisted Coregistration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToElevationOp.html">Phase to Elevation</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/RangeFilterOp.html">Range Filter</a> and
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/AzimuthFilterOp.html">Azimuth Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+</ul>
+<p>Workflows: <a href="../workflows/workflow_s1_dinsar.html">Sentinel-1 TOPS DInSAR</a> and <a href="../workflows/workflow_stripmap_dinsar.html">Stripmap DInSAR</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Bamler, R., Hartl, P. (1998). Synthetic aperture radar interferometry. <i>Inverse Problems</i>, 14(4),
+        R1&#8211;R54. doi:10.1088/0266-5611/14/4/001</li>
+    <li>Rosen, P. A., Hensley, S., Joughin, I. R., Li, F. K., Madsen, S. N., Rodr&iacute;guez, E., Goldstein, R. M.
+        (2000). Synthetic aperture radar interferometry. <i>Proceedings of the IEEE</i>, 88(3), 333&#8211;382.
+        doi:10.1109/5.838084</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic
+        Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+    <li>Zebker, H. A., Villasenor, J. (1992). Decorrelation in interferometric radar echoes. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 30(5), 950&#8211;959. doi:10.1109/36.175330</li>
+    <li>Gatelli, F., Monti Guarnieri, A., Parizzi, F., Pasquali, P., Prati, C., Rocca, F. (1994). The wavenumber
+        shift in SAR interferometry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 32(4),
+        855&#8211;865. doi:10.1109/36.298013</li>
+</ol>
+
+<hr>
+</body>
+</html>

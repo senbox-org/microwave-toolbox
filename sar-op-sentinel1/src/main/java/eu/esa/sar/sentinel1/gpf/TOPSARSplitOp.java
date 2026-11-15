@@ -63,7 +63,7 @@ public final class TOPSARSplitOp extends Operator {
     @TargetProduct
     private Product targetProduct;
 
-    @Parameter(description = "The list of source bands.", label = "Subswath")
+    @Parameter(description = "The sub-swath to extract (e.g. IW1, IW2, IW3); defaults to the first sub-swath of the acquisition mode", label = "Subswath")
     private String subswath = null;
 
      @Parameter(description = "Enable processing of single-swath products", defaultValue = "false", label = "Enable Single Swath Mode")

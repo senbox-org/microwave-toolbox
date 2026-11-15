@@ -11,41 +11,47 @@
             <tocitem text="Import and Export">
                 <tocitem text="Import Raster Data">
                     <tocitem text="Generic Formats">
-                        <tocitem text="Open PCIDSK Data Product" target="importPCIDSK"/>
+                        <tocitem text="PCIDSK" target="importPCIDSK"/>
                     </tocitem>
                     <tocitem text="SAR Formats">
-                        <tocitem text="PolsarPro" target="ImportPolSARPro"/>
-                        <tocitem text="Gamma" target="ImportGamma"/>
-                        <tocitem text="RAT" target="ImportRAT"/>
-                        <tocitem text="Generic Binary" target="importGenericBinary"/>
+                        <tocitem text="Basic CEOS" target="ImportBasicCeos"/>
                         <tocitem text="Complex Generic Binary" target="importComplexGenericBinary"/>
+                        <tocitem text="DLR RAT" target="ImportRAT"/>
+                        <tocitem text="Gamma" target="ImportGamma"/>
+                        <tocitem text="Generic Binary" target="importGenericBinary"/>
+                        <tocitem text="PolSARPro" target="ImportPolSARPro"/>
+                        <tocitem text="SNAPHU" target="ImportSnaphu"/>
                     </tocitem>
                     <tocitem text="SAR Sensors">
-					    <tocitem text="ALOS PALSAR 1" target="ImportAlosPalsar"/>
-						<tocitem text="ALOS PALSAR 2" target="ImportAlos2"/>
+                        <tocitem text="Supported Missions" target="SupportedMissions"/>
+                        <tocitem text="ALOS PALSAR" target="ImportAlosPalsar"/>
+                        <tocitem text="ALOS-2" target="ImportAlos2"/>
+                        <tocitem text="ALOS-4" target="ImportAlos4"/>
                         <tocitem text="BIOMASS" target="importBiomassProduct"/>
-						<tocitem text="Capella" target="ImportCapella"/>
-                        <tocitem text="Gaofen3" target="ImportGaofen3"/>
-                        <tocitem text="Cosmo-Skymed" target="ImportCosmoSkymed"/>
-                        <tocitem text="ENVISAT ASAR" target="importEnvisatProduct"/>
-                        <tocitem text="ERS-1" target="importErsProduct"/>
-						<tocitem text="ERS-2" target="importErs2Product"/>
+                        <tocitem text="Capella" target="ImportCapella"/>
+                        <tocitem text="COSMO-SkyMed" target="ImportCosmoSkymed"/>
+                        <tocitem text="ENVISAT ASAR" target="ImportEnvisatAsar"/>
+                        <tocitem text="ERS-1/2" target="ImportErs1"/>
+                        <tocitem text="Gaofen-3" target="ImportGaofen3"/>
                         <tocitem text="ICEYE" target="importIceyeProduct"/>
                         <tocitem text="ICEYE COG" target="importIceyeCOGProduct"/>
                         <tocitem text="JERS-1" target="ImportJERSCeos"/>
-                        <tocitem text="Kompsat-5" target="ImportKompsat5"/>
+                        <tocitem text="KOMPSAT-5" target="ImportKompsat5"/>
                         <tocitem text="NISAR" target="ImportNisar"/>
-                        <tocitem text="Paz" target="ImportPaz"/>
-                        <tocitem text="QPS SAR" target="importQPSSAR"/>
-                        <tocitem text="RISAT-1" target="ImportRISAT"/>
-						<tocitem text="SAOCOM" target="ImportSAOCOM"/>
-                        <tocitem text="SeaSat" target="ImportSeaSat"/>
-						<tocitem text="Sentinel-1" target="importSentinel1Product"/>
+                        <tocitem text="PAZ" target="ImportPaz"/>
+                        <tocitem text="QPS-SAR" target="importQPSSAR"/>
+                        <tocitem text="RISAT-1 and EOS-04" target="ImportRISAT"/>
+                        <tocitem text="SAOCOM" target="ImportSAOCOM"/>
+                        <tocitem text="Seasat" target="ImportSeaSat"/>
+                        <tocitem text="Sentinel-1" target="importSentinel1Product"/>
+                        <tocitem text="Sentinel-1 ETAD" target="ImportSentinel1ETAD"/>
                         <tocitem text="Spacety" target="importSpacety"/>
                         <tocitem text="StriX (Synspective)" target="importStriX"/>
-						<tocitem text="TerraSAR-X" target="ImportTerraSarX"/>
-						<tocitem text="TanDEM-X" target="ImportTanDEMX"/>
+                        <tocitem text="TerraSAR-X and TanDEM-X" target="ImportTerraSarX"/>
                         <tocitem text="UAVSAR" target="importUAVSAR"/>
+                    </tocitem>
+                    <tocitem text="Microwave Radiometer">
+                        <tocitem text="CIMR L1B" target="ImportCimrL1B"/>
                     </tocitem>
                 </tocitem>
             </tocitem>

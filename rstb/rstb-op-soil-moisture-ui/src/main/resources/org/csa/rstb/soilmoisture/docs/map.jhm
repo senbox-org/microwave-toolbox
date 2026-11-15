@@ -13,4 +13,6 @@
     <mapID target="HybridSoilMoisture" url="operators/HybridSoilMoisture.html"/>
     <mapID target="MultiAngleSoilMoisture" url="operators/MultiAngleSoilMoisture.html"/>
     <mapID target="MultiPolSoilMoisture" url="operators/MultiPolSoilMoisture.html"/>
+    <mapID target="IEM-LUT" url="operators/IEM-LUT.html"/>
+    <mapID target="Hallikainen" url="operators/Hallikainen.html"/>
 </map>

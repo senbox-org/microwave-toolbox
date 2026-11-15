@@ -1,283 +1,98 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import ENVISAT</title>
-
-
-
-    
-    <link rel="stylesheet" href="../style.css"></head><body>
+<html>
+<head><title>Help - Import ENVISAT ASAR</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp;
-            Import ENVISAT
-        </td>
-
+        <td class="header">&nbsp; Import ENVISAT ASAR</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
 
-<h3>Import ENVISAT (ASAR, MERIS, AATSR) Product</h3>
+<p>ASAR products in Envisat format are opened by SNAP's <b>ENVISAT</b> reader, which is part of the
+SNAP core. The same reader opens ERS SAR products in Envisat format (see
+<a href="ImportErs.html">Import ERS-1/2 SAR</a>) and the Envisat optical instruments, which are not
+covered here.</p>
 
-<p class="MsoNormal">The Advanced Synthetic Aperture Radar (ASAR) onboard the
-ENVISAT satellite was a global mapping SAR mission of ESA.</p>
-
-
-<p class="MsoNormal"><b style="">Operational: </b>2002-03-01
-to 2012-04-08</p>
-
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-C-band</p>
-
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-</p>
-
-
+<h2>Mission</h2>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Image Mode (IM), </li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Alternating Polarization (AP), </li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Global Monitoring (GM), </li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Wide Swath (WS),</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Wave (WV)</li>
+    <li><b>Operator:</b> European Space Agency (ESA).</li>
+    <li><b>Instrument:</b> ASAR (Advanced SAR), C-band at 5.331&nbsp;GHz (wavelength about
+        5.6&nbsp;cm).</li>
+    <li><b>Orbit:</b> sun-synchronous, about 800&nbsp;km altitude, 35-day repeat cycle. From October
+        2010 the orbit was lowered to about 783&nbsp;km with a 30-day repeat cycle.</li>
+    <li><b>Lifetime:</b> launched 1 March 2002; contact was lost on 8 April 2012, which ended the
+        mission.</li>
 </ul>
 
-
-<p class="MsoNormal"><b style="">Polarizations:</b> All
-modes are single pol except AP mode which offers non-coherent dual pol.</p>
-
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the *.N1 file. Opening zipped products
-(*.zip) directly is also supported.</p>
-
-
-
-
-
-
-
-
-
-
-
-
-<h3>Supported ENVISAT ASAR Products</h3>
-<table border="1" cellpadding="4" cellspacing="0" width="100%">
-    <tbody>
-    <tr>
-        <td class="TableHeadingColor" bgcolor="#ccccff"><font size="+1"> Product Type</font></td>
-        <td class="TableHeadingColor" bgcolor="#ccccff"><font size="+1"> Description</font></td>
-    </tr>
-    <tr>
-        <td><code>ASA_APG_1P</code></td>
-        <td>ASAR Alternating Polarization Ellipsoid Geocoded Image</td>
-    </tr>
-    <tr>
-        <td><code>ASA_APM_1P</code></td>
-        <td>ASAR Alternating Polarization Medium Resolution Image
-            product
-        </td>
-    </tr>
-    <tr>
-        <td><code>ASA_APP_1P</code></td>
-        <td>ASAR Alternating Polarization Mode Precision Image</td>
-    </tr>
-    <tr>
-        <td><code>ASA_APS_1P</code></td>
-        <td>ASAR Alternating Polarization Mode Single Look Complex</td>
-    </tr>
-    <tr>
-        <td><code>ASA_AP__BP</code></td>
-        <td>ASAR Alternating Polarization Browse Product</td>
-    </tr>
-    <tr>
-        <td><code>ASA_GM1_1P</code></td>
-        <td>ASAR Global Monitoring Mode Image</td>
-    </tr>
-    <tr>
-        <td><code>ASA_GM__BP</code></td>
-        <td>ASAR Global Monitoring Mode Browse Product</td>
-    </tr>
-    <tr>
-        <td><code>ASA_IMG_1P</code></td>
-        <td>ASAR Image Mode Ellipsoid Geocoded Image</td>
-    </tr>
-    <tr>
-        <td><code>ASA_IMM_1P</code></td>
-        <td>ASAR Image Mode Medium Resolution Image</td>
-    </tr>
-    <tr>
-        <td><code>ASA_IMP_1P</code></td>
-        <td>ASAR Image Mode Precision Image</td>
-    </tr>
-    <tr>
-        <td><code>ASA_IMS_1P</code></td>
-        <td>ASAR Image Mode Single Look Complex</td>
-    </tr>
-    <tr>
-        <td><code>ASA_IM__BP</code></td>
-        <td>ASAR Image Mode Browse Product</td>
-    </tr>
-    <tr>
-        <td><code>ASA_WSS_1P</code></td>
-        <td>ASAR Wide Swath&nbsp;Single Look Complex</td>
-    </tr>
-    <tr>
-        <td><code>ASA_WSM_1P</code></td>
-        <td>ASAR Wide Swath Medium Resolution Image</td>
-    </tr>
-    <tr>
-        <td><code>ASA_WS__BP</code></td>
-        <td>ASAR Wide Swath Mode Browse Image</td>
-    </tr>
-    <tr>
-        <td><code>ASA_WVI_1P</code></td>
-        <td>ASAR Wave Mode SLC Imagettes</td>
-    </tr>
-    <tr>
-        <td><code>ASA_WVS_1P</code></td>
-        <td>ASAR Wave Mode Cross Spectra</td>
-    </tr>
-    <tr>
-        <td><code>ASA_WVW_2P</code></td>
-        <td>ASAR Wave Mode Wave Spectra</td>
-    </tr>
-    <tr>
-        <td><code>ASA_XCA_AX</code></td>
-        <td>ASAR External Calibration File</td>
-    </tr>
-    </tbody>
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Mode</th><th>Polarisation</th><th>Level-1 products</th></tr>
+    <tr><td>Image (IM)</td><td>VV or HH</td><td>ASA_IMS_1P (SLC), ASA_IMP_1P (precision),
+        ASA_IMM_1P (medium resolution), ASA_IMG_1P (ellipsoid geocoded)</td></tr>
+    <tr><td>Alternating Polarisation (AP)</td><td>VV/HH, HH/HV or VV/VH</td><td>ASA_APS_1P (SLC),
+        ASA_APP_1P, ASA_APM_1P, ASA_APG_1P</td></tr>
+    <tr><td>Wide Swath (WS)</td><td>VV or HH</td><td>ASA_WSM_1P (medium resolution), ASA_WSS_1P
+        (SLC)</td></tr>
+    <tr><td>Global Monitoring (GM)</td><td>VV or HH</td><td>ASA_GM1_1P</td></tr>
+    <tr><td>Wave (WV)</td><td>VV or HH</td><td>ASA_WVI_1P (imagettes), ASA_WVS_1P, ASA_WVW_2P
+        (spectra)</td></tr>
 </table>
-<h3>Supported ENVISAT MERIS Products</h3>
-<table border="1" cellpadding="4" cellspacing="0" width="100%">
-    <tbody>
-    <tr>
-        <td class="TableHeadingColor" bgcolor="#ccccff"><font size="+1"> Product Type</font></td>
-        <td class="TableHeadingColor" bgcolor="#ccccff"><font size="+1"> Description</font></td>
-    </tr>
-    <tr>
-        <td><code>MER_RR__1P</code></td>
-        <td>MERIS Reduced Resolution Geolocated and Calibrated TOA
-            Radiance Product
-        </td>
-    </tr>
-    <tr>
-        <td><code>MER_RR__1P</code></td>
-        <td>MERIS Reduced Resolution Geolocated and Calibrated TOA
-            Radiance Product<br>
-            <i>
-                <small>Valid until 2002-12</small>
-            </i></td>
-    </tr>
-    <tr>
-        <td><code>MER_FR__1P</code></td>
-        <td>MERIS Full Resolution Geolocated and Calibrated TOA
-            Radiance Product
-        </td>
-    </tr>
-    <tr>
-        <td><code>MER_FR__1P</code></td>
-        <td>MERIS Full Resolution Geolocated and Calibrated TOA
-            Radiance Product<br>
-            <i>
-                <small>Valid until 2002-12</small>
-            </i></td>
-    </tr>
-    <tr>
-        <td><code>MER_FRG__1P</code></td>
-        <td>MERIS Full Resolution Geo/Ortho-corrected TOA Radiance</td>
-    </tr>
-    <tr>
-        <td><code>MER_FSG__1P</code></td>
-        <td>MERIS Full Resolution Full Swath Geo/Ortho-corrected
-            TOA Radiance
-        </td>
-    </tr>
-    <tr>
-        <td><code>MER_RR__2P</code></td>
-        <td>MERIS Reduced Resolution Geophysical Product</td>
-    </tr>
-    <tr>
-        <td><code>MER_RR__2P</code></td>
-        <td>MERIS Reduced Resolution Geophysical Product<br>
-            <i>
-                <small>Valid until 2004-07</small>
-            </i></td>
-    </tr>
-    <tr>
-        <td><code>MER_FR__2P</code></td>
-        <td>MERIS Full Resolution Geophysical Product</td>
-    </tr>
-    <tr>
-        <td><code>MER_FR__2P</code></td>
-        <td>MERIS Full Resolution Geophysical Product<br>
-            <i>
-                <small>Valid until 2004-07</small>
-            </i></td>
-    </tr>
-    <tr>
-        <td><code>MER_LRC_2P</code></td>
-        <td>MERIS Extracted Cloud Thickness and Water Vapour
-            Product for Meteo Users
-        </td>
-    </tr>
-    <tr>
-        <td><code>MER_RRC_2P</code></td>
-        <td>MERIS Extracted Cloud Thickness and Water Vapour Product</td>
-    </tr>
-    <tr>
-        <td><code>MER_RRV_2P</code></td>
-        <td>MERIS Extracted Vegetation Indices Product</td>
-    </tr>
-    </tbody>
-</table>
-<h3>Supported ENVISAT AATSR Products</h3>
-<table border="1" cellpadding="4" cellspacing="0" width="100%">
-    <tbody>
-    <tr>
-        <td class="TableHeadingColor" bgcolor="#ccccff"><font size="+1"> Product Type</font></td>
-        <td class="TableHeadingColor" bgcolor="#ccccff"><font size="+1"> Description</font></td>
-    </tr>
-    <tr>
-        <td><code>ATS_AR__2P</code></td>
-        <td>AATSR averaged geophysical product</td>
-    </tr>
-    <tr>
-        <td><code>ATS_MET_2P</code></td>
-        <td>AATSR Spatially Averaged Sea Surface Temperature for
-            Meteo Users
-        </td>
-    </tr>
-    <tr>
-        <td><code>ATS_NR__2P</code></td>
-        <td>AATSR geophysical product (full resolution)</td>
-    </tr>
-    <tr>
-        <td><code>ATS_TOA_1P</code></td>
-        <td>AATSR Gridded brightness temperature and reflectance</td>
-    </tr>
-    </tbody>
-</table><br>
+<p>Browse products (<code>ASA_*_BP</code>) and the external calibration file
+(<code>ASA_XCA_AX</code>) can also be opened.</p>
 
+<h2>How to open</h2>
+<p>Select the product file ending in <code>.N1</code>. A <code>.zip</code> or <code>.gz</code> file
+that contains it can be selected directly.</p>
 
-<p class="MsoNormal"><b style="">Further Information: </b></p>
+<h2>What you get</h2>
+<ul>
+    <li><b>SLC:</b> <code>i_1</code> and <code>q_1</code> (units real and imaginary) plus a virtual
+        <code>Intensity_1</code>. AP SLCs add <code>i_2</code>/<code>q_2</code> for the second
+        polarisation; WS SLCs have one pair per sub-swath (<code>i_1</code> to <code>q_5</code>).</li>
+    <li><b>Detected products:</b> <code>Amplitude</code> plus a virtual <code>Intensity</code>; AP
+        products have <code>Amplitude_1</code> and <code>Amplitude_2</code>. The polarisation of each
+        dataset is given by <code>mds1_tx_rx_polar</code> and <code>mds2_tx_rx_polar</code> in the
+        Abstracted Metadata.</li>
+    <li>Tie-point grids <code>latitude</code>, <code>longitude</code>, <code>slant_range_time</code>
+        and <code>incident_angle</code> from the geolocation grid, and orbit state vectors.</li>
+    <li>Mission and acquisition parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
 
+<h2>Known limitations</h2>
+<ul>
+    <li>Only Envisat-format products are readable. SNAP has no reader for ASAR products repackaged in
+        other formats, such as SAFE.</li>
+    <li>Wave Mode products open, but the SAR processing operators are meant for image products.</li>
+</ul>
 
-<p class="MsoNormal"><a href="https://earth.esa.int/pub/ESA_DOC/ENVISAT/ASAR/asar.ProductHandbook.2_2.pdf">https://earth.esa.int/pub/ESA_DOC/ENVISAT/ASAR/asar.ProductHandbook.2_2.pdf</a><b style=""></b></p>
+<h2>Recommended next step</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a>
+        (DORIS precise or DELFT orbits)
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>SLC for interferometry: Apply Orbit File &rarr;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>
+        &rarr; <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a>.</li>
+</ul>
 
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/e/envisat">https://directory.eoportal.org/web/eoportal/satellite-missions/e/envisat</a></p>
-
-
-
-<p></p>
+<h2>Product format specification</h2>
+<ul>
+    <li>ESA ASAR products information, with the Envisat Product Specification (Vol. 8) and the ASAR
+        Product Handbook:
+        <a href="https://earth.esa.int/eogateway/instruments/asar/products-information">https://earth.esa.int/eogateway/instruments/asar/products-information</a></li>
+    <li>ASAR Product Handbook:
+        <a href="https://earth.esa.int/eogateway/documents/20142/37627/ASAR-Product-Handbook.pdf">https://earth.esa.int/eogateway/documents/20142/37627/ASAR-Product-Handbook.pdf</a></li>
+    <li>Mission: <a href="https://earth.esa.int/eogateway/missions/envisat">https://earth.esa.int/eogateway/missions/envisat</a>,
+        <a href="https://www.eoportal.org/satellite-missions/envisat">https://www.eoportal.org/satellite-missions/envisat</a></li>
+</ul>
 
 <hr>
-</body></html>
+</body>
+</html>

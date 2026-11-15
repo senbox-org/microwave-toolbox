@@ -1,0 +1,208 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Range-Doppler Terrain Correction in Depth</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Range-Doppler Terrain Correction in Depth</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Range-Doppler Terrain Correction in Depth</h1>
+
+<p class="lead">Terrain correction moves every pixel of a radar-geometry image to its map position, using the orbit,
+the image timing and a DEM. Knowing how it works tells you which output settings matter, how large the remaining
+position errors are, and when another geocoding method is better. The geometry itself is explained in
+<a href="geometry.html">SAR geometry</a>.</p>
+
+<h2>The algorithm: backward geocoding</h2>
+<p>Terrain Correction works backwards, from the map to the image (Figure 1). For every output map pixel it:</p>
+<ol>
+    <li>takes latitude and longitude from the output map grid, and the height h from the DEM, resampled onto that grid
+        and converted to ellipsoidal height (see <a href="height_references.html">DEMs and height references</a>);</li>
+    <li>converts (lat, lon, h) to an Earth-fixed WGS84 Cartesian point P;</li>
+    <li>finds the zero-Doppler time t<sub>0</sub>, the azimuth time at which the line of sight is perpendicular to the
+        sensor velocity:</li>
+</ol>
+<p class="eq">f<sub>D</sub>(t) = 2 V(t) &middot; (P &#8722; S(t)) / (&lambda; |P &#8722; S(t)|) = 0</p>
+<p>S(t) and V(t) are the sensor position and velocity, &lambda; the wavelength and f<sub>D</sub> the Doppler frequency.
+SNAP interpolates the orbit state vectors to every image line (Lagrange polynomial through the 8 nearest vectors),
+brackets the sign change of f<sub>D</sub> by bisection over the image lines and refines t<sub>0</sub>
+by linear interpolation between the two bracketing lines. A point with no sign change inside the image time span is
+outside the scene.</p>
+<ol start="4">
+    <li>computes the slant range R = |S(t<sub>0</sub>) &#8722; P|, with the sensor position linearly interpolated between
+        lines;</li>
+    <li>applies the azimuth bistatic correction. The image time tag of a point lies half the two-way travel time
+        (R/c) after its geometric zero-Doppler time:</li>
+</ol>
+<p class="eq">t<sub>c</sub> = t<sub>0</sub> + R / c</p>
+<p>with c the speed of light (R/c is about 2.8 ms, or roughly 20 m along track, for R = 850 km). If the metadata says
+the processor already applied this correction, nothing is added, except for Sentinel-1: its processor corrects for one
+reference range only, so SNAP adds the range-dependent residual. R is then recomputed at t<sub>c</sub>, and the
+optional atmospheric path delay is added to it;</p>
+<ol start="6">
+    <li>turns t<sub>c</sub> into an azimuth line and R into a range sample: directly for slant-range products, through
+        the slant-to-ground-range (SRGR) polynomials for ground-range products such as GRD;</li>
+    <li>interpolates the source image at that fractional position with the chosen image resampling method.</li>
+</ol>
+<p><img src="images/terrain_correction_1.png" width="560" height="420" alt="Flow from output map pixel through DEM height, Earth-fixed point, zero-Doppler time and slant range to the source pixel"></p>
+<p class="figcap">Figure 1. Backward geocoding of one output map pixel in Range-Doppler Terrain Correction.</p>
+<p>Every map pixel gets a value, even in layover (several map pixels read the same radar pixels) and shadow (they
+read noise).</p>
+
+<h2>Choosing the output</h2>
+<ul>
+    <li><b>Map projection.</b> The default <code>WGS84(DD)</code> is geographic latitude/longitude. WKT and EPSG codes
+        are accepted; <code>AUTO:42001</code> selects the UTM zone of the scene centre. Use a projected CRS to measure
+        areas or distances.</li>
+    <li><b>Pixel spacing.</b> When left at 0, the spacing is the larger of the azimuth spacing and the ground-range
+        spacing (slant spacing / sin &theta; at mid-swath), e.g. 10 m for a Sentinel-1 IW GRD. Metres are converted to
+        degrees with the WGS84 equatorial radius: 10 m &asymp; 8.98 &times; 10<sup>&#8722;5</sup>&deg;. In geographic
+        output the same angle is used for latitude and longitude, so an east-west pixel covers only cos&phi; times the
+        north-south distance (half of it at 60&deg; latitude). A spacing finer than the resolution adds no detail.</li>
+    <li><b>No-data.</b> Map pixels that fall outside the image get the source band's no-data value. With "Mask out
+        areas without elevation" (default on) pixels where the DEM has no data, often the sea, are also set to
+        no-data; when it is off they are geocoded at the EGM96 geoid height.</li>
+    <li><b>Auxiliary bands</b>, all optional: the DEM height used, latitude/longitude, incidence angles and the
+        layover-shadow mask (see the band list below). Local incidence angles come from a 3 &times; 3 neighbourhood of
+        DEM samples on the output grid, so they depend on the output spacing.</li>
+</ul>
+
+<h2>Accuracy budget</h2>
+<p>A geocoded pixel is only as accurate as the inputs of the Range-Doppler solution:</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Error source</th><th>Typical size</th><th>Effect on position</th></tr>
+    <tr><td>Orbit</td><td>Sentinel-1 requirement: 5 cm (precise), 10 cm (restituted)</td><td>about the same on the ground</td></tr>
+    <tr><td>DEM height error &Delta;h</td><td>metres to tens of metres (canopy, buildings, voids, age)</td><td>&Delta;x &asymp; &Delta;h / tan &theta; in ground range (Figure 2)</td></tr>
+    <tr><td>Wrong vertical datum</td><td>geoid undulation N, &#8722;105 m to +85 m</td><td>N / tan &theta;, e.g. 57 m for N = 40 m at 35&deg;</td></tr>
+    <tr><td>Atmospheric path delay</td><td>3 to 4 m one-way slant range</td><td>about 5 to 7 m in ground range</td></tr>
+    <tr><td>Azimuth timing (bistatic, instrument, processing)</td><td>about 2 m for Sentinel-1</td><td>same in azimuth</td></tr>
+    <tr><td>Solid Earth tides</td><td>up to about 20 cm in slant range within a data take</td><td>same order</td></tr>
+</table>
+<p>&theta; is the incidence angle; the formula holds for flat ground, and the shift is larger on slopes facing the
+radar. An overestimated height makes the geocoder read the image too close to near range, so features appear displaced
+away from the radar (towards far range); an underestimated height displaces them towards the radar. For Sentinel-1,
+geocoding the delivered product with a precise orbit is typically accurate to better than one pixel. Correcting path
+delay, tides and timing, for example with <a href="orbits_etad.html">ETAD</a>, removes most of the remaining
+metre-level biases.</p>
+<p><img src="images/terrain_correction_2.png" width="560" height="310" alt="Ground-range shift versus height error for incidence angles of 30, 40 and 45 degrees"></p>
+<p class="figcap">Figure 2. Horizontal shift caused by a height error, &Delta;x = &Delta;h / tan &theta;, for incidence
+angles of 30&deg;, 40&deg; and 45&deg;. Dashed lines: one and two 10 m pixels.</p>
+<p><b>Validating.</b> The reference method is corner reflectors with surveyed positions: compare each reflector's
+peak in the geocoded image with its coordinates. Otherwise overlay an orthophoto or vector data (coastlines, roads), or
+compare ascending and descending results: an offset that grows with height points to a DEM or datum error.</p>
+
+<h2>Which geocoding to choose</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Operator</th><th>How it finds the source pixel</th><th>Use it when</th></tr>
+    <tr><td>Ellipsoid Correction GG</td><td>interpolates the product's latitude, longitude and slant-range-time tie-point grids; does not use the orbit or a DEM</td><td>quick looks, ocean and sea ice</td></tr>
+    <tr><td>Ellipsoid Correction RD</td><td>Range-Doppler with one height, <code>avg_scene_height</code>, for the whole scene</td><td>flat terrain at a known height, no DEM available</td></tr>
+    <tr><td>Range-Doppler Terrain Correction</td><td>Range-Doppler with a DEM height per pixel</td><td>the standard for land, stacks and mosaics; needs a good orbit</td></tr>
+    <tr><td>SAR-Simulation Terrain Correction</td><td>simulates a SAR image from the DEM, matches it to the real image with cross-correlation GCPs, and applies the fitted warp polynomial before resampling</td><td>older or poorly annotated products whose orbit or timing errors exceed a pixel, in terrain with enough relief to match</td></tr>
+    <tr><td>GSLC Terrain Correction</td><td>Range-Doppler, keeping and correcting the phase</td><td>InSAR on a map grid (see <a href="gslc.html">GSLC</a>)</td></tr>
+</table>
+<p>GG and RD apply different azimuth bias corrections (GG adds 2R/c to the tie-point time for most missions; RD
+adds R/c), so do not mix their outputs in one stack. SAR-Simulation Terrain Correction fails over flat or featureless
+scenes, where the simulated image has nothing to match.</p>
+
+<h2>Radiometric normalisation is not RTC</h2>
+<p>"Apply radiometric normalization" writes a <code>Sigma0</code> band computed by the mission's calibrator. For most
+missions (e.g. ASAR, ERS, RADARSAT-2, ALOS, ICEYE) it contains a factor sin &theta;<sub>proj</sub>, the sine of the
+projected local incidence angle, following Kellndorfer et al. (1998); for Sentinel-1 it is the ellipsoid-based
+&sigma;<sup>0</sup> from the product calibration table, with no local-angle factor. <code>Gamma0</code> and <code>Beta0</code> are virtual bands derived from that
+<code>Sigma0</code> and an incidence angle; for Sentinel-1 the derived Gamma0/Beta0 therefore mix an ellipsoid
+&sigma;<sup>0</sup> with a local angle and are not a consistent normalisation; use Terrain Flattening. This one-angle
+correction cannot handle foreshortened pixels that collect
+several DEM facets. For terrain-flattened &gamma;<sup>0</sup><sub>T</sub> (Small, 2011), run Terrain Flattening in
+radar geometry before Terrain Correction and keep this option off; see <a href="rtc.html">RTC</a> and
+<a href="radiometry.html">Radiometry</a>.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Range-Doppler Terrain Correction</b> (<code>Terrain-Correction</code>, suffix <code>_TC</code>):
+        <code>demName</code> default <code>Copernicus 30m Global DEM</code>; <code>demResamplingMethod</code> and
+        <code>imgResamplingMethod</code> default <code>BILINEAR_INTERPOLATION</code>; <code>pixelSpacingInMeter</code>
+        and <code>pixelSpacingInDegree</code> default 0 (automatic); <code>mapProjection</code> default
+        <code>WGS84(DD)</code>; <code>alignToStandardGrid</code> (off) snaps the grid to
+        <code>standardGridOriginX/Y</code>; <code>nodataValueAtSea</code> ("Mask out areas without elevation", on);
+        <code>applyAPDCorrection</code> (off) adds a standard-atmosphere dry tropospheric delay (Saastamoinen model).</li>
+    <li>Output band names: <code>elevation</code> (m), <code>latitude</code>, <code>longitude</code>,
+        <code>incidenceAngleFromEllipsoid</code>, <code>localIncidenceAngle</code>,
+        <code>projectedLocalIncidenceAngle</code> (all degrees) and <code>layoverShadowMask</code> (8-bit; 1 = layover,
+        2 = shadow, 3 = both).</li>
+    <li><code>saveSelectedSourceBand</code> (on) writes the geocoded source bands. SLC i/q pairs are detected
+        (i&sup2; + q&sup2;) before interpolation and written as <code>Intensity_*</code>. <code>outputComplex</code>
+        resamples i and q without phase correction; for phase work use <a href="gslc.html">GSLC</a>. Coregistered
+        InSAR stacks with no band selection are geocoded as complex automatically.</li>
+    <li>The source must not be map projected; TOPS bursts must be debursted first.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Skipping Apply Orbit File: annotated orbits are less accurate than precise ones.</li>
+    <li>Terrain-correcting a full-resolution SLC without Multilook: the default spacing follows the coarser of the two
+        spacings and the resampling kernel skips most range samples, so the output keeps single-look speckle.</li>
+    <li>Asking for 5 m output from 20 m data, or using degrees at high latitude and expecting square pixels.</li>
+    <li>Treating "Apply radiometric normalization" as terrain flattening, or applying it to Terrain Flattening
+        output.</li>
+    <li>Using an external DEM with the wrong datum setting; the shift is N / tan &theta;.</li>
+    <li>Stacking images geocoded with different operators or DEMs and expecting them to align.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/EllipsoidCorrectionRDOp.html">Ellipsoid Correction RD</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GeolocationGridGeocodingOp.html">Ellipsoid Correction GG</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SARSimulationOp.html">SAR Simulation</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SARSimTerrainCorrectionOp.html">SAR Simulation Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/TerrainFlatteningOp.html">Terrain Flattening</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S-1 ETAD Correction</a></li>
+</ul>
+<p>See also <a href="geometry.html">SAR geometry</a>, <a href="height_references.html">DEMs and height references</a>,
+<a href="orbits_etad.html">Orbits and ETAD</a>, <a href="rtc.html">RTC</a> and <a href="resampling.html">Resampling</a>.
+Workflows: <a href="../workflows/workflow_grd_backscatter.html">GRD to Terrain-Flattened Backscatter</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Curlander, J.C. (1982). Location of spaceborne SAR imagery. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, GE-20(3), 359&#8211;364. doi:10.1109/TGRS.1982.350455</li>
+    <li>Schreier, G. (Ed.) (1993). <i>SAR Geocoding: Data and Systems</i>. Herbert Wichmann Verlag, Karlsruhe.</li>
+    <li>Meier, E., Frei, U., N&uuml;esch, D. (1993). Precise terrain corrected geocoded images. In G. Schreier (Ed.),
+        <i>SAR Geocoding: Data and Systems</i>. Herbert Wichmann Verlag, Karlsruhe.</li>
+    <li>Small, D., Schubert, A. (2022). <i>Guide to Sentinel-1 Geocoding</i>. UZH-S1-GC-AD, Issue 1.12, 19 May 2022,
+        Remote Sensing Laboratories, University of Zurich.
+        https://sentinels.copernicus.eu/documents/247904/1653442/Guide-to-Sentinel-1-Geocoding.pdf</li>
+    <li>Schubert, A., Miranda, N., Geudtner, D., Small, D. (2017). Sentinel-1A/B combined product geolocation accuracy.
+        <i>Remote Sensing</i>, 9(6), 607. doi:10.3390/rs9060607</li>
+    <li>Gisinger, C., Libert, L., Marinkovic, P., Krieger, L., Larsen, Y., Valentino, A., Breit, H., Balss, U.,
+        Suchandt, S., Nagler, T., Eineder, M., Miranda, N. (2022). The Extended Timing Annotation Dataset for
+        Sentinel-1 &#8211; Product description and first evaluation results. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, 60, 5232622. doi:10.1109/TGRS.2022.3194216</li>
+    <li>Kellndorfer, J.M., Pierce, L.E., Dobson, M.C., Ulaby, F.T. (1998). Toward consistent regional-to-global-scale
+        vegetation characterization using orbital SAR systems. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, 36(5), 1396&#8211;1411. doi:10.1109/36.718844</li>
+    <li>Small, D. (2011). Flattening gamma: Radiometric terrain correction for SAR imagery. <i>IEEE Transactions on
+        Geoscience and Remote Sensing</i>, 49(8), 3081&#8211;3093. doi:10.1109/TGRS.2011.2120616</li>
+</ol>
+
+<hr>
+</body>
+</html>

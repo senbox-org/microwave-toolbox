@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Microwave Toolbox: Getting Started</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;Microwave Toolbox: Getting Started</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Microwave Toolbox: Getting Started</h1>
+
+<p class="lead">The Microwave Toolbox adds SAR processing to SNAP: readers for SAR missions, calibration, speckle
+filtering, terrain correction, interferometry, polarimetry and ocean and land applications. This page shows where to
+start reading and which page answers which task.</p>
+
+<h2>A learning path</h2>
+<ol>
+    <li><b>Concepts.</b> Short pages that explain the physics behind the tools. Start with
+        <a href="concepts/sar_fundamentals.html">SAR Fundamentals</a>, <a href="concepts/geometry.html">SAR Geometry</a>,
+        <a href="concepts/radiometry.html">Radiometry and Calibration</a> and
+        <a href="concepts/speckle.html">Speckle and Multilooking</a>. For phase-based work continue with
+        <a href="concepts/insar.html">InSAR Fundamentals</a>; for multi-channel data with the
+        <a href="concepts/polarimetry.html">Polarimetry Primer</a>.</li>
+    <li><b>Workflows.</b> Step-by-step processing chains from raw product to result, with the operators in order and
+        the settings that matter (table below).</li>
+    <li><b>Operators.</b> Every operator has its own help page with its parameters and output bands. Open it with the
+        <b>Help</b> button of the operator dialog. Each page links back to the concepts it depends on.</li>
+    <li><b>Readers.</b> One page per mission or format describes the products that can be opened and how they are
+        read (see <a href="#readers">Readers</a> below).</li>
+</ol>
+<p>Unfamiliar terms are defined in the <a href="concepts/glossary.html">SAR Glossary</a>.</p>
+
+<h2>I want to...</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Goal</th><th>Workflow</th><th>Background</th></tr>
+    <tr><td>Make a calibrated, terrain-corrected backscatter map from Sentinel-1 GRD</td>
+        <td><a href="workflows/workflow_grd_backscatter.html">GRD to backscatter</a></td>
+        <td><a href="concepts/radiometry.html">Radiometry</a>, <a href="concepts/geometry.html">Geometry</a>,
+            <a href="concepts/speckle.html">Speckle</a></td></tr>
+    <tr><td>Detect changes between dates (floods, clearing, damage)</td>
+        <td><a href="workflows/workflow_grd_backscatter.html">GRD to backscatter</a>, then a change detector</td>
+        <td><a href="concepts/change_detection.html">Change Detection</a></td></tr>
+    <tr><td>Measure ground deformation with a Sentinel-1 IW pair</td>
+        <td><a href="workflows/workflow_s1_dinsar.html">Sentinel-1 DInSAR</a></td>
+        <td><a href="concepts/insar.html">InSAR</a>, <a href="concepts/tops.html">TOPS</a>,
+            <a href="concepts/unwrapping.html">Unwrapping</a>, <a href="concepts/displacement.html">Displacement</a></td></tr>
+    <tr><td>Interferometry with stripmap data (TerraSAR-X, ALOS-2, ERS/Envisat, Sentinel-1 SM)</td>
+        <td><a href="workflows/workflow_stripmap_dinsar.html">Stripmap DInSAR</a></td>
+        <td><a href="concepts/insar.html">InSAR</a>, <a href="concepts/coherence.html">Coherence</a></td></tr>
+    <tr><td>Geocode SLCs first and form interferograms on a map grid</td>
+        <td><a href="workflows/workflow_gslc.html">Geocoded SLC (GSLC)</a></td>
+        <td><a href="concepts/sar_fundamentals.html">SAR Fundamentals</a>,
+            <a href="concepts/orbits_etad.html">Orbits and ETAD</a></td></tr>
+    <tr><td>Derive displacement time series and velocities from a stack</td>
+        <td><a href="workflows/workflow_time_series.html">InSAR time series</a></td>
+        <td><a href="concepts/time_series.html">Time Series</a>, <a href="concepts/atmosphere.html">Atmosphere</a></td></tr>
+    <tr><td>Generate a DEM from an interferometric pair</td>
+        <td><a href="workflows/workflow_dem_generation.html">DEM generation</a></td>
+        <td><a href="concepts/insar.html">InSAR</a>, <a href="concepts/height_references.html">Height References</a></td></tr>
+    <tr><td>Track fast motion (glaciers, landslides) from image offsets</td>
+        <td><a href="workflows/workflow_offset_tracking.html">Offset tracking</a></td>
+        <td><a href="concepts/geometry.html">Geometry</a></td></tr>
+    <tr><td>Estimate wind, detect ships or oil on the sea</td>
+        <td><a href="workflows/workflow_ocean.html">Ocean applications</a></td>
+        <td><a href="concepts/ocean.html">Ocean SAR</a></td></tr>
+    <tr><td>Map coherence as a change or land-cover indicator</td>
+        <td><a href="workflows/workflow_s1_dinsar.html">Sentinel-1 DInSAR</a> (up to coherence)</td>
+        <td><a href="concepts/coherence.html">Coherence</a></td></tr>
+    <tr><td>Decompose or classify quad-pol data</td>
+        <td>-</td>
+        <td><a href="concepts/polarimetry.html">Polarimetry</a>, <a href="concepts/decompositions.html">Decompositions</a>,
+            <a href="concepts/wishart.html">Wishart</a></td></tr>
+    <tr><td>Use Sentinel-1 dual-pol or RCM compact-pol channels (vegetation indices)</td>
+        <td>-</td>
+        <td><a href="concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></td></tr>
+    <tr><td>Retrieve soil moisture</td>
+        <td>-</td>
+        <td><a href="concepts/soil_moisture.html">Soil Moisture</a></td></tr>
+</table>
+
+<h2>First steps with Sentinel-1</h2>
+<p>Open a Sentinel-1 product with <b>File &gt; Open Product</b>, selecting either the downloaded <code>.zip</code> or
+the <code>manifest.safe</code> file of the unpacked <code>.SAFE</code> folder. In the Product Explorer, the
+<b>Metadata</b> node holds the <a href="general/AbstractedMetadata.html">Abstracted Metadata</a>, the
+sensor-independent summary (pass direction, radar frequency, pixel spacing, incidence angles) that all operators
+read. Then decide on the product level. A <b>GRD</b> product has no phase and is the starting point for backscatter
+maps and change detection: apply <b>Radar &gt; Apply Orbit File</b>, Remove GRD Border Noise (<b>Radar &gt; Sentinel-1
+TOPS</b>), thermal noise removal and calibration from
+<b>Radar &gt; Radiometric</b>, and terrain correction from <b>Radar &gt; Geometric &gt; Terrain Correction</b>, as
+described in the <a href="workflows/workflow_grd_backscatter.html">GRD workflow</a>. An <b>IW SLC</b> product keeps
+the phase and is organised in sub-swaths and bursts; it is processed with the tools under
+<b>Radar &gt; Sentinel-1 TOPS</b> (see <a href="concepts/tops.html">Sentinel-1 TOPS</a> and the
+<a href="workflows/workflow_s1_dinsar.html">Sentinel-1 DInSAR workflow</a>). Every operator can also be chained in the
+Graph Builder or run from the command line with <code>gpt</code>; <code>gpt Terrain-Correction -h</code> lists the
+parameters of one operator.</p>
+
+<h2><a name="readers">Readers</a></h2>
+<p>Each reader page lists the supported product types and modes:</p>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportSentinel1.html">Sentinel-1</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.io/org/csa/rstb/rstb/io/docs/readers/ImportRadarsat2.html">RADARSAT-2</a>
+        and <a href="nbdocs://org.csa.rstb.rstb.io/org/csa/rstb/rstb/io/docs/readers/ImportRCM.html">RADARSAT Constellation Mission</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportTerraSarX.html">TerraSAR-X</a>,
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportCosmoSkymed.html">COSMO-SkyMed</a>,
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportAlos2.html">ALOS-2</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportNisar.html">NISAR</a>,
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportBiomass.html">BIOMASS</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportIceye.html">ICEYE</a>,
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportCapella.html">Capella</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportEnvisat.html">ENVISAT ASAR</a>,
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/readers/ImportErs.html">ERS-1/2</a></li>
+</ul>
+<p>All readers are listed on the
+<a href="nbdocs://eu.esa.microwavetbx.sar.io/eu/esa/microwavetbx/sar/io/docs/SupportedMissions.html">Supported Missions</a> page.</p>
+
+<h2>Reference pages</h2>
+<ul>
+    <li><a href="concepts/glossary.html">SAR Glossary</a>: definitions of the terms used in this help.</li>
+    <li><a href="general/AbstractedMetadata.html">Abstracted Metadata</a>: the metadata fields that operators use.</li>
+</ul>
+
+<h2>Further learning</h2>
+<ul>
+    <li>ESA TM-19, <i>InSAR Principles: Guidelines for SAR Interferometry Processing and Interpretation</i>:
+        <a href="https://www.esa.int/publications/about-us/publications/insar-principles-guidelines-for-sar-interferometry-processing-and-interpretation-esa-tm-19">esa.int</a></li>
+    <li>NASA Earthdata, <i>Synthetic Aperture Radar (SAR)</i>:
+        <a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/sar">earthdata.nasa.gov</a></li>
+    <li>Natural Resources Canada, <i>Fundamentals of Remote Sensing</i> (includes a microwave chapter):
+        <a href="https://natural-resources.canada.ca/science-data/science-research/geomatics/remote-sensing/tutorial-fundamentals-remote-sensing">natural-resources.canada.ca</a></li>
+    <li>Natural Resources Canada, <i>Radar Polarimetry tutorial</i>:
+        <a href="https://natural-resources.canada.ca/maps-tools-publications/satellite-elevation-air-photos/tutorial-radar-polarimetry">natural-resources.canada.ca</a></li>
+    <li>Jackson and Apel (eds.), <i>Synthetic Aperture Radar Marine User's Manual</i> (NOAA):
+        <a href="https://www.sarusersmanual.com/">sarusersmanual.com</a></li>
+    <li>A. Reigber, <i>Synthetic Aperture Radar: Basic Concepts and Image Formation</i>:
+        <a href="https://epsilon.nought.de/tutorials/processing/index.php">epsilon.nought.de</a></li>
+    <li>A. Reigber, <i>SAR Interferometry: An Introduction</i>:
+        <a href="https://epsilon.nought.de/tutorials/insar_tmr/index.php">epsilon.nought.de</a></li>
+    <li>CRISP, National University of Singapore, <i>Principles of Remote Sensing</i>:
+        <a href="https://crisp.nus.edu.sg/~research/tutorial/rsmain.htm">crisp.nus.edu.sg</a></li>
+    <li>Copernicus SentiWiki, <i>Sentinel-1 mission</i>:
+        <a href="https://sentiwiki.copernicus.eu/web/s1-mission">sentiwiki.copernicus.eu</a></li>
+    <li>SNAP tutorials and the user forum:
+        <a href="https://step.esa.int/main/doc/tutorials/">step.esa.int</a>,
+        <a href="https://forum.step.esa.int/">forum.step.esa.int</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

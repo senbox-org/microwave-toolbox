@@ -289,7 +289,7 @@ public class GSLCInSarGradeTest extends ProcessorTest {
 
     /**
      * Issue §4 / SET: For displacement-grade InSAR the operator must apply a
-     * Solid Earth Tide correction (~10 cm peak) at the geometry stage. This
+     * Solid Earth Tide correction (up to ~30 cm vertical) at the geometry stage. This
      * test documents the required parameter (matching ISCE3 / OPERA-CSLC
      * convention). RED until the parameter is added and wired through.
      */

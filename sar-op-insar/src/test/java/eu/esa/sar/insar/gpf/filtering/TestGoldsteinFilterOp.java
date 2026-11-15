@@ -198,6 +198,31 @@ public class TestGoldsteinFilterOp {
     }
 
     /**
+     * Adaptive alpha must ignore coherence no-data. A strip of coherence no-data (0) next to
+     * coherence 0.9 must give exactly the same filtered output as the same strip marked NaN
+     * (which was always skipped). computeBlockAlpha used to count the 0 samples as valid, so
+     * blocks beside coherence no-data got a low mean coherence and were over-filtered.
+     */
+    @Test
+    public void testAdaptiveAlphaIgnoresCoherenceNoData() throws Exception {
+        final Scene zeroStrip = new Scene(Fill.NONE, 0.0, 0.9f, 0.9f);
+        final Scene nanStrip = new Scene(Fill.NONE, 0.0, 0.9f, 0.9f);
+        for (int y = 0; y < H; y++) {
+            for (int x = 70; x < 100; x++) {
+                zeroStrip.coh[y * W + x] = 0f;
+                nanStrip.coh[y * W + x] = Float.NaN;
+            }
+        }
+        final Scene a = zeroStrip.filter(false);
+        final Scene b = nanStrip.filter(false);
+        int differ = 0;
+        for (int k = 0; k < W * H; k++) {
+            if (Float.compare(a.i[k], b.i[k]) != 0 || Float.compare(a.q[k], b.q[k]) != 0) differ++;
+        }
+        assertEquals("coherence no-data (0) changed the adaptive alpha at " + differ + " pixels", 0, differ);
+    }
+
+    /**
      * A synthetic interferogram-like scene: valid complex data everywhere, optionally with a
      * no-data block in the middle, plus a coherence band whose value in the trailing edge strip
      * can differ from the rest of the scene.

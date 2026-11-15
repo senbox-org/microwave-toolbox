@@ -1,53 +1,83 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import ICEYE</title>
-
-
-
-    <link href="../style.css" rel="stylesheet"></head><body>
+<html>
+<head><title>Help - Import ICEYE</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; Import ICEYE</td>
-        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a>
-        </td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import ICEYE Product</h3>
 
-<p class="MsoNormal" style="text-align: justify;">Iceye is a commercial
-constellation of smallsat (100kg) SAR satellites. The constellation will have
-18 satellites providing revisits of 1 hour.</p>
+<p>The <b>ICEYE</b> reader (<i>File &gt; Import &gt; SAR Sensors &gt; ICEYE</i>) opens ICEYE products
+delivered in the legacy <b>HDF5</b> format. ICEYE products in Cloud-Optimized GeoTIFF (COG) format,
+including ICEYE Open Data, are opened by a separate reader: see
+<a href="ImportIceyeCOG.html">Import ICEYE COG</a>.</p>
 
-<p class="MsoNormal"><b style="">Operational:</b>
-2018-01-12 to present</p>
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-X-band</p>
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, ScanSAR, Spotlight</p>
-
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
+<h2>Mission</h2>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SLC Single Look Complex</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->GRD Ground Range Detected</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Ortho terrain corrected</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->PRES terrain flattened</li>
+    <li><b>Operator:</b> ICEYE (Finland), a commercial constellation of X-band SAR
+        microsatellites.</li>
+    <li><b>Instrument:</b> X-band SAR near 9.65&nbsp;GHz (wavelength about 3.1&nbsp;cm), VV
+        polarisation.</li>
+    <li><b>Orbit:</b> mostly sun-synchronous low Earth orbits, roughly 500&ndash;610&nbsp;km
+        altitude, plus some mid-inclination orbits.</li>
+    <li><b>Launch:</b> the first satellite, ICEYE-X1, was launched on 12 January 2018. Many more
+        have been launched since.</li>
 </ul>
 
-<p class="MsoNormal"><b style="">Polarizations: </b>All
-modes are Single Pol (VV).</p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Product</th><th>Content</th><th>Format read by this reader</th></tr>
+    <tr><td>SLC</td><td>Single-look complex, slant range</td><td>HDF5 (<code>.h5</code>) with XML
+        sidecar</td></tr>
+    <tr><td>Detected</td><td>Amplitude image</td><td>HDF5 only</td></tr>
+</table>
+<p>Imaging modes: Spot, Strip and Scan (and their variants). Polarisation: VV.</p>
 
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-<p class="MsoNormal"><a href="https://www.iceye.com/">https://www.iceye.com/</a><b style=""></b></p>
+<h2>How to open</h2>
+<p>Select the HDF5 file <code>ICEYE_....h5</code>. You can also select the XML file
+<code>ICEYE_....xml</code> when an <code>.h5</code> file with the same name lies beside it; the reader
+then opens the <code>.h5</code>.</p>
 
+<h2>What you get</h2>
 <ul>
+    <li><b>SLC:</b> complex bands <code>i_VV</code> and <code>q_VV</code> (units real and imaginary)
+        plus a virtual <code>Intensity_VV</code>.</li>
+    <li><b>Detected HDF5:</b> an <code>Amplitude</code> band plus a virtual <code>Intensity</code>.</li>
+    <li>Tie-point grids for incidence angle and slant range time, geocoding and orbit state vectors.</li>
+    <li>Acquisition parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
 </ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>This reader opens HDF5 files only. ICEYE GeoTIFF and COG files go to the
+        <a href="ImportIceyeCOG.html">ICEYE COG</a> reader.</li>
+    <li>Apply Orbit File has no ICEYE orbit type; SNAP uses the orbit in the product.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a>
+        (SLC) &rarr;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>SLC stacks for interferometry or change detection:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>ICEYE Product Documentation, including the Data Product Specification and deprecated versions in
+the ICEYE Archives:
+<a href="https://sar.iceye.com/latest/">https://sar.iceye.com/latest/</a>.
+Mission overview: <a href="https://www.eoportal.org/satellite-missions/iceye-constellation">https://www.eoportal.org/satellite-missions/iceye-constellation</a>.</p>
+
 <hr>
-</body></html>
+</body>
+</html>

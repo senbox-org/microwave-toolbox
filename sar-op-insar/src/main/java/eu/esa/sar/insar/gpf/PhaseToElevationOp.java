@@ -138,6 +138,9 @@ public final class PhaseToElevationOp extends Operator {
     private boolean refHeightPhaseComputed = false;
 
     private double waveNumber = 0.0;
+    // TanDEM-X CoSSC style bistatic stack: one transmitter, two receivers, so the
+    // interferometric phase is 2*pi/lambda * dR instead of 4*pi/lambda * dR.
+    private boolean isBistatic = false;
     private double refHeight = 0.0;
     private double refPhase = 0.0;
 
@@ -279,6 +282,7 @@ public final class PhaseToElevationOp extends Operator {
         final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
         final double wavelength = SARUtils.getRadarWavelength(absRoot);
         waveNumber = Constants.TWO_PI / wavelength;
+        isBistatic = StackUtils.isBiStaticStack(sourceProduct);
         orbitStateVectors = AbstractMetadata.getOrbitStateVectors(absRoot);
         firstLineUTC = absRoot.getAttributeUTC(AbstractMetadata.first_line_time).getMJD(); // in days
 
@@ -475,6 +479,12 @@ public final class PhaseToElevationOp extends Operator {
 
         // applySchwabisch converts in place: pull the phase, overwrite with height.
         final DoubleMatrix data = TileUtilsDoris.pullDoubleMatrix(sourceTile);
+        // Slant2Height models the repeat-pass phase 4*pi/lambda * dR; a bistatic phase is half of
+        // that, so convert it to the repeat-pass equivalent before applying the polynomial.
+        final double phaseScale = repeatPassPhaseScale(isBistatic);
+        if (phaseScale != 1.0) {
+            data.muli(phaseScale);
+        }
         final Window tileWindow = new Window(rect.y, rect.y + rect.height - 1,
                 rect.x, rect.x + rect.width - 1);
         slant2Height.applySchwabisch(tileWindow, data);
@@ -512,12 +522,35 @@ public final class PhaseToElevationOp extends Operator {
                 bn = baseline.getBperp(y, x);
                 bp = baseline.getBpar(y, x);
                 flatAngle = lookAngles[x] - lookAngles[xc];
-                alpha = -slantRange * FastMath.sin(incidenceAngle) /
-                        (2 * waveNumber * (bp * FastMath.sin(flatAngle) + bn * FastMath.cos(flatAngle)));
+                alpha = heightPerPhase(slantRange, incidenceAngle, waveNumber, bp, bn, flatAngle, isBistatic);
                 height = refHeight + alpha * (phase - refPhase);
                 targetData.setElemDoubleAt(trgIndex.getIndex(x), height);
             }
         }
+    }
+
+    /**
+     * Height change per radian of unwrapped phase (m/rad), linearised about the scene centre:
+     * <pre>
+     *   dh/dphi = -R sin(theta) / (p * k * (Bpar sin(dTheta) + Bperp cos(dTheta))),   k = 2 pi / lambda
+     * </pre>
+     * with path factor p = 2 for repeat-pass (phase = 4 pi / lambda * dR) and p = 1 for a bistatic
+     * single-pass pair such as TanDEM-X CoSSC (phase = 2 pi / lambda * dR, one transmitter). The
+     * height of ambiguity 2 pi |dh/dphi| is therefore lambda R sin(theta) / (2 Bperp) repeat-pass and
+     * lambda R sin(theta) / Bperp bistatic, i.e. h_amb = lambda R sin(theta) / (p Bperp) as given for
+     * TanDEM-X by Krieger et al., IEEE TGRS 45(11):3317-3341, 2007.
+     */
+    static double heightPerPhase(final double slantRange, final double incidenceAngle, final double waveNumber,
+                                 final double bpar, final double bperp, final double flatAngle,
+                                 final boolean bistatic) {
+        final double pathFactor = bistatic ? 1.0 : 2.0;
+        return -slantRange * FastMath.sin(incidenceAngle) /
+                (pathFactor * waveNumber * (bpar * FastMath.sin(flatAngle) + bperp * FastMath.cos(flatAngle)));
+    }
+
+    /** Factor converting a measured phase to the repeat-pass (4 pi / lambda) equivalent: 2 bistatic, 1 otherwise. */
+    static double repeatPassPhaseScale(final boolean bistatic) {
+        return bistatic ? 2.0 : 1.0;
     }
 
     /**
@@ -625,8 +658,7 @@ public final class PhaseToElevationOp extends Operator {
             bn = baseline.getBperp(seed.y, seed.x);
             bp = baseline.getBpar(seed.y, seed.x);
             flatAngle = lookAngles[seed.x] - lookAngles[xc];
-            alpha = -slantRange * FastMath.sin(incidenceAngle) /
-                    (2 * waveNumber * (bp * FastMath.sin(flatAngle) + bn * FastMath.cos(flatAngle)));
+            alpha = heightPerPhase(slantRange, incidenceAngle, waveNumber, bp, bn, flatAngle, isBistatic);
 //            alpha = -slantRange*Math.sin(incidenceAngle)/(2*waveNumber*bn);
             a += -alpha * alpha;
             b += alpha;

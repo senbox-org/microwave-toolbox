@@ -9,7 +9,7 @@
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; Dual-pol Y3-DP / iDPSV Decomposition</td>
-        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
@@ -61,13 +61,38 @@
 </ul>
 
 <h4>References</h4>
-<p>[1] Mascolo, L., Cloude, S.R., Lopez-Martinez, C., 2022.
-   <i>Model-based decomposition of dual-pol SAR data: Application to Sentinel-1.</i>
-   IEEE Transactions on Geoscience and Remote Sensing, 60.</p>
-<p>[2] Mascolo, L., Lopez-Martinez, C., et al., 2024.
-   <i>Scattering power components from dual-pol Sentinel-1 SLC and GRD SAR data.</i>
-   ISPRS Journal of Photogrammetry and Remote Sensing, 212, 289&ndash;305.</p>
+<ol>
+    <li>Mascolo, L., Cloude, S. R., Lopez-Sanchez, J. M. (2022). Model-based decomposition of dual-pol SAR data: application to Sentinel-1. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 60, 1&#8211;19. doi:10.1109/TGRS.2021.3137588</li>
+    <li>Verma, A., Bhattacharya, A., Dey, S., L&oacute;pez-Mart&iacute;nez, C., Gamba, P. (2024). Scattering power components from dual-pol Sentinel-1 SLC and GRD SAR data. <i>ISPRS Journal of Photogrammetry and Remote Sensing</i>, 212, 289&#8211;305. doi:10.1016/j.isprsjprs.2024.05.010</li>
+</ol>
 
+<!-- params:begin op="Dual-Pol-Y3-Decomposition" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Dual-Pol-Y3-Decomposition</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size</td></tr>
+<tr><td><code>volumeModel</code></td><td>String</td><td>Uniform Random</td><td>Uniform Random, Bragg-like, Dipole Cloud</td><td>&nbsp;</td><td>Volume scattering shape (sets the (a, b) diagonal of the normalized volume matrix)</td></tr>
+<tr><td><code>outputPs</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Ps (surface power)</td></tr>
+<tr><td><code>outputPd</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Pd (double-bounce power)</td></tr>
+<tr><td><code>outputPv</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Pv (volume power)</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Dual-pol C2 covariance matrix product (create it with <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a>); other product types are rejected</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

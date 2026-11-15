@@ -66,7 +66,8 @@ public class Krogager extends DecompositionBase implements Decomposition, QuadPo
      * @param targetBand     the new target band
      */
     public void setBandUnit(final String targetBandName, final Band targetBand) {
-        targetBand.setUnit(Unit.INTENSITY_DB);
+        // ks, kd and kh are square roots of powers (linear amplitudes); no dB conversion is applied.
+        targetBand.setUnit(Unit.AMPLITUDE);
     }
 
     private synchronized void setSpanMinMax(final Operator op, final PolBandUtils.PolSourceBand bandList)

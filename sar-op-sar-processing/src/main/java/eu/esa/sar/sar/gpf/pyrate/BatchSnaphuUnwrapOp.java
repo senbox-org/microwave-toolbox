@@ -64,6 +64,12 @@ public class BatchSnaphuUnwrapOp extends Operator {
     @TargetProduct
     private Product trgProduct;
 
+    // Unw* bands created in initialize() so that downstream operators see them; doExecute points
+    // their source images at SNAPHU's output.
+    private final List<Band> unwrappedPlaceholders = new ArrayList<>();
+
+    // SNAPHU output products backing the unwrapped bands; kept open until dispose().
+    private final List<Product> enviProducts = new ArrayList<>();
 
 
     @Override
@@ -108,12 +114,16 @@ public class BatchSnaphuUnwrapOp extends Operator {
         trgProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
         trgProduct.setName(sourceProduct.getName() + "_snaphu");
         for (Band b: sourceProduct.getBands()){
-            Band aBand = new Band(b.getName(), b.getDataType(), b.getRasterWidth(), b.getRasterHeight());
-            aBand.setUnit(b.getUnit());
-            if(b.getUnit().equals(Unit.PHASE)){
-                aBand.setName("Unw"+ b.getName());
+            if (Unit.PHASE.equals(b.getUnit())) {
+                // Wrapped phase is replaced by the unwrapped band read back from SNAPHU's output.
+                Band aBand = new Band("Unw" + b.getName(), b.getDataType(), b.getRasterWidth(), b.getRasterHeight());
+                aBand.setUnit(Unit.ABS_PHASE);
+                trgProduct.addBand(aBand);
+                unwrappedPlaceholders.add(aBand);
+            } else {
+                // Coherence and other bands pass through so the output can feed SBAS / PyRate.
+                ProductUtils.copyBand(b.getName(), sourceProduct, trgProduct, true);
             }
-            trgProduct.addBand(aBand);
         }
         ProductUtils.copyProductNodes(sourceProduct, trgProduct);
         setTargetProduct(trgProduct);
@@ -146,7 +156,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
     private int getNumBands(Product product, String unit){
         int numBands = 0;
         for (Band b: product.getBands()){
-            if(b.getUnit().contains(unit)){
+            if(b.getUnit() != null && b.getUnit().contains(unit)){
                 numBands++;
             }
         }
@@ -168,11 +178,25 @@ public class BatchSnaphuUnwrapOp extends Operator {
         return configFiles.toArray(new File[0]);
     }
 
-    File downloadSnaphu(File snaphuInstallLocation) throws IOException {
-        final String linuxDownloadPath = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
-        final String windowsDownloadPath = "http://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
-        final String windows32DownloadPath = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
+    private static final String LINUX_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
+    private static final String WINDOWS64_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
+    private static final String WINDOWS32_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
 
+    /**
+     * @return the SNAPHU archive for this platform, or null when no build is published for it (macOS).
+     */
+    static String getSnaphuDownloadUrl(String osName, String osArch) {
+        final String os = osName.toLowerCase();
+        if (os.contains("windows")) {
+            return osArch.equals("amd64") ? WINDOWS64_DOWNLOAD_PATH : WINDOWS32_DOWNLOAD_PATH;
+        }
+        if (os.contains("mac") || os.contains("darwin")) {
+            return null;
+        }
+        return LINUX_DOWNLOAD_PATH;
+    }
+
+    File downloadSnaphu(File snaphuInstallLocation) throws IOException {
         boolean isDownloaded;
         File snaphuBinaryLocation;
 
@@ -181,22 +205,18 @@ public class BatchSnaphuUnwrapOp extends Operator {
             snaphuBinaryLocation = snaphuInstallLocation;
             return snaphuBinaryLocation;
         }
-        // We have checked the passed in folder and it does not contain the SNAPHU binary.
-        String operatingSystem = System.getProperty("os.name");
-        String downloadPath;
-
-        if(operatingSystem.toLowerCase().contains("windows")){
-            // Using Windows
-            boolean bitDepth64 = System.getProperty("os.arch").equals("amd64");
-            if(bitDepth64){
-                downloadPath = windowsDownloadPath;
-            }else{
-                downloadPath = windows32DownloadPath;
+        // Reuse a binary downloaded by an earlier run instead of downloading it again.
+        if (snaphuInstallLocation.isDirectory()) {
+            final File existing = findSnaphuBinary(snaphuInstallLocation);
+            if (existing != null) {
+                return existing;
             }
         }
-        else{
-            // Using MacOS or Linux
-            downloadPath = linuxDownloadPath;
+        String operatingSystem = System.getProperty("os.name");
+        final String downloadPath = getSnaphuDownloadUrl(operatingSystem, System.getProperty("os.arch"));
+        if (downloadPath == null) {
+            throw new IOException("No SNAPHU build can be downloaded for " + operatingSystem
+                    + ". Install SNAPHU and set the Snaphu Install Location to the snaphu executable or its folder.");
         }
         File zipFile = FileDownloader.downloadFile(new URL(downloadPath), snaphuInstallLocation, null);
         ZipUtils.unzip(zipFile.toPath(), snaphuInstallLocation.toPath(), true);
@@ -280,37 +300,77 @@ public class BatchSnaphuUnwrapOp extends Operator {
 
 
     /**
-     * Copy unwrapped phase bands from each ENVI file directly into the supplied target
-     * product. Previously this method mutated the OPERATOR'S INPUT product (removing
-     * wrapped bands and inserting unwrapped ones), which violates GPF's immutable-source
-     * contract and corrupts any downstream graph node that still holds a reference to
-     * the source. We now write to the target and close each ENVI reader so file handles
-     * don't accumulate.
+     * Copy unwrapped phase bands from each ENVI file into the supplied target product.
+     * The target bands share the ENVI bands' reader-backed source images, so the ENVI products
+     * stay open until {@link #dispose()}: disposing them here left the bands all zero.
+     * An Unw* band that already exists in the target (created in initialize) is kept as the same
+     * Band object, because downstream operators initialised after this one hold a reference to it.
+     *
+     * @return the target bands that now carry SNAPHU output
      */
-    void assembleUnwrappedFilesIntoSingularProduct(File directory, Product targetProduct) throws IOException {
+    List<Band> assembleUnwrappedFilesIntoSingularProduct(File directory, Product targetProduct) throws IOException {
         File [] fileNames = directory.listFiles((dir, name) -> name.startsWith("UnwPhase") && name.endsWith(".hdr"));
         if (fileNames == null) {
             throw new IOException("Unable to list SNAPHU output directory: " + directory);
         }
+        final List<Band> filled = new ArrayList<>();
         final EnviProductReaderPlugIn readerPlugIn = new EnviProductReaderPlugIn();
         for (File fileName : fileNames) {
             final ProductReader enviProductReader = readerPlugIn.createReaderInstance();
-            Product enviProduct = null;
+            final Product enviProduct;
             try {
                 enviProduct = enviProductReader.readProductNodes(fileName, null);
-                final String unwrappedPhaseBandName = enviProduct.getBands()[0].getName().replace(".snaphu.hdr", "");
-                ProductUtils.copyBand(unwrappedPhaseBandName, enviProduct, targetProduct, true);
-            } finally {
-                if (enviProduct != null) {
-                    enviProduct.dispose();
-                }
-                try {
-                    enviProductReader.close();
-                } catch (IOException ignore) {
-                    // best-effort close
-                }
+            } catch (IOException | RuntimeException e) {
+                closeQuietly(enviProductReader);
+                throw e;
+            }
+            enviProducts.add(enviProduct); // disposed in dispose(), after the target has been written
+
+            final Band enviBand = enviProduct.getBands()[0];
+            final String unwrappedPhaseBandName = enviBand.getName().replace(".snaphu.hdr", "");
+            Band unwBand = targetProduct.getBand(unwrappedPhaseBandName);
+            if (unwBand != null && (unwBand.getDataType() != enviBand.getDataType()
+                    || unwBand.getRasterWidth() != enviBand.getRasterWidth()
+                    || unwBand.getRasterHeight() != enviBand.getRasterHeight())) {
+                targetProduct.removeBand(unwBand);
+                unwBand = null;
+            }
+            final boolean isNew = unwBand == null;
+            if (isNew) {
+                unwBand = new Band(unwrappedPhaseBandName, enviBand.getDataType(),
+                        enviBand.getRasterWidth(), enviBand.getRasterHeight());
+            }
+            ProductUtils.copyRasterDataNodeProperties(enviBand, unwBand);
+            unwBand.setUnit(Unit.ABS_PHASE);
+            unwBand.setDescription("Unwrapped phase");
+            unwBand.setSourceImage(enviBand.getSourceImage());
+            if (isNew) {
+                targetProduct.addBand(unwBand);
+            }
+            filled.add(unwBand);
+        }
+        return filled;
+    }
+
+    private static void closeQuietly(ProductReader reader) {
+        try {
+            reader.close();
+        } catch (IOException ignore) {
+            // best-effort close
+        }
+    }
+
+    @Override
+    public void dispose() {
+        for (Product enviProduct : enviProducts) {
+            final ProductReader reader = enviProduct.getProductReader();
+            enviProduct.dispose();
+            if (reader != null) {
+                closeQuietly(reader);
             }
         }
+        enviProducts.clear();
+        super.dispose();
     }
 
     @Override
@@ -341,17 +401,24 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 pm.worked(work);
             }
 
-            // Reset the target product's bands (placeholder bands from initialize), then
-            // copy the assembled unwrapped phase bands directly into the target — no
-            // mutation of the source product.
+            // Point the Unw* bands from initialize at SNAPHU's output; coherence and other
+            // pass-through bands are kept. A missing output is an error: a downstream operator
+            // initialised earlier already holds the Unw* band and would write it as all zeros.
             final Product targetProduct = getTargetProduct();
-            for (Band b : targetProduct.getBands()) {
-                targetProduct.removeBand(b);
+            final List<Band> filled = assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation, targetProduct);
+            final List<String> missing = new ArrayList<>();
+            for (Band b : unwrappedPlaceholders) {
+                if (!filled.contains(b)) {
+                    missing.add(b.getName() + ".snaphu.hdr");
+                }
             }
-            assembleUnwrappedFilesIntoSingularProduct(snaphuProcessingLocation, targetProduct);
+            if (!missing.isEmpty()) {
+                throw new OperatorException("SNAPHU output not found in " + snaphuProcessingLocation + ": "
+                        + String.join(", ", missing) + ". Run Snaphu Export on this product and unwrap every interferogram.");
+            }
 
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new OperatorException(e.getMessage(), e);
         }
         pm.done();
     }

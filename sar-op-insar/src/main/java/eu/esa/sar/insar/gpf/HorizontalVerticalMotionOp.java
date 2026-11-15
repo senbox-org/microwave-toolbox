@@ -318,9 +318,12 @@ public class HorizontalVerticalMotionOp extends Operator {
                 final double valueIncAngleDsc = sourceBufferIncidenceAngleDsc.getElemDoubleAt(sourceIdx);
                 final double valueIncAngleAsc = sourceBufferIncidenceAngleAsc.getElemDoubleAt(sourceIdx);
 
-                // Compute LOS defo
-                final double defoDsc = (valueUnwPhaseDsc - refOffsetDsc) * wavelength / 4 / Constants.PI * 1E3;
-                final double defoAsc = (valueUnwPhaseAsc - refOffsetAsc) * wavelength / 4 / Constants.PI * 1E3;
+                // LOS displacement in mm, positive towards the satellite. The interferogram is
+                // ref * conj(sec), so phi = 4*pi/lambda * (R_sec - R_ref) and d_LOS = -lambda/(4*pi) * phi,
+                // the same convention as PhaseToDisplacementOp and SBASInversionOp. The inversion
+                // below (b = cos(theta) for up) expects towards-the-satellite positive.
+                final double defoDsc = -(valueUnwPhaseDsc - refOffsetDsc) * wavelength / 4 / Constants.PI * 1E3;
+                final double defoAsc = -(valueUnwPhaseAsc - refOffsetAsc) * wavelength / 4 / Constants.PI * 1E3;
 
                 // Perform inversion
                 final double a1 = -FastMath.cos(FastMath.toRadians(headingDsc)) * FastMath.sin(FastMath.toRadians(valueIncAngleDsc));

@@ -74,7 +74,7 @@ public class AzimuthFilterOp extends Operator {
     private static final int ORBIT_DEGREE = 3; // hardcoded
     private static final boolean CREATE_VIRTUAL_BAND = true;
 
-    private static boolean doFilterReference = true;
+    private boolean doFilterReference = true;
 
     private static final String PRODUCT_NAME = "azimuth_filter";
     private static final String PRODUCT_TAG = "azifilt";
@@ -297,11 +297,26 @@ public class AzimuthFilterOp extends Operator {
         }
     }
 
+    private static boolean isSentinel1TOPSMode(final MetadataElement absRoot) {
+        if (absRoot == null) {
+            return false;
+        }
+        final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION, "");
+        final String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE, "");
+        return mission.startsWith("SENTINEL-1") && (mode.equals("IW") || mode.equals("EW"));
+    }
+
     private void checkUserInput() throws OperatorException {
 
         final InputProductValidator validator = new InputProductValidator(sourceProduct);
         validator.checkIfCoregisteredStack();
         validator.checkIfSLC();
+        // the filter uses one Doppler centroid per image; TOPS steers the Doppler centroid within each burst
+        // band-name check misses TOPSAR-Merge output (swath tags dropped), so also check the abstracted metadata
+        if (validator.isTOPSARProduct() || isSentinel1TOPSMode(AbstractMetadata.getAbstractedMetadata(sourceProduct))) {
+            throw new OperatorException("Azimuth Filtering does not support TOPS (IW/EW) products: " +
+                    "it assumes a constant Doppler centroid, which TOPS sweeps within each burst.");
+        }
 
         boolean refSecBandsFound = false;
         for (Band band : sourceProduct.getBands()) {

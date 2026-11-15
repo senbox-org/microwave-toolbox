@@ -151,11 +151,40 @@ For Supervised Wishart classification, the following parameters are used (see Fi
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; Figure 4. Dialog box for Supervised Wishart classification<br>
 <br>
 
-<p> Reference:&nbsp;</p>
+<h3>References</h3>
+<ol>
+    <li>Lee, J.-S., Grunes, M. R., Kwok, R. (1994). Classification of multi-look polarimetric SAR imagery based on complex Wishart distribution. <i>International Journal of Remote Sensing</i>, 15(11), 2299&#8211;2311. doi:10.1080/01431169408954244</li>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
+</ol>
 
-<p>[1] Jong-Sen Lee and Eric Pottier, Polarimetric Radar Imaging: From Basics to Applications, CRC Press, 2009</p>
-
-
+<!-- params:begin op="Supervised-Wishart-Classification" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Supervised-Wishart-Classification</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>trainingDataSet</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The training data set file</td></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>(1, 100]</td><td>&nbsp;</td><td>The sliding window size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/wishart.html">Polarimetric Speckle, Wishart Statistics and Classification</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_matrices.html">Polarimetric Matrices and Parameters</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Training data set file (the operator stops if it does not exist)</li>
+    <li>Quad-pol product (scattering matrix, C3 or T3) or dual-pol product (C2 or dual-pol bands); other types are rejected. Create matrices with <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a></li>
+    <li>Recommended: speckle filter first with <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a></li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

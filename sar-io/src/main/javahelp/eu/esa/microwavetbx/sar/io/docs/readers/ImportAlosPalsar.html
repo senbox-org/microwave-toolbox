@@ -1,80 +1,85 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import ALOS Palsar</title>
-
-
-
-
-    
-    <link rel="stylesheet" href="../style.css"></head><body>
-
+<html>
+<head><title>Help - Import ALOS PALSAR</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
 <table class="header">
-
     <tbody>
     <tr class="header">
-
-        <td class="header">&nbsp;
-            Import ALOS PALSAR&nbsp;</td>
-
-
+        <td class="header">&nbsp; Import ALOS PALSAR</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
-
     </tr>
-
     </tbody>
 </table>
 
+<p>This page covers the first ALOS satellite (ALOS-1, "Daichi") and its PALSAR instrument. The
+reader is <b>ALOS PALSAR CEOS</b> under <i>File &gt; Import &gt; SAR Sensors</i>. ALOS-2 has its
+own page, <a href="ImportAlos2.html">Import ALOS-2</a>, and so does ALOS-4,
+<a href="ImportAlos4.html">Import ALOS-4</a>.</p>
 
-<h3>Import ALOS Product</h3>
+<h2>Mission</h2>
+<ul>
+    <li><b>Operator:</b> JAXA (Japan Aerospace Exploration Agency).</li>
+    <li><b>Instrument:</b> PALSAR, L-band SAR at 1270&nbsp;MHz (wavelength about 23.6&nbsp;cm).</li>
+    <li><b>Orbit:</b> sun-synchronous, about 692&nbsp;km altitude, 46-day repeat cycle.</li>
+    <li><b>Lifetime:</b> launched 24 January 2006. Operations ended in April 2011; JAXA retired the
+        satellite on 12 May 2011.</li>
+</ul>
 
-<p class="MsoNormal">The Advanced Land Observing Satellite (ALOS), <span style="background: white none repeat scroll 0%; font-size: 9pt; line-height: 115%; font-family: &quot;Arial&quot;,&quot;sans-serif&quot;; color: black; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial;">nicknamed "</span><span style="">Daichi</span><span style="orphans: 2; widows: 2; float: none; word-spacing: 0px;">"</span>, was
-a Japanese Earth-observation satellite, developed by JAXA. ALOS included
-the PRISM, AVNIR-2, and PALSAR sensors. PALSAR was the SAR sensor.</p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Levels</th><td>L1.1 (single-look complex, slant range); L1.5 (detected, ground range)</td></tr>
+    <tr><th>Modes</th><td>Fine Beam Single, Fine Beam Dual, Polarimetric, ScanSAR</td></tr>
+    <tr><th>Polarisations</th><td>Fine Beam Single and ScanSAR: HH or VV; Fine Beam Dual: HH+HV or
+        VV+VH; Polarimetric: HH+HV+VH+VV</td></tr>
+</table>
+<p>The reader also opens ALOS PALSAR products processed by ESA's ALOS processor.</p>
 
+<h2>How to open</h2>
+<p>Select the volume file <code>VOL-ALPSR...</code>. The leader, image (<code>IMG-</code>) and
+trailer files must be in the same folder. You can also select a ZIP archive whose name starts with
+<code>ALPSR</code>, <code>ALOS</code> (not <code>ALOS2</code>) or <code>AL1</code>.</p>
 
-<p class="MsoNormal"><b style="">Operational: </b>2006-01-24
-to 2011-05-12</p>
+<h2>What you get</h2>
+<ul>
+    <li><b>L1.1:</b> complex bands <code>i_HH</code> and <code>q_HH</code> (units real and imaginary)
+        per polarisation, plus a virtual <code>Intensity_HH</code> band.</li>
+    <li><b>L1.5:</b> detected <code>Amplitude_HH</code> per polarisation, plus a virtual
+        <code>Intensity_HH</code> band.</li>
+    <li>Tie-point grids (latitude, longitude, slant range time, incidence angle) and orbit state vectors
+        from the leader file.</li>
+    <li>Mission and acquisition parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
 
+<h2>Known limitations</h2>
+<ul>
+    <li>JAXA Level 1.1 SLCs are focused in a squinted (non-zero-Doppler) geometry. Apply
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/ALOSDeskewingOp.html">ALOS Deskewing</a>
+        before coregistration or terrain correction.</li>
+    <li>Level 1.0 (raw signal) products are not focused by SNAP.</li>
+    <li>Apply Orbit File has no ALOS orbit type; SNAP uses the orbit in the leader file.</li>
+</ul>
 
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-L-band</p>
+<h2>Recommended next step</h2>
+<ul>
+    <li>Detected products:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>JAXA SLCs: ALOS Deskewing &rarr;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>
+        &rarr; <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a>;
+        quad-pol SLCs:
+        <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a>.</li>
+</ul>
 
-
-<p class="MsoNormal"><b style="">Acquisition Modes: </b>Stripmap,
-ScanSAR</p>
-
-
-<p class="MsoNormal"><b style="">Product Types: </b>L1.1
-(SLC), L1.5 (GRD)</p>
-
-
-<p class="MsoNormal"><b style="">Polarizations: </b>Single
-Pol (HH), Dual Pol (HH+HV) and<b style=""> </b>Full
-Pol (HH+HV+VV+VH)</p>
-
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the Volume file. Opening zipped products
-(*.zip) directly is also supported.</p>
-
-
-<p class="MsoNormal"><b style="">Special
-Considerations:</b> <span style="font-size: 10pt; line-height: 115%; font-family: &quot;Helvetica&quot;,&quot;sans-serif&quot;;">SLC data provided by JAXA are generated with
-Non-Zero-Doppler. The ALOS Deskewing operator should be applied prior to
-coregistration or terrain correction.</span></p>
-
-
-<p class="MsoNormal"><span style="font-size: 10pt; line-height: 115%; font-family: &quot;Helvetica&quot;,&quot;sans-serif&quot;;">SLCs provided by ESA are in Zero-Doppler annotation
-and do not require deskewing.</span></p>
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="https://www.eorc.jaxa.jp/ALOS/en/about/palsar.htm">https://www.eorc.jaxa.jp/ALOS/en/about/palsar.htm</a><b style=""></b></p>
-
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/a/alos">https://directory.eoportal.org/web/eoportal/satellite-missions/a/alos</a></p>
-
+<h2>Product format specification</h2>
+<p>JAXA's PALSAR Level 1.0 and Level 1.1/1.5 product format descriptions:
+<a href="https://www.eorc.jaxa.jp/ALOS/en/doc/format.htm">https://www.eorc.jaxa.jp/ALOS/en/doc/format.htm</a>.
+Mission overview: <a href="https://www.eoportal.org/satellite-missions/alos">https://www.eoportal.org/satellite-missions/alos</a>.</p>
 
 <hr>
-</body></html>
+</body>
+</html>

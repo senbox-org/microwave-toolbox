@@ -210,7 +210,7 @@ public class S1ETADCorrectionOp extends Operator {
         }
 
         if (outputPhaseCorrections && !((acquisitionMode.equals("IW") || acquisitionMode.equals("SM")) && productType.equals("SLC"))) {
-            throw new OperatorException("Option 2 is for Sentinel-1 IW SLC and SM SLC product only");
+            throw new OperatorException("Range-delay phase correction is for Sentinel-1 IW SLC and SM SLC product only");
         }
 
         checkCombinedModeSupported(resamplingImage, outputPhaseCorrections, acquisitionMode);

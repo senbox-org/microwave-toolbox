@@ -8,7 +8,7 @@
                     <attr name="displayName" stringvalue="RADARSAT-1"/>
                     <attr name="formatName" stringvalue="RADARSAT-1"/>
                     <attr name="useAllFileFilter" boolvalue="true"/>
-                    <attr name="helpId" stringvalue="importRadarsat1"/>
+                    <attr name="helpId" stringvalue="ImportRadarsat1"/>
                     <attr name="ShortDescription" stringvalue="Open RADARSAT-1 data product."/>
             </file>
             <file name="org-csa-rstb-io-importRadarsat2Product.instance">
@@ -17,7 +17,7 @@
                 <attr name="displayName" stringvalue="RADARSAT-2"/>
                 <attr name="formatName" stringvalue="RADARSAT-2"/>
                 <attr name="useAllFileFilter" boolvalue="true"/>
-                <attr name="helpId" stringvalue="importRadarsat2"/>
+                <attr name="helpId" stringvalue="ImportRadarsat2"/>
                 <attr name="ShortDescription" stringvalue="Open RADARSAT-2 data product."/>
             </file>
 			<file name="org-csa-rstb-io-importRCM.instance">
@@ -26,7 +26,7 @@
                 <attr name="displayName" stringvalue="RCM"/>
                 <attr name="formatName" stringvalue="RCM"/>
                 <attr name="useAllFileFilter" boolvalue="false"/>
-                <attr name="helpId" stringvalue="importRCM"/>
+                <attr name="helpId" stringvalue="ImportRCM"/>
                 <attr name="ShortDescription" stringvalue="Import a RADARSAT Constellation Mission product"/>
             </file>
         </folder>

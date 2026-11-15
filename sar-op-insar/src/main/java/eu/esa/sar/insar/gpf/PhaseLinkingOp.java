@@ -67,8 +67,8 @@ import java.util.Map;
  *      using a two-sample amplitude test (KS / AD / Welch t on log-amplitude).
  *   2. Form the N x N sample complex covariance from the SHP set; normalise
  *      to the coherence matrix T_hat.
- *   3. Estimate the optimal per-epoch phasor vector via EVD (Ferretti
- *      SqueeSAR 2011) or EMI (Ansari/De Zan/Bamler 2018).
+ *   3. Estimate the optimal per-epoch phasor vector via EVD (Fornaro et al.
+ *      2015, Cao et al. 2015) or EMI (Ansari/De Zan/Bamler 2018).
  *   4. Emit a "phase-linked" SLC sample whose amplitude is the original
  *      |s_n(p)| and whose phase is the estimated phi_n(p) - phi_ref(p).
  *
@@ -89,7 +89,7 @@ import java.util.Map;
         authors = "SkyWatch",
         version = "1.0",
         copyright = "Copyright (C) 2026 by SkyWatch Space Applications Inc.",
-        description = "Distributed-scatterer phase linking (SqueeSAR / EVD / EMI) over a coregistered SLC stack.")
+        description = "Distributed-scatterer phase linking (EVD / EMI) over a coregistered SLC stack.")
 public class PhaseLinkingOp extends Operator {
 
     @SourceProduct
@@ -135,7 +135,8 @@ public class PhaseLinkingOp extends Operator {
             label = "Reference Epoch Date")
     private String referenceEpochDate = "";
 
-    @Parameter(description = "Mask out pixels whose temporal coherence is below this threshold",
+    @Parameter(description = "Pixels whose temporal coherence is below this threshold are not phase-linked: " +
+            "they keep their original SLC samples, and the tempCoh band still records the value",
             defaultValue = "0.6",
             label = "Temporal Coherence Threshold")
     private double tempCohMin = 0.6;

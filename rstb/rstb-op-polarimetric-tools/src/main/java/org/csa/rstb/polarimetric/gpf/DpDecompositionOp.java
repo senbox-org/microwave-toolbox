@@ -59,7 +59,7 @@ import java.util.Map;
         authors = "Abhinav Verma et al.",
         version = "1.0",
         copyright = "Copyright (C) 2026 by Microwave Remote Sensing Lab, IITBombay",
-        description = "Dual-pol Radar Built-up Index")
+        description = "Dual-pol scattering power components (decomposition approach)")
 public final class DpDecompositionOp extends Operator implements DualPolProcessor {
 
     @SourceProduct(alias = "source")
@@ -71,7 +71,7 @@ public final class DpDecompositionOp extends Operator implements DualPolProcesso
     @Parameter(valueSet = {"3", "5", "7", "9", "11", "13", "15", "17", "19"}, defaultValue = "5", label = "Window Size")
     private int windowSize = 5;
 
-    @Parameter(description = "Noise Equivalent Sigma Zero (dB). Sensor-specific: S1 IW ~ -22, S1 EW ~ -19, RCM ~ -25, NISAR ~ -25.",
+    @Parameter(description = "Threshold (dB) applied to the C11 intensity: pixels with C11 above it use the signal formula, pixels at or below it are treated as noise-dominated and use the noise formula. Set to the sensor noise floor (NESZ), e.g. S1 IW ~ -22, S1 EW ~ -19, RCM ~ -25, NISAR ~ -25.",
             defaultValue = "-16.0", label = "NESZ (dB)")
     private double NESZ = -16.0;
 

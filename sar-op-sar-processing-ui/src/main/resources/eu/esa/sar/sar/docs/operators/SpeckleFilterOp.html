@@ -65,41 +65,72 @@ for example):
 <span style="font-size: 10pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB"><span class="msoIns"><ins cite="mailto:Array" datetime="2008-12-10T10:32"></ins></span></span><img style="width: 500px; height: 500px;" alt="" src="images/speckle_filter_dlg_2.jpg"><br><br>&nbsp;
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Figure 2. Dialog box for Frost
-filter<br><br>For Refined Lee filter, &nbsp;the following parameter should be selected (see Figure 3):<br>
+filter<br><br>The Refined Lee filter has no extra parameters.
+<br><br>For the <b>Lee Sigma</b> filter (the default filter), the following parameters are used:<br>
 <ol>
-    <li>Edge Threshold: A threshold for detecting edges. &nbsp;Area of 7x7
-        pixels with local variance lower than this threshold is considered flat
-        &nbsp;and normal Local Statistics Filter is used for the filtering. If
-        the local variance is greater than the threshold, then the area is
-        considered as edge area and Refined Lee filter will be used for the
-        filtering.
-    </li>
+    <li>Number of Looks: The number of looks of the input image (1, 2, 3 or 4). Default: 1.</li>
+    <li>Window Size: The size of the filtering window (5x5, 7x7, 9x9, 11x11, 13x13, 15x15 or 17x17). Default: 7x7.</li>
+    <li>Point Target Window Size: The window used to detect point targets, which are kept unfiltered (3x3 or 5x5). Default: 3x3.</li>
+    <li>Sigma: The sigma range used to select the pixels in the window that are averaged (0.5, 0.6, 0.7, 0.8 or 0.9). Default: 0.9.</li>
 </ol>
-<br><img style="width: 500px; height: 500px;" alt="" src="images/speckle_filter_dlg_3.jpg"><br><br>&nbsp;
-&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-&nbsp; &nbsp; &nbsp; &nbsp; Figure 3. Dialog box for Refined Lee filter.<br>
+For the <b>IDAN</b> (Intensity-Driven Adaptive-Neighbourhood) filter:<br>
+<ol>
+    <li>Adaptive Neighbourhood Size: The maximum number of pixels in the adaptive neighbourhood (greater than 1, up to 200). Default: 50.</li>
+</ol>
+For the <b>Lee</b> and <b>Gamma Map</b> filters, the equivalent number of looks (ENL) is needed:<br>
+<ol>
+    <li>Estimate Equivalent Number of Looks: If selected (the default in the dialog), the ENL is estimated from the image.</li>
+    <li>Number of Looks: If ENL estimation is not selected, the ENL value to use. Default: 1.0.</li>
+</ol>
+<p>The Size X and Size Y values accept integers from 2 to 100 (default 3). Speckle filters should be applied to linear intensity or amplitude data, not to data converted to dB.</p>
 
-<p><span style="font-style: italic;"> Reference:&nbsp;</span></p>
+<h3>References</h3>
+<ol>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
+    <li>Robinson, G. S. (1977). Edge detection by compass gradient masks. <i>Computer Graphics and Image Processing</i>, 6(5), 492&#8211;501. doi:10.1016/S0146-664X(77)80024-5</li>
+    <li>Frost, V. S., Stiles, J. A., Shanmugan, K. S., Holtzman, J. C. (1982). A model for radar images and its application to adaptive digital filtering of multiplicative noise. <i>IEEE Transactions on Pattern Analysis and Machine Intelligence</i>, PAMI-4(2), 157&#8211;166. doi:10.1109/TPAMI.1982.4767223</li>
+    <li>Mansourpour, M., Rajabi, M. A., Blais, J. A. R. (2006). Effects and performance of speckle noise reduction filters on active radar and SAR images. <i>International Archives of the Photogrammetry, Remote Sensing and Spatial Information Sciences</i>, XXXVI-1/W41, ISPRS Workshop on Topographic Mapping from Space, Ankara, Turkey.</li>
+    <li>Deledalle, C.-A., Denis, L., Tabti, S., Tupin, F. (2017). MuLoG, or how to apply Gaussian denoisers to multi-channel SAR speckle reduction? <i>IEEE Transactions on Image Processing</i>, 26(9), 4389&#8211;4403. doi:10.1109/TIP.2017.2713946</li>
+    <li>Lee, J.-S. (1981). Refined filtering of image noise using local statistics. <i>Computer Graphics and Image Processing</i>, 15(4), 380&#8211;389. doi:10.1016/S0146-664X(81)80018-4</li>
+    <li>Lee, J.-S., Wen, J.-H., Ainsworth, T. L., Chen, K.-S., Chen, A. J. (2009). Improved sigma filter for speckle filtering of SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 47(1), 202&#8211;213. doi:10.1109/TGRS.2008.2002881</li>
+    <li>Lopes, A., Nezry, E., Touzi, R., Laur, H. (1993). Structure detection and statistical adaptive speckle filtering in SAR images. <i>International Journal of Remote Sensing</i>, 14(9), 1735&#8211;1758. doi:10.1080/01431169308953999</li>
+    <li>Vasile, G., Trouv&eacute;, E., Lee, J.-S., Buzuloiu, V. (2006). Intensity-driven adaptive-neighborhood technique for polarimetric and interferometric SAR parameters estimation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(6), 1609&#8211;1621. doi:10.1109/TGRS.2005.864142</li>
+</ol>
 
-<p>[1] J. S. Lee, E. Pottier, <span style="font-style: italic;">Polarimetric SAR Radar Imaging: From Basic to Applications</span>,
-    CRC Press, Taylor &amp; Francis Group, 2009.</p>
-
-<p>[2] G. S. Robinson, &#8220;Edge
-    Detection by Compass Gradient Masks&#8221;, Computer Graphics and Image
-    Processing, vol. 6, No. 5, Oct. 1977, pp 492-502.</p>
-
-<p>[3]
-    V. S. Frost, J. A. Stiles, K. S. Shanmugan, J. C. Holtzman, \A Model
-    for Radar Images and Its Application to Adaptive Digital Filtering of
-    Multiplicative Noise", IEEE Transactions on Pattern Analysis and
-    Machine Intelligence, Vol. PAMI-4, pp. 157-166, 1982<br></p>
-
-<p>[4] Mansourpour M., Rajabi M.A., Blais J.A.R., &#8220;Effects and Performance
-    of Speckle Noise Reduction Filters on Active Radar and SAR Images&#8221;,
-    http://people.ucalgary.ca/~blais/Mansourpour2006.pdf</p>
-
-<p>[5] C. A. Deledalle, L. Denis, S. Tabti, and F. Tupin, &#8220;MuLoG, or How to apply Gaussian denoisers to multi-channel SAR speckle reduction?&#8221;,
-    IEEE Transactions on Image Processing, vol. 26, no. 9, pp. 4389-4403, Sept. 2017.</p>
-
+<!-- params:begin op="Speckle-Filter" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Speckle-Filter</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>filter</code></td><td>String</td><td>Lee Sigma</td><td>None, Boxcar, Median, Frost, Gamma Map, Lee, Refined Lee, Lee Sigma, IDAN, MuLoG</td><td>&nbsp;</td><td>Filter</td></tr>
+<tr><td><code>filterSizeX</code></td><td>int</td><td>3</td><td>(1, 100]</td><td>&nbsp;</td><td>The kernel x dimension</td></tr>
+<tr><td><code>filterSizeY</code></td><td>int</td><td>3</td><td>(1, 100]</td><td>&nbsp;</td><td>The kernel y dimension</td></tr>
+<tr><td><code>dampingFactor</code></td><td>int</td><td>2</td><td>(0, 100]</td><td>&nbsp;</td><td>The damping factor (Frost filter only)</td></tr>
+<tr><td><code>estimateENL</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Estimate Equivalent Number of Looks</td></tr>
+<tr><td><code>enl</code></td><td>double</td><td>1.0</td><td>(0, *)</td><td>&nbsp;</td><td>The number of looks</td></tr>
+<tr><td><code>numLooksStr</code></td><td>String</td><td>1</td><td>1, 2, 3, 4</td><td>&nbsp;</td><td>Number of Looks</td></tr>
+<tr><td><code>windowSize</code></td><td>String</td><td>7x7</td><td>5x5, 7x7, 9x9, 11x11, 13x13, 15x15, 17x17</td><td>&nbsp;</td><td>Window Size</td></tr>
+<tr><td><code>targetWindowSizeStr</code></td><td>String</td><td>3x3</td><td>3x3, 5x5</td><td>&nbsp;</td><td>Point target window Size</td></tr>
+<tr><td><code>sigmaStr</code></td><td>String</td><td>0.9</td><td>0.5, 0.6, 0.7, 0.8, 0.9</td><td>&nbsp;</td><td>Sigma value (probability range) used by the Lee Sigma filter</td></tr>
+<tr><td><code>anSize</code></td><td>int</td><td>50</td><td>(1, 200]</td><td>&nbsp;</td><td>The Adaptive Neighbourhood size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and Multilooking</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_grd_backscatter.html">Sentinel-1 GRD to Terrain-Flattened Backscatter</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product; TOPS burst products must be debursted first</li>
+    <li>Recommended: <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a> and, optionally, <a href="MultilookOp.html">Multilooking</a></li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

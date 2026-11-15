@@ -132,13 +132,17 @@ public class RangeFilter extends ProductDataFilter {
         double meanSNR = 0.;
         double meanShift = 0.;
 
+        // shift (and its sign) of the last line whose peak SNR passed the threshold; a low-SNR line reuses it.
+        // Before the first good line there is no estimate, so no spectral shift is applied (shift 0).
+        long lastShift = 0;
+        boolean lastNegShift = false;
+
         // Start actual filtering
         for (long outLine = firstLine; outLine <= lastLine; ++outLine) {
 
             double totalPower = nlMeanPower.sum();
             double maxValue = nlMeanPower.max();
             shift = nlMeanPower.argmax();
-            long lastShift = shift;
             double SNR = fftLength * (maxValue / (totalPower - maxValue));
             meanSNR += SNR;
 
@@ -146,7 +150,6 @@ public class RangeFilter extends ProductDataFilter {
             boolean negShift = false;
             if (shift > (fftLength / 2)) {
                 shift = fftLength - shift;
-                lastShift = shift; // use this if current shift not OK.
                 negShift = true;
             }
 
@@ -154,7 +157,11 @@ public class RangeFilter extends ProductDataFilter {
             if (SNR < SNRthreshold) {
                 notFiltered++; // update notFiltered counter
                 shift = lastShift;
+                negShift = lastNegShift;
                 //logger.warning("using last shift for filter");
+            } else {
+                lastShift = shift;
+                lastNegShift = negShift;
             }
 
             meanShift += shift;

@@ -40,6 +40,28 @@
 
 <p></p>
 &nbsp;&nbsp;&nbsp;<br>
+<!-- params:begin op="DecisionTree" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>DecisionTree</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>decisionTree</code></td><td>DecisionTreeNode[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The decision tree: nodes with boolean band expressions and true/false branches; leaf nodes carry the class value</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>None (works on any product). The rule expressions must reference bands that exist in the product, otherwise the expression cannot be parsed.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

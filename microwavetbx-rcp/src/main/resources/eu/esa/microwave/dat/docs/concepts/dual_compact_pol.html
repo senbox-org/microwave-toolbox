@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Dual-pol and Compact Polarimetry</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Dual-pol and Compact Polarimetry</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Dual-pol and Compact Polarimetry</h1>
+
+<p class="lead">Most SAR data are not quad-pol. Sentinel-1 records one co-polar and one cross-polar
+channel, and the RADARSAT Constellation Mission can transmit a circular wave and receive two linear
+channels. Both give a 2&times;2 covariance matrix C<sub>2</sub>, but they carry different information.
+This page explains what each can and cannot tell you, and why the noise floor matters more than in
+quad-pol work.</p>
+
+<h2>What a VV+VH matrix contains</h2>
+<p>From a dual-pol SLC, the target vector is k = [S<sub>VV</sub>, S<sub>VH</sub>]<sup>T</sup> (or
+[S<sub>HH</sub>, S<sub>HV</sub>]<sup>T</sup>) and</p>
+<p class="eq">C<sub>2</sub> = &lt; k k<sup>H</sup> &gt; = [ &lt;|S<sub>VV</sub>|<sup>2</sup>&gt; &nbsp;
+&lt;S<sub>VV</sub> S<sub>VH</sub><sup>*</sup>&gt; ; &nbsp; &lt;S<sub>VH</sub> S<sub>VV</sub><sup>*</sup>&gt;
+&nbsp; &lt;|S<sub>VH</sub>|<sup>2</sup>&gt; ]</p>
+<p>For reflection-symmetric media (most natural surfaces and vegetation), the co-pol/cross-pol
+correlation &lt;S<sub>VV</sub> S<sub>VH</sub><sup>*</sup>&gt; is close to zero. Most of the information
+is then in the two intensities and their ratio.</p>
+<ul>
+    <li><b>Can tell:</b> how much power is depolarised (volume scattering by vegetation, multiple
+        scattering), and how that changes over time. Cross-ratio VH/VV is a robust vegetation and
+        crop-growth indicator.</li>
+    <li><b>Cannot tell:</b> surface from double bounce. That needs the phase between S<sub>HH</sub> and
+        S<sub>VV</sub>, which a VV+VH product never measures.</li>
+</ul>
+
+<h2>Degree of polarisation and dual-pol H/&alpha;</h2>
+<p>The degree of polarisation (Barakat 1977) summarises C<sub>2</sub> in one number:</p>
+<p class="eq">m = &radic;( 1 &#8722; 4 det(C<sub>2</sub>) / (tr C<sub>2</sub>)<sup>2</sup> )</p>
+<p>m = 1 for a fully polarised return (one channel, or perfectly correlated channels) and m = 0 for a
+fully depolarised one. The eigenvalues &lambda;<sub>1</sub> &ge; &lambda;<sub>2</sub> of C<sub>2</sub> also
+give a dual-pol entropy, H = &#8722;&Sigma; p<sub>i</sub> log<sub>2</sub> p<sub>i</sub> with
+p<sub>i</sub> = &lambda;<sub>i</sub>/(&lambda;<sub>1</sub> + &lambda;<sub>2</sub>), and an alpha angle from
+the eigenvectors. They describe the mix of co- and cross-polar power, not the quad-pol scattering type,
+so they cannot be read on the quad-pol H&ndash;&alpha; plane of <a href="decompositions.html">Polarimetric
+Decompositions</a>.</p>
+
+<h2>Dual-pol indices</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Index</th><th>Definition</th><th>Meaning</th></tr>
+    <tr><td>Cross-ratio CR</td><td>C<sub>22</sub> / C<sub>11</sub></td><td>Rises with vegetation volume</td></tr>
+    <tr><td>RFDI</td><td>(C<sub>11</sub> &#8722; C<sub>22</sub>) / (C<sub>11</sub> + C<sub>22</sub>)</td><td>Low for dense forest, high for cleared or degraded land (defined for HH+HV)</td></tr>
+    <tr><td>DpRVI</td><td>1 &#8722; m &beta;, &nbsp; &beta; = &lambda;<sub>1</sub>/(&lambda;<sub>1</sub> + &lambda;<sub>2</sub>)</td><td>0 for a pure, polarised return (bare soil), towards 1 for dense random vegetation (Mandal et al. 2020)</td></tr>
+    <tr><td>DpRBI, DpRSI</td><td>Built from the Stokes parameters of C<sub>2</sub></td><td>Built-up areas and bare surfaces</td></tr>
+</table>
+<p>For comparison, the quad-pol radar vegetation index of Kim and van Zyl (2009) is
+RVI = 8&sigma;<sub>HV</sub> / (&sigma;<sub>HH</sub> + &sigma;<sub>VV</sub> + 2&sigma;<sub>HV</sub>).</p>
+
+<h2>The noise floor</h2>
+<p>Thermal noise adds a power N, the noise-equivalent sigma zero (NESZ), to each channel. It is
+uncorrelated between channels and with the signal, so it adds N to C<sub>11</sub> and C<sub>22</sub> and
+nothing to C<sub>12</sub>. The co-polar channel is usually well above N, but the cross-polar channel is
+often only a few dB above it. The NESZ of Sentinel-1 IW is specified at &#8722;22 dB or better and varies
+across each sub-swath. Noise therefore raises the measured VH backscatter, lowers m and raises DpRVI and
+CR, most strongly over bare soil, water and other dark surfaces.</p>
+<p class="eq">bias = 10 log<sub>10</sub>(1 + N / &sigma;<sup>0</sup><sub>VH</sub>) &nbsp;dB</p>
+<p><img src="images/dual_compact_pol_1.png" width="560" height="280" alt="Bias of the measured VH backscatter and of DpRVI caused by a -22 dB noise floor"></p>
+<p class="figcap">Figure 1. Effect of a &#8722;22 dB noise floor. Left: the measured VH backscatter is
+3 dB too high when the true value equals the NESZ. Right: DpRVI for a target with uncorrelated channels and
+&sigma;<sup>0</sup><sub>VV</sub> = &#8722;8 dB, without and with noise. Dark, low-vegetation pixels look more
+vegetated than they are.</p>
+
+<h2>Compact polarimetry</h2>
+<p>A compact-pol (hybrid-pol) radar transmits one circular polarisation and receives H and V coherently
+(circular transmit, linear receive; Raney 2007). Because the circular wave excites both H and V at once,
+the received pair keeps part of the co-polar information that a VV+VH product loses. The Stokes vector of
+the received wave, for received fields E<sub>H</sub> and E<sub>V</sub>, is</p>
+<p class="eq">g<sub>0</sub> = &lt;|E<sub>H</sub>|<sup>2</sup>&gt; + &lt;|E<sub>V</sub>|<sup>2</sup>&gt;</p>
+<p class="eq">g<sub>1</sub> = &lt;|E<sub>H</sub>|<sup>2</sup>&gt; &#8722; &lt;|E<sub>V</sub>|<sup>2</sup>&gt;</p>
+<p class="eq">g<sub>2</sub> = 2 Re&lt;E<sub>H</sub> E<sub>V</sub><sup>*</sup>&gt;</p>
+<p class="eq">g<sub>3</sub> = &#8722;2 Im&lt;E<sub>H</sub> E<sub>V</sub><sup>*</sup>&gt; &nbsp;(Raney 2007; Raney et al. 2012)</p>
+<p>Sign conventions for g<sub>3</sub> differ between authors. SNAP's <code>g3</code> band has the opposite
+sign to the formula above: CP Stokes Parameters writes g<sub>3</sub> = +2 Im&lt;E<sub>H</sub>
+E<sub>V</sub><sup>*</sup>&gt; = 2&nbsp;<code>C12_imag</code>, where E<sub>H</sub> and E<sub>V</sub> are the
+RCH and RCV channels and C<sub>12</sub> = &lt;E<sub>H</sub> E<sub>V</sub><sup>*</sup>&gt;. With this sign,
+g<sub>3</sub>/(m g<sub>0</sub>) is Raney's sin 2&chi;, and for right-circular transmit (RCH) a positive
+<code>g3</code> means odd bounce. For LCH data SNAP reverses the sign internally, using the compact mode in
+the metadata. From the Stokes vector:</p>
+<ul>
+    <li><b>m</b> = &radic;(g<sub>1</sub><sup>2</sup> + g<sub>2</sub><sup>2</sup> + g<sub>3</sub><sup>2</sup>) / g<sub>0</sub>,
+        the degree of polarisation; (1 &#8722; m) g<sub>0</sub> is the depolarised (volume) power.</li>
+    <li><b>m-&chi;</b> (Raney et al. 2012): the polarised power m g<sub>0</sub> is split by the ellipticity
+        angle &chi; of the received wave. An odd-bounce reflection reverses the circular sense, an even-bounce
+        keeps it. In SNAP, blue (odd bounce) = &radic;(m g<sub>0</sub> (1 + sin 2&chi;)/2), red (even bounce)
+        = &radic;(m g<sub>0</sub> (1 &#8722; sin 2&chi;)/2) and green (volume) = &radic;((1 &#8722; m) g<sub>0</sub>).</li>
+    <li><b>m-&delta;</b>: the same split using the relative phase &delta; between E<sub>H</sub> and
+        E<sub>V</sub>.</li>
+    <li><b>CpRVI</b> (Mandal et al. 2020): a vegetation index from the compact-pol Kennaugh matrix and the
+        ratio of same-sense to opposite-sense circular power.</li>
+</ul>
+<p>In SNAP, real compact-pol data come from RCM, whose compact-pol mode transmits right circular and
+receives H and V. Compact-pol data can also be simulated from quad-pol products.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Building C2.</b> Polarimetric Matrix Generation with <code>C2</code>, from a dual-pol or
+        compact-pol SLC. Bands: <code>C11</code>, <code>C12_real</code>, <code>C12_imag</code>,
+        <code>C22</code>; for VV+VH, <code>C11</code> is VV and <code>C22</code> is VH. GRD products have no
+        phase and cannot give C2.</li>
+    <li><b>Noise.</b> Sentinel-1 Thermal Noise Removal writes intensity bands, even from an SLC, so it cannot
+        be run before C2 generation. The noise stays in <code>C22</code>. DP Scattering Powers (Decomposition)
+        and DP Scattering Powers (Factorization) take an <code>NESZ</code> parameter (default &#8722;16 dB).
+        It does not subtract noise: pixels whose C11 (co-polar) power is below it are treated as noise pixels
+        and use a simpler formula. Set it to your sensor's NESZ (about &#8722;22 dB for Sentinel-1 IW).</li>
+    <li><b>Indices.</b> DP Ratio Indices (<code>Dual-Pol-Ratio-Indices</code>): <code>RFDI</code>,
+        <code>CR</code>, <code>CR_dB</code>, <code>Span</code>; window size default 1. DP Radar Vegetation
+        Index (<code>Radar-Vegetation-Index</code>): <code>DpRVI</code>. DP Radar Built-up Index
+        (<code>DpRBI</code>) and DP Radar Surface Index (<code>DpRSI</code>). All take a C2 product.</li>
+    <li><b>Slope band.</b> DpRBI and the two DP Scattering Powers operators need a terrain slope band named
+        exactly <code>slope</code> in the input, and apply a fixed 15&deg; slope threshold.</li>
+    <li><b>Dual-pol decompositions.</b> Polarimetric Decomposition offers H-Alpha Dual Pol (bands
+        <code>Entropy</code>, <code>Anisotropy</code>, <code>Alpha</code>) and Model-Based Dual Pol. DP Y3-DP
+        Decomposition is a separate operator. Polarimetric Unsupervised Classification has Cloude-Pottier
+        Dual Pol and H Alpha Wishart Dual Pol.</li>
+    <li><b>Compact pol</b> (Radar &gt; Polarimetric &gt; Compact Polarimetry). RCM compact-pol SLC bands
+        are <code>i_RCH</code>, <code>q_RCH</code>, <code>i_RCV</code>, <code>q_RCV</code>. CP Stokes
+        Parameters writes <code>g0</code>..<code>g3</code> (optional), <code>DegreeOfPolarization</code>,
+        <code>CPR</code> and other child parameters. CP Decomposition offers m-chi (default), m-delta,
+        m-alpha, H-alpha, a 2-layer RVoG model and a model-free 3-component method; m-chi writes
+        <code>MChi_r</code>, <code>MChi_g</code>, <code>MChi_b</code> as amplitudes (square roots of the
+        powers). CP Simulation creates right- or left-circular data from a quad-pol product.</li>
+    <li><b>Quad-pol indices.</b> Generalized Radar Vegetation Index (GRVI) needs quad-pol data, not C2.
+        Polarimetric Parameters also writes an RVI band. On complex quad-pol input (SLC, C3, T3) it uses the
+        eigenvalue form 4&lambda;<sub>3</sub>/(&lambda;<sub>1</sub>+&lambda;<sub>2</sub>+&lambda;<sub>3</sub>),
+        not the formula above; on detected quad-pol intensities it uses the formula above.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Reading dual-pol "surface" and "double-bounce" outputs as measured mechanisms. Without the HH-VV
+        phase they come from a model.</li>
+    <li>Ignoring the noise floor: comparing CR or DpRVI between near and far range, or between scenes with
+        different NESZ, over dark targets.</li>
+    <li>Leaving the NESZ parameter at its &#8722;16 dB default for Sentinel-1. It does not subtract noise;
+        it only decides which pixels count as noise pixels, and the default puts too many pixels in that
+        group.</li>
+    <li>Trying to build C2 from GRD or from thermal-noise-corrected intensities.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrix Generation</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/RVIOp.html">DP Radar Vegetation Index</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/DualPolRatioIndicesOp.html">DP Ratio Indices</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/DPRBIOp.html">DP Radar Built-up Index</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/DPRSIOp.html">DP Radar Surface Index</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/DpDecompositionOp.html">DP Scattering Powers (Decomposition)</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/DpFactorizationOp.html">DP Scattering Powers (Factorization)</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/DualPolY3DecompositionOp.html">DP Y3-DP Decomposition</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/CompactPolStokesParametersOp.html">CP Stokes Parameters</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/CompactPolDecompositionOp.html">CP Decomposition</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/CPRVIOp.html">Compact-pol Radar Vegetation Index</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/CompactPolDataSimulationOp.html">CP Simulation</a></li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Barakat, R. (1977). Degree of polarization and the principal idempotents of the coherency matrix. <i>Optics Communications</i>, 23(2), 147&#8211;150. doi:10.1016/0030-4018(77)90292-9</li>
+    <li>Mandal, D., Kumar, V., Ratha, D., Dey, S., Bhattacharya, A., Lopez-Sanchez, J. M., McNairn, H., Rao, Y. S. (2020). Dual polarimetric radar vegetation index for crop growth monitoring using Sentinel-1 SAR data. <i>Remote Sensing of Environment</i>, 247, 111954. doi:10.1016/j.rse.2020.111954</li>
+    <li>Mascolo, L., Cloude, S. R., Lopez-Sanchez, J. M. (2022). Model-based decomposition of dual-pol SAR data: application to Sentinel-1. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 60, 1&#8211;19. doi:10.1109/TGRS.2021.3137588</li>
+    <li>Kim, Y., van Zyl, J. J. (2009). A time-series approach to estimate soil moisture using polarimetric radar data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 47(8), 2519&#8211;2527. doi:10.1109/TGRS.2009.2014944</li>
+    <li>Raney, R. K. (2007). Hybrid-polarity SAR architecture. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 45(11), 3397&#8211;3404. doi:10.1109/TGRS.2007.895883</li>
+    <li>Raney, R. K., Cahill, J. T. S., Patterson, G. W., Bussey, D. B. J. (2012). The m-chi decomposition of hybrid dual-polarimetric radar data with application to lunar craters. <i>Journal of Geophysical Research: Planets</i>, 117(E12), E00H21. doi:10.1029/2011JE003986</li>
+    <li>Charbonneau, F. J., Brisco, B., Raney, R. K., McNairn, H., Liu, C., Vachon, P. W., Shang, J., DeAbreu, R., Champagne, C., Merzouki, A., Geldsetzer, T. (2010). Compact polarimetry overview and applications assessment. <i>Canadian Journal of Remote Sensing</i>, 36(sup2), S298&#8211;S315. doi:10.5589/m10-062</li>
+    <li>Mandal, D., Ratha, D., Bhattacharya, A., Kumar, V., McNairn, H., Rao, Y. S., Frery, A. C. (2020). A radar vegetation index for crop monitoring using compact polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 58(9), 6321&#8211;6335. doi:10.1109/TGRS.2020.2976661</li>
+</ol>
+
+<hr>
+</body>
+</html>

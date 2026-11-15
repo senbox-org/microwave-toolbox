@@ -14,39 +14,60 @@
 
 <h3>Split Stack into Multiple References</h3>
 <p class="MsoNormal">
-    This menu item runs the <i>MultiMasterStackGenerator</i> graph, which takes a single
-    coregistered SLC stack (one reference acquisition + N&minus;1 secondary acquisitions, as
-    produced by <b>Coregistration</b> or <b>DEM-Assisted Coregistration</b>) and splits it
-    into a set of products, one per acquisition acting as the reference. The output is the
-    input required for multi-reference / multi-master InSAR processing where every
-    interferogram in a small-baseline network is formed against the closest acquisition in
-    time and space rather than against a single global master.
+    This menu item runs a graph with the operator <code>MultiMasterStackGenerator</code>. It takes a
+    single coregistered SLC stack (one reference acquisition and N&minus;1 secondary acquisitions, as
+    produced by <b>Coregistration</b> or <b>DEM-Assisted Coregistration</b>) and splits it into
+    <b>N&minus;1 two-date pair products</b>, one for each pair of consecutive acquisition dates
+    (A-B, B-C, C-D, ...). This gives a simple chain of short-time-span pairs, for example for
+    small-baseline (SBAS) processing in external tools such as PyRate.
 </p>
 
 <h4>Input</h4>
 <p class="MsoNormal">
-    A single-master coregistered SLC stack &mdash; i.e. a SNAP product whose bands are
-    grouped by master / slave date with the standard
-    <code>i_&lt;date&gt;</code> / <code>q_&lt;date&gt;</code> naming convention.
+    A coregistered SLC stack with a single reference and at least two secondaries, with the
+    standard stack band naming (<code>i_</code>/<code>q_</code> bands tagged with the
+    reference (<code>_mst</code> or <code>_ref</code>) or with the secondary acquisition date).
 </p>
 
+<h4>Parameters</h4>
+<ul>
+    <li><b>Output folder</b> (<code>outputFolder</code>): the folder the pair products are written to.
+        It is required: there is no separate Write step. In the dialog it is a folder chooser
+        labelled <i>Output folder</i>, set to your home folder when the dialog opens. In GPT or a
+        graph XML, an empty value stops the run with the error <i>Output folder must be set</i>.
+        A folder that does not exist yet is created. A path that is an existing file, or a folder
+        that cannot be created or written to, stops the run with an error. If writing a pair
+        product fails, the run fails with that error instead of finishing without output.</li>
+</ul>
+
 <h4>Output</h4>
-<p class="MsoNormal">
-    A set of products, one per acquisition designated as reference. Each output product is a
-    stripped-down stack containing the chosen reference and the N&minus;1 other acquisitions
-    re-cast as secondaries against it. The metadata for each output is rewritten so that
-    the <i>master</i> entry in the abstract metadata reflects the new reference.
-</p>
+<ul>
+    <li>The acquisitions are sorted by acquisition date (<code>first_line_time</code>). For each pair
+        of consecutive dates, one BEAM-DIMAP product is written to the output folder, named
+        <code>&lt;product type&gt;_&lt;yyyyMMdd&gt;_&lt;yyyyMMdd&gt;</code>.</li>
+    <li>In each pair product the earlier date is the Reference and the later date is the Secondary.
+        The band names are re-tagged to match (<code>_ref</code> for the earlier date,
+        <code>_sec</code> for the later date).</li>
+    <li>The metadata of both dates is stored under <code>Secondary_Metadata</code>, and
+        <code>Abstracted_Metadata</code> gets the flag <code>multireference_split</code>.
+        <b>Interferogram Formation</b> recognises this flag and takes the first entry of
+        <code>Secondary_Metadata</code> (the earlier date) as the Reference of the pair.
+        The rest of <code>Abstracted_Metadata</code> is copied unchanged from the reference of
+        the original stack.</li>
+    <li>With N acquisitions you get N&minus;1 products. Other pairs (for example A-C) are not
+        written.</li>
+</ul>
 
 <h4>Typical workflow</h4>
 <ol>
     <li>Coregister all SLCs into one stack (e.g. <b>DEM-Assisted Coregistration</b> or the TOPS
         <b>Back-Geocoding</b> + <b>Enhanced Spectral Diversity</b> chain).</li>
     <li>Run <b>Split stack into multiple references</b> on that coregistered stack.</li>
-    <li>For each output product, use the InSAR network design tools (<b>InSAR Stack Overview</b>,
-        <b>Multi-Reference InSAR</b>) to form the interferograms appropriate to that reference.</li>
-    <li>Combine the results downstream (e.g. via SBAS-style network inversion in StaMPS / MintPy
-        after export).</li>
+    <li>Process each pair product separately: <b>Interferogram Formation</b>, then any further steps
+        (TOPS Deburst, Goldstein phase filtering, subset, SNAPHU export and unwrapping, terrain
+        correction).</li>
+    <li>Combine the results downstream, e.g. by small-baseline network inversion in an external
+        tool such as PyRate after export.</li>
 </ol>
 
 <h4>Notes</h4>
@@ -54,18 +75,46 @@
     <li>This operator does not re-coregister: the underlying samples are the same as in the
         input stack. Only the reference / secondary roles are reassigned.</li>
     <li>If the input stack was coregistered with non-trivial enhanced spectral diversity (ESD)
-        residual offsets that depended on the original master, those offsets are baked in;
+        residual offsets that depended on the original reference, those offsets are baked in;
         re-running ESD against the new reference will give residuals close to zero only if the
         original ESD converged.</li>
 </ul>
 
 <h4>See also</h4>
 <ul>
-    <li><a href="MultiReferenceInSAROp.html">Multi-Reference InSAR</a> &mdash; the operator that
-        consumes the multi-reference outputs to form the per-reference interferograms.</li>
+    <li><a href="MultiReferenceInSAROp.html">Multi-Reference InSAR</a> &mdash; a different route:
+        it forms an interferogram network directly from the single coregistered stack. It does not
+        use the pair products written here.</li>
     <li><a href="CreateStackOp.html">Create Stack</a></li>
     <li><a href="DEMAssistedCoregistrationOp.html">DEM-Assisted Coregistration</a></li>
 </ul>
+
+<!-- params:begin op="MultiMasterStackGenerator" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>MultiMasterStackGenerator</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>outputFolder</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Output folder</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/time_series.html">InSAR Time Series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_time_series.html">Workflow: InSAR Time Series</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered stack, made with <a href="CreateStackOp.html">Create Stack</a> or <a href="DEMAssistedCoregistrationOp.html">DEM-Assisted Coregistration</a> (<a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a> plus <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a> for Sentinel-1 TOPS)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a> on each pair product</li>
+    <li><a href="GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a></li>
+</ul>
+<!-- footer:end -->
 
 </body>
 </html>

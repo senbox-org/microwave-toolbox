@@ -26,8 +26,8 @@
 <p class="MsoNormal">
     The model is the standard "phase-elevation regression" used in MintPy
     (<i>tropo_phase_elevation</i>) and GIAnT, and is the empirical fallback
-    when external models such as GACOS or ERA5 ray-tracing are not
-    available [1][2]:
+    when external models such as GACOS [2] or ERA5 ray-tracing are not
+    available [1][3]:
 </p>
 <ul>
     <li><b>Linear:</b>&nbsp;&nbsp; phase(z) = c<sub>0</sub> + c<sub>1</sub>&middot;z</li>
@@ -46,20 +46,26 @@
 <h4>Input</h4>
 <p class="MsoNormal">
     A SNAP product containing one or more <b>unwrapped</b> interferometric
-    phase bands (Unit = "phase"). Typical upstream chain:
+    phase bands (unit <code>phase</code> or <code>abs_phase</code>). Every band
+    with one of these units is processed, so remove wrapped phase bands first
+    (for example with Subset). Typical upstream chain:
 </p>
 <ul>
     <li>Coregistration (Back-Geocoding + ESD for TOPS, or DEM-Assisted
-        Coregistration for stripmap).</li>
+        Coregistration for stripmap, not for Sentinel-1 SLC).</li>
     <li>Interferogram formation with topographic phase removal enabled.</li>
     <li>Multilook + Goldstein phase filtering.</li>
     <li>Phase unwrapping with SNAPHU (export &rarr; external snaphu &rarr; import).</li>
 </ul>
 <p class="MsoNormal">
-    The operator auto-pairs each phase band with the matching coherence
-    band (matched by master/slave date suffix). When a coherence band is
-    available, low-coherence samples are excluded from the regression
-    sample population.
+    For the coherence mask the operator looks for a coherence band whose
+    name ends with the part of the phase-band name after its first
+    underscore; if there is none, it uses the only coherence band in the
+    product. With several coherence bands this match usually fails for
+    <code>Unw_Phase_ifg_*</code> names, and the fit then runs without a
+    coherence mask (subset to one pair first). When a coherence band is
+    found, low-coherence samples are excluded from the regression sample
+    population.
 </p>
 
 <h4>Output</h4>
@@ -68,10 +74,10 @@
     band replaced by its corrected counterpart:
 </p>
 <ul>
-    <li>Corrected phase bands (Unit = "phase"), in the same place as the
-        input phase bands.</li>
-    <li>All non-phase source bands (coherence, intensity, virtual phase,
-        elevation) are passed through unchanged.</li>
+    <li>Corrected phase bands, with the same names and units
+        (<code>phase</code> or <code>abs_phase</code>) as the input bands.</li>
+    <li>All other source bands (coherence, intensity, elevation) are passed
+        through unchanged.</li>
 </ul>
 <p class="MsoNormal">
     The fitted coefficients are written to the SNAP log so the user can
@@ -127,22 +133,46 @@
         unchanged.</li>
 </ul>
 
-<h4>References</h4>
-
+<h3>References</h3>
 <ol>
-    <li>Doin, M.-P., Lasserre, C., Peltzer, G., Cavali&eacute;, O., Doubre, C. (2009).
-        <i>Corrections of stratified tropospheric delays in SAR interferometry:
-        Validation with global atmospheric models.</i> Journal of Applied
-        Geophysics 69, 35&ndash;50.</li>
-    <li>Yunjun, Z., Fattahi, H., Amelung, F. (2019). <i>Small baseline
-        InSAR time series analysis: Unwrapping error correction and noise
-        reduction.</i> Computers &amp; Geosciences 133.</li>
-    <li>Yu, C., Li, Z., Penna, N. T. (2018). <i>Interferometric synthetic
-        aperture radar atmospheric correction using a GPS-based iterative
-        tropospheric decomposition model.</i> Remote Sensing of
-        Environment 204, 109&ndash;121. (GACOS &mdash; the model-based
-        alternative when ERA5 + GNSS data are available.)</li>
+    <li>Doin, M.-P., Lasserre, C., Peltzer, G., Cavali&eacute;, O., Doubre, C. (2009). Corrections of stratified tropospheric delays in SAR interferometry: Validation with global atmospheric models. <i>Journal of Applied Geophysics</i>, 69(1), 35&#8211;50. doi:10.1016/j.jappgeo.2009.03.010</li>
+    <li>Yu, C., Li, Z., Penna, N. T., Crippa, P. (2018). Generic atmospheric correction model for Interferometric Synthetic Aperture Radar observations. <i>Journal of Geophysical Research: Solid Earth</i>, 123(10), 9202&#8211;9222. doi:10.1029/2017JB015305</li>
+    <li>Yunjun, Z., Fattahi, H., Amelung, F. (2019). Small baseline InSAR time series analysis: Unwrapping error correction and noise reduction. <i>Computers &amp; Geosciences</i>, 133, 104331. doi:10.1016/j.cageo.2019.104331</li>
+    <li>Bekaert, D. P. S., Walters, R. J., Wright, T. J., Hooper, A. J., Parker, D. J. (2015). Statistical comparison of InSAR tropospheric correction techniques. <i>Remote Sensing of Environment</i>, 170, 40&#8211;47. doi:10.1016/j.rse.2015.08.035</li>
 </ol>
+
+<!-- params:begin op="EmpiricalTropoCorrection" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>EmpiricalTropoCorrection</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM Resampling Method</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>model</code></td><td>String</td><td>linear</td><td>linear, quadratic</td><td>&nbsp;</td><td>linear: phase = c0 + c1*z. quadratic: phase = c0 + c1*z + c2*z*z.</td></tr>
+<tr><td><code>sampleStride</code></td><td>int</td><td>20</td><td>[1, 1000]</td><td>&nbsp;</td><td>Stride (in pixels) of the regression sample grid. Smaller values fit on more samples (slower, possibly more robust to local outliers).</td></tr>
+<tr><td><code>coherenceThreshold</code></td><td>double</td><td>0.3</td><td>[0, 1]</td><td>&nbsp;</td><td>Skip samples whose coherence is below this threshold. Ignored if no coherence band is found.</td></tr>
+<tr><td><code>minElevation</code></td><td>double</td><td>1.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Skip pixels whose DEM elevation is at or below this floor (meters). Useful to exclude ocean / no-data sea-level samples that flatten the slope.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/atmosphere.html">Atmospheric and Ionospheric Phase</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A band with unit phase or abs_phase; the page expects unwrapped phase, so run <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a> first</li>
+    <li>An installed DEM</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result. <a href="PhaseToDisplacementOp.html">Phase to Displacement</a> needs a band whose name starts with 'unw', so check the band name first</li>
+</ul>
+<!-- footer:end -->
 
 </body>
 </html>

@@ -18,7 +18,7 @@
                     <attr name="displayName" stringvalue="ALOS-2 CEOS"/>
                     <attr name="formatName" stringvalue="ALOS-2 CEOS"/>
                     <attr name="useAllFileFilter" boolvalue="true"/>
-                    <attr name="helpId" stringvalue="ImportAlosPalsar"/>
+                    <attr name="helpId" stringvalue="ImportAlos2"/>
                     <attr name="ShortDescription" stringvalue="Open ALOS-2 CEOS data product."/>
                 </file>
                 <file name="eu-esa-sar-io-ceos-importAlos4Product.instance">
@@ -27,7 +27,7 @@
                     <attr name="displayName" stringvalue="ALOS-4 CEOS"/>
                     <attr name="formatName" stringvalue="ALOS-4 CEOS"/>
                     <attr name="useAllFileFilter" boolvalue="true"/>
-                    <attr name="helpId" stringvalue="ImportAlosPalsar"/>
+                    <attr name="helpId" stringvalue="ImportAlos4"/>
                     <attr name="ShortDescription" stringvalue="Open ALOS-4 PALSAR-3 CEOS data product."/>
                 </file>
                 <file name="eu-esa-sar-io-ceos-importERSProduct.instance">
@@ -36,7 +36,7 @@
                     <attr name="displayName" stringvalue="ERS 1/2 CEOS"/>
                     <attr name="formatName" stringvalue="ERS CEOS"/>
                     <attr name="useAllFileFilter" boolvalue="true"/>
-                    <attr name="helpId" stringvalue="importERSProduct"/>
+                    <attr name="helpId" stringvalue="ImportERSCeos"/>
                     <attr name="ShortDescription" stringvalue="Open ERS 1/2 CEOS (VMP and PGS) data product."/>
                 </file>
                 <file name="eu-esa-sar-io-ceos-importJERSCEOSProduct.instance">
@@ -154,7 +154,7 @@
                 <attr name="displayName" stringvalue="TanDEM-X"/>
                 <attr name="formatName" stringvalue="TerraSarX"/>
                 <attr name="useAllFileFilter" boolvalue="true"/>
-                <attr name="helpId" stringvalue="ImportTerraSarX"/>
+                <attr name="helpId" stringvalue="ImportTanDEMX"/>
                 <attr name="ShortDescription" stringvalue="Open TanDEM-X data product."/>
             </file>
             <file name="eu-esa-sar-io-importPazProduct.instance">

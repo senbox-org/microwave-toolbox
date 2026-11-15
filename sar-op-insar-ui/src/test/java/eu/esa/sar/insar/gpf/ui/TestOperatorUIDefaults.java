@@ -6,6 +6,7 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.graphbuilder.gpf.ui.BaseOperatorUI;
 import org.junit.Test;
 
+import javax.swing.SwingUtilities;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Files;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -138,6 +140,25 @@ public class TestOperatorUIDefaults {
         return false;
     }
 
+    /**
+     * Builds the UI on the EDT, as Desktop does. Swing components such as JFileChooser load
+     * directories in the background and post model updates to the EDT; driving them from the test
+     * thread races those updates (MultiMasterOpUI threw IndexOutOfBoundsException in DefaultRowSorter).
+     */
+    private static void onEdt(final Callable<?> body) throws Exception {
+        final Exception[] error = new Exception[1];
+        SwingUtilities.invokeAndWait(() -> {
+            try {
+                body.call();
+            } catch (Exception e) {
+                error[0] = e;
+            }
+        });
+        if (error[0] != null) {
+            throw error[0];
+        }
+    }
+
     /** CrossCorrelationOpUI -> the alias of the operator whose class is CrossCorrelationOp. */
     private static String operatorAliasFor(final Class<?> uiClass, final Map<String, String> aliases) {
         final String n = uiClass.getSimpleName();
@@ -170,10 +191,13 @@ public class TestOperatorUIDefaults {
             }
             swept++;
             try {
-                final BaseOperatorUI ui = (BaseOperatorUI) uiClass.getDeclaredConstructor().newInstance();
                 final Map<String, Object> paramMap = new HashMap<>();
-                ui.CreateOpTab(alias, paramMap, null);   // populates defaults, then initParameters()
-                ui.updateParameters();                   // must not drop or trip over absent keys
+                onEdt(() -> {
+                    final BaseOperatorUI ui = (BaseOperatorUI) uiClass.getDeclaredConstructor().newInstance();
+                    ui.CreateOpTab(alias, paramMap, null);   // populates defaults, then initParameters()
+                    ui.updateParameters();                   // must not drop or trip over absent keys
+                    return null;
+                });
                 // an absent primitive key reads as null; putting that null back is how graph
                 // entries silently became "vanished" parameters
                 final Class<?> opClass = opClasses.get(alias);

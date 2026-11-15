@@ -1,0 +1,85 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Import CIMR L1B</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Import CIMR Level-1B</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<p>CIMR (Copernicus Imaging Microwave Radiometer) is a passive microwave radiometer, not a radar. The
+<b>CIMR-L1B</b> reader opens CIMR Level-1B products for viewing in SNAP. The SAR operators of the
+Microwave Toolbox do not apply to these data.</p>
+
+<h2>Mission</h2>
+<ul>
+    <li><b>Programme:</b> Copernicus Expansion mission, developed by ESA for the European Union.</li>
+    <li><b>Instrument:</b> conically scanning radiometer with an 8.5&nbsp;m reflector, viewing at a
+        zenith angle of 52 to 55&deg;. Dual-polarisation channels at 1.4&nbsp;GHz (L), 6.9&nbsp;GHz (C),
+        10.65&nbsp;GHz (X), 18.7&nbsp;GHz (K; <code>KU_BAND</code> in the product) and 36.5&nbsp;GHz (Ka), with footprints of about 58, 15, 15,
+        5 and 4.5&nbsp;km.</li>
+    <li><b>Orbit:</b> dawn-dusk sun-synchronous, 817&nbsp;km altitude, 29-day repeat cycle; swath about
+        1900&nbsp;km.</li>
+    <li><b>Status:</b> not yet launched.</li>
+</ul>
+
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Level</th><th>Content</th><th>Format</th></tr>
+    <tr><td>L1B (product type <code>CIMR_L1B</code>)</td>
+        <td>Calibrated brightness temperatures per frequency band and feed horn, on the instrument's
+        scan geometry</td><td>NetCDF-4</td></tr>
+</table>
+
+<h2>How to open</h2>
+<p>Use <b>File &gt; Open Product</b> and select the <code>.nc</code> file. The reader recognises the
+file only by its name, which must follow the CIMR L1B naming convention: it starts with
+<code>W_</code>, contains <code>-SAT-CIMR-1B_C_</code> and ends with <code>.nc</code>. A renamed file is
+not recognised.</p>
+
+<h2>What you get</h2>
+<ul>
+    <li>The swath samples are placed, by nearest neighbour, on a regular latitude/longitude grid with
+        0.02&deg; cells that covers the product. The product therefore has a map (CRS) geocoding.</li>
+    <li>Bands are named <code>&lt;BAND&gt;_&lt;variable&gt;_feed_&lt;n&gt;</code>, for example
+        <code>C_BAND_brightness_temperature_h_feed_1</code>. L-band has one feed, C- and X-band four,
+        Ku- and Ka-band eight. Bands are grouped by frequency band and feed.</li>
+    <li>Variables include the brightness temperatures in H and V polarisation and the third and
+        fourth Stokes parameters (<code>t3</code>, <code>t4</code>), in kelvin, both with RFI mitigation
+        (<code>brightness_temperature_*</code>) and without (<code>raw_brightness_temperature_*</code>).
+        Further bands hold the uncertainty (<code>tsu</code>), the radiometric resolution
+        (<code>nedt</code>), the Faraday rotation angle, the total electron content, the water fraction,
+        the footprint size and orientation, and instrument status flags.</li>
+    <li>For each band and feed, a <code>&lt;BAND&gt;_coverage_feed_&lt;n&gt;</code> band and mask show
+        which grid cells received a sample. Floating-point bands use NaN as no-data.</li>
+    <li>The NetCDF global and group attributes are in the metadata tree.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>The 0.02&deg; grid is much finer than the instrument footprints, so neighbouring cells repeat the
+        same sample. Coverage gaps between scans are marked by the coverage masks.</li>
+    <li>The band definitions are tied to the product's <code>format_version</code> attribute. The reader
+        knows version 1.1 and files without the attribute; files of another version do not open.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li>Combine channels with <a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/desktop/BandMaths.html">Band Maths</a>.</li>
+    <li>Project the grid to another map projection with <a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/desktop/Reprojection.html">Reprojection</a>.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>Mission information: ESA's CIMR pages,
+<a href="https://www.esa.int/Applications/Observing_the_Earth/Copernicus/CIMR">https://www.esa.int/Applications/Observing_the_Earth/Copernicus/CIMR</a>,
+and <a href="https://www.eoportal.org/satellite-missions/cimr">https://www.eoportal.org/satellite-missions/cimr</a>.</p>
+
+<hr>
+</body>
+</html>

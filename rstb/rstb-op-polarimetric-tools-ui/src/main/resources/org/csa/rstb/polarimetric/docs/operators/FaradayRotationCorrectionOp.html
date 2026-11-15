@@ -32,35 +32,51 @@
     S<sub>obs</sub> = R(&Omega;) &middot; S<sub>true</sub> &middot; R(&Omega;)
 </p>
 <p class="MsoNormal">
-    where R(&Omega;) is the 2&times;2 rotation matrix. This operator estimates
-    &Omega; per pixel from the observed scattering matrix using the
-    Bickel-Bates / Freeman estimator:
+    where R(&Omega;) = [cos&Omega;, sin&Omega;; &#8722;sin&Omega;, cos&Omega;] is the
+    2&times;2 rotation matrix. This operator estimates &Omega; from the observed
+    scattering matrix with the Bickel-Bates estimator [1, 2], which works in the
+    circular-polarisation basis. It first forms the two circular cross-pol terms
 </p>
 <p class="MsoNormal" align="center">
-    &Omega; = (1/4) &middot; arg( (Z<sub>12</sub> &minus; Z<sub>21</sub>) &middot;
-    conj(Z<sub>22</sub> + Z<sub>11</sub>) )
+    Z<sub>12</sub> = S<sub>HV</sub> &#8722; S<sub>VH</sub> + j&middot;(S<sub>HH</sub> + S<sub>VV</sub>)<br>
+    Z<sub>21</sub> = S<sub>VH</sub> &#8722; S<sub>HV</sub> + j&middot;(S<sub>HH</sub> + S<sub>VV</sub>)
 </p>
 <p class="MsoNormal">
-    where Z is the circular-basis transform of S, then applies the inverse
-    rotation R(&minus;&Omega;) to recover S<sub>true</sub>.
+    for every pixel, averages their product Z<sub>12</sub>&middot;Z<sub>21</sub><sup>*</sup>
+    over the sliding window (&lt;&middot;&gt;), and takes
+</p>
+<p class="MsoNormal" align="center">
+    &Omega; = &#8722;(1/4) &middot; arg( &lt;Z<sub>12</sub> &middot; Z<sub>21</sub><sup>*</sup>&gt; )
+</p>
+<p class="MsoNormal">
+    where <sup>*</sup> is the complex conjugate. The minus sign belongs to the
+    rotation-matrix convention above: with it, a simple surface-like target
+    (S<sub>HH</sub> = S<sub>VV</sub>, no cross-pol) rotated by &Omega; gives back exactly &Omega;.
+    The operator then applies the inverse
+    rotation, S<sub>true</sub> = R(&#8722;&Omega;) &middot; S<sub>obs</sub> &middot; R(&#8722;&Omega;),
+    to the centre pixel. Because arg() returns a value in (&#8722;&pi;, &pi;], the estimate
+    is unambiguous only for |&Omega;| &lt; 45&deg;.
 </p>
 
 <h4>Input</h4>
 <p class="MsoNormal">
-    Full quad-pol SLC product. The operator rejects dual-pol and compact-pol inputs.
+    Full quad-pol SLC product with the complex scattering matrix (i/q bands for HH, HV, VH, VV).
+    The operator rejects dual-pol and compact-pol inputs and C3/T3 matrix products.
 </p>
 
 <h4>Output</h4>
 <p class="MsoNormal">
-    A quad-pol product with the Faraday rotation removed. Optionally, an additional
-    band carries the per-pixel estimated rotation angle &Omega; (degrees).
+    A quad-pol product with the same i/q bands, with the Faraday rotation removed.
+    The estimated angle &Omega; is not written to the output.
 </p>
 
 <h4>Parameters</h4>
 <ul>
-    <li><b>Window Size</b> &mdash; sliding window size used to spatially average the
-        Z<sub>ij</sub> products before computing &Omega;. Default 10 (range 1&ndash;100).
-        Larger windows produce a smoother &Omega; map at the cost of resolution.</li>
+    <li><b>Window Size</b> &mdash; size of the sliding window over which
+        Z<sub>12</sub>&middot;Z<sub>21</sub><sup>*</sup> is averaged before computing &Omega;.
+        Default 10 (range 1&ndash;100). The window extends Window Size / 2 pixels (rounded down)
+        each side of the centre pixel, so the default uses 11 &times; 11 pixels.
+        Larger windows give a less noisy &Omega; at the cost of resolution.</li>
 </ul>
 
 <h4>Notes</h4>
@@ -68,20 +84,49 @@
     <li>The correction is most relevant for L-band (ALOS-1/2/4, SAOCOM, NISAR) and
         P-band (BIOMASS) data. Applying it to C-band or X-band is harmless but
         usually has negligible effect.</li>
-    <li>The Bickel-Bates estimator assumes reciprocity (S<sub>HV</sub> = S<sub>VH</sub>);
-        cross-channel SNR correction (<a href="CrossChannelSNRCorrectionOp.html">Cross-Channel SNR
-        Correction</a>) is recommended as a pre-step.</li>
+    <li>The Bickel-Bates estimator assumes reciprocity (S<sub>HV</sub> = S<sub>VH</sub>) of the true
+        scattering matrix. Residual cross-talk, channel imbalance and noise bias the estimate, so system
+        distortions are removed first.</li>
+    <li><b>Processing order.</b> Run this operator on the scattering matrix after radiometric Calibration
+        (complex output) and, if used, Polarimetric Calibration, and <b>before</b>
+        <a href="CrossChannelSNRCorrectionOp.html">Cross-Channel SNR Correction</a>. Faraday rotation itself
+        decorrelates HV and VH: &Omega; = 2&deg; already lowers the HV&#8211;VH coherence to about 0.8, and
+        5&deg; to about 0.2. An SNR correction run first would treat that decorrelation as noise and cut HV
+        (by about 1 dB at &Omega; = 2&deg;).</li>
 </ul>
 
 <h4>References</h4>
 <ol>
-    <li>Bickel, S. H., Bates, R. H. T. (1965). <i>Effects of magneto-ionic propagation on the
-        polarization scattering matrix.</i> Proc. IEEE 53(8), 1089&ndash;1091.</li>
-    <li>Freeman, A. (2004). <i>Calibration of linearly polarized polarimetric SAR data subject to
-        Faraday rotation.</i> IEEE TGRS 42(8), 1617&ndash;1624.</li>
-    <li>Wright, P. A., Quegan, S., Wheadon, N. S., Hall, C. D. (2003). <i>Faraday rotation
-        effects on L-band spaceborne SAR data.</i> IEEE TGRS 41(12), 2735&ndash;2744.</li>
+    <li>Bickel, S. H., Bates, R. H. T. (1965). Effects of magneto-ionic propagation on the polarization scattering matrix. <i>Proceedings of the IEEE</i>, 53(8), 1089&#8211;1091. doi:10.1109/PROC.1965.4097</li>
+    <li>Freeman, A. (2004). Calibration of linearly polarized polarimetric SAR data subject to Faraday rotation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 42(8), 1617&#8211;1624. doi:10.1109/TGRS.2004.830161</li>
+    <li>Wright, P. A., Quegan, S., Wheadon, N. S., Hall, C. D. (2003). Faraday rotation effects on L-band spaceborne SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 41(12), 2735&#8211;2744. doi:10.1109/TGRS.2003.815399</li>
 </ol>
 
+<!-- params:begin op="Faraday-Rotation-Correction" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Faraday-Rotation-Correction</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>10</td><td>[1, 100]</td><td>&nbsp;</td><td>The sliding window size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/atmosphere.html">Atmospheric and Ionospheric Phase</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_calibration.html">Polarimetric Calibration and Propagation Effects</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Quad-pol product with the full (scattering-matrix) input; covariance/coherency matrix products are rejected, so run this before <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a></li>
+    <li>Recommended: L-band or P-band data, where Faraday rotation is significant (negligible at C- and X-band)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a></li>
+    <li><a href="PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+</ul>
+<!-- footer:end -->
 </body>
 </html>

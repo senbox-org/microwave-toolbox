@@ -118,7 +118,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
         terrainCorrectionOp.setSourceProduct(srcProduct);
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -133,7 +133,7 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
         terrainCorrectionOp.setSourceProduct(srcProduct);
         terrainCorrectionOp.setParameter("demName", "SRTM 1Sec HGT");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -149,9 +149,9 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(applyOrbitOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -167,19 +167,19 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         CalibrationOp calibrationOp = new CalibrationOp();
-        calibrationOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        calibrationOp.setSourceProduct(target(applyOrbitOp));
         calibrationOp.setParameter("outputSigmaBand", false);
         calibrationOp.setParameter("outputBetaBand", true);
         calibrationOp.setParameter("outputGammaBand", false);
 
         TerrainFlatteningOp terrainFlatteningOp = new TerrainFlatteningOp();
-        terrainFlatteningOp.setSourceProduct(calibrationOp.getTargetProduct());
+        terrainFlatteningOp.setSourceProduct(target(calibrationOp));
         terrainFlatteningOp.setParameter("demName", "Copernicus 30m Global DEM");
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(terrainFlatteningOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(terrainFlatteningOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }
@@ -195,12 +195,12 @@ public class CRValidationSuratGRDTest extends BaseCRTest {
         applyOrbitOp.setSourceProduct(srcProduct);
 
         MultilookOp multilookOp = new MultilookOp();
-        multilookOp.setSourceProduct(applyOrbitOp.getTargetProduct());
+        multilookOp.setSourceProduct(target(applyOrbitOp));
 
         RangeDopplerGeocodingOp terrainCorrectionOp = new RangeDopplerGeocodingOp();
-        terrainCorrectionOp.setSourceProduct(multilookOp.getTargetProduct());
+        terrainCorrectionOp.setSourceProduct(target(multilookOp));
         terrainCorrectionOp.setParameter("demName", "Copernicus 30m Global DEM");
-        Product trgProduct = terrainCorrectionOp.getTargetProduct();
+        Product trgProduct = target(terrainCorrectionOp);
 
         computeCRGeoLocationError(csvFile, trgProduct);
     }

@@ -56,25 +56,34 @@ import java.util.Map;
  *    scattering vector S by a 4×4 complex distortion matrix D:</p>
  * <pre>
  *   M = D · S + n
- *   D = T<sup>T</sup> ⊗ R       (Kronecker product of transmit and receive distortions)
+ *   D = R ⊗ T           (Kronecker product, row (2i+k), col (2j+l) = R_ij·T_kl; i,j receive, k,l transmit)
  *   R = [[1, δ4],         T = [[1, δ2],
  *        [δ3, f]]              [δ1, f]]
  * </pre>
- * <p>where <i>f</i> is the (complex) channel imbalance and δ<sub>1..4</sub> are the four
- *    crosstalk leakage terms.</p>
+ * <p>where <i>f</i> is the (complex) one-way co-pol channel imbalance (VV/HH amplitude ratio |f|²; the
+ *    same f on receive and transmit, so no cross-pol imbalance is modelled) and δ<sub>1..4</sub> are the
+ *    four crosstalk leakage terms.</p>
+ * <p>By default only the cross-talk is estimated and f is kept at 1, so the scene's VV/HH ratio is left
+ *    untouched. Quegan (1994) and Ainsworth et al. (2006) both state that |f| cannot be estimated from
+ *    distributed targets and needs a trihedral corner reflector. Because R = R'·diag(1, f) and
+ *    T = T'·diag(1, f) exactly, the f = 1 cross-talk solve finds (δ1, δ2/f, δ3, δ4/f) and removes the
+ *    cross-talk while leaving any co-pol imbalance in the data.</p>
  *
  * <h3>Calibration procedure</h3>
  * <ol>
  *   <li>Estimate the 4×4 sample covariance &lt;k k<sup>H</sup>&gt; over a training region
  *       (sub-sampled scene by default).</li>
- *   <li>Solve for f from the co-pol diagonal ratio and HH·VV* phase:<br>
- *       f = sqrt(σ<sub>44</sub>/σ<sub>11</sub>) · exp(i · arg(σ<sub>14</sub>) / 2).</li>
- *   <li>Apply imbalance correction in-place to the sample covariance.</li>
- *   <li>Solve a linear system for δ<sub>1..4</sub> using the four
- *       co/cross covariance residuals &lt;Mhh Mhv*&gt;, &lt;Mhh Mvh*&gt;, &lt;Mvh Mvv*&gt;,
- *       &lt;Mhv Mvv*&gt;, which would all vanish for an ideal calibrated reciprocal scene.</li>
- *   <li>For Ainsworth: re-apply the inverse distortion to the sample covariance and iterate
- *       steps 2–4 until convergence (or N iterations).</li>
+ *   <li>Correct that (original) covariance with the current distortion estimate.</li>
+ *   <li>Only when {@code estimateCoPolImbalance} is set: residual imbalance from the co-pol power ratio
+ *       and HH·VV* phase, assuming σ<sub>hh</sub> = σ<sub>vv</sub> and arg&lt;Shh Svv*&gt; = 0 over the
+ *       scene:<br>
+ *       f = (σ<sub>44</sub>/σ<sub>11</sub>)<sup>1/4</sup> · exp(−i · arg(σ<sub>14</sub>) / 2).<br>
+ *       This forces the corrected VV/HH ratio to 0 dB. Otherwise the residual f is 1.</li>
+ *   <li>Residual cross-talk from two 2×2 linear systems (Quegan 1994 form) that use
+ *       &lt;Mhv Mhh*&gt;, &lt;Mhv Mvv*&gt;, &lt;Mvh Mhh*&gt;, &lt;Mvh Mvv*&gt;, which vanish for a
+ *       calibrated reflection-symmetric scene.</li>
+ *   <li>Fold the residual into the estimate. Quegan = one pass; Ainsworth = N passes (fixed-point
+ *       iteration on the original covariance).</li>
  *   <li>Apply the inverse 4×4 distortion to each pixel's scattering vector and write the
  *       corrected 8-band product.</li>
  * </ol>
@@ -121,6 +130,14 @@ public final class PolarimetricCalibrationOp extends Operator implements QuadPol
             "(slow on large scenes); 10 = use 1 pixel in 100 (fast, sufficient for distributed targets).",
             interval = "[1, 100]", defaultValue = "10", label = "Stats Sub-sampling")
     private int subsample = 10;
+
+    @Parameter(description = "Estimate the co-pol channel imbalance f (VV/HH) from the scene and remove it. " +
+            "This assumes <|HH|²> = <|VV|²> and a zero HH-VV phase over the scene, and therefore forces the " +
+            "corrected VV/HH ratio to 0 dB. It is normally only valid with a trihedral-based estimate " +
+            "(corner reflector); distributed targets cannot determine |f|. When off (default), f = 1 and only " +
+            "the cross-talk is corrected.",
+            defaultValue = "false", label = "Estimate co-pol channel imbalance from the scene")
+    private boolean estimateCoPolImbalance = false;
 
     @Parameter(description = "Output the estimated distortion parameters to the metadata",
             defaultValue = "true", label = "Save Distortion to Metadata")
@@ -175,26 +192,40 @@ public final class PolarimetricCalibrationOp extends Operator implements QuadPol
 
     private void estimateDistortion() throws IOException{
         // Step 1: collect 4×4 sample covariance <k·k^H> over the scene.
+        final double[][] C0re = new double[4][4];
+        final double[][] C0im = new double[4][4];
+        collectCovariance(C0re, C0im);
+
+        fRe = 1.0; fIm = 0.0;
+        for (int i = 0; i < 4; i++) {
+            deltaRe[i] = 0.0; deltaIm[i] = 0.0;
+        }
+
+        // Steps 2-4: each iteration corrects the ORIGINAL covariance with the accumulated distortion
+        // estimate, estimates the residual imbalance and cross-talk from it and folds the residual into the
+        // accumulated estimate. The fixed point is the distortion whose inverse leaves no co/cross residual.
+        final int iters = method.equals(METHOD_QUEGAN) ? 1 : Math.max(1, numIterations);
         final double[][] Cre = new double[4][4];
         final double[][] Cim = new double[4][4];
-        collectCovariance(Cre, Cim);
-
-        // Step 2 + 4: alternating channel-imbalance / crosstalk solves.
-        final int iters = method.equals(METHOD_QUEGAN) ? 1 : Math.max(1, numIterations);
+        final double[] resFRe = new double[1], resFIm = new double[1];
+        final double[] resDRe = new double[4], resDIm = new double[4];
         for (int iter = 0; iter < iters; iter++) {
-            // Update channel imbalance from current covariance.
-            solveChannelImbalance(Cre, Cim);
+            applyInverseDistortionToCov(C0re, C0im, Cre, Cim);
 
-            // Apply imbalance correction to the covariance in place.
-            applyImbalanceToCov(Cre, Cim);
-
-            // Solve crosstalk from the off-diagonal residuals.
-            solveCrosstalk(Cre, Cim);
-
-            // Apply crosstalk inverse to the covariance for the next iteration.
-            if (iter + 1 < iters) {
-                applyCrosstalkInvToCov(Cre, Cim);
+            // Residual channel imbalance (opt-in only), then remove it from the working covariance.
+            // Default: f_r = 1, so f stays 1 and the co-pol imbalance is left in the data.
+            if (estimateCoPolImbalance) {
+                solveChannelImbalance(Cre, Cim, resFRe, resFIm);
+                applyImbalanceToCov(Cre, Cim, resFRe[0], resFIm[0]);
+            } else {
+                resFRe[0] = 1.0;
+                resFIm[0] = 0.0;
             }
+
+            // Residual cross-talk from the co/cross residuals.
+            solveCrosstalk(Cre, Cim, resDRe, resDIm);
+
+            composeResidual(resFRe[0], resFIm[0], resDRe, resDIm);
         }
     }
 
@@ -245,94 +276,118 @@ public final class PolarimetricCalibrationOp extends Operator implements QuadPol
         }
     }
 
-    /** f = sqrt(σ44 / σ11) · exp(i · arg(σ14) / 2). */
-    private void solveChannelImbalance(final double[][] Cre, final double[][] Cim) {
+    /**
+     * Residual co-pol imbalance, used only when {@code estimateCoPolImbalance} is set. In the model VV is
+     * scaled by f² (f on receive and on transmit), so &lt;|Mvv|²&gt; = |f|⁴ σvv and &lt;Mhh Mvv*&gt; =
+     * conj(f)² ρ. Assuming σvv = σhh and arg(ρ) = 0 over the scene: |f| = (σ44/σ11)^(1/4) and
+     * arg(f) = −arg(σ14)/2. This forces the corrected VV/HH ratio to 0 dB.
+     */
+    private static void solveChannelImbalance(final double[][] Cre, final double[][] Cim,
+                                              final double[] outRe, final double[] outIm) {
         final double s11 = Cre[0][0];
         final double s44 = Cre[3][3];
-        if (s11 <= 0 || s44 <= 0) return;
-        final double amp = Math.sqrt(s44 / s11);
-        final double phase = 0.5 * Math.atan2(Cim[0][3], Cre[0][3]);
-        // Compose with current f (multiplicative refinement across iterations).
-        final double dRe = amp * Math.cos(phase);
-        final double dIm = amp * Math.sin(phase);
-        final double newFRe = fRe * dRe - fIm * dIm;
-        final double newFIm = fRe * dIm + fIm * dRe;
-        fRe = newFRe;
-        fIm = newFIm;
+        if (s11 <= 0 || s44 <= 0) {
+            outRe[0] = 1.0; outIm[0] = 0.0;
+            return;
+        }
+        final double amp = Math.pow(s44 / s11, 0.25);
+        final double phase = -0.5 * Math.atan2(Cim[0][3], Cre[0][3]);
+        outRe[0] = amp * Math.cos(phase);
+        outIm[0] = amp * Math.sin(phase);
     }
 
     /**
-     * After applying current f (so VV channel is normalised to HH), solve for the four
-     * crosstalk parameters from the four co/cross residuals using a first-order linear system:
+     * Residual cross-talk on an imbalance-corrected covariance (residual f = 1, either estimated and
+     * removed or, by default, assumed). To first order in δ, with a
+     * reflection-symmetric scene (&lt;Shh Shv*&gt; = &lt;Svv Shv*&gt; = 0) and D = R ⊗ T as built in
+     * {@link #buildDistortionMatrix}:
      * <pre>
-     *   X1 = &lt;Mhh Mhv*&gt; ≈ σ22 · δ4* + σ11 · δ2*
-     *   X2 = &lt;Mhh Mvh*&gt; ≈ σ33 · δ3* + σ11 · δ1*
-     *   X3 = &lt;Mvh Mvv*&gt; ≈ σ44 · δ3 + σ33 · δ1
-     *   X4 = &lt;Mhv Mvv*&gt; ≈ σ44 · δ4 + σ22 · δ2
+     *   Mhv ≈ Shv + δ1·Shh + δ4·Svv        Mvh ≈ Svh + δ3·Shh + δ2·Svv
      * </pre>
-     * <p>Under reciprocity δ1 ≈ δ4 and δ2 ≈ δ3 to first order, giving a closed-form solve
-     *    that we then inject back into the iterative loop.</p>
+     * Correlating each cross-pol channel with Mhh and Mvv gives two 2×2 linear systems
+     * (C_ij = &lt;M_i M_j*&gt;, channel order hh, hv, vh, vv = 1..4, Δ = C11·C44 − |C14|²):
+     * <pre>
+     *   δ1 = (C21·C44 − C41·C24) / Δ      δ4 = (C11·C24 − C14·C21) / Δ
+     *   δ3 = (C31·C44 − C41·C34) / Δ      δ2 = (C11·C34 − C14·C31) / Δ
+     * </pre>
+     * This is the same form as the cross-talk solution of Quegan (1994).
      */
-    private void solveCrosstalk(final double[][] Cre, final double[][] Cim) {
-        final double s11 = Cre[0][0];
-        final double s22 = Cre[1][1];
-        final double s33 = Cre[2][2];
-        final double s44 = Cre[3][3];
+    private static void solveCrosstalk(final double[][] Cre, final double[][] Cim,
+                                       final double[] outRe, final double[] outIm) {
+        final double[] c11 = {Cre[0][0], Cim[0][0]};
+        final double[] c44 = {Cre[3][3], Cim[3][3]};
+        final double[] c14 = {Cre[0][3], Cim[0][3]};
+        final double[] c41 = {Cre[3][0], Cim[3][0]};
+        final double[] det = csub(cmul(c11, c44), cmul(c14, c41));
+        if (det[0] * det[0] + det[1] * det[1] < 1e-60) {
+            java.util.Arrays.fill(outRe, 0.0);
+            java.util.Arrays.fill(outIm, 0.0);
+            return;
+        }
+        final double[] c21 = {Cre[1][0], Cim[1][0]}, c24 = {Cre[1][3], Cim[1][3]};
+        final double[] c31 = {Cre[2][0], Cim[2][0]}, c34 = {Cre[2][3], Cim[2][3]};
 
-        // X1 = <Mhh Mhv*>  → first-order δ2 = X1 / σ11 (approximation, reciprocity δ4 ≈ δ1 separate)
-        // X2 = <Mhh Mvh*>  → δ1 = X2 / σ11
-        // X3 = <Mvh Mvv*>  → δ3 = X3 / σ44
-        // X4 = <Mhv Mvv*>  → δ4 = X4 / σ44
-        final double safe = 1e-30;
+        final double[] d1 = cdiv(csub(cmul(c21, c44), cmul(c41, c24)), det);
+        final double[] d4 = cdiv(csub(cmul(c11, c24), cmul(c14, c21)), det);
+        final double[] d3 = cdiv(csub(cmul(c31, c44), cmul(c41, c34)), det);
+        final double[] d2 = cdiv(csub(cmul(c11, c34), cmul(c14, c31)), det);
 
-        final double d1Re = (s11 > safe) ? Cre[0][2] / s11 : 0;
-        final double d1Im = (s11 > safe) ? Cim[0][2] / s11 : 0;
-
-        final double d2Re = (s11 > safe) ? Cre[0][1] / s11 : 0;
-        final double d2Im = (s11 > safe) ? Cim[0][1] / s11 : 0;
-
-        final double d3Re = (s44 > safe) ? Cre[2][3] / s44 : 0;
-        final double d3Im = (s44 > safe) ? Cim[2][3] / s44 : 0;
-
-        final double d4Re = (s44 > safe) ? Cre[1][3] / s44 : 0;
-        final double d4Im = (s44 > safe) ? Cim[1][3] / s44 : 0;
-
-        // Accumulate: each iteration adds a correction Δδ.
-        deltaRe[0] += d1Re; deltaIm[0] += d1Im;
-        deltaRe[1] += d2Re; deltaIm[1] += d2Im;
-        deltaRe[2] += d3Re; deltaIm[2] += d3Im;
-        deltaRe[3] += d4Re; deltaIm[3] += d4Im;
+        outRe[0] = d1[0]; outIm[0] = d1[1];
+        outRe[1] = d2[0]; outIm[1] = d2[1];
+        outRe[2] = d3[0]; outIm[2] = d3[1];
+        outRe[3] = d4[0]; outIm[3] = d4[1];
     }
 
-    /** Apply 4×4 channel-imbalance distortion (with current δ=0) inverse to covariance. */
-    private void applyImbalanceToCov(final double[][] Cre, final double[][] Cim) {
-        // F is diag(1, 1, 1, 1/f). Apply: C' = F·C·F^H means scale row/col 4 by 1/f.
-        final double mag2 = fRe * fRe + fIm * fIm;
+    /**
+     * Remove a co-pol imbalance f from the covariance: the distortion diag(1, f) ⊗ diag(1, f) scales
+     * [hh, hv, vh, vv] by [1, f, f, f²], so C' = G·C·G^H with G = diag(1, 1/f, 1/f, 1/f²).
+     */
+    private static void applyImbalanceToCov(final double[][] Cre, final double[][] Cim,
+                                            final double fr, final double fi) {
+        final double mag2 = fr * fr + fi * fi;
         if (mag2 < 1e-30) return;
-        final double invFRe = fRe / mag2;
-        final double invFIm = -fIm / mag2;
-        // Scale row 4: Cre[3][j] = (Cre[3][j] + i·Cim[3][j]) · invF
-        for (int j = 0; j < 4; j++) {
-            final double r = Cre[3][j], im = Cim[3][j];
-            Cre[3][j] = r * invFRe - im * invFIm;
-            Cim[3][j] = r * invFIm + im * invFRe;
-        }
-        // Scale col 4: by conj(invF)
+        final double[] invF = {fr / mag2, -fi / mag2};
+        final double[][] g = {{1, 0}, invF, invF, cmul(invF, invF)};
         for (int i = 0; i < 4; i++) {
-            final double r = Cre[i][3], im = Cim[i][3];
-            Cre[i][3] = r * invFRe + im * invFIm;     // conj(invF) = (invFRe, -invFIm)
-            Cim[i][3] = -r * invFIm + im * invFRe;
+            for (int j = 0; j < 4; j++) {
+                // C'_ij = g_i · C_ij · conj(g_j)
+                final double[] c = cmul(cmul(g[i], new double[]{Cre[i][j], Cim[i][j]}),
+                        new double[]{g[j][0], -g[j][1]});
+                Cre[i][j] = c[0];
+                Cim[i][j] = c[1];
+            }
         }
-        // Once imbalance has been folded into the covariance, reset accumulator so the next
-        // iteration estimates only a residual.
-        fRe = 1.0; fIm = 0.0;
-        // (The accumulated f is encoded into the running covariance; final D is rebuilt
-        //  from deltas at apply time — see computeInverseDistortion.)
     }
 
-    /** Apply current crosstalk inverse to the covariance for the next iteration. */
-    private void applyCrosstalkInvToCov(final double[][] Cre, final double[][] Cim) {
-        // Build current crosstalk-only D and invert; multiply C ← D^{-1} · C · D^{-H}.
+    /**
+     * Fold a residual (f_r, δ_r) into the accumulated estimate (f, δ). The total distortion is
+     * D(f, δ) · D(f_r, 0) · D(1, δ_r); to first order in δ its receive matrix is
+     * [[1, δ4·f_r + δ4_r], [δ3 + f·f_r·δ3_r, f·f_r]] and its transmit matrix is the same with δ2, δ1.
+     */
+    private void composeResidual(final double resFRe, final double resFIm,
+                                 final double[] resDRe, final double[] resDIm) {
+        final double[] f = {fRe, fIm};
+        final double[] fr = {resFRe, resFIm};
+        final double[] ffr = cmul(f, fr);
+        // δ1 (index 0) and δ3 (index 2): δ + f·f_r·δ_r
+        for (int i : new int[]{0, 2}) {
+            final double[] t = cmul(ffr, new double[]{resDRe[i], resDIm[i]});
+            deltaRe[i] += t[0];
+            deltaIm[i] += t[1];
+        }
+        // δ2 (index 1) and δ4 (index 3): δ·f_r + δ_r
+        for (int i : new int[]{1, 3}) {
+            final double[] t = cmul(new double[]{deltaRe[i], deltaIm[i]}, fr);
+            deltaRe[i] = t[0] + resDRe[i];
+            deltaIm[i] = t[1] + resDIm[i];
+        }
+        fRe = ffr[0];
+        fIm = ffr[1];
+    }
+
+    /** C = D⁻¹ · C0 · D⁻ᴴ with D built from the accumulated (f, δ). */
+    private void applyInverseDistortionToCov(final double[][] C0re, final double[][] C0im,
+                                             final double[][] Cre, final double[][] Cim) {
         final double[][] DRe = new double[4][4];
         final double[][] DIm = new double[4][4];
         buildDistortionMatrix(DRe, DIm);
@@ -340,11 +395,23 @@ public final class PolarimetricCalibrationOp extends Operator implements QuadPol
         final double[][] DiIm = new double[4][4];
         invert4x4Complex(DRe, DIm, DiRe, DiIm);
 
-        // C' = Di · C · Di^H
         final double[][] tmpRe = new double[4][4];
         final double[][] tmpIm = new double[4][4];
-        mul4(DiRe, DiIm, Cre, Cim, tmpRe, tmpIm);
+        mul4(DiRe, DiIm, C0re, C0im, tmpRe, tmpIm);
         mulHerm4(tmpRe, tmpIm, DiRe, DiIm, Cre, Cim);
+    }
+
+    private static double[] cmul(final double[] a, final double[] b) {
+        return new double[]{a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]};
+    }
+
+    private static double[] csub(final double[] a, final double[] b) {
+        return new double[]{a[0] - b[0], a[1] - b[1]};
+    }
+
+    private static double[] cdiv(final double[] a, final double[] b) {
+        final double m = b[0] * b[0] + b[1] * b[1];
+        return new double[]{(a[0] * b[0] + a[1] * b[1]) / m, (a[1] * b[0] - a[0] * b[1]) / m};
     }
 
     /** Construct the current 4×4 distortion matrix D from f and δ1..δ4. */

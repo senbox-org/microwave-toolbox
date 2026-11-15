@@ -93,6 +93,40 @@ clay percentage and effective soil temperature.<b>
 </p>
 <p><br>
 </p>
+<h3>References</h3>
+<ol>
+    <li>Hallikainen, M. T., Ulaby, F. T., Dobson, M. C., El-Rayes, M. A., Wu, L.-K. (1985). Microwave dielectric behavior of wet soil &#8212; Part I: Empirical models and experimental observations. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, GE-23(1), 25&#8211;34. doi:10.1109/TGRS.1985.289497</li>
+    <li>Mironov, V. L., Kosolapova, L. G., Fomin, S. V. (2009). Physically and mineralogically based spectroscopic dielectric model for moist soils. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 47(7), 2059&#8211;2070. doi:10.1109/TGRS.2008.2011631</li>
+</ol>
+
+<!-- params:begin op="SM-Dielectric-Modeling" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SM-Dielectric-Modeling</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>modelToUse</code></td><td>String</td><td>Hallikainen</td><td>Hallikainen, Mironov</td><td>&nbsp;</td><td>Choice of dielectric models for SM inversion</td></tr>
+<tr><td><code>minSM</code></td><td>double</td><td>0.0</td><td>[0.0, 1.0)</td><td>m^3/m^3</td><td>Minimum soil moisture value</td></tr>
+<tr><td><code>maxSM</code></td><td>double</td><td>0.55</td><td>(0.0, 1.0]</td><td>m^3/m^3</td><td>Maximum soil moisture value</td></tr>
+<tr><td><code>outputRDC</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Optional RDC in output</td></tr>
+<tr><td><code>outputLandCover</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Optional LandCover in output</td></tr>
+<tr><td><code>effectiveSoilTemperature</code></td><td>double</td><td>18.0</td><td>[-50.0, 50.0]</td><td>Celsius</td><td>Effective soil temperature</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/soil_moisture.html">Soil Moisture from SAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Source product with an "RDC" band (real dielectric constant) from an IEM inversion</li>
+    <li>Bands named exactly <code>Sand</code> and <code>Clay</code> (case-sensitive) for the Hallikainen model; a missing band causes an error (clay only for Mironov, per page text)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

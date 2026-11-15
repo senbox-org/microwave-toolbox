@@ -81,7 +81,7 @@ public final class Sentinel1RemoveThermalNoiseOp extends Operator {
     @Parameter(description = "Re-introduce thermal noise", defaultValue = "false", label = "Re-Introduce Thermal Noise")
     private Boolean reIntroduceThermalNoise = false;
 
-    @Parameter(description = "Clip negative values after noise removal (disable when data will be spatially or temporally averaged downstream to avoid positive bias, see MPC-0392 TN v2.2 Section 6.2)",
+    @Parameter(description = "Clip negative values after noise removal (disable when data will be spatially or temporally averaged downstream to avoid positive bias, see MPC-0392 Section 6.2)",
             defaultValue = "true", label = "Clip Negative Values")
     private Boolean clipNegativeValues = true;
 

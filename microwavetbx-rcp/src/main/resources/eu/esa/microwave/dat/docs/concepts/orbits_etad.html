@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Orbits and Timing Corrections (ETAD, EAP)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Orbits and Timing Corrections</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Orbits and Timing Corrections (ETAD, EAP)</h1>
+
+<p class="lead">A SAR pixel is located by two times: the range time of the echo and the azimuth time of the
+    zero-Doppler point. Both are turned into a ground position with the orbit. Orbit errors and uncorrected timing
+    errors therefore move pixels on the ground and, in InSAR, leave phase ramps in the interferogram. Orbit files,
+    the Sentinel-1 Extended Timing Annotation Dataset (ETAD) and the Elevation Antenna Pattern (EAP) phase correction
+    remove the main sources of these errors.</p>
+
+<h2>Orbit state vectors</h2>
+<p>An orbit is delivered as state vectors: the satellite position and velocity in an Earth-fixed frame at regular
+    times, interpolated to the time of each image line. The vectors annotated in a Level-1 product are produced soon
+    after acquisition, and more accurate solutions come later.
+    For Sentinel-1 the Copernicus POD service provides three levels (Figure 1):</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Sentinel-1 product</th><th>Latency</th><th>Accuracy requirement</th><th>Typical</th></tr>
+    <tr><td>Predicted, <code>AUX_PREORB</code></td><td>30 min</td><td>1 m (2D RMS)</td><td>-</td></tr>
+    <tr><td>Restituted, <code>AUX_RESORB</code></td><td>3 h</td><td>10 cm (2D RMS)</td><td>&lt; 5 cm</td></tr>
+    <tr><td>Precise, <code>AUX_POEORB</code></td><td>20 days</td><td>5 cm (3D RMS)</td><td>&lt; 1 cm</td></tr>
+</table>
+<p>Since April 2025 there is also a shorter-latency <code>AUX_MOEORB</code> (3D RMS &lt; 5 cm).</p>
+<p><img src="images/orbits_etad_1.png" width="560" height="320" alt="Sentinel-1 orbit products: accuracy requirement and typical accuracy versus latency, log-log"></p>
+<p class="figcap">Figure 1. Sentinel-1 orbit products (ESA POD product requirements). Filled: accuracy
+    requirement (2D RMS for PREORB and RESORB, 3D RMS for POEORB); open: typical achieved accuracy.</p>
+
+<h2>What orbit errors do</h2>
+<p><b>Geolocation.</b> An orbit error moves the image by about the same distance on the ground: along-track errors in
+    azimuth, radial and cross-track errors in range. At centimetre level this is far below a Sentinel-1 IW pixel (about
+    2.3 m slant range by 14 m azimuth).</p>
+<p><b>InSAR.</b> The flat-Earth phase is computed from the baseline between the two orbits. An error
+    &delta;B<sub>&perp;</sub> in the perpendicular baseline leaves residual fringes across the swath:</p>
+<p class="eq">&delta;&phi; &asymp; (4&pi;/&lambda;) &middot; &delta;B<sub>&perp;</sub> &middot;
+    &Delta;&theta;</p>
+<p>where &lambda; is the wavelength and &Delta;&theta; the span of look angles. Across the full Sentinel-1 IW swath
+    (&Delta;&theta; &asymp; 12.7&deg; = 0.22 rad, &lambda; = 5.55 cm), each centimetre of baseline error gives about
+    0.08 fringe. With precise orbits this is negligible. Restituted orbits can leave a ramp of a few tenths of a fringe.
+    Along-track error appears as an azimuth misregistration, which ESD removes in the TOPS chain (see
+    <a href="tops.html">TOPS</a>).</p>
+
+<h2>Timing errors and ETAD</h2>
+<p>Even with a perfect orbit, the annotated times assume a vacuum, a static Earth and an idealised processor. The
+    Sentinel-1 Extended Timing Annotation Dataset (ETAD), produced by ESA and DLR, gives gridded range and azimuth time
+    corrections for every burst (Figure 2):</p>
+<ul>
+    <li><b>Troposphere</b> (range): the extra path through the neutral atmosphere, from ECMWF weather analyses. It is
+        2 to 4 m, smaller over high terrain, so it captures height-dependent (stratified) delay.</li>
+    <li><b>Ionosphere</b> (range): the dispersive delay from GNSS total-electron-content maps, up to about 1 m at
+        C-band. The ionosphere delays the signal envelope but advances the carrier phase, so this term enters the
+        phase correction with the opposite sign.</li>
+    <li><b>Solid Earth tides</b> (range and azimuth, the <i>geodetic</i> layers): the crust moves up to about
+        &plusmn;25 cm vertically and 6 cm horizontally, up to 20 cm peak-to-peak in slant range within one data
+        take, which can span thousands of kilometres.</li>
+    <li><b>Doppler-induced range shift</b> (range): range compression turns the Doppler frequency into a range shift.
+        This matters in TOPS, where the Doppler sweeps across each burst; about &plusmn;0.4 m.</li>
+    <li><b>Bistatic azimuth shift</b> (azimuth): the satellite moves 30 to 40 m between transmit and receive. The
+        processor's stop-and-go model applies one bulk shift, leaving range-dependent errors of 2 to 4 m.</li>
+    <li><b>FM-rate mismatch</b> (azimuth): azimuth focusing uses one effective velocity and one average scene height
+        per block. In TOPS the mismatch becomes an azimuth shift, up to a few metres at burst edges in mountains.</li>
+</ul>
+<p><img src="images/orbits_etad_2.png" width="560" height="300" alt="Bar chart of ETAD correction magnitudes in metres, with the ETAD accuracy specification line"></p>
+<p class="figcap">Figure 2. Schematic order of magnitude of each ETAD correction, from the ranges quoted by
+    Gisinger et al. (2022). Bars from zero mean 'up to'; the hatched FM-rate bar is indicative only (local, at burst
+    edges in mountainous terrain). Dashed line: ETAD accuracy specification (1&sigma;), 0.2 m in range; the azimuth
+    specification is 0.1 m.</p>
+<p>The sum layers also include instrument timing calibration constants. For the phase, the range terms become a
+    phase screen:</p>
+<p class="eq">&phi;<sub>ETAD</sub> = &#8722;2&pi; f<sub>0</sub> (&tau;<sub>tropo</sub> + &tau;<sub>tides</sub>
+    &#8722; &tau;<sub>iono</sub> + &tau;<sub>cal</sub>)</p>
+<p>with f<sub>0</sub> the radar frequency and &tau; the two-way delays in seconds. The screen itself is hundreds of
+    radians. In an interferogram only its change between dates remains: the large-scale tropospheric, ionospheric and
+    tidal difference.</p>
+<p><b>When to apply.</b> Use ETAD for absolute geolocation (corner reflectors, offset tracking, multi-sensor work), for
+    wide-area or high-relief InSAR, and in the GSLC chain. The processor terms (bistatic, Doppler, FM rate) are nearly
+    the same for two passes on one track and largely cancel in an interferogram. The atmospheric and tidal terms
+    change between dates and do not cancel.</p>
+<p><b>ESD and GSLC.</b> In the classical TOPS chain ESD still sets the final azimuth alignment. The 0.1 m azimuth
+    specification of ETAD is about 0.007 pixel, coarser than the 0.001 pixel that TOPS needs. In the GSLC chain each
+    image is geocoded on its own, so nothing absorbs timing errors pair by pair. There ETAD geometry and phase are
+    applied to the pixels of every acquisition before geocoding.</p>
+
+<h2>EAP phase for early Sentinel-1 products</h2>
+<p>The Sentinel-1 processor (IPF) compensates the elevation antenna pattern (EAP). Before IPF 2.43 (March 2015) it
+    compensated only the gain; from 2.43 it also removes the pattern phase. An interferogram between a pre-2.43 product
+    and a newer one therefore contains a range-varying phase offset. The fix is to apply the missing phase
+    compensation to the older product.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Apply-Orbit-File</b>: <code>orbitType</code> defaults to <code>Sentinel Precise (Auto Download)</code>. The
+        other choices are Sentinel Restituted, DORIS POR/VOR (ENVISAT), DELFT (ENVISAT, ERS), PRARE (ERS), Kompsat5 and
+        Biomass Precise. For Sentinel-1 it searches the local auxdata folder, then downloads from
+        <code>step.esa.int/auxdata/orbits/Sentinel-1/</code>. If the requested type is missing it tries the other
+        Sentinel type and logs a warning. It writes state vectors every 1 s from 10 s before to 10 s after the scene,
+        interpolated with a polynomial of degree <code>polyDegree</code> (default 3), and names the file in
+        <code>orbit_state_vector_file</code>. <code>continueOnFail</code> keeps the annotated orbit if no file is
+        found. The Biomass Precise option currently has no effect: BIOMASS products pass through unchanged.
+        <code>AUX_PREORB</code> and <code>AUX_MOEORB</code> are not used.</li>
+    <li><b>S1-ETAD-Correction</b> handles IW SLC (split first), IW GRD and SM SLC. It can download the ETAD product
+        from the Copernicus Data Space. <i>Resample image</i> (default on) shifts pixels by the selected layers. The
+        default layers are the two sums, which already contain the individual layers. <i>Apply range-delay phase
+        correction</i> (IW and SM SLC) used alone writes <code>etadPhaseCorrection</code>, <code>etadHeight</code> and
+        <code>etadGradient</code> (per-burst tie-point grids for IW, bands for SM). Back-Geocoding carries these into the stack, and Interferogram
+        subtracts the phase only if both images have them. With both switches on (IW only, the GSLC set-up) the phase
+        is removed from the pixels, without the Doppler range term. The flags <code>etad_phase_applied</code> and
+        <code>etad_azimuth_applied</code> let GSLC Terrain Correction skip its own bistatic model, and let
+        Interferogram stop on a GSLC stack that mixes corrected and uncorrected dates.</li>
+    <li><b>ETAD-Deburst</b> shows one ETAD layer (e.g. <code>troposphericCorrectionRg</code>) for one or all IW
+        sub-swaths.</li>
+    <li><b>EAP-Phase-Correction</b> accepts Sentinel-1 SLC with IPF &lt; 2.43 only. It removes the phase of the complex
+        antenna pattern from the matching <code>AUX_CAL</code> file (auto-downloaded) and sets the
+        <code>EAP Correction</code> flag.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li><b>Skipping Apply-Orbit-File</b>, or using restituted orbits when precise ones exist. This leaves residual
+        ramps and a larger azimuth offset for ESD.</li>
+    <li><b>Correcting only some dates with ETAD.</b> The uncorrected delay of tens of radians mimics deformation.</li>
+    <li><b>Expecting ETAD to replace ESD</b> for TOPS. It does not reach 0.001 pixel.</li>
+    <li><b>Mixing pre- and post-2.43 Sentinel-1 SLCs</b> without EAP-Phase-Correction.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S-1 ETAD Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/ETADDeburstOp.html">ETAD Deburst</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/EAPPhaseCorrection.html">EAP Phase Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+</ul>
+<p>See also <a href="tops.html">TOPS</a>, <a href="geometry.html">SAR geometry</a> and
+    <a href="atmosphere.html">Atmosphere</a>.</p>
+<p>Workflows: <a href="../workflows/workflow_gslc.html">Geocode-First InSAR (GSLC)</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Torres, R., Snoeij, P., Geudtner, D., Bibby, D., Davidson, M., Attema, E., et al. (2012). GMES Sentinel-1 mission. <i>Remote Sensing of Environment</i>, 120, 9&#8211;24. doi:10.1016/j.rse.2011.05.028</li>
+    <li>Peter, H., J&auml;ggi, A., Fern&aacute;ndez, J., Escobar, D., Ayuga, F., Arnold, D., et al. (2017). Sentinel-1A &#8211; First precise orbit determination results. <i>Advances in Space Research</i>, 60(5), 879&#8211;892. doi:10.1016/j.asr.2017.05.034</li>
+    <li>Gisinger, C., Libert, L., Marinkovic, P., Krieger, L., Larsen, Y., Valentino, A., Breit, H., Balss, U.,
+        Suchandt, S., Nagler, T., Eineder, M., Miranda, N. (2022). The Extended Timing Annotation Dataset for
+        Sentinel-1 &#8211; Product description and first evaluation results. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, 60, 5232622. doi:10.1109/TGRS.2022.3194216</li>
+    <li>Yag&uuml;e-Mart&iacute;nez, N., Prats-Iraola, P., Rodr&iacute;guez Gonz&aacute;lez, F., Brcic, R., Shau, R.,
+        Geudtner, D., Eineder, M., Bamler, R. (2016). Interferometric processing of Sentinel-1 TOPS data. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 54(4), 2220&#8211;2234. doi:10.1109/TGRS.2015.2497902</li>
+    <li>Miranda, N. (2015). <i>Sentinel-1 Instrument Processing Facility: Impact of the Elevation Antenna Pattern Phase Compensation on the Interferometric Phase Preservation</i>. ESA technical note ESA-EOPG-CSCOP-TN-0004, Issue 1, Revision 0, 22 July 2015. https://sentinels.copernicus.eu/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction.pdf</li>
+</ol>
+
+<hr>
+</body>
+</html>

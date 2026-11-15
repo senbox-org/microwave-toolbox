@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Sentinel-1 TOPS: Bursts, Deramping and ESD</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Sentinel-1 TOPS</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Sentinel-1 TOPS: Bursts, Deramping and ESD</h1>
+
+<p class="lead">Sentinel-1 IW and EW images are not one continuous strip. They are mosaics of short bursts, and the
+    antenna beam sweeps forward during each burst. That sweep gives every burst a Doppler ramp of several kHz. The
+    ramp is why TOPS data must be deramped before any complex resampling, and why the azimuth coregistration of an
+    interferometric pair must be accurate to about one thousandth of a pixel.</p>
+
+<h2>Sub-swaths and bursts</h2>
+<p>In TOPS (Terrain observation by progressive scans) mode the beam is switched in elevation between sub-swaths:
+    three in IW mode (IW1 to IW3, about 250 km in total) and five in EW mode. The beam dwells on each sub-swath for less
+    than a second (one burst), then switches to the next; the cycle IW1&rarr;IW2&rarr;IW3 repeats every 2.76 s.
+    Because the beam is also steered in azimuth (below), each focused burst covers about 3 s (about 20 km) of azimuth
+    time. Bursts overlap slightly in azimuth and sub-swaths in range, so there are no gaps
+    (Figure 1). The SLC stores each burst as a separate block of lines, one image per sub-swath and polarisation.</p>
+<p><img src="images/tops_1.png" width="560" height="390" alt="Burst layout of a Sentinel-1 IW SLC: three sub-swaths in slant range, bursts staggered in azimuth time, with burst and sub-swath overlaps"></p>
+<p class="figcap">Figure 1. Burst layout of a real Sentinel-1A IW SLC. Hatched: one burst overlap (about
+    155 lines, 2 km). Labels are relative burst IDs.</p>
+<p>Products from IPF 3.40 onwards give each burst a relative <b>burst ID</b>. The ID is tied to the burst's ground
+    position along the track, so it marks the same ground on every pass of the same track (relative orbit) and for every
+    satellite.</p>
+
+<h2>Beam steering and the Doppler ramp</h2>
+<p>During a burst the antenna is steered in azimuth from backward to forward at a constant rate &omega;<sub>s</sub>
+    (rad/s). A target at the start of the burst is seen from behind and a target at the end from ahead. After
+    focusing, the Doppler centroid therefore changes linearly with azimuth time &eta;, at the rate</p>
+<p class="eq">k<sub>t</sub> = k<sub>a</sub> k<sub>s</sub> / (k<sub>a</sub> &#8722; k<sub>s</sub>), &nbsp;&nbsp;
+    k<sub>s</sub> = 2 v &omega;<sub>s</sub> / &lambda;</p>
+<p>where k<sub>a</sub> is the azimuth FM rate, k<sub>s</sub> the Doppler rate caused by steering, v the satellite
+    velocity and &lambda; the wavelength. For S-1 IW, k<sub>t</sub> is about 1.5 to 1.8 kHz/s, so the centroid
+    sweeps about 5 kHz across a burst. Each target's spectrum is about 320 Hz wide and fits within the 486 Hz azimuth
+    sampling rate. Its centre, however, wraps around the sampled band about 11 times along the burst (Figure 2,
+    left).</p>
+<p><img src="images/tops_2.png" width="560" height="320" alt="Azimuth time-frequency diagram of one burst: a steep sloping band before deramping, a flat band at zero frequency after"></p>
+<p class="figcap">Figure 2. Azimuth time-frequency support of one IW1 burst. Left: in the SLC the centre frequency
+    follows the Doppler ramp (drawn unfolded); in the sampled data it wraps about 11 times into the 486 Hz band
+    (grey). Right: after deramping and
+    demodulation the whole burst sits at baseband.</p>
+
+<h2>Why deramp before resampling</h2>
+<p>Interpolation kernels are low-pass filters centred on zero frequency. On data whose local spectrum sits far
+    from zero they attenuate the signal and distort its phase. Deramping multiplies each burst
+    by the conjugate of its known phase ramp:</p>
+<p class="eq">s<sub>d</sub>(&eta;, &tau;) = s(&eta;, &tau;) &middot; exp{&#8722;j [&pi; k<sub>t</sub>(&tau;)
+    (&eta; &#8722; &eta;<sub>ref</sub>(&tau;))<sup>2</sup> + 2&pi; f<sub>DC</sub>(&tau;) &eta;]}</p>
+<p>where &eta; is the azimuth time within the burst (SNAP counts it from the burst's first line), &tau; the range
+    time, &eta;<sub>ref</sub>(&tau;) a range-dependent reference time and f<sub>DC</sub>(&tau;) the range-dependent
+    Doppler centroid at the burst centre. The first term deramps and the second demodulates. The data can then be
+    resampled or filtered like stripmap data. Afterwards the ramp, evaluated at the new sample positions, is put back
+    (reramping).</p>
+
+<h2>Why 0.001 pixel in azimuth</h2>
+<p>If the Secondary is misregistered by &Delta;t seconds in azimuth, each pixel picks up a phase error proportional
+    to its Doppler centroid, which gives a phase ramp along each burst. In a burst overlap two bursts see the same
+    ground with centroids &Delta;f<sub>ovl</sub> apart, so their phases differ by</p>
+<p class="eq">&Delta;&phi; = 2&pi; &middot; &Delta;f<sub>ovl</sub> &middot; &Delta;t</p>
+<p>After debursting this appears as a phase jump at the burst seams. With &Delta;f<sub>ovl</sub> &asymp; 4.1 to
+    4.9 kHz, a misregistration of 0.001 pixel (2 &mu;s, 1.4 cm on the ground) gives about 3&deg;, and 0.01 pixel gives
+    30 to 36&deg;. Orbit-and-DEM coregistration alone cannot reach this, because of along-track orbit and timing
+    errors.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>S-1 IW (S1A, 2025)</th><th>IW1</th><th>IW2</th><th>IW3</th></tr>
+    <tr><td>Steering rate &omega;<sub>s</sub> [deg/s]</td><td>1.59</td><td>0.98</td><td>1.40</td></tr>
+    <tr><td>Doppler-centroid rate k<sub>t</sub> [Hz/s]</td><td>1780</td><td>1500</td><td>1570</td></tr>
+    <tr><td>Burst overlap [lines]</td><td>155</td><td>167</td><td>173</td></tr>
+    <tr><td>&Delta;f<sub>ovl</sub> in the overlap [kHz]</td><td>4.9</td><td>4.1</td><td>4.3</td></tr>
+    <tr><td>&Delta;&phi; for 0.001 pixel [deg]</td><td>3.6</td><td>3.1</td><td>3.2</td></tr>
+</table>
+<p class="figcap">Table 1. Values computed from the annotation of one S1A IW SLC (2025-04-03). They change little
+    between products.</p>
+
+<h2>Geometric coregistration, then ESD</h2>
+<p>TOPS pairs are coregistered in two steps. <b>Back-geocoding</b> maps each Reference pixel to the ground with a DEM
+    and the Reference orbit, then into the Secondary geometry with the Secondary orbit. This removes the effect of
+    topography and leaves a small, nearly constant azimuth offset. <b>Enhanced Spectral Diversity</b> (ESD) measures
+    that offset in the burst overlaps. The phase of the interferogram formed from burst i times the conjugate of the
+    one from burst i+1, both in their common overlap (the double difference), &phi;<sub>ESD</sub>, gives</p>
+<p class="eq">&Delta;y = f<sub>az</sub> &middot; &phi;<sub>ESD</sub> / (2&pi; &Delta;f<sub>ovl</sub>)</p>
+<p>where &Delta;y is the shift in pixels and f<sub>az</sub> the azimuth sampling rate. ESD is unambiguous only for
+    |&Delta;y| &lt; f<sub>az</sub> / (2 &Delta;f<sub>ovl</sub>) &asymp; 0.05 pixel, which precise or restituted orbits
+    ensure. Network ESD integrates shifts estimated between many pairs of a time series. The double-difference interferogram over the overlaps is the standard check: after a good
+    correction it is noise around zero.</p>
+
+<h2>In SNAP</h2>
+<p>The classical TOPS InSAR chain, by GPT alias, is <code>TOPSAR-Split</code> &rarr;
+    <code>Apply-Orbit-File</code> &rarr; <code>Back-Geocoding</code> &rarr;
+    <code>Enhanced-Spectral-Diversity</code> &rarr; <code>Interferogram</code> &rarr; <code>TOPSAR-Deburst</code>
+    &rarr; <code>TOPSAR-Merge</code>.</p>
+<ul>
+    <li><b>Bands.</b> TOPS SLC bands are <code>i_IW1_VV</code> and <code>q_IW1_VV</code>, plus a virtual
+        <code>Intensity_IW1_VV</code>. <code>TOPSAR-Split</code> keeps one sub-swath and a burst range
+        (<code>firstBurstIndex</code>/<code>lastBurstIndex</code>, or <code>wktAoi</code>) and does not rename
+        bands.</li>
+    <li><b>Back-Geocoding</b> needs split burst SLCs of one mode. It pairs bursts geometrically, not by burst ID. It
+        deramps, resamples (default <code>BISINC_5_POINT_INTERPOLATION</code>, DEM <code>Copernicus 30m Global
+        DEM</code>) and reramps the Secondary. Bands become e.g. <code>i_IW1_VV_ref_03Apr2025</code> and
+        <code>i_IW1_VV_sec1_15Apr2025</code>.</li>
+    <li><b>Enhanced-Spectral-Diversity</b> estimates one range shift (by cross-correlation) and one azimuth shift (a
+        weighted mean over all overlaps) per Secondary and sub-swath. It integrates them over a network (default:
+        pairs up to 4 images apart, L1 and L2). The shifts, in pixels, go to the <code>ESD Measurement</code> metadata
+        element (overall, per overlap and per block) and to <code>&lt;swath&gt;_azimuth_shifts.json</code> and
+        <code>&lt;swath&gt;_range_shifts.json</code> in the SNAP report folder.</li>
+    <li><b>Double-Difference-Interferogram</b> writes the overlap phase as <code>DDIPhase</code> (radian), and
+        optionally <code>coherence</code>.</li>
+    <li><b>TOPSAR-Deburst</b> does not blend. It switches bursts at the mid-time of each overlap and switches
+        sub-swaths at the middle of the valid-pixel overlap. With several sub-swaths it drops the swath token
+        (<code>i_VV</code>).</li>
+    <li><b>TOPSAR-Merge</b> joins debursted products of adjacent sub-swaths from the same Sentinel-1 product.
+        <b>TOPSAR-DerampDemod</b> outputs deramped bursts for external processing.</li>
+    <li><b>Alternative:</b> <code>GSLC-Terrain-Correction</code> geocodes each product to a common map grid with the
+        phase preserved, deramping included. Interferograms are then formed on that grid.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li><b>Debursting before coregistration.</b> Back-Geocoding refuses debursted input, and ESD needs the overlaps.
+        Deburst after the interferogram.</li>
+    <li><b>Using the stripmap chain</b> (Create Stack, Cross-Correlation, Warp) on debursted TOPS. It cannot reach
+        0.001 pixel, so phase jumps appear at every seam.</li>
+    <li><b>Azimuth common-band filtering on TOPS.</b> The azimuth spectrum changes along the burst.</li>
+    <li><b>Splitting a single burst.</b> Without an overlap ESD applies no azimuth correction and only logs a
+        warning.</li>
+    <li><b>Not checking the per-overlap ESD shifts.</b> Large scatter signals low coherence.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARSplitOp.html">TOPSAR Split</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/DoubleDifferenceInterferogramOp.html">Double Difference Interferogram</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDerampDemodOp.html">TOPSAR Deramp Demod</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPSAR Deburst</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARMergeOp.html">TOPSAR Merge</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+</ul>
+<p>See also <a href="orbits_etad.html">Orbits and timing corrections</a>, <a href="insar.html">InSAR fundamentals</a>
+    and <a href="coherence.html">Coherence</a>.</p>
+<p>Workflows: <a href="../workflows/workflow_s1_dinsar.html">Sentinel-1 TOPS DInSAR</a> and <a href="../workflows/workflow_stripmap_dinsar.html">Stripmap DInSAR</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>De Zan, F., Monti Guarnieri, A. (2006). TOPSAR: Terrain observation by progressive scans. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 44(9), 2352&#8211;2360. doi:10.1109/TGRS.2006.873853</li>
+    <li>Torres, R., Snoeij, P., Geudtner, D., Bibby, D., Davidson, M., Attema, E., et al. (2012). GMES Sentinel-1 mission. <i>Remote Sensing of Environment</i>, 120, 9&#8211;24. doi:10.1016/j.rse.2011.05.028</li>
+    <li>Scheiber, R., Moreira, A. (2000). Coregistration of interferometric SAR images using spectral diversity.
+        <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(5), 2179&#8211;2191. doi:10.1109/36.868876</li>
+    <li>Prats-Iraola, P., Scheiber, R., Marotti, L., Wollstadt, S., Reigber, A. (2012). TOPS interferometry with
+        TerraSAR-X. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 50(8), 3179&#8211;3188.
+        doi:10.1109/TGRS.2011.2178247</li>
+    <li>Yag&uuml;e-Mart&iacute;nez, N., Prats-Iraola, P., Rodr&iacute;guez Gonz&aacute;lez, F., Brcic, R., Shau, R.,
+        Geudtner, D., Eineder, M., Bamler, R. (2016). Interferometric processing of Sentinel-1 TOPS data. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 54(4), 2220&#8211;2234. doi:10.1109/TGRS.2015.2497902</li>
+    <li>Fattahi, H., Agram, P., Simons, M. (2017). A network-based enhanced spectral diversity approach for TOPS
+        time-series analysis. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 55(2), 777&#8211;786.
+        doi:10.1109/TGRS.2016.2614925</li>
+</ol>
+
+<hr>
+</body>
+</html>

@@ -30,13 +30,18 @@ import java.util.Map;
  */
 public class MultiMasterOpUI extends BaseOperatorUI {
 
-    private static final JFileChooser outputDirectory = new JFileChooser();
+    private static final String OUTPUT_FOLDER = "outputFolder";
+
+    // one chooser per dialog, created with the tab: a static one was shared between dialogs and
+    // was built at class-initialisation time
+    private JFileChooser outputDirectory;
 
 
     @Override
     public JComponent CreateOpTab(String operatorName, Map<String, Object> parameterMap, AppContext appContext) {
+        outputDirectory = new JFileChooser();
         outputDirectory.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        outputDirectory.setDialogType(0);
+        outputDirectory.setDialogType(JFileChooser.OPEN_DIALOG);
 
 
         initializeOperatorUI(operatorName, parameterMap);
@@ -46,12 +51,15 @@ public class MultiMasterOpUI extends BaseOperatorUI {
         return new JScrollPane(panel);
     }
 
+    /**
+     * Shows the graph's outputFolder; falls back to user.home only when the graph has none, so a
+     * loaded graph's folder is not replaced.
+     */
     @Override
     public void initParameters() {
-        if(outputDirectory.getSelectedFile() == null){
-            outputDirectory.setSelectedFile(new File(System.getProperty("user.home")));
-
-        }
+        final Object value = paramMap.get(OUTPUT_FOLDER);
+        final String folder = value == null ? "" : value.toString().trim();
+        outputDirectory.setSelectedFile(new File(folder.isEmpty() ? System.getProperty("user.home") : folder));
     }
 
 
@@ -64,7 +72,11 @@ public class MultiMasterOpUI extends BaseOperatorUI {
     @Override
     public void updateParameters() {
 
-        paramMap.put("outputFolder", outputDirectory.getSelectedFile().getAbsolutePath());
+        final File selected = outputDirectory.getSelectedFile();
+        if (selected != null) {
+            // getPath keeps a loaded graph's (possibly relative) folder as written
+            paramMap.put(OUTPUT_FOLDER, selected.getPath());
+        }
     }
 
     private JComponent createPanel() {

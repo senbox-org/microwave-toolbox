@@ -1,0 +1,171 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - SAR Fundamentals</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: SAR Fundamentals</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>SAR Fundamentals</h1>
+
+<p class="lead">A synthetic aperture radar (SAR) sends microwave pulses sideways from a moving platform and records the
+echoes as complex numbers: an amplitude and a phase for every pixel. Knowing how the image is formed tells you what
+a pixel value means, why its resolution differs in range and azimuth, and which product level and wavelength suit
+your analysis.</p>
+
+<h2>What a SAR measures</h2>
+<p>Each pixel of a focused SAR image is a complex number, the <i>complex reflectivity</i> of the ground cell:</p>
+<p class="eq">s = i + j&middot;q = A&middot;e<sup>j&phi;</sup></p>
+<p>Here <i>i</i> and <i>q</i> are the in-phase (real) and quadrature (imaginary) parts, A = &radic;(i&sup2; + q&sup2;)
+is the amplitude, and &phi; = atan2(q, i) is the phase. The intensity is I = A&sup2;. Calibrated intensity becomes the
+backscatter coefficient (see <a href="radiometry.html">Radiometry</a>).</p>
+<p>The phase holds the two-way path length as a term &#8722;4&pi;R/&lambda; (R = slant range, &lambda; = wavelength;
+the sign depends on the processor's convention), plus the phase of the scattering inside the cell. Within one image the phase looks random from pixel to pixel. It becomes useful when
+two images are compared, which is the basis of <a href="insar.html">interferometry</a>. Adding many random
+scatterers in a cell also causes <a href="speckle.html">speckle</a>.</p>
+
+<h2>Side-looking imaging</h2>
+<p>The radar looks to one side of the flight track, not straight down (Figure 1). Looking sideways makes the echo
+delay grow with distance across the track, so points on the left and right of nadir are not mixed. The two image
+directions are:</p>
+<ul>
+    <li><b>Range</b> (across track): position is set by the echo delay &tau;, slant range R = c&tau;/2 (c = speed of
+        light). The swath runs from <i>near range</i> to <i>far range</i>.</li>
+    <li><b>Azimuth</b> (along track): position is set by the time at which the target is closest to the platform
+        (zero-Doppler time).</li>
+</ul>
+<p><img src="images/sar_fundamentals_1.png" width="560" height="340" alt="Side-looking SAR geometry with platform, beam footprint, near and far range, swath and flight direction"></p>
+<p class="figcap">Figure 1. Side-looking imaging geometry. The beam illuminates a footprint to the side of nadir; as
+the platform moves in azimuth, the footprint sweeps out the swath between near and far range.</p>
+
+<h2>Resolution</h2>
+<p><b>Range resolution</b> comes from the bandwidth B of the transmitted chirp, not from the antenna:</p>
+<p class="eq">&delta;<sub>r</sub> = c / (2B)</p>
+<p>A 50 MHz chirp gives &delta;<sub>r</sub> = 3 m in slant range. On flat ground this becomes
+&delta;<sub>g</sub> = &delta;<sub>r</sub> / sin &theta;, where &theta; is the incidence angle: about 5.2 m at
+&theta; = 35&deg;.</p>
+<p><b>Azimuth resolution</b> comes from the synthetic aperture, the distance the platform travels while a target
+stays in the beam. The synthetic aperture grows in proportion to &lambda;R/L (L = antenna length along track), which sharpens the angular resolution by
+exactly the amount that the longer range and wavelength would coarsen it, so the focused resolution is independent of
+both. For stripmap:</p>
+<p class="eq">&delta;<sub>a</sub> &asymp; L / 2</p>
+<p>where L is the antenna length along track. A 10 m antenna gives about 5 m. Modes that share the beam between several
+sub-swaths (ScanSAR, TOPS) see each target for only part of that time and have coarser azimuth resolution.</p>
+<p><b>Slant vs ground range.</b> The radar samples in slant range. Projected onto the ground, equal slant intervals
+cover more ground at near range than at far range. The <a href="geometry.html">geometry page</a> explains this and the
+distortions caused by relief.</p>
+
+<h2>Product levels</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Level</th><th>Content</th><th>Geometry</th><th>Typical use</th></tr>
+    <tr><td>SLC (Single Look Complex)</td><td>complex i/q, full resolution</td><td>slant range / zero-Doppler azimuth</td><td>InSAR, polarimetry, any phase-based method</td></tr>
+    <tr><td>GRD (Ground Range Detected)</td><td>amplitude only, multilooked, phase discarded</td><td>ground range on an ellipsoid, still in radar (range/azimuth) layout</td><td>backscatter mapping, change detection</td></tr>
+    <tr><td>GSLC (Geocoded SLC)</td><td>complex i/q, phase preserved</td><td>map grid, terrain-corrected with a DEM</td><td>InSAR and time series on a common map grid</td></tr>
+</table>
+<p>Neither SLC nor GRD is map-projected. Both need <a href="geometry.html">terrain correction</a> before they line up
+with maps or other sensors.</p>
+
+<h2>Wavelength</h2>
+<p>Longer wavelengths penetrate deeper into vegetation, dry soil, snow and ice; shorter wavelengths interact mostly with
+the top of the canopy and with small surface roughness. Penetration also drops as moisture increases.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Band</th><th>Mission (example)</th><th>Frequency</th><th>&lambda;</th><th>What it mostly sees over vegetation</th></tr>
+    <tr><td>X</td><td>TerraSAR-X</td><td>9.65 GHz</td><td>3.1 cm</td><td>top of the canopy, leaves</td></tr>
+    <tr><td>C</td><td>Sentinel-1</td><td>5.405 GHz</td><td>5.5 cm</td><td>upper canopy, crops</td></tr>
+    <tr><td>S</td><td>NISAR (S-band)</td><td>3.2 GHz</td><td>9.4 cm</td><td>canopy and larger branches</td></tr>
+    <tr><td>L</td><td>ALOS-2, NISAR (L-band)</td><td>1.26 GHz</td><td>24 cm</td><td>branches, trunks, ground below sparse forest</td></tr>
+    <tr><td>P</td><td>BIOMASS</td><td>435 MHz</td><td>69 cm</td><td>trunks and ground below dense forest</td></tr>
+</table>
+<p>The wavelength also sets the InSAR sensitivity: one fringe equals &lambda;/2 of line-of-sight motion, about 2.8 cm
+at C-band and 12 cm at L-band.</p>
+
+<h2>Polarisation</h2>
+<p>The radar transmits and receives horizontally (H) or vertically (V) polarised waves. The channel name gives transmit
+then receive: HH and VV are co-polarised, HV and VH are cross-polarised. Cross-pol returns come mainly from volume
+scattering, such as vegetation. Systems record one channel (single pol), two (dual pol, e.g. Sentinel-1 VV+VH) or all
+four (quad pol, e.g. ALOS-2, BIOMASS). See <a href="polarimetry.html">Polarimetry</a> and
+<a href="dual_compact_pol.html">Dual and compact polarimetry</a>.</p>
+
+<h2>Acquisition modes</h2>
+<ul>
+    <li><b>Stripmap:</b> fixed beam, one continuous strip; the reference case for &delta;<sub>a</sub> &asymp; L/2.</li>
+    <li><b>ScanSAR:</b> the beam switches between several sub-swaths in bursts, for a wide swath at coarser azimuth
+        resolution.</li>
+    <li><b>TOPS:</b> ScanSAR in which the beam also sweeps in azimuth during each burst, so image quality is more
+        uniform along track (Sentinel-1 IW and EW). See <a href="tops.html">TOPS</a>.</li>
+    <li><b>Spotlight:</b> the beam is steered to stay on one area longer, for finer azimuth resolution over a small
+        scene.</li>
+</ul>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>SLC bands:</b> each channel is a pair of bands, <code>i_</code> (unit <code>real</code>) and
+        <code>q_</code> (unit <code>imaginary</code>), plus a virtual <code>Intensity_</code> band computed as
+        i&sup2; + q&sup2; (unit <code>intensity</code>). For a Sentinel-1 IW SLC the names include sub-swath and
+        polarisation, e.g. <code>i_IW1_VV</code>, <code>q_IW1_VV</code>, <code>Intensity_IW1_VV</code>.</li>
+    <li><b>GRD bands:</b> Sentinel-1 GRD products are read as <code>Amplitude_VV</code> (unit <code>amplitude</code>)
+        with a virtual <code>Intensity_VV</code>.</li>
+    <li><b>Phase:</b> no phase band is created on reading. Use Band Maths, e.g.
+        <code>atan2(q_IW1_VV, i_IW1_VV)</code>, if you need to view it.</li>
+    <li><b>Metadata:</b> the sensor-independent parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>,
+        e.g. <code>radar_frequency</code> (MHz), <code>PASS</code>, <code>antenna_pointing</code>,
+        <code>range_spacing</code> and <code>azimuth_spacing</code> (m), <code>incidence_near</code> and
+        <code>incidence_far</code> (deg), and <code>srgr_flag</code> (set when the product is in ground range).</li>
+    <li><b>GSLC:</b> the GSLC-Terrain-Correction operator resamples SLC i/q bands onto a map grid, keeps the band names
+        and adds the virtual intensity band.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Using GRD products for InSAR. GRD has no phase; interferometry needs SLC or GSLC.</li>
+    <li>Treating the <code>Intensity_</code> band of a raw product as calibrated backscatter. It is not calibrated;
+        run Calibration first.</li>
+    <li>Reading resolution from pixel spacing. Products are often oversampled, so pixel spacing is finer than the
+        resolution.</li>
+    <li>Assuming GRD is map-projected. It is still in radar geometry and needs terrain correction.</li>
+    <li>Comparing backscatter across wavelengths or polarisations as if it were the same quantity. Each band and
+        channel responds to different scatterers.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARSplitOp.html">TOPSAR Split</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARDeburstOp.html">TOPSAR Deburst</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/Sentinel1SLCtoGRD.html">Sentinel-1 SLC to GRD</a></li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Moreira, A., Prats-Iraola, P., Younis, M., Krieger, G., Hajnsek, I., Papathanassiou, K.P. (2013). A tutorial on
+        synthetic aperture radar. <i>IEEE Geoscience and Remote Sensing Magazine</i>, 1(1), 6&#8211;43.
+        doi:10.1109/MGRS.2013.2248301</li>
+    <li>Curlander, J.C., McDonough, R.N. (1991). <i>Synthetic Aperture Radar: Systems and Signal Processing</i>.
+        Wiley, New York. ISBN 978-0-471-85770-9</li>
+    <li>Torres, R., Snoeij, P., Geudtner, D., Bibby, D., Davidson, M., Attema, E., et al. (2012). GMES Sentinel-1 mission. <i>Remote Sensing of Environment</i>, 120, 9&#8211;24. doi:10.1016/j.rse.2011.05.028</li>
+    <li>De Zan, F., Monti Guarnieri, A. (2006). TOPSAR: Terrain observation by progressive scans. <i>IEEE Transactions
+        on Geoscience and Remote Sensing</i>, 44(9), 2352&#8211;2360. doi:10.1109/TGRS.2006.873853</li>
+</ol>
+
+<hr>
+</body>
+</html>

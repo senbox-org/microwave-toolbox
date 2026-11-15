@@ -30,8 +30,33 @@ and the former version V236 leads to phase offset.<br>
 <br>
 This operator performs EAP corrections for products generated before
 March 2015 [1]. <span style="font-family: &quot;Times&quot;,New Roman; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"></span></p>
-<p class="MsoNormal"><br>
-    [1] <a href="https://sentinels.copernicus.eu/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction.pdf/d8767e29-ae1d-4e1b-92c2-22c10648f81f?t=1437645629000">Impact
-of the EAP phase correction on phase preservation</a>, Issue 1</p>
+<h3>References</h3>
+<ol>
+    <li>Miranda, N. (2015). <i>Sentinel-1 Instrument Processing Facility: Impact of the Elevation Antenna Pattern Phase Compensation on the Interferometric Phase Preservation</i>. ESA technical note ESA-EOPG-CSCOP-TN-0004, Issue 1, Revision 0, 22 July 2015. https://sentinels.copernicus.eu/documents/247904/1653440/Sentinel-1-IPF_EAP_Phase_correction.pdf</li>
+</ol>
+
+<!-- params:begin op="EAP-Phase-Correction" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>EAP-Phase-Correction</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<p>This operator has no processing parameters.</p>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/orbits_etad.html">Orbits and timing corrections (ETAD, EAP)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Sentinel-1 SLC product with processor IPF version below 2.43; newer products are rejected as already corrected.</li>
+    <li>Complex products must have I and Q bands in pairs with units.</li>
+    <li>A matching AUX_CAL file must be found.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="TOPSARSplitOp.html">TOPS Split</a></li>
+    <li><a href="BackGeocodingOp.html">Back Geocoding</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

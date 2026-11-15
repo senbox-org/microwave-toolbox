@@ -79,7 +79,8 @@ public class PolarimetricSpeckleFilterOp extends Operator {
     private int anSize = 50;
 
     @Parameter(valueSet = {LeeSigma.SIGMA_50_PERCENT, LeeSigma.SIGMA_60_PERCENT, LeeSigma.SIGMA_70_PERCENT, LeeSigma.SIGMA_80_PERCENT, LeeSigma.SIGMA_90_PERCENT},
-            defaultValue = LeeSigma.SIGMA_90_PERCENT, label = "Point target window Size")
+            defaultValue = LeeSigma.SIGMA_90_PERCENT, label = "Sigma",
+            description = "Sigma value (probability range) used by the Lee Sigma filter")
     private String sigmaStr = LeeSigma.SIGMA_90_PERCENT; // sigma value in Lee sigma
 
     @Parameter(description = "The search window size", valueSet = {"3", "5", "7", "9", "11", "13", "15", "17",

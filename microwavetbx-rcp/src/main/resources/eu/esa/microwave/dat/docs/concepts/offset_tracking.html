@@ -1,0 +1,172 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Offset Tracking (Amplitude Correlation)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Offset Tracking</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Offset Tracking (Amplitude Correlation)</h1>
+
+<p class="lead">Offset tracking measures how far the surface moved between two acquisitions by
+cross-correlating small amplitude patches of a coregistered image pair. It gives a two-dimensional displacement
+(range and azimuth) of metres to hundreds of metres, needs no phase unwrapping and works where InSAR fails:
+fast glaciers, large landslides, earthquake ruptures. The price is precision: a fraction of a pixel instead of a
+fraction of a wavelength.</p>
+
+<h2>What is measured</h2>
+<p>Around each point of a regular grid a window of the Reference amplitude image is compared with the
+Secondary. The shift (&Delta;x, &Delta;y) in pixels that maximises the normalised cross-correlation is
+converted to metres with the pixel spacings &delta;<sub>r</sub> (range) and &delta;<sub>a</sub>
+(azimuth), and divided by the time interval &Delta;t:</p>
+<p class="eq">v = &radic;[(&Delta;x &middot; &delta;<sub>r</sub>)&sup2; + (&Delta;y &middot; &delta;<sub>a</sub>)&sup2;] / &Delta;t</p>
+<p>The two components are in range (slant range, i.e. the line of sight, on SLC; its projection on the
+ground on GRD) and in azimuth. InSAR measures only the line-of-sight component, but with millimetre
+precision; it wraps every &lambda;/2 and fails when the motion between dates changes the speckle pattern.
+Offset tracking is therefore its complement: Strozzi et al. (2002) found the interferometric accuracy two orders
+of magnitude better, and offsets usable where interferometry was limited by phase noise. Combining azimuth
+offsets with InSAR in range is a common way to get two components from one pair.</p>
+
+<h2>Precision, window size and oversampling</h2>
+<p>Matching precision is typically 1/10 to 1/20 pixel. Strozzi et al. (2002) report offset errors of the order
+of 1/20 pixel on ERS data; Michel et al. (1999) mapped the Landers earthquake from ERS amplitude images with
+1&sigma; errors of 0.8 m in range and 0.4 m in azimuth. Three choices set the result:</p>
+<ul>
+    <li><b>Window size.</b> The error falls with the square root of the number of independent pixels in the
+        window and rises as the two patches decorrelate (Bamler and Eineder, 2005). A large window is less noisy
+        but smooths sharp velocity changes (shear margins, fault traces) and must still contain recognisable
+        structure. When the speckle itself still correlates (short intervals, coherent surfaces), small windows
+        work; purely incoherent tracking of large-scale features needs large windows (Strozzi et al., 2002 used
+        64 &times; 64 single-look ERS pixels).</li>
+    <li><b>Search range.</b> The displacement must lie well inside the window, otherwise the patches no longer
+        overlap and the peak is lost.</li>
+    <li><b>Oversampling.</b> The correlation peak is found on the pixel grid first; interpolating the
+        correlation surface around it (for example 16 times) places it to a fraction of a pixel. Oversampling
+        sets the step of the estimate, not its accuracy.</li>
+</ul>
+
+<h2>The time interval</h2>
+<p>A matching error &sigma;<sub>px</sub> (pixels) gives a velocity noise floor</p>
+<p class="eq">&sigma;<sub>v</sub> = &sigma;<sub>px</sub> &middot; &delta; / &Delta;t</p>
+<p>which falls as the interval grows (Figure 1). A long interval therefore measures slow motion better, but the
+surface changes more (snow, melt, crevasses, vegetation) and the correlation drops: Strozzi et al. (2002) got
+confident results for only 307 of more than 6000 patches over a 35-day interval. The fastest measurable
+velocity is set by the search range divided by &Delta;t. Choose the shortest interval in which the expected
+motion is several times the noise floor.</p>
+
+<p><img src="images/offset_tracking_1.png" width="560" height="340" alt="Velocity noise floor versus time interval for three pixel spacings"></p>
+<p class="figcap">Figure 1. Velocity noise floor &sigma;<sub>v</sub> = 0.1 pixel &times; spacing / &Delta;t for
+Sentinel-1 IW: 14 m (SLC azimuth), 10 m (GRD) and 2.3 m (SLC slant range). Over 12 days with 10 m pixels it is
+0.083 m/day; motion must be well above the line to be measured.</p>
+
+<h2>Error sources</h2>
+<ul>
+    <li><b>Residual coregistration.</b> Orbit and timing errors leave a nearly constant offset. Stable ground
+        (rock) shows it as a non-zero velocity.</li>
+    <li><b>Topography.</b> A height h shifts a point in slant range between two orbits separated by the
+        perpendicular baseline B<sub>&perp;</sub> by about B<sub>&perp;</sub> h / (R sin &theta;) (R slant range,
+        &theta; incidence angle; divide by sin &theta; for ground range). Geometric coregistration with a DEM removes this; what remains comes from the
+        DEM error. For B<sub>&perp;</sub> = 150 m, R = 850 km and &theta; = 37&deg;, a 50 m DEM error gives
+        1.5 cm, negligible; without a DEM, 2000 m of relief gives about 0.6 m.</li>
+    <li><b>Ionosphere.</b> Fluctuations of the ionospheric electron density shift the image in azimuth, which
+        appears as streaks in azimuth offset maps (Gray et al., 2000). The effect grows with wavelength, so it
+        matters most at L-band and at high and equatorial latitudes.</li>
+    <li><b>Vertical motion and surface change.</b> Vertical displacement appears as a range offset;
+        melting, snowfall or sliding debris change the pattern and break the match.</li>
+</ul>
+
+<h2>In SNAP</h2>
+<p><b>Offset Tracking</b> (<code>Offset-Tracking</code>, <i>Radar &gt; SAR Applications &gt; Ice</i>) needs a
+coregistered stack; otherwise it stops with "Source product should be a coregistered stack created by
+DEM-Assisted Coregistration". Use DEM Assisted Coregistration: its offsets come from orbits and the DEM only, so
+the surface motion stays in the stack, whereas a Cross-Correlation and Warp stack fits part of the motion away
+(see <a href="coregistration.html">Coregistration</a>). For Sentinel-1 IW SLC (refused by DEM Assisted
+Coregistration) use TOPSAR-Split, Back-Geocoding and TOPS Deburst; skip ESD, whose azimuth shift estimate
+includes the motion. The operator uses the first amplitude or intensity band of the Reference and of the first
+Secondary; use linear, not dB, bands.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>Meaning</th></tr>
+    <tr><td>Grid Azimuth / Range Spacing in Pixels</td><td>40 / 40</td><td>Distance between grid points</td></tr>
+    <tr><td>Registration Window Width / Height</td><td>128 / 128</td><td>Correlation window (32 to 2048); offsets are searched up to half its size</td></tr>
+    <tr><td>Registration Oversampling</td><td>16</td><td>Oversampling factor of the correlation peak; the oversampled chip is a fixed (hidden) &plusmn;16 pixels around the coarse peak</td></tr>
+    <tr><td>Cross-Correlation Threshold</td><td>0.1</td><td>Points with a lower normalised peak correlation are rejected</td></tr>
+    <tr><td>Max Velocity (m/day)</td><td>5.0</td><td>Offsets longer than Max Velocity &times; &Delta;t are rejected as outliers</td></tr>
+    <tr><td>Spatial Average, Averaging Box Size</td><td>on, 5</td><td>Mean of the valid offsets in a box of grid points</td></tr>
+    <tr><td>Fill Holes, Radius for Hole-Filling</td><td>on, 4</td><td>Rejected points are filled from valid ones within this many grid points, weighted by inverse distance</td></tr>
+    <tr><td>Resampling Type</td><td><code>BICUBIC_INTERPOLATION</code></td><td>Interpolation of the velocity from the grid to every pixel</td></tr>
+    <tr><td>ROI Vector</td><td>empty</td><td>Name of a mask; only grid points inside it are matched</td></tr>
+</table>
+<p>The correlation uses the de-meaned values of that band as stored (amplitude or intensity). Offsets are converted to metres
+with the Reference's <code>range_spacing</code> and <code>azimuth_spacing</code>, so on SLC and other
+slant-range products the range component is in slant range. &Delta;t is the difference of the first-line times,
+in days.</p>
+<ul>
+    <li><b>Output.</b> The product (suffix <code>_Vel</code>) has one band, <code>Velocity_&lt;suffix&gt;</code>,
+        float32 in <code>m/day</code>: the magnitude of the offset vector. It has no sign and no direction.</li>
+    <li><b>Direction.</b> The vector data node <code>Velocity</code> holds one point per valid grid point with
+        the attributes <code>velocity</code>, <code>range_shift</code> and <code>azimuth_shift</code> (metres,
+        Reference minus matched Secondary position), <code>distance</code> and <code>heading</code> (from the
+        Reference to the Secondary position on the ground). Open it from the product's vector data to inspect
+        the offsets point by point. To draw them as arrows, open the velocity band and add the
+        <i>Coregistered GCP Movement Vector</i> layer in the Layer Manager.</li>
+    <li>Run Range-Doppler Terrain Correction on the velocity band to put it on a map.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Coregistering with Cross-Correlation and Warp. The warp polynomial absorbs part of the motion.</li>
+    <li>Leaving Max Velocity at 5 m/day on a faster glacier. The fast centre is rejected and filled from the
+        slow margins.</li>
+    <li>A window smaller than about twice the expected offset in pixels. The peak lies outside the search.</li>
+    <li>Reading filled values as measurements. Large filled areas mean the matching failed there.</li>
+    <li>Treating the velocity as horizontal ground motion. It is the magnitude in range and azimuth; vertical
+        motion and slope projection are included.</li>
+    <li>Ignoring stable ground. Its apparent velocity is the noise and bias of the whole map.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/OffsetTrackingOp.html">Offset Tracking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/DEMAssistedCoregistrationOp.html">DEM Assisted Coregistration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CrossCorrelationOp.html">Cross-Correlation</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+</ul>
+<p>Workflow: <a href="../workflows/workflow_offset_tracking.html">Offset Tracking for Glaciers and
+Landslides</a>. See also <a href="coregistration.html">Coregistration</a>, <a href="insar.html">InSAR
+fundamentals</a>, <a href="displacement.html">From phase to displacement</a>,
+<a href="atmosphere.html">Atmospheric phase</a> and <a href="geometry.html">SAR geometry</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Michel, R., Avouac, J.-P., Taboury, J. (1999). Measuring ground displacements from SAR amplitude images:
+        Application to the Landers earthquake. <i>Geophysical Research Letters</i>, 26(7), 875&#8211;878.
+        doi:10.1029/1999GL900138</li>
+    <li>Strozzi, T., Luckman, A., Murray, T., Wegm&uuml;ller, U., Werner, C. L. (2002). Glacier motion estimation
+        using SAR offset-tracking procedures. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 40(11),
+        2384&#8211;2391. doi:10.1109/TGRS.2002.805079</li>
+    <li>Bamler, R., Eineder, M. (2005). Accuracy of differential shift estimation by correlation and
+        split-bandwidth interferometry for wideband and delta-k SAR systems. <i>IEEE Geoscience and Remote
+        Sensing Letters</i>, 2(2), 151&#8211;155. doi:10.1109/LGRS.2004.843203</li>
+    <li>Gray, A. L., Mattar, K. E., Sofko, G. (2000). Influence of ionospheric electron density fluctuations on
+        satellite radar interferometry. <i>Geophysical Research Letters</i>, 27(10), 1451&#8211;1454.
+        doi:10.1029/2000GL000016</li>
+</ol>
+
+<hr>
+</body>
+</html>

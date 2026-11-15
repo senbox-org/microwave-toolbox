@@ -56,21 +56,41 @@ compact modes are simulated:<br>
     Compact Polarimetry Data Simulation operator<br></div>
 <br><br>
 
-<p> Reference:&nbsp;</p>
+<h4>References</h4>
+<ol>
+    <li>Cloude, S. R., Goodenough, D. G., Chen, H. (2012). Compact decomposition theory. <i>IEEE Geoscience and Remote Sensing Letters</i>, 9(1), 28&#8211;32. doi:10.1109/LGRS.2011.2158983</li>
+    <li>Raney, R. K. (2007). Hybrid-polarity SAR architecture. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 45(11), 3397&#8211;3404. doi:10.1109/TGRS.2007.895883</li>
+    <li>Souyris, J.-C., Imbo, P., Fj&oslash;rtoft, R., Mingot, S., Lee, J.-S. (2005). Compact polarimetry based on symmetry properties of geophysical media: the &pi;/4 mode. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 43(3), 634&#8211;646. doi:10.1109/TGRS.2004.842486</li>
+    <li>Nord, M. E., Ainsworth, T. L., Lee, J.-S., Stacy, N. J. S. (2009). Comparison of compact polarimetric synthetic aperture radar modes. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 47(1), 174&#8211;188. doi:10.1109/TGRS.2008.2000925</li>
+</ol>
 
-<p>[1] S. R. Cloude, D. G. Goodenough and H. Chen, "Compact Decomposition Theory", IEEE
-    Geoscience and Remote Sensing Letters, Vol. 9, No. 1, Jan. 2012.<br>
-</p>
-
-<p>[2] T. L. Ainsworth, M. Peiss, N. Stacy, M. Nord, J. S. Lee,
-    "ANALYSIS OF COMPACT POLARIMETRIC SAR IMAGING MODES", Proceedings of
-    the 3rd International Workshop on Science and Applications of SAR
-    Polarimetry and Polarimetric Interferometry, by Lacoste, H.; Ouwehand,
-    L. ISBN:92-9291-208-7 . Noordwijk, Netherlands: European Space Agency,
-    2007, id.18<br>
-    .<br>
-    <br>
-</p>
-
+<!-- params:begin op="CP-Simulation" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>CP-Simulation</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>compactMode</code></td><td>String</td><td>Right Circular Hybrid Mode</td><td>Right Circular Hybrid Mode, Left Circular Hybrid Mode</td><td>&nbsp;</td><td>The compact mode</td></tr>
+<tr><td><code>outputFormat</code></td><td>String</td><td>Covariance Matrix C2</td><td>Covariance Matrix C2, Scatter Vector S2</td><td>&nbsp;</td><td>The output simulated compact pol data format</td></tr>
+<tr><td><code>noisePower</code></td><td>double</td><td>-25</td><td>(-35, -15)</td><td>&nbsp;</td><td>The noise power</td></tr>
+<tr><td><code>simulateNoiseFloor</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Simulate noise floor</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Full-polarimetric (quad-pol) SLC scattering-matrix product with 8 bands (I and Q for HH, HV, VH, VV); GRD or non-quad-pol input is rejected</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="CompactPolDecompositionOp.html">Compact Polarimetric Decomposition</a></li>
+    <li><a href="CompactPolStokesParametersOp.html">Compact Pol Stokes Parameters</a></li>
+    <li><a href="CPRVIOp.html">Compact-pol Radar Vegetation Index</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

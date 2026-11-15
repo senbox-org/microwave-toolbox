@@ -1,9 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head><title>Help - Import PCIDSK</title>
-
-    <link rel="stylesheet" href="../style.css">
-</head>
+<html><head><title>Help - Import PCIDSK</title>
+    <link rel="stylesheet" href="../style.css"></head>
 <body>
 <table class="header">
     <tbody>
@@ -14,11 +11,43 @@
     </tr>
     </tbody>
 </table>
-<h3>Import PCIDSK Product</h3>
 
-<p>This option allows to import PCIDSK products according to the PCIDSK Database Reference Manual.</p>
+<p>PCIDSK (<code>.pix</code>) is the native raster database format of the PCI Geomatics software.
+It is a generic raster format, not a SAR mission format.</p>
 
-<p>Note: Currently only UTM projection is supported and band interleaved products.</p><br>
+<h2>Format</h2>
+<p>A PCIDSK file holds one or more image channels together with their georeferencing in a single
+<code>.pix</code> file.</p>
+
+<h2>Supported data</h2>
+<p>SNAP opens <code>.pix</code> files with its <b>GDAL</b> reader for the PCIDSK format
+("PCIDSK Database File"). The Microwave Toolbox has an older built-in PCIDSK reader, but it is no
+longer registered, so it is not used. The Microwave Toolbox menu entry for PCIDSK is also disabled.</p>
+
+<h2>How to open</h2>
+<p>Use <b>File &gt; Open Product</b> and select the <code>.pix</code> file. SNAP picks the GDAL
+PCIDSK reader automatically.</p>
+
+<h2>What you get</h2>
+<ul>
+  <li>One band per PCIDSK channel. A band takes the channel description as its name; channels without
+      a description are named <code>band_1</code>, <code>band_2</code>, ...</li>
+  <li>The map projection stored in the file is used for geocoding.</li>
+  <li>No SAR metadata: the product has no Abstracted Metadata with orbit, timing or radar parameters.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<p>Because the SAR metadata is missing, operators that need it, such as Calibration, Apply Orbit File
+or Range-Doppler Terrain Correction, cannot be used on a PCIDSK product. Use the original mission
+product for SAR processing, and PCIDSK only for map-projected results.</p>
+
+<h2>Recommended next step</h2>
+<p>Display the bands, or combine them with <a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/desktop/BandMaths.html">Band Maths</a>. For SAR processing, open the
+original mission product instead; see <a href="../SupportedMissions.html">Supported Missions</a>.</p>
+
+<h2>Product format specification</h2>
+<p>SNAP reads PCIDSK through GDAL; the GDAL driver page describes what is supported:
+<a href="https://gdal.org/en/stable/drivers/raster/pcidsk.html">https://gdal.org/en/stable/drivers/raster/pcidsk.html</a>.</p>
+
 <hr>
-</body>
-</html>
+</body></html>

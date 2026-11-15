@@ -22,6 +22,8 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -55,5 +57,21 @@ public class TestGaborFilterOp {
         final Product target = op.getTargetProduct();
         assertNotNull(target);
         assertNotNull(target.getBand("Sigma0_VV"));
+    }
+
+    /** GPF injects the annotation default, not the field initializer: theta must stay 0.6 rad. */
+    @Test
+    public void testThetaDefaultIsKeptUnderGpf() throws Exception {
+        final Product srcProduct = TestUtils.createProduct("GRD", 10, 10);
+        final Band band = TestUtils.createBand(srcProduct, "Sigma0_VV", 10, 10);
+        band.setUnit(Unit.INTENSITY);
+
+        final GaborFilterOp op = (GaborFilterOp) new GaborFilterOp.Spi().createOperator();
+        op.setSourceProduct(srcProduct);
+        op.getTargetProduct();
+
+        final Field theta = GaborFilterOp.class.getDeclaredField("theta");
+        theta.setAccessible(true);
+        assertEquals(0.6, theta.getDouble(op), 0.0);
     }
 }

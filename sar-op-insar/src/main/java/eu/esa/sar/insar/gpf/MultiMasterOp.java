@@ -26,12 +26,15 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.ThreadExecutor;
 import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.StackUtils;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -73,23 +76,49 @@ public class MultiMasterOp extends Operator{
     @Override
     public void initialize() throws OperatorException {
 
-        try{
-            final InputProductValidator validator = new InputProductValidator(sourceProduct);
-            targetProduct = sourceProduct;
-            validator.checkIfCoregisteredStack();
-            //splitSingleMasterProduct();
-
-        } catch (Throwable t) {
-            throw new OperatorException(t);
+        final InputProductValidator validator = new InputProductValidator(sourceProduct);
+        validator.checkIfCoregisteredStack();
+        validateOutputFolder();
+        // The target is the source itself. Bind each band's own image first: a band without one
+        // would get this operator's image, which computes through doExecute and deadlocks the
+        // pair writes that read it.
+        for (Band band : sourceProduct.getBands()) {
+            band.getSourceImage();
         }
+        targetProduct = sourceProduct;
+    }
+
+    /**
+     * The pair products are written straight to outputFolder (there is no Write node), so the
+     * folder must be set and usable before processing starts; it is created if missing.
+     */
+    private void validateOutputFolder() throws OperatorException {
+        if (outputFolder == null || outputFolder.trim().isEmpty()) {
+            throw new OperatorException("Output folder must be set");
+        }
+        final File folder = new File(outputFolder.trim());
+        if (folder.exists() && !folder.isDirectory()) {
+            throw new OperatorException("Output folder " + folder + " is not a folder");
+        }
+        if (!folder.exists() && !folder.mkdirs() && !folder.isDirectory()) {
+            throw new OperatorException("Output folder " + folder + " could not be created");
+        }
+        if (!Files.isWritable(folder.toPath())) {
+            throw new OperatorException("Output folder " + folder + " is not writable");
+        }
+        outputFolder = folder.getPath();
     }
 
     @Override
     public void doExecute(ProgressMonitor pm) throws OperatorException {
         try {
             splitSingleMasterProduct(pm);
+        } catch (OperatorException e) {
+            throw e;
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new OperatorException("Splitting the stack into pair products failed: " + e.getMessage(), e);
+        } finally {
+            pm.done();
         }
     }
 
@@ -144,6 +173,7 @@ public class MultiMasterOp extends Operator{
         final Product [] toOpenInSnap = new Product[dates.size() - 1];
         // Worker threads append concurrently; use a synchronized list.
         final List<String> writtenProductPaths = Collections.synchronizedList(new ArrayList<>());
+        final List<ThreadRunnable> runnables = new ArrayList<>();
 
         for (int x = 0; x < dates.size() - 1; x++){
             int dateRef = dates.get(x);
@@ -160,11 +190,12 @@ public class MultiMasterOp extends Operator{
             absMetadata.addAttribute(multireference);
             //absMetadata.removeElement(absMetadata.getElement("Orbit_State_Vectors"));
             //absMetadata.addElement(refOrbitData);
-            try{
-                MetadataElement original_product_metadata = rootMetadata.getElement("Original_Product_Metadata");
+            final MetadataElement original_product_metadata = rootMetadata.getElement("Original_Product_Metadata");
+            if (original_product_metadata != null) {
                 root.addElement(original_product_metadata);
-            } catch(Exception e){
-                e.printStackTrace();
+            } else {
+                SystemUtils.LOG.warning("MultiMasterStackGenerator: source product has no Original_Product_Metadata; "
+                        + productName + " is written without it");
             }
 
             absMetadata.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
@@ -184,34 +215,36 @@ public class MultiMasterOp extends Operator{
             final ThreadRunnable runnable = new ThreadRunnable() {
 
                 @Override
-                public void process() {
-                    try {
-                        for (Band b: finalRefBands){
-                            ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
-                            p.getBand(b.getName()).setName(b.getName().replace("sec", "ref").replace("slv", "ref"));
-                        }
-                        for (Band b: secBands){
-                            ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
-                            p.getBand(b.getName()).setName(b.getName().replace("ref", "sec").replace("mst", "sec"));
-                        }
-
-                        ProductIO.writeProduct(p, outputFolder + "/" + p.getName(), "BEAM-DIMAP");
-                        toOpenInSnap[finalX] = p;
-                        writtenProductPaths.add(outputFolder + "/" + p.getName());
-
-
-
-                        pm.worked(worked);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                public void process() throws Exception {
+                    for (Band b: finalRefBands){
+                        ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
+                        p.getBand(b.getName()).setName(b.getName().replace("sec", "ref").replace("slv", "ref"));
                     }
+                    for (Band b: secBands){
+                        ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
+                        p.getBand(b.getName()).setName(b.getName().replace("ref", "sec").replace("mst", "sec"));
+                    }
+
+                    final File pairFile = new File(outputFolder, p.getName());
+                    ProductIO.writeProduct(p, pairFile, "BEAM-DIMAP", false);
+                    toOpenInSnap[finalX] = p;
+                    writtenProductPaths.add(pairFile.getPath());
+
+                    pm.worked(worked);
                 }
 
             };
+            runnables.add(runnable);
             te.execute(runnable);
         }
+        // ThreadExecutor.complete() only rethrows the error of the last submitted runnable, so
+        // check every pair: a failed write must not be reported as success
         te.complete();
-
+        for (ThreadRunnable r : runnables) {
+            if (r.hasError()) {
+                throw r.getException();
+            }
+        }
     }
     private int strDatetoInt(String date){
         String [] tmp = date.split("-");

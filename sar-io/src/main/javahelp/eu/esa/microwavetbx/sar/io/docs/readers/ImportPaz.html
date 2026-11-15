@@ -1,9 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head><title>Help - Import PAZ</title>
-
-
-
-    <link rel="stylesheet" href="../style.css"></head><body>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
@@ -13,52 +11,58 @@
     </tbody>
 </table>
 
-<h3>Import PAZ Product</h3>
+<p>PAZ is a Spanish X-band SAR satellite. It uses the same product format as TerraSAR-X, and SNAP
+reads it with the <b>PAZ</b> reader, which shares its code with the
+<a href="ImportTerraSarX.html">TerraSAR-X reader</a>.</p>
 
-<p class="MsoNormal" style="text-align: justify;">PAZ is a Spanish dual use Earth observation and reconnaissance satellite
-developed by Hisdesat. The PAZ satellite uses the same X-band SAR instrument design and data format
-as TerraSAR-X and TanDEM-X, and operates in the same orbit constellation.</p>
-
-
-<p class="MsoNormal"><b style="">Operational:</b>
-2018-02-22 to present</p>
-
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-X-band (9.65 GHz)</p>
-
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, ScanSAR, Spotlight, High-Resolution Spotlight, Staring Spotlight</p>
-
-
-<p class="MsoNormal"><b style="">Product Types:</b></p>
-
+<h2>Mission</h2>
 <ul>
-  <li>SSC Single Look Slant Range Complex (COSAR binary format)</li>
-  <li>MGD Multi Look Ground Range Detected (GeoTIFF format)</li>
-  <li>GEC Geocoded Ellipsoid Corrected (GeoTIFF format)</li>
-  <li>EEC Enhanced Ellipsoid Corrected with terrain correction (GeoTIFF format)</li>
+  <li><b>Operator:</b> Hisdesat (Spain); INTA runs the ground segment.</li>
+  <li><b>Radar:</b> X-band, 9.65 GHz (wavelength about 3.1 cm).</li>
+  <li><b>Orbit:</b> sun-synchronous dawn-dusk orbit at 514 km, 11-day repeat cycle, in the same orbit
+      as TerraSAR-X and TanDEM-X.</li>
+  <li><b>Lifetime:</b> launched 22 February 2018; in extended operations.</li>
+  <li><b>Modes:</b> Stripmap, ScanSAR, Spotlight and High Resolution Spotlight.</li>
+  <li><b>Polarisation:</b> single (HH, VV, HV or VH) or dual.</li>
 </ul>
 
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Product</th><th>Content</th></tr>
+  <tr><td>SSC</td><td>Single Look Slant Range Complex (COSAR binary image)</td></tr>
+  <tr><td>MGD</td><td>Multi Look Ground Range Detected (GeoTIFF)</td></tr>
+  <tr><td>GEC</td><td>Geocoded Ellipsoid Corrected (GeoTIFF)</td></tr>
+  <tr><td>EEC</td><td>Enhanced Ellipsoid Corrected, terrain corrected with a DEM (GeoTIFF)</td></tr>
+</table>
 
-<p class="MsoNormal"><b style="">Polarizations:</b>
-Single Pol (HH or VV), Dual Pol (HH/VV, HH/HV, VV/VH)</p>
+<h2>How to open</h2>
+<p>Select the main XML annotation file in the product folder, for example
+<code>PAZ1_SAR__SSC_*.xml</code>. The file name must start with <code>PAZ</code> and contain
+<code>_SAR_</code>. Keep the folder structure of the delivery intact.</p>
 
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the main XML annotation file (e.g., PAZ1_SAR__SSC*.xml).
-The TSX product format is used, identical to TerraSAR-X products.</p>
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/p/paz">https://directory.eoportal.org/web/eoportal/satellite-missions/p/paz</a></p>
-
-
+<h2>What you get</h2>
 <ul>
+  <li>SSC: <code>i_</code> and <code>q_</code> bands per polarisation (for example <code>i_VV</code>)
+      and a virtual <code>Intensity_</code> band.</li>
+  <li>MGD, GEC, EEC: <code>Amplitude_</code> bands and virtual <code>Intensity_</code> bands.</li>
+  <li>Tie-point grids for latitude, longitude, incidence angle and slant-range time.</li>
 </ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>Zipped deliveries are not recognised by name; unzip the product and select the XML file.</li>
+  <li>Apply Orbit File has no PAZ orbit source; the reader uses the orbit in the annotation.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>, then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>
+for detected products. For SSC pairs, see <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a> and
+<a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram Formation</a>.</p>
+
+<h2>Product format specification</h2>
+<p><a href="https://www.inta.es/export/sites/default/.galleries/Paz-Ciencia-Descarga/PAZ-Image-Products-Guide.pdf">PAZ Image Products Guide (Hisdesat, PDF)</a>.
+Mission background: <a href="https://www.eoportal.org/satellite-missions/paz">eoPortal: PAZ</a>.</p>
 
 <hr>
 </body></html>

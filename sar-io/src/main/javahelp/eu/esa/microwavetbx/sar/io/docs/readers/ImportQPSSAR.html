@@ -1,36 +1,72 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import QPS SAR</title>
+<html><head><title>Help - Import QPS-SAR</title>
     <link rel="stylesheet" href="../style.css"></head>
 <body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import QPS SAR</td>
+        <td class="header">&nbsp; Import QPS-SAR</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
 
-<h3>Import QPS SAR Product</h3>
+<p>QPS-SAR is a constellation of small X-band SAR satellites operated by the Japanese company iQPS.
+SNAP reads QPS-SAR GeoTIFF products with the <b>QPS-SAR</b> reader, which uses GDAL.</p>
 
-<p class="MsoNormal">
-    Reader for SAR products delivered in the QPS (Quad-Polarization SAR /
-    Generic Polarimetric Stack) GeoTIFF interchange format. The reader treats
-    each input file as a tiled GeoTIFF and resolves the polarimetric channel
-    layout (single-pol, dual-pol HH+HV / VV+VH, or full quad-pol) from the
-    sidecar metadata.
-</p>
-
-<p class="MsoNormal"><b>Product Types:</b></p>
+<h2>Mission</h2>
 <ul>
-    <li>Coregistered polarimetric stack delivered as multi-band GeoTIFF</li>
-    <li>Calibrated &amp; geocoded backscatter (sigma-nought, gamma-nought)</li>
+  <li><b>Operator:</b> iQPS Inc. (Institute for Q-shu Pioneers of Space), Japan.</li>
+  <li><b>Radar:</b> X-band, 9.38 GHz, up to about 600 MHz bandwidth; HH or VV.</li>
+  <li><b>Orbit:</b> inclined low Earth orbits; recent satellites fly at about 575&ndash;585 km.</li>
+  <li><b>Lifetime:</b> first satellite (QPS-SAR-1) launched 11 December 2019; further satellites have
+      been launched since, and the constellation is in operation.</li>
+  <li><b>Modes:</b> Stripmap (about 1.8 m) and Spotlight (about 0.5 m).</li>
 </ul>
 
-<p class="MsoNormal"><b>Notes:</b> This is the GDAL-backed reader; large rasters are read in a
-windowed / tiled fashion so SNAP does not load the full image into memory.
-Use <i>Polarimetric Matrix Generation</i> downstream if the source is a
-quad-pol stack and you need a coherency or covariance matrix output.</p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Level</th><th>Products recognised by the reader</th></tr>
+  <tr><td>1.1</td><td>SLC (complex), SLA (single-look amplitude), MLA (multi-look amplitude)</td></tr>
+  <tr><td>1.2</td><td>Ground-range projected SLA and MLA</td></tr>
+  <tr><td>1.3</td><td>Orthorectified SLA and MLA</td></tr>
+</table>
+<p>Stripmap and Spotlight products are supported.</p>
+
+<h2>How to open</h2>
+<p>Select the product GeoTIFF (<code>.tif</code>). You can also select its <code>.xml</code> or
+<code>.json</code> metadata file; the reader then opens the GeoTIFF with the same name in the same
+folder. The file name must start with <code>QPS-SAR</code>, <code>QPSSAR</code> or
+<code>QPS_SAR</code>.</p>
+
+<h2>What you get</h2>
+<ul>
+  <li>SLC: <code>i_VV</code> and <code>q_VV</code> bands and a virtual <code>Intensity_VV</code> band.</li>
+  <li>SLA and MLA: an <code>Amplitude_VV</code> band and a virtual <code>Intensity_VV</code> band.</li>
+  <li>The geocoding stored in the GeoTIFF.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>. For QPS-SAR it is only partly filled (see below).</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>Product type, level and mode are taken from the file name. A name without these keywords is
+      treated as a detected Level 1.1 Stripmap product.</li>
+  <li>The polarisation is always set to VV and the radar frequency to 9.65 GHz; neither is read
+      from the product. HH products are therefore labelled VV.</li>
+  <li>The XML file, if present, is only copied into the Original Product Metadata. Orbit state vectors,
+      acquisition times and pixel spacing are not read, and the JSON file is not read at all.</li>
+  <li>SNAP has no QPS-SAR calibrator, so Calibration and Range-Doppler Terrain Correction cannot be
+      used. Treat the data as uncalibrated images.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<p>For a quick look, use <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> on SLA or MLA products.
+Level 1.3 products are already orthorectified.</p>
+
+<h2>Product format specification</h2>
+<p>No public format document is linked here. Operator and mission:
+<a href="https://i-qps.net/en/">iQPS</a> and
+<a href="https://www.eoportal.org/satellite-missions/qps-sar">eoPortal: QPS-SAR</a>.</p>
 
 <hr>
 </body></html>
