@@ -1,6 +1,8 @@
 # Microwave Toolbox Roadmap: Parked Work
 
-Date: 2026-11-13. This list collects every item parked during the JavaHelp overhaul and its Phase 8 code-defect pass. None of these items has been changed in the working tree.
+Date: 2026-11-13. Sections 1–7 collect every item parked during the JavaHelp overhaul and its Phase 8 code-defect pass. None of these items has been changed in the working tree.
+
+Sections 8 and 9 (added 2026-11-17) are new workstreams, not parked items: **§8 Memory efficiency** and **§9 Validation framework**.
 
 Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`](reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md) (the consolidated list, with the release notes for the fixes that *were* made) and the plan [`docs/plans/2026-11-12-javahelp-overhaul-plan.md`](plans/2026-11-12-javahelp-overhaul-plan.md). The evidence (file:line, reasoning) for each item is in the Phase 8 reports in the local SDD workspace (`.superpowers/sdd/2026-11-12-javahelp-overhaul-plan/phase8-*-report.md`, `final-review.md`).
 
@@ -181,3 +183,122 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 - [ ] **[Bug]** Polarimetric Calibration (Ainsworth) has no convergence or divergence check. At co-pol coherence 0.95-0.98 the cross-talk error grows with iterations and can corrupt HV/HH by 5 dB. Track the residual per pass, keep the best iterate, stop when it grows, and warn on low conditioning (kappa). S-M. Decision: kappa threshold; warn or raise.
 - [ ] **[Hygiene]** Polarimetric Calibration: add optional parameters for an externally measured (corner-reflector) co-pol imbalance f.
 - [ ] **[Hygiene]** `docs/reviews/javahelp-2026-11-12/polcal_port.py` still ports the old estimator; update it or mark it historical.
+
+---
+
+## 8. Memory efficiency (workstream)
+
+**Spec:** [`superpowers/specs/2026-11-17-memory-efficiency-design.md`](superpowers/specs/2026-11-17-memory-efficiency-design.md) covers the metric definitions, the workflow suite W1–W7, the measurement architecture, the suspect table with fixes and tests, the phases P0–P4 and the guard rails.
+
+**Problem.** Users report that SNAP needs too much memory, and that this hurts performance: GC thrash, swapping, OOM on 16 GB laptops. Today nothing measures it. `microwavetbx-benchmark` records only time. `snap-gpt-tests` records process `memory_max`, but under a fixed `-Xmx` the RSS reflects the heap setting, not what the workflow needs.
+
+**Metric.** The number that matches the complaint is the **minimum heap a standard workflow completes in**, plus the wall time at 4, 8 and 16 GB. Track both per release, and treat any increase as a regression.
+
+### 8.1 Measure first
+- [ ] Define the **memory budget suite**: about six workflows that cover what users actually run.
+  1. S1 GRD → Calibrate → Speckle → Terrain Correction.
+  2. S1 IW SLC pair → TOPS coregistration → Interferogram → Deburst → Terrain Correction.
+  3. A 10-date S1 SLC stack (GSLC and classical).
+  4. An RS2/RCM quad-pol → Decomposition → Wishart classification.
+  5. SBAS on 100 dates.
+  6. Open a large product in SNAP Desktop, then view and pan it.
+- [ ] Add a **heap sweep** runner: run each workflow at `-Xmx` 2/3/4/6/8/12/16 GB and record pass/fail, wall time and GC time (from `-Xlog:gc`). Then find the minimum heap by bisection. M.
+- [ ] Add peak heap-after-GC, allocation rate and GC-pause share to `microwavetbx-benchmark` (`Benchmark.java` currently writes runtimes only). Use the `GarbageCollectorMXBean` and `MemoryPoolMXBean` peak usage. S.
+- [ ] Profile every suite workflow once with **JFR** (allocation profiling, old-object sample) and take a heap dump at peak. Rank the retainers by class and owner (operator, reader, cache, metadata). This ranking replaces guesswork. M.
+
+### 8.2 Known suspects (found by code scan; confirm with 8.1 before fixing)
+- [ ] **[Bug]** Whole-scene arrays in operators that should be tiled:
+  - `GeneralWishart` and `FreemanDurdenWishart` hold `int[H][W]` + `double[H][W]` (about 1.2 GB for a 10k×10k scene). Train the clusters on a sample, then classify per tile. L.
+  - `ForestAreaClassificationOp` holds a full-scene `byte[H][W]` mask.
+  - `RangeDopplerGeocodingOp:1192` holds a full-scene `layoverShadowMask` (about 425 MB for an S1 GRD). Compute it per tile with an overlap margin.
+- [ ] **[Bug]** `EmpiricalTropoCorrectionOp:308-309` fetches the whole phase and coherence image with `getSourceTile(0,0,W,H)` just to subsample it with a stride. The comment there says it reads stride rows, but it does not. Read the stride rows (or a decimated image). S.
+- [ ] **[Bug]** `ETADUtils:436` and `TerraSarXProductDirectory:703` call `readRasterDataFully` on bands. Check the sizes; if they are large, read them lazily or by region.
+- [ ] **[Bug]** SBAS: about 600 MiB of source tiles per tile at 300 pairs (already in §7.3). Size tiles from the pair count.
+- [ ] **[Decision]** **Metadata duplication.** 118 operator classes copy the full metadata tree. For S1 SLC (annotation, calibration and noise vectors) that tree is tens of MB, and every node in a graph holds its own copy. Measure the share of the heap. If it matters, the options are copy-on-write or shared read-only `Original_Product_Metadata` in snap-engine **[Cross-repo]**, or slimming what S1/RCM readers load eagerly.
+- [ ] **[Decision]** **Competing caches.** The JAI tile cache, the snap-engine `ProductCache` (heap-scaled budget since its accounting fix), DEM tile caches (per operator instance?) and orbit caches each size themselves on their own. Consider one memory governor that splits the heap: a cache budget plus working-set headroom. **[Cross-repo]** for JAI and ProductCache.
+- [ ] **[Bug]** Lifecycle leaks: an operator chain is not disposed after a graph or a Desktop action, so DEM caches and metadata copies stay reachable. The `sar-test-stacks` OOM showed this class of leak. Audit the Desktop "Run" path and the batch-processing path for `dispose()` of intermediate products. M.
+- [ ] **[Hygiene]** Check data types: bands or intermediates kept as float64 where float32 is enough; i/q stored as two float32 where int16 would do in reader-backed products; tile sizes that span the full width on S1 (a 25k-wide row of tiles × bands × threads).
+- [ ] **[Decision]** Defaults that ship to users: the `-Xmx` fraction in snap.conf and gpt.vmoptions, the JAI cache size and the tile size. Review them against the 8.1 results and publish a short "how much memory do I need" table per workflow.
+
+### 8.3 Guard rails
+- [ ] **Bounded-heap tests**: run each suite workflow on a cropped fixture at a fixed small `-Xmx` (e.g. 1.5 GB) under `LongTestRunner`. If a change needs more memory, the test fails. M.
+- [ ] Add an **ArchUnit or grep check** in CI that flags `getSourceTile(..., new Rectangle(0, 0, width, height))` and `new X[height][width]` for scene dimensions in operator code. Allow listed exceptions. S.
+- [ ] Add the minimum-heap and wall-time results to the release notes per release, so users can see the trend.
+
+---
+
+## 9. Validation framework (workstream)
+
+**Spec:** [`superpowers/specs/2026-11-17-validation-framework-design.md`](superpowers/specs/2026-11-17-validation-framework-design.md) covers the tier model and placement, the contract checks C1–C9 and R1–R8, the fixture registry, the T2 tolerance model, the T3 repository layout and case schema, the register schema and the phases V0–V4.
+
+**Goal.** Show for every feature (reader, operator, shipped graph) that it (a) runs correctly, (b) is comparable to or better than other tools, and (c) is scientifically correct. Publish the evidence per release.
+
+### 9.1 Three tiers, three homes
+
+These are three different questions. Each needs different data and a different runtime, so each lives where its runtime already is.
+
+| Tier | Question | Data | Runs | Lives in |
+|---|---|---|---|---|
+| **T1 Contract** | Does it behave correctly on known input? | Synthetic plus tiny committed fixtures | Every commit (CI) | **microwave-toolbox** (unit tests plus long-gated integration tests, as now) |
+| **T2 Regression** | Does the shipped build give the same answer on real data, through gpt and graphs? | Real products, GB scale, on the test-data server | Nightly / per RC | **snap-gpt-tests** (already ESA's gpt runner; already has `s1tbx/` tests, expected outputs and a performance DB) |
+| **T3 Scientific** | Is it right against ground truth, and how does it compare with peer tools? | Reference sites, truth data, peer-tool outputs | Per release / quarterly | **New repo `microwave-validation`**: move `microwave-toolbox/validation/` there, plus the corner-reflector tests from `sar-test-stacks` |
+
+Why a separate repo for T3: it is Python and Docker (ISCE3, Dolphin, MintPy, PolSARpro), needs multi-GB truth data, runs on a release cadence rather than per commit, and has a different audience (ESA reviewers, users). It tests the **installed** build, not the source tree, so pinning a SNAP build version in each report is enough. The single-commit argument in `validation/README.md` no longer holds once reports record the SNAP version and git hash. Keep T1 and T2 out of it; a validation repo that also does regression testing becomes a second gpt-tests.
+
+Readers fit the same split. T1 is a generic contract test per reader plug-in, in a new test-only module `sar-contract-tests`. T2 uses **snap-reader-tests**, which runs the `<PlugIn>-data.json` descriptors kept in each reader module's test resources. 23 descriptors cover 22 of the 39 readers today; add the missing 17 and SAR metadata expectations. T3 for readers is geolocation and radiometry against corner reflectors.
+
+### 9.2 T1: generic contract tests (microwave-toolbox)
+These parametrised tests run over **every** registered plug-in, so new readers and operators get them automatically. Each check below matches a class of defect found in 2026.
+- [ ] **Reader contract** (`ReaderContractTest`, parametrised over all SAR `ProductReaderPlugIn`s with a fixture):
+  - `getDecodeQualification` is INTENDED only for its own product and SUITABLE/UNABLE for the others. This catches the EOS-04/RISAT-1 and RCM-accepts-S1 claims.
+  - Required abstracted metadata is present and plausible: radar frequency, PRF, pass, orbit vectors, slant range to first pixel. This catches hard-coded frequency/PRF and the single made-up orbit vector.
+  - A region read equals the same crop of a full read.
+  - Multi-band reads differ per band (GenericReader).
+  - Geocoding round-trips (pixel → geo → pixel within 0.5 px).
+  - Closing the reader releases its file handles.
+  - The data type matches the source (SNAPHU float64).
+- [ ] **Operator contract** (`OperatorContractTest`, parametrised over all `OperatorSpi`s with a minimal synthetic input):
+  - **Tile-size invariance**: the output at tile sizes 64, 256 and 513 is identical (or within float tolerance). This catches the RangeFilter overlap, the Goldstein no-data strip and Object-Discrimination edge double counts.
+  - **Thread determinism**: 1 thread versus N threads gives an identical result. This catches the CPM/GCP order, EnvisatOrbitReader singleton and ProductCache races.
+  - **No-data propagation**: a no-data input region gives no-data output and never a finite value (Horizontal/Vertical Motion, PhaseToDisplacement, StackAveraging).
+  - **Unit guard**: dB input is either refused or handled (Terrain Flattening, LogRatio, AdaptiveThresholding).
+  - **Default parameters** initialise without exceptions, and every `@Parameter` label matches the UI.
+  - **Bounded memory**: computing one tile allocates at most k × tile size (ties to §8.3).
+- [ ] **Algorithm oracles**: per operator, a closed-form synthetic case. Examples: a point target through Terrain Correction lands at a known lat/lon; a known phase ramp through Interferogram gives a known fringe rate; an analytic covariance matrix gives known H/A/α. Many exist already (GSLC test pyramid, PhaseLinking). The register in 9.5 shows the gaps.
+
+### 9.3 T2: regression on real data (snap-gpt-tests)
+- [ ] Add a gpt test for **every shipped graph**: 97 graph XMLs under the `*-ui` modules' `graphs/` resources, against about 35 tests in `tests/s1tbx` today; the §3 bug "shipped TOPS graphs lack ESD" shows that the graphs themselves are untested.
+- [ ] Add per-mission reader-to-Calibration-to-Terrain-Correction tests for each supported mission (S1, RS2, RCM, CSK/CSG, TSX/PAZ, ICEYE, Capella, SAOCOM, ALOS-2, NISAR, BIOMASS, ERS/ASAR). Today `missions/` holds only Sentinel1.
+- [ ] Compare with tolerances, not MD5. Use per-band statistics plus sampled pixels with an explicit tolerance per test, so a legitimate change can be accepted deliberately (regenerate with a reason recorded).
+- [ ] Wire the §8 heap sweep into the existing performance database (it already has `memory_max`; add `min_heap_mb` and `gc_time`).
+
+### 9.4 T3: scientific validation (microwave-validation repo)
+Each feature gets a **reference** (ground truth or peer tool), a **metric** and an **acceptance threshold** taken from mission requirements or the literature. Examples:
+
+| Area | Reference | Metric / threshold |
+|---|---|---|
+| Radiometric calibration | Corner reflectors (Rosamond, Surat; add DLR, Australian CR array) | Absolute σ0 bias within ±0.5 dB; stability |
+| Geolocation (TC, GSLC) | CR surveyed positions | ALE below 1 resolution cell; with ETAD below 0.2 m |
+| Terrain Flattening / γ0 RTC | ISCE3 RTC, OPERA RTC-S1 | Bias and RMSE in dB per land-cover class |
+| Coregistration | ISCE3/COMPASS CSLC | Residual offset in px; ESD residual |
+| Interferogram / coherence | ISCE3, Dolphin | Circular std of the phase difference; coherence bias |
+| Phase linking / SBAS | Dolphin, MintPy; P-SBAS Campi Flegrei; GNSS | Velocity RMSE in mm/yr against GNSS |
+| Polarimetry | PolSARpro | H/A/α, Freeman/Yamaguchi powers: relative difference |
+| Noise removal | S1 NESZ annotations; RCM noise | Residual noise floor; scalloping |
+| Ocean (wind, ships) | ECMWF/ASCAT wind; AIS | Wind RMSE in m/s; detection probability / false-alarm rate |
+
+- [ ] Move `microwave-toolbox/validation/` into `microwave-validation`, keeping the engines/compare/cases layout. Add `truth/` adapters (CR, GNSS, AIS).
+- [ ] Move the corner-reflector tests (`sar-test-stacks` `CRValidation*`) into it as T3 cases. They are already excluded from the default build (`-Pcorner-reflectors`).
+- [ ] Generate a **per-release validation report** (HTML/PDF): a pass/fail scorecard per feature, plots, the SNAP build and the peer-tool versions. This is the artifact for ESA and users.
+
+### 9.5 Validation register
+- [ ] Create `docs/validation/register.yaml` in microwave-toolbox, with static definitions next to the code and a drift check in `sar-contract-tests`. Results stay with the T2 and T3 runs and are joined at report time. It has one row per reader, operator and shipped graph, with:
+  - T1, T2 and T3 status
+  - reference
+  - metric
+  - threshold
+  - last result and date
+  - owner
+
+  Seed it automatically from the `OperatorSpi`, `ProductReaderPlugIn` and graph lists so nothing is missing. The register is how "each feature" becomes trackable; the release gate is "no feature regressed a tier".
+- [ ] Define the order of work: the most-used workflows first (S1 GRD → TC, S1 TOPS InSAR, Calibration, Speckle, PolSAR decomposition). The long tail of readers (§4) gets T1 contracts first, because those catch most of the known reader bugs cheaply.
