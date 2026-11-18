@@ -40,8 +40,8 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
 
     private static final String[] SUPPORTED_MISSIONS = new String[] {"Capella"};
 
-    private boolean inputSigma0 = false;
-    private boolean inputBeta0 = false;
+    // radiometric quantity of the source pixels, from the product's "radiometry" annotation
+    private CalibratedQuantity inputQuantity = CalibratedQuantity.SIGMA0;
     private double centerIncidenceAngle = 0.0;
     private TiePointGrid incidenceAngle = null;
 
@@ -98,9 +98,9 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
                 }
             }
 
-            inputSigma0 = true;
-
             getSampleType();
+
+            inputQuantity = getInputQuantity(sourceProduct, isComplex);
 
             getTiePointGridData(sourceProduct);
 
@@ -113,6 +113,47 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
 
         } catch (Exception e) {
             throw new OperatorException(e);
+        }
+    }
+
+    /**
+     * Radiometric quantity of a Capella product's pixels. Capella annotates it per product as
+     * {@code collect.image.radiometry}: SLCs are {@code beta_nought}, GEO/GEC are {@code sigma_nought}.
+     * Without the annotation, the same split is assumed from the sample type.
+     */
+    static CalibratedQuantity getInputQuantity(final Product product, final boolean complex) {
+        final MetadataElement origRoot = AbstractMetadata.getOriginalProductMetadata(product);
+        MetadataElement elem = origRoot == null ? null : origRoot.getElement("ProductMetadata");
+        elem = elem == null ? null : elem.getElement("collect");
+        elem = elem == null ? null : elem.getElement("image");
+        final String radiometry = elem == null ? null : elem.getAttributeString("radiometry", null);
+        if (radiometry == null) {
+            return complex ? CalibratedQuantity.BETA0 : CalibratedQuantity.SIGMA0;
+        }
+        final String r = radiometry.toLowerCase();
+        if (r.contains("beta")) {
+            return CalibratedQuantity.BETA0;
+        }
+        if (r.contains("gamma")) {
+            return CalibratedQuantity.GAMMA0;
+        }
+        if (r.contains("sigma")) {
+            return CalibratedQuantity.SIGMA0;
+        }
+        throw new OperatorException("Capella Calibration: unsupported radiometry " + radiometry);
+    }
+
+    /**
+     * Converts a linear input sample of quantity {@code inputQuantity} to sigma0 at incidence angle theta.
+     */
+    private double toSigma0(final double value, final double incidenceAngleDeg) {
+        switch (inputQuantity) {
+            case BETA0:
+                return value * FastMath.sin(incidenceAngleDeg * Constants.DTOR);
+            case GAMMA0:
+                return value * FastMath.cos(incidenceAngleDeg * Constants.DTOR);
+            default:
+                return value;
         }
     }
 
@@ -183,6 +224,7 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
         final int maxX = x0 + w;
 
         double sigma, dn, i, q, phaseTerm = 0.0;
+        final CalibratedQuantity quantity = getTargetQuantity(targetBand);
         int srcIdx, tgtIdx;
 
         for (int y = y0; y < maxY; ++y) {
@@ -217,15 +259,14 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
                     throw new OperatorException("Capella Calibration: unhandled unit");
                 }
 
-                if (inputSigma0) {
-                    sigma = dn;
-                } else {
-                    sigma = dn * Math.sin(centerIncidenceAngle * Constants.DTOR);
-                }
+                // same per-pixel angle as sigma0ToTargetQuantity, so a Beta0 target of a beta0 SLC is the input
+                sigma = toSigma0(dn, incidenceAngle != null ? incidenceAngle.getPixelDouble(x, y) : centerIncidenceAngle);
 
                 if (isComplex && outputImageInComplex) {
                     sigma = Math.sqrt(sigma) * phaseTerm;
                 }
+
+                sigma = sigma0ToTargetQuantity(sigma, quantity, x, y);
 
                 if (outputImageScaleInDb) { // convert calibration result to dB
                     if (sigma < underFlowFloat) {
@@ -256,18 +297,14 @@ public class CapellaCalibrator extends BaseCalibrator implements Calibrator {
             throw new OperatorException("Unknown band unit");
         }
 
+        // beta0 at the ellipsoid
+        final double beta0 = inputQuantity == CalibratedQuantity.BETA0 ? sigma :
+                toSigma0(sigma, centerIncidenceAngle) / FastMath.sin(centerIncidenceAngle * Constants.DTOR);
+
         if (incidenceAngleSelection.contains(USE_INCIDENCE_ANGLE_FROM_DEM)) {
-            if (inputBeta0) {
-                return sigma * FastMath.sin(localIncidenceAngle * Constants.DTOR);
-            }
-            // Convert sigma0 from ellipsoid incidence angle to local (DEM) incidence angle
-            return sigma * FastMath.sin(localIncidenceAngle * Constants.DTOR) /
-                    FastMath.sin(centerIncidenceAngle * Constants.DTOR);
+            return beta0 * FastMath.sin(localIncidenceAngle * Constants.DTOR);
         } else { // USE_INCIDENCE_ANGLE_FROM_ELLIPSOID
-            if (inputBeta0) {
-                return sigma * FastMath.sin(centerIncidenceAngle * Constants.DTOR);
-            }
-            return sigma;
+            return beta0 * FastMath.sin(centerIncidenceAngle * Constants.DTOR);
         }
     }
 

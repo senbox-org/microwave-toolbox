@@ -201,6 +201,7 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
         final boolean scaled2 = scalingBand2 != null && scalingBand2.isScalingApplied();
 
         double sigma, dn, i, q, phaseTerm = 0.0;
+        final CalibratedQuantity quantity = getTargetQuantity(targetBand);
         int srcIdx, tgtIdx;
 
         for (int y = y0; y < maxY; ++y) {
@@ -255,6 +256,8 @@ public class IceyeCalibrator extends BaseCalibrator implements Calibrator {
                         sigma = FastMath.sqrt(sigma)*phaseTerm;
                     }
                 }
+
+                sigma = sigma0ToTargetQuantity(sigma, quantity, x, y);
 
                 if (outputImageScaleInDb) { // convert calibration result to dB
                     if (sigma < underFlowFloat) {

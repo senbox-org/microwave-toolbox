@@ -366,6 +366,7 @@ public final class ERSCalibrator extends BaseCalibrator implements Calibrator {
             final int maxX = x0 + w;
 
             double sigma, dn, i, q, phaseTerm = 0.0;
+            final CalibratedQuantity quantity = getTargetQuantity(targetBand);
             int index;
             int adcJ = 0;
 
@@ -432,6 +433,8 @@ public final class ERSCalibrator extends BaseCalibrator implements Calibrator {
                             sigma = Math.sqrt(sigma)*phaseTerm;
                         }
                     }
+
+                    sigma = sigma0ToTargetQuantity(sigma, quantity, x, y);
 
                     if (outputImageScaleInDb) { // convert calibration result to dB
                         if (sigma < underFlowFloat) {

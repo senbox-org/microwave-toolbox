@@ -15,11 +15,14 @@
  */
 package eu.esa.sar.calibration.gpf.support;
 
+import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -170,11 +173,87 @@ public class TestBaseCalibrator {
         }
     }
 
+    @Test
+
+    @STTM("SNAP-4377")
+    public void testQuantityOfFollowsTargetBandNames() {
+        assertEquals(BaseCalibrator.CalibratedQuantity.SIGMA0, BaseCalibrator.quantityOf("Sigma0_VV"));
+        assertEquals(BaseCalibrator.CalibratedQuantity.BETA0, BaseCalibrator.quantityOf("Beta0_VV"));
+        assertEquals(BaseCalibrator.CalibratedQuantity.BETA0, BaseCalibrator.quantityOf("Beta0_HV_dB"));
+        assertEquals(BaseCalibrator.CalibratedQuantity.GAMMA0, BaseCalibrator.quantityOf("Gamma0_HH"));
+        assertEquals(BaseCalibrator.CalibratedQuantity.OTHER, BaseCalibrator.quantityOf("DN_VV"));
+        assertEquals(BaseCalibrator.CalibratedQuantity.OTHER, BaseCalibrator.quantityOf("i_VV"));
+        assertEquals(BaseCalibrator.CalibratedQuantity.OTHER, BaseCalibrator.quantityOf(null));
+    }
+
+    @Test
+
+    @STTM("SNAP-4377")
+    public void testSigma0ToBeta0AndGamma0() {
+        final double sigma0 = 0.25;
+        final double theta = 34.0;
+        final double rad = Math.toRadians(theta);
+        assertEquals(sigma0, BaseCalibrator.sigma0To(BaseCalibrator.CalibratedQuantity.SIGMA0, sigma0, theta), 0.0);
+        assertEquals(sigma0, BaseCalibrator.sigma0To(BaseCalibrator.CalibratedQuantity.OTHER, sigma0, theta), 0.0);
+        assertEquals(sigma0 / Math.sin(rad),
+                BaseCalibrator.sigma0To(BaseCalibrator.CalibratedQuantity.BETA0, sigma0, theta), 1e-15);
+        assertEquals(sigma0 / Math.cos(rad),
+                BaseCalibrator.sigma0To(BaseCalibrator.CalibratedQuantity.GAMMA0, sigma0, theta), 1e-15);
+        // gamma0 = beta0 * tan(theta), the flat-ground limit Terrain-Flattening must reproduce
+        assertEquals(BaseCalibrator.sigma0To(BaseCalibrator.CalibratedQuantity.BETA0, sigma0, theta) * Math.tan(rad),
+                BaseCalibrator.sigma0To(BaseCalibrator.CalibratedQuantity.GAMMA0, sigma0, theta), 1e-15);
+    }
+
+    @Test
+
+    @STTM("SNAP-4377")
+    public void testBeta0TargetUsesIncidenceAngleTiePointGrid() {
+        final Product srcProduct = TestUtils.createProduct("GRD", 8, 8);
+        final float[] angles = new float[16];
+        java.util.Arrays.fill(angles, 30.0f);
+        srcProduct.addTiePointGrid(new TiePointGrid(OperatorUtils.TPG_INCIDENT_ANGLE, 4, 4, 0.5f, 0.5f,
+                8 / 3.0f, 8 / 3.0f, angles));
+
+        final BaseCalibratorProbe cal = new BaseCalibratorProbe();
+        cal.setSource(srcProduct);
+        final Band beta0 = new Band("Beta0_VV", ProductData.TYPE_FLOAT32, 8, 8);
+        final Band sigma0 = new Band("Sigma0_VV", ProductData.TYPE_FLOAT32, 8, 8);
+
+        final BaseCalibrator.CalibratedQuantity qb = cal.targetQuantity(beta0);
+        assertEquals(0.2 / Math.sin(Math.toRadians(30.0)), cal.toTargetQuantity(0.2, qb, 3, 4), 1e-6);
+        final BaseCalibrator.CalibratedQuantity qs = cal.targetQuantity(sigma0);
+        assertEquals(0.2, cal.toTargetQuantity(0.2, qs, 3, 4), 0.0);
+    }
+
+    @Test
+
+    @STTM("SNAP-4377")
+    public void testBeta0TargetWithoutIncidenceAngleFailsLoudly() {
+        final Product srcProduct = TestUtils.createProduct("GRD", 8, 8); // latitude/longitude grids only
+
+        final BaseCalibratorProbe cal = new BaseCalibratorProbe();
+        cal.setSource(srcProduct);
+        // sigma0 needs no incidence angle
+        assertEquals(BaseCalibrator.CalibratedQuantity.SIGMA0,
+                cal.targetQuantity(new Band("Sigma0_VV", ProductData.TYPE_FLOAT32, 8, 8)));
+        try {
+            cal.targetQuantity(new Band("Beta0_VV", ProductData.TYPE_FLOAT32, 8, 8));
+            fail("Beta0 without an incidence angle grid must not silently fall back to sigma0");
+        } catch (OperatorException expected) {
+            assertTrue(expected.getMessage().contains("incidence_angle"));
+        }
+    }
+
     /**
      * Probe subclass that exposes protected state so tests can verify behavior
      * without reflection or operator wiring.
      */
     private static class BaseCalibratorProbe extends BaseCalibrator {
+        void setSource(Product product) { sourceProduct = product; }
+        CalibratedQuantity targetQuantity(Band band) { return getTargetQuantity(band); }
+        double toTargetQuantity(double sigma0, CalibratedQuantity q, int x, int y) {
+            return sigma0ToTargetQuantity(sigma0, q, x, y);
+        }
         boolean isOutputInComplex() { return outputImageInComplex; }
         boolean isOutputScaleInDb() { return outputImageScaleInDb; }
         String getIncidenceAngleSelection() { return incidenceAngleSelection; }

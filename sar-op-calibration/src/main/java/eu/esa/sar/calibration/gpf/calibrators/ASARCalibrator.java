@@ -937,6 +937,7 @@ public class ASARCalibrator extends BaseCalibrator implements Calibrator {
         }
 
         double sigma, dn, i, q, phaseTerm = 0.0;
+        final CalibratedQuantity quantity = getTargetQuantity(targetBand);
         final double theCalibrationFactor = newCalibrationConstant[prodBand];
 
         int srcIdx, tgtIdx;
@@ -1004,6 +1005,8 @@ public class ASARCalibrator extends BaseCalibrator implements Calibrator {
                         sigma = Math.sqrt(sigma)*phaseTerm;
                     }
                 }
+
+                sigma = sigma0ToTargetQuantity(sigma, quantity, x, y);
 
                 if (outputImageScaleInDb) { // convert calibration result to dB
                     if (sigma < underFlowFloat) {

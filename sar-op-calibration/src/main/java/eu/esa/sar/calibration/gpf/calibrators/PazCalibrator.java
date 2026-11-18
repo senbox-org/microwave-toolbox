@@ -409,6 +409,7 @@ public class PazCalibrator extends BaseCalibrator implements Calibrator {
         final int maxX = x0 + w;
 
         double sigma, dn, i, q, phaseTerm = 0.0;
+        final CalibratedQuantity quantity = getTargetQuantity(targetBand);
         int srcIdx, tgtIdx;
 
         for (int y = y0; y < maxY; ++y) {
@@ -465,6 +466,8 @@ public class PazCalibrator extends BaseCalibrator implements Calibrator {
                         sigma = Math.sqrt(sigma)*phaseTerm;
                     }
                 }
+
+                sigma = sigma0ToTargetQuantity(sigma, quantity, x, y);
 
                 if (outputImageScaleInDb) { // convert calibration result to dB
                     if (sigma < underFlowFloat) {
