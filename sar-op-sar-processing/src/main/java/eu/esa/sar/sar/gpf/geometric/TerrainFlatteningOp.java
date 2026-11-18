@@ -962,11 +962,27 @@ public final class TerrainFlatteningOp extends Operator {
     }
 
     private double computeSRGRRatio(final int x, final double[] srgrCoeff) {
+        return computeSlantToGroundRangeRatio(x, srgrCoeff, srgrConvParams[0].ground_range_origin,
+                sourceImageWidth, nearRangeOnLeft, rangeSpacing);
+    }
 
-        final double groundRange1 = x * rangeSpacing;
-        final double slantRange1 = Maths.computePolynomialValue(groundRange1, srgrCoeff);
-        final double groundRange2 = groundRange1 + rangeSpacing;
-        final double slantRange2 = Maths.computePolynomialValue(groundRange2, srgrCoeff);
+    /**
+     * dSR/dGR at image column x of a ground range product.
+     * <p>
+     * The SRGR polynomial maps absolute ground range to slant range. Column 0 of a subset sits at
+     * groundRangeOrigin, which ProductSubsetBuilder shifts by the subset offset; ignoring it evaluates the
+     * ratio at the wrong part of the swath (-0.78 dB for an S1 IW subset starting at x = 10500). Images
+     * stored far range first (RS2/RCM descending) are flipped as in getPosition: column x is near-range
+     * index width - 1 - x.
+     */
+    static double computeSlantToGroundRangeRatio(final int x, final double[] srgrCoeff,
+                                                 final double groundRangeOrigin, final int imageWidth,
+                                                 final boolean nearRangeOnLeft, final double rangeSpacing) {
+
+        final int xNear = nearRangeOnLeft ? x : imageWidth - 1 - x;
+        final double groundRange = groundRangeOrigin + xNear * rangeSpacing;
+        final double slantRange1 = Maths.computePolynomialValue(groundRange - 0.5 * rangeSpacing, srgrCoeff);
+        final double slantRange2 = Maths.computePolynomialValue(groundRange + 0.5 * rangeSpacing, srgrCoeff);
         return (slantRange2 - slantRange1) / rangeSpacing;
     }
 

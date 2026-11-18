@@ -17,6 +17,7 @@ package eu.esa.sar.calibration.gpf;
 
 import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.calibration.gpf.calibrators.Sentinel1Calibrator;
+import eu.esa.sar.calibration.gpf.support.BaseCalibrator;
 import eu.esa.sar.calibration.gpf.support.CalibrationFactory;
 import eu.esa.sar.calibration.gpf.support.Calibrator;
 import org.esa.snap.core.datamodel.*;
@@ -190,6 +191,11 @@ public class CalibrationOp extends Operator {
         }
     }
 
+    private static boolean isBeta0OrGamma0(final String bandName) {
+        final BaseCalibrator.CalibratedQuantity quantity = BaseCalibrator.quantityOf(bandName);
+        return quantity == BaseCalibrator.CalibratedQuantity.BETA0 || quantity == BaseCalibrator.CalibratedQuantity.GAMMA0;
+    }
+
     /**
      * Create Gamma image as a virtual band.
      *
@@ -207,6 +213,9 @@ public class CalibrationOp extends Operator {
             }
 
             final String trgBandName = trgBand.getName();
+            if (isBeta0OrGamma0(trgBandName)) {
+                continue; // the expression below assumes a sigma0 source band
+            }
             final String expression;
             if (outputImageScaleInDb) {
                 expression = "(pow(10," + trgBandName + "/10.0)" + " / cos(incident_angle * PI/180.0)) "
@@ -263,6 +272,9 @@ public class CalibrationOp extends Operator {
             }
 
             final String trgBandName = trgBand.getName();
+            if (isBeta0OrGamma0(trgBandName)) {
+                continue; // the expression below assumes a sigma0 source band
+            }
             final String expression;
             if (outputImageScaleInDb) {
                 expression = "(pow(10," + trgBandName + "/10.0)" + " / sin(incident_angle * PI/180.0)) "

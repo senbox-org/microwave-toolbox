@@ -315,6 +315,7 @@ public class CosmoSkymedCalibrator extends BaseCalibrator implements Calibrator 
         final int maxX = x0 + w;
 
         double sigma, dn, i, q, phaseTerm = 0.0;
+        final CalibratedQuantity quantity = getTargetQuantity(targetBand);
         int srcIdx, tgtIdx;
         final double powFactor = FastMath.pow(referenceSlantRange, 2 * referenceSlantRangeExp);
         final double sinRefIncidenceAngle = FastMath.sin(referenceIncidenceAngle);
@@ -370,6 +371,8 @@ public class CosmoSkymedCalibrator extends BaseCalibrator implements Calibrator 
                         sigma = Math.sqrt(sigma) * phaseTerm;
                     }
                 }
+
+                sigma = sigma0ToTargetQuantity(sigma, quantity, x, y);
 
                 if (outputImageScaleInDb) { // convert calibration result to dB
                     if (sigma < underFlowFloat) {

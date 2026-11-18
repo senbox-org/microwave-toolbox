@@ -236,6 +236,7 @@ public class Radarsat2Calibrator extends BaseCalibrator implements Calibrator {
         final int maxX = x0 + w;
 
         double sigma = 0.0, dn, i, q, phaseTerm = 0.0;
+        final CalibratedQuantity quantity = getTargetQuantity(targetBand);
         int srcIdx, tgtIdx;
         final Double noDataValue = targetBand.getNoDataValue();
 
@@ -288,6 +289,8 @@ public class Radarsat2Calibrator extends BaseCalibrator implements Calibrator {
                         }
                     }
                 }
+
+                sigma = sigma0ToTargetQuantity(sigma, quantity, x, y);
 
                 if (outputImageScaleInDb) { // convert calibration result to dB
                     if (sigma < underFlowFloat) {

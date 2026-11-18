@@ -15,15 +15,18 @@
  */
 package eu.esa.sar.calibration.gpf;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProcessorTest;
 import eu.esa.sar.iogdal.iceye.IceyeCOGReaderPlugIn;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.DecodeQualification;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.junit.After;
 import org.junit.Test;
 
@@ -214,6 +217,49 @@ public class TestCalibrationIceye extends ProcessorTest {
             anyPositive |= value > 0;
         }
         assertTrue("sigma0 window is entirely zero", anyPositive);
+    }
+
+    /**
+     * For GRD, {@code calibration_factor * |DN|^2} is sigma0 (ICEYE SAR product
+     * guide, radiometric calibration). Beta0 and Gamma0 bands used to receive that
+     * same sigma0, so Terrain-Flattening, which requests Beta0, came out low by
+     * sin(theta): -2.55 dB at 34 degrees.
+     */
+    @Test
+    @STTM("SNAP-4377")
+    public void testOpenDataGrdBeta0AndGamma0AreNotCopiesOfSigma0() throws Exception {
+        final Product source = read(openDataGrdWindow());
+        final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(source);
+        assertNotNull("fixture should carry an incidence angle tie-point grid", incidenceAngle);
+
+        final CalibrationOp op = (CalibrationOp) spi.createOperator();
+        op.setSourceProduct(source);
+        op.setParameter("outputSigmaBand", true);
+        op.setParameter("outputBetaBand", true);
+        op.setParameter("outputGammaBand", true);
+        final Product target = op.getTargetProduct();
+        opened.add(target);
+
+        final Band sigma0 = target.getBand("Sigma0_VV");
+        final Band beta0 = target.getBand("Beta0_VV");
+        final Band gamma0 = target.getBand("Gamma0_VV");
+        assertNotNull(sigma0);
+        assertNotNull(beta0);
+        assertNotNull(gamma0);
+
+        int checked = 0;
+        for (int[] p : new int[][]{{1, 0}, {100, 200}, {255, 512}, {300, 700}, {511, 1023}}) {
+            final double s = sample(sigma0, p[0], p[1]);
+            if (!(s > 0)) {
+                continue;
+            }
+            final double theta = Math.toRadians(incidenceAngle.getPixelDouble(p[0], p[1]));
+            final String at = " at x=" + p[0] + " y=" + p[1];
+            assertEquals("Beta0/Sigma0" + at, 1.0 / Math.sin(theta), sample(beta0, p[0], p[1]) / s, 1e-5);
+            assertEquals("Gamma0/Sigma0" + at, 1.0 / Math.cos(theta), sample(gamma0, p[0], p[1]) / s, 1e-5);
+            checked++;
+        }
+        assertTrue("no valid sigma0 sample in the fixture window", checked >= 3);
     }
 
     /**

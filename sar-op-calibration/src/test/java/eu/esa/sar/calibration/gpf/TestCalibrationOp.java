@@ -117,8 +117,18 @@ public class TestCalibrationOp extends ProcessorTest {
     @STTM("SNAP-3672")
     public void testProcessingCapella_StripmapSLC() throws Exception {
 
-        final float[] expected = new float[] {0.01825511f,0.04138892f,0.04425726f};
+        // the SLC is beta0 ("radiometry": "beta_nought"), so sigma0 = beta0 * sin(theta)
+        final float[] expected = new float[] {0.010215639f,0.023161419f,0.02476655f};
         processFile(TestData.inputCapella_StripmapSLC, "sigma0_HH", expected);
+    }
+
+    @Test
+    @STTM("SNAP-4377")
+    public void testProcessingCapella_StripmapSLC_beta0() throws Exception {
+
+        // beta0 of the input pixels; before the radiometry fix these were reported as sigma0
+        final float[] expected = new float[] {0.01825511f,0.04138892f,0.04425726f};
+        processFile(TestData.inputCapella_StripmapSLC, "beta0_HH", 0, 0, expected, true);
     }
 
     @Test
