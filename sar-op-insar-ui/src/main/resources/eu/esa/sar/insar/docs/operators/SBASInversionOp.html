@@ -19,7 +19,7 @@
 
 <p>The <b>SBAS Inversion</b> operator inverts a stack of unwrapped
     small-baseline interferograms for per-epoch phase, displacement, and a
-    weighted linear-velocity model, following Berardino, Fornaro, Lanari
+    linear velocity, following Berardino, Fornaro, Lanari
     &amp; Sansosti (IEEE TGRS 2002).</p>
 
 <p>Per pixel it builds the design matrix <i>A</i> of size <i>M</i>&times;
@@ -31,63 +31,90 @@
     Tikhonov regularisation activates automatically when the matrix is
     ill-conditioned. Per-epoch phase is then converted to LOS
     displacement (<i>d</i> = &minus;&lambda;&nbsp;/&nbsp;4&pi;&nbsp;&middot;
-    &phi;) and fit to a linear-in-time model for velocity.</p>
+    &phi;) and fit to a linear-in-time model for velocity (an unweighted
+    least-squares fit of the per-epoch values).</p>
 
 <h4>Input</h4>
 <ul>
     <li>A multi-temporal stack containing, per pair <i>k</i>:
         <ul>
-            <li>Unwrapped phase band, <code>Unit.PHASE</code> or
-                <code>Unit.ABS_PHASE</code>. Naming convention as emitted by
-                <i>Snaphu Import</i>:
-                <code>Unw_Phase_ifg_&lt;...&gt;_&lt;masterDate&gt;_&lt;slaveDate&gt;</code>.</li>
-            <li>Coherence band, <code>Unit.COHERENCE</code>, e.g.
-                <code>coh_&lt;swath&gt;_&lt;POL&gt;_&lt;masterDate&gt;_&lt;slaveDate&gt;</code>.</li>
+            <li>Unwrapped phase band with unit <code>phase</code> or
+                <code>abs_phase</code> and "unw" (any case) in its name, e.g.
+                <code>Unw_Phase_ifg_&lt;ref-date&gt;_&lt;sec-date&gt;</code> or
+                <code>UnwPhase_ifg_&lt;swath&gt;_&lt;POL&gt;_&lt;ref-date&gt;_&lt;sec-date&gt;</code>
+                as written by <i>Batch Snaphu Unwrap</i> or <i>Snaphu Import</i>. Bands without a unit are
+                skipped.</li>
+            <li>Coherence band with the same two dates, unit
+                <code>coherence</code> or a name starting with <code>coh_</code>, e.g.
+                <code>coh_&lt;swath&gt;_&lt;POL&gt;_&lt;ref-date&gt;_&lt;sec-date&gt;</code>.</li>
         </ul>
     </li>
     <li>Acquisition dates are extracted as the last two
-        <code>ddMMMyyyy</code> tokens in each band name.</li>
+        <code>ddMMMyyyy</code> tokens in each band name. Pairs are keyed by
+        these two dates only, so use one polarisation and one sub-swath per
+        product; with several, the last band per date pair is used.</li>
 </ul>
 
 <h4>Where this fits in the InSAR pipeline</h4>
 <pre>
    TOPS                                  Stripmap
-   ─────────────                         ────────────────────
+   &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;                         &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
    TOPSAR-Split                          Apply-Orbit-File
    Apply-Orbit-File
    Back-Geocoding                        Coregistration
    Enhanced-Spectral-Diversity
    TOPSAR-Deburst
-                              ↓
+                              &darr;
    1. Phase Linking            (optional, DS only)
    2. Interferogram  OR  Multi-Reference InSAR
    3. TopoPhase-Removal (if not done by step 2)
    4. Goldstein Phase Filtering
-   5. SnaphuExport → snaphu (external) → SnaphuImport
-                              ↓
-   6. SBAS Inversion           (this operator)  →  _SBAS product
-                              ↓
+   5. SnaphuExport &rarr; BatchSnaphuUnwrap (or external SNAPHU &rarr; SnaphuImport)
+                              &darr;
+   6. SBAS Inversion           (this operator)  &rarr;  _SBAS product
+                              &darr;
    7. Range-Doppler-Terrain-Correction  (optional, geocodes the result)
 </pre>
-<p>SBAS Inversion expects the <code>Unw_Phase_ifg_*</code> naming emitted
-    by <i>Snaphu Import</i> and pairs each with the matching
-    <code>coh_*</code> band by trailing date pair. Phase Linking
-    (step 1) is optional &mdash; SBAS works on plain pairwise unwrapped
-    interferograms too.</p>
+<p>Route to an SBAS-ready product: run <i>Snaphu Export</i> on the
+    multi-pair interferogram product, then <i>Batch Snaphu Unwrap</i> on the
+    same product with the folder Snaphu Export created. Batch Snaphu Unwrap
+    replaces each wrapped phase band with an <code>UnwPhase_ifg_&lt;tag&gt;</code>
+    band (unit <code>abs_phase</code>) and passes the <code>coh_*</code> bands
+    through, so SBAS Inversion reads its output directly. If you run SNAPHU
+    outside SNAP instead, import the results with <i>Snaphu Import</i>, each
+    time with the previous import (at first the interferogram product) as the
+    first input, leaving <i>Do NOT save Wrapped interferogram</i> unticked.
+    Phase Linking (step 1) is optional &mdash; SBAS works on plain pairwise
+    unwrapped interferograms too.</p>
 
 <h4>Output</h4>
 <ul>
     <li><code>phase_&lt;date&gt;</code> &mdash; per-epoch unwrapped phase
         relative to the reference epoch (rad).</li>
     <li><code>displacement_&lt;date&gt;</code> &mdash; LOS displacement (mm).</li>
-    <li><code>velocity</code> &mdash; weighted linear fit (mm/year).</li>
+    <li><code>velocity</code> &mdash; unweighted least-squares linear fit of the per-epoch phases (mm/year).</li>
     <li><code>velocity_uncertainty</code> &mdash; 1-sigma velocity (mm/year).</li>
     <li><code>temporal_coherence</code> &mdash; residual-based quality, [0, 1].</li>
     <li><code>residual_&lt;m&gt;_&lt;s&gt;</code> &mdash; per-pair residual
-        (optional).</li>
+        (optional). Named and signed in date order (earlier date first), also
+        for a pair whose input band lists the later date first.</li>
     <li><code>closure_phase_rms</code> &mdash; RMS triplet closure phase
-        (optional).</li>
+        (on by default). Each closure is wrapped to (&#8722;&pi;, &pi;] before the RMS,
+        so the band shows sub-cycle phase inconsistency (for example from soil
+        moisture or vegetation change). It does not reveal whole-cycle (2&pi;)
+        unwrapping errors. Only triplets whose three pairs are all above the
+        coherence threshold are used; where there is none (for example
+        everywhere in a sequential network) the band is no-data (NaN).</li>
 </ul>
+<p>Either date may come first in a pair band name: SBAS Inversion orders the
+    epochs by date and negates the phase of a pair named later date first.</p>
+<p><b>Changed in SNAP 15:</b> earlier versions did not negate later-date-first
+    pairs, so stacks containing such pairs gave wrong per-epoch results, and
+    <code>closure_phase_rms</code> was 0 instead of no-data where no triplet
+    exists.</p>
+<p>Displacement is relative to the reference epoch, not to a reference
+    point: subtract a stable area yourself (see
+    <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a>).</p>
 
 <h4>Parameters</h4>
 <table border="1" cellpadding="3" cellspacing="0">
@@ -100,29 +127,64 @@
         <td>Independent looks used for the CRLB-style coherence weight
             &sigma;<sup>2</sup> = (1&minus;&gamma;<sup>2</sup>)&nbsp;/&nbsp;
             (2&nbsp;<i>L</i>&nbsp;&gamma;<sup>2</sup>).</td></tr>
-    <tr><td>Tikhonov Weight</td><td>1e-3</td>
+    <tr><td>Regularisation Weight</td><td>1e-3</td>
         <td>Scale relative to trace(<i>A</i><sup>T</sup><i>WA</i>) / (<i>N</i>-1).</td></tr>
     <tr><td>Condition Threshold</td><td>1e6</td>
         <td>Above this Tikhonov regularisation activates.</td></tr>
     <tr><td>Output Velocity</td><td>on</td><td>Emits velocity + uncertainty bands.</td></tr>
     <tr><td>Output Closure-Phase RMS</td><td>on</td>
-        <td>Per-pixel RMS of triplet closure (unwrap-error proxy).</td></tr>
+        <td>Per-pixel RMS of the triplet closures, each wrapped to (&#8722;&pi;, &pi;]:
+            sub-cycle inconsistency, not whole-cycle unwrapping errors. No-data where
+            no closed triplet of usable pairs exists.</td></tr>
     <tr><td>Output Per-Pair Residuals</td><td>off</td>
         <td>One residual band per pair.</td></tr>
 </table>
 
 <h4>References</h4>
+<ol>
+    <li>Berardino, P., Fornaro, G., Lanari, R., Sansosti, E. (2002). A new algorithm for surface deformation monitoring based on small baseline differential SAR interferograms. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 40(11), 2375&#8211;2383. doi:10.1109/TGRS.2002.803792</li>
+    <li>Pepe, A., Lanari, R. (2006). On the extension of the minimum cost flow algorithm for phase unwrapping of multitemporal differential SAR interferograms. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(9), 2374&#8211;2383. doi:10.1109/TGRS.2006.873207</li>
+    <li>Yunjun, Z., Fattahi, H., Amelung, F. (2019). Small baseline InSAR time series analysis: Unwrapping error correction and noise reduction. <i>Computers &amp; Geosciences</i>, 133, 104331. doi:10.1016/j.cageo.2019.104331</li>
+</ol>
+
+<!-- params:begin op="SBASInversion" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SBASInversion</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>referenceEpochDate</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Reference epoch date (ddMMMyyyy). If empty, the median epoch is used.</td></tr>
+<tr><td><code>coherenceMin</code></td><td>double</td><td>0.3</td><td>&nbsp;</td><td>&nbsp;</td><td>Drop equations whose coherence is below this threshold</td></tr>
+<tr><td><code>coherenceLooks</code></td><td>int</td><td>100</td><td>&nbsp;</td><td>&nbsp;</td><td>Number of independent looks assumed for the coherence-derived weight</td></tr>
+<tr><td><code>regWeight</code></td><td>double</td><td>0.001</td><td>&nbsp;</td><td>&nbsp;</td><td>Tikhonov regularisation weight (relative to trace(A^T W A)/(N-1))</td></tr>
+<tr><td><code>condThreshold</code></td><td>double</td><td>1.0e6</td><td>&nbsp;</td><td>&nbsp;</td><td>cond(A^T W A) above which Tikhonov regularisation activates</td></tr>
+<tr><td><code>outputResiduals</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Emit per-pair residual bands</td></tr>
+<tr><td><code>outputClosurePhase</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Emit RMS triplet closure-phase band</td></tr>
+<tr><td><code>outputVelocity</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Emit velocity and uncertainty bands</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
 <ul>
-    <li>Berardino, P. <i>et al.</i> (2002). A new algorithm for surface
-        deformation monitoring based on small baseline differential SAR
-        interferograms. <i>IEEE TGRS</i> 40(11), 2375-2383.</li>
-    <li>Pepe, A. &amp; Lanari, R. (2006). On the extension of the minimum
-        cost flow algorithm for phase unwrapping of multitemporal
-        differential SAR interferograms. <i>IEEE TGRS</i> 44(9), 2374-2383.</li>
-    <li>Yunjun, Z. <i>et al.</i> (2019). Small baseline InSAR time series
-        analysis: Unwrapping error correction and noise reduction (MintPy).
-        <i>Computers &amp; Geosciences</i> 133.</li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/time_series.html">InSAR Time Series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/phase_linking.html">Phase Linking in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/quality_control.html">Quality Control and Troubleshooting</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_time_series.html">Workflow: InSAR Time Series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/atmosphere.html">Atmospheric and Ionospheric Phase</a></li>
 </ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Unwrapped interferogram bands with 'unw' in the name, ending in &lt;ref-date&gt;_&lt;sec-date&gt; (ddMMMyyyy), unit phase or abs_phase, covering at least 3 unique epochs</li>
+    <li>From <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BatchSnaphuUnwrapOp.html">Batch Snaphu Unwrap</a>: run <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a> first (interferogram product first, Batch result second); it sets the unit and brings back the coherence bands</li>
+    <li>A coherence band for every pair, unit coherence or name starting 'coh_': a pair without one fails at compute time</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Subtract a stable area: displacement is relative to the reference epoch, not to a reference point</li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> to geocode the result, then export or analyse the per-epoch phase and velocity bands</li>
+</ul>
+<!-- footer:end -->
 
 <hr>
 </body>

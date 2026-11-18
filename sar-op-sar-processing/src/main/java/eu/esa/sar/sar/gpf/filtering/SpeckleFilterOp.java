@@ -79,7 +79,7 @@ public class SpeckleFilterOp extends Operator {
 //            label = "Edge detection threshold")
 //    private double edgeThreshold = 5000.0;
 
-    @Parameter(defaultValue = "false", label = "Estimate Eqivalent Number of Looks")
+    @Parameter(defaultValue = "false", label = "Estimate Equivalent Number of Looks")
     private boolean estimateENL = true;
 
     @Parameter(description = "The number of looks", interval = "(0, *)", defaultValue = "1.0",
@@ -100,7 +100,8 @@ public class SpeckleFilterOp extends Operator {
     private String targetWindowSizeStr = FilterWindow.SIZE_3x3; // window size for point target determination in Lee sigma
 
     @Parameter(valueSet = {SIGMA_50_PERCENT, SIGMA_60_PERCENT, SIGMA_70_PERCENT, SIGMA_80_PERCENT, SIGMA_90_PERCENT},
-            defaultValue = SIGMA_90_PERCENT, label = "Point target window Size")
+            defaultValue = SIGMA_90_PERCENT, label = "Sigma",
+            description = "Sigma value (probability range) used by the Lee Sigma filter")
     private String sigmaStr = SIGMA_90_PERCENT; // sigma value in Lee sigma
 
     @Parameter(description = "The Adaptive Neighbourhood size", interval = "(1, 200]", defaultValue = "50",

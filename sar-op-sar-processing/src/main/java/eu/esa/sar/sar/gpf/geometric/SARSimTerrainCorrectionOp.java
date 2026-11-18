@@ -169,7 +169,8 @@ public class SARSimTerrainCorrectionOp extends Operator {
             SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM,
             SARGeocoding.USE_LOCAL_INCIDENCE_ANGLE_FROM_DEM
     },
-            defaultValue = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM, label = "")
+            defaultValue = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM,
+            description = "Incidence angle used when computing sigma0: ellipsoid, local (DEM) or projected local (DEM)", label = "")
     private String incidenceAngleForSigma0 = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM;
 
     @Parameter(valueSet = {
@@ -177,7 +178,8 @@ public class SARSimTerrainCorrectionOp extends Operator {
             SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM,
             SARGeocoding.USE_LOCAL_INCIDENCE_ANGLE_FROM_DEM
     },
-            defaultValue = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM, label = "")
+            defaultValue = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM,
+            description = "Incidence angle used when computing gamma0: ellipsoid, local (DEM) or projected local (DEM)", label = "")
     private String incidenceAngleForGamma0 = SARGeocoding.USE_PROJECTED_INCIDENCE_ANGLE_FROM_DEM;
 
     @Parameter(valueSet = {CalibrationOp.LATEST_AUX, CalibrationOp.PRODUCT_AUX, CalibrationOp.EXTERNAL_AUX},

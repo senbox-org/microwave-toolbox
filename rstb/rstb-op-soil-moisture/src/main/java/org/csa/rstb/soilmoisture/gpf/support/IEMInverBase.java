@@ -1070,7 +1070,7 @@ public class IEMInverBase extends Operator {
         }
 
         rdcBand = targetProduct.addBand("RDC", ProductData.TYPE_FLOAT32);
-        rdcBand.setUnit("Farad/m");
+        rdcBand.setUnit("");
         rdcBand.setNoDataValue(INVALID_OUTPUT_VALUE);
         rdcBand.setNoDataValueUsed(true);
 

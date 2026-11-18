@@ -15,23 +15,41 @@
     </tbody>
 </table>
 <h3>Stack Averaging Operator</h3>Stack Averaging operator computes
-statistics for the corresponding bands in the given stack product. For
-example the mean of all "i_VV_" bands and mean of all "q_VV_" bands. .
-The statistics include mean, minimum, maximum, standard deviation and
-coefficient of variation. <br>
+one statistic over time for the corresponding bands in the given stack product. Bands
+are grouped by their name without the <code>_ref</code>/<code>_sec</code> (or
+<code>_mst</code>/<code>_slv</code>) date suffix: for example all
+<code>Gamma0_VV_ref_&lt;date&gt;</code> and <code>Gamma0_VV_sec&lt;k&gt;_&lt;date&gt;</code>
+bands give one output band <code>Gamma0_VV</code>. The statistics are mean, minimum,
+maximum, standard deviation and coefficient of variation. There is no median. <br>
 <h4>Input and Output</h4>
 <ul>
     <li>The
-        input to this operator is a stack product.
+        input to this operator is a stack product. Use detected, linear bands
+        (amplitude or intensity, not dB) of the same unit.
     </li>
-    <li>The output of this operator is the user selected statistic for all bands.</li>
+    <li>The output has one band per band group, named without the date suffix, holding the
+        selected statistic. The band takes the unit of the first band in the group.</li>
 </ul>
-<ol>
-</ol>
+<h4>How the statistics are computed</h4>
+<ul>
+    <li>Standard Deviation is the population standard deviation over the <i>N</i> dates:
+        sqrt(mean(x<sup>2</sup>) &#8722; mean(x)<sup>2</sup>), that is with <i>N</i>, not
+        <i>N</i>&#8722;1, in the denominator.</li>
+    <li>Coefficient of Variation is the population Standard Deviation divided by the Mean Average
+        of the input values. On intensity input such as <code>Gamma0_VV</code> a stable pixel at
+        4.4 looks gives about 0.48 (1/&radic;4.4); on amplitude input the value is lower, so compare
+        CVs only between products of the same unit.</li>
+    <li><b>Changed in SNAP 15:</b> earlier versions computed the Coefficient of Variation on the
+        squared values and divided it by <i>N</i><sup>2</sup>, so their CV output is not comparable.</li>
+    <li>Complex stacks: the i and q bands are averaged separately, and virtual bands such as
+        intensity are rebuilt from the averaged i and q. Because the phase of each date differs,
+        this is not the mean intensity and is usually much lower. Convert complex data to
+        intensity first.</li>
+</ul>
 <h4>Parameters Used</h4>&nbsp;&nbsp; The following processing parameter is required for this operator (see Figure
 1):<br>
 <ul>
-    <li>Statistic: The user selected statistic which could be mean, minimum, maximum, standard deviation and coefficient of variation.<br>
+    <li>Statistic: Mean Average (default), Minimum, Maximum, Standard Deviation or Coefficient of Variation.<br>
     </li>
 </ul>
 <img style="width: 450px; height: 450px;" alt="" src="images/stack_averaging_dlg.jpg"><br>
@@ -39,5 +57,30 @@ coefficient of variation. <br>
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. Stack Averaging operator
 UI<br>
 <br><br>
+<!-- params:begin op="Stack-Averaging" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Stack-Averaging</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>statistic</code></td><td>String</td><td>Mean Average</td><td>Mean Average, Minimum, Maximum, Standard Deviation, Coefficient of Variation</td><td>&nbsp;</td><td>Statistic</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/multitemporal.html">Multitemporal Backscatter Stacks</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and Multilooking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/time_series.html">InSAR Time Series</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Recommended: coregistered stack bands with the same unit (the statistic takes the unit of the first selected band; there is no explicit check)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body></html>

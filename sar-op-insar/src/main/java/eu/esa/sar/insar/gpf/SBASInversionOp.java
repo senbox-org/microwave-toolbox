@@ -56,7 +56,8 @@ import java.util.regex.Pattern;
  * Small-Baseline Subset (SBAS) inversion (Berardino et al., IEEE TGRS 2002).
  *
  * Inverts a stack of unwrapped small-baseline interferograms for per-epoch
- * phase / displacement and a weighted linear-velocity model. Coherence per
+ * phase / displacement (coherence-weighted network solve) and a linear velocity
+ * (unweighted least-squares fit of the per-epoch phases). Coherence per
  * pair drives a CRLB-style noise weight; Tikhonov regularisation
  * activates automatically when the active sub-network is ill-conditioned.
  *
@@ -67,11 +68,11 @@ import java.util.regex.Pattern;
  * Outputs:
  *  - phase_&lt;date&gt;            per-epoch phase relative to reference (rad)
  *  - displacement_&lt;date&gt;     mm, d = - lambda / (4 pi) * phase
- *  - velocity                weighted linear fit, mm/yr
+ *  - velocity                unweighted least-squares linear fit of the per-epoch phases, mm/yr
  *  - velocity_uncertainty    1-sigma velocity (mm/yr)
  *  - temporal_coherence      Pepe-style residual metric in [0, 1]
  *  - residual_&lt;m&gt;_&lt;s&gt;     per-pair residual (if outputResiduals)
- *  - closure_phase_rms       per-pixel RMS triplet closure (if outputClosurePhase)
+ *  - closure_phase_rms       per-pixel RMS wrapped triplet closure (if outputClosurePhase; NaN where no closed triplet is usable)
  */
 @OperatorMetadata(alias = "SBASInversion",
         category = "Radar/Interferometric/Time-Series",
@@ -140,6 +141,8 @@ public class SBASInversionOp extends Operator {
     /** Per-pair source bands (length M, aligned with network pair index). */
     private Band[] unwBands;
     private Band[] cohBands;
+    /** Per-pair sign (+1, or -1 for a band named later-date-first), aligned with unwBands. */
+    private double[] pairSigns;
 
     /** Per-epoch target bands (length N - 1, excluding reference). */
     private Band[] phaseBands;
@@ -223,6 +226,7 @@ public class SBASInversionOp extends Operator {
         final int M = unwByPair.size();
         final int[] pm = new int[M];
         final int[] ps = new int[M];
+        final double[] signs = new double[M];
         final List<Band> unwList = new ArrayList<>(M);
         final List<Band> cohList = new ArrayList<>(M);
         int k = 0;
@@ -231,12 +235,16 @@ public class SBASInversionOp extends Operator {
             final int im = dateToIdx.get(dates[0]);
             final int is = dateToIdx.get(dates[1]);
             // ensure master < slave chronologically (swap if needed and flip the phase sign at compute time)
+            // A band named <later>_<earlier> carries phi = x(earlier) - x(later), so once the pair is
+            // stored as earlier -> later its observation must be negated.
             if (epochMjd.get(im) <= epochMjd.get(is)) {
                 pm[k] = im;
                 ps[k] = is;
+                signs[k] = 1.0;
             } else {
                 pm[k] = is;
                 ps[k] = im;
+                signs[k] = -1.0;
             }
             unwList.add(e.getValue());
             cohList.add(cohByPair.get(e.getKey()));
@@ -259,6 +267,7 @@ public class SBASInversionOp extends Operator {
         network = new Network(epochDates, epochMjd, pm, ps, refIdx);
         unwBands = unwList.toArray(new Band[0]);
         cohBands = cohList.toArray(new Band[0]);
+        pairSigns = signs;
 
         // Pre-compute time in years from epoch[0]
         tYears = new double[N];
@@ -380,12 +389,9 @@ public class SBASInversionOp extends Operator {
                 srcIdx[kk] = new TileIndex(unwTiles[kk]);
             }
 
-            // Per-pair sign for swapped pairs (we always solved with master < slave).
-            // We already swapped pm/ps to enforce master < slave at network-build time,
-            // but the unwrapped-phase band remained the original sign convention (slave - master
-            // = positive deformation away from satellite). We do NOT flip phi here -- the
-            // design-matrix entries (-1 at master col, +1 at slave col) match the
-            // (slave - master) convention.
+            // The network always stores a pair as earlier -> later (design row -1 at the earlier
+            // epoch, +1 at the later one). A band named later-date-first carries the opposite
+            // difference, so its phase is multiplied by pairSigns[kk] = -1 below.
 
             final Tile[] phaseTgt = new Tile[N];
             final Tile[] dispTgt = new Tile[N];
@@ -442,7 +448,7 @@ public class SBASInversionOp extends Operator {
                         final int srcI = srcIdx[kk].getIndex(xpx);
                         final double p = unwBuf[kk].getElemDoubleAt(srcI);
                         final double c = cohBuf[kk].getElemDoubleAt(srcI);
-                        phi[kk] = p;
+                        phi[kk] = pairSigns[kk] * p;
                         final double cClamp = Math.min(0.9999, Math.max(0.0, c));
                         if (cClamp < coherenceMin || Double.isNaN(p)) {
                             w[kk] = 0.0;
@@ -495,7 +501,7 @@ public class SBASInversionOp extends Operator {
                     tempCohTile.getDataBuffer().setElemFloatAt(tempCohIdx.getIndex(xpx), (float) tempCoh);
 
                     if (closureTile != null) {
-                        final double rmsClosure = ClosurePhase.rms(network, phi);
+                        final double rmsClosure = ClosurePhase.rms(network, phi, w);
                         closureTile.getDataBuffer().setElemFloatAt(closureIdx.getIndex(xpx), (float) rmsClosure);
                     }
 

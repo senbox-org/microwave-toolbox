@@ -32,6 +32,7 @@ import org.esa.snap.core.datamodel.Placemark;
 import org.esa.snap.core.datamodel.PlacemarkDescriptor;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.TiePointGrid;
+import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.main.GPT;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
@@ -39,6 +40,7 @@ import org.esa.snap.engine_utilities.datamodel.OrbitStateVector;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.eo.GeoUtils;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
+import org.junit.After;
 import org.junit.Assert;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +49,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -57,6 +60,36 @@ public abstract class BaseCRTest extends ProcessorTest {
     private final File baseFolder = new File("/tmp/corner_reflectors");
     protected final File tempFolder;
     protected String testName = "";
+
+    // Target products of the operator chain the current test builds. Disposing a GPF target product
+    // closes its operator context, which releases the tile images and calls Operator.dispose() (so
+    // Terrain Flattening / Terrain Correction free their DEM caches). Without this every test's
+    // chain, its DEM tiles and its copies of the S1 metadata stay on the heap for the whole fork.
+    // The per-class cached source products are not tracked and stay open until @AfterClass.
+    private final List<Product> createdProducts = new ArrayList<>();
+
+    protected Product target(final Operator op) {
+        final Product product = op.getTargetProduct();
+        if (!createdProducts.contains(product)) {
+            createdProducts.add(product);
+        }
+        return product;
+    }
+
+    @After
+    public void disposeCreatedProducts() {
+        // dispose downstream products first
+        for (int i = createdProducts.size() - 1; i >= 0; --i) {
+            final Product product = createdProducts.get(i);
+            try {
+                product.dispose();
+            } catch (Exception e) {
+                LOG.warning("Could not dispose " + product.getName() + ": " + e.getMessage());
+            }
+        }
+        createdProducts.clear();
+        JAI.getDefaultInstance().getTileCache().flush();
+    }
     private static final Logger LOG = Logger.getLogger("test");
 
     public static class GeoPoint {

@@ -1,0 +1,19 @@
+# Literal tokens and phrases that may keep master/slave wording (rule S1) or other flagged text.
+# Format: phrase|reason. A match is suppressed when it lies inside an occurrence of the phrase.
+# Phrases are case-sensitive; any run of whitespace (and markup, since tags are blanked) matches whitespace.
+# Reasons cite the Java source so the identifier can be re-verified (paths relative to the repo root).
+MultiMasterInSAR|operator alias, sar-op-insar/.../MultiMasterInSAROp.java:58
+MultiMasterStackGenerator|operator alias, sar-op-insar/.../MultiMasterOp.java:40
+singleMaster|CoherenceOp parameter name, sar-op-insar/.../CoherenceOp.java:149
+_mst|legacy band-name tag, InterferogramOp.java:529 / MultiMasterOp.java:119
+_slv|legacy band-name tag, InterferogramOp.java:530 / CreateStackOp.java:99
+Output Extent = Master|option value Master (CreateStackOp.MASTER_EXTENT, CreateStackOp.java:116, shown in CreateStackOpUI.java:62)
+Master (the reference image extents|option value Master in the CreateStack Output Extent list (CreateStackOp.java:110-116)
+Auto-coregister GSLC slaves|literal @Parameter label, CreateStackOp.java:141
+CreateStack: bias for slave|quoted log message, CreateStackOp.java:626
+Slave Metadata|literal metadata element name read by CoherenceOp.java:306, InterferogramOp.java:2054, SpectralDiversityOp.java:380, AzimuthShiftEstimationUsingESDOp.java:159
+Slave_Metadata|literal metadata element name (error text in SpectralDiversityOp.java:383)
+initialisation MST|SNAPHU initial-solution value MST (minimum spanning tree), SnaphuExportOp.java:58
+MST or MCF|SNAPHU initial-solution values MST/MCF, SnaphuExportOp.java:58
+Master / slave. Older names|glossary entry that defines the legacy terms (glossary.html)
+identifiers say master/slave|glossary note pointing at legacy identifiers

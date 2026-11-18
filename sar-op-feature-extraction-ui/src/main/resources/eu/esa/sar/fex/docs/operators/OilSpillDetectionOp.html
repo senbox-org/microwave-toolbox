@@ -29,8 +29,8 @@
 from SAR imagery.<h4>Major Processing Steps</h4>&nbsp;&nbsp;&nbsp;The oil spill detection operation consists of the
 following four operations:<br>
 <ol>
-    <li><span style="font-weight: bold;">Pre-processing:</span> Calibration and speckle filtering are applied to source
-        image in this step.
+    <li><span style="font-weight: bold;">Pre-processing:</span> Calibration is applied to the source image in this
+        step. Speckle filtering is optional; the menu graph does not include it.
     </li>
     <li><span style="font-weight: bold;">Land-sea masking:</span> Land-sea mask is created in this step to ensure that
         detection is focused only on area of interest.
@@ -72,6 +72,33 @@ method.<br>
     <li>First the contiguous detected pixels are clustered into a single cluster.</li>
     <li>Then clusters with their sizes smaller than user selected Minimum Cluster Size&nbsp;are eliminated.</li>
 </ol>
+<h4>How the sub-steps chain</h4>
+<p>The menu entry Radar &gt; SAR Applications &gt; Ocean &gt; Oil Spill Detection runs a graph:
+    Read &#8594; Land-Sea-Mask &#8594; Calibration &#8594; <b>Oil-Spill-Detection</b> &#8594;
+    <b>Oil-Spill-Clustering</b> &#8594; Write. The menu graph does not include speckle filtering; add a Speckle Filter
+    node in the Graph Builder if you want it. It sets the background window to 4.5 km; the operator default is 0.5 km.
+    Oil-Spill-Clustering has no menu entry of its own.</p>
+<p><b>Step 1: Oil Spill Detection</b> (<code>Oil-Spill-Detection</code>) flags dark pixels.</p>
+<ul>
+    <li>The input must be calibrated (32-bit float bands). Sentinel-1 TOPS data must be debursted.</li>
+    <li>With no band selected, it uses every band whose unit is intensity.</li>
+    <li>The background window is a square of about <i>Background Window Dimension</i> &times; 1000 / (the smaller of the range
+        and azimuth pixel spacings) pixels, centred on each pixel in turn.</li>
+    <li>A pixel is flagged when its value is below (background mean) / 10<sup>k/10</sup>, where k is the
+        <i>Threshold Shift</i> in dB. A negative k is refused.</li>
+    <li>Output: the selected bands plus one mask band <code>&lt;band&gt;_oil_spill_bit_msk</code> per band (1 = dark
+        spot, 0 = not; 0 is the no-data value). A red overlay mask <code>&lt;band&gt;_oil_spill_bit_msk_detection</code>
+        is added for display.</li>
+</ul>
+<p><b>Step 2: Oil Spill Clustering</b> (<code>Oil-Spill-Clustering</code>) removes small dark spots.</p>
+<ul>
+    <li>It reads every <code>_oil_spill_bit_msk</code> band and groups touching flagged pixels (including diagonal
+        neighbours) into clusters.</li>
+    <li>The minimum size in pixels is <i>Minimum Cluster Size</i> &times; 10<sup>6</sup> / (range pixel spacing
+        &times; azimuth pixel spacing) + 1. Clusters with fewer pixels are set to 0; the others keep the value 1.</li>
+    <li>It does not merge nearby clusters. The other bands pass through unchanged, and the overlay mask is added
+        again.</li>
+</ul>
 <h4>Visualize Detected Oil Spill</h4>
 
 <p>The oil spill detection bit
@@ -86,10 +113,10 @@ method.<br>
 <h4>Parameters Used</h4>&nbsp;&nbsp;&nbsp;For dark spot detection, the following parameters are used (see figure 1):
 <ol>
     <li>Source Bands: All bands (real or virtual) of the source product.
-        User can select one or more bands for producing multi-looked images. If
-        no bands are selected, then by default all bands are selected.
+        User can select one or more bands for oil spill detection. If
+        no bands are selected, all bands whose unit is intensity are used.
     </li>
-    <li>Background Window Size: The window size in pixels for computing local mean backscatter level.</li>
+    <li>Background Window Dimension (km): The size of the window, in kilometres (default 0.5 km), used for computing the local mean backscatter level.</li>
     <li>Threshold Shift (dB): The detecting threshold is lower than the local mean backscatter level by this amount.
     </li>
 </ol>
@@ -108,13 +135,48 @@ method.<br>
 &nbsp; &nbsp; &nbsp;Figure 2. Oil Spill Clustering operator dialog box.
 <br><br>
 
-<p style="font-style: italic;">Reference:</p>
+<h3>References</h3>
+<ol>
+    <li>Solberg, A. H. S., Brekke, C., Solberg, R. (2004). Algorithms for oil spill detection in Radarsat and ENVISAT SAR images. <i>Proc. IEEE International Geoscience and Remote Sensing Symposium (IGARSS 2004)</i>, vol. 7, 4909&#8211;4912. doi:10.1109/IGARSS.2004.1370264</li>
+    <li>Solberg, A. H. S., Storvik, G., Solberg, R., Volden, E. (1999). Automatic detection of oil spills in ERS SAR images. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 37(4), 1916&#8211;1924. doi:10.1109/36.774704</li>
+    <li>Brekke, C., Solberg, A. H. S. (2005). Oil spill detection by satellite remote sensing. <i>Remote Sensing of Environment</i>, 95(1), 1&#8211;13. doi:10.1016/j.rse.2004.11.015</li>
+</ol>
 
-<p> [1] A. S. Solberg, C. Brekke and R. Solberg, "Algorithms
-    for oil spill detection in Radarsat and ENVISAT&nbsp;SAR images",
-    Geoscience and Remote Sensing Symposium, 2004. IGARSS '04. Proceedings.
-    2004 IEEE International,&nbsp;20-24 Sept. 2004, page 4909-4912, vol.7.</p>
-
+<!-- params:begin op="Oil-Spill-Clustering" -->
+<h3>Processing parameters (reference) &#8212; Oil-Spill-Clustering</h3>
+<p>GPT operator: <code>Oil-Spill-Clustering</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>minClusterSizeInKm2</code></td><td>double</td><td>0.1</td><td>&nbsp;</td><td>&nbsp;</td><td>Minimum cluster size</td></tr>
+</table>
+<!-- params:end -->
+<!-- params:begin op="Oil-Spill-Detection" -->
+<h3>Processing parameters (reference) &#8212; Oil-Spill-Detection</h3>
+<p>GPT operator: <code>Oil-Spill-Detection</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>backgroundWindowDim</code></td><td>double</td><td>0.5</td><td>&nbsp;</td><td>&nbsp;</td><td>Background window dimension (km)</td></tr>
+<tr><td><code>k</code></td><td>double</td><td>2.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Threshold shift from background mean</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/ocean.html">Ocean SAR: wind, ships and oil</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_ocean.html">Ocean applications</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Calibrated product; a Sentinel-1 TOPS product must already be debursted.</li>
+    <li>At least one intensity band.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Oil Spill Clustering (removes clusters smaller than the minimum cluster size)</li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

@@ -1,14 +1,9 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Batch Snaphu Unwrapping</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-    <link rel="stylesheet" href="../style.css"></head>
-
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Batch unwrapping of interferograms with SNAPHU</title>
-
-
+    <title>Help - Batch SNAPHU Unwrapping</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 
@@ -28,12 +23,30 @@
     This tool is for the SNAP/PyRate integration but it is useful as a standalone tool as well.
     <br>
     <br>
-    Given an input folder created by SNAPHU Unwrap containing multiple SNAPHU config files and interferograms, such as
-    a stack produced by the Multi-Reference InSAR tool, this tool will download the appropriate SNAPHU binary for your
-    system (or you can simply provide a pre-existing SNAPHU binary in the install location parameter), and then unwrap
-    directly within SNAP. It also takes care of importing all the bands back into SNAP, creating a target product that
-    replaces the wrapped interferogram bands with the unwrapped interferogram bands.
-    <br> <br>
+    Give it the multi-pair interferogram product that you exported with Snaphu Export (for example from
+    Multi-Reference InSAR) and, as <i>Snaphu Export folder</i>, the sub-folder that Snaphu Export created inside its
+    target folder (named after the product). That folder holds one <code>&lt;date&gt;_&lt;date&gt;snaphu.conf</code>
+    file per pair; Snaphu Export writes these only for a stack with more than one Secondary. The tool runs SNAPHU
+    for every configuration file and reads the results back.
+    <br><br>
+    <i>Snaphu Install Location</i> can be the snaphu executable itself or a folder. If the folder already holds a
+    snaphu executable, that executable is used. Otherwise the tool downloads the SNAPHU build for your system
+    (Windows or Linux) into the folder. On Windows the downloaded <code>snaphu.exe</code> is found and reused on
+    later runs. On Linux the automatic download does not set the executable bit, so the unzipped
+    <code>snaphu</code> binary is not recognised and the run fails: install SNAPHU yourself (or run
+    <code>chmod +x</code> on the downloaded <code>snaphu</code> binary) and set <i>Snaphu Install Location</i> to
+    the executable or its folder. No build is downloaded for macOS: install SNAPHU yourself and set <i>Snaphu
+    Install Location</i> to the snaphu executable or its folder, or the tool stops with an error saying so.
+    <br><br>
+    The target product keeps the geocoding, the metadata and every band of the input that is not a wrapped phase
+    band, including the <code>coh_*</code> coherence bands. Each wrapped phase band is replaced by one
+    <code>UnwPhase_ifg_&lt;tag&gt;</code> band per pair (the wrapped band name with the prefix <code>Unw</code>),
+    with the unit <code>abs_phase</code>. The product can therefore go straight to SBAS Inversion or Empirical
+    Tropospheric Correction; Snaphu Import is not needed. The unwrapped bands are read from the SNAPHU output files
+    (<code>UnwPhase_ifg_&lt;tag&gt;.snaphu.img</code>) in the export sub-folder, which stay open until the product has
+    been written, so do not move or delete that folder before then.
+</p>
+<p>
     Logs for all SNAPHU runs are written out to the SNAPHU export directory, with the progress monitor printing out the
     current export step.
     <br><br>
@@ -42,5 +55,39 @@
 
 </p>
 
+<h3>References</h3>
+<ol>
+    <li>Chen, C. W., Zebker, H. A. (2001). Two-dimensional phase unwrapping with use of statistical models for cost functions in nonlinear optimization. <i>Journal of the Optical Society of America A</i>, 18(2), 338&#8211;351. doi:10.1364/JOSAA.18.000338</li>
+    <li>Chen, C. W., Zebker, H. A. (2002). Phase unwrapping for large SAR interferograms: Statistical segmentation and generalized network models. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 40(8), 1709&#8211;1719. doi:10.1109/TGRS.2002.802453</li>
+</ol>
+<!-- params:begin op="BatchSnaphuUnwrapOp" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>BatchSnaphuUnwrapOp</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>snaphuProcessingLocation</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Directory that the Snaphu Export operator wrote to</td></tr>
+<tr><td><code>snaphuInstallLocation</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Directory to install the SNAPHU binary to</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/time_series.html">InSAR Time Series</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_time_series.html">InSAR Time Series</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/quality_control.html">Quality Control and Troubleshooting</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>The multi-pair interferogram product (for example from Multi-Reference InSAR) with at least two bands of unit phase and at least one coherence band</li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a> run on that product first</li>
+    <li>A writeable SNAPHU processing folder and install folder (on macOS, a SNAPHU you installed yourself)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a> (directly on this product)</li>
+    <li><a href="PyRateExportOp.html">PyRate Export</a></li>
+</ul>
+<!-- footer:end -->
 </body>
 </html>

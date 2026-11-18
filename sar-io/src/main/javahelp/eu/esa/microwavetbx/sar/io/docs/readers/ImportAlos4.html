@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head><title>Help - Import ALOS-4</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp; Import ALOS-4 PALSAR-3</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<p>SNAP has two ALOS-4 readers: <b>ALOS-4 CEOS</b> for products in CEOS format and
+<b>ALOS-4 GeoTIFF</b> for detected products in GeoTIFF format. Both are under
+<i>File &gt; Import &gt; SAR Sensors</i>. ALOS (PALSAR) and ALOS-2 products have their own pages:
+<a href="ImportAlosPalsar.html">Import ALOS PALSAR</a> and <a href="ImportAlos2.html">Import ALOS-2</a>.</p>
+
+<h2>Mission</h2>
+<ul>
+    <li><b>Operator:</b> JAXA (Japan Aerospace Exploration Agency).</li>
+    <li><b>Instrument:</b> PALSAR-3, L-band SAR (wavelength about 24&nbsp;cm). Centre frequency
+        1257.5&nbsp;MHz in Spotlight and Stripmap; 1236.5, 1257.5 or 1278.5&nbsp;MHz in ScanSAR.</li>
+    <li><b>Orbit:</b> sun-synchronous, 628&nbsp;km altitude, 14-day repeat cycle.</li>
+    <li><b>Launch:</b> 1 July 2024 on an H3 rocket from Tanegashima. The satellite is operational.</li>
+    <li><b>Modes:</b> Spotlight (3&nbsp;m &times; 1&nbsp;m, 35&nbsp;km swath), Stripmap (3 to 10&nbsp;m,
+        100 to 200&nbsp;km swath) and ScanSAR (25&nbsp;m, 700&nbsp;km swath).</li>
+</ul>
+
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Reader</th><th>Levels</th><th>Modes</th><th>Polarisations</th></tr>
+    <tr><td>ALOS-4 CEOS</td><td>L1.1 (single-look complex, slant range), L1.5 (detected)</td>
+        <td>Spotlight, Stripmap, ScanSAR</td><td>One image file per polarisation</td></tr>
+    <tr><td>ALOS-4 GeoTIFF</td><td>L1.5 and L2.1 (detected, map-projected)</td>
+        <td>Spotlight, Stripmap, ScanSAR</td><td>One GeoTIFF per polarisation</td></tr>
+</table>
+
+<h2>How to open</h2>
+<ul>
+    <li><b>CEOS:</b> select the volume file <code>VOL-ALOS4...</code>. The leader file
+        (<code>LED-ALOS4...</code>) and the image files (<code>IMG-HH-...</code>, <code>IMG-HV-...</code>)
+        must be in the same folder; a trailer file (<code>TRL-ALOS4...</code>) is read when present.
+        You can also select a ZIP archive that contains the volume file.</li>
+    <li><b>GeoTIFF:</b> select one of the image files, for example <code>IMG-HH-ALOS4...tif</code>. The
+        file <code>summary-ALOS4....txt</code> must be in the same folder. All polarisation files in the
+        folder are loaded into one product. Unzip the delivery first.</li>
+</ul>
+
+<h2>What you get</h2>
+<ul>
+    <li><b>L1.1 (CEOS):</b> complex bands <code>i_HH</code> and <code>q_HH</code> (units real and
+        imaginary) per polarisation, plus a virtual <code>Intensity_HH</code> band.</li>
+    <li><b>L1.5 (CEOS) and GeoTIFF:</b> a detected <code>Amplitude_HH</code> band per polarisation, plus
+        a virtual <code>Intensity_HH</code> band.</li>
+    <li>CEOS products carry tie-point grids and the orbit state vectors of the leader file. GeoTIFF
+        products take their map geocoding from the GeoTIFF.</li>
+    <li>The acquisition mode (Spotlight, Stripmap or ScanSAR) and the other mission parameters are in
+        the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+    <li>The GeoTIFF reader fills only basic metadata. Its orbit is a single approximate state vector,
+        the pass is always set to descending and the radar frequency is fixed at 1236.5&nbsp;MHz. Use
+        GeoTIFF products for viewing; for calibration, terrain correction, InSAR or polarimetry, order
+        the products in CEOS format.</li>
+    <li>Apply Orbit File has no ALOS-4 orbit type; SNAP uses the orbit in the leader file.</li>
+    <li>The ALOS Deskewing operator is for ALOS (PALSAR) only and is not needed.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li>L1.5 (CEOS): <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a> &rarr;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> &rarr;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>L1.1 for interferometry: <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a> or
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/DEMAssistedCoregistrationOp.html">DEM Assisted Coregistration</a> &rarr;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a>. See <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR concepts</a>.</li>
+    <li>Quad-pol L1.1: <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a>.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>JAXA publishes the ALOS-4/PALSAR-3 Standard Product Definition and the CEOS and GeoTIFF Product
+Format Descriptions on its ALOS-4 data page:
+<a href="https://www.eorc.jaxa.jp/ALOS/en/alos-4/a4_data_e.htm">https://www.eorc.jaxa.jp/ALOS/en/alos-4/a4_data_e.htm</a>.
+Mission overview: <a href="https://www.eoportal.org/satellite-missions/alos-4">https://www.eoportal.org/satellite-missions/alos-4</a>.</p>
+
+<hr>
+</body>
+</html>

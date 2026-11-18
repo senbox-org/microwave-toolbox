@@ -18,6 +18,8 @@ package eu.esa.sar.fex.gpf.oceantools;
 import org.esa.snap.core.gpf.annotations.OperatorMetadata;
 import org.junit.Test;
 
+import java.lang.reflect.Method;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -38,5 +40,32 @@ public class TestWindFieldEstimationOp {
         assertNotNull(md);
         assertEquals("Wind-Field-Estimation", md.alias());
         assertEquals("Radar/SAR Applications/Ocean", md.category());
+    }
+
+    private static double cmod5(double v, double cosFI, double incidenceDeg) throws Exception {
+        Class<?> cmod5 = null;
+        for (Class<?> c : WindFieldEstimationOp.class.getDeclaredClasses()) {
+            if (c.getSimpleName().equals("CMOD5")) {
+                cmod5 = c;
+            }
+        }
+        assertNotNull(cmod5);
+        final Method m = cmod5.getDeclaredMethod("compute", double.class, double.class, double.class);
+        m.setAccessible(true);
+        return (Double) m.invoke(null, v, cosFI, incidenceDeg);
+    }
+
+    /**
+     * CMOD5 (Hersbach, Stoffelen and de Haan 2007, JGR 112 C03006, Table 1; ECMWF TM 395) evaluated
+     * with the published coefficients, upwind (cos phi = 1). The expected values are the closed-form
+     * GMF with c9..c11 = 6.34, 2.57, -2.18. The previous hybrid c9..c11 (6.7329, 2.7541, -2.2918)
+     * gave sigma0 0.4-0.8 dB lower, i.e. about +0.6 m/s wind-speed bias on inversion.
+     */
+    @Test
+    public void testCmod5MatchesPublishedCoefficients() throws Exception {
+        assertEquals(5.825847e-02, cmod5(10.0, 1.0, 40.0), 1e-7);  // x = 0: gamma = c9
+        assertEquals(1.574314e-01, cmod5(10.0, 1.0, 30.0), 1e-6);  // x = -0.4: c10, c11 matter
+        assertEquals(4.412607e-01, cmod5(5.0, 1.0, 20.0), 1e-6);
+        assertEquals(1.183246e-01, cmod5(15.0, 1.0, 40.0), 1e-6);
     }
 }

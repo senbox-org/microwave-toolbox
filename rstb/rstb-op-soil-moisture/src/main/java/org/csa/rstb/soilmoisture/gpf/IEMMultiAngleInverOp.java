@@ -86,7 +86,7 @@ public class IEMMultiAngleInverOp extends IEMInverBase {
     @TargetProduct
     Product targetProduct;
     // The LUT has 4 columns: rms, RDC, sigmaHH, sigmaVV.
-    @Parameter
+    @Parameter(description = "The look-up table (LUT) file used for the inversion")
     private File lutFile;
     // Users can choose which one of the 4 combinations of sigma polarizations.
     @Parameter(valueSet = {"HH1-HH2", "HH1-VV2", "VV1-VV2", "VV1-HH2"}, description = "Multi-Angle Polarizations",

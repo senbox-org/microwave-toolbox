@@ -55,7 +55,7 @@ Copernicus Data Space Ecosystem (CDSE) hub.<br>
 
 
 <ul>
-<li>Swath: The swath that user want to deburst. Possible selections are as the follows</li><ul><li>IW1</li><li>IW2</li><li>IW3</li><li>All</li></ul><li>Correction layer: User can select one of the following correction layers to deburst</li><ul><li>troposphericCorrectionRg</li><li>ionosphericCorrectionRg</li><li>geodeticCorrectionRg</li><li>dopplerShiftCorrectionRg</li><li>geodeticCorrectionAz</li><li>bistaticShiftCorrectionAz</li><li>fmMismatchCorrectionAz</li><li>sumOfAzimuthCorrections</li><li>sumOfRangeCorrections</li></ul>
+<li>Swath: The swath that user want to deburst. Possible selections are as the follows</li><ul><li>IW1</li><li>IW2</li><li>IW3</li><li>All</li></ul><li>Correction layer: User can select one of the following correction layers to deburst</li><ul><li>troposphericCorrectionRg</li><li>ionosphericCorrectionRg</li><li>geodeticCorrectionRg</li><li>dopplerRangeShiftRg</li><li>geodeticCorrectionAz</li><li>bistaticCorrectionAz</li><li>fmMismatchCorrectionAz</li><li>sumOfCorrectionsAz</li><li>sumOfCorrectionsRg</li></ul>
 </ul>
 
 
@@ -63,5 +63,36 @@ Copernicus Data Space Ecosystem (CDSE) hub.<br>
 
 </p>
 
+<h3>References</h3>
+<ol>
+    <li>Gisinger, C., Libert, L., Marinkovic, P., Krieger, L., Larsen, Y., Valentino, A., Breit, H., Balss, U., Suchandt, S., Nagler, T., Eineder, M., Miranda, N. (2022). The Extended Timing Annotation Dataset for Sentinel-1 &#8211; Product description and first evaluation results. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 60, 5232622. doi:10.1109/TGRS.2022.3194216</li>
+    <li>S1-ETAD Project: Product Definition Document, Doc. ID ETAD-DLR-PS-0002, Issue 2.4, 06.03.2023.</li>
+</ol>
+
+<!-- params:begin op="ETAD-Deburst" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>ETAD-Deburst</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>selectedSwath</code></td><td>String</td><td>IW1</td><td>IW1, IW2, IW3, All</td><td>&nbsp;</td><td>Swath</td></tr>
+<tr><td><code>selectedLayer</code></td><td>String</td><td>ionosphericCorrectionRg</td><td>troposphericCorrectionRg, ionosphericCorrectionRg, geodeticCorrectionRg, dopplerRangeShiftRg, geodeticCorrectionAz, bistaticCorrectionAz, fmMismatchCorrectionAz, sumOfCorrectionsAz, sumOfCorrectionsRg</td><td>&nbsp;</td><td>Correction layer</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/orbits_etad.html">Orbits and timing corrections (ETAD, EAP)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Sentinel-1 ETAD product, downloaded beforehand from the Copernicus Data Space Ecosystem.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+    <li><a href="S1ETADCorrectionOp.html">ETAD Correction</a> (applies the ETAD layers to an SLC or GRD product)</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

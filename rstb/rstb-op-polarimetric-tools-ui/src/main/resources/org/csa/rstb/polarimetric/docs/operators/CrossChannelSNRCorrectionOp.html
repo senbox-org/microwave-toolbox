@@ -16,10 +16,10 @@
 <p class="MsoNormal">
     Estimates and removes the cross-channel noise floor in a quad-polarimetric SAR
     product by exploiting the reciprocity assumption S<sub>HV</sub> = S<sub>VH</sub>.
-    For an ideal monostatic radar this equality holds, so any decorrelation between
-    the HV and VH channels reflects additive noise. The operator uses the local
-    HV-VH coherence inside a sliding window to estimate the channel SNR and
-    rescales the cross-pol channels to remove that noise contribution.
+    For an ideal monostatic radar this equality holds, so once Faraday rotation has been
+    removed, decorrelation between the HV and VH channels is taken to be additive noise.
+    The operator uses the local HV-VH coherence inside a sliding window as a measure of
+    the channel SNR and scales the cross-pol channels down to suppress that noise contribution.
 </p>
 
 <h4>Algorithm (sketch)</h4>
@@ -31,10 +31,22 @@
     sqrt(E[|S<sub>HV</sub>|<sup>2</sup>] &middot; E[|S<sub>VH</sub>|<sup>2</sup>])
 </p>
 <p class="MsoNormal">
-    From &gamma;<sub>cross</sub> the per-channel noise variance is recovered (assuming the noise is
-    uncorrelated between channels and the signal is reciprocal), and the cross-pol
-    channels are rescaled so their corrected variance equals the noise-free signal
-    variance.
+    It then multiplies the HV and VH values (i and q) by &radic;&gamma;<sub>cross</sub>, so their power is
+    scaled by &gamma;<sub>cross</sub>. HH and VV are not changed.
+</p>
+<p class="MsoNormal">
+    If HV and VH carry the same signal power and independent noise of equal power, then
+    &gamma;<sub>cross</sub> = P / (P + N), where P is the signal and N the noise power, so on average the
+    corrected power equals the signal power P. Anything else that lowers &gamma;<sub>cross</sub> (residual
+    cross-talk, Faraday rotation) is removed as if it were noise.
+</p>
+<p class="MsoNormal">
+    <b>Changed in SNAP 15:</b> earlier versions multiplied by &gamma;<sub>cross</sub> itself, so their HV
+    and VH power was lower by a further factor &gamma;<sub>cross</sub> (&#8722;3 dB at an SNR of 0 dB).
+</p>
+<p class="MsoNormal">
+    Faraday rotation also decorrelates HV and VH, so run
+    <a href="FaradayRotationCorrectionOp.html">Faraday Rotation Correction</a> first where it is needed.
 </p>
 
 <h4>Input</h4>
@@ -55,14 +67,38 @@
         the coherence estimate at the cost of spatial resolution.</li>
 </ul>
 
-<h4>References</h4>
+<h3>References</h3>
+<p>Background reading (the correction itself is SNAP-specific and does not implement these papers):</p>
 <ol>
-    <li>Quegan, S. (1994). <i>A unified algorithm for phase and cross-talk calibration of
-        polarimetric data &mdash; Theory and observations.</i> IEEE TGRS 32(1), 89&ndash;99.</li>
-    <li>Touzi, R., Lopes, A. (1996). <i>Statistics of the Stokes parameters and of the complex
-        coherence parameters in one-look and multi-look speckle fields.</i> IEEE TGRS 34(2),
-        519&ndash;531.</li>
+    <li>Quegan, S. (1994). A unified algorithm for phase and cross-talk calibration of polarimetric data &#8212; theory and observations. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 32(1), 89&#8211;99. doi:10.1109/36.285192</li>
+    <li>Touzi, R., Lopes, A. (1996). Statistics of the Stokes parameters and of the complex coherence parameters in one-look and multi-look speckle fields. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 34(2), 519&#8211;531. doi:10.1109/36.485128</li>
 </ol>
 
+<!-- params:begin op="Cross-Channel-SNR-Correction" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Cross-Channel-SNR-Correction</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>[1, 100]</td><td>&nbsp;</td><td>The sliding window size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometric Quantities and Calibration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_calibration.html">Polarimetric Calibration and Propagation Effects</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Quad-pol product with the full scattering matrix (HH, HV, VH, VV); other product types are rejected</li>
+    <li>Recommended: run before forming covariance/coherency matrices, because the correction acts on the HV and VH channels</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a></li>
+    <li><a href="PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+</ul>
+<!-- footer:end -->
 </body>
 </html>

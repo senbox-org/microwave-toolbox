@@ -22,9 +22,9 @@
 <p>
     This operator filters the spectras, of stack of SLC images, in the azimuth direction. This is an
     optional step in the interferometric processing chain.
-    The part of the spectras do that does not overlap with the spectrum of the slave is filtered out. This
+    The part of the spectras do that does not overlap with the spectrum of the secondary is filtered out. This
     non overlap is due to the selection of a Doppler centroid frequency in the SAR processing, which normally is
-    not equal for master and slave image.
+    not equal for reference and secondary image.
 </p>
 
 <p>
@@ -33,12 +33,17 @@
 </p>
 
 <p>
-    Operator performs filtering of all images in the stack at the same time. However, if multiple slave images are
-    present in the stack, only slave images will be filtered, and master image will remain unfiltered (all slaves
-    coregistered on the same master image). This approach has the advantage that for each interferogram of the stack
-    a separate set of master images is created, effectively saving the disk storage space and making the processing
-    more efficient. The disadvantage of not filtering the master is that a small part of the spectrum of the master
-    is not shared with the slave spectrum, yielding a minor loss of coherence in the interferogram.
+    The filter assumes one Doppler centroid per image. It is not for TOPS data (Sentinel-1 IW/EW, also after
+    deburst or merge), where the Doppler centroid sweeps within each burst: the operator refuses such products.
+</p>
+
+<p>
+    Operator performs filtering of all images in the stack at the same time. However, if multiple secondary images are
+    present in the stack, only secondary images will be filtered, and reference image will remain unfiltered (all secondary images
+    coregistered on the same reference image). This approach has the advantage that for each interferogram of the stack
+    a separate set of reference images is created, effectively saving the disk storage space and making the processing
+    more efficient. The disadvantage of not filtering the reference is that a small part of the spectrum of the reference
+    is not shared with the secondary spectrum, yielding a minor loss of coherence in the interferogram.
 </p>
 
 <h4>Operator parameters:</h4>&nbsp;&nbsp;
@@ -53,7 +58,7 @@
         <b>Azimuth Filter Overlap:</b> Half of the overlap between consecutive tiles in azimuth
         direction. Partially the same data is used to estimate the spectrum, to avoid border effects.
         However, the exact influence of this parameter to the end results scales with the Doppler Centroid Frequency
-        variability between master and slave images. It has not been studied yet, what is the optimum ratio between
+        variability between reference and secondary images. It has not been studied yet, what is the optimum ratio between
         Overlap parameter and Doppler Centroid Frequency difference. Setting this card to 0 gives the fastest results.
     </li>
     <li>
@@ -72,6 +77,36 @@
 
 <br>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+</ol>
+<!-- params:begin op="AzimuthFilter" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>AzimuthFilter</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>fftLength</code></td><td>int</td><td>256</td><td>64, 128, 256, 512, 1024, 2048</td><td>&nbsp;</td><td>Length of filtering window</td></tr>
+<tr><td><code>aziFilterOverlap</code></td><td>int</td><td>0</td><td>0, 8, 16, 32, 64, 128, 256</td><td>&nbsp;</td><td>Overlap between filtering windows in azimuth direction [lines]</td></tr>
+<tr><td><code>alphaHamming</code></td><td>float</td><td>0.75</td><td>0.5, 0.75, 0.8, 0.9, 1</td><td>&nbsp;</td><td>Weight for Hamming filter (1 is rectangular window)</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coherence.html">Interferometric Coherence</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered SLC stack with reference and secondary bands; apply before the other InSAR steps</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="InterferogramOp.html">Interferogram</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

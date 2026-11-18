@@ -22,20 +22,36 @@ with a rising amount of true structures within the resolution cell.<span style="
 leads to a local heterogeneity that gives urban areas a very specific
 and distinct appearance in SAR images. </p>
 <br>
-<p class="MsoNormal" style="margin-left: 18pt;">T.
-Esch, M. Thiel, A. Schenk, A. Roth, A. M&uuml;ller, and S. Dech,
-"Delineation of Urban Footprints From TerraSAR-X Data by Analyzing
-Speckle Characteristics and Intensity Information," IEEE Transactions
-on Geoscience and Remote Sensing, vol. 48, no. 2, pp. 905-916, 2010.</p>
-<p class="MsoNormal" style="margin-left: 18pt;">T.
-Esch and A. Roth, &#8220;Semi-automated classification of urban areas by
-means of high resolution radar data,&#8221; in Proc. ISPRS Congr., 2004, pp.
-478&#8211;482.</p>
-<p class="MsoNormal" style="margin-left: 18pt;">M.
-Stasolla and P. Gamba, &#8220;Spatial indexes for the extraction of formal
-and informal human settlements from high-resolution SAR images,&#8221; IEEE
-J. Sel. Topics Appl. Earth Obs. Remote Sens., vol. 1, no. 2, pp.
-98&#8211;106, Jun. 2008.</p>
+<h3>References</h3>
+<ol>
+    <li>Esch, T., Thiel, M., Schenk, A., Roth, A., M&uuml;ller, A., Dech, S. (2010). Delineation of urban footprints from TerraSAR-X data by analyzing speckle characteristics and intensity information. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 48(2), 905&#8211;916. doi:10.1109/TGRS.2009.2037144</li>
+    <li>Stasolla, M., Gamba, P. (2008). Spatial indexes for the extraction of formal and informal human settlements from high-resolution SAR images. <i>IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing</i>, 1(2), 98&#8211;106. doi:10.1109/JSTARS.2008.921099</li>
+</ol>
+
 <br>
+<!-- params:begin op="Speckle-Divergence" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Speckle-Divergence</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>windowSizeStr</code></td><td>String</td><td>15x15</td><td>3x3, 5x5, 7x7, 9x9, 11x11, 13x13, 15x15, 17x17</td><td>&nbsp;</td><td>Window Size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and multilooking</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>SAR product with at least one intensity band; I, Q and phase bands are rejected.</li>
+    <li>Recommended: a calibrated product, so that the divergence values are comparable between scenes (not checked in code).</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

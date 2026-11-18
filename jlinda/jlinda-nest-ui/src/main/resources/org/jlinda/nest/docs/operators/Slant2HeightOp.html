@@ -66,8 +66,8 @@
         <b>Degree of 2D polynomial:</b> Degree of the two-dimensional polynomial to fit the reference phase through.
     </li>
     <li>
-        <b>Orbit interpolation degree:</b> Defaults to a polynomial of degree (number of state vectors)-1, but smaller
-        than degree 5.
+        <b>Orbit interpolation degree:</b> Degree of the polynomial used to interpolate the orbit state vectors; values 2 to 5, default 3.
+        It has to be smaller than or equal to (number of state vectors)-1.
     </li>
 </ol>
 
@@ -89,6 +89,35 @@
 
 <br>
 <br>
+<!-- params:begin op="PhaseToHeight" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>PhaseToHeight</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>nPoints</code></td><td>int</td><td>200</td><td>100, 200, 300, 400, 500</td><td>&nbsp;</td><td>Number of points for evaluation of flat earth phase at different altitudes</td></tr>
+<tr><td><code>nHeights</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Number of height samples in range [0,5000)</td></tr>
+<tr><td><code>degree1D</code></td><td>int</td><td>2</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of the 1D polynomial to fit reference phase through.</td></tr>
+<tr><td><code>degree2D</code></td><td>int</td><td>5</td><td>1, 2, 3, 4, 5, 6, 7, 8</td><td>&nbsp;</td><td>Degree of the 2D polynomial to fit reference phase through.</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of orbit (polynomial) interpolator</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>At least one unwrapped phase band with unit abs_phase, from <a href="SnaphuImportOp.html">Snaphu Import</a></li>
+    <li>This operator is deprecated</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToElevationOp.html">Phase to Elevation</a> replaces this operator (use its 'Schwabisch' method for the same algorithm)</li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

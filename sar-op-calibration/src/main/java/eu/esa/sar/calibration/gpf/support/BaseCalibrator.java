@@ -16,15 +16,18 @@
 package eu.esa.sar.calibration.gpf.support;
 
 import eu.esa.sar.commons.Sentinel1Utils;
+import org.apache.commons.math3.util.FastMath;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.TiePointGrid;
 import org.esa.snap.core.gpf.Operator;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
+import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 
@@ -348,5 +351,80 @@ public class BaseCalibrator {
         }
 
         return targetBandNames.toArray(new String[0]);
+    }
+
+    /**
+     * Radiometric quantity a calibrated target band holds, as named by {@link #createTargetBandNames}.
+     */
+    public enum CalibratedQuantity { SIGMA0, BETA0, GAMMA0, OTHER }
+
+    public static CalibratedQuantity quantityOf(final String targetBandName) {
+        if (targetBandName == null) {
+            return CalibratedQuantity.OTHER;
+        }
+        if (targetBandName.startsWith("Beta0")) {
+            return CalibratedQuantity.BETA0;
+        }
+        if (targetBandName.startsWith("Gamma0")) {
+            return CalibratedQuantity.GAMMA0;
+        }
+        if (targetBandName.startsWith("Sigma0")) {
+            return CalibratedQuantity.SIGMA0;
+        }
+        return CalibratedQuantity.OTHER;
+    }
+
+    /**
+     * Converts linear sigma0 to the requested quantity on the ellipsoid:
+     * beta0 = sigma0 / sin(theta), gamma0 = sigma0 / cos(theta).
+     * The same relations as the virtual bands of {@code CalibrationOp.createBetaVirtualBand}
+     * and {@code createGammaVirtualBand}.
+     */
+    public static double sigma0To(final CalibratedQuantity quantity, final double sigma0,
+                                  final double incidenceAngleDeg) {
+        switch (quantity) {
+            case BETA0:
+                return sigma0 / FastMath.sin(incidenceAngleDeg * Constants.DTOR);
+            case GAMMA0:
+                return sigma0 / FastMath.cos(incidenceAngleDeg * Constants.DTOR);
+            default:
+                return sigma0;
+        }
+    }
+
+    private volatile TiePointGrid quantityIncidenceAngle = null;
+
+    /**
+     * Quantity of the given target band. For Beta0/Gamma0 it also makes sure the incidence angle
+     * tie-point grid used by {@link #sigma0ToTargetQuantity} is available.
+     * <p>
+     * Calibrators that compute sigma0 only must pass every intensity sample through
+     * {@link #sigma0ToTargetQuantity}: writing sigma0 into a band named Beta0 makes every consumer of
+     * that band, Terrain-Flattening first, low by sin(theta).
+     */
+    protected CalibratedQuantity getTargetQuantity(final Band targetBand) {
+        final CalibratedQuantity quantity = quantityOf(targetBand.getName());
+        if ((quantity == CalibratedQuantity.BETA0 || quantity == CalibratedQuantity.GAMMA0)
+                && quantityIncidenceAngle == null) {
+            final TiePointGrid incidenceAngle = OperatorUtils.getIncidenceAngle(sourceProduct);
+            if (incidenceAngle == null) {
+                throw new OperatorException(targetBand.getName() +
+                        " requires an incidence_angle tie-point grid in the source product");
+            }
+            quantityIncidenceAngle = incidenceAngle;
+        }
+        return quantity;
+    }
+
+    /**
+     * Converts a linear sigma0 sample at image pixel (x, y) to the quantity returned by
+     * {@link #getTargetQuantity} for the target band. Sigma0 and other bands pass through unchanged.
+     */
+    protected double sigma0ToTargetQuantity(final double sigma0, final CalibratedQuantity quantity,
+                                            final int x, final int y) {
+        if (quantity != CalibratedQuantity.BETA0 && quantity != CalibratedQuantity.GAMMA0) {
+            return sigma0;
+        }
+        return sigma0To(quantity, sigma0, quantityIncidenceAngle.getPixelDouble(x, y));
     }
 }

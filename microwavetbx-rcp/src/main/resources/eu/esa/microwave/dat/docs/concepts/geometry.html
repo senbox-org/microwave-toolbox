@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - SAR Geometry and Geometric Distortions</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: SAR Geometry and Geometric Distortions</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>SAR Geometry and Geometric Distortions</h1>
+
+<p class="lead">A SAR image is laid out by distance from the sensor and time along the orbit, not by map position.
+Relief therefore moves, squeezes, folds or hides parts of the scene. Knowing these effects tells you which pixels you
+can trust after terrain correction, and when an ellipsoid correction is enough.</p>
+
+<h2>Range-Doppler geometry</h2>
+<p>Every image pixel has two coordinates: an azimuth time t and a slant range R. Most products are focused to
+<i>zero Doppler</i>: a target is placed at the azimuth time when it is closest to the sensor, which is when the
+line of sight is perpendicular to the platform velocity. A ground point P is therefore imaged where both conditions
+hold:</p>
+<p class="eq">|S(t) &#8722; P| = R</p>
+<p class="eq">(S(t) &#8722; P) &middot; V(t) = 0</p>
+<p>S(t) and V(t) are the sensor position and velocity from the orbit, and P is the target position in Earth-fixed
+coordinates. Geocoding solves these equations for each pixel. The accuracy depends on the orbit, the timing
+annotation and the target height (see <a href="height_references.html">DEMs and height references</a> and
+<a href="orbits_etad.html">Orbits and ETAD</a>).</p>
+
+<h2>Slant range and ground range</h2>
+<p>The radar samples equal steps in slant range. On flat ground, a slant-range step &Delta;r covers a ground-range step</p>
+<p class="eq">&Delta;g = &Delta;r / sin &theta;</p>
+<p>where &theta; is the incidence angle. Because &theta; grows across the swath, ground cells are wider at near range
+than at far range (Figure 1). GRD products are already resampled to ground range on an ellipsoid; SLC products are
+in slant range.</p>
+<p><img src="images/geometry_1.png" width="560" height="300" alt="Equal slant-range intervals project to unequal ground-range intervals"></p>
+<p class="figcap">Figure 1. Equal slant-range intervals (blue arcs) meet flat ground in cells that shrink from near to
+far range. &theta; is the incidence angle at far range.</p>
+
+<h2>Three incidence angles</h2>
+<ul>
+    <li><b>Incidence angle</b> &theta;: angle between the line of sight and the normal of the Earth ellipsoid. It
+        changes smoothly across the swath (about 29&deg; to 46&deg; for Sentinel-1 IW).</li>
+    <li><b>Local incidence angle</b> &theta;<sub>loc</sub>: angle between the line of sight and the normal of the
+        local terrain, taken from a DEM. On a slope of angle &alpha; facing the sensor (range direction only),
+        &theta;<sub>loc</sub> = &theta; &#8722; &alpha;; on a slope facing away, &theta; + &alpha;.</li>
+    <li><b>Projected local incidence angle</b>: angle between the line of sight and the terrain normal projected into
+        the plane of incidence (the plane that contains the line of sight and the ellipsoid normal). It keeps the
+        range slope and ignores the azimuth slope.</li>
+</ul>
+
+<h2>Foreshortening, layover and shadow</h2>
+<p>Because the image is ordered by slant range, a point's height shifts it toward the sensor. With &alpha; the slope
+facing the sensor and &beta; the slope facing away (Figure 2):</p>
+<ul>
+    <li><b>Foreshortening</b> (0 &lt; &alpha; &lt; &theta;): the front slope is compressed into fewer range cells and
+        looks bright.</li>
+    <li><b>Layover</b> (&alpha; &gt; &theta;): the top of the slope is closer to the sensor than its foot, so the order
+        is reversed. The slope is folded over the ground in front of it, and both add up in the same pixels.</li>
+    <li><b>Shadow</b> (&beta; &gt; 90&deg; &#8722; &theta;): the back slope is hidden from the beam. Those pixels
+        contain only noise.</li>
+</ul>
+<p>Steep incidence (small &theta;) causes more layover; shallow incidence (large &theta;) causes more shadow. No
+processing restores information lost to layover or shadow; it can only be masked or filled from another geometry.</p>
+<p><img src="images/geometry_2.png" width="560" height="210" alt="Foreshortening, layover and shadow on a hill viewed from the left"></p>
+<p class="figcap">Figure 2. A hill seen by a radar looking from the left at &theta; = 35&deg;. Dotted lines are lines of
+equal slant range. The bar under each hill is the radar image: a', b', c' are the images of A, B, C. Orange = front
+slope, blue = back slope, light grey = shadow; dashed = ray grazing the top B.</p>
+<p>Any height h left uncorrected moves a point in ground range by about</p>
+<p class="eq">&Delta;x &asymp; h / tan &theta;</p>
+<p>toward the sensor: 100 m of relief at &theta; = 35&deg; shifts the point by about 143 m.</p>
+
+<h2>Ascending and descending passes</h2>
+<p>On an ascending pass the satellite moves roughly north, on a descending pass roughly south. A right-looking sensor
+such as Sentinel-1 looks east when ascending and west when descending. Slopes that are in layover or shadow on one pass
+are often well imaged on the other, so combining both fills gaps. The two passes also see motion along different lines
+of sight (see <a href="displacement.html">Displacement</a>).</p>
+
+<h2>Ellipsoid correction vs terrain correction</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Method</th><th>Height used</th><th>Use it for</th></tr>
+    <tr><td>Ellipsoid Correction GG</td><td>no DEM; uses the heights assumed in the product's geolocation tie-point grids</td><td>quick looks, ocean and sea ice, flat areas</td></tr>
+    <tr><td>Ellipsoid Correction RD</td><td>one constant height for the scene (average scene height from metadata)</td><td>flat areas at a known elevation; when no DEM is available</td></tr>
+    <tr><td>Range Doppler Terrain Correction</td><td>DEM height for every pixel</td><td>any land area with relief; stacks, mosaics, combination with maps or other sensors</td></tr>
+</table>
+<p>Ellipsoid correction leaves the relief displacement &Delta;x in the result. Use terrain correction whenever the
+height varies by more than about the pixel size times tan &theta;. For backscatter over relief, also apply
+<a href="radiometry.html">terrain flattening</a>.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Range Doppler Terrain Correction</b> (<code>Terrain-Correction</code>) solves the Range-Doppler equations per
+        output pixel with a DEM (default <code>Copernicus 30m Global DEM</code>).</li>
+    <li>On request it writes angle bands, all in degrees: <code>incidenceAngleFromEllipsoid</code>,
+        <code>localIncidenceAngle</code> and <code>projectedLocalIncidenceAngle</code>. The projected local incidence
+        angle is the default for its Sigma0/Gamma0 output options.</li>
+</ul>
+<p><b>Layover-shadow mask.</b> With "Save layover shadow mask" set, Terrain Correction writes the band
+<code>layoverShadowMask</code> (8-bit integer):</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Value</th><th>Meaning</th></tr>
+    <tr><td>0</td><td>neither layover nor shadow</td></tr>
+    <tr><td>1</td><td>layover</td></tr>
+    <tr><td>2</td><td>shadow</td></tr>
+    <tr><td>3</td><td>layover and shadow</td></tr>
+</table>
+<p>The mask is computed in radar geometry. Along each range line, DEM points whose slant range is out of order from
+near to far range are flagged as layover, and points whose look angle does not increase are flagged as shadow. Each
+output pixel then takes the value of its nearest radar pixel.</p>
+<ul>
+    <li>GSLC Terrain Correction also offers a <code>layoverShadowMask</code> band, but classifies it differently, from
+        the local incidence angle: 1 = layover (below 5&deg;), 2 = shadow (above 85&deg;), 4 = no usable source or DEM
+        data. Do not mix the two codings. Because the test uses the unsigned local incidence angle, it flags only
+        slopes nearly perpendicular to the line of sight and slopes at or beyond grazing; it misses most of a layover
+        area and cast shadow. For a complete mask use Terrain Correction with "Save layover shadow mask".</li>
+    <li><b>Ellipsoid Correction RD</b> (<code>Ellipsoid-Correction-RD</code>) is Terrain Correction with the DEM
+        replaced by <code>avg_scene_height</code> from the Abstracted Metadata. <b>Ellipsoid Correction GG</b>
+        (<code>Ellipsoid-Correction-GG</code>) interpolates the <code>latitude</code>, <code>longitude</code> and
+        <code>slant_range_time</code> tie-point grids.</li>
+    <li>The pass direction and look side are stored in the Abstracted Metadata as <code>PASS</code> and
+        <code>antenna_pointing</code>.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Using Ellipsoid Correction over mountains. The relief displacement stays in the image, and stacks from
+        different passes do not line up.</li>
+    <li>Interpreting bright layover or dark shadow as surface properties. Mask them with
+        <code>layoverShadowMask</code> first.</li>
+    <li>Combining ascending and descending images without accounting for their opposite look directions.</li>
+    <li>Treating values 1 and 2 of the mask as a ranking. They are categories, and 3 means both.</li>
+    <li>Choosing an output pixel spacing much finer than the DEM. Geocoding, angle bands and the mask still follow the
+        DEM resolution, not the pixel size.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/EllipsoidCorrectionRDOp.html">Ellipsoid Correction RD</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GeolocationGridGeocodingOp.html">Ellipsoid Correction GG</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/TerrainFlatteningOp.html">Terrain Flattening</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SARSimulationOp.html">SAR Simulation</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SARSimTerrainCorrectionOp.html">SAR Simulation Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SRGROp.html">Slant Range to Ground Range</a></li>
+</ul>
+<p>Workflows: <a href="../workflows/workflow_grd_backscatter.html">GRD to Terrain-Flattened Backscatter</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Curlander, J.C. (1982). Location of spaceborne SAR imagery. <i>IEEE Transactions on Geoscience and Remote
+        Sensing</i>, GE-20(3), 359&#8211;364. doi:10.1109/TGRS.1982.350455</li>
+    <li>Schreier, G. (Ed.) (1993). <i>SAR Geocoding: Data and Systems</i>. Herbert Wichmann Verlag, Karlsruhe.</li>
+    <li>Small, D. (2011). Flattening gamma: Radiometric terrain correction for SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 49(8), 3081&#8211;3093. doi:10.1109/TGRS.2011.2120616</li>
+    <li>Moreira, A., Prats-Iraola, P., Younis, M., Krieger, G., Hajnsek, I., Papathanassiou, K.P. (2013). A tutorial on
+        synthetic aperture radar. <i>IEEE Geoscience and Remote Sensing Magazine</i>, 1(1), 6&#8211;43.
+        doi:10.1109/MGRS.2013.2248301</li>
+</ol>
+
+<hr>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Stripmap DInSAR</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Workflows: Stripmap DInSAR</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Stripmap DInSAR</h1>
+
+<p class="lead">This chain makes a differential interferogram, coherence and line-of-sight displacement from two
+stripmap SLC products, for example TerraSAR-X/TanDEM-X/PAZ, ALOS-2, COSMO-SkyMed, Sentinel-1 SM (Coregistration graph only) or ERS/ENVISAT.
+Stripmap images have no bursts, so coregistration by cross-correlation and a warp polynomial (or by orbits and a DEM)
+is accurate enough, and no ESD step is needed.</p>
+
+<h2>Before you start</h2>
+<ul>
+    <li><b>Data:</b> two SLC products of the same mission, beam and track. Check the perpendicular and temporal
+        baselines with Radar &gt; Interferometric &gt;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/InSARStackOverview.html">InSAR Stack Overview</a>.</li>
+    <li><b>Orbits:</b> Apply Orbit File handles Sentinel-1, ENVISAT, ERS and KOMPSAT-5 orbit files. For other missions
+        (TerraSAR-X, ALOS-2, COSMO-SkyMed and others) it stops with "... is not suitable for a ... product"; the orbit
+        annotated in the product is used, so skip that step.</li>
+    <li><b>DEM:</b> the Copernicus 30 m DEM is downloaded automatically by DEM-based steps.</li>
+    <li><b>Ready-made graphs</b> (Graph Builder, <i>Graphs &gt; Radar &gt; InSAR Graphs</i>):
+        <i>Deformation-Pre-Processing</i> and <i>Deformation-Pre-Processing-Snaphu</i> run Apply Orbit File, Create
+        Stack, Cross-Correlation, Warp, Interferogram, Topographic Phase Removal and Goldstein filtering, and end with
+        Write or SNAPHU Export. They contain no multilooking step. <i>Stripmap-Coregistration-With-Demodulation</i> wraps Cross-Correlation and Warp in
+        Demodulate/Remodulate.</li>
+</ul>
+
+<h2>Steps</h2>
+<ol>
+    <li><b>Apply Orbit File</b> (<code>Apply-Orbit-File</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">help</a>),
+        on each product, for the missions listed above. For Sentinel-1 the default is <code>Sentinel Precise (Auto
+        Download)</code>. For ENVISAT and ERS you can pick DORIS, DELFT or PRARE; a Sentinel orbit type left in a graph
+        is switched automatically to DORIS VOR (ENVISAT) or PRARE (ERS).</li>
+    <li><b>Coregistration</b> (Radar &gt; Coregistration &gt; Coregistration;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/Coregistration.html">help</a>).
+        This menu graph runs
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>
+        (<code>CreateStack</code>, <i>Resampling Type</i> <code>NONE</code>),
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CrossCorrelationOp.html">Cross-Correlation</a>
+        (<code>Cross-Correlation</code>) and
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/WarpOp.html">Warp</a>
+        (<code>Warp</code>). The graph switches on fine registration and <i>Optimize for InSAR</i>, which are off in the
+        bare operator. Warp defaults: <i>Warp Polynomial Order</i> 2, significance level 0.05 for outlier removal,
+        interpolation <code>Cubic convolution (6 points)</code>.<br>
+        In steep terrain use
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/DEMAssistedCoregistrationOp.html">DEM Assisted Coregistration</a>
+        (<code>DEM-Assisted-Coregistration</code>, Radar &gt; Coregistration &gt; DEM-Assisted Coregistration) instead.
+        It computes the offsets from orbits and the DEM (default <code>Copernicus 30m Global DEM</code>, resampling
+        <code>BISINC_5_POINT_INTERPOLATION</code>). The <i>with XCorr</i> variant refines them by cross-correlation. It
+        refuses every Sentinel-1 SLC, stripmap (SM) included. For Sentinel-1 IW use the
+        <a href="workflow_s1_dinsar.html">TOPS chain</a>; for Sentinel-1 SM use the Coregistration graph above (Back
+        Geocoding accepts only TOPS burst products).</li>
+    <li><b>Spectral filtering</b>, optional (Radar &gt; Interferometric &gt; Filtering &gt; Spectral Filtering:
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/RangeFilterOp.html">Range Filtering</a>,
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/AzimuthFilterOp.html">Azimuth Filtering</a>).
+        Range common-band filtering recovers coherence for large perpendicular baselines; azimuth filtering helps when
+        the two Doppler centroids differ.</li>
+    <li><b>Interferogram Formation</b> (<code>Interferogram</code>;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">help</a>).
+        Keep <i>Subtract flat-earth phase</i> on (default). The coherence window defaults to 10 range pixels; set
+        <i>Coherence Window (m)</i> for a window that is square on the ground. <i>Subtract topographic phase</i> is off
+        by default.</li>
+    <li><b>Topographic Phase Removal</b> (<code>TopoPhaseRemoval</code>;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SubtRefDemOp.html">help</a>),
+        default DEM <code>Copernicus 30m Global DEM</code>, or tick <i>Subtract topographic phase</i> in step 4.</li>
+    <li><b>Multilooking</b> (<code>Multilook</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">help</a>).
+        Both look numbers default to 1. With <i>GR Square Pixel</i> on (default), choose the range looks and the azimuth
+        looks follow. Aim for ground pixels a few times larger than the fringe noise you want to suppress, but small
+        enough that each fringe still spans several pixels.</li>
+    <li><b>Goldstein Phase Filtering</b> (<code>GoldsteinPhaseFiltering</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">help</a>),
+        with adaptive alpha (default on).</li>
+    <li><b>Unwrapping</b> with
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a>
+        (cost mode <code>DEFO</code>, default), SNAPHU, and
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a>.</li>
+    <li><b>Phase to Displacement</b> (<code>PhaseToDisplacement</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">help</a>),
+        then
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>
+        (<code>Terrain-Correction</code>).</li>
+</ol>
+
+<h2>Check the result</h2>
+<ul>
+    <li><b>Coregistration:</b> tick <i>Show Residuals</i> in Warp. Check how many GCPs survived and the residual RMS.
+        Few GCPs or a large RMS mean low coherence or a poor initial offset.</li>
+    <li><b>Coherence:</b> compare it with what the land cover and temporal baseline lead you to expect. Low coherence
+        everywhere, even on towns, points to a coregistration failure.</li>
+    <li><b>Fringes:</b> after topographic phase removal, fringes that follow the terrain mean a DEM or geometry problem.
+        A linear ramp across the scene is usually orbit error. At L-band, broad ramps and streaks are often
+        ionospheric.</li>
+</ul>
+
+<h2>Common pitfalls</h2>
+<ul>
+    <li>Leaving the Apply-Orbit-File nodes of the ready-made graphs in place for TerraSAR-X, ALOS-2 or COSMO-SkyMed. The
+        graph then stops; delete those nodes.</li>
+    <li>Unwrapping a full-resolution interferogram straight from the Deformation-Pre-Processing-Snaphu graph. Insert
+        Multilook before Goldstein filtering, or the noise produces many residues.</li>
+    <li>Using a large perpendicular baseline for deformation. DEM errors then appear as phase.</li>
+    <li>Applying azimuth filtering or this chain to Sentinel-1 IW data. Use the TOPS chain.</li>
+    <li>Ignoring the ionosphere at L-band. See
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/IonosphericCorrectionOp.html">Ionospheric Correction</a>
+        (Radar &gt; Interferometric &gt; Products).</li>
+    <li>Reading displacement without a reference area. Subtract a stable area first.</li>
+</ul>
+
+<h2>Background</h2>
+<ul>
+    <li><a href="../concepts/insar.html">InSAR fundamentals</a></li>
+    <li><a href="../concepts/coherence.html">Coherence</a></li>
+    <li><a href="../concepts/unwrapping.html">Phase unwrapping</a></li>
+    <li><a href="../concepts/displacement.html">From phase to displacement</a></li>
+    <li><a href="../concepts/atmosphere.html">Atmospheric phase</a></li>
+    <li><a href="../concepts/orbits_etad.html">Orbits and timing corrections</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

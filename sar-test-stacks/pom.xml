@@ -29,6 +29,13 @@
     <name>SAR Stack Integration Tests</name>
     <artifactId>sar-test-stacks</artifactId>
 
+    <properties>
+        <!-- The corner-reflector validation tests (corner_reflectors/CRValidation*Test: full S1 GRD/SLC
+             Orbit > Cal > TF > TC chains, ~10 min per class) are excluded from the default test run.
+             Run them on their own with:  mvn test -Pcorner-reflectors -->
+        <cr.tests.exclude>**/corner_reflectors/**</cr.tests.exclude>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.esa.snap</groupId>
@@ -106,7 +113,51 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
             </plugin>
+            <plugin>
+                <!-- These are full-scene processing tests (S1 IW/GRD stacks, Copernicus DEM): run each test
+                     class in its own JVM so that memory one class leaves behind (DEM caches, JAI tiles,
+                     cached products) cannot exhaust the heap of the next class. The rest of the
+                     configuration (argLine, excludes) is inherited from the parent pluginManagement. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
+                    <excludes combine.children="append">
+                        <exclude>${cr.tests.exclude}</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <!-- Runs ONLY the corner-reflector validation tests, with long tests enabled (they are
+                 @RunWith(LongTestRunner.class)). They still need the S1 products, so point at the data:
+                 mvn test -Pcorner-reflectors "-Dsurefire.jvm.extra.args=-Dtests.data.dir=E:/TestData/s1tbx/SAR/" -->
+            <id>corner-reflectors</id>
+            <properties>
+                <!-- FindCRPosition is a helper, not a test; excluding it keeps the exclude list non-empty. -->
+                <cr.tests.exclude>**/corner_reflectors/FindCRPosition.java</cr.tests.exclude>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/corner_reflectors/CRValidation*Test.java</include>
+                            </includes>
+                            <systemPropertyVariables>
+                                <enable.long.tests>true</enable.long.tests>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

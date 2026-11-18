@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!--
+ * Copyright (C) 2026 by SkyWatch Space Applications Inc. http://www.skywatch.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see http://www.gnu.org/licenses/
+  -->
+<!--
+    Empty placeholder module. Its contents moved to sar-op-analysis-ui in SNAP 14. An in-place
+    (Update Center) upgrade would otherwise leave the old sar-op-ocean-ui module installed next to
+    sar-op-analysis-ui; both would declare the eu.esa.sar.ocean.* packages and layer.xml entries,
+    and the NetBeans class loader refuses to resolve classes from a split package. Shipping this
+    higher-versioned, empty module replaces the stale one. Safe to remove in a later release.
+-->
+<project
+        xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>eu.esa.microwavetbx</groupId>
+        <artifactId>microwave-toolbox</artifactId>
+        <version>15.0.0-SNAPSHOT</version>
+    </parent>
+
+    <name>SAR Ocean UI (obsolete, merged into SAR Analysis UI)</name>
+    <artifactId>sar-op-ocean-ui</artifactId>
+
+    <packaging>nbm</packaging>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.netbeans.utilities</groupId>
+                <artifactId>nbm-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

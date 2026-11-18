@@ -38,6 +38,7 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.FilterWindow;
 import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
+import org.esa.snap.engine_utilities.gpf.StackUtils;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
 
 import java.awt.*;
@@ -59,7 +60,7 @@ import java.util.Map;
  *       Phase_ij and Coh_ij outputs.</li>
  * </ul>
  *
- * <p>For matrix input, the operator extracts |HH|, |HV|, |VV|, |VH| from the diagonal of the
+ * <p>For matrix input, the operator extracts the channel powers |HH|², |HV|², |VV|², |VH|² from the diagonal of the
  * (lex-basis) covariance matrix &mdash; T3 input is converted to C3 internally. For dual-pol
  * C2 input, only the channels actually present (per the input MATRIX subtype) are available;
  * outputs that require missing channels will fail validation in {@code initialize()}.</p>
@@ -132,6 +133,11 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
     /** Set when the operator runs in named-intensity-band mode. Otherwise the matrix path is used. */
     private boolean intensityBandMode = false;
     private Band hhBand = null, hvBand = null, vvBand = null, vhBand = null;
+    /** Per band group (acquisition date) intensity bands [HH, HV, VV, VH], set in intensity-band mode. */
+    private Band[][] groupIntensityBands;
+    private boolean isStack = false;
+    /** Channel pair actually held by the matrix (differs from sourceProductType only for a generic C2). */
+    private PolBandUtils.MATRIX channelPairType = null;
 
     /**
      * Channel availability from matrix input (set in initialize() based on sourceProductType).
@@ -158,6 +164,8 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
             isComplex = validator.isComplex();
 
             sourceProductType = PolBandUtils.getSourceProductType(sourceProduct);
+            channelPairType = getChannelPairType();
+            isStack = StackUtils.isCoregisteredStack(sourceProduct);
 
             // Detect input mode: prefer named intensity bands when present.
             findIntensityBands();
@@ -174,7 +182,19 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
 
             validateOutputsAgainstAvailability();
 
-            srcBandList = PolBandUtils.getSourceBands(sourceProduct, sourceProductType);
+            if (intensityBandMode && sourceProductType != PolBandUtils.MATRIX.FULL) {
+                // Dual-pol intensity bands (e.g. a GRD): PolBandUtils expects i/q pairs for DUAL_* types,
+                // so build the band groups (one per acquisition date on a stack) from the intensity bands.
+                srcBandList = getIntensityBandGroups();
+            } else {
+                srcBandList = PolBandUtils.getSourceBands(sourceProduct, sourceProductType);
+            }
+            if (intensityBandMode) {
+                groupIntensityBands = new Band[srcBandList.length][];
+                for (int g = 0; g < srcBandList.length; g++) {
+                    groupIntensityBands[g] = findIntensityBands(srcBandList[g].suffix);
+                }
+            }
 
             window = new FilterWindow(Integer.parseInt(windowSizeXStr), Integer.parseInt(windowSizeYStr));
 
@@ -186,6 +206,64 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
+    }
+
+    /**
+     * Intensity bands [HH, HV, VV, VH] of one band group. On a coregistered stack only the bands of that
+     * acquisition (name ending with the group's date suffix) are used, so each date gets its own outputs.
+     */
+    private Band[] findIntensityBands(final String groupSuffix) {
+        if (!isStack || groupSuffix == null || groupSuffix.isEmpty()) {
+            return new Band[]{hhBand, hvBand, vvBand, vhBand};
+        }
+        final Band[] bands = new Band[4];
+        for (Band srcBand : sourceProduct.getBands()) {
+            final String unit = srcBand.getUnit();
+            if (unit == null || !unit.equals(Unit.INTENSITY) || !srcBand.getName().endsWith(groupSuffix)) continue;
+            final String n = srcBand.getName().toUpperCase();
+            if (n.contains("_HH")) bands[0] = srcBand;
+            else if (n.contains("_HV")) bands[1] = srcBand;
+            else if (n.contains("_VV")) bands[2] = srcBand;
+            else if (n.contains("_VH")) bands[3] = srcBand;
+        }
+        return bands;
+    }
+
+    /** One group of intensity bands per acquisition (a single group when the product is not a stack). */
+    private PolBandUtils.PolSourceBand[] getIntensityBandGroups() {
+        final List<PolBandUtils.PolSourceBand> groups = new ArrayList<>();
+        if (isStack) {
+            // Same grouping and naming as PolBandUtils.getSourceBands (reference first, then each secondary).
+            final List<String> dateNames = new ArrayList<>();
+            final List<String[]> dateBandNames = new ArrayList<>();
+            dateNames.add(sourceProduct.getName());
+            dateBandNames.add(StackUtils.getReferenceBandNames(sourceProduct));
+            for (String secProduct : StackUtils.getSecondaryProductNames(sourceProduct)) {
+                dateNames.add(secProduct);
+                dateBandNames.add(StackUtils.getSecondaryBandNames(sourceProduct, secProduct));
+            }
+            for (int d = 0; d < dateBandNames.size(); d++) {
+                final String[] names = dateBandNames.get(d);
+                if (names == null || names.length == 0) continue;
+                final int idx = names[0].lastIndexOf('_');
+                final String suffix = idx < 0 ? "" : names[0].substring(idx);
+                final List<Band> bands = new ArrayList<>();
+                for (Band b : findIntensityBands(suffix)) {
+                    if (b != null) bands.add(b);
+                }
+                if (!bands.isEmpty()) {
+                    groups.add(new PolBandUtils.PolSourceBand(dateNames.get(d), bands.toArray(new Band[0]), suffix));
+                }
+            }
+        }
+        if (groups.isEmpty()) {
+            final List<Band> bands = new ArrayList<>();
+            for (Band b : new Band[]{hhBand, hvBand, vhBand, vvBand}) {
+                if (b != null) bands.add(b);
+            }
+            groups.add(new PolBandUtils.PolSourceBand(sourceProduct.getName(), bands.toArray(new Band[0]), ""));
+        }
+        return groups.toArray(new PolBandUtils.PolSourceBand[0]);
     }
 
     private void findIntensityBands() {
@@ -200,8 +278,36 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
         }
     }
 
+    /**
+     * For a generic C2 product, take the channel pair from the abstracted-metadata polarisations (copied by
+     * Polarimetric Matrix Generation). Its C2 element order follows PolBandUtils: [HH, HV], [VV, VH] or
+     * [HH, VV]. Anything else (e.g. compact pol) keeps the HH/VV fallback.
+     */
+    private PolBandUtils.MATRIX getChannelPairType() {
+        if (sourceProductType != PolBandUtils.MATRIX.C2) {
+            return sourceProductType;
+        }
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(sourceProduct);
+        if (absRoot == null) {
+            return sourceProductType;
+        }
+        final java.util.Set<String> pols = new java.util.HashSet<>();
+        for (String tag : AbstractMetadata.polarTags) {
+            final String pol = absRoot.getAttributeString(tag, AbstractMetadata.NO_METADATA_STRING).trim().toUpperCase();
+            if (!pol.isEmpty() && !pol.equals(AbstractMetadata.NO_METADATA_STRING)) {
+                pols.add(pol);
+            }
+        }
+        if (pols.size() == 2) {
+            if (pols.contains("HH") && pols.contains("HV")) return PolBandUtils.MATRIX.DUAL_HH_HV;
+            if (pols.contains("VV") && pols.contains("VH")) return PolBandUtils.MATRIX.DUAL_VH_VV;
+            if (pols.contains("HH") && pols.contains("VV")) return PolBandUtils.MATRIX.DUAL_HH_VV;
+        }
+        return sourceProductType;
+    }
+
     private void deriveChannelAvailabilityFromMatrix() {
-        switch (sourceProductType) {
+        switch (channelPairType) {
             case C3:
             case T3:
             case FULL:
@@ -280,12 +386,27 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
 
         for (PolBandUtils.PolSourceBand bandList : srcBandList) {
             final Band[] targetBands = OperatorUtils.addBands(targetProduct, targetBandNames, bandList.suffix);
+            for (Band targetBand : targetBands) {
+                targetBand.setUnit(getUnit(targetBand.getName()));
+            }
             bandList.addTargetBands(targetBands);
         }
 
         if (targetProduct.getNumBands() == 0) {
             throw new OperatorException("No output bands selected");
         }
+    }
+
+    /** Span and BMI are powers; Coh_ and Phase_ are coherence and phase (radians); the rest are dimensionless. */
+    private static String getUnit(final String bandName) {
+        if (bandName.startsWith(BandType.Span.toString()) || bandName.startsWith(BandType.BMI.toString())) {
+            return Unit.INTENSITY;
+        } else if (bandName.startsWith("Coh_")) {
+            return Unit.COHERENCE;
+        } else if (bandName.startsWith("Phase_")) {
+            return Unit.PHASE;
+        }
+        return null;
     }
 
     private String[] getTargetBandNames() {
@@ -343,22 +464,24 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
                 || sourceProductType == PolBandUtils.MATRIX.T3
                 || sourceProductType == PolBandUtils.MATRIX.FULL;
 
-        // Intensity-band tiles (when in intensity mode).
-        Tile hhTile = null, hvTile = null, vvTile = null, vhTile = null;
-        if (intensityBandMode) {
-            if (hhBand != null) hhTile = getSourceTile(hhBand, sourceRectangle);
-            if (hvBand != null) hvTile = getSourceTile(hvBand, sourceRectangle);
-            if (vvBand != null) vvTile = getSourceTile(vvBand, sourceRectangle);
-            if (vhBand != null) vhTile = getSourceTile(vhBand, sourceRectangle);
-        }
-
-        for (final PolBandUtils.PolSourceBand bandList : srcBandList) {
+        for (int group = 0; group < srcBandList.length; group++) {
+            final PolBandUtils.PolSourceBand bandList = srcBandList[group];
             try {
+                // Intensity-band tiles of this group's acquisition (when in intensity mode).
+                Tile hhTile = null, hvTile = null, vvTile = null, vhTile = null;
+                if (intensityBandMode) {
+                    final Band[] ib = groupIntensityBands[group];
+                    if (ib[0] != null) hhTile = getSourceTile(ib[0], sourceRectangle);
+                    if (ib[1] != null) hvTile = getSourceTile(ib[1], sourceRectangle);
+                    if (ib[2] != null) vvTile = getSourceTile(ib[2], sourceRectangle);
+                    if (ib[3] != null) vhTile = getSourceTile(ib[3], sourceRectangle);
+                }
+
                 final TileData[] tileDataList = new TileData[bandList.targetBands.length];
                 int i = 0;
                 for (Band targetBand : bandList.targetBands) {
                     final Tile targetTile = targetTiles.get(targetBand);
-                    tileDataList[i++] = new TileData(targetTile, targetBand.getName());
+                    tileDataList[i++] = new TileData(targetTile, targetBand.getName(), bandList.suffix);
                 }
 
                 final Tile[] sourceTiles = new Tile[bandList.srcBands.length];
@@ -394,18 +517,20 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
                             t3param = computePolarimetricParameters(Tr3, Ti3);
                         }
 
-                        // Channel amplitudes and (if matrix) off-diagonal correlations.
-                        double hhAmp = 0, hvAmp = 0, vvAmp = 0, vhAmp = 0;
+                        // Channel powers (linear intensity, sigma0-like) and (if matrix) off-diagonal correlations.
+                        // RFDI, CSI, VSI, BMI, ITI, the channel ratios and the detected-input RVI are defined on
+                        // linear power. (On complex quad-pol input RVI comes from the T3 eigenvalues instead.)
+                        double hhPow = 0, hvPow = 0, vvPow = 0, vhPow = 0;
                         // Off-diagonal complex correlations c_HHVV, c_HHHV, c_VVVH (real, imag).
                         double rHV = 0, iHV = 0, rHH_HV = 0, iHH_HV = 0, rVV_VH = 0, iVV_VH = 0;
                         // Diagonal channel intensities for normalisation of correlations.
                         double iHH = 0, iHV2 = 0, iVV = 0, iVH = 0;
 
                         if (intensityBandMode) {
-                            if (hhTile != null) hhAmp = Math.sqrt(Math.max(0, hhTile.getSampleFloat(x, y)));
-                            if (hvTile != null) hvAmp = Math.sqrt(Math.max(0, hvTile.getSampleFloat(x, y)));
-                            if (vvTile != null) vvAmp = Math.sqrt(Math.max(0, vvTile.getSampleFloat(x, y)));
-                            if (vhTile != null) vhAmp = Math.sqrt(Math.max(0, vhTile.getSampleFloat(x, y)));
+                            if (hhTile != null) hhPow = Math.max(0, hhTile.getSampleFloat(x, y));
+                            if (hvTile != null) hvPow = Math.max(0, hvTile.getSampleFloat(x, y));
+                            if (vvTile != null) vvPow = Math.max(0, vvTile.getSampleFloat(x, y));
+                            if (vhTile != null) vhPow = Math.max(0, vhTile.getSampleFloat(x, y));
                         } else if (isQuadMatrix) {
                             // Get C3 (lex basis): c11=|HH|², c22=2|HV|², c33=|VV|², plus complex off-diagonals.
                             getCovarianceMatrixC3(srcIndex.getIndex(x), sourceProductType, dataBuffers, Cr3, Ci3);
@@ -413,39 +538,41 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
                             iHV2 = Cr3[1][1] / 2.0;       // |HV|² (the C3 c22 stores 2|HV|²)
                             iVV = Cr3[2][2];
                             iVH = iHV2;                    // reciprocity
-                            hhAmp = Math.sqrt(Math.max(0, iHH));
-                            hvAmp = Math.sqrt(Math.max(0, iHV2));
-                            vvAmp = Math.sqrt(Math.max(0, iVV));
-                            vhAmp = hvAmp;
+                            hhPow = Math.max(0, iHH);
+                            hvPow = Math.max(0, iHV2);
+                            vvPow = Math.max(0, iVV);
+                            vhPow = hvPow;
                             // c12 = <HH·HV*·sqrt(2)>; c13 = <HH·VV*>; c23 = <sqrt(2)·HV·VV*>
                             // For HHHV: <HH·HV*> = c12 / sqrt(2).
                             rHH_HV = Cr3[0][1] / Math.sqrt(2.0);
                             iHH_HV = Ci3[0][1] / Math.sqrt(2.0);
                             rHV = Cr3[0][2];
                             iHV = Ci3[0][2];
+                            // c23 = <sqrt(2)·HV·VV*>, so <VV·VH*> = conj(c23) / sqrt(2) (same order as the dual-pol path).
                             rVV_VH = Cr3[1][2] / Math.sqrt(2.0);
-                            iVV_VH = Ci3[1][2] / Math.sqrt(2.0);
+                            iVV_VH = -Ci3[1][2] / Math.sqrt(2.0);
                         } else {
                             // C2 dual-pol path: extract from C2 diagonal per active mode.
                             getCovarianceMatrixC2(srcIndex.getIndex(x), sourceProductType, dataBuffers, Cr2, Ci2);
-                            switch (sourceProductType) {
+                            switch (channelPairType) {
                                 case DUAL_HH_HV:
                                     iHH = Cr2[0][0]; iHV2 = Cr2[1][1];
-                                    hhAmp = Math.sqrt(Math.max(0, iHH));
-                                    hvAmp = Math.sqrt(Math.max(0, iHV2));
+                                    hhPow = Math.max(0, iHH);
+                                    hvPow = Math.max(0, iHV2);
                                     rHH_HV = Cr2[0][1]; iHH_HV = Ci2[0][1];
                                     break;
                                 case DUAL_VH_VV:
-                                    iVH = Cr2[0][0]; iVV = Cr2[1][1];
-                                    vhAmp = Math.sqrt(Math.max(0, iVH));
-                                    vvAmp = Math.sqrt(Math.max(0, iVV));
+                                    // dual-pol scatter vector is k = [S_VV, S_VH] (PolBandUtils)
+                                    iVV = Cr2[0][0]; iVH = Cr2[1][1];
+                                    vhPow = Math.max(0, iVH);
+                                    vvPow = Math.max(0, iVV);
                                     rVV_VH = Cr2[0][1]; iVV_VH = Ci2[0][1];
                                     break;
                                 case DUAL_HH_VV:
                                 case C2: // permissive fallback
                                     iHH = Cr2[0][0]; iVV = Cr2[1][1];
-                                    hhAmp = Math.sqrt(Math.max(0, iHH));
-                                    vvAmp = Math.sqrt(Math.max(0, iVV));
+                                    hhPow = Math.max(0, iHH);
+                                    vvPow = Math.max(0, iVV);
                                     rHV = Cr2[0][1]; iHV = Ci2[0][1];
                                     break;
                                 default:
@@ -465,34 +592,35 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
                                     if (t3param != null) {
                                         tile.dataBuffer.setElemFloatAt(tgtIdx, (float) t3param.RVI);
                                     } else {
+                                        // Kim & van Zyl 2009: RVI = 8 sigmaHV / (sigmaHH + sigmaVV + 2 sigmaHV)
                                         tile.dataBuffer.setElemFloatAt(tgtIdx,
-                                                (float) ((8 * hvAmp) / (hhAmp + vvAmp + 2 * hvAmp)));
+                                                (float) safeDiv(8 * hvPow, hhPow + vvPow + 2 * hvPow));
                                     }
                                     break;
                                 case RFDI:
                                     tile.dataBuffer.setElemFloatAt(tgtIdx,
-                                            (float) safeDiv(hhAmp - hvAmp, hhAmp + hvAmp));
+                                            (float) safeDiv(hhPow - hvPow, hhPow + hvPow));
                                     break;
                                 case CSI:
                                     tile.dataBuffer.setElemFloatAt(tgtIdx,
-                                            (float) safeDiv(vvAmp, vvAmp + hhAmp));
+                                            (float) safeDiv(vvPow, vvPow + hhPow));
                                     break;
                                 case BMI:
-                                    tile.dataBuffer.setElemFloatAt(tgtIdx, (float) ((vvAmp + hhAmp) / 2.0));
+                                    tile.dataBuffer.setElemFloatAt(tgtIdx, (float) ((vvPow + hhPow) / 2.0));
                                     break;
                                 case VSI:
                                     tile.dataBuffer.setElemFloatAt(tgtIdx,
-                                            (float) safeDiv(hvAmp + vhAmp, hhAmp + vvAmp + hvAmp + vhAmp));
+                                            (float) safeDiv(hvPow + vhPow, hhPow + vvPow + hvPow + vhPow));
                                     break;
                                 case ITI:
                                 case HHVVRatio:
-                                    tile.dataBuffer.setElemFloatAt(tgtIdx, (float) safeDiv(hhAmp, vvAmp));
+                                    tile.dataBuffer.setElemFloatAt(tgtIdx, (float) safeDiv(hhPow, vvPow));
                                     break;
                                 case HHHVRatio:
-                                    tile.dataBuffer.setElemFloatAt(tgtIdx, (float) safeDiv(hhAmp, hvAmp));
+                                    tile.dataBuffer.setElemFloatAt(tgtIdx, (float) safeDiv(hhPow, hvPow));
                                     break;
                                 case VVVHRatio:
-                                    tile.dataBuffer.setElemFloatAt(tgtIdx, (float) safeDiv(vvAmp, vhAmp));
+                                    tile.dataBuffer.setElemFloatAt(tgtIdx, (float) safeDiv(vvPow, vhPow));
                                     break;
                                 case Coh_HHVV:
                                     tile.dataBuffer.setElemFloatAt(tgtIdx,
@@ -541,11 +669,14 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
         final String bandName;
         final BandType bandType;
 
-        TileData(final Tile tile, final String bandName) {
+        TileData(final Tile tile, final String bandName, final String suffix) {
             this.tile = tile;
             this.dataBuffer = tile.getDataBuffer();
             this.bandName = bandName;
-            this.bandType = BandType.valueOf(bandName);
+            // On a stack the target band carries the date suffix (e.g. Span_01Jan2020).
+            final String baseName = (suffix != null && !suffix.isEmpty() && bandName.endsWith(suffix))
+                    ? bandName.substring(0, bandName.length() - suffix.length()) : bandName;
+            this.bandType = BandType.valueOf(baseName);
         }
     }
 
@@ -556,10 +687,12 @@ public final class PolarimetricParametersOp extends Operator implements QuadPolP
 
         final PolarimetricParameters parameters = new PolarimetricParameters();
 
-        parameters.Span = 2 * (Tr[0][0] + Tr[1][1] + Tr[2][2]);
+        // Span = trace(T3) = |HH|^2 + 2|HV|^2 + |VV|^2.
+        parameters.Span = Tr[0][0] + Tr[1][1] + Tr[2][2];
         hAAlpha.HAAlpha data = hAAlpha.computeHAAlpha(Tr, Ti);
         parameters.PedestalHeight = data.lambda3 / data.lambda1;
-        parameters.RVI = 4.0 * data.lambda3 / (data.lambda1 + data.alpha2 + data.lambda3);
+        // Eigenvalue RVI = 4 lambda3 / (lambda1 + lambda2 + lambda3).
+        parameters.RVI = 4.0 * data.lambda3 / (data.lambda1 + data.lambda2 + data.lambda3);
 
         return parameters;
     }

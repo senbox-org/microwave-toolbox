@@ -1,0 +1,36 @@
+# Operator alias -> help page, for operators that layer.xml does not map
+# (reached through a graph action, a custom action class, or an action without helpId).
+# Format: alias|page path relative to the repo root. Read by gen_params.py; checked by
+# `check_javahelp.py --only params` (an alias that no longer exists is reported).
+#
+# Graph actions (layer.xml graphFile + helpId)
+AdaptiveThresholding|sar-op-feature-extraction-ui/src/main/resources/eu/esa/sar/fex/docs/operators/ObjectDetection.html
+Object-Discrimination|sar-op-feature-extraction-ui/src/main/resources/eu/esa/sar/fex/docs/operators/ObjectDetection.html
+Oil-Spill-Detection|sar-op-feature-extraction-ui/src/main/resources/eu/esa/sar/fex/docs/operators/OilSpillDetectionOp.html
+Oil-Spill-Clustering|sar-op-feature-extraction-ui/src/main/resources/eu/esa/sar/fex/docs/operators/OilSpillDetectionOp.html
+Wind-Field-Estimation|sar-op-feature-extraction-ui/src/main/resources/eu/esa/sar/fex/docs/operators/WindFieldEstimationOp.html
+DecisionTree|sar-op-feature-extraction-ui/src/main/resources/eu/esa/sar/fex/docs/operators/DecisionTreeOp.html
+SAR-Mosaic|sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/MosaicOp.html
+SARSim-Terrain-Correction|sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/SARSimTerrainCorrectionOp.html
+Stack-Split|sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/StackSplitOp.html
+DEM-Assisted-Coregistration|sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/DEMAssistedCoregistrationOp.html
+IntegerInterferogram|sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/IntegerInterferogramOp.html
+MultiMasterStackGenerator|sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/MultiReference.html
+IonosphericCorrection|sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/IonosphericCorrectionOp.html
+StampsExport|sar-op-insar-ui/src/main/resources/eu/esa/sar/insar/docs/operators/StampsExportOp.html
+SnaphuExport|jlinda/jlinda-nest-ui/src/main/resources/org/jlinda/nest/docs/operators/SnaphuExportOp.html
+SnaphuImport|jlinda/jlinda-nest-ui/src/main/resources/org/jlinda/nest/docs/operators/SnaphuImportOp.html
+Back-Geocoding|sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html
+TOPSAR-Merge|sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/TOPSARMergeOp.html
+SliceAssembly|sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/SliceAssemblyOp.html
+GRD-Post|sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/GRDPostProcessOp.html
+#
+# Graph Builder only (no menu action)
+TileWriter|sar-op-utilities-ui/src/main/resources/eu/esa/sar/utilities/docs/operators/TileWriterOp.html
+BandMerge|sar-op-utilities-ui/src/main/resources/eu/esa/sar/utilities/docs/operators/BandMergeOp.html
+#
+# Mapped pages without an operator action carrying a helpId
+Azimuth-Shift|sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/AzimuthShiftOp.html
+Range-Shift|sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/RangeShiftOp.html
+RCM-Thermal-Noise-Removal|sar-op-calibration-ui/src/main/resources/eu/esa/sar/calibration/docs/operators/RCMThermalNoiseRemoval.html
+PhaseToHeight|jlinda/jlinda-nest-ui/src/main/resources/org/jlinda/nest/docs/operators/Slant2HeightOp.html

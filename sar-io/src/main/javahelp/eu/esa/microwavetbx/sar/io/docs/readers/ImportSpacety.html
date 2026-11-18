@@ -11,26 +11,54 @@
     </tbody>
 </table>
 
-<h3>Import Spacety Product</h3>
+<p>Spacety is a Chinese company that operates small C-band SAR satellites, starting with HiSea-1 and
+Chaohu-1. Its products use a SAFE-like layout with a <code>manifest.safe</code> file. SNAP reads them
+with the <b>Spacety</b> reader.</p>
 
-<p class="MsoNormal"><b>Operator:</b> Spacety (now operating as TY-SAT) &mdash; commercial SAR constellation.</p>
-<p class="MsoNormal"><b>Operational:</b> 2020&ndash;present.</p>
-<p class="MsoNormal"><b>Frequency Band:</b> C-band.</p>
-<p class="MsoNormal"><b>Acquisition Modes:</b> Stripmap, Sliding Spotlight, Staring Spotlight, ScanSAR.</p>
-<p class="MsoNormal"><b>Product Types:</b></p>
+<h2>Mission</h2>
 <ul>
-    <li>SLC (Single Look Complex)</li>
-    <li>GRD (Ground Range Detected, multilooked)</li>
+  <li><b>Operator:</b> Spacety (China).</li>
+  <li><b>Radar:</b> C-band, 5.4 GHz (wavelength about 5.6 cm). HiSea-1 images in VV.</li>
+  <li><b>Satellites:</b> HiSea-1 launched 22 December 2020; Chaohu-1 launched 27 February 2022.</li>
+  <li><b>Modes (HiSea-1):</b> Spotlight (about 1 m, 5 km swath), Stripmap (about 3 m, 20 km),
+      Scan (about 10 m, 50 km) and Wide Scan (about 20 m, 100 km).</li>
 </ul>
-<p class="MsoNormal"><b>Polarizations:</b> Single-pol HH or VV; selected modes support dual-pol HH+HV / VV+VH.</p>
 
-<p class="MsoNormal"><b>Notes:</b> The reader recognizes the manifest XML accompanying each Spacety product
-delivery and exposes calibration LUTs through the standard SNAP <i>Radiometric Calibration</i> chain (see the
-SpacetyCalibrator). Orbit information is read from the bundled state vectors; precise orbit replacement
-requires an external auxiliary file.</p>
+<h2>Supported products</h2>
+<ul>
+  <li>SLC (Single Look Complex, slant range) in Stripmap, Spotlight and ScanSAR modes.</li>
+  <li>Detected products.</li>
+</ul>
 
-<p class="MsoNormal"><b>Further Information:</b></p>
-<a href="https://eoportal.org/satellite-missions/spacety">https://eoportal.org/satellite-missions/spacety</a><br>
+<h2>How to open</h2>
+<p>Select the <code>manifest.safe</code> file inside the product folder (the folder name starts with
+<code>BC</code> or <code>BX</code>, for example <code>BC1_SM_SLC_1SSV_...</code>), the folder itself, or
+the zipped product with the same name.</p>
+
+<h2>What you get</h2>
+<ul>
+  <li>SLC: <code>i_</code> and <code>q_</code> bands per polarisation (for example <code>i_VV</code>)
+      and virtual <code>Intensity_</code> bands. ScanSAR products get one set per sub-swath, with the
+      sub-swath name added to the band name.</li>
+  <li>Detected products: <code>Amplitude_</code> bands and virtual <code>Intensity_</code> bands.</li>
+  <li>Tie-point grids for latitude, longitude, incidence angle, elevation angle and slant-range time.</li>
+  <li>The calibration look-up tables of the product, used by <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>Orbit state vectors come from the product annotation. Apply Orbit File has no Spacety orbit
+      source.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>, then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>, and
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>.</p>
+
+<h2>Product format specification</h2>
+<p>No public format document is linked here. Mission background:
+<a href="https://www.eoportal.org/satellite-missions/spacety">eoPortal: Spacety</a>.</p>
 
 <hr>
 </body></html>

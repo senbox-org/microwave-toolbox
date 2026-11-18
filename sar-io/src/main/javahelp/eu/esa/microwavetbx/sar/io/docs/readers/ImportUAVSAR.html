@@ -11,32 +11,62 @@
     </tbody>
 </table>
 
-<h3>Import UAVSAR Product</h3>
+<p>UAVSAR is NASA/JPL's airborne L-band polarimetric SAR. Its main design goal is repeat-pass
+interferometry. SNAP reads UAVSAR PolSAR products with the <b>UAVSAR</b> reader.</p>
 
-<p class="MsoNormal"><b>Operator:</b> NASA/JPL UAVSAR &mdash; airborne L-band SAR.</p>
-<p class="MsoNormal"><b>Operational:</b> 2007&ndash;present.</p>
-<p class="MsoNormal"><b>Platform:</b> Gulfstream-III (G-III) aircraft.</p>
-<p class="MsoNormal"><b>Frequency Band:</b> L-band (1.2575&nbsp;GHz centre, 80&nbsp;MHz bandwidth).</p>
-<p class="MsoNormal"><b>Acquisition Modes:</b> Quad-pol Stripmap; PolInSAR / Repeat-pass Interferometry; tomographic stacks.</p>
-<p class="MsoNormal"><b>Product Types:</b></p>
+<h2>Mission</h2>
 <ul>
-    <li>SLC (Single Look Complex, native slant range)</li>
-    <li>MLC (Multi-Look Complex, 3&times;12 looks)</li>
-    <li>GRD (Ground Range Detected)</li>
-    <li>HGT (Synthetic ground-projected DEM heights)</li>
-    <li>ANN (Annotation file describing scene geometry &mdash; required by the reader)</li>
+  <li><b>Operator:</b> NASA/JPL. The radar is carried in a pod under a NASA Gulfstream III jet.</li>
+  <li><b>Radar:</b> L-band, 1217.5&ndash;1297.5 MHz (80 MHz bandwidth, wavelength about 24 cm),
+      quad polarisation (HH, HV, VH, VV).</li>
+  <li><b>Acquisitions:</b> campaign flights rather than a fixed orbit and revisit.</li>
 </ul>
-<p class="MsoNormal"><b>Polarizations:</b> Full quad-pol (HH, HV, VH, VV).</p>
 
-<p class="MsoNormal"><b>Notes:</b> UAVSAR is delivered as flat binary cubes accompanied by a plain-text
-ANN annotation file describing dimensions, geometry, look angles, and pixel spacing. The reader expects
-the ANN file alongside the data files. Geocoded UAVSAR products are pre-projected to a regular lat/lon
-grid (no per-pixel geocoding step required); SLC products are in the native slant-range geometry and
-require <i>Range-Doppler Terrain Correction</i> for map-projected outputs.</p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Extension</th><th>Content</th></tr>
+  <tr><td><code>.slc</code></td><td>Single look complex, one file per polarisation, slant range</td></tr>
+  <tr><td><code>.mlc</code></td><td>Multi-looked cross products (covariance terms), slant range</td></tr>
+  <tr><td><code>.grd</code></td><td>The same cross products projected to a latitude/longitude grid</td></tr>
+</table>
+<p>Height (<code>.hgt</code>), slope and incidence files are not read. The reader also accepts the
+extension <code>.dat</code>, but see Known limitations.</p>
 
-<p class="MsoNormal"><b>Further Information:</b></p>
-<a href="https://uavsar.jpl.nasa.gov/">https://uavsar.jpl.nasa.gov/</a><br>
-<a href="https://uavsar.jpl.nasa.gov/cgi-bin/data.pl">UAVSAR Data Search</a><br>
+<h2>How to open</h2>
+<p>Select one <b>data file</b> (<code>.slc</code>, <code>.mlc</code> or <code>.grd</code>). The annotation file (<code>.ann</code>) must be in the same folder; the reader
+uses the first <code>.ann</code> file it finds there. All files in the folder with the same
+extension become bands of one product, so keep one product per folder.</p>
+
+<h2>What you get</h2>
+<ul>
+  <li>SLC: <code>i_HH</code>/<code>q_HH</code>, <code>i_HV</code>/<code>q_HV</code>,
+      <code>i_VH</code>/<code>q_VH</code>, <code>i_VV</code>/<code>q_VV</code>.</li>
+  <li>MLC and GRD: the six cross products, named like covariance-matrix elements:
+      <code>C11</code> (HHHH), <code>C22</code> (HVHV), <code>C33</code> (VVVV) as intensities, and
+      <code>C12</code> (HHHV), <code>C13</code> (HHVV), <code>C23</code> (HVVV) as
+      <code>_real</code>/<code>_imag</code> band pairs. Values are linear power.</li>
+  <li>Geocoding from the four scene corners in the annotation.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>Products are already calibrated by JPL; SNAP has no UAVSAR calibrator.</li>
+  <li>Corner-based geocoding is approximate, also for <code>.grd</code> files, although these are on
+      a regular latitude/longitude grid.</li>
+  <li>The compressed Stokes-matrix <code>.dat</code> files (10 bytes per pixel) are accepted by
+      extension but not decoded; use the MLC or GRD files instead.</li>
+  <li>Apply Orbit File does not apply to airborne data.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a> and <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a> on MLC or
+GRD; <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a> to build T3 or C3 from SLC.</p>
+
+<h2>Product format specification</h2>
+<p><a href="https://uavsar.jpl.nasa.gov/science/documents/polsar-format.html">UAVSAR PolSAR Data Format (JPL)</a>;
+other format notes on <a href="https://uavsar.jpl.nasa.gov/science/documents.html">UAVSAR documents</a>.
+Data: <a href="https://uavsar.jpl.nasa.gov/cgi-bin/data.pl">UAVSAR Data Search</a>.</p>
 
 <hr>
 </body></html>

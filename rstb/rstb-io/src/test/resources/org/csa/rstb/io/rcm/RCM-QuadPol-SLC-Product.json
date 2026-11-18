@@ -3,7 +3,7 @@
 	"id": "RCM-QuadPol-SLC-Product",
 	"expectedContent": {
 		"metadata": [{
-				"path": "Original_Product_Metadata\/calibration\/noiseLevels[2]\/referenceNoiseLevel[3]\/noiseLevelValues\/units",
+				"path": "Original_Product_Metadata\/calibration\/noiseLevels_HV\/referenceNoiseLevel[3]\/noiseLevelValues\/units",
 				"value": "dB"
 			}, {
 				"path": "Original_Product_Metadata\/XFDU\/metadataSection\/metadataObject[6]\/dataObjectPointer\/dataObjectID",

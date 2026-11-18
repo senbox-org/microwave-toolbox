@@ -71,4 +71,23 @@ public class TestClosurePhase {
         // expected closure = 0.2
         assertEquals(0.2, ClosurePhase.rms(net, phi), 1.0e-9);
     }
+
+    @Test
+    public void closure_is_nan_without_triplets() {
+        // sequential network a-b, b-c: no closed triplet
+        final Network net = new Network(Arrays.asList("a", "b", "c"), Arrays.asList(0L, 1L, 2L),
+                new int[]{0, 1}, new int[]{1, 2}, 0);
+        assertEquals(0, net.numTriplets());
+        assertTrue(Double.isNaN(ClosurePhase.rms(net, new double[]{0.3, 0.4})));
+    }
+
+    @Test
+    public void closure_skips_triplets_with_an_unused_pair() {
+        final Network net = new Network(Arrays.asList("a", "b", "c"), Arrays.asList(0L, 1L, 2L),
+                new int[]{0, 1, 0}, new int[]{1, 2, 2}, 0);
+        final double[] phi = {0.3, 0.4, 0.5};          // closure 0.2 when all pairs are used
+        assertEquals(0.2, ClosurePhase.rms(net, phi, new double[]{1, 1, 1}), 1.0e-9);
+        // pair (a,c) dropped (zero weight): its only triplet is not observable at this pixel
+        assertTrue(Double.isNaN(ClosurePhase.rms(net, phi, new double[]{1, 1, 0})));
+    }
 }

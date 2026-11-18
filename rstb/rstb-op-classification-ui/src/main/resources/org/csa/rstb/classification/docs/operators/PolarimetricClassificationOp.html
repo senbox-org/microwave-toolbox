@@ -153,21 +153,52 @@ For the Freeman-Durden Wishart classification, the following parameters are used
 <p>
 For the General Wishart classification, the following parameters are used (see Figure 4):<br>
 </p><ul><li>Classification: the classification method</li><li>Window Size: dimension of sliding window for computing mean covariance or coherency matrixp</li><li>Initial Number of Classes: the initial number of clusters</li><li>Final Number of Classes: the final number of classes after classification</li><li>Threshold for Mixed Category: the threshold used in classifying
-        pixels to the mixed category</li><li>Decomposition: The initial decomposition method. The following decomposition methods are currently supported: Sinclair, Pauli, Freeman-Durden, Generalized Freeman-Durden, Yamaguchi, van Zyl, Cloude and Touzi</li></ul><p>
+        pixels to the mixed category</li><li>Decomposition: The initial decomposition method. The following decomposition methods are currently supported: Sinclair, Pauli, Freeman-Durden, Generalized Freeman-Durden, Yamaguchi, van Zyl, H-A-Alpha Quad Pol, Cloude and Touzi</li></ul><p>
 
 <img style="width: 435px; height: 444px;" alt="" src="images/polarimetricClassification_unsupervised_general_wishart.jpg"></p><p>Figure 5. Dialog box for the General Wishart classification</p><p></p>
 
-<p> Reference:&nbsp;</p>
+<h4>References</h4>
+<ol>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
+    <li>Lee, J.-S., Grunes, M. R., Pottier, E., Ferro-Famil, L. (2004). Unsupervised terrain classification preserving polarimetric scattering characteristics. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 42(4), 722&#8211;731. doi:10.1109/TGRS.2003.819883</li>
+    <li>Cloude, S. R., Pottier, E. (1997). An entropy based classification scheme for land applications of polarimetric SAR. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 35(1), 68&#8211;78. doi:10.1109/36.551935</li>
+    <li>Lee, J.-S., Grunes, M. R., Ainsworth, T. L., Du, L.-J., Schuler, D. L., Cloude, S. R. (1999). Unsupervised classification using polarimetric decomposition and the complex Wishart classifier. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 37(5), 2249&#8211;2258. doi:10.1109/36.789621</li>
+    <li>Lee, J.-S., Grunes, M. R., Kwok, R. (1994). Classification of multi-look polarimetric SAR imagery based on complex Wishart distribution. <i>International Journal of Remote Sensing</i>, 15(11), 2299&#8211;2311. doi:10.1080/01431169408954244</li>
+</ol>
 
-<p>[1] J.S. Lee and E. Pottier, Polarimetric Radar Imaging: From Basics to Applications, CRC Press, 2009</p>
-
-<p>[2] J.S. Lee, M.R. Grunes, and E. Pottier, "Unsupervised terrain
-    classification preserving polarimetric scattering characteristics",
-    IEEE Transaction on Geoscience and Remote Sensing, Vol. 42, No. 4,
-    April 2004.<br>
-    <br>
-</p>
-
-
+<!-- params:begin op="Polarimetric-Classification" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Polarimetric-Classification</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>classification</code></td><td>String</td><td>H Alpha Wishart</td><td>Cloude-Pottier, Cloude-Pottier Dual Pol, H Alpha Wishart, H Alpha Wishart Dual Pol, Freeman-Durden Wishart, General Wishart</td><td>&nbsp;</td><td>Classification</td></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>(1, 100]</td><td>&nbsp;</td><td>The sliding window size</td></tr>
+<tr><td><code>maxIterations</code></td><td>int</td><td>3</td><td>[1, 100]</td><td>&nbsp;</td><td>The maximum number of iterations</td></tr>
+<tr><td><code>numInitialClasses</code></td><td>int</td><td>90</td><td>[9, 1000]</td><td>&nbsp;</td><td>The initial number of classes</td></tr>
+<tr><td><code>numFinalClasses</code></td><td>int</td><td>15</td><td>[9, 100]</td><td>&nbsp;</td><td>The desired number of classes</td></tr>
+<tr><td><code>mixedCategoryThreshold</code></td><td>double</td><td>0.5</td><td>(0, *)</td><td>&nbsp;</td><td>The threshold for classifying pixels to mixed category</td></tr>
+<tr><td><code>decomposition</code></td><td>String</td><td>Sinclair Decomposition</td><td>Sinclair Decomposition, Pauli Decomposition, Freeman-Durden Decomposition, Generalized Freeman-Durden Decomposition, Yamaguchi Decomposition, van Zyl Decomposition, H-A-Alpha Quad Pol Decomposition, Cloude Decomposition, Touzi Decomposition</td><td>&nbsp;</td><td>Decomposition</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/wishart.html">Polarimetric Speckle, Wishart Statistics and Classification</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_matrices.html">Polarimetric Matrices and Parameters</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>SLC product (not a TOPS burst product: apply TOPS Deburst first)</li>
+    <li>Quad-pol product for the quad-pol classifiers (Cloude-Pottier, H-Alpha Wishart, Freeman-Durden, General Wishart); dual-pol product for the dual-pol Cloude-Pottier and H-Alpha Wishart variants. Create matrices with <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a></li>
+    <li>Recommended: speckle filter first with <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a></li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

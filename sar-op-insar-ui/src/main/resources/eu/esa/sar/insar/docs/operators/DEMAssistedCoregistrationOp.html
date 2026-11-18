@@ -101,5 +101,48 @@ coast in the co-registered images.<br>
 
 <br>
 
+<h3>References</h3>
+<ol>
+    <li>Sansosti, E., Berardino, P., Manunta, M., Serafino, F., Fornaro, G. (2006). Geometrical SAR image registration. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(10), 2861&#8211;2870. doi:10.1109/TGRS.2006.875787</li>
+</ol>
+<!-- params:begin op="DEM-Assisted-Coregistration" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>DEM-Assisted-Coregistration</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BICUBIC_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM Resampling Method</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>resamplingType</code></td><td>String</td><td>BISINC_5_POINT_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>The method to be used when resampling the secondary grid onto the reference grid.</td></tr>
+<tr><td><code>tileExtensionPercent</code></td><td>int</td><td>50</td><td>[0, *)</td><td>&nbsp;</td><td>Define tile extension percentage.</td></tr>
+<tr><td><code>maskOutAreaWithoutElevation</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Mask out areas with no elevation</td></tr>
+<tr><td><code>outputRangeAzimuthOffset</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Range and Azimuth Offset</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration of SAR Images</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/offset_tracking.html">Offset Tracking (Amplitude Correlation)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_stripmap_dinsar.html">Workflow: Stripmap DInSAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two or more source products</li>
+    <li>An installed DEM, unless an external DEM file is given</li>
+    <li>Not for any Sentinel-1 SLC (IW, EW or SM): use <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a> for TOPS, the <a href="Coregistration.html">Coregistration</a> graph for SM</li>
+    <li>Recommended: precise orbits applied first (<a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a>)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/CoherenceOp.html">Coherence</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body></html>

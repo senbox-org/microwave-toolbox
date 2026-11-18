@@ -9,7 +9,7 @@
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; Polarimetric Change Detection (P-CCD / GLRT)</td>
-        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
@@ -38,12 +38,26 @@
 
 <h3>Parameters</h3>
 <ul>
-    <li><b>Window Size</b>: square sliding window used to average each input matrix before the test.</li>
-    <li><b>Number of Looks (ENL)</b>: equivalent number of looks per pixel of the input product (~1 for SLC,
-        ~5&ndash;10 for multilooked GRD/RTC). Sets the N in the formula above.</li>
+    <li><b>Window Size</b>: square sliding window used to average each input matrix before the test.
+        Values 3, 5, 7, 9, 11, 13, 15; default 5.</li>
+    <li><b>Number of Looks (ENL)</b>: the N in the formula above. Range 1&ndash;10000; default 5.
+        The operator uses this value as it is; it does not add the looks gained from the window.</li>
     <li><b>Significance Level &alpha;</b>: false-alarm rate for the binary change mask. Pixel is flagged
-        as changed when p_change &ge; 1&minus;&alpha;.</li>
+        as changed when p_change &ge; 1&minus;&alpha;. Range 0&ndash;1; default 0.0001.</li>
+    <li><b>Output Test Statistic</b>, <b>Output Change Probability</b>, <b>Output Change Mask</b>:
+        choose which of the three output bands to write. All are on by default.</li>
 </ul>
+
+<h4>Choosing the Number of Looks</h4>
+<p>N must be the number of looks of the matrices that are actually compared, that is, after the
+   window averaging. Averaging over the window raises the effective number of looks to about
+   (ENL of the input) &times; (number of independent pixels in the window). For example, an SLC
+   (ENL &asymp; 1) with the default 5 &times; 5 window has up to about 25 looks, not 1. Setting N to the
+   input ENL alone makes T, and therefore the change probability, too small, so real changes are missed.</p>
+<p>In practice, set N to the input ENL times Window Size<sup>2</sup>, and reduce it somewhat when
+   neighbouring pixels are correlated (oversampled SLCs, or products already speckle-filtered or
+   multilooked). If you know the ENL of the averaged matrices (for example, estimated over a
+   homogeneous area), use that value.</p>
 
 <h3>Outputs</h3>
 <ul>
@@ -53,10 +67,41 @@
 </ul>
 
 <h3>Reference</h3>
-<p>[1] Conradsen, K., Nielsen, A.A., Schou, J., Skriver, H., 2003.
-   <i>A test statistic in the complex Wishart distribution and its application to change detection in
-   polarimetric SAR data.</i> IEEE Transactions on Geoscience and Remote Sensing, 41(1), 4&ndash;19.</p>
+<ol>
+    <li>Conradsen, K., Nielsen, A. A., Schou, J., Skriver, H. (2003). A test statistic in the complex Wishart distribution and its application to change detection in polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 41(1), 4&#8211;19. doi:10.1109/TGRS.2002.808066</li>
+</ol>
 
+<!-- params:begin op="Polarimetric-Change-Detection" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Polarimetric-Change-Detection</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15</td><td>&nbsp;</td><td>The sliding window size for averaging the input matrices</td></tr>
+<tr><td><code>numLooks</code></td><td>double</td><td>5</td><td>[1, 10000]</td><td>&nbsp;</td><td>Number of independent looks per pixel of the input matrices (ENL). Set to the equivalent number of looks of the input product (~1 for SLC, ~5&#8211;10 for multilooked GRD).</td></tr>
+<tr><td><code>alpha</code></td><td>double</td><td>0.0001</td><td>[0.0, 1.0]</td><td>&nbsp;</td><td>Significance level &#945; for the binary change mask. The mask is 1 where p_change &#8805; 1&#8722;&#945;.</td></tr>
+<tr><td><code>outputTestStat</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output the test statistic T = &#8722;2&#183;ln Q</td></tr>
+<tr><td><code>outputChangeProb</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output change probability F_{&#967;&#178;}(T)</td></tr>
+<tr><td><code>outputChangeMask</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output binary change mask</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/change_detection.html">SAR Change Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/wishart.html">Polarimetric Speckle, Wishart Statistics and Classification</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_matrices.html">Polarimetric Matrices and Parameters</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two polarimetric products of the same matrix type (C2, C3 or T3) and the same dimensions, one as Reference and one as Secondary</li>
+    <li>Recommended: the two products coregistered and speckle filtered, created with <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a></li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

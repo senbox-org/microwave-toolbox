@@ -6,5 +6,54 @@
 <map version="2.0">
 
     <mapID target="AbstractedMetadata" url="general/AbstractedMetadata.html"/>
+    <mapID target="ProjectView" url="visat/ProjectView.html"/>
 
+    <mapID target="Microwave_GettingStarted" url="getting_started.html"/>
+
+    <!-- SAR concept pages (javahelp overhaul plan, phase 3) -->
+    <mapID target="Concept_SARFundamentals" url="concepts/sar_fundamentals.html"/>
+    <mapID target="Concept_Geometry" url="concepts/geometry.html"/>
+    <mapID target="Concept_HeightReferences" url="concepts/height_references.html"/>
+    <mapID target="Concept_Radiometry" url="concepts/radiometry.html"/>
+    <mapID target="Concept_Speckle" url="concepts/speckle.html"/>
+    <mapID target="Concept_ChangeDetection" url="concepts/change_detection.html"/>
+    <mapID target="Concept_InSAR" url="concepts/insar.html"/>
+    <mapID target="Concept_Coherence" url="concepts/coherence.html"/>
+    <mapID target="Concept_Unwrapping" url="concepts/unwrapping.html"/>
+    <mapID target="Concept_Displacement" url="concepts/displacement.html"/>
+    <mapID target="Concept_Atmosphere" url="concepts/atmosphere.html"/>
+    <mapID target="Concept_TimeSeries" url="concepts/time_series.html"/>
+    <mapID target="Concept_TOPS" url="concepts/tops.html"/>
+    <mapID target="Concept_OrbitsETAD" url="concepts/orbits_etad.html"/>
+    <mapID target="Concept_Polarimetry" url="concepts/polarimetry.html"/>
+    <mapID target="Concept_Decompositions" url="concepts/decompositions.html"/>
+    <mapID target="Concept_DualCompactPol" url="concepts/dual_compact_pol.html"/>
+    <mapID target="Concept_Wishart" url="concepts/wishart.html"/>
+    <mapID target="Concept_Ocean" url="concepts/ocean.html"/>
+    <mapID target="Concept_SoilMoisture" url="concepts/soil_moisture.html"/>
+    <mapID target="Concept_TerrainCorrection" url="concepts/terrain_correction.html"/>
+    <mapID target="Concept_RTC" url="concepts/rtc.html"/>
+    <mapID target="Concept_Resampling" url="concepts/resampling.html"/>
+    <mapID target="Concept_Coregistration" url="concepts/coregistration.html"/>
+    <mapID target="Concept_OffsetTracking" url="concepts/offset_tracking.html"/>
+    <mapID target="Concept_Multitemporal" url="concepts/multitemporal.html"/>
+    <mapID target="Concept_QualityControl" url="concepts/quality_control.html"/>
+    <mapID target="Concept_PhaseLinking" url="concepts/phase_linking.html"/>
+    <mapID target="Concept_GSLC" url="concepts/gslc.html"/>
+    <mapID target="Concept_PolCalibration" url="concepts/pol_calibration.html"/>
+    <mapID target="Concept_InterferogramFormation" url="concepts/interferogram_formation.html"/>
+    <mapID target="Concept_StackDesign" url="concepts/stack_design.html"/>
+    <mapID target="Concept_InSARErrors" url="concepts/insar_errors.html"/>
+    <mapID target="Concept_PolMatrices" url="concepts/pol_matrices.html"/>
+    <mapID target="Concept_Bibliography" url="concepts/bibliography.html"/>
+    <mapID target="Concept_Glossary" url="concepts/glossary.html"/>
+    <!-- Workflow cookbooks (phase 3) -->
+    <mapID target="Workflow_GRDBackscatter" url="workflows/workflow_grd_backscatter.html"/>
+    <mapID target="Workflow_S1DInSAR" url="workflows/workflow_s1_dinsar.html"/>
+    <mapID target="Workflow_StripmapDInSAR" url="workflows/workflow_stripmap_dinsar.html"/>
+    <mapID target="Workflow_GSLC" url="workflows/workflow_gslc.html"/>
+    <mapID target="Workflow_TimeSeries" url="workflows/workflow_time_series.html"/>
+    <mapID target="Workflow_DEMGeneration" url="workflows/workflow_dem_generation.html"/>
+    <mapID target="Workflow_OffsetTracking" url="workflows/workflow_offset_tracking.html"/>
+    <mapID target="Workflow_Ocean" url="workflows/workflow_ocean.html"/>
 </map>

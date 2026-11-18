@@ -24,7 +24,7 @@
 
 <p>
     This step can be performed only if an unwrapped topography interferogram (topo pair) and a complex deformation
-    interferogram (defo pair) are present. Both defo and topo pair has to be referenced to a a common master. This can be
+    interferogram (defo pair) are present. Both defo and topo pair has to be referenced to a common reference. This can be
     achieved by processing a stack of interferograms in JLinda. Both defo and topo interferograms have to be corrected
     for the phase, and sampled on the same grid (see Coregistration and Wrap Operator). Also, both defo and topo
     interferograms must have the same multilook factors and the same dimensions (i.e. overlap exactly).
@@ -37,7 +37,7 @@
 
 <p>
     This operation is performed in the stack processing tree. First create a stack of interferograms, that coregistered to the
-    same master and processed until subtraction of the reference phase. Then we have to unwrap defo-pair. In order to do so,
+    same reference and processed until subtraction of the reference phase. Then we have to unwrap defo-pair. In order to do so,
     the deformation pair has to be selected, and extracted for the external unwrapping in the Snaphu software. After the unwrap
     is performed externally, the unwrapped results are imported back into the Toolbox. Finally, for DInSAR operators, both
     defo-pair and topo-pair are listed as a source products, and the output of the operator is a differential intereferogram.
@@ -55,8 +55,8 @@
 </p>
 <ol>
     <li>
-        <b>Orbit interpolation degree:</b> Defaults to a polynomial of degree (number of state vectors)-1, but smaller
-        than degree 5.
+        <b>Orbit interpolation degree:</b> Degree of the polynomial used to interpolate the orbit state vectors; 2 to 10, default 3.
+        It has to be smaller than or equal to (number of state vectors)-1.
     </li>
 </ol>
 
@@ -86,6 +86,39 @@
 
 <br>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Gabriel, A. K., Goldstein, R. M., Zebker, H. A. (1989). Mapping small elevation changes over large areas: Differential radar interferometry. <i>Journal of Geophysical Research: Solid Earth</i>, 94(B7), 9183&#8211;9191. doi:10.1029/JB094iB07p09183</li>
+    <li>Zebker, H. A., Rosen, P. A., Goldstein, R. M., Gabriel, A., Werner, C. L. (1994). On the derivation of coseismic displacement fields using differential radar interferometry: The Landers earthquake. <i>Journal of Geophysical Research: Solid Earth</i>, 99(B10), 19617&#8211;19634. doi:10.1029/94JB01179</li>
+</ol>
+<!-- params:begin op="Three-passDInSAR" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Three-passDInSAR</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>(1, 10]</td><td>&nbsp;</td><td>Degree of orbit interpolation polynomial</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_stripmap_dinsar.html">Workflow: Stripmap DInSAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Exactly two InSAR products: a topographic pair with an unwrapped (abs_phase) band and a deformation pair with wrapped phase</li>
+    <li>Both are coregistered SLC stacks; see <a href="SubtRefDemOp.html">Topographic Phase Subtraction</a> and <a href="SnaphuImportOp.html">Snaphu Import</a></li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a>, then <a href="SnaphuExportOp.html">Snaphu Export</a> and unwrapping if needed</li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">Phase to Displacement</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

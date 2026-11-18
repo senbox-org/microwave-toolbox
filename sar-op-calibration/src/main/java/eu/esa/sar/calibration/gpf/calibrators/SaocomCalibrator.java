@@ -327,6 +327,7 @@ public class SaocomCalibrator extends BaseCalibrator implements Calibrator {
         final String bandPol = OperatorUtils.getPolarizationFromBandName(targetBand.getName());
 
         double sigma, dn, i, q, phaseTerm = 0.0;
+        final CalibratedQuantity quantity = getTargetQuantity(targetBand);
         int srcIdx, tgtIdx;
 
         for (int y = y0; y < maxY; ++y) {
@@ -373,6 +374,8 @@ public class SaocomCalibrator extends BaseCalibrator implements Calibrator {
                 if (isComplex && outputImageInComplex) {
                     sigma = Math.sqrt(sigma) * phaseTerm;
                 }
+
+                sigma = sigma0ToTargetQuantity(sigma, quantity, x, y);
 
                 if (outputImageScaleInDb) {
                     if (sigma < underFlowFloat) {

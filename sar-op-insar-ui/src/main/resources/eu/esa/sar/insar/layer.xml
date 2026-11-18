@@ -145,7 +145,7 @@
                 <attr name="delegate" methodvalue="org.esa.snap.graphbuilder.rcp.actions.OperatorAction.create"/>
                 <attr name="displayName" stringvalue="Phase to Elevation"/>
                 <attr name="operatorName" stringvalue="PhaseToElevation"/>
-                <attr name="dialogTitle" stringvalue="PhaseToElevation DEM Generation"/>
+                <attr name="dialogTitle" stringvalue="Phase to Elevation"/>
                 <attr name="ShortDescription" stringvalue="Generate a DEM from unwrapped phase"/>
                 <attr name="targetProductNameSuffix" stringvalue="_dem"/>
                 <attr name="icon" stringvalue="esaIcon"/>
@@ -393,9 +393,9 @@
     </folder>
 
     <folder name="OperatorUIs">
-        <file name="eu.esa.sar.insar.ui.MultiReferenceOpUI">
-            <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.ui.MultiReferenceOpUI"/>
-            <attr name="operatorName" stringvalue="MultiReferenceStackGenerator"/>
+        <file name="eu.esa.sar.insar.gpf.ui.MultiMasterOpUI">
+            <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.MultiMasterOpUI"/>
+            <attr name="operatorName" stringvalue="MultiMasterStackGenerator"/>
         </file>
         <file name="eu.esa.sar.insar.gpf.ui.coregistration.CreateStackOpUI">
             <attr name="operatorUIClass" stringvalue="eu.esa.sar.insar.gpf.ui.coregistration.CreateStackOpUI"/>

@@ -7,6 +7,7 @@
 
     <!--Sentinel1 Operators-->
     <mapID target="Sentinel1SLCtoGRD" url="operators/Sentinel1SLCtoGRD.html"/>
+    <mapID target="GRDPostProcessOp" url="operators/GRDPostProcessOp.html"/>
     <mapID target="TOPSARDeburstOp" url="operators/TOPSARDeburstOp.html"/>
     <mapID target="TOPSARSplitOp" url="operators/TOPSARSplitOp.html"/>
     <mapID target="SliceAssemblyOp" url="operators/SliceAssemblyOp.html"/>

@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Geocode-First InSAR with GSLC</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Workflows: Geocode-First InSAR with GSLC</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Geocode-First InSAR with GSLC</h1>
+
+<p class="lead">GSLC Terrain Correction resamples a single-look complex image onto a map grid and keeps its phase. A
+stack of such geocoded SLCs (GSLCs) is interfered directly on the map grid, so the chain needs no Back-Geocoding,
+ESD, Deburst, Merge or final Terrain Correction. You get a geocoded interferogram and coherence, and after unwrapping,
+displacement. Input: Sentinel-1 IW/EW SLC (one sub-swath at a time) or stripmap SLC.</p>
+
+<h2>Before you start</h2>
+<ul>
+    <li><b>Input:</b> stripmap SLC (tested on Sentinel-1 SM and ENVISAT ASAR IMS) or Sentinel-1 IW/EW SLC after S-1
+        TOPS Split, still in burst form. Debursted TOPS products are refused; GRD products carry no phase.</li>
+    <li><b>One grid for all dates:</b> every GSLC is snapped to a global standard grid with origin (0, 0); this is
+        always on. Dates line up only if they use the same <i>Grid Spacing</i> setting, pixel spacing and map
+        projection.</li>
+    <li><b>Keep the source SLCs:</b> each GSLC records the path of its source SLC (<code>gslc_source_slc_path</code>).
+        When Create Stack geocodes or re-geocodes a Secondary, it reloads the source SLCs to estimate the residual
+        offset by cross-correlation. Do not move or delete them.</li>
+    <li><b>Orbits and DEM:</b> as for the classical chain (precise orbits, Copernicus 30 m DEM by default).</li>
+    <li><b>Graphs:</b> SNAP ships no ready-made GSLC graph; build one in the Graph Builder.</li>
+</ul>
+
+<h2>Steps</h2>
+<ol>
+    <li><b>Apply Orbit File</b> (<code>Apply-Orbit-File</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">help</a>),
+        on every date.</li>
+    <li><b>S-1 TOPS Split</b> (<code>TOPSAR-Split</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/TOPSARSplitOp.html">help</a>),
+        IW/EW only: the same sub-swath and the same ground bursts on every date. Optional:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S-1 ETAD Correction</a>
+        on all dates or on none; for GSLC (IW) switch on both <i>Resample image</i> and <i>Apply range-delay phase
+        correction</i>.</li>
+    <li><b>Geocoded SLC Terrain Correction</b> (<code>GSLC-Terrain-Correction</code>, Radar &gt; Geometric &gt; Terrain
+        Correction;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">help</a>),
+        on the Reference date (and, if you like, on each Secondary). Parameters that matter:
+        <ul>
+            <li><i>Grid Spacing</i>: <code>NATIVE_ANISOTROPIC</code> (default) keeps native sampling on both axes in
+                rectangular cells. <code>SQUARE_COARSEST</code> gives square cells at the coarser axis and, for IW,
+                discards about 4&times; of range detail. Use one setting for the whole stack.</li>
+            <li><i>Image Resampling Method</i>: <code>BISINC_5_POINT_INTERPOLATION</code> (default).</li>
+            <li><i>Output phase-flattened complex data</i>: off (default). A flattened pair is already a
+                topography-removed interferogram (deformation, atmosphere, DEM and orbit residuals remain).
+                Interferogram reads the <code>gslc_output_flattened</code> stamp and then does not subtract the
+                flat-Earth phase again, but it refuses a stack that mixes flattened and natural-phase products, so
+                use one setting for every date.</li>
+            <li><i>Restore TOPS azimuth carrier</i>: off (default); <i>Output separable phase terms</i>: on (default).
+                Keep both: Interferogram uses the phase-term bands to subtract the carrier difference exactly.</li>
+            <li><i>Apply Solid Earth Tide correction</i> and <i>Apply tropospheric correction</i>: off by default.
+                They change the <code>flatteningPhase</code> band (and the flattened output); the tide also shifts
+                the sampling position by a sub-pixel amount. With the default (natural-phase) output, Interferogram
+                does not read them and recomputes its reference phase without them, so they are not a tide or
+                troposphere correction of the interferogram. In a fully flattened stack the modelled tide and dry
+                delay are removed with the rest of the range model. Create Stack passes the Reference's DEM
+                (including an external DEM file), tide and troposphere settings to the Secondaries it geocodes; an
+                external DEM file must exist at the same path on this machine.</li>
+        </ul></li>
+    <li><b>Create Stack</b> (<code>CreateStack</code>, Radar &gt; Coregistration &gt; Stack Tools;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">help</a>).
+        Make the Reference GSLC the reference product (by default the first in the list) and add the other dates either
+        as raw SLCs (after steps 1 and 2) or as GSLCs. <i>Auto-coregister GSLC slaves</i> is on by default: raw SLCs are
+        geocoded onto the Reference grid with the Reference's settings, the residual offset of each Secondary is
+        measured against the Reference SLC (Back-Geocoding + ESD for TOPS, cross-correlation for stripmap), and the
+        Secondary is geocoded again with it if it exceeds 0.05 pixel. A GSLC Secondary already on the Reference
+        lattice, with the same flattening and carrier settings, is stacked as it is, without bias estimation; one
+        that differs is re-geocoded like a raw SLC. <i>Skip GSLC bias estimation (geometric only)</i> is off
+        by default; turn it on only for quick looks. Keep <i>Resampling Type</i> <code>NONE</code> (default).</li>
+    <li><b>Interferogram Formation</b> (<code>Interferogram</code>;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">help</a>).
+        The operator detects the geocoded stack and sets the read-only flag <i>GSLC mode auto-detected</i>. The
+        flat-earth phase (and, if you tick <i>Subtract topographic phase</i>, off by default, the topographic phase) is
+        removed on the map grid; on a flattened stack it is not subtracted again. Keep <i>Subtract flat-earth
+        phase</i> ticked (default) on every GSLC stack, flattened ones included: the TOPS carrier difference and the
+        burst seam steps are handled only when it (or <i>Subtract topographic phase</i>) is selected. Set <i>Coherence Window (m)</i>. <i>Subtract burst seam steps (GSLC)</i> (off by
+        default, TOPS only) removes residual phase steps at burst seams.</li>
+    <li><b>Goldstein Phase Filtering</b>, <b>Snaphu Export / SNAPHU / Snaphu Import</b> and <b>Phase to
+        Displacement</b>, as in the
+        <a href="workflow_s1_dinsar.html">Sentinel-1 DInSAR workflow</a>
+        (<a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein</a>,
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a>,
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">Phase to Displacement</a>).
+        Use <i>FFT Block Extent (m)</i> in Goldstein. The results are already on the map grid: no Terrain Correction.</li>
+</ol>
+<p>For full IW coverage, run steps 2 to 6 per sub-swath.</p>
+
+<h2>Check the result</h2>
+<ul>
+    <li><b>Create Stack log:</b> for each Secondary that it geocodes it reports the estimated bias, for example
+        "CreateStack: bias for slave ... &#916;range=..., &#916;azimuth=...". A warning that bias estimation failed
+        means the stack was built with geometric coregistration only. A GSLC Secondary already on the Reference
+        lattice is logged as "stacking as-is" and gets no bias line.</li>
+    <li><b>Burst seams (TOPS):</b> look for phase steps along the burst boundaries in the interferogram. If they are
+        present, try <i>Subtract burst seam steps (GSLC)</i> and check that all dates had the same ETAD setting.</li>
+    <li><b>Coherence:</b> compare with the classical chain only at the same window in metres. In IW radar geometry a
+        10 &times; 10 pixel window is about four times longer in azimuth than in ground range; on a map grid it is
+        nearly square.</li>
+    <li><b>Noise everywhere:</b> usually different grid settings or a missing source SLC. (A flattened/non-flattened
+        mix is refused by Interferogram.)</li>
+</ul>
+
+<h2>Common pitfalls</h2>
+<ul>
+    <li>Thermal Noise Removal before GSLC. It turns the SLC into intensity, and the phase is lost.</li>
+    <li>Feeding debursted IW products. GSLC needs the burst structure to deramp.</li>
+    <li>Different <i>Grid Spacing</i> settings across dates. The products then sit on different lattices.</li>
+    <li>Applying ETAD to some dates only. Interferogram stops on a GSLC stack that mixes corrected and uncorrected
+        dates.</li>
+    <li>Running Range-Doppler Terrain Correction on GSLC results. They are already geocoded.</li>
+</ul>
+
+<h2>Background</h2>
+<ul>
+    <li><a href="../concepts/geometry.html">SAR geometry and geometric distortions</a></li>
+    <li><a href="../concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+    <li><a href="../concepts/insar.html">InSAR fundamentals</a></li>
+    <li><a href="../concepts/coherence.html">Coherence</a></li>
+    <li><a href="../concepts/orbits_etad.html">Orbits and timing corrections</a></li>
+    <li><a href="../concepts/unwrapping.html">Phase unwrapping</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

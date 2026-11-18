@@ -1,6 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import ICEYE COG</title>
-    <link rel="stylesheet" href="../style.css"></head>
+<html>
+<head><title>Help - Import ICEYE COG</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
 <body>
 <table class="header">
     <tbody>
@@ -11,42 +13,75 @@
     </tbody>
 </table>
 
-<h3>Import ICEYE Cloud-Optimized GeoTIFF Product</h3>
+<p>The <b>ICEYE COG</b> reader (<i>File &gt; Import &gt; SAR Sensors &gt; ICEYE COG</i>) opens ICEYE
+products delivered as Cloud-Optimized GeoTIFF (COG), including products from the ICEYE Open Data
+programme. Legacy HDF5 deliveries use <a href="ImportIceye.html">Import ICEYE</a>.</p>
 
-<p class="MsoNormal"><b>Operator:</b> ICEYE Oy (Finland) commercial X-band SAR constellation.</p>
-<p class="MsoNormal"><b>Operational:</b> First spacecraft 2018; constellation now &gt;30 satellites.</p>
-<p class="MsoNormal"><b>Frequency Band:</b> X-band.</p>
-<p class="MsoNormal"><b>Acquisition Modes:</b> Stripmap, Spotlight, Scan, Dwell.</p>
-<p class="MsoNormal"><b>Product Types:</b></p>
+<h2>Mission</h2>
 <ul>
-    <li>SLC, GRD, GEC, GTC delivered as Cloud-Optimized GeoTIFF (COG)</li>
-    <li>Sidecar JSON metadata describing acquisition, geometry, and calibration</li>
-    <li>SLC-COG and GRD-COG from the ICEYE Open Data Initiative, whose sidecar is a
-        STAC item</li>
+    <li><b>Operator:</b> ICEYE (Finland), a commercial constellation of X-band SAR
+        microsatellites.</li>
+    <li><b>Instrument:</b> X-band SAR near 9.65&nbsp;GHz (wavelength about 3.1&nbsp;cm), VV
+        polarisation.</li>
+    <li><b>Orbit:</b> mostly sun-synchronous low Earth orbits, roughly 500&ndash;610&nbsp;km
+        altitude, plus some mid-inclination orbits.</li>
+    <li><b>Launch:</b> the first satellite, ICEYE-X1, was launched on 12 January 2018. Many more
+        have been launched since.</li>
 </ul>
-<p class="MsoNormal"><b>Polarizations:</b> Single-pol VV (most modes).</p>
 
-<p class="MsoNormal"><b>Opening a product:</b> select either the <code>.tif</code> or its
-sidecar <code>.json</code> &mdash; both open the same product. The reader identifies the
-delivery from the metadata carried inside the COG and does not depend on the sidecar
-being present.</p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Product</th><th>Content</th></tr>
+    <tr><td>SLC (COG)</td><td>Single-look complex, slant range, stored as amplitude and phase</td></tr>
+    <tr><td>GRD (COG)</td><td>Detected, ground range</td></tr>
+    <tr><td>Open Data SLC-COG and GRD-COG</td><td>Same content, with a STAC item as sidecar</td></tr>
+    <tr><td>GeoTIFF GRD</td><td>Detected image whose TIFF tags carry the ICEYE metadata</td></tr>
+</table>
+<p>Imaging modes: Spot, Strip, Scan and Dwell (and their variants). Polarisation: VV.</p>
 
-<p class="MsoNormal"><b>Image orientation:</b> ICEYE writes these COGs "shadows-down",
-with azimuth along the image columns and range along the rows. SNAP presents them in its
-own SAR convention, x across range and y along azimuth, so the raster you see is the
-transpose of what a plain GeoTIFF viewer shows. Opening the file with a generic GeoTIFF
-reader instead bypasses this, along with the SAR metadata, and the result cannot be used
-by the SAR operators.</p>
+<h2>How to open</h2>
+<p>Select the image <code>ICEYE_....tif</code>, or its sidecar <code>ICEYE_....json</code> or
+<code>ICEYE_....xml</code> when the <code>.tif</code> with the same name lies beside it. All open the
+same product. The reader identifies the delivery from the metadata stored inside the GeoTIFF, so the
+sidecar file is not required.</p>
 
-<p class="MsoNormal"><b>Notes:</b> This is the GDAL-backed reader for the COG-format ICEYE delivery,
-distinct from the legacy native-HDF5 ICEYE reader (<i>Import ICEYE</i>). The COG
-format permits partial reads from cloud object storage so SNAP only fetches the
-window of interest; this reader uses GDAL's VSI streaming layer when the input
-URL points at S3 / GCS / Azure object storage.</p>
+<h2>What you get</h2>
+<ul>
+    <li><b>SLC:</b> <code>Amplitude_VV</code> and <code>Phase_VV</code> bands, plus virtual
+        <code>i_VV</code>, <code>q_VV</code> (units real and imaginary) and <code>Intensity_VV</code>
+        bands, so SAR operators see a complex product.</li>
+    <li><b>GRD:</b> <code>Amplitude_VV</code> plus a virtual <code>Intensity_VV</code>.</li>
+    <li><b>Orientation:</b> ICEYE writes these files "shadows-down", with azimuth along the image
+        columns. SNAP turns them into its own SAR convention (x across range, y along azimuth), so the
+        raster is the transpose of what a plain GeoTIFF viewer shows.</li>
+    <li>Tie-point grids, orbit state vectors and acquisition parameters in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
+</ul>
 
-<p class="MsoNormal"><b>Further Information:</b></p>
-<a href="https://www.iceye.com/">https://www.iceye.com/</a><br>
-<a href="https://sar.iceye.com/">https://sar.iceye.com/</a> &mdash; product-format documentation<br>
+<h2>Known limitations</h2>
+<ul>
+    <li>Opening the file with a generic GeoTIFF reader instead bypasses the transpose and the SAR
+        metadata; the result cannot be used by the SAR operators.</li>
+    <li>Products are read from local files; select a downloaded copy.</li>
+</ul>
+
+<h2>Recommended next step</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Radiometric Calibration</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a>
+        (SLC) &rarr;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>SLC stacks:
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a>.
+        See <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometry concepts</a>.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>ICEYE Product Documentation (Data Product Specification, Metadata Reference, ICEYE Open Data):
+<a href="https://sar.iceye.com/latest/">https://sar.iceye.com/latest/</a>.
+Mission overview: <a href="https://www.eoportal.org/satellite-missions/iceye-constellation">https://www.eoportal.org/satellite-missions/iceye-constellation</a>.</p>
 
 <hr>
-</body></html>
+</body>
+</html>

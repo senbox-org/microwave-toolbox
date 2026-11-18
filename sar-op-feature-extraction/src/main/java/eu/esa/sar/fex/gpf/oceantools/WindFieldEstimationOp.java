@@ -1044,14 +1044,14 @@ public class WindFieldEstimationOp extends Operator {
         private final static double c21 = 8.39;
         private final static double c8 = 0.0162;
         private final static double c22 = -3.44;
-        // CMOD5 gamma-term coefficients per Hersbach (2003) "CMOD5, An Improved
-        // Geophysical Model Function for ERS C-Band Scatterometry", ECMWF Tech Memo 395.
-        // The previous values (6.34, 2.57, -2.18) did not match the published CMOD5 table.
-        private final static double c9 = 6.7329;
+        // CMOD5 coefficients (Hersbach, Stoffelen and de Haan 2007, JGR 112, C03006, Table 1;
+        // ECMWF Tech Memo 395). c9..c11 must stay with this set: 6.7329 is the CMOD5.N value
+        // (ECMWF TM 554) and mixing the two sets biases retrieved wind by about +0.6 m/s.
+        private final static double c9 = 6.34;
         private final static double c23 = 1.36;
-        private final static double c10 = 2.7541;
+        private final static double c10 = 2.57;
         private final static double c24 = 5.35;
-        private final static double c11 = -2.2918;
+        private final static double c11 = -2.18;
         private final static double c25 = 1.99;
         private final static double c12 = 0.4;
         private final static double c26 = 0.29;

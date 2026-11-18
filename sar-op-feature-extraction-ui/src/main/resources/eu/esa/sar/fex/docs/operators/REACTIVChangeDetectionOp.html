@@ -59,11 +59,37 @@ change, that is greater than this threshold will be masked as 1,
 otherwise 0.</li><li>Include source bands: if the checkbox is selected, all
 bands&nbsp;of the source product will be included in the target product
 together with the hue, saturation and value bands. </li></ol><div style="margin-left: 40px;"><img style="width: 436px; height: 445px;" alt="" src="images/reactiv_change_detection_dlg.jpg">&nbsp;<br></div>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 5. REACTIV Change Detection dialog box<br><p style="font-style: italic;">Reference:</p>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 5. REACTIV Change Detection dialog box<br><h3>References</h3>
+<ol>
+    <li>Colin Koeniguer, E., Nicolas, J.-M. (2020). Change detection based on the coefficient of variation in SAR time-series of urban areas. <i>Remote Sensing</i>, 12(13), 2089. doi:10.3390/rs12132089</li>
+</ol>
 
-<p> [1] Elise Colin Koeniguer, Alexandre Boulch, Pauline Trouve-Peloux
-and Fabrice Janez, &#8220;Colored visualization of multitemporal data for
-change detection: issues and methods&#8221;, EUSAR, 2018.<br></p>
-
+<!-- params:begin op="REACTIV-Change-Detection" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>REACTIV-Change-Detection</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>maskThreshold</code></td><td>float</td><td>0.8</td><td>(0, 1)</td><td>&nbsp;</td><td>Mask threshold</td></tr>
+<tr><td><code>includeSourceBands</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Include source bands</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/change_detection.html">SAR change detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/time_series.html">InSAR time series</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Coregistered stack.</li>
+    <li>Real-valued bands must be followed by their imaginary partner, i.e. I/Q pairs.</li>
+    <li>Recommended: a dual-polarisation stack of Sentinel-1 IW products, as the page describes.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a></li>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

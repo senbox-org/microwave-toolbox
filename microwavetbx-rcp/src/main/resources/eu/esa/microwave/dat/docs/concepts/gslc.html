@@ -1,0 +1,188 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Geocoded SLC (Geocode-First InSAR)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Geocoded SLC (Geocode-First InSAR)</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Geocoded SLC (Geocode-First InSAR)</h1>
+
+<p class="lead">A geocoded SLC (GSLC) is a single-look complex image resampled onto a map grid in a way that keeps
+its phase usable for interferometry. Every acquisition is geocoded on its own, onto a shared lattice, so a stack
+of any length lines up pixel for pixel without pair-by-pair coregistration in radar geometry, and the
+interferogram comes out already on the map.</p>
+
+<h2>Why geocode first</h2>
+<p>In the classical chain the Secondary is coregistered to the Reference in radar geometry (Back-Geocoding and ESD
+for TOPS, Cross-Correlation and Warp for stripmap), the interferogram is formed there and only the result is
+terrain corrected. The geocode-first chain resamples each SLC once, with orbits and a DEM, to the map position of
+every output pixel (Figure 1). Because all products share one standard grid, a new date is added by geocoding
+that date only, any two dates can be paired without a common radar Reference geometry, and the products overlay
+other map data directly. The price is that alignment rests on geometry (orbits, timing, DEM) rather than on image
+content, so Create Stack adds a small, data-driven offset correction when it geocodes a Secondary.</p>
+<p><img src="images/gslc_1.png" width="560" height="330" alt="Classical versus geocode-first InSAR chain"></p>
+<p class="figcap">Figure 1. Classical chain (top) and geocode-first chain (bottom). Blue: radar geometry; orange:
+map grid.</p>
+
+<h2>How the phase survives geocoding</h2>
+<p>For each output pixel P the operator solves the range-Doppler equations with the orbit and the DEM height,
+finds the radar position that saw P and interpolates the source SLC s there:</p>
+<p class="eq">g(P) = s(r(P), a(P)), &nbsp;&nbsp; arg g(P) = &#8722;4&pi;R(P)/&lambda; + &psi;<sub>scat</sub>(P)</p>
+<p>with &lambda; the wavelength, R(P) the actual slant range to P (geometry plus ground motion and atmospheric
+path delay; 4&pi; accounts for the two-way path) and &psi;<sub>scat</sub> the random scattering phase (sign
+convention as in <a href="insar.html">InSAR Fundamentals</a>). This default output is the natural SLC phase (for
+TOPS, without the azimuth carrier; see below), indexed by map position.</p>
+<p>Complex data can only be interpolated near zero frequency (baseband). In range a focused SLC already is
+(4&pi;R/&lambda; belongs to each scatterer, not to the sample grid), so I/Q are interpolated directly.
+In azimuth the spectrum sits at the Doppler centroid f<sub>DC</sub>, so the carrier is removed before the kernel.
+For stripmap, 2&pi;f<sub>DC</sub>&eta; (&eta; azimuth time) is put back afterwards. Each TOPS burst is deramped and demodulated with the annotation model (symbols as in
+<a href="tops.html">TOPS</a>)</p>
+<p class="eq">&phi;(&eta;, &tau;) = &#8722;&pi;k<sub>t</sub>(&tau;)(&eta; &#8722; &eta;<sub>ref</sub>(&tau;))<sup>2</sup>
+&#8722; 2&pi;f<sub>DC</sub>(&tau;)&eta;</p>
+<p>and by default the output stays deramped, because this carrier depends on each date's burst timing and FM
+rate and does not cancel in an interferogram.</p>
+<p><i>Output phase-flattened complex data</i> (off by default) multiplies the result, after interpolation, by the
+phase of the operator's orbit-and-DEM range model R<sub>mod</sub>:</p>
+<p class="eq">g<sub>flat</sub>(P) = g(P) &middot; exp(+j 4&pi;R<sub>mod</sub>(P)/&lambda;)</p>
+<p>That leaves &psi;<sub>scat</sub> plus the unmodelled range (deformation, atmosphere, DEM and orbit errors). A
+flattened pair is already a topography-removed interferogram. Interferogram reads the
+<code>gslc_output_flattened</code> stamp: when every leg is flattened it does not subtract the flat-Earth and
+topographic phase again, and it refuses a stack that mixes flattened and natural-phase legs. Use one setting for
+every product in a stack; the default keeps the natural SLC phase.</p>
+<p>On the shared grid, Reference &times; conj(Secondary) at P gives, as in the classical case,</p>
+<p class="eq">&phi;(P) = (4&pi;/&lambda;) (R<sub>sec</sub>(P) &#8722; R<sub>ref</sub>(P)) &nbsp;&nbsp;(modulo 2&pi;)</p>
+<p>with both ranges to the same ground point: the usual flat-Earth, topographic, deformation, atmospheric and
+orbit terms. For a natural-phase stack, Interferogram detects a geocoded stack and removes the flat-Earth phase
+(and, with <i>Subtract topographic phase</i>, the topographic phase) by recomputing this range difference from
+the two orbits, without tide or troposphere terms. In a flattened stack the flattening has already removed the
+flat-Earth and topographic phase, so Interferogram skips this step. Keep <i>Subtract flat-earth phase</i>
+ticked there anyway: Interferogram sets up the TOPS carrier difference and the burst seam steps only when
+<i>Subtract flat-earth phase</i> or <i>Subtract topographic phase</i> is selected, and on a flattened stack the
+flat-Earth phase is not subtracted twice.</p>
+
+<h2>One grid for the whole stack</h2>
+<p>Every GSLC is snapped to a global standard grid whose origin is a whole multiple of the pixel step from (0, 0),
+so two products with the same projection and step differ by whole pixels. Without an explicit spacing the step
+comes from <i>Grid Spacing</i>, rounded to a multiple of 5 cm:</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th><i>Grid Spacing</i></th><th>Step (east &times; north)</th><th>Sentinel-1 IW</th></tr>
+    <tr><td><code>NATIVE_ANISOTROPIC</code> (default)</td><td>slant-range spacing &times; azimuth spacing</td>
+        <td>&asymp; 2.35 m &times; 14 m; native sampling on both radar axes, nothing discarded</td></tr>
+    <tr><td><code>SQUARE_COARSEST</code></td><td>the coarser of the two, square</td>
+        <td>&asymp; 14 m; about 4&times; of ground-range detail lost</td></tr>
+    <tr><td><code>SQUARE_FINEST</code></td><td>the finer of ground range and azimuth, square</td>
+        <td>&asymp; 3.5 m; about 16&times; the pixels of <code>SQUARE_COARSEST</code></td></tr>
+</table>
+<p>With the default WGS84(DD) projection the east step is a fixed angle; the metadata <code>range_spacing</code>
+and <code>azimuth_spacing</code> hold the true ground steps, which metre-based windows use (see
+<a href="coherence.html">Coherence</a>).</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>GSLC Terrain Correction</b> (<code>GSLC-Terrain-Correction</code>) geocodes one product and has no
+        reference-product input. Input: stripmap SLC, or one TOPS sub-swath after TOPS Split, still in bursts.
+        Defaults: <code>Copernicus 30m Global DEM</code>, <code>BISINC_5_POINT_INTERPOLATION</code>,
+        WGS84(DD).</li>
+    <li><b>Phase-term bands.</b> <i>Output separable phase terms</i> (on by default) writes
+        <code>azimuthCarrierPhase</code> and <code>flatteningPhase</code> (4&pi;R<sub>mod</sub>/&lambda;), float64
+        radians. Interferogram uses <code>azimuthCarrierPhase</code> of both legs to remove the TOPS carrier
+        difference. Leave <i>Restore TOPS azimuth carrier</i> off (default) for InSAR.</li>
+    <li><b>Create Stack</b> (<i>Auto-coregister GSLC slaves</i>, on by default) takes the first geocoded product as
+        Reference. A GSLC Secondary on the same lattice with the same flattening and carrier settings is stacked
+        as-is. Any other Secondary, including a raw SLC, is geocoded onto the Reference grid with the Reference's
+        phase settings, burst boundaries, DEM, tide and troposphere settings. If the Reference used an external DEM
+        file that is missing on this machine, Create Stack stops with an error.</li>
+    <li><b>Bias estimation.</b> For each Secondary that Create Stack geocodes, it reloads the Reference's source
+        SLC (<code>gslc_source_slc_path</code>) and measures the residual offset: a constant shift from
+        Back-Geocoding and ESD for TOPS, a smooth polynomial offset field from cross-correlation for stripmap. If
+        the correction stays below 0.05 pixel everywhere in the scene, it is ignored; otherwise the Secondary is
+        geocoded again with it. A complex Secondary more than 0.01 pixel off the Reference lattice is
+        refused.</li>
+    <li><b>TOPS burst lock.</b> The Secondary is built with the Reference's burst boundaries
+        (<code>gslc_burst_valid_times</code>) and masked where the Reference has no matching burst, so no pixel
+        pairs looks from different bursts. <i>Subtract burst seam steps (GSLC)</i> in Interferogram (off by
+        default) removes remaining seam steps.</li>
+    <li><b>ETAD.</b> Apply <a href="orbits_etad.html">ETAD</a> to all dates or to none; Interferogram refuses a
+        mixed stack.</li>
+    <li><b>Tide and troposphere</b> (both off by default). <i>Apply Solid Earth Tide correction</i> moves each
+        ground point by the modelled body tide; <i>Apply tropospheric correction</i> adds a Saastamoinen dry delay
+        to R<sub>mod</sub>. In the default (natural-phase) output they change only <code>flatteningPhase</code>,
+        apart from a sub-pixel tidal shift of the sampling position; Interferogram reads neither, so they are not a
+        tide or troposphere correction of the interferogram. In a fully flattened stack they are part of the
+        R<sub>mod</sub> removed from each leg, so the modelled tide and dry-delay difference between the dates is
+        removed from the interferogram.</li>
+    <li><b>Layover and shadow</b> (<i>Save layover shadow mask</i>, off by default). <code>layoverShadowMask</code>
+        = 1 for layover (local incidence below 5&deg;), 2 for shadow (above 85&deg;), 4 for no source or DEM. It
+        misses most layover and cast shadow (see <a href="geometry.html">Geometry</a>).</li>
+</ul>
+
+<h2>Where GSLC and the classical chain agree</h2>
+<p>On one Sentinel-1 IW pair (Venezuela, S1A 23 June &times; S1C 24 June 2026, three bursts, ETAD on) the GSLC
+and classical interferograms agree at a phase concentration of 0.961; a three-date closure test (ETAD off, third
+date S1D 30 June) failed its gate, consistent with decorrelation. On an ERS-1/ERS-2 tandem pair (Etna, August 1995) the chains differ
+by 0.13 rad of scene-scale phase. Stripmap missions other than ERS were not tested; the
+<a href="../workflows/workflow_gslc.html">GSLC workflow</a> shows how to check your own result.</p>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Different <i>Grid Spacing</i> settings or projections across dates. Create Stack then re-geocodes the
+        Secondary from its source SLC or, without it, refuses it.</li>
+    <li>Mixing <i>Output phase-flattened complex data</i> settings across the dates of a stack (Interferogram
+        refuses it), or switching on <i>Restore TOPS azimuth carrier</i> for InSAR, which adds tens of spurious
+        fringes per burst.</li>
+    <li>Moving or deleting the source SLCs. Create Stack then warns and falls back to geometry only.</li>
+    <li>Moving an external DEM file used for the Reference before Create Stack geocodes raw Secondaries. Create
+        Stack needs the same file at the same path and stops with an error without it.</li>
+    <li>Feeding debursted TOPS products, running Thermal Noise Removal first, or running Terrain Correction on
+        GSLC results.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/S1ETADCorrectionOp.html">S-1 ETAD Correction</a></li>
+</ul>
+<p>Workflow: <a href="../workflows/workflow_gslc.html">Geocode-First InSAR with GSLC</a>. Related:
+<a href="insar.html">InSAR</a>, <a href="tops.html">TOPS</a>, <a href="coherence.html">Coherence</a>,
+<a href="coregistration.html">Coregistration</a>, <a href="resampling.html">Resampling</a>,
+<a href="terrain_correction.html">Terrain Correction</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Zebker, H. A. (2017). User-friendly InSAR data products: fast and simple timeseries processing.
+        <i>IEEE Geoscience and Remote Sensing Letters</i>, 14(11), 2122&#8211;2126. doi:10.1109/LGRS.2017.2753580</li>
+    <li>Agram, P. S., Warren, M. S., Calef, M. T., Arko, S. A. (2022). An efficient global scale Sentinel-1 radar
+        backscatter and interferometric processing system. <i>Remote Sensing</i>, 14(15), 3524.
+        doi:10.3390/rs14153524</li>
+    <li>Sansosti, E., Berardino, P., Manunta, M., Serafino, F., Fornaro, G. (2006). Geometrical SAR image
+        registration. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(10), 2861&#8211;2870.
+        doi:10.1109/TGRS.2006.875787</li>
+    <li>Yag&uuml;e-Mart&iacute;nez, N., Prats-Iraola, P., Rodr&iacute;guez Gonz&aacute;lez, F., Brcic, R., Shau, R.,
+        Geudtner, D., Eineder, M., Bamler, R. (2016). Interferometric processing of Sentinel-1 TOPS data.
+        <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 54(4), 2220&#8211;2234.
+        doi:10.1109/TGRS.2015.2497902</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic
+        Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+</ol>
+
+<hr>
+</body>
+</html>

@@ -5,35 +5,50 @@
 
 <map version="2.0">
 
+    <!-- Overview (generated table: tools/javahelp/gen_missions.py) -->
+    <mapID target="SupportedMissions" url="SupportedMissions.html"/>
+
     <!-- Product Readers -->
 	<mapID target="ImportAlosPalsar" url="readers/ImportAlosPalsar.html"/>
 	<mapID target="ImportAlos2" url="readers/ImportAlos2.html"/>
+    <mapID target="ImportAlos4" url="readers/ImportAlos4.html"/>
     <mapID target="ImportGaofen3" url="readers/ImportGaofen3.html"/>
 	<mapID target="ImportCapella" url="readers/ImportCapella.html"/>
 	<mapID target="ImportNisar" url="readers/ImportNisar.html"/>
 	<mapID target="ImportCosmoSkymed" url="readers/ImportCosmoSkymed.html"/>
-    <mapID target="importEnvisatProduct" url="readers/ImportEnvisat.html"/>
-    <mapID target="importErsProduct" url="readers/ImportErs.html"/>
-	<mapID target="importErs2Product" url="readers/ImportErs2.html"/>
-    <mapID target="ImportERSCeos" url="readers/ImportERSCeos.html"/>
+    <mapID target="ImportEnvisatAsar" url="readers/ImportEnvisat.html"/>
+    <mapID target="ImportErs1" url="readers/ImportErs.html"/>
     <mapID target="importIceyeProduct" url="readers/ImportIceye.html"/>
     <mapID target="ImportJERSCeos" url="readers/ImportJERSCeos.html"/>
     <mapID target="ImportKompsat5" url="readers/ImportKompsat-5.html"/>
 	<mapID target="ImportPaz" url="readers/ImportPaz.html"/>
 	<mapID target="ImportRISAT" url="readers/ImportRISAT.html"/>
+    <mapID target="ImportEOS04" url="readers/ImportRISAT.html#eos04"/>
 	<mapID target="ImportSAOCOM" url="readers/ImportSAOCOM.html"/>
 	<mapID target="ImportSeaSat" url="readers/ImportSeaSat.html"/>
 	<mapID target="importSentinel1Product" url="readers/ImportSentinel1.html"/>
+    <mapID target="ImportSentinel1ETAD" url="readers/ImportSentinel1ETAD.html"/>
     <mapID target="ImportTerraSarX" url="readers/ImportTerraSarX.html"/>
-	<mapID target="ImportTanDEMX" url="readers/ImportTanDEM-X.html"/>
+
+    <!-- Microwave radiometer -->
+    <mapID target="ImportCimrL1B" url="readers/ImportCimrL1B.html"/>
 
     <!-- Common File Formats -->
     <mapID target="importPCIDSK" url="readers/ImportPCIDSK.html"/>
     <mapID target="ImportPolSARPro" url="readers/ImportPolsarPro.html"/>
     <mapID target="ImportGamma" url="readers/ImportGamma.html"/>
     <mapID target="ImportRAT" url="readers/ImportRAT.html"/>
+    <mapID target="ImportSnaphu" url="readers/ImportSnaphu.html"/>
+    <mapID target="ImportBasicCeos" url="readers/ImportBasicCeos.html"/>
     <mapID target="importGenericBinary" url="readers/ImportGenericBinary.html"/>
     <mapID target="importComplexGenericBinary" url="readers/ImportComplexGenericBinary.html"/>
+
+    <!-- Aliases of merged pages: the ERS-2 and ERS CEOS pages were merged into ImportErs.html,
+         the TanDEM-X page into ImportTerraSarX.html. The IDs stay because layer.xml and older
+         links use them. -->
+    <mapID target="importErs2Product" url="readers/ImportErs.html"/>
+    <mapID target="ImportERSCeos" url="readers/ImportErs.html"/>
+    <mapID target="ImportTanDEMX" url="readers/ImportTerraSarX.html"/>
 
     <!-- Aliases for layer.xml helpIds whose casing/spelling differs from the canonical mapIDs above.
          JavaHelp targets are case-sensitive; the entries below resolve the helpId references coming

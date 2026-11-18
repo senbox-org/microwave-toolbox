@@ -34,13 +34,13 @@
 </ol>
 <h4>DEM Supported</h4>
 
-<p>Right now only the DEMs with geographic coordinates <span style="font-size: 11pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">(</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488;</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488;</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span><span style="font-size: 8pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">h</span></i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">)</span>&nbsp;referred to global
-    geodetic ellipsoid reference WGS84 in meters are properly supported.&nbsp;</p><p>Since
-    the&nbsp;height information in ACE and SRTM is referred to geoid EGM96, not&nbsp;WGS84
+<p>Right now only the DEMs with geographic coordinates <span style="font-size: 11pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">(</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488;</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488;</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span><span style="font-size: 8pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">h</span></i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">)</span>&nbsp;in WGS84 with heights in meters are properly supported.&nbsp;</p><p>Since
+    the&nbsp;height information in ACE, ASTER, Copernicus and SRTM is referred to a geoid (EGM96, or EGM2008 for Copernicus), not&nbsp;WGS84
     ellipsoid,&nbsp;correction has been applied to obtain height
-    relative to the WGS84 ellipsoid.&nbsp;</p>
+    relative to the WGS84 ellipsoid. SNAP currently converts Copernicus heights (and external DEMs with Apply EGM) using EGM96; the difference from EGM2008 is mostly below 1 m but can reach a few metres in mountainous areas.&nbsp;</p>
 
-<p>User can also use external DEM file which, as specified above, must be WGS84 <span style="font-size: 11pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">(</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488; </span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488;</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span><span style="font-size: 8pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">h</span></i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">)</span>&nbsp;DEM in meters.</p>
+<p>User can also use external DEM file which, as specified above, must be in geographic lat/lon (WGS84) <span style="font-size: 11pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">(</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488; </span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span></i><span style="font-size: 7pt; font-family: Symbol;" lang="EN-GB">&#1488;</span><i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">, P</span><span style="font-size: 8pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">h</span></i><span style="font-size: 12pt; font-family: &quot;Times New Roman&quot;;" lang="EN-GB">)</span>&nbsp;DEM in meters. If its heights are geoid (orthometric) heights, keep External DEM Apply EGM on; if they are already ellipsoid heights, turn it off.</p>
+<p>The <b>External DEM Apply EGM</b> option converts the heights of an external DEM from geoid heights (as in SRTM or Copernicus DEM files) to the ellipsoid heights that SAR geometry needs. Clear it only if your file already contains ellipsoid heights. Default in this operator: selected.</p>
 <h4>Layover-Shadow Mask Generation</h4>
 
 <p>Besides producing simulated image, this operator
@@ -102,7 +102,7 @@
         <li>Compute zero Doppler time t for point P(x, y, z) using Doppler frequency function;</li>
         <li>Compute SAR sensor position S(X, Y, Z) at time t;</li>
         <li>Compute slant range r = |S - P|;</li>
-        <li>Compute bias-corrected zero Doppler time tc = t + r*2/c, where c is the light speed;</li>
+        <li>Compute bias-corrected zero Doppler time tc = t + r/c, where c is the light speed;</li>
         <li>Update satellite position S(tc) and slant range r(tc) = |S(tc) &#8211; P| for the bias-corrected zero
             Doppler time tc;
         </li>
@@ -112,15 +112,42 @@
         <li>Compute backscattered power and save it as value for pixel ((int)Ia, (int)Ir);</li>
     </ol>
 </ol>
-<p><span style="font-style: italic;">Reference:</span></p>
+<h3>References</h3>
+<ol>
+    <li>Liu, H., Zhao, Z., Jezek, K. C. (2004). Correction of positional errors and geometric distortions in topographic maps and DEMs using a rigorous SAR simulation technique. <i>Photogrammetric Engineering &amp; Remote Sensing</i>, 70(9), 1031&#8211;1042. doi:10.14358/PERS.70.9.1031</li>
+    <li>Schreier, G. (Ed.) (1993). <i>SAR Geocoding: Data and Systems</i>. Herbert Wichmann Verlag, Karlsruhe.</li>
+</ol>
 
-<p>[1] Liu H., Zhao Z., Lezek K. C., Correction of Positional Errors and Geometric Distortions
-    in Topographic Maps and DEMs Using a Rigorous SAR Simulation Technique, Photogrammetric
-    Engineering &amp; Remote Sensing, Vol. 70, No. 9, Sep. 2004</p>
-
-<p>[2] Gunter Schreier, <span style="font-style: italic;">SAR geocoding: data and systems</span>, Wichmann-Verlag,
-    Karlsruhe, Germany, 1993</p>
-<br>
-
+<!-- params:begin op="SAR-Simulation" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>SAR-Simulation</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BICUBIC_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM Resampling Method</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>externalDEMApplyEGM</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM Apply EGM</td></tr>
+<tr><td><code>saveLayoverShadowMask</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save Layover-Shadow Mask</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/terrain_correction.html">Range-Doppler Terrain Correction in Depth</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product that is not map projected and, for TOPS, already debursted</li>
+    <li>An installed DEM or an external DEM file</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="SARSimTerrainCorrectionOp.html">SAR-Simulation Terrain Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

@@ -50,7 +50,7 @@ public final class DecisionTreeOp extends Operator {
     @TargetProduct
     private Product targetProduct;
 
-    @Parameter(converter = TreeNodeConverter.class, itemAlias = "treeNode")
+    @Parameter(description = "The decision tree: nodes with boolean band expressions and true/false branches; leaf nodes carry the class value", converter = TreeNodeConverter.class, itemAlias = "treeNode")
     private DecisionTreeNode[] decisionTree;
 
     private Product[] availableProducts;

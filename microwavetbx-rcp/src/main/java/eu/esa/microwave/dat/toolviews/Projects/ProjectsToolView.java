@@ -19,6 +19,7 @@ import org.esa.snap.ui.UIUtils;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
 import org.openide.awt.ActionReferences;
+import org.openide.util.HelpCtx;
 import org.openide.util.NbBundle;
 import org.openide.windows.TopComponent;
 
@@ -70,6 +71,11 @@ public class ProjectsToolView extends TopComponent implements Observer {
         setLayout(new BorderLayout(4, 4));
         setBorder(new EmptyBorder(4, 4, 4, 4));
         add(createControl(), BorderLayout.CENTER);
+    }
+
+    @Override
+    public HelpCtx getHelpCtx() {
+        return new HelpCtx("ProjectView");
     }
 
     public JComponent createControl() {

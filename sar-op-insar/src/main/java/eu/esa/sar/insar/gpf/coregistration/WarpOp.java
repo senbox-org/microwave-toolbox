@@ -120,7 +120,8 @@ public class WarpOp extends Operator {
             defaultValue = "Copernicus 30m Global DEM", label = "Digital Elevation Model")
     private String demName = "Copernicus 30m Global DEM";
 
-    @Parameter(defaultValue = "false")
+    @Parameter(defaultValue = "false",
+            description = "Exclude the reference (master) bands from the output; secondary band names are then written without the date suffix")
     private boolean excludeMaster = false;
 
     private Interpolation interp;

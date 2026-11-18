@@ -33,12 +33,12 @@
 
 <ul>
     <li>
-        In first step, the DEM is radarcoded to the coordinate systems of the master
-        image. Per DEM point the master coordinate (real valued) and the
+        In first step, the DEM is radarcoded to the coordinate systems of the reference
+        image. Per DEM point the reference coordinate (real valued) and the
         computed reference phase is saved to a file.
     </li>
     <li>
-        Then, the reference phase is interpolated to the integer grid of master
+        Then, the reference phase is interpolated to the integer grid of reference
         coordinates. A linear interpolation based on a Delaunay triangulation is used.
     </li>
 </ul>
@@ -72,5 +72,45 @@
 
 <br>
 <br>
+<h3>References</h3>
+<ol>
+    <li>Rosen, P. A., Hensley, S., Joughin, I. R., Li, F. K., Madsen, S. N., Rodr&iacute;guez, E., Goldstein, R. M. (2000). Synthetic aperture radar interferometry. <i>Proceedings of the IEEE</i>, 88(3), 333&#8211;382. doi:10.1109/5.838084</li>
+    <li>Massonnet, D., Feigl, K. L. (1998). Radar interferometry and its application to changes in the Earth's surface. <i>Reviews of Geophysics</i>, 36(4), 441&#8211;500. doi:10.1029/97RG03139</li>
+</ol>
+<!-- params:begin op="TopoPhaseRemoval" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>TopoPhaseRemoval</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>(1, 10]</td><td>&nbsp;</td><td>Degree of orbit interpolation polynomial</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>DEM No Data Value</td></tr>
+<tr><td><code>tileExtensionPercent</code></td><td>String</td><td>100</td><td>&nbsp;</td><td>&nbsp;</td><td>Define extension of tile for DEM simulation (optimization parameter).</td></tr>
+<tr><td><code>outputTopoPhaseBand</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output topographic phase band.</td></tr>
+<tr><td><code>outputElevationBand</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output elevation band.</td></tr>
+<tr><td><code>outputLatLonBands</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output lat/lon bands.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A coregistered SLC interferogram stack that is not a burst TOPS product; deburst first for Sentinel-1</li>
+    <li>Interferogram i_ifg/q_ifg bands</li>
+    <li>An installed DEM</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">Goldstein Phase Filtering</a></li>
+    <li><a href="SnaphuExportOp.html">Snaphu Export</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body></html>

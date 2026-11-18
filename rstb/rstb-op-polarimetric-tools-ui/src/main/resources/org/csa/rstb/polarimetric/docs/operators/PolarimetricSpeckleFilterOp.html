@@ -69,15 +69,15 @@
     Filter</h4>
 
 <p>The
-    refine Lee filter in [1] is a minimum mean square error (MMSE) filter and was
+    refined Lee filter in [5] is a minimum mean square error (MMSE) filter and was
     developed based on the multiplicative noise model. One major deficiency
     with the MMSE filter is that speckle noise near strong edges is not
     adequately filtered. To compensate this problem, &nbsp;the refined Lee
     filter uses a nonsquare window to match the direction of edges. The
-    filter operated in a 7x7 (or 9x9, 11x11) sliding window. One of eight
+    filter operates in a sliding window (7x7 by default). One of eight
     edge-aligned windows&nbsp;is selected to filter the center pixel. Only
     the pixels&nbsp;in the non-edge area&nbsp;in the&nbsp;edge-aligned
-    window are used in the filtering computation.</p>
+    window are used in the filtering computation. The window size can be set from 5x5 to 17x17.</p>
 
 <p>The filter follows&nbsp;three major processing steps as given below:</p>
 <ul>
@@ -153,8 +153,10 @@
 <h4>Parameters Used</h4>&nbsp;&nbsp; For box car filter, the following processing parameters are used&nbsp;by the
 operator (see Figure 1):<br>
 <ul>
-    <li>Speckle Filter:&nbsp; the box car speckle filter</li>
-    <li>Filter Size: the dimension of the sliding window used in averaging covariance/coherency matrix</li>
+    <li>Speckle Filter:&nbsp; the box car speckle filter. The choices are Box Car Filter, IDAN Filter,
+        Refined Lee Filter and Improved Lee Sigma Filter; the default is Refined Lee Filter.</li>
+    <li>Filter Size: the dimension of the sliding window used in averaging covariance/coherency matrix,
+        in pixels. Range 2&ndash;100; default 5.</li>
 </ul>
 <br>
 <img style="width: 450px; height: 450px;" alt="" src="images/speckleFilterDialog1.jpg"><br><br>
@@ -165,9 +167,10 @@ operator (see Figure 1):<br>
 <ul>
     <li>Speckle Filter: the refined Lee speckle filter</li>
     <li>Number of Looks: the number of looks of SAR data, which is used in estimating the speckle&nbsp;noise standard
-        deviation
+        deviation. Values 1, 2, 3 or 4; default 1.
     </li>
-    <li>Window Size: the dimension of the edge-aligned window, possible values are 7x7, 9x9 and 11x11</li>
+    <li>Window Size: the dimension of the edge-aligned window. Values 5x5, 7x7, 9x9, 11x11, 13x13, 15x15
+        and 17x17; default 7x7.</li>
 </ul>
 <img style="width: 450px; height: 450px;" alt="" src="images/speckleFilterDialog2.jpg"><br><br>&nbsp;
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Figure 2. Dialog box for Refined Lee Speckle Filter<br>
@@ -175,14 +178,15 @@ operator (see Figure 1):<br>
 <p><br>
 </p>
 
-<p>For refined Lee filter, the following parameters are needed (see Figure 3):<br>
+<p>For IDAN filter, the following parameters are needed (see Figure 3):<br>
 </p>
 <ul>
     <li>Speckle Filter: the IDAN filter</li>
     <li>Number of Looks: the number of looks of SAR data, which is used in estimating the speckle&nbsp;noise standard
-        deviation
+        deviation. Values 1, 2, 3 or 4; default 1.
     </li>
-    <li>Adaptive Neighbourhood Size: the maximum number of pixels in the adaptive neighbourhood</li>
+    <li>Adaptive Neighbourhood Size: the maximum number of pixels in the adaptive neighbourhood.
+        Range 2&ndash;200; default 50.</li>
 </ul>
 <p><img style="width: 450px; height: 450px;" alt="" src="images/speckleFilterDialog3.jpg"><br>
 </p>
@@ -200,15 +204,26 @@ operator (see Figure 1):<br>
 <ul>
     <li>Speckle Filter: the Lee Sigma filter</li>
     <li>Number of Looks: the number of looks of SAR data, which is used in estimating the speckle&nbsp;noise standard
-        deviation
+        deviation. Values 1, 2, 3 or 4; default 1.
     </li>
-    <li>Sigma: <br>
+    <li>Sigma: the fraction of the speckle distribution that the sigma range keeps. Pixels in the window
+        whose values fall inside this range are averaged; the others are ignored. A larger value keeps
+        more pixels and smooths more. Values 0.5, 0.6, 0.7, 0.8 and 0.9; default 0.9.
     </li>
-    <li>Filter Window Size: <br>
+    <li>Window Size: the dimension of the sliding window used for filtering. Values 5x5, 7x7, 9x9, 11x11,
+        13x13, 15x15 and 17x17; default 7x7.
     </li>
-    <li>Target Window Size: <br>
+    <li>Target Window Size: the dimension of the small window used to detect point targets. If the
+        centre pixel and enough of its neighbours in this window are brighter than the 98th percentile
+        of the surrounding processing tile, the pixels are treated as a point target and are not filtered. Values 3x3 and
+        5x5; default 3x3.
     </li>
 </ul>
+
+<p>The dialog also shows, greyed out, <b>Search Window Size</b> (3&ndash;25, default 15), <b>Patch Size</b>
+   (3&ndash;11, default 5) and <b>Scale Size</b> (0, 1 or 2, default 1). These parameters belong
+   to a non-local filter that cannot currently be selected in the Speckle Filter list or in
+   GPT, so they have no effect.</p>
 
 <br>
 
@@ -221,24 +236,49 @@ operator (see Figure 1):<br>
 <p><br>
 </p>
 
-<p> Reference:&nbsp;</p>
+<h4>References</h4>
+<ol>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
+    <li>Vasile, G., Trouv&eacute;, E., Lee, J.-S., Buzuloiu, V. (2006). Intensity-driven adaptive-neighborhood technique for polarimetric and interferometric SAR parameters estimation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(6), 1609&#8211;1621. doi:10.1109/TGRS.2005.864142</li>
+    <li>Lee, J.-S., Wen, J.-H., Ainsworth, T. L., Chen, K.-S., Chen, A. J. (2009). Improved sigma filter for speckle filtering of SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 47(1), 202&#8211;213. doi:10.1109/TGRS.2008.2002881</li>
+    <li>Lee, J.-S. (1983). Digital image smoothing and the sigma filter. <i>Computer Vision, Graphics, and Image Processing</i>, 24(2), 255&#8211;269. doi:10.1016/0734-189X(83)90047-6</li>
+    <li>Lee, J.-S., Grunes, M. R., De Grandi, G. (1999). Polarimetric SAR speckle filtering and its implication for classification. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 37(5), 2363&#8211;2373. doi:10.1109/36.789635</li>
+</ol>
 
-<p>[1] Jong-Sen Lee and Eric Pottier, Polarimetric Radar Imaging: From Basics to Applications, CRC Press, 2009</p>
-
-<p>[2] G. Vasile, E. Trouve, J.S. Lee and V. Buzuloiu,
-    "Intensity-Driven Adaptive-Neighborhood Technique for Polarimetric and
-    Interferometric SAR Parameters Estimation", IEEE Transaction on
-    Geoscience and Remote Sensing, Vol. 44, No. 6, June 2006.</p>
-
-<p>[3] J.S. Lee, J.H. Wen, T.L. Ainsworth, K.S. Chen and A.J. Chen,
-    "Improved Sigma Filter for Speckle Filtering of SAR Imagery", IEEE
-    TRansaction on Geoscience and Remote Sensing, Vol. 47, No. 1, Jan. 2009.</p>
-
-<p>[4] J.S. Lee, &#8220;Digital image smoothing and the sigma filter,&#8221;
-    Comput. Vis. Graph. Image Process., vol. 24, no. 2, pp. 255&#8211;269, Nov.
-    1983.<br>
-    <br>
-</p>
-
+<!-- params:begin op="Polarimetric-Speckle-Filter" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Polarimetric-Speckle-Filter</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>filter</code></td><td>String</td><td>Refined Lee Filter</td><td>Box Car Filter, IDAN Filter, Refined Lee Filter, Improved Lee Sigma Filter</td><td>&nbsp;</td><td>Filter</td></tr>
+<tr><td><code>filterSize</code></td><td>int</td><td>5</td><td>(1, 100]</td><td>&nbsp;</td><td>The filter size</td></tr>
+<tr><td><code>numLooksStr</code></td><td>String</td><td>1</td><td>1, 2, 3, 4</td><td>&nbsp;</td><td>Number of Looks</td></tr>
+<tr><td><code>windowSize</code></td><td>String</td><td>7x7</td><td>5x5, 7x7, 9x9, 11x11, 13x13, 15x15, 17x17</td><td>&nbsp;</td><td>Window Size</td></tr>
+<tr><td><code>targetWindowSizeStr</code></td><td>String</td><td>3x3</td><td>3x3, 5x5</td><td>&nbsp;</td><td>Point target window Size</td></tr>
+<tr><td><code>anSize</code></td><td>int</td><td>50</td><td>(1, 200]</td><td>&nbsp;</td><td>The Adaptive Neighbourhood size</td></tr>
+<tr><td><code>sigmaStr</code></td><td>String</td><td>0.9</td><td>0.5, 0.6, 0.7, 0.8, 0.9</td><td>&nbsp;</td><td>Sigma value (probability range) used by the Lee Sigma filter</td></tr>
+<tr><td><code>searchWindowSizeStr</code></td><td>String</td><td>15</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25</td><td>&nbsp;</td><td>The search window size</td></tr>
+<tr><td><code>patchSizeStr</code></td><td>String</td><td>5</td><td>3, 5, 7, 9, 11</td><td>&nbsp;</td><td>The patch size</td></tr>
+<tr><td><code>scaleSizeStr</code></td><td>String</td><td>1</td><td>0, 1, 2</td><td>&nbsp;</td><td>The scale size</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and Multilooking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/wishart.html">Polarimetric Speckle, Wishart Statistics and Classification</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_matrices.html">Polarimetric Matrices and Parameters</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Polarimetric product (quad-pol, dual-pol or compact-pol); not a TOPS burst product (apply TOPS Deburst first)</li>
+    <li>Recommended: covariance or coherency matrices created with <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a></li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.classification.ui/org/csa/rstb/classification/docs/operators/PolarimetricClassificationOp.html">Polarimetric Classification</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

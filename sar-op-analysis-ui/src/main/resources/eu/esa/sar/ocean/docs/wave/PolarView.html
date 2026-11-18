@@ -28,13 +28,12 @@
 backscatter, and consequently the wavelength and the direction of the ocean
 waves.</span></p>
 
-<p><br>ENVISAT ASAR has two level 1 products and one level 2 product:</p>
+<p><br>The Polar View opens these wave-mode products:</p>
 
-<div style="margin-left: 40px;"><p><strong>ASA_WVI_1P</strong>: The product can contain up to 400 SLC
-    imagettes, each 10 km x 10 km in size, which are acquired every 100 km.
-    The imagettes are 1 look in azimuth and 1 look in range. The WVI product also contains the Cross Spectra of the
-    imagettes.<br><br><strong>ASA_WVS_1P</strong>: This product contains the Cross Spectra of the
-    imagettes.<br><br><strong>ASA_WVW_2P</strong>: This product contains the Wave Spectra.</p></div>
+<div style="margin-left: 40px;"><p><strong>ASA_WVS_1P</strong> (ENVISAT ASAR Level 1): the Cross Spectra of the
+    imagettes.<br><br><strong>ASA_WVW_2P</strong> (ENVISAT ASAR Level 2): the Wave Spectra.<br><br><strong>Sentinel-1
+    Level-2 OCN, WV mode</strong>: the Wave Spectra or the Cross Spectra (switch in the Data menu).</p></div>
+<p>It does not open the ASAR imagette product ASA_WVI_1P.</p>
 <br>
 
 <p>
@@ -49,7 +48,7 @@ waves.</span></p>
 <br>
 
 <p>
-    The Polar View is used for displaying Cross Spectra and Wave Spectra from ENVISAT ASAR Wave mode products.<br><br>The
+    The Polar View is used for displaying Cross Spectra and Wave Spectra from ENVISAT ASAR and Sentinel-1 Wave mode products.<br><br>The
     Polar View shows one record at a time. You may use the buttons and
     slider at the bottom of the view to change the currently viewed record.
     The Animate button allows the view to cycle through records
@@ -73,5 +72,15 @@ waves.</span></p>
 
 <p class="MsoNormal"><a href="https://earth.esa.int/eogateway/documents/20142/37627/ASAR-Product-Handbook.pdf">https://earth.esa.int/eogateway/documents/20142/37627/ASAR-Product-Handbook.pdf</a><span        lang="EN-GB"></span></p>
 <br><br><br>
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/ocean.html">Ocean SAR: wind, ships and oil</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A selected product of type ASA_WVW_2P (wave spectra), ASA_WVS_1P (cross spectra) or Sentinel-1 Level-2 OCN wave mode; other products show an instruction message.</li>
+</ul>
+<!-- footer:end -->
 </body>
 </html>

@@ -49,17 +49,55 @@
     The output of this operator is a product with the following bands:
         <ul>
             <li>
-            horizontalMotion: East-West deformation in millimeters.
+            horizontalMotion: East-West deformation in millimeters, positive eastward.
             </li>
             <li>
-            verticalMotion: vertical deformation in millimeters.
+            verticalMotion: vertical deformation in millimeters, positive upward.
             </li>
         </ul>
+    The line-of-sight displacement of each pass is &#8722;&lambda;/(4&pi;) times the unwrapped phase minus the
+    phase at the reference pixel, positive towards the satellite, as in Phase to Displacement and SBAS Inversion.
+    <br>
+    <br>
+    <b>Changed in SNAP 15:</b> earlier versions converted the phase with +&lambda;/(4&pi;), so both outputs had the
+    opposite sign (positive meant downward and westward).
     <br>
 
 <h4>Parameters<br>
 </h4>
 <p class="MsoNormal">The X and Y positions of a reference pixel should be selected.
+
+<h3>References</h3>
+<ol>
+    <li>Fialko, Y., Simons, M., Agnew, D. (2001). The complete (3-D) surface displacement field in the epicentral area of the 1999 M<sub>W</sub>7.1 Hector Mine earthquake, California, from space geodetic observations. <i>Geophysical Research Letters</i>, 28(16), 3063&#8211;3066. doi:10.1029/2001GL013174</li>
+    <li>Wright, T. J., Parsons, B. E., Lu, Z. (2004). Toward mapping surface deformation in three dimensions using InSAR. <i>Geophysical Research Letters</i>, 31(1), L01607. doi:10.1029/2003GL018827</li>
+</ol>
+<!-- params:begin op="HorizontalVerticalMotion" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>HorizontalVerticalMotion</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>refPixelX</code></td><td>int</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>X position for reference pixel</td></tr>
+<tr><td><code>refPixelY</code></td><td>int</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Y position for reference pixel</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/displacement.html">From Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A product that collocates an ascending and a descending terrain-corrected interferogram, with unwrapped Phase_ifg bands only (a wrapped Phase_ifg band also matches; the last match wins) and incidence-angle bands</li>
+    <li>Secondary_Heading_Angles metadata, written by the collocation</li>
+    <li>A reference pixel inside the scene with a valid value</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result (horizontal and vertical motion bands)</li>
+</ul>
+<!-- footer:end -->
 
 </body>
 </html>

@@ -58,6 +58,31 @@ produced along with&nbsp;virtual bands for intensity and phase.<br><span
 <br>
 
 
+<!-- params:begin op="DeburstWSS" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>DeburstWSS</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>subSwath</code></td><td>String</td><td>SS1</td><td>SS1, SS2, SS3, SS4, SS5</td><td>&nbsp;</td><td>Sub Swath:</td></tr>
+<tr><td><code>produceIntensitiesOnly</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Produce Intensities Only</td></tr>
+<tr><td><code>average</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Mean Average Intensities</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>An ENVISAT ASAR WSS (ASA_WSS_1P) product; any other product type is refused</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a></li>
+    <li><a href="WSSMosaicOp.html">WSS Mosaic</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

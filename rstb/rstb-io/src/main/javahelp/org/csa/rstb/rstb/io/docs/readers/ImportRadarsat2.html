@@ -1,9 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head><title>Help - Import RADARSAT-2</title>
-
-
-
-    <link rel="stylesheet" href="../style.css"></head><body>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
@@ -12,98 +10,67 @@
     </tr>
     </tbody>
 </table>
-<h3>Import RADARSAT-2 Product</h3>
 
-<p>
+<p>RADARSAT-2 is a Canadian commercial C-band SAR satellite with full polarimetric capability. SNAP
+reads its products with the <b>RADARSAT-2</b> reader.</p>
 
-</p>
-<p class="MsoNormal">Radarsat-2 is a commercial SAR mission from MDA and CSA.</p>
-
-
-<p class="MsoNormal"><b style="">Operational: </b>2007-12-14
-to present</p>
-
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-C-band</p>
-
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, ScanSAR, Spotlight</p>
-
-
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
-
+<h2>Mission</h2>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SLC Single Look Complex</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SGF&nbsp;Path Image mulitlooked ground range</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SGX&nbsp;Path Image Plus mulitlooked ground
-range</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SSG&nbsp;Map Image mulitlooked ground range projected</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SCW&nbsp;ScanSAR Wide</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SCN ScanSAR Narrow</li>
+  <li><b>Operator:</b> MDA, which owns and operates the satellite; developed with the Canadian Space
+      Agency (CSA).</li>
+  <li><b>Radar:</b> C-band, 5.405 GHz (wavelength about 5.5 cm).</li>
+  <li><b>Orbit:</b> sun-synchronous at about 798 km, 24-day repeat cycle.</li>
+  <li><b>Lifetime:</b> launched 14 December 2007; in operation.</li>
+  <li><b>Beam modes:</b> Standard, Fine, Ultra-Fine, Multi-Look Fine, Spotlight, ScanSAR Narrow
+      and Wide, and the quad-pol Standard and Fine modes; resolutions from about 1 m &times; 3 m to 100 m.</li>
+  <li><b>Polarisation:</b> single (HH, HV, VV or VH), dual (HH+HV or VV+VH) and quad.</li>
 </ul>
 
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Product</th><th>Content</th></tr>
+  <tr><td>SLC</td><td>Single Look Complex, slant range</td></tr>
+  <tr><td>SGF</td><td>Path Image: detected, ground range</td></tr>
+  <tr><td>SGX</td><td>Path Image Plus: as SGF with finer pixel spacing</td></tr>
+  <tr><td>SSG</td><td>Map Image: map projected without ground control points</td></tr>
+  <tr><td>SPG</td><td>Precision Map Image: map projected with ground control points</td></tr>
+  <tr><td>SCN, SCW</td><td>ScanSAR Narrow and ScanSAR Wide, detected</td></tr>
+</table>
 
+<h2>How to open</h2>
+<p>Select <code>product.xml</code> in the product folder, the folder itself, or the zipped product
+(name starting with <code>RS2</code>).</p>
 
-
-
-
-
-
-
-
-
-
-<p class="MsoNormal"><b style="">Polarizations: </b></p>
-
-
+<h2>What you get</h2>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Single Pol (HH, HV, VV, VH), </li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Dual Pol (HH+HV, VV+VH, HH+VV) </li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->Full Pol (HH+HV+VV+VH)<b style=""></b></li>
+  <li>SLC: <code>i_</code>/<code>q_</code> bands per polarisation (for example <code>i_HH</code>,
+      <code>q_HH</code>) and virtual <code>Intensity_</code> bands. Quad-pol SLC is ready for the
+      polarimetric operators.</li>
+  <li>Detected products: <code>Amplitude_</code> bands and virtual <code>Intensity_</code> bands.</li>
+  <li>Tie-point grids for latitude, longitude, incidence angle and slant-range time.</li>
+  <li>The calibration look-up tables (<code>lutSigma.xml</code>, <code>lutBeta.xml</code>,
+      <code>lutGamma.xml</code>), used by Calibration.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>Products delivered in NITF format are not read. Order GeoTIFF, or convert the NITF imagery
+      with GDAL.</li>
+  <li>Apply Orbit File has no RADARSAT-2 orbit source; the reader uses the orbit in
+      <code>product.xml</code>.</li>
 </ul>
 
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>, then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>.
+For quad-pol SLC: Calibration with complex output, then <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a>,
+<a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a> and <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a>.</p>
 
+<h2>Product format specification</h2>
+<p>The format is defined in MDA's <i>RADARSAT-2 Product Format Definition</i> (RN-RP-51-2713),
+supplied with the data. Mission:
+<a href="https://www.asc-csa.gc.ca/eng/satellites/radarsat2/">CSA: RADARSAT-2</a> and
+<a href="https://www.eoportal.org/satellite-missions/radarsat-2">eoPortal: RADARSAT-2</a>.</p>
 
-
-
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the product.xml file. Opening zipped
-products (*.zip) directly is also supported.</p>
-
-
-<p class="MsoNormal"><b style="">Special
-Considerations:</b><span style="">&nbsp; </span>NITF format is not
-supported. GDAL translate can be used to convert.<b style=""></b></p>
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="http://www.asc-csa.gc.ca/eng/satellites/radarsat2/">http://www.asc-csa.gc.ca/eng/satellites/radarsat2/</a></p>
-
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/r/radarsat-2">https://directory.eoportal.org/web/eoportal/satellite-missions/r/radarsat-2</a></p>
-
-
-<p></p>
-
-
-<p></p>
-
-<p></p>
-<br>
 <hr>
 </body></html>

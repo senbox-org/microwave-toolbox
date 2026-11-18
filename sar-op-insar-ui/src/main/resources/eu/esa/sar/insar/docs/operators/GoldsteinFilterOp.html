@@ -21,34 +21,125 @@ preprocessing technique that greatly reduces the residues in the later
 on&nbsp; phase unwrapping step and enhances the phase unwrapping
 accuracy. The method implemented in this operator is a nonlinear
 adaptive algorithm proposed by Goldstein and Werner [1] in 1998.<br>
+<p>
+    The interferogram is cut into overlapping blocks (FFT blocks). In each block the
+    2-D spectrum is computed, its power spectrum is smoothed and raised to the power
+    &alpha; (the filter exponent), and the spectrum is weighted with the result. This boosts
+    the dominant fringe frequencies and suppresses noise. A larger &alpha; filters
+    more strongly.
+</p>
+<p>
+    By default the operator uses the adaptive exponent of Baran <i>et al.</i> [2]:
+    in each FFT block &alpha; = 1 &#8722; (mean coherence of the block), limited to
+    [Adaptive alpha minimum, Adaptive alpha maximum]. The mean counts only coherence values
+    above 0 and at most 1; coherence no-data (0) is not counted. Low-coherence (noisy) blocks are
+    filtered strongly and high-coherence blocks only lightly. This needs a coherence
+    band in the input product.
+</p>
+<p>
+    <b>When the fixed exponent is used:</b> the value of "Adaptive Filter Exponent in
+    (0,1]" is used only when "Use adaptive alpha" is off, when the input product has
+    no coherence band, or for an FFT block that contains no valid coherence values.
+    With a coherence band present and adaptive alpha on (the default), the fixed
+    exponent is not used.
+</p>
+<p>
+    Filtering changes the phase. Use the filtered interferogram for phase unwrapping and
+    display, not for measuring phase values directly.
+</p>
 <h4>Input and Output</h4>
 <ul>
     <li>The
-        input to this operator is the output of Interferogram Formation operator.
+        input to this operator is the output of Interferogram Formation operator (an
+        interferogram with i/q bands, preferably with its coherence band).
     </li>
     <li>The output of this operator is a stack of filtered I/Q bands.</li>
 </ul>
 <ol>
 </ol>
-<h4>Parameters Used</h4>&nbsp;&nbsp; The following processing parameter is required for this operator (see Figure
-1):<br>
+<h4>Parameters Used</h4>&nbsp;&nbsp; The following processing parameters are used by this operator:<br>
 <ul>
-    <li>Adaptive Filter Exponent: A value lies in range (0,1]. The larger the value the stronger the filtering.<br>
+    <li><b>Adaptive Filter Exponent in (0,1]</b> (<code>alpha</code>): fixed filter exponent,
+        range (0, 1], default 1.0. The larger the value the stronger the filtering. Used only
+        when the adaptive exponent is not applied (see above).
+    </li>
+    <li><b>Use adaptive alpha</b> (<code>useAdaptiveAlpha</code>): compute &alpha; per FFT block
+        from the coherence band (Baran <i>et al.</i> [2]). Default: on. If no coherence band is
+        found, the operator falls back to the fixed exponent.
+    </li>
+    <li><b>Adaptive alpha minimum</b> (<code>alphaMin</code>): lower limit for the adaptive
+        &alpha;, range [0, 1], default 0.2. It must not be larger than the maximum.
+    </li>
+    <li><b>Adaptive alpha maximum</b> (<code>alphaMax</code>): upper limit for the adaptive
+        &alpha;, range [0, 1], default 1.0.
+    </li>
+    <li><b>FFT Size</b> (<code>FFTSizeString</code>): size of the square FFT block in pixels.
+        Values 32, 64, 128, 256; default 64. Ignored when "FFT Block Extent (m)" is greater than 0.
+    </li>
+    <li><b>FFT Block Extent (m)</b> (<code>fftSizeMeters</code>): FFT block size on the ground,
+        in metres. Default 0 (off: use FFT Size). When greater than 0, the block size in range
+        and in azimuth is computed separately from the pixel spacing, so the block covers about
+        the same ground distance in both directions. Each size is rounded to the nearest power
+        of two and limited to 8&ndash;512 pixels. This is recommended for Sentinel-1 IW: there a
+        64&times;64 pixel block covers about 224&nbsp;m (range) &times; 895&nbsp;m (azimuth) on
+        the ground.
+    </li>
+    <li><b>Window Size</b> (<code>windowSizeString</code>): size of the window used to smooth the
+        power spectrum, in spectrum samples. Values 3, 5, 7; default 3.
+    </li>
+    <li><b>Use coherence mask</b> (<code>useCoherenceMask</code>): if on, pixels whose coherence
+        is below the threshold keep their unfiltered values. Default: off. Requires a coherence
+        band; the operator stops with an error if there is none.
+    </li>
+    <li><b>Coherence Threshold in [0,1]</b> (<code>coherenceThreshold</code>): coherence
+        threshold for the coherence mask, range [0, 1], default 0.2. Used only when "Use
+        coherence mask" is on.
     </li>
 </ul>
 <img style="width: 450px; height: 450px;" alt="" src="images/goldstein_phase_filtering_ui.jpg"><br>
 <br>
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. Goldstein Phase Filtering operator
-UI<br>
+UI (older version of the dialog; it does not show all parameters)<br>
 <br>
 
-<p> Reference:&nbsp;</p>
-
-<p>[1] R.M. Goldstein and C.L. Werner, "Radar
-    Interferogram Phase Filtering for Geophysical Applications,"
-    Geophysical Research Letters, 25, 4035-4038, 1998<br>
-</p>
-
+<h3>References</h3>
+<ol>
+    <li>Goldstein, R. M., Werner, C. L. (1998). Radar interferogram filtering for geophysical applications. <i>Geophysical Research Letters</i>, 25(21), 4035&#8211;4038. doi:10.1029/1998GL900033</li>
+    <li>Baran, I., Stewart, M. P., Kampes, B. M., Perski, Z., Lilly, P. (2003). A modification to the Goldstein radar interferogram filter. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 41(9), 2114&#8211;2118. doi:10.1109/TGRS.2003.817212</li>
+</ol>
+<!-- params:begin op="GoldsteinPhaseFiltering" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>GoldsteinPhaseFiltering</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>alpha</code></td><td>double</td><td>1.0</td><td>(0, 1]</td><td>&nbsp;</td><td>Filter exponent (used when adaptive alpha is disabled)</td></tr>
+<tr><td><code>useAdaptiveAlpha</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Adapt the filter exponent per FFT block from coherence (Baran 2003): alpha = clamp(1 - mean(coherence), [alphaMin, alphaMax]). Requires a coherence band in the source product.</td></tr>
+<tr><td><code>alphaMin</code></td><td>double</td><td>0.2</td><td>[0, 1]</td><td>&nbsp;</td><td>Lower bound for adaptive alpha</td></tr>
+<tr><td><code>alphaMax</code></td><td>double</td><td>1.0</td><td>[0, 1]</td><td>&nbsp;</td><td>Upper bound for adaptive alpha</td></tr>
+<tr><td><code>FFTSizeString</code></td><td>String</td><td>64</td><td>32, 64, 128, 256</td><td>&nbsp;</td><td>FFT Size</td></tr>
+<tr><td><code>fftSizeMeters</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>FFT block extent in metres. When greater than 0 the block size is derived per axis from the pixel spacing, so the block covers the same ground distance in range and azimuth instead of being square in pixels. Overrides FFT Size. Recommended: a square block in PIXELS is strongly anisotropic on the ground in radar geometry - for S1 IW a 64x64 block spans about 224 m x 895 m, a 4:1 footprint - which resolves fringe frequencies four times better in azimuth than in range.</td></tr>
+<tr><td><code>windowSizeString</code></td><td>String</td><td>3</td><td>3, 5, 7</td><td>&nbsp;</td><td>Window Size</td></tr>
+<tr><td><code>useCoherenceMask</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Use coherence mask</td></tr>
+<tr><td><code>coherenceThreshold</code></td><td>double</td><td>0.2</td><td>[0, 1]</td><td>&nbsp;</td><td>The coherence threshold</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coherence.html">Interferometric Coherence</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/unwrapping.html">Phase Unwrapping</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A complex coregistered interferogram (SAR product, coregistered stack, complex bands) from <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li>Recommended: a coherence band (unit coherence) in the same product. Adaptive alpha falls back to the fixed alpha without one, but 'use coherence mask' fails without one</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a> to prepare unwrapping</li>
+</ul>
+<!-- footer:end -->
 
 <hr>
 </body>

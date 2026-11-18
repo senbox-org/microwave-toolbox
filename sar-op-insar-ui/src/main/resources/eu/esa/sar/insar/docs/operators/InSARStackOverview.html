@@ -41,8 +41,21 @@
     which the total de-correlation is expected for targets with the distributed scattering mechanism.
 </p>
 
-<p> The values given in the first equation, are typical for ERS and Envisat.
+<p> The equation image shows the C-band constants with <i>T</i> in years. In the code <i>T</i> is in days, <i>g</i> is
+    0.01 (not 0) beyond <i>c</i>, and the three constants depend on the band, which is picked from the Reference
+    wavelength:
 </p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Band (wavelength)</th><th>B<sub>&perp;</sub> constant (m)</th><th>T constant (days)</th><th>f<sub>DC</sub> constant (Hz)</th></tr>
+    <tr><td>X (2.5 to 4 cm)</td><td>600</td><td>730</td><td>2200</td></tr>
+    <tr><td>C (4 to 8 cm; also any wavelength outside the table)</td><td>1200</td><td>1095</td><td>1380</td></tr>
+    <tr><td>S (8 to 15 cm)</td><td>2500</td><td>1825</td><td>1500</td></tr>
+    <tr><td>L (15 to 30 cm)</td><td>6000</td><td>2920</td><td>1500</td></tr>
+    <tr><td>P (30 cm to 1 m)</td><td>12000</td><td>3650</td><td>1200</td></tr>
+</table>
+<p> The baselines are computed at the scene centre at zero height; <i>T</i> is Reference minus Secondary in days
+    (negative for later dates). Open the tool from Radar &gt; Interferometric &gt; InSAR Stack Overview; it needs at
+    least two SLC products.</p>
 
 <h4>JSON Overview via command-line GPT</h4>
 
@@ -60,9 +73,9 @@
 <p> The coherence modeled by this functionality, and other
     information provided by this functionality, is purely based on the metadata information of input products.
     The complex data (nor any other information from the source product bands) in modeling of the coherence and
-    other parameters is <u>not</u> used at all. Thus this function can also be applied on the detected products,
-    however, the interpretation of the modeled coherence and acceptance of recommendations for the
-    choice of the reference image has to be performed with great care.
+    other parameters is <u>not</u> used at all. The interpretation of the modeled coherence and acceptance of
+    recommendations for the choice of the reference image therefore has to be performed with great care. The
+    GPT operator refuses non-SLC products; use SLC products in the dialog as well.
 </p>
 
 <h5>Known issues:</h5>
@@ -72,6 +85,26 @@
     the principles of the wave-number shift shall be used.
 </p>
 
+<h3>References</h3>
+<ol>
+    <li>Zebker, H. A., Villasenor, J. (1992). Decorrelation in interferometric radar echoes. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 30(5), 950&#8211;959. doi:10.1109/36.175330</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>. Kluwer Academic Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+</ol>
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/stack_design.html">Baselines and Stack Design</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coherence.html">Interferometric Coherence</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Two or more SLC products of the same area</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="CreateStackOp.html">Create Stack</a> or, for Sentinel-1 TOPS, <a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a>, with the suggested Reference as the reference product</li>
+</ul>
+<!-- footer:end -->
 <br>
 <hr>
 </body></html>

@@ -23,7 +23,7 @@
 
 <p>
     This operator prepares input, ERS1/2 and Envisat, data for cross interferometric processing. The input image is 
-    resampled to the requested geometry. For example, for Cross InSAR, with ERS image as a master Envisat ASAR image 
+    resampled to the requested geometry. For example, for Cross InSAR, with ERS image as a reference Envisat ASAR image 
     should be resampled into the geometry of ERS to allow reliable corregistration.  
 </p>
 
@@ -40,7 +40,7 @@
         <b>Interpolation Method:</b> List of interpolation kernels.
     </li>
     <li>
-        <b>Target Geometry:</b> List of target geometry. For example, to resample ERS to ASAR geometry, select ASAR.
+        <b>Target Geometry:</b> List of target geometry. For example, to resample ERS to ASAR geometry, select Envisat ASAR.
     </li>
 </ul>
     
@@ -71,6 +71,37 @@
 <div style="margin-left: 20px;"><b>Figure 1.</b> Ratio between Envisat ASAR and ERS 1/2 SAR geometries.<br></div>
 
 <br>
+<h3>References</h3>
+<ol>
+    <li>Wegm&uuml;ller, U., Santoro, M., Werner, C., Strozzi, T., Wiesmann, A., Lengert, W. (2009). DEM generation using ERS&#8211;ENVISAT interferometry. <i>Journal of Applied Geophysics</i>, 69(1), 51&#8211;58. doi:10.1016/j.jappgeo.2009.04.002</li>
+</ol>
+<!-- params:begin op="CrossResampling" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>CrossResampling</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>warpPolynomialOrder</code></td><td>int</td><td>2</td><td>1, 2, 3</td><td>&nbsp;</td><td>The order of polynomial function</td></tr>
+<tr><td><code>interpolationMethod</code></td><td>String</td><td>Cubic convolution (6 points)</td><td>Cubic convolution (4 points), Cubic convolution (6 points), Truncated sinc (6 points), Truncated sinc (8 points), Truncated sinc (16 points)</td><td>&nbsp;</td><td>Interpolation Method</td></tr>
+<tr><td><code>targetGeometry</code></td><td>String</td><td>ERS</td><td>ERS, Envisat ASAR</td><td>&nbsp;</td><td>Target Geometry</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>An ERS-1/2 or Envisat ASAR product</li>
+    <li>A target geometry different from the input product's</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a> with the resampled and the other-sensor product, then coregister and form an interferogram</li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

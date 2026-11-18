@@ -1,0 +1,203 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Polarimetric Decompositions</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Polarimetric Decompositions</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Polarimetric Decompositions</h1>
+
+<p class="lead">A polarimetric decomposition splits the measured scattering matrix, or its averaged
+covariance or coherency matrix, into a few components with a physical meaning: surface, double-bounce and
+volume scattering, or a dominant mechanism and its randomness. The methods rest on different assumptions,
+so they give different numbers for the same pixel. Choose the one that matches your question and know
+where it breaks down.</p>
+
+<p>The matrices, the Pauli basis and reflection symmetry are introduced on the
+<a href="polarimetry.html">Polarimetry Primer</a> page. Below, T<sub>3</sub> is the window-averaged
+coherency matrix, C<sub>3</sub> the covariance matrix, and the span their trace.</p>
+
+<h2>Three families</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Family</th><th>Works on</th><th>Idea</th><th>SNAP options</th></tr>
+    <tr><td>Eigenvector-based</td><td>T<sub>3</sub> (averaged)</td><td>Eigenvalues give the weight of
+        each mechanism, eigenvectors its type; no physical model</td><td>H-A-Alpha, Cloude, Touzi, van Zyl</td></tr>
+    <tr><td>Model-based</td><td>C<sub>3</sub> / T<sub>3</sub> (averaged)</td><td>Fit a sum of model
+        matrices (surface, dihedral, volume, helix)</td><td>Freeman-Durden, Generalized Freeman-Durden,
+        Yamaguchi, MF3CF, MF4CF</td></tr>
+    <tr><td>Coherent</td><td>S per pixel, or a single target extracted from T<sub>3</sub></td><td>Write S as a sum of
+        canonical scatterers</td><td>Pauli, Sinclair, Krogager, Cameron, Huynen, Yang</td></tr>
+</table>
+
+<h2>Eigenvector-based: entropy, anisotropy and alpha</h2>
+<p>Cloude and Pottier diagonalise the coherency matrix, T<sub>3</sub> = &Sigma; &lambda;<sub>i</sub>
+u<sub>i</sub> u<sub>i</sub><sup>H</sup> with &lambda;<sub>1</sub> &ge; &lambda;<sub>2</sub> &ge;
+&lambda;<sub>3</sub> &ge; 0, and use the normalised eigenvalues p<sub>i</sub> = &lambda;<sub>i</sub> /
+(&lambda;<sub>1</sub> + &lambda;<sub>2</sub> + &lambda;<sub>3</sub>):</p>
+<p class="eq">H = &#8722; &Sigma;<sub>i</sub> p<sub>i</sub> log<sub>3</sub> p<sub>i</sub></p>
+<p class="eq">A = (&lambda;<sub>2</sub> &#8722; &lambda;<sub>3</sub>) / (&lambda;<sub>2</sub> + &lambda;<sub>3</sub>)</p>
+<p class="eq">&alpha; = &Sigma;<sub>i</sub> p<sub>i</sub> &alpha;<sub>i</sub></p>
+<p>Each eigenvector is written u<sub>i</sub> = [cos &alpha;<sub>i</sub>, sin &alpha;<sub>i</sub> cos
+&beta;<sub>i</sub> e<sup>j&delta;<sub>i</sub></sup>, sin &alpha;<sub>i</sub> sin &beta;<sub>i</sub>
+e<sup>j&gamma;<sub>i</sub></sup>]<sup>T</sup> (up to a phase), so &alpha;<sub>i</sub> is the angle between
+u<sub>i</sub> and the odd-bounce Pauli axis.</p>
+<ul>
+    <li><b>Entropy H</b> (0 to 1) is the randomness of the scattering. H &lt; 0.5: one mechanism dominates;
+        H &gt; 0.9: nearly random, and only volume-type classes can be told apart.</li>
+    <li><b>Mean alpha &alpha;</b> (0&deg; to 90&deg;) is the type: about 0&deg; for surfaces, 45&deg; for a
+        dipole or a random cloud of dipoles, 90&deg; for a dihedral.</li>
+    <li><b>Anisotropy A</b> (0 to 1) compares the second and third mechanisms. It adds information mainly
+        at medium and high entropy.</li>
+</ul>
+<p>All three are roll-invariant: rotating the target about the line of sight does not change them. Not
+every (H, &alpha;) pair is possible; Figure 1 shows the feasible region and the zones used for
+classification.</p>
+<p><img src="images/decompositions_1.png" width="560" height="390" alt="The H-alpha plane with its feasible region, zone boundaries and the positions of a dipole cloud and a fully random target"></p>
+<p class="figcap">Figure 1. The H&ndash;&alpha; plane. Solid curves bound the feasible region (computed from
+diagonal coherency matrices). Dashed lines are the zone boundaries SNAP uses (H = 0.5, 0.9; &alpha; =
+42&deg;/48&deg;, 40&deg;/50&deg; and 40&deg;/55&deg;); zone numbers follow SNAP's default numbering. A random
+cloud of thin dipoles sits at H &asymp; 0.95, &alpha; = 45&deg;.</p>
+<p><b>Touzi</b> describes each eigenvector with roll-invariant parameters (the symmetric scattering type
+magnitude &alpha;<sub>s</sub> and phase &Phi;<sub>&alpha;s</sub>, and the helicity &tau;) plus the
+orientation angle &psi;. The phase separates scatterers that have the same &alpha; but different dielectric or
+geometric behaviour. <b>Cloude</b> shows the dominant eigenvector alone as a Pauli-type RGB. <b>van
+Zyl</b> (in SNAP, the eigen-analysis of a reflection-symmetric C<sub>3</sub>) assigns the cross-polar
+eigenvalue to volume and the two co-polar eigenvalues to surface and double bounce by the type of their
+eigenvectors: one has HH and VV in phase (odd bounce), the other in anti-phase (even bounce). The sign of
+Re&lt;S<sub>HH</sub>S<sub>VV</sub><sup>*</sup>&gt; decides which is which. Where it is positive the larger
+eigenvalue is surface; where double bounce dominates (negative, e.g. buildings parallel to the track) the
+larger eigenvalue goes to <code>VanZyl_dbl_r</code>. SNAP versions before 15 always labelled the larger one
+as surface.</p>
+
+<h2>Model-based: Freeman-Durden and Yamaguchi</h2>
+<p>Freeman and Durden model the covariance matrix as three mechanisms, assuming reflection symmetry:</p>
+<p class="eq">C<sub>3</sub> = f<sub>s</sub> C<sub>surface</sub> + f<sub>d</sub> C<sub>double</sub> + f<sub>v</sub> C<sub>volume</sub></p>
+<p>The volume term is a cloud of randomly oriented thin dipoles; it is the only term with cross-polar
+power, so f<sub>v</sub> is set from &lt;|S<sub>HV</sub>|<sup>2</sup>&gt; and its contribution is subtracted.
+The remainder is split into surface (Bragg) and double bounce using the sign of
+Re&lt;S<sub>HH</sub> S<sub>VV</sub><sup>*</sup>&gt;. The three powers P<sub>s</sub>, P<sub>d</sub> and
+P<sub>v</sub> add up to the span.</p>
+<p>Yamaguchi et al. (2005) add a fourth, helix component, P<sub>c</sub> = 2 |Im T<sub>23</sub>|, for areas
+without reflection symmetry such as cities, and choose between three volume models from the ratio
+10 log<sub>10</sub>(&lt;|S<sub>VV</sub>|<sup>2</sup>&gt; / &lt;|S<sub>HH</sub>|<sup>2</sup>&gt;) with
+thresholds at &plusmn;2 dB. Yamaguchi et al. (2011) first rotate T<sub>3</sub> about the line of sight to
+minimise T<sub>33</sub>, which reduces the cross-polar power that oriented buildings and slopes add.</p>
+<p>The model-free MF3CF and MF4CF methods (Dey et al.) do not assume a volume model. They use the
+degree of polarisation of T<sub>3</sub> and a scattering-type angle &theta;<sub>FP</sub>, and always give
+non-negative, roll-invariant powers.</p>
+
+<h2>Coherent decompositions</h2>
+<p>Coherent methods treat each pixel as one deterministic scatterer. Krogager writes S as a sphere, a
+diplane and a helix; Cameron extracts the largest symmetric component and its angle to S; Huynen and Yang
+extract one equivalent single target from T<sub>3</sub>. They suit point targets and man-made
+structures. On forests or fields the pixel is speckle, and the results are as noisy as the data.</p>
+
+<h2>Pitfalls</h2>
+<ul>
+    <li><b>Negative powers.</b> Subtracting a fixed volume model can leave more power than remains in
+        HH or VV, giving negative surface or double-bounce power. In Freeman-Durden, SNAP sets surface and
+        double bounce to zero when no co-polar power is left and caps the remaining HH-VV correlation. In
+        Yamaguchi, a negative volume power falls back to the Freeman-Durden solution, and a negative
+        surface or double-bounce power is set to zero and the rest of the span reassigned. Freeman-Durden, Generalized Freeman-Durden and Yamaguchi outputs are also clipped to
+        the range of the scene's span before conversion to dB, so a clipped value shows as the scene
+        minimum.</li>
+    <li><b>Volume over-estimation.</b> The dipole-cloud model attributes all cross-polar power to volume.
+        Buildings not parallel to the track and slopes in azimuth also produce cross-polar power, so cities
+        and steep terrain appear as "vegetation".</li>
+    <li><b>Orientation angle.</b> Removing the polarisation orientation angle shift (Lee et al. 2000)
+        before decomposing reduces this error. H, A and &alpha; do not change, because they are
+        roll-invariant.</li>
+    <li><b>Too few looks.</b> Eigen-parameters estimated from few looks are biased; entropy comes out too
+        low. See <a href="wishart.html">Wishart statistics</a>.</li>
+</ul>
+
+<h2>Which decomposition for which question</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Question</th><th>Start with</th></tr>
+    <tr><td>Quick look at the dominant mechanisms</td><td>Pauli RGB</td></tr>
+    <tr><td>How much surface, double-bounce and volume power (flooded forest, urban, crops)?</td><td>Yamaguchi with orientation correction; Freeman-Durden; MF3CF if negative powers are a problem</td></tr>
+    <tr><td>Unsupervised land-cover classes, independent of target orientation</td><td>H-A-Alpha, then H-Alpha Wishart classification</td></tr>
+    <tr><td>Discriminating scatterers that share the same &alpha;</td><td>Touzi</td></tr>
+    <tr><td>Point targets, ships, man-made structures</td><td>Krogager, Cameron, Huynen</td></tr>
+    <tr><td>Only dual-pol data (Sentinel-1)</td><td>H-Alpha Dual Pol or Model-Based Dual Pol; see <a href="dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></td></tr>
+</table>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Polarimetric Decomposition</b> (<code>Polarimetric-Decomposition</code>) offers Sinclair (the
+        default), Pauli, Freeman-Durden, Generalized Freeman-Durden, Yamaguchi, van Zyl, H-A-Alpha Quad Pol,
+        H-Alpha Dual Pol, Cloude, Touzi, Huynen, Yang, Krogager, Cameron, Model-free 3-component,
+        Model-free 4-component and Model-Based Dual Pol. All except the two dual-pol options need a quad-pol
+        SLC (8 i/q bands) or a C3, T3, C4 or T4 product.</li>
+    <li><b>Window Size</b> (default 5, range 1&ndash;100) is the averaging window for the matrix. Sinclair,
+        Pauli and Cameron work pixel by pixel.</li>
+    <li><b>Outputs.</b> Freeman-Durden: <code>Freeman_dbl_r</code>, <code>Freeman_vol_g</code>,
+        <code>Freeman_surf_b</code> (dB; Generalized Freeman-Durden writes the same names). Yamaguchi:
+        <code>Yamaguchi_dbl_r</code>, <code>Yamaguchi_vol_g</code>, <code>Yamaguchi_surf_b</code>,
+        <code>Yamaguchi_hlx</code> (dB). van Zyl: <code>VanZyl_dbl_r</code>, <code>VanZyl_vol_g</code>,
+        <code>VanZyl_surf_b</code> (linear). MF3CF: <code>MF3CF_even_r</code>, <code>MF3CF_diffused_g</code>,
+        <code>MF3CF_odd_b</code> (linear) and <code>MF3CF_theta_FP</code>. H-A-Alpha: tick at least one
+        output group; <code>Entropy</code>, <code>Anisotropy</code> and <code>Alpha</code> (degrees), plus
+        optional <code>Alpha1..3</code>, <code>Lambda1..3</code>, <code>Beta</code>, <code>Delta</code>,
+        <code>Gamma</code>, <code>Lambda</code>. Krogager: <code>ks_b</code>, <code>kd_r</code>,
+        <code>kh_g</code> (amplitudes).</li>
+    <li><b>Orientation angle correction.</b> The parameter <code>applyOrientationAngleCorrection</code>
+        (default false) is available only in GPT and graph XML, not in the dialog. In SNAP Desktop, run
+        Polarimetric Orientation Angle Correction before the decomposition. SNAP's Yamaguchi option does not
+        rotate T<sub>3</sub> by itself; with this correction it comes close to the 2011 rotated form.</li>
+    <li><b>H-a Alpha Plot</b> (View &gt; Tool Windows &gt; Radar) plots the pixels of a decomposition product
+        in the H&ndash;&alpha; plane.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Comparing powers from different models as if they were the same quantity. Freeman "volume" and
+        MF3CF "diffused" power are not interchangeable.</li>
+    <li>Using window size 1 for H-A-Alpha on an unfiltered SLC or Matrix Generation output. Entropy is then
+        zero everywhere.</li>
+    <li>Calling every green Freeman or Yamaguchi pixel vegetation without checking for oriented buildings or
+        slopes.</li>
+    <li>Applying the orientation correction and then the Cameron decomposition. The correction turns the
+        scattering matrix into T3, which Cameron cannot use.</li>
+    <li>Treating H-Alpha Dual Pol values as equivalent to quad-pol H and &alpha;.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/OrientationAngleCorrectionOp.html">Polarimetric Orientation Angle Correction</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.classification.ui/org/csa/rstb/classification/docs/operators/PolarimetricClassificationOp.html">Polarimetric Unsupervised Classification</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricParametersOp.html">Polarimetric Parameters</a></li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Cloude, S. R., Pottier, E. (1997). An entropy based classification scheme for land applications of polarimetric SAR. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 35(1), 68&#8211;78. doi:10.1109/36.551935</li>
+    <li>Freeman, A., Durden, S. L. (1998). A three-component scattering model for polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 36(3), 963&#8211;973. doi:10.1109/36.673687</li>
+    <li>Yamaguchi, Y., Moriyama, T., Ishido, M., Yamada, H. (2005). Four-component scattering model for polarimetric SAR image decomposition. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 43(8), 1699&#8211;1706. doi:10.1109/TGRS.2005.852084</li>
+    <li>Yamaguchi, Y., Sato, A., Boerner, W.-M., Sato, R., Yamada, H. (2011). Four-component scattering power decomposition with rotation of coherency matrix. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 49(6), 2251&#8211;2258. doi:10.1109/TGRS.2010.2099124</li>
+    <li>Touzi, R. (2007). Target scattering decomposition in terms of roll-invariant target parameters. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 45(1), 73&#8211;84. doi:10.1109/TGRS.2006.886176</li>
+    <li>van Zyl, J. J. (1993). Application of Cloude's target decomposition theorem to polarimetric imaging radar data. <i>Proc. SPIE 1748, Radar Polarimetry</i>, 184&#8211;191. doi:10.1117/12.140615</li>
+    <li>Lee, J.-S., Schuler, D. L., Ainsworth, T. L. (2000). Polarimetric SAR data compensation for terrain azimuth slope variation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(5), 2153&#8211;2163. doi:10.1109/36.868874</li>
+    <li>Dey, S., Bhattacharya, A., Ratha, D., Mandal, D., Frery, A. C. (2021). Target characterization and scattering power decomposition for full and compact polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 59(5), 3981&#8211;3998. doi:10.1109/TGRS.2020.3010840</li>
+</ol>
+
+<hr>
+</body>
+</html>

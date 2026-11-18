@@ -19,7 +19,20 @@
     orthorectification method [1].
     The implementation is exactly the same as for the&nbsp;<a href="RangeDopplerGeocodingOp.html">Range Doppler Terrain
     Correction operator</a>
-    except that the averaged scene height is used instead of DEM.</p><h4>Parameters Used</h4>
+    except that the averaged scene height is used instead of DEM.</p>
+<p>Every output pixel is placed at the product's average scene height (<code>avg_scene_height</code> in the
+    metadata), so relief displacement is not corrected. The output suffix is <code>_EC</code>.</p>
+<p>The GPT parameter table below is inherited from Terrain Correction, but not all of it applies:</p>
+<ul>
+    <li>The DEM parameters (<code>demName</code>, <code>externalDEMFile</code>, <code>externalDEMNoDataValue</code>,
+        <code>externalDEMApplyEGM</code>, <code>demResamplingMethod</code>) and <code>nodataValueAtSea</code> are
+        not used.</li>
+    <li><code>saveDEM</code>, <code>saveLocalIncidenceAngle</code>, <code>saveProjectedLocalIncidenceAngle</code>,
+        <code>saveSigmaNought</code>, <code>saveGammaNought</code> and <code>saveBetaNought</code> are always
+        switched off, so radiometric normalisation produces no output; use
+        <code>saveSelectedSourceBand</code> (default true).</li>
+</ul>
+<h4>Parameters Used</h4>
 
 <p>
     The following parameters are used by the operator:
@@ -42,8 +55,67 @@
 <p></p>
 <img style="width: 500px; height: 500px;" alt="" src="images/ellipsoid_correction_rd_dlg.jpg"><br>
 
-<p>[1]&nbsp; Small D., Schubert A.,
-    Guide to ASAR Geocoding,&nbsp;Issue 1.0, 19.03.2008</p>
-<br>
+<h3>References</h3>
+<ol>
+    <li>Small, D., Schubert, A. (2008). <i>Guide to ASAR Geocoding</i>. RSL-ASAR-GC-AD, Issue 1.0, 19 March 2008, Remote Sensing Laboratories, University of Zurich.</li>
+    <li>Schreier, G. (Ed.) (1993). <i>SAR Geocoding: Data and Systems</i>. Herbert Wichmann Verlag, Karlsruhe.</li>
+</ol>
+<!-- params:begin op="Ellipsoid-Correction-RD" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Ellipsoid-Correction-RD</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM No Data Value</td></tr>
+<tr><td><code>externalDEMApplyEGM</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM Apply EGM</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>NEAREST_NEIGHBOUR, BILINEAR_INTERPOLATION, CUBIC_CONVOLUTION, BISINC_5_POINT_INTERPOLATION, BISINC_11_POINT_INTERPOLATION, BISINC_21_POINT_INTERPOLATION, BICUBIC_INTERPOLATION, DELAUNAY_INTERPOLATION</td><td>&nbsp;</td><td>DEM Resampling Method</td></tr>
+<tr><td><code>imgResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>NEAREST_NEIGHBOUR, BILINEAR_INTERPOLATION, CUBIC_CONVOLUTION, BISINC_5_POINT_INTERPOLATION, BISINC_11_POINT_INTERPOLATION, BISINC_21_POINT_INTERPOLATION, BICUBIC_INTERPOLATION</td><td>&nbsp;</td><td>Image Resampling Method</td></tr>
+<tr><td><code>pixelSpacingInMeter</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>The pixel spacing in meters</td></tr>
+<tr><td><code>pixelSpacingInDegree</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>The pixel spacing in degrees</td></tr>
+<tr><td><code>mapProjection</code></td><td>String</td><td>WGS84(DD)</td><td>&nbsp;</td><td>&nbsp;</td><td>The coordinate reference system in well known text format</td></tr>
+<tr><td><code>alignToStandardGrid</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Force the image grid to be aligned with a specific point</td></tr>
+<tr><td><code>standardGridOriginX</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>x-coordinate of the standard grid's origin point</td></tr>
+<tr><td><code>standardGridOriginY</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>y-coordinate of the standard grid's origin point</td></tr>
+<tr><td><code>nodataValueAtSea</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Mask the sea with no data value (faster)</td></tr>
+<tr><td><code>saveDEM</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save DEM as band</td></tr>
+<tr><td><code>saveLatLon</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save latitude and longitude as band</td></tr>
+<tr><td><code>saveIncidenceAngleFromEllipsoid</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save incidence angle from ellipsoid as band</td></tr>
+<tr><td><code>saveLocalIncidenceAngle</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save local incidence angle as band</td></tr>
+<tr><td><code>saveProjectedLocalIncidenceAngle</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save projected local incidence angle as band</td></tr>
+<tr><td><code>saveSelectedSourceBand</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Save selected source band</td></tr>
+<tr><td><code>saveLayoverShadowMask</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save layover shadow mask</td></tr>
+<tr><td><code>outputComplex</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output complex data</td></tr>
+<tr><td><code>applyRadiometricNormalization</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Apply radiometric normalization</td></tr>
+<tr><td><code>saveSigmaNought</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save Sigma0 as a band</td></tr>
+<tr><td><code>saveGammaNought</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save Gamma0 as a band</td></tr>
+<tr><td><code>saveBetaNought</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save Beta0 as a band</td></tr>
+<tr><td><code>incidenceAngleForSigma0</code></td><td>String</td><td>Use projected local incidence angle from DEM</td><td>Use incidence angle from Ellipsoid, Use local incidence angle from DEM, Use projected local incidence angle from DEM</td><td>&nbsp;</td><td>Incidence angle used when computing sigma0: ellipsoid, local (DEM) or projected local (DEM)</td></tr>
+<tr><td><code>incidenceAngleForGamma0</code></td><td>String</td><td>Use projected local incidence angle from DEM</td><td>Use incidence angle from Ellipsoid, Use local incidence angle from DEM, Use projected local incidence angle from DEM</td><td>&nbsp;</td><td>Incidence angle used when computing gamma0: ellipsoid, local (DEM) or projected local (DEM)</td></tr>
+<tr><td><code>auxFile</code></td><td>String</td><td>Latest Auxiliary File</td><td>Latest Auxiliary File, Product Auxiliary File, External Auxiliary File</td><td>&nbsp;</td><td>The auxiliary file</td></tr>
+<tr><td><code>applyAPDCorrection</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Correct for tropospheric path delay (~3 m range improvement) using a standard atmosphere model</td></tr>
+<tr><td><code>externalAuxFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The antenne elevation pattern gain auxiliary data file.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/terrain_correction.html">Range-Doppler Terrain Correction in Depth</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR product that is not map projected; TOPS burst products must be debursted first</li>
+    <li>Valid orbit state vectors; recommended: <a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a></li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+    <li><a href="SpeckleFilterOp.html">Speckle Filter</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

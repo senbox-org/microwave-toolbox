@@ -79,7 +79,7 @@
         select one or more bands for producing downsampled images. If no bands are
         selected, then by default all bands are selected.
     </li>
-    <li> Under-Sampling Method: Kernel Filtering method.</li>
+    <li> Under-Sampling Method: LowPass Filtering method.</li>
     <li>Filter Size: The lowpass filter size.
     </li>
     <li> Output Image By: The method for determining output image dimension.
@@ -105,7 +105,7 @@
         select one or more bands for producing downsampled images. If no bands are
         selected, then by default all bands are selected.
     </li>
-    <li> Under-Sampling Method: Kernel Filtering method.</li>
+    <li> Under-Sampling Method: LowPass Filtering method.</li>
     <li>Filter Size: The lowpass filter size.
     </li>
     <li> Output Image By: The method for determining output image dimension.
@@ -142,6 +142,40 @@
 </ol>
 <br><img style="width: 450px; height: 450px;" alt="" src="images/under_sample_dlg_4.jpg">&nbsp;<br>
 
+<!-- params:begin op="Undersample" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Undersample</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>method</code></td><td>String</td><td>LowPass Filtering</td><td>Sub-Sampling, LowPass Filtering</td><td>&nbsp;</td><td>Under-Sampling Method</td></tr>
+<tr><td><code>filterSize</code></td><td>String</td><td>3x3</td><td>3x3, 5x5, 7x7</td><td>&nbsp;</td><td>Filter Size</td></tr>
+<tr><td><code>subSamplingX</code></td><td>int</td><td>2</td><td>&nbsp;</td><td>&nbsp;</td><td>Sub-Sampling in X</td></tr>
+<tr><td><code>subSamplingY</code></td><td>int</td><td>2</td><td>&nbsp;</td><td>&nbsp;</td><td>Sub-Sampling in Y</td></tr>
+<tr><td><code>outputImageBy</code></td><td>String</td><td>Ratio</td><td>Image Size, Ratio, Pixel Spacing</td><td>&nbsp;</td><td>Output Image By:</td></tr>
+<tr><td><code>targetImageHeight</code></td><td>int</td><td>1000</td><td>&nbsp;</td><td>&nbsp;</td><td>The row dimension of the output image</td></tr>
+<tr><td><code>targetImageWidth</code></td><td>int</td><td>1000</td><td>&nbsp;</td><td>&nbsp;</td><td>The col dimension of the output image</td></tr>
+<tr><td><code>widthRatio</code></td><td>float</td><td>0.5</td><td>&nbsp;</td><td>&nbsp;</td><td>The width ratio of the output/input images</td></tr>
+<tr><td><code>heightRatio</code></td><td>float</td><td>0.5</td><td>&nbsp;</td><td>&nbsp;</td><td>The height ratio of the output/input images</td></tr>
+<tr><td><code>rangeSpacing</code></td><td>float</td><td>12.5</td><td>&nbsp;</td><td>&nbsp;</td><td>The range pixel spacing</td></tr>
+<tr><td><code>azimuthSpacing</code></td><td>float</td><td>12.5</td><td>&nbsp;</td><td>&nbsp;</td><td>The azimuth pixel spacing</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/speckle.html">Speckle and Multilooking</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>None (works on any SAR product); I and Q bands must be selected in pairs</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

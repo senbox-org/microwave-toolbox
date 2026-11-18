@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - InSAR DEM Generation</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Workflows: InSAR DEM Generation</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>InSAR DEM Generation</h1>
+
+<p class="lead">An interferogram whose topographic phase is kept, unwrapped and scaled by the baseline geometry gives
+terrain height. This chain produces an <code>elevation</code> band in metres, geocoded at the end. Input: two SLC
+products with a useful perpendicular baseline and a short time between them.</p>
+
+<h2>Choosing the pair</h2>
+<p>Height sensitivity is set by the height of ambiguity, the height difference that gives one fringe:</p>
+<p class="eq">h<sub>2&pi;</sub> = &lambda; R sin&theta; / (2 B<sub>&perp;</sub>)</p>
+<p>where &lambda; is the wavelength, R the slant range, &theta; the incidence angle and B<sub>&perp;</sub> the
+perpendicular baseline. The height error scales with it: &sigma;<sub>h</sub> &asymp; h<sub>2&pi;</sub>
+&sigma;<sub>&phi;</sub> / (2&pi;), with &sigma;<sub>&phi;</sub> the phase noise in radians. For Sentinel-1 IW,
+B<sub>&perp;</sub> = 150 m gives h<sub>2&pi;</sub> &asymp; 100 m. Trade-offs:</p>
+<ul>
+    <li><b>Larger B<sub>&perp;</sub></b>: more precise heights, but denser fringes, more geometric decorrelation and
+        harder unwrapping in steep terrain.</li>
+    <li><b>Temporal baseline</b>: keep it short; deformation and atmosphere also enter the phase. One fringe of atmospheric
+        delay (&lambda;/2) becomes a height error of h<sub>2&pi;</sub>, so pick dry, stable dates and the shortest
+        interval available.</li>
+    <li><b>Land cover</b>: bare and sparsely vegetated terrain keeps coherence; forest and snow do not.</li>
+</ul>
+<p>List the baselines of your candidate dates with Radar &gt; Interferometric &gt;
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/InSARStackOverview.html">InSAR Stack Overview</a>.</p>
+
+<h2>Before you start</h2>
+<ul>
+    <li><b>Orbits and DEM:</b> precise orbits where available. A reference DEM (Copernicus 30 m by default) is used for
+        coregistration and by the default Phase to Elevation method, and is your benchmark for checking the result.</li>
+    <li><b>Ready-made graphs</b> (Graph Builder, <i>Graphs &gt; Radar &gt; InSAR Graphs</i>):
+        <i>DEM-Generation-Pre-Processing</i> and <i>DEM-Generation-Pre-Processing-Snaphu</i>. They run Apply Orbit
+        File, Create Stack, Cross-Correlation, Warp, Interferogram and Goldstein filtering, with no topographic phase
+        removal; the SNAPHU variant exports with cost mode <code>TOPO</code>. They are stripmap graphs; for Sentinel-1
+        IW, coregister with the TOPS chain instead.</li>
+</ul>
+
+<h2>Steps</h2>
+<ol>
+    <li><b>Coregister</b> the pair: for stripmap, Apply Orbit File and
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/Coregistration.html">Coregistration</a>
+        or DEM Assisted Coregistration (see the <a href="workflow_stripmap_dinsar.html">stripmap workflow</a>); for
+        Sentinel-1 IW, TOPS Split, Apply Orbit File, Back Geocoding and ESD (see the
+        <a href="workflow_s1_dinsar.html">Sentinel-1 workflow</a>).</li>
+    <li><b>Interferogram Formation</b> (<code>Interferogram</code>;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">help</a>).
+        Keep <i>Subtract flat-earth phase</i> on and <i>Subtract topographic phase</i> off (both defaults). Do not run
+        Topographic Phase Removal: the topographic phase is the signal. For IW, run S-1 TOPS Deburst afterwards.</li>
+    <li><b>Multilooking</b> (<code>Multilook</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">help</a>).
+        The look numbers set the posting of the DEM. With a small h<sub>2&pi;</sub> keep the looks low so that fringes
+        on steep slopes are not aliased.</li>
+    <li><b>Goldstein Phase Filtering</b> (<code>GoldsteinPhaseFiltering</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/GoldsteinFilterOp.html">help</a>),
+        adaptive alpha on (default).</li>
+    <li><b>Snaphu Export</b> (<code>SnaphuExport</code>;
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">help</a>):
+        set <i>Statistical-cost mode</i> to <code>TOPO</code>; the default is <code>DEFO</code>. Run SNAPHU, then
+        <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">Snaphu Import</a>.</li>
+    <li><b>Phase to Elevation</b> (<code>PhaseToElevation</code>, Radar &gt; Interferometric &gt; Products;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToElevationOp.html">help</a>).
+        It finds the unwrapped band by unit <code>abs_phase</code> (or a name starting with "Unw") and writes
+        <code>elevation</code> in metres. <i>Method</i> defaults to <code>DEM Seed</code>: the unknown phase constant is
+        fixed with low-slope points of a reference DEM (default <code>Copernicus 30m Global DEM</code>).
+        <code>Schwabisch</code> needs no DEM; because unwrapped phase is only relative, expect a constant height offset
+        and remove it with a point of known height. The product
+        must still be in radar geometry and keep its latitude, longitude, incidence-angle and slant-range-time tie-point
+        grids.</li>
+    <li><b>Range-Doppler Terrain Correction</b> (<code>Terrain-Correction</code>;
+        <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">help</a>)
+        of the <code>elevation</code> band, with <i>Save DEM as band</i> ticked to get the reference DEM on the same
+        grid.</li>
+</ol>
+
+<h2>Check the result</h2>
+<ul>
+    <li>Subtract the reference DEM (Band Maths). The difference should be noise around a constant, with no trend
+        across the scene.</li>
+    <li>Jumps of exactly h<sub>2&pi;</sub> along low-coherence lines are unwrapping errors.</li>
+    <li>Smooth blobs of tens of metres that do not follow the terrain are atmospheric delay. Compare with a second pair
+        if you have one.</li>
+    <li>Layover and shadow areas carry no valid height; mask them with the Terrain Correction layover/shadow mask.</li>
+</ul>
+
+<h2>Common pitfalls</h2>
+<ul>
+    <li>Removing the topographic phase before unwrapping. Nothing is left to convert to height.</li>
+    <li>Unwrapping with the <code>DEFO</code> cost mode, which does not model layover and steep slopes.</li>
+    <li>Terrain-correcting before Phase to Elevation. It refuses map-projected input.</li>
+    <li>Using a long temporal baseline over vegetation. Coherence is lost and the DEM is noise.</li>
+</ul>
+
+<h2>Background</h2>
+<ul>
+    <li><a href="../concepts/insar.html">InSAR fundamentals (baselines and height of ambiguity)</a></li>
+    <li><a href="../concepts/height_references.html">DEMs and height references</a></li>
+    <li><a href="../concepts/unwrapping.html">Phase unwrapping</a></li>
+    <li><a href="../concepts/coherence.html">Coherence</a></li>
+    <li><a href="../concepts/atmosphere.html">Atmospheric phase</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

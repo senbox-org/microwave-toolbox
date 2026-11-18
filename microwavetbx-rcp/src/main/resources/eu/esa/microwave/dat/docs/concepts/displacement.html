@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - From Phase to Displacement</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: From Phase to Displacement</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>From Phase to Displacement: Line of Sight, Sign and Reference</h1>
+
+<p class="lead">An unwrapped interferogram measures how much the distance between the radar and the ground changed
+between two dates, and only along the radar line of sight (LOS). Turning that phase into a displacement map
+involves three decisions: which sign means what, how the LOS relates to east, north and up, and which point is
+taken as stable, because unwrapped phase has no absolute zero.</p>
+
+<h2>Phase and line-of-sight displacement</h2>
+<p>Once the flat-earth and topographic phase are removed (see <a href="insar.html">InSAR</a>), and ignoring
+atmosphere and noise, the unwrapped phase &phi; is proportional to the change in slant range between the
+reference date and the secondary date. SNAP uses the standard SLC phase convention
+exp(&#8722;j&middot;4&pi;R/&lambda;) in its flat-earth and topographic phase models, and forms the interferogram as
+Reference &times; conj(Secondary), so</p>
+<p class="eq">&phi; = (4&pi; / &lambda;) &middot; (R<sub>sec</sub> &#8722; R<sub>ref</sub>)</p>
+<p>where &lambda; is the radar wavelength and R<sub>ref</sub>, R<sub>sec</sub> are the slant ranges to the same
+ground point at the two dates. Phase to Displacement and SBAS Inversion both apply</p>
+<p class="eq">d = &#8722;(&lambda; / 4&pi;) &middot; &phi; = R<sub>ref</sub> &#8722; R<sub>sec</sub></p>
+<p><b>So a positive d means the range got shorter: the ground moved towards the satellite</b> (for example uplift).
+A negative d means motion away from the satellite (for example subsidence). This holds when the secondary is
+acquired after the reference. If a pair is formed the other way round, the sign flips with respect to time.</p>
+<p>One full fringe (2&pi;) corresponds to &lambda;/2 of LOS motion:</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Mission</th><th>Band</th><th>&lambda;</th><th>One fringe (&lambda;/2)</th><th>Per radian (&lambda;/4&pi;)</th></tr>
+    <tr><td>Sentinel-1</td><td>C, 5.405 GHz</td><td>5.55 cm</td><td>2.8 cm</td><td>4.4 mm</td></tr>
+    <tr><td>TerraSAR-X</td><td>X, 9.65 GHz</td><td>3.1 cm</td><td>1.6 cm</td><td>2.5 mm</td></tr>
+    <tr><td>ALOS-2, NISAR</td><td>L, about 1.26 GHz</td><td>about 24 cm</td><td>about 12 cm</td><td>about 19 mm</td></tr>
+    <tr><td>NISAR</td><td>S, 3.2 GHz</td><td>9.4 cm</td><td>4.7 cm</td><td>7.5 mm</td></tr>
+    <tr><td>BIOMASS</td><td>P, 435 MHz</td><td>69 cm</td><td>34 cm</td><td>55 mm</td></tr>
+</table>
+
+<h2>Line-of-sight geometry</h2>
+<p>The radar sees only the projection of the 3-D ground motion <b>D</b> = (D<sub>E</sub>, D<sub>N</sub>,
+D<sub>U</sub>) onto the unit vector <b>e</b> that points from the ground to the satellite. For a right-looking
+SAR with incidence angle &theta; and platform heading &alpha; (measured clockwise from north):</p>
+<p class="eq">d = &#8722;sin&theta; cos&alpha; &middot; D<sub>E</sub> + sin&theta; sin&alpha; &middot; D<sub>N</sub>
+    + cos&theta; &middot; D<sub>U</sub></p>
+<p>Polar-orbiting satellites fly close to north&#8211;south: &alpha; is about &#8722;10&deg; to &#8722;15&deg;
+ascending and about 190&deg; to 195&deg; descending, so sin&alpha; is about &#8722;0.2 on both passes. At
+&theta; = 39&deg; the north coefficient is therefore about 0.13, against 0.62 for east and 0.78 for up.
+<b>InSAR is nearly blind to north&#8211;south motion</b>, most sensitive to vertical motion, and sees east&#8211;west
+motion with opposite signs from ascending and descending passes.</p>
+<p><img src="images/displacement_1.png" width="560" height="300" alt="LOS geometry and sensitivity to east, north and up motion"></p>
+<p class="figcap">Figure 1. Left: cross-section of an ascending, right-looking acquisition; +LOS points from the
+ground to the satellite, the direction SNAP counts as positive displacement. Right: components of the LOS unit
+vector for Sentinel-1-like ascending (heading &#8722;12&deg;) and descending (heading 192&deg;) passes at
+&theta; = 39&deg;. The north component is small and has the same sign on both passes.</p>
+
+<h2>The reference point</h2>
+<p>Unwrapping recovers phase only up to an unknown constant (an integer number of cycles), and orbit and
+atmospheric errors add long-wavelength ramps (see <a href="unwrapping.html">phase unwrapping</a> and
+<a href="atmosphere.html">atmospheric phase</a>). A displacement map is therefore always <b>relative</b>. Choose a
+reference area that is coherent, believed stable and close to the area of interest, ideally a GNSS station, and
+subtract its mean value from the whole map. If SNAPHU splits the scene into separate connected components, each
+component can carry its own offset, and values cannot be compared across them.</p>
+
+<h2>Ascending plus descending</h2>
+<p>One LOS measurement gives one equation per pixel. Combining an ascending and a descending interferogram that
+cover the <b>same time interval</b>, on a common geocoded grid and referenced to the <b>same stable point</b>,
+gives two equations. Because the north coefficient is small and similar on both passes, the usual practice is to
+neglect D<sub>N</sub> and solve for east&#8211;west and vertical motion. A full 3-D solution needs a third,
+independent look direction, for example along-track (azimuth) offsets or GNSS.</p>
+
+<h2>In SNAP</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Operator</th><th>Output band(s)</th><th>Unit</th><th>Conversion</th></tr>
+    <tr><td>Phase to Displacement</td><td><code>displacement</code></td><td>meters</td><td>d = &#8722;&lambda;/(4&pi;)&middot;&phi;</td></tr>
+    <tr><td>SBAS Inversion</td><td><code>displacement_&lt;date&gt;</code>, <code>velocity</code>, <code>velocity_uncertainty</code></td><td>mm, mm/year</td><td>d = &#8722;&lambda;/(4&pi;)&middot;&phi;</td></tr>
+    <tr><td>Horizontal/Vertical Motion</td><td><code>horizontalMotion</code>, <code>verticalMotion</code></td><td>millimeters</td><td>d = &#8722;&lambda;/(4&pi;)&middot;&phi; per pass, then 2&times;2 inversion</td></tr>
+</table>
+<ul>
+    <li><b>Phase to Displacement</b> has no parameters. It converts the first band whose name starts with
+        <code>unw</code> (in any case), normally <code>Unw_Phase_ifg_&lt;ref&gt;_&lt;sec&gt;</code> from SNAPHU
+        Import, using the wavelength in the metadata. It does not subtract a reference point.</li>
+    <li><b>SBAS Inversion</b> gives displacement relative to a reference <i>epoch</i> (the median date unless
+        you set one), not relative to a reference <i>point</i>. Subtract a stable area yourself, for example with
+        Band Maths.</li>
+    <li><b>Horizontal/Vertical Motion</b> needs one collocated product holding ascending and descending unwrapped
+        phase (bands containing <code>Phase_ifg</code>, told apart by the Collocate <code>_M</code>/<code>_S</code>
+        suffixes) and <code>incidenceAngleFromEllipsoid</code> bands from Terrain Correction. Keep only the unwrapped
+        bands: a wrapped <code>Phase_ifg</code> band also matches, and the last matching band wins. The headings come from
+        the product metadata. It subtracts the phase at <code>refPixelX</code>, <code>refPixelY</code> (default
+        0, 0, the image corner, which is often no-data; choose a stable pixel) and assumes no north&#8211;south
+        motion. Its LOS step uses the same sign as the two operators above, so positive <code>verticalMotion</code>
+        means upward and positive <code>horizontalMotion</code> means eastward motion.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Reading LOS displacement as vertical. Dividing by cos&theta; is valid only if the motion is purely
+        vertical.</li>
+    <li>Interpreting values without a reference point, or comparing values across separate unwrapping
+        components.</li>
+    <li>Mixing units: Phase to Displacement writes meters; SBAS Inversion and Horizontal/Vertical Motion write
+        millimeters.</li>
+    <li>Combining ascending and descending interferograms that span different dates, or that are referenced to
+        different points.</li>
+    <li>Expecting north&#8211;south motion from an ascending/descending pair. Use azimuth offsets or GNSS for
+        that.</li>
+    <li>Leaving the Horizontal/Vertical Motion reference pixel at its default (0, 0).</li>
+    <li>Trusting zeros in the Phase to Displacement output. It sets no no-data value, so zero-filled no-data
+        becomes 0 m.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseToDisplacementOp.html">Phase to Displacement</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/HorizontalVerticalMotionOp.html">Horizontal/Vertical Motion</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/MultiReferenceInSAROp.html">Multi-Reference InSAR</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">SNAPHU Import</a></li>
+</ul>
+<p>Related concepts: <a href="insar.html">InSAR</a>, <a href="unwrapping.html">phase unwrapping</a>,
+<a href="geometry.html">SAR geometry</a>, <a href="time_series.html">InSAR time series</a>.</p>
+<p>Workflows: <a href="../workflows/workflow_s1_dinsar.html">Sentinel-1 TOPS DInSAR</a> and <a href="../workflows/workflow_stripmap_dinsar.html">Stripmap DInSAR</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Massonnet, D., Feigl, K. L. (1998). Radar interferometry and its application to changes in the Earth's
+        surface. <i>Reviews of Geophysics</i>, 36(4), 441&#8211;500. doi:10.1029/97RG03139</li>
+    <li>B&uuml;rgmann, R., Rosen, P. A., Fielding, E. J. (2000). Synthetic aperture radar interferometry to measure
+        Earth's surface topography and its deformation. <i>Annual Review of Earth and Planetary Sciences</i>,
+        28, 169&#8211;209. doi:10.1146/annurev.earth.28.1.169</li>
+    <li>Hanssen, R. F. (2001). <i>Radar Interferometry: Data Interpretation and Error Analysis</i>.  Kluwer Academic Publishers, Dordrecht. doi:10.1007/0-306-47633-9</li>
+    <li>Fialko, Y., Simons, M., Agnew, D. (2001). The complete (3-D) surface displacement field in the epicentral
+        area of the 1999 M<sub>W</sub>7.1 Hector Mine earthquake, California, from space geodetic observations.
+        <i>Geophysical Research Letters</i>, 28(16), 3063&#8211;3066. doi:10.1029/2001GL013174</li>
+    <li>Wright, T. J., Parsons, B. E., Lu, Z. (2004). Toward mapping surface deformation in three dimensions using
+        InSAR. <i>Geophysical Research Letters</i>, 31(1), L01607. doi:10.1029/2003GL018827</li>
+</ol>
+
+<hr>
+</body>
+</html>

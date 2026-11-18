@@ -49,12 +49,37 @@ A regularization parameter that balances the background and target
 terms. Lower lambda value results in more detected targets. <br></span></li><li>Include source bands: If the checkbox is selected, all
 bands&nbsp;of the source product will be included in the target product
 together with the&nbsp;bands of the detected targets. </li></ol><div style="margin-left: 40px;"><img style="width: 487px; height: 445px;" alt="" src="images/rpca_change_detection_dlg.jpg">&nbsp;<br></div>
-&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. RPCA Change Detection dialog box<br><p style="font-style: italic;">Reference:</p>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. RPCA Change Detection dialog box<br><h3>References</h3>
+<ol>
+    <li>Schwartz, C., Ramos, L. P., Duarte, L. T., Pinho, M. S., Pettersson, M. I., Vu, V. T., Machado, R. (2020). Change detection in UWB SAR images based on robust principal component analysis. <i>Remote Sensing</i>, 12(12), 1916. doi:10.3390/rs12121916</li>
+    <li>Cand&egrave;s, E. J., Li, X., Ma, Y., Wright, J. (2011). Robust principal component analysis? <i>Journal of the ACM</i>, 58(3), article 11. doi:10.1145/1970392.1970395</li>
+</ol>
 
-<p> [1] Schwartz, C.; Ramos, L.P.; Duarte, L.T.; Pinho, M.d.S.;
-Pettersson, M.I.; Vu, V.T.; Machado, R. Change Detection in UWB SAR
-Images Based on Robust Principal Component Analysis. Remote Sens. 2020,
-12, 1916.<br></p>
-
+<!-- params:begin op="RPCA-Change-Detection" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>RPCA-Change-Detection</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>maskThreshold</code></td><td>float</td><td>0.05</td><td>(0, 1)</td><td>&nbsp;</td><td>Mask threshold</td></tr>
+<tr><td><code>lambda</code></td><td>float</td><td>0.01</td><td>(0, 1)</td><td>&nbsp;</td><td>Regularization parameter</td></tr>
+<tr><td><code>includeSourceBands</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Include source bands</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/change_detection.html">SAR change detection</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>None.</li>
+    <li>Recommended: a coregistered stack of calibrated amplitude or intensity images, as the page describes.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

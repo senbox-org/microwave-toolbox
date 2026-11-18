@@ -39,5 +39,29 @@ into each individual reference and secondary products. <br>
 &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; Figure 1. Stack&nbsp; Split operator
 UI<br>
 <br><br>
+<!-- params:begin op="Stack-Split" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Stack-Split</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>targetFolder</code></td><td>File</td><td>target</td><td>&nbsp;</td><td>&nbsp;</td><td>The output folder to which the data product is written.</td></tr>
+<tr><td><code>formatName</code></td><td>String</td><td>BEAM-DIMAP</td><td>&nbsp;</td><td>&nbsp;</td><td>The name of the output file format.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Recommended: a coregistered stack (the operator splits it into reference and secondary products; there is no explicit check)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Process each split product separately, or export it</li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body></html>

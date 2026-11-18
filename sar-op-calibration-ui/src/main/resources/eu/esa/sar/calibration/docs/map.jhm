@@ -9,6 +9,7 @@
     <mapID target="RemoveAntennaPatternOp" url="operators/RemoveAntennaPatternOp.html"/>
 	<mapID target="ThermalNoiseRemoval" url="operators/ThermalNoiseRemoval.html"/>
 	<mapID target="RCMThermalNoiseRemoval" url="operators/RCMThermalNoiseRemoval.html"/>
+	<mapID target="SaocomThermalNoiseRemoval" url="operators/SaocomThermalNoiseRemoval.html"/>
 	<mapID target="RemoveGRDBorderNoise" url="operators/RemoveGRDBorderNoise.html"/>
 	<mapID target="importXCAProduct" url="operators/importXCAProduct.html"/>
 

@@ -1,0 +1,2 @@
+# category|key|reason (every entry names the plan task that removes it)
+# Plan: docs/plans/2026-11-12-javahelp-overhaul-plan.md

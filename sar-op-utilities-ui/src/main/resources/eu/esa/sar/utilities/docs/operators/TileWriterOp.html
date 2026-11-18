@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Help - Tile Writer</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css"></head>
+
+<body>
+<table class="header">
+    <tbody>
+    <tr class="header">
+        <td class="header">Tile Writer<br>
+        </td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Tile Writer</h1>
+<p>The Tile Writer operator (<code>TileWriter</code>) cuts a product into a regular grid of rectangular pieces and
+    writes each piece to its own file. Every piece keeps all bands, tie-point grids and metadata of the source. Use it to
+    split a large scene into parts that are easier to share or to process one at a time.</p>
+<p>Tile Writer has no menu entry. Add it in the
+    <a href="nbdocs://org.esa.snap.snap.graph.builder/org/esa/snap/graphbuilder/docs/operators/graph_builder.html">Graph Builder</a>
+    (operator group <i>Tools</i>) in place of a Write node, or call it with GPT. It writes its own files, so it needs
+    no Write node after it.</p>
+
+<h2>How the grid is built</h2>
+<p>There are two ways to divide the image, set by <i>Division By</i>:</p>
+<ul>
+    <li><b>Tiles:</b> you choose the <i>Number of Tiles</i> N. The grid has &#8730;N rows and &#8730;N columns, and each
+        piece is (image width / &#8730;N) by (image height / &#8730;N) pixels. Choose a square number (4, 9, 16, 36,
+        64, 100 or 256). The list also offers 2, but with 2 the code builds a 1&nbsp;&times;&nbsp;1 grid while
+        reserving two outputs, and the run fails.</li>
+    <li><b>Pixels:</b> you choose the size of one piece, <i>Pixel Size</i> width and height (200 by 200 by default).
+        The grid has (image width / piece width) columns and (image height / piece height) rows.</li>
+</ul>
+<p>All divisions are whole-number divisions. When the image size is not an exact multiple of the piece size, the
+    leftover pixels at the right and bottom edges are not written to any piece.</p>
+<p><code>overlap</code> (default 0) enlarges every piece by that many pixels on each side. At the left and top image
+    edges the start is held at pixel 0 but the size is not reduced, so the extra pixels go to the far side. Pieces on
+    the right and bottom edges are not clipped to the image. The dialog does not show <code>overlap</code>; set it in
+    the graph XML or on the GPT command line.</p>
+
+<h2>Output files</h2>
+<p>The pieces are written in the folder of the target file, in the chosen format (BEAM-DIMAP by default). Each file is
+    named after the target file with <code>_1</code>, <code>_2</code>, ... added before the extension. Numbering runs
+    along the first row from left to right, then the next row. When the format is BEAM-DIMAP, each header is written
+    again after the last tile, so it is complete.</p>
+<p>The operator passes the source product through unchanged as its own target product. The pieces are only in the
+    files it writes.</p>
+
+<h2>Dialog</h2>
+<ul>
+    <li><b>Division By:</b> <i>Tiles</i> or <i>Pixels</i>.</li>
+    <li><b>Number of Tiles:</b> shown for <i>Tiles</i>.</li>
+    <li><b>Pixel Size:</b> two fields, width and height in pixels, shown for <i>Pixels</i>.</li>
+    <li><b>Target Tile Products:</b> the base name, the output format and the folder.</li>
+</ul>
+
+<!-- params:begin op="TileWriter" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>TileWriter</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>file</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The output file to which the data product is written.</td></tr>
+<tr><td><code>formatName</code></td><td>String</td><td>BEAM-DIMAP</td><td>&nbsp;</td><td>&nbsp;</td><td>The name of the output file format.</td></tr>
+<tr><td><code>divisionBy</code></td><td>String</td><td>Tiles</td><td>Tiles, Pixels</td><td>&nbsp;</td><td>How to divide the tiles</td></tr>
+<tr><td><code>numberOfTiles</code></td><td>String</td><td>4</td><td>2, 4, 9, 16, 36, 64, 100, 256</td><td>&nbsp;</td><td>The number of output tiles</td></tr>
+<tr><td><code>pixelSizeX</code></td><td>int</td><td>200</td><td>&nbsp;</td><td>&nbsp;</td><td>Tile pixel width</td></tr>
+<tr><td><code>pixelSizeY</code></td><td>int</td><td>200</td><td>&nbsp;</td><td>&nbsp;</td><td>Tile pixel height</td></tr>
+<tr><td><code>overlap</code></td><td>int</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Tile overlap</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/sar_fundamentals.html">SAR Fundamentals</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>None (works on any product); a product writer must exist for the chosen format.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Open or process each piece on its own</li>
+</ul>
+<!-- footer:end -->
+</body>
+</html>

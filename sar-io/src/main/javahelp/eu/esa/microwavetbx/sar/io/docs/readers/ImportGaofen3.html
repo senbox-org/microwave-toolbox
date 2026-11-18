@@ -1,74 +1,85 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import Gaofen-3</title>
-    <link rel="stylesheet" href="../style.css"></head><body>
-
+<html>
+<head><title>Help - Import Gaofen-3</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import Gaofen-3 SAR</td>
-        <td class="header" align="right"><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header">&nbsp; Import Gaofen-3</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
 
+<p>The <b>Gaofen3</b> reader (<i>File &gt; Import &gt; SAR Sensors &gt; GAOFEN-3/3B/3C</i>) opens
+products from the three Gaofen-3 satellites, which share one product format.</p>
 
-<h3>Import Gaofen-3 Product</h3>
-
-<p class="MsoNormal" style="text-align: justify;">Gaofen-3 is a Chinese C-band SAR satellite constellation
-operated by CRESDA (China Centre for Resources Satellite Data and Application). The constellation consists of
-three satellites providing approximately 3-4 day revisit.</p>
-
-<p class="MsoNormal"><b>Satellites:</b></p>
+<h2>Mission</h2>
 <ul>
-    <li>GF-3 (launched 2016-08-10, operational)</li>
-    <li>GF-3B (launched 2022-04-07, operational)</li>
-    <li>GF-3C (launched 2024-12, operational)</li>
+    <li><b>Operator:</b> China National Space Administration (CNSA); satellites built by the China
+        Academy of Space Technology.</li>
+    <li><b>Instrument:</b> C-band SAR at 5.4&nbsp;GHz (wavelength about 5.6&nbsp;cm), 12 imaging
+        modes.</li>
+    <li><b>Orbit:</b> sun-synchronous, about 755&nbsp;km altitude.</li>
+    <li><b>Satellites:</b> GF-3 01 launched 10 August 2016 (9 August UTC; file prefix <code>GF3</code>), GF-3 02 in
+        November 2021 (<code>GF3B</code>) and GF-3 03 in April 2022 (<code>GF3C</code>).</li>
 </ul>
 
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-C-band (5.4 GHz)</p>
-
-<p class="MsoNormal"><b style="">Acquisition Modes (12 modes):</b></p>
+<h2>Supported products</h2>
+<table border="1" cellpadding="4">
+    <tr><th>Level</th><th>Content</th><th>Read by SNAP</th></tr>
+    <tr><td>L1A</td><td>Single-look complex, slant range</td><td>Yes</td></tr>
+    <tr><td>L1B</td><td>Detected image</td><td>Yes</td></tr>
+    <tr><td>L2</td><td>Geometrically corrected</td><td>No</td></tr>
+</table>
 <ul>
-    <li>Spotlight [SL] (~1 m resolution)</li>
-    <li>Ultra-fine stripmap [UFS] (~3 m)</li>
-    <li>Fine stripmap [FSI] (~5 m)</li>
-    <li>Wide fine stripmap [FSII] (~10 m)</li>
-    <li>Standard stripmap [SS] (~25 m)</li>
-    <li>Narrow ScanSAR [NSC] (~50 m)</li>
-    <li>Wide ScanSAR [WSC] (~100 m)</li>
-    <li>Global observation [GLO] (~500 m)</li>
-    <li>Quad-pol stripmap [QPSI] (~8 m)</li>
-    <li>Wide quad-pol stripmap [QPSII] (~25 m)</li>
-    <li>Wave [WAV]</li>
-    <li>Extended incidence angle [EXT]</li>
+    <li><b>Modes:</b> Spotlight, stripmap (ultra-fine, fine, wide fine, standard), ScanSAR (narrow,
+        wide, global), quad-pol stripmap (two swath widths), wave and extended incidence angle.</li>
+    <li><b>Polarisations:</b> single (HH or VV), dual (HH+HV or VV+VH) or quad (HH+HV+VH+VV).</li>
 </ul>
 
-<p class="MsoNormal"><b style="">Product Types:</b></p>
+<h2>How to open</h2>
+<p>Select the metadata file ending in <code>.meta.xml</code> (name starting with <code>GF3_</code>,
+<code>GF3B_</code> or <code>GF3C_</code>), or the product folder, or a ZIP archive with one of these
+prefixes. The GeoTIFF images and the <code>.rpc</code> file must be in the same folder.</p>
+
+<h2>What you get</h2>
 <ul>
-    <li>L1A Single-look complex (SLC)</li>
-    <li>L1B Single-look / Multi-look image products (detected)</li>
-    <li>L2 Geocoded products</li>
+    <li><b>L1A:</b> complex bands <code>i_HH</code> and <code>q_HH</code> (units real and imaginary)
+        per polarisation, plus a virtual <code>Intensity_HH</code>.</li>
+    <li><b>L1B:</b> <code>Amplitude_HH</code> per polarisation, plus a virtual
+        <code>Intensity_HH</code>.</li>
+    <li>Geocoding from the RPC (rational polynomial coefficients) file, an incidence angle tie-point
+        grid, and orbit state vectors that the reader reconstructs from the RPC model.</li>
+    <li>Acquisition parameters are in the
+        <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</li>
 </ul>
 
-<p class="MsoNormal"><b style="">Polarizations:</b> Single (HH or VV), Dual (HH+HV, VV+VH), Quad (HH+HV+VH+VV)</p>
-
-<p class="MsoNormal"><b style="">File Format:</b> GeoTIFF imagery with XML metadata (.meta.xml) and
-RPC geocoding parameters (.rpc file).</p>
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the .meta.xml metadata file or the product directory.
-Opening zipped products (*.zip) directly is also supported.
-All three satellites (GF-3, GF-3B, GF-3C) use the same product format.</p>
-
-<p class="MsoNormal"><b style="">Data Access:</b></p>
+<h2>Known limitations</h2>
 <ul>
-    <li>CRESDA: <a href="https://osdds.cresda.com">https://osdds.cresda.com</a></li>
-    <li>PIE-Engine: <a href="https://pie.cresda.cn">https://pie.cresda.cn</a></li>
+    <li>Radiometric Calibration does not support Gaofen-3.</li>
+    <li>The product type is taken from <code>_L1A_</code> or <code>_L1B_</code> in the file name;
+        Level-2 products are not recognised.</li>
+    <li>The orbit is derived from the RPC model, not from precise orbit data, so geometric accuracy
+        depends on the RPC.</li>
 </ul>
 
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-<p class="MsoNormal"><a href="https://www.eoportal.org/satellite-missions/gaofen-3">https://www.eoportal.org/satellite-missions/gaofen-3</a></p>
+<h2>Recommended next step</h2>
+<ul>
+    <li>L1A: <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>
+        &rarr; <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a>.</li>
+    <li>L1B: Speckle Filter &rarr; Range Doppler Terrain Correction.</li>
+    <li>Quad-pol L1A:
+        <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a>.</li>
+</ul>
+
+<h2>Product format specification</h2>
+<p>No public English format specification is linked here. Mission overview:
+<a href="https://www.eoportal.org/satellite-missions/gaofen-3">https://www.eoportal.org/satellite-missions/gaofen-3</a>.</p>
 
 <hr>
-</body></html>
+</body>
+</html>

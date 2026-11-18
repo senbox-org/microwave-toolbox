@@ -16,10 +16,10 @@
                 <tocitem text="Demodulate" target="DemodulateOp"/>
                 <tocitem text="Remodulate" target="RemodulateOp"/>
                 <tocitem text="Stack Tools">
-                    <tocitem text="Create Stack" target="CreateStackOp"/>
                     <tocitem text="Stack Averaging" target="StackAveragingOp"/>
                     <tocitem text="Stack Split" target="StackSplitOp"/>
                     <tocitem text="Split Stack into Multiple References" target="MultiReference"/>
+                    <tocitem text="Principal Component Analysis" target="PCA"/>
                 </tocitem>
             </tocitem>
             <tocitem text="Interferometric">
@@ -32,11 +32,15 @@
                     <tocitem text="Ionospheric Correction" target="IonosphericCorrectionOp"/>
                     <tocitem text="Tropospheric Correction (Empirical)" target="EmpiricalTropoCorrectionOp"/>
                 </tocitem>
+                <tocitem text="Phase Linking">
+                    <tocitem text="Phase Linking" target="PhaseLinkingOp"/>
+                </tocitem>
                 <tocitem text="Filtering">
                     <tocitem text="Goldstein Phase Filtering" target="GoldsteinFilterOp"/>
                 </tocitem>
                 <tocitem text="PSI/SBAS">
                     <tocitem text="StaMPS Export" target="StampsExport"/>
+                    <tocitem text="SBAS Inversion" target="SBASInversionOp"/>
                 </tocitem>
                 <tocitem text="InSAR Stack Overview" target="InSARStackOverview"/>
             </tocitem>

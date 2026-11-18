@@ -23,18 +23,15 @@ It estimates the errors caused by the geophysical effects during
 imaging and the errors introduced during the processing of the
 Sentinel-1 SLC product. With the application of the ETAD correction,
 the geometric accuracy of the Sentinel-1 SLC images could be improved
-to centimetric levels.&nbsp;</p><p>This
-operator performs ETAD correction to a given Sentinel-1 product in two
-ways depending on the user's application which corresponds to the two
-options in the UI (Figure 1) below. For Option 1, the&nbsp;operator
-computes
+to centimetric levels.&nbsp;</p><p>The
+operator offers two corrections, which correspond to the two checkboxes in the UI (Figure 1)
+below. <i>Resample image (geometric correction)</i> computes
 for all pixels the range and azimuth offsets based on the user selected
 ETAD correction layers, then resamples the image based on the computed
-range and
-azimuth offsets. It is for applications where the accurate geodetic
-geolocation is required. Option 2 is for InSAR applications where
-interferogram is generated using two ETAD corrected Sentinel-1 TOPS SLC
-products.&nbsp;</p><p>For
+range and azimuth offsets. It is for applications where accurate geodetic
+geolocation is required. <i>Apply range-delay phase correction</i> is for InSAR applications
+where the interferogram is generated from ETAD corrected Sentinel-1 SLC products.
+Either one or both can be selected, see below.&nbsp;</p><p>For
 TOPS SLC product,&nbsp;the&nbsp;operator currently requires the users
 split the product into sub-swathes and applies the ETAD correction to each split product.&nbsp; </p><h4>Input</h4>
 <ul>
@@ -54,24 +51,86 @@ find the corresponding ETAD product for the source product and download
 it automatically from the Copernicus Data Space.</li><li>Specify ETAD
 File: In case the ETAD file is not available and cannot be downloaded
 automatically, users can use their ETAD product obtained from other
-sources with this option.</li><li>Option 1: This is for applications
-where accurate geolocation is required. With this option, the azimuth
-and slant range delays are estimated for each pixel and image is
-resampled to correct the errors caused by the delays.</li><li>Resampling Type: The interpolation methods used for resampling the image. </li><li>ETAD
+sources with this option.</li><li>Resample image (geometric correction): On by default.
+The operator computes the range and azimuth offsets of every pixel from the
+selected ETAD correction layers and resamples the image accordingly. Use it when accurate
+geolocation is required. At least one correction layer must be selected, otherwise the
+operator stops with "No correction layer is selected".</li><li>Resampling Type: The interpolation
+method used for resampling the image (default: <code>BISINC_5_POINT_INTERPOLATION</code>). Only
+available when <i>Resample image</i> is selected.</li><li>ETAD
 Correction Layers: The range and azimuth correction layers available
 for ETAD correction. Users can select the layers that matter to their
 applications. Note that the "Sum Of Range Corrections" layer
 contains all the individual range correction layers in it, and the "Sum
 Of Azimuth Corrections" contains all the individual azimuth correction
 layers. Therefore, they should not be selected together with any of the
-individual layers.</li><li>Option 2: This is for InSAR applications
-where the range corrections are converted to phase correction which is
-saved as a tie point grid in the output product. This phase correction
-is eventually used by the Interferogram operator in correcting
-interferometric phase. </li></ul>
+individual layers. By default both sum layers are selected. The layers apply only
+when <i>Resample image</i> is selected.</li><li>Apply range-delay phase correction
+(<code>outputPhaseCorrections</code> in GPT and graph XML): Off by
+default. The range corrections are converted to a phase correction. It works for
+Sentinel-1 IW SLC and SM SLC products only. If <i>Resample image</i> is not selected, the
+phase correction is saved as tie-point grids in the output product and is used later by the
+Interferogram operator to correct the interferometric phase (classical InSAR chain).</li><li>Also
+output the applied phase as a band (diagnostic): Off by default, and available only together
+with the phase correction. Writes the applied phase as an <code>etadPhase</code> band so that
+the size of the correction can be checked. This band is not complex, so it changes what
+coregistration and stacking see.</li><li>Source Band (<code>sourceBands</code>): Optional list of
+bands to correct, when set on the command line or in a graph.</li></ul>
+<p>The two checkboxes <i>Resample image</i> and <i>Apply range-delay phase correction</i> are
+independent, not alternatives, and at least one of them must be on. Selecting both applies the
+geometric correction and removes the range-delay phase from the complex data in one pass. This
+is the combination needed for the geocode-first (GSLC) InSAR chain, because both corrections
+then live in the pixels and survive geocoding. The combination is implemented for IW (TOPS)
+products only; for other modes the operator stops with an explanatory message.</p>
 <p><img style="width: 472px; height: 441px;" alt="" src="images/S1ETADCorrectionOp.jpg"><br></p><br>
-<h3>Reference:</h3>
-<p>[1] S1-ETAD Project: Product definition Document, Doc. ID ETAD-DLR-PS-0002, Issue 2.4, Date 06.03.2023, Page 1 of 37.</p><p>[2] S1-ETAD: Product Format Specification Document, Doc. ID ETAD-DLR-PS-0014, Issue 1.8, Date 06.03.2023, Page 1 of 63.</p>
+<h3>References</h3>
+<ol>
+    <li>Gisinger, C., Libert, L., Marinkovic, P., Krieger, L., Larsen, Y., Valentino, A., Breit, H., Balss, U., Suchandt, S., Nagler, T., Eineder, M., Miranda, N. (2022). The Extended Timing Annotation Dataset for Sentinel-1 &#8211; Product description and first evaluation results. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 60, 5232622. doi:10.1109/TGRS.2022.3194216</li>
+    <li>S1-ETAD Project: Product Definition Document, Doc. ID ETAD-DLR-PS-0002, Issue 2.4, 06.03.2023.</li>
+    <li>S1-ETAD: Product Format Specification Document, Doc. ID ETAD-DLR-PS-0014, Issue 1.8, 06.03.2023.</li>
+</ol>
 
+<!-- params:begin op="S1-ETAD-Correction" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>S1-ETAD-Correction</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>etadFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>ETAD product</td></tr>
+<tr><td><code>resamplingType</code></td><td>String</td><td>BISINC_5_POINT_INTERPOLATION</td><td>&nbsp;</td><td>&nbsp;</td><td>Method for resampling image from the un-corrected grid to the etad-corrected grid.</td></tr>
+<tr><td><code>resamplingImage</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Resampling Image</td></tr>
+<tr><td><code>outputPhaseCorrections</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Output Phase Corrections</td></tr>
+<tr><td><code>outputETADPhaseBand</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Also write the applied range-delay phase as an 'etadPhase' band, so the size of the correction can be inspected without reprocessing. Diagnostic only: adds a non-complex band, which changes what coregistration and stacking see.</td></tr>
+<tr><td><code>troposphericCorrectionRg</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Tropospheric Correction (Range)</td></tr>
+<tr><td><code>ionosphericCorrectionRg</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Ionospheric Correction (Range)</td></tr>
+<tr><td><code>geodeticCorrectionRg</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Geodetic Correction (Range)</td></tr>
+<tr><td><code>dopplerShiftCorrectionRg</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Doppler Shift Correction (Range)</td></tr>
+<tr><td><code>geodeticCorrectionAz</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Geodetic Correction (Azimuth)</td></tr>
+<tr><td><code>bistaticShiftCorrectionAz</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Bistatic Shift Correction (Azimuth)</td></tr>
+<tr><td><code>fmMismatchCorrectionAz</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>FM Mismatch Correction (Azimuth)</td></tr>
+<tr><td><code>sumOfAzimuthCorrections</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Sum Of Azimuth Corrections</td></tr>
+<tr><td><code>sumOfRangeCorrections</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Sum Of Range Corrections</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/orbits_etad.html">Orbits and timing corrections (ETAD, EAP)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_gslc.html">GSLC</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/atmosphere.html">Atmospheric and Ionospheric Phase</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Sentinel-1 product and a matching ETAD product: either a supplied ETAD file or an automatic search.</li>
+    <li>The phase-correction output requires an IW or SM SLC product; combining it with image resampling requires IW.</li>
+    <li>At least one correction layer must be selected when resampling.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="BackGeocodingOp.html">Back Geocoding</a> or <a href="TOPSARSplitOp.html">TOPS Split</a> (SLC)</li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> (GRD)</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

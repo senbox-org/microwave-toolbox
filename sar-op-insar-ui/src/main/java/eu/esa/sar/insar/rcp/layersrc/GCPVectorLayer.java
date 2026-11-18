@@ -61,17 +61,31 @@ public class GCPVectorLayer extends Layer {
                     final MetadataElement[] gcpElems = warpDataElem.getElements();
                     gcpList.clear();
                     for (MetadataElement gcpElem : gcpElems) {
-                        final double refX = gcpElem.getAttributeDouble("mst_x", 0);
-                        final double refY = gcpElem.getAttributeDouble("mst_y", 0);
-
-                        final double secX = gcpElem.getAttributeDouble("slv_x", 0);
-                        final double secY = gcpElem.getAttributeDouble("slv_y", 0);
-
-                        gcpList.add(new GCPData(refX, refY, secX, secY));
+                        final double[] c = readCoordinates(gcpElem);
+                        gcpList.add(new GCPData(c[0], c[1], c[2], c[3]));
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Returns {refX, refY, secX, secY}. WarpOp and OffsetTrackingOp write ref_x/ref_y/sec_x/sec_y;
+     * products written by older versions carry mst_x/mst_y/slv_x/slv_y.
+     */
+    static double[] readCoordinates(final MetadataElement gcpElem) {
+        return new double[]{
+                readAttribute(gcpElem, "ref_x", "mst_x"),
+                readAttribute(gcpElem, "ref_y", "mst_y"),
+                readAttribute(gcpElem, "sec_x", "slv_x"),
+                readAttribute(gcpElem, "sec_y", "slv_y")};
+    }
+
+    private static double readAttribute(final MetadataElement elem, final String name, final String legacyName) {
+        if (elem.containsAttribute(name)) {
+            return elem.getAttributeDouble(name, 0);
+        }
+        return elem.getAttributeDouble(legacyName, 0);
     }
 
     @Override

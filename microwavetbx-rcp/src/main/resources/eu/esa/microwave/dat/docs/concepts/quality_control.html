@@ -1,0 +1,244 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Quality Control and Troubleshooting</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Quality Control and Troubleshooting</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Quality Control and Troubleshooting</h1>
+
+<p class="lead">Most bad SAR results come from a small set of causes: a step skipped, steps run in the wrong
+order, or a parameter left at a default that does not suit the data. This page lists the symptoms you will
+see, how to confirm the cause with SNAP's own tools, and the fix.</p>
+
+<h2>General checks</h2>
+<p>Before you look for a processing error, find out what has already been done to the product.</p>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>What to check</th><th>Where in SNAP</th><th>What to look for</th></tr>
+    <tr><td>Processing state</td>
+        <td>Metadata &gt; Abstracted_Metadata</td>
+        <td><code>abs_calibration_flag</code>, <code>multilook_flag</code>, <code>srgr_flag</code>,
+            <code>coregistered_stack</code>, <code>is_terrain_corrected</code> (0 or 1);
+            <code>orbit_state_vector_file</code> (the orbit file applied, if any); <code>DEM</code>;
+            <code>Processing_system_identifier</code> (for Sentinel-1, the IPF version).</td></tr>
+    <tr><td>Processing history</td>
+        <td>Metadata &gt; Processing_Graph</td>
+        <td>One <code>node.N</code> element per operator, with its <code>sources</code> and
+            <code>parameters</code>. Use it to confirm the order of steps and the settings actually used.</td></tr>
+    <tr><td>Band units and size</td>
+        <td>Analysis &gt; Information</td>
+        <td>Unit (<code>intensity</code>, <code>intensity_db</code>, <code>phase</code>, <code>abs_phase</code>),
+            no-data value, raster size.</td></tr>
+    <tr><td>Value range</td>
+        <td>Analysis &gt; Statistics, Analysis &gt; Histogram</td>
+        <td>All-zero bands, spikes at a clip value, negative intensities, NaN.</td></tr>
+    <tr><td>Single pixels</td>
+        <td>View &gt; Tool Windows &gt; Pixel Info</td>
+        <td>Values of the loaded or displayed bands at the cursor, e.g. over calm water, a corner reflector
+            or a GNSS station. To see all bands, untick <i>Show only pixel values of loaded or displayed
+            bands</i> in Tools &gt; Options &gt; General &gt; UI Behaviour.</td></tr>
+    <tr><td>Absolute accuracy</td>
+        <td>Your own reference data</td>
+        <td>Corner reflectors for geolocation and radiometry; GNSS, projected into the line of sight,
+            for displacement (see <a href="displacement.html">Displacement</a>).</td></tr>
+</table>
+
+<h2>Backscatter and RTC</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Symptom</th><th>Likely cause</th><th>How to check in SNAP</th><th>Fix</th></tr>
+    <tr><td>Bright or dark strips along the near- and far-range edges of a GRD</td>
+        <td>Border noise in Sentinel-1 GRDs from before IPF 2.90</td>
+        <td><code>Processing_system_identifier</code>; view the image edges</td>
+        <td>Run Remove-GRD-Border-Noise first. It refuses calibrated input. From IPF 2.90 the processor
+            masks the borders itself.</td></tr>
+    <tr><td>Noise bands at cross-pol sub-swath seams</td>
+        <td>Thermal noise not removed</td>
+        <td>View dark, uniform areas</td>
+        <td>ThermalNoiseRemoval before Calibration (<a href="radiometry.html">Radiometry</a>).</td></tr>
+    <tr><td>Many pixels at exactly 10<sup>&#8722;5</sup> (&#8722;50 dB) after noise removal; or
+        negative values and NaN in dB</td>
+        <td>Power minus noise is negative below the noise floor. <i>Clip Negative Values</i> (on by
+            default) replaces these by <i>Clip Floor Value</i> (default 10<sup>&#8722;5</sup>); with
+            clipping off they stay negative.</td>
+        <td>Histogram: a spike at the floor value. Pixel Info over water.</td>
+        <td>Expected over dark surfaces; do not interpret them. For composites, turn clipping off and average
+            in linear units.</td></tr>
+    <tr><td>Slopes facing the radar still bright after Terrain Correction</td>
+        <td>Terrain Flattening not run; only <i>Apply radiometric normalization</i> (angle-based) used; or the
+            <code>Gamma0</code> band from Calibration used</td>
+        <td>Processing_Graph: is there a <code>Terrain-Flattening</code> node before
+            <code>Terrain-Correction</code>?</td>
+        <td>Calibrate to Beta0, then Terrain-Flattening, then Terrain-Correction
+            (<a href="rtc.html">RTC</a>).</td></tr>
+    <tr><td>Image shifted against a map, more in mountains</td>
+        <td>Orbit not updated; external DEM in the wrong height datum (shift &asymp; N / tan &theta;, with N the
+            geoid height and &theta; the incidence angle)</td>
+        <td><code>orbit_state_vector_file</code>; <code>DEM</code>; overlay coastlines or roads</td>
+        <td>Apply-Orbit-File; set <i>External DEM Apply EGM</i> to match the DEM (on for geoid heights). The
+            default is on in Terrain Correction and off in Terrain Flattening
+            (<a href="height_references.html">Height references</a>).</td></tr>
+    <tr><td>Black (no-data) areas after Terrain Correction or Terrain Flattening</td>
+        <td><i>Mask out areas with no elevation</i> (on by default) where the DEM has no data, e.g. outside
+            SRTM coverage; no-data in the source (masked borders); layover and shadow</td>
+        <td><i>Save DEM as band</i>; <i>Save layover shadow mask</i>; check the source image</td>
+        <td>Use a DEM that covers the scene (default Copernicus 30 m). Unticked, the mask option geocodes
+            missing heights on the EGM96 geoid instead. Mask layover and shadow
+            (<a href="geometry.html">Geometry</a>).</td></tr>
+</table>
+
+<h2>InSAR and TOPS</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Symptom</th><th>Likely cause</th><th>How to check in SNAP</th><th>Fix</th></tr>
+    <tr><td>Phase jumps at burst seams</td>
+        <td>Enhanced Spectral Diversity not run, or its overlap estimates are noisy because coherence is low</td>
+        <td>Processing_Graph: an <code>Enhanced-Spectral-Diversity</code> node after
+            <code>Back-Geocoding</code>; zoom on the seams in <code>Phase_ifg</code></td>
+        <td>Back-Geocoding, then ESD, on split burst products, before TOPSAR-Deburst
+            (<a href="tops.html">TOPS</a>).</td></tr>
+    <tr><td>A smooth phase ramp across the scene</td>
+        <td>Annotated or restituted orbits; ionosphere; troposphere</td>
+        <td><code>orbit_state_vector_file</code> of each date</td>
+        <td>Precise orbits (<a href="orbits_etad.html">Orbits and ETAD</a>); for long-wavelength residuals see
+            <a href="atmosphere.html">Atmosphere</a>.</td></tr>
+    <tr><td>Fringes everywhere, following the relief</td>
+        <td>Topographic phase not removed. In Interferogram, <i>Subtract flat-earth phase</i> is on by
+            default, <i>Subtract topographic phase</i> is off.</td>
+        <td>Processing_Graph: Interferogram parameters, or a <code>TopoPhaseRemoval</code> node</td>
+        <td>Tick <i>Subtract topographic phase</i> or run Topographic Phase Removal
+            (<a href="insar.html">InSAR</a>).</td></tr>
+    <tr><td>Noise only, coherence near zero everywhere</td>
+        <td>Long temporal or large perpendicular baseline; images from different tracks</td>
+        <td>InSAR Stack Overview (dates, B<sub>&perp;</sub>); <code>REL_ORBIT</code>, <code>PASS</code></td>
+        <td>Choose a shorter pair; use the same relative orbit, sub-swath and polarisation
+            (<a href="coherence.html">Coherence</a>).</td></tr>
+    <tr><td>Coherence of 0.1&#8211;0.3 over water or other surfaces that cannot be coherent</td>
+        <td>Estimator bias, larger for small windows: about 0.1 for the default 10 &times; 10 window (more in
+            practice, since adjacent pixels are correlated), about 0.2&#8211;0.3 for 3 &times; 3 to
+            5 &times; 5</td>
+        <td>Statistics of the coherence band over water</td>
+        <td>Use a larger window; compare only values from the same window
+            (<a href="coherence.html">Coherence</a>).</td></tr>
+    <tr><td>Steps of 2&pi; (one fringe) in unwrapped phase; values differ across water or gaps</td>
+        <td>Unwrapping errors in noisy or disconnected areas</td>
+        <td>Compare with reference points of known motion; form unwrapped triplet sums
+            (<code>Unw_ab + Unw_bc &#8722; Unw_ac</code>) in Band Maths: a spatial step of 2&pi; marks an
+            error, a constant offset does not</td>
+        <td>Multilook and filter before unwrapping; mask low coherence
+            (<a href="unwrapping.html">Unwrapping</a>).</td></tr>
+    <tr><td>Uplift where subsidence was expected (or the reverse)</td>
+        <td>Sign convention, reference pair order, or reference point</td>
+        <td>Compare with GNSS in the line of sight</td>
+        <td>See <a href="displacement.html">Displacement</a>.</td></tr>
+</table>
+<p>SBAS Inversion's <code>closure_phase_rms</code> band wraps each triplet closure into (&#8722;&pi;, &pi;]
+before taking the RMS. It shows phase inconsistency (decorrelation, short-baseline bias) but is blind to
+whole-cycle unwrapping errors, which close to a multiple of 2&pi; and wrap to zero. Where no triplet has all three
+pairs above the coherence threshold (for example everywhere in a sequential network) it is no-data. Check unwrapping with
+reference points or redundant pairs, as above (<a href="time_series.html">Time series</a>).</p>
+
+<h2>Polarimetry</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Symptom</th><th>Likely cause</th><th>How to check in SNAP</th><th>Fix</th></tr>
+    <tr><td>Many pixels at the scene minimum in Freeman-Durden or Yamaguchi surface or double-bounce
+        bands</td>
+        <td>The volume model takes more power than the co-pol channels hold; SNAP clamps the negative power</td>
+        <td>Histogram of the band: a spike at the minimum</td>
+        <td>Larger window; orientation angle correction first; or a model-free or eigenvalue decomposition
+            (<a href="decompositions.html">Decompositions</a>).</td></tr>
+    <tr><td>Cities and steep slopes show strong volume scattering</td>
+        <td>Cross-pol power from oriented buildings and azimuth slopes is assigned to volume</td>
+        <td>Compare with H-A-Alpha: high volume but low entropy is suspect</td>
+        <td>Run Orientation Angle Correction before the decomposition.</td></tr>
+    <tr><td>van Zyl shows surface scattering on buildings parallel to the track</td>
+        <td>SNAP labels the larger co-pol eigenvalue as surface; where double bounce dominates,
+            <code>VanZyl_surf_b</code> and <code>VanZyl_dbl_r</code> are swapped</td>
+        <td>Compare with <code>Pauli_r</code></td>
+        <td>Use Freeman-Durden or Yamaguchi for double bounce in urban areas.</td></tr>
+</table>
+
+<h2>Error messages</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Message</th><th>Operator</th><th>Fix</th></tr>
+    <tr><td><code>Noise vectors of products before IPF 2.50 are not usable for thermal noise removal (ESA
+        MPC-0243)</code></td>
+        <td>ThermalNoiseRemoval</td>
+        <td>Skip noise removal for these products; calibrate only, and treat dark areas with caution.</td></tr>
+    <tr><td><code>Source product should NOT be a deburst product: apply thermal noise removal before TOPS
+        Deburst</code></td>
+        <td>ThermalNoiseRemoval</td>
+        <td>Run it on the burst product, before TOPSAR-Deburst.</td></tr>
+    <tr><td><code>Calibration should be applied before deburst</code></td>
+        <td>Calibration (Sentinel-1 SLC)</td>
+        <td>Calibrate the burst product, then deburst.</td></tr>
+    <tr><td><code>Cannot apply calibration to coregistered product.</code></td>
+        <td>Calibration</td>
+        <td>Calibrate each image, then build the stack.</td></tr>
+    <tr><td><code>TerrainFlattening requires beta0 or T3, C3, C2 as input</code></td>
+        <td>Terrain-Flattening</td>
+        <td>Rerun Calibration with <i>Output beta0 band</i> ticked, in linear units, or select the Beta0 band
+            in <i>Source Bands</i>.</td></tr>
+    <tr><td><code>Source product should NOT be a deburst product</code></td>
+        <td>Back-Geocoding</td>
+        <td>Use TOPSAR-Split products (one sub-swath, bursts intact); deburst after the interferogram.</td></tr>
+    <tr><td><code>For S1 TOPS SLC products, TOPS Coregistration should be used</code></td>
+        <td>Create Stack</td>
+        <td>Use Back-Geocoding and ESD for Sentinel-1 TOPS SLCs.</td></tr>
+    <tr><td><code>Product must be coregistered (missing Slave_Metadata in Metadata)</code></td>
+        <td>Enhanced-Spectral-Diversity</td>
+        <td>Give it the Back-Geocoding output, not a single image.</td></tr>
+    <tr><td><code>Input should be a coregistered stack.</code></td>
+        <td>Interferogram, SNAPHU Export</td>
+        <td>Coregister first (Back-Geocoding or Create Stack and Warp).</td></tr>
+    <tr><td><code>SnaphuImportOp requires an unwrapped phase product</code></td>
+        <td>SNAPHU Import</td>
+        <td>The second input is not the SNAPHU result (no band name containing <code>unw</code> or
+            <code>band</code>). Give the wrapped-interferogram product first and the SNAPHU result
+            (<code>UnwPhase_ifg_*.snaphu.hdr</code>) second.</td></tr>
+</table>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Debugging a final product instead of the intermediate ones. Open each step's output and check it.</li>
+    <li>Assuming a step was run because it is in your graph file. The product's Processing_Graph shows what
+        was actually applied.</li>
+    <li>Reading a low <code>closure_phase_rms</code> as proof of correct unwrapping.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="../workflows/workflow_grd_backscatter.html">GRD backscatter workflow</a></li>
+    <li><a href="../workflows/workflow_s1_dinsar.html">Sentinel-1 DInSAR workflow</a></li>
+    <li><a href="../workflows/workflow_time_series.html">Time-series workflow</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/ThermalNoiseRemoval.html">Thermal Noise Removal</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/RemoveGRDBorderNoise.html">Remove GRD Border Noise</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/TerrainFlatteningOp.html">Terrain Flattening</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range Doppler Terrain Correction</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/BackGeocodingOp.html">Back-Geocoding</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sentinel1.ui/eu/esa/sar/sentinel1/docs/operators/SpectralDiversityOp.html">Enhanced Spectral Diversity</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SubtRefDemOp.html">Topographic Phase Removal</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuImportOp.html">SNAPHU Import</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/BatchSnaphuUnwrapOp.html">Batch Snaphu Unwrap</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+</ul>
+
+<hr>
+</body>
+</html>

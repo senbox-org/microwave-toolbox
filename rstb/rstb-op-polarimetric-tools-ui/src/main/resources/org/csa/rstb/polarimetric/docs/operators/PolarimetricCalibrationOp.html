@@ -9,114 +9,183 @@
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; Polarimetric Calibration (Quegan / Ainsworth)</td>
-        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
 
 <h2 style="color:#a00">Read this before running the operator</h2>
 
-<p><b>This operator is NOT the same as radiometric calibration.</b> Most polsar workflows do
-   not need it. Running it on data that is already polarimetrically calibrated will degrade
-   the calibration, not improve it.</p>
+<p><b>This operator is experimental.</b> Its options are named after Quegan (1994) and Ainsworth et al.
+   (2006), but it implements a simplified form: a Quegan-type cross-talk solve, repeated for
+   <i>Ainsworth</i>, not the full Ainsworth et al. fit. By default it estimates and removes only the
+   cross-talk and leaves the co-polar channel imbalance untouched (f = 1), so the HH/VV ratio of the data
+   is kept. An option estimates the co-polar imbalance from the scene, but that estimate assumes equal HH
+   and VV power and forces VV/HH to 0&nbsp;dB. Check the output against corner reflectors or a reference
+   processor before you use it.</p>
+
+<p><b>It is not radiometric calibration.</b> The standard <i>Calibration</i> operator scales the pixel values to
+   &sigma;<sup>0</sup>, &gamma;<sup>0</sup> or &beta;<sup>0</sup> with the product's calibration LUT, and every
+   workflow needs it. Polarimetric calibration addresses a different problem: leakage and gain differences
+   between the polarisation channels of the scattering matrix. Most polarimetric workflows do not need it,
+   and running it on data that are already polarimetrically calibrated can only make them worse.</p>
 
 <h3>What this operator does</h3>
-<p>It estimates and corrects two kinds of distortion in the measured 2&times;2 scattering matrix:</p>
 <ul>
-    <li><b>Channel imbalance</b> &mdash; complex amplitude/phase mismatch between the H and V transmit/receive paths.</li>
-    <li><b>Crosstalk</b> &mdash; leakage between the polarisation channels caused by imperfect antenna isolation,
-        described by four complex parameters &delta;<sub>1..4</sub>.</li>
+    <li><b>Cross-talk.</b> It forms the 4&times;4 covariance of the scattering vector [HH, HV, VH, VV] over
+        the whole scene (sub-sampled) and estimates the four cross-talk terms &delta;<sub>1..4</sub> from two
+        2&times;2 linear systems built from the correlations of HV and VH with HH and VV, in the form of
+        Quegan (1994). The solve assumes reflection symmetry (co- and cross-polar channels uncorrelated).</li>
+    <li><b>Channel imbalance: left untouched by default.</b> The model has one complex co-polar imbalance f,
+        which scales HV and VH by f and VV by f<sup>2</sup>. Quegan (1994) and Ainsworth et al. (2006) both
+        state that |f| cannot be estimated from distributed targets; it needs a target with a known HH/VV
+        ratio and phase, such as a trihedral corner reflector. By default the operator therefore keeps
+        f = 1: the cross-talk solve still removes the cross-talk, and any co-polar imbalance in the data,
+        together with the scene's true HH/VV ratio, passes through unchanged.</li>
+    <li><b>Optional scene estimate of f.</b> With <b>Estimate co-pol channel imbalance from the scene</b>
+        switched on, the operator estimates |f| = (&lt;|VV|<sup>2</sup>&gt; /
+        &lt;|HH|<sup>2</sup>&gt;)<sup>1/4</sup> and arg f = &#8722;arg&lt;HH&middot;VV<sup>*</sup>&gt; / 2
+        and removes it. This assumes that the scene-average HH and VV powers are equal and that the
+        HH&#8211;VV phase is zero, and the correction forces the scene to meet it: the output VV/HH ratio is
+        0&nbsp;dB whatever the true ratio was. Natural scenes rarely meet this (bare soil and water have VV
+        above HH), so the option is normally only valid when the statistics reflect a trihedral-based
+        estimate. The phase of f is found only up to &pi;: if the true one-way imbalance phase is beyond
+        &plusmn;90&deg;, VV is still corrected but HV and VH come out with inverted sign. For a true co-polar
+        imbalance, measure it on a corner reflector; the operator does not yet accept such a measurement as
+        input.</li>
+    <li><b>No cross-polar imbalance.</b> The model uses the same f on transmit and receive, so a gain
+        difference between HV and VH is not estimated.</li>
+    <li>It then applies the inverse 4&times;4 distortion matrix (cross-talk, plus the imbalance if the option
+        is on), the same for every pixel.</li>
 </ul>
-<p>The output is a corrected full-pol scattering-matrix product (8 bands: i/q for HH, HV, VH, VV).</p>
+<p>The output is a scattering-matrix product with the same 8 bands (i/q for HH, HV, VH, VV).</p>
 
-<h3>What this operator is NOT</h3>
-<p>It is not a replacement for the standard <i>Calibration</i> operator (radiometric calibration to
-   &sigma;<sup>0</sup> / &gamma;<sup>0</sup> / &beta;<sup>0</sup>). Radiometric calibration scales DN values to
-   physical backscatter using the LUT shipped with the product; polarimetric calibration corrects
-   channel mixing in the scattering matrix. They address completely different distortions.
-   Use the standard <i>Calibration</i> op for radiometric calibration, always.</p>
+<h3>The two methods</h3>
+<p>Both methods run the same estimate; <code>method</code> changes only how often it runs.</p>
+<ul>
+    <li><i>Quegan</i>: one pass.</li>
+    <li><i>Ainsworth</i> (default): <b>Ainsworth Iterations</b> passes (default 4). Each pass corrects the
+        original covariance with the estimate so far and adds the remaining residual to the estimate, so the
+        passes converge to the distortion that leaves no correlation between the co- and cross-polar
+        channels.</li>
+</ul>
+<p>In synthetic tests of this code (a reflection-symmetric scene, &#8722;25 dB cross-talk and a known
+   imbalance):</p>
+<ul>
+    <li>With the default settings both methods removed the co/cross-polar correlation (below 0.02) and left
+        the VV/HH ratio as it was. A scene with no distortion and a true VV/HH of +6&nbsp;dB kept +6&nbsp;dB.</li>
+    <li>With the scene estimate switched on and a scene that has equal HH and VV power, both methods
+        recovered the imbalance to within 0.02 and each cross-talk term to within 15&nbsp;%.</li>
+</ul>
+<p>One pass leaves a first-order error of a few per cent in each cross-talk term, which the further passes
+   remove.</p>
+<p><b>Changed in SNAP 15:</b> the cross-talk estimator was rewritten. The repeated passes of earlier versions
+   could add cross-talk instead of removing it, so results differ from earlier versions. As in earlier
+   versions, the co-polar imbalance is not applied by default (<code>channelImbalance</code> 1 + 0j); the
+   scene estimate is a new, opt-in parameter.</p>
 
 <hr>
 
-<h2>When SHOULD you run it?</h2>
-<p>Only when you have <b>evidence that the polsar data has not been polarimetrically calibrated by
-   the provider.</b> Concrete cases:</p>
-<ul>
-    <li>Airborne SAR research data such as <b>UAVSAR</b>, <b>AIRSAR</b>, <b>F-SAR</b>, <b>RAMSES</b>,
-        <b>E-SAR</b>, <b>Pi-SAR</b>, processed from raw signal data without on-orbit calibration.</li>
-    <li>Custom or experimental quad-pol products where the documentation explicitly states that
-        crosstalk / imbalance has not been corrected.</li>
-    <li>Validation studies where you want to re-derive the calibration parameters and compare them
-        against the provider's values.</li>
-</ul>
-
-<h2 style="color:#a00">When you SHOULD NOT run it</h2>
-<p>The following missions deliver polsar products that have already been
-   polarimetrically calibrated by the data provider. Running this operator on them will
-   over-correct and corrupt the data:</p>
-<table border="1" cellpadding="4" style="border-collapse:collapse">
-    <tr><th>Mission</th><th>Agency</th><th>Notes</th></tr>
-    <tr><td>Sentinel-1 (A/B/C)</td><td>ESA</td><td>All product levels</td></tr>
-    <tr><td>RADARSAT-2</td><td>CSA / MDA</td><td>All quad-pol products</td></tr>
-    <tr><td>RADARSAT Constellation Mission (RCM)</td><td>CSA</td><td>Compact-pol and dual-pol products</td></tr>
-    <tr><td>ALOS-1 PALSAR</td><td>JAXA</td><td>Level 1.1 and higher</td></tr>
-    <tr><td>ALOS-2 PALSAR-2</td><td>JAXA</td><td>All quad-pol modes</td></tr>
-    <tr><td>ALOS-4 PALSAR-3</td><td>JAXA</td><td>All polsar modes</td></tr>
-    <tr><td>TerraSAR-X / TanDEM-X</td><td>DLR</td><td>Quad-pol experimental modes</td></tr>
-    <tr><td>COSMO-SkyMed (1st/2nd gen)</td><td>ASI</td><td>Dual-pol products</td></tr>
-    <tr><td>SAOCOM-1A/1B</td><td>CONAE</td><td>Quad-pol</td></tr>
-    <tr><td>NISAR</td><td>NASA / ISRO</td><td>Compact-pol and quad-pol</td></tr>
-    <tr><td>BIOMASS</td><td>ESA</td><td>P-band quad-pol</td></tr>
-    <tr><td>RISAT-1A</td><td>ISRO</td><td>Quad-pol products</td></tr>
+<h2>When to run it, and when not to</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Your data</th><th>Run it?</th></tr>
+    <tr><td>Quad-pol product from an operational spaceborne mission (for example RADARSAT-2, ALOS-2,
+        SAOCOM). These are normally delivered polarimetrically calibrated; check the product
+        documentation.</td>
+        <td><b>No.</b> Use <i>Calibration</i> only.</td></tr>
+    <tr><td>Dual-pol, compact-pol or single-pol product (for example all Sentinel-1 products)</td>
+        <td><b>Not possible.</b> The operator accepts only a quad-pol scattering matrix.</td></tr>
+    <tr><td>C3, C4, T3 or T4 matrix product</td>
+        <td><b>Not possible.</b> Run it on the scattering matrix, before Polarimetric Matrix Generation.</td></tr>
+    <tr><td>You need a calibrated co-polar channel balance (HH/VV ratio and phase)</td>
+        <td><b>No.</b> By default the operator leaves the HH/VV ratio untouched, and its optional scene
+        estimate forces the scene-average HH/VV ratio to 1 (0&nbsp;dB) and the HH&#8211;VV phase to 0; use
+        corner reflectors and the provider's calibration.</td></tr>
+    <tr><td>Quad-pol data whose documentation states that cross-talk has not been corrected, for example some
+        airborne research data</td>
+        <td><b>Only as an experiment.</b> Compare the result with corner reflectors or a reference processor
+        (for example PolSARpro) before using it. If you switch on the co-polar imbalance estimate, check
+        the HH/VV balance it applied.</td></tr>
+    <tr><td>L- or P-band data with Faraday rotation</td>
+        <td><b>Use with care.</b> Part of any Faraday rotation is absorbed into the cross-talk estimate.</td></tr>
 </table>
-<p>If your data is from any of these missions, do not run this operator. The standard
-   <i>Calibration</i> op is sufficient.</p>
 
 <hr>
 
 <h2>Inputs</h2>
 <ul>
     <li>Full quad-pol scattering matrix product (FULL): 8 bands &mdash; i/q components of S<sub>HH</sub>,
-        S<sub>HV</sub>, S<sub>VH</sub>, S<sub>VV</sub>.</li>
+        S<sub>HV</sub>, S<sub>VH</sub>, S<sub>VV</sub>. Other product types are rejected.</li>
 </ul>
 
 <h2>Parameters</h2>
 <ul>
-    <li><b>Calibration method</b>:
-        <ul>
-            <li><i>Quegan</i>: closed-form first-iteration solution (Quegan 1994).</li>
-            <li><i>Ainsworth</i>: iterative refinement of Quegan (Ainsworth, Ferro-Famil &amp; Lee 2006). Default.</li>
-        </ul>
-    </li>
-    <li><b>Ainsworth Iterations</b>: number of refinement iterations (default 4). Convergence is typically
-        achieved in 3&ndash;5 iterations.</li>
-    <li><b>Stats Sub-sampling</b>: only every Nth pixel in row and column is used to estimate scene
-        statistics. 10 (default) gives 1 % of the scene &mdash; sufficient for distributed-target
-        statistics and 100&times; faster than full-scene sampling.</li>
-    <li><b>Save Distortion to Metadata</b>: stores the estimated f and &delta;<sub>1..4</sub> in the
-        target product's abstracted metadata under <i>Polarimetric_Calibration</i>.</li>
+    <li><b>Calibration method</b>: <i>Quegan</i> (one pass) or <i>Ainsworth</i> (repeated passes, default).
+        See <i>The two methods</i> above.</li>
+    <li><b>Ainsworth Iterations</b>: number of passes for <i>Ainsworth</i> (default 4, range 1&ndash;50).
+        Ignored for <i>Quegan</i>. Later passes refine the estimate; a few are enough.</li>
+    <li><b>Estimate co-pol channel imbalance from the scene</b> (<code>estimateCoPolImbalance</code>,
+        default off): estimate the co-polar imbalance f from the scene and remove it. This assumes
+        &lt;|HH|<sup>2</sup>&gt; = &lt;|VV|<sup>2</sup>&gt; over the scene and forces VV/HH to 0&nbsp;dB; it
+        is normally only valid with a trihedral-based estimate. Off: f = 1, only the cross-talk is
+        corrected.</li>
+    <li><b>Stats Sub-sampling</b>: only every Nth pixel in row and column is used for the scene covariance.
+        The default 10 uses 1 pixel in 100.</li>
+    <li><b>Save Distortion to Metadata</b>: writes the estimates to the element
+        <i>Polarimetric_Calibration</i> of the abstracted metadata (default on).</li>
 </ul>
 
 <h2>Outputs</h2>
 <ul>
-    <li>Corrected scattering matrix in the same FULL band layout as the input.</li>
-    <li>(Optional) Distortion parameters in metadata: complex channel imbalance <i>f</i>
-        and crosstalk &delta;<sub>1..4</sub>.</li>
+    <li>Scattering matrix with the cross-talk correction (and, if the option is on, the channel-imbalance
+        correction) applied, in the same FULL band layout as the input.</li>
+    <li>(Optional) metadata element <i>Polarimetric_Calibration</i>: <code>method</code>,
+        <code>channelImbalance_re</code>/<code>_im</code> (the one-way imbalance f that was applied: 1 and 0
+        by default, meaning no co-polar correction; with the scene estimate on, the estimated f, and the
+        VV/HH amplitude ratio it removed is |f|<sup>2</sup>) and
+        <code>delta1</code>...<code>delta4</code> (<code>_re</code>/<code>_im</code>). The metadata numbering
+        of <code>delta1</code>...<code>delta4</code> differs from the &delta;<sub>1</sub>...&delta;<sub>4</sub>
+        of the distortion model on the concept page.</li>
 </ul>
 
-<h2>Validation expectation</h2>
-<p>This implementation follows the published descriptions of Quegan (1994) and Ainsworth (2006).
-   Sign conventions and basis transformations differ between published implementations;
-   <b>users running quantitative polarimetric analyses should validate against PolSARpro or
-   the original published reference data (e.g. AIRSAR San Francisco distortion calibrations)
-   before adopting the results in production.</b></p>
-
 <h3>References</h3>
-<p>[1] Quegan, S., 1994. <i>A unified algorithm for phase and crosstalk calibration of polarimetric
-   data &mdash; theory and observations.</i> IEEE TGRS 32(1), 89&ndash;99.</p>
-<p>[2] Ainsworth, T.L., Ferro-Famil, L., Lee, J.S., 2006. <i>Orientation angle preserving a posteriori
-   polarimetric SAR calibration.</i> IEEE TGRS 44(4), 994&ndash;1003.</p>
+<p>The cross-talk solve has the form of Quegan (1994); the <i>Ainsworth</i> option repeats it and does not
+   implement the published Ainsworth et al. (2006) algorithm:</p>
+<ol>
+    <li>Quegan, S. (1994). A unified algorithm for phase and cross-talk calibration of polarimetric data &#8212; theory and observations. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 32(1), 89&#8211;99. doi:10.1109/36.285192</li>
+    <li>Ainsworth, T. L., Ferro-Famil, L., Lee, J.-S. (2006). Orientation angle preserving a posteriori polarimetric SAR calibration. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(4), 994&#8211;1003. doi:10.1109/TGRS.2005.862508</li>
+</ol>
 
+<!-- params:begin op="Polarimetric-Calibration" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Polarimetric-Calibration</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>method</code></td><td>String</td><td>Ainsworth</td><td>Quegan, Ainsworth</td><td>&nbsp;</td><td>Calibration method</td></tr>
+<tr><td><code>numIterations</code></td><td>int</td><td>4</td><td>[1, 50]</td><td>&nbsp;</td><td>Number of iterations for the Ainsworth refinement</td></tr>
+<tr><td><code>subsample</code></td><td>int</td><td>10</td><td>[1, 100]</td><td>&nbsp;</td><td>Sub-sampling factor for statistics collection. 1 = use every pixel (slow on large scenes); 10 = use 1 pixel in 100 (fast, sufficient for distributed targets).</td></tr>
+<tr><td><code>estimateCoPolImbalance</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Estimate the co-pol channel imbalance f (VV/HH) from the scene and remove it. This assumes &lt;|HH|&#178;&gt; = &lt;|VV|&#178;&gt; and a zero HH-VV phase over the scene, and therefore forces the corrected VV/HH ratio to 0 dB. It is normally only valid with a trihedral-based estimate (corner reflector); distributed targets cannot determine |f|. When off (default), f = 1 and only the cross-talk is corrected.</td></tr>
+<tr><td><code>saveDistortion</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output the estimated distortion parameters to the metadata</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/radiometry.html">Radiometric Quantities and Calibration</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_calibration.html">Polarimetric Calibration and Propagation Effects</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Quad-pol product with the full 8-band scattering matrix (I/Q for HH, HV, VH, VV); other types are rejected</li>
+    <li>Recommended: use only on data that is not already polarimetrically calibrated, since repeating the correction degrades it</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a></li>
+    <li><a href="FaradayRotationCorrectionOp.html">Faraday Rotation Correction</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

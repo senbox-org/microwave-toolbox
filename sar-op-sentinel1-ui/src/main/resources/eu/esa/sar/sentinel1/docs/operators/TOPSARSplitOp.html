@@ -54,7 +54,16 @@ VV polarisations). <br>
 <ul>
 <li>Subswath: The subswath for the split product.<br>
   </li><li>Polarisation: The polarisation(s) for the split product.</li>
-  <li>Bursts: The bursts for the spilt product.<br>
+  <li>Enable Single Swath Mode (<code>enableSingleSwathMode</code>, default: off): Allows a product that contains
+  only one subswath as input. By default a multi-swath product is required.</li>
+  <li>First Burst Index (<code>firstBurstIndex</code>, default 1) and Last Burst Index
+  (<code>lastBurstIndex</code>, default 9999): The first and last burst of the split product, counted from 1.
+  A last index larger than the number of bursts in the subswath is reduced to the last burst.<br>
+  </li>
+  <li>WKT Area of Interest (<code>wktAoi</code>, default: empty): A polygon in WKT format, given in geographic
+  coordinates (longitude, latitude). If set, the operator keeps the bursts, from the first to the last one that
+  intersect the polygon, within the burst range given above. The burst indices are overwritten. If the polygon does
+  not overlap any burst, the operator stops with the message "wktAOI does not overlap any burst".<br>
   </li>
 
 </ul>
@@ -64,5 +73,37 @@ VV polarisations). <br>
 
 </p>
 
+<!-- params:begin op="TOPSAR-Split" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>TOPSAR-Split</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>subswath</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The sub-swath to extract (e.g. IW1, IW2, IW3); defaults to the first sub-swath of the acquisition mode</td></tr>
+<tr><td><code>enableSingleSwathMode</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Enable processing of single-swath products</td></tr>
+<tr><td><code>selectedPolarisations</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of polarisations</td></tr>
+<tr><td><code>firstBurstIndex</code></td><td>Integer</td><td>1</td><td>[1, *)</td><td>&nbsp;</td><td>The first burst index</td></tr>
+<tr><td><code>lastBurstIndex</code></td><td>Integer</td><td>9999</td><td>[1, *)</td><td>&nbsp;</td><td>The last burst index</td></tr>
+<tr><td><code>wktAoi</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>WKT polygon to be used for selecting bursts</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/tops.html">Sentinel-1 TOPS: bursts, deramping and ESD</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR fundamentals</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_s1_dinsar.html">Sentinel-1 IW DInSAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Sentinel-1 SLC product in IW or EW mode. Other product types and modes are rejected.</li>
+    <li>Unless single-swath mode is enabled, a multi-swath product.</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.io.ephemeris.ui/eu/esa/sar/orbits/docs/operators/ApplyOrbitFileOp.html">Apply Orbit File</a> (recommended before coregistration)</li>
+    <li><a href="BackGeocodingOp.html">Back Geocoding</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/GSLCGeocodingOp.html">GSLC Terrain Correction</a> (<a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_gslc.html">GSLC workflow</a>)</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body></html>

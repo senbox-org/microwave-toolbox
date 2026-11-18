@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Multitemporal Backscatter Stacks</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Multitemporal Backscatter Stacks</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Multitemporal Backscatter Stacks</h1>
+
+<p class="lead">A backscatter time series is a set of calibrated images of the same area, resampled onto one pixel grid,
+so that each pixel holds a sequence of values over time. Averaging over dates reduces speckle without losing spatial
+detail, and the temporal behaviour (stable, seasonal, abrupt) separates land covers and reveals change. Both need every
+date acquired and processed the same way, and statistics computed in linear units.</p>
+
+<h2>What a stack contains</h2>
+<p>Each date k gives a value &gamma;<sub>k</sub> per pixel, ideally terrain-flattened gamma nought
+&gamma;<sup>0</sup><sub>T</sub> (Small 2011) in linear power (see <a href="radiometry.html">Radiometry</a> and
+<a href="rtc.html">Radiometric terrain correction</a>). Each value is the true backscatter times unit-mean speckle,
+so even a stable pixel fluctuates. A forest is nearly constant, a crop field follows its growing cycle, and a building
+stays bright and steady, with a CV below the speckle floor, because a dominant scatterer does not produce fully
+developed speckle (Figure 1).</p>
+<p><img src="images/multitemporal_1.png" width="560" height="360" alt="Synthetic backscatter time series of crop, forest and urban pixels and their temporal coefficient of variation"></p>
+<p class="figcap">Figure 1. Synthetic data, for illustration. (a) One year of 12-day acquisitions (31 dates) for a crop,
+a forest and an urban pixel. Lines: the assumed true &gamma;<sup>0</sup><sub>T</sub>; markers: the same values times
+Gamma-distributed speckle with ENL 4.4 (crop, forest; the ENL of a Sentinel-1 GRDH product) or 30 (urban, a stable
+dominant scatterer). Two rain events raise the bare-soil crop pixel. For the forest pixel, the mean of the dB values
+lies about 0.5 dB below the mean taken in linear units. (b) Temporal coefficient of variation of the intensity. The
+dashed line is the value for speckle alone, 1/&radic;4.4 = 0.48.</p>
+
+<h2>Building the stack</h2>
+<p>Use one sensor mode and, unless you composite on purpose (below), one relative orbit: the same track gives the same
+incidence angle, look direction and layover or shadow pattern on every date (see <a href="geometry.html">Geometry</a>).
+Process every date with the same chain, DEM, map projection and pixel spacing (see the
+<a href="../workflows/workflow_grd_backscatter.html">GRD to terrain-flattened backscatter</a> workflow). Terrain-corrected products are put on one grid by resampling
+through their geocoding; products in radar geometry need the chain in <a href="coregistration.html">Coregistration</a>.</p>
+
+<h2>Temporal statistics</h2>
+<p>For N dates of one pixel the temporal mean &gamma;<sub>m</sub>, standard deviation s and coefficient of variation (CV) are</p>
+<p class="eq">&gamma;<sub>m</sub> = (1/N) &middot; &Sigma;<sub>k</sub> &gamma;<sub>k</sub></p>
+<p class="eq">s = [ (1/N) &middot; &Sigma;<sub>k</sub> (&gamma;<sub>k</sub> &#8722; &gamma;<sub>m</sub>)<sup>2</sup> ]<sup>1/2</sup>, &nbsp;&nbsp; CV = s / &gamma;<sub>m</sub></p>
+<ul>
+    <li><b>Mean.</b> If the speckle of the N dates is uncorrelated, the mean has about N &middot; L looks, where L is the
+        ENL of one date: 31 Sentinel-1 GRDH dates give about 136 looks, a relative standard deviation of 0.086
+        (&plusmn;0.36 dB). Speckle of two dates is correlated where the interferometric
+        <a href="coherence.html">coherence</a> is high (the intensity correlation is |coherence|<sup>2</sup>), so stable
+        targets gain less.</li>
+    <li><b>Median.</b> Robust to single outliers such as a rain date, but biased low by speckle: the median of
+        L-look speckle is below its mean (0.69 for one look, 0.93 or &#8722;0.34 dB at L = 4.4).</li>
+    <li><b>CV.</b> A pixel whose backscatter does not change has a CV close to 1/&radic;L for intensity, about half that
+        for amplitude. Values well above this mark change, crops or transient targets; the forest pixel of Figure 1, constant by
+        construction, gives 0.53: with 31 dates the CV estimate itself scatters by about &plusmn;0.06.</li>
+    <li><b>Minimum and maximum.</b> Useful for permanent water (dark on every date) and bright transient targets, but
+        they follow the speckle extremes, which widen as N grows.</li>
+</ul>
+<p>Compute all of them in linear units. The mean of dB values is the logarithm of the geometric mean and is biased low
+by 10 &middot; log<sub>10</sub>(e) &middot; (&psi;(L) &#8722; ln L), where &psi; is the digamma function: &#8722;2.5 dB for one
+look, &#8722;0.5 dB at L = 4.4.</p>
+
+<h2>Compositing several geometries</h2>
+<p>Even after terrain flattening, a slope seen in foreshortening from one pass has coarse local resolution, while the
+opposite pass resolves it well. Small (2012) combines &gamma;<sup>0</sup><sub>T</sub> images from several tracks by
+weighting each one with the inverse of its normalised local illuminated area A<sub>i</sub>:</p>
+<p class="eq">&gamma;<sub>C</sub> = &Sigma;<sub>i</sub> (&gamma;<sub>i</sub> / A<sub>i</sub>) / &Sigma;<sub>i</sub> (1 / A<sub>i</sub>)</p>
+<p>The best-resolved view dominates each pixel, and layover or shadow in one track is filled from another. Within a
+single track the weights barely change from date to date, and the composite is close to the plain temporal mean.</p>
+
+<h2>Confounders</h2>
+<p>A time series records every cause of backscatter change (see also <a href="change_detection.html">Change
+detection</a>):</p>
+<ul>
+    <li><b>Geometry.</b> Neighbouring relative orbits see a pixel at incidence angles that can differ by 10&deg; or more
+        (Sentinel-1 IW spans about 29&deg; to 46&deg;). Terrain flattening normalises the illuminated area, not the
+        angular dependence of scattering.</li>
+    <li><b>Soil moisture, rain, wet snow, freeze and thaw</b> change the dielectric constant and with it the
+        backscatter by several dB.</li>
+    <li><b>Wind on water</b> turns dark water bright and inflates its CV.</li>
+    <li><b>Phenology and farming:</b> growth, harvest and ploughing.</li>
+    <li><b>Processing baseline.</b> Processor version changes, calibration updates and small offsets between satellites
+        of a constellation can add steps to a long series.</li>
+</ul>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Create Stack</b> (<code>CreateStack</code>, Radar &gt; Coregistration &gt; Stack Tools) puts bands of several
+        products on the Reference grid (projection and pixel spacing; Minimum/Maximum change the extent) as <code>&lt;band&gt;_ref_&lt;date&gt;</code> and
+        <code>&lt;band&gt;_sec&lt;n&gt;_&lt;date&gt;</code> (date as <code>ddMMMyyyy</code>). For terrain-corrected
+        input the dialog sets Initial Offset Method to Product Geolocation and Resampling Type to
+        BISINC_5_POINT_INTERPOLATION; in a graph or GPT set them yourself (operator defaults: Orbit, NONE). Output Extents defaults to <code>Master</code> (the Reference footprint);
+        Minimum and Maximum require a resampling type other than NONE.</li>
+    <li>Terrain Correction's <code>alignToStandardGrid</code> (graph and GPT parameter only, default false) snaps the
+        output grid to a fixed origin, so products with the same projection and pixel spacing share pixel edges.</li>
+    <li><b>Stack Averaging</b> (<code>Stack-Averaging</code>, Radar &gt; Coregistration &gt; Stack Tools) offers Mean
+        Average (default), Minimum, Maximum, Standard Deviation and Coefficient of Variation (no median), one output band
+        per band name without the <code>_ref</code>/<code>_sec</code> suffix, e.g. <code>Gamma0_VV</code>. Its Coefficient of Variation is the population standard deviation divided by the mean of the input values (about 0.48 for a stable intensity pixel at
+        L = 4.4).</li>
+    <li><b>Multitemporal Compositing</b> (<code>Multitemporal-Compositing</code>, Radar &gt; Radiometric) implements
+        the weighting above. A_i is the <code>simulatedImage</code> band of Terrain Flattening (Output Simulated Image,
+        off by default), which must be carried through Terrain Correction and Create Stack. The input must be a
+        calibrated, map-projected, coregistered stack. It has no parameters and writes one band per Reference band,
+        named without the <code>_ref</code> suffix. A date is skipped where its value is no-data, zero or NaN, or its area
+        is not positive. Stack only the backscatter and <code>simulatedImage</code> bands: any other band, a layover mask
+        for example, is composited too.</li>
+    <li><b>Multi-Temporal Speckle Filter</b> (<code>Multi-Temporal-Speckle-Filter</code>) applies the filter of
+        Quegan et al. (2000), extended to correlated channels by Quegan and Yu (2001): it keeps each date's local mean and
+        averages the speckle across dates (see <a href="speckle.html">Speckle</a>). <b>REACTIV Change Detection</b>
+        (Colin Koeniguer and Nicolas 2020) colour-codes the temporal CV (of amplitude, about half the intensity CV of
+        Figure 1) and the date of the maximum; <b>RPCA Change Detection</b> (Schwartz et al. 2020) separates a stable
+        background from sparse changes. Their settings are in <a href="change_detection.html">Change detection</a>.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Averaging dB values: the result is biased low by an amount that depends on the looks (0.5 dB at ENL 4.4).</li>
+    <li>Mixing relative orbits in a plain mean or CV: the incidence-angle difference shows up as false temporal
+        variation. Use one track, or Multitemporal Compositing on purpose (it weights by resolution but does not
+        normalise the angular dependence).</li>
+    <li>Leaving layover and shadow in the statistics: save <code>layoverShadowMask</code> in Terrain Correction and mask
+        those pixels.</li>
+    <li>Clipping negative values in Thermal Noise Removal before averaging dark surfaces: the mean is biased upward.</li>
+    <li>Averaging a whole year over agriculture: a seasonal composite (for example per three months) keeps the crop
+        signal that an annual mean washes out.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/StackAveragingOp.html">Stack Averaging</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultitemporalCompositingOp.html">Multitemporal Compositing</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultiTemporalSpeckleFilterOp.html">Multi-Temporal Speckle Filter</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/TerrainFlatteningOp.html">Terrain Flattening</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/REACTIVChangeDetectionOp.html">REACTIV Change Detection</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.feature.extraction.ui/eu/esa/sar/fex/docs/operators/RPCAChangeDetectionOp.html">RPCA Change Detection</a></li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Quegan, S., Le Toan, T., Yu, J.J., Ribbes, F., Floury, N. (2000). Multitemporal ERS SAR analysis applied to
+        forest mapping. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 38(2), 741&#8211;753.
+        doi:10.1109/36.842003</li>
+    <li>Quegan, S., Yu, J.J. (2001). Filtering of multichannel SAR images. <i>IEEE Transactions on Geoscience and
+        Remote Sensing</i>, 39(11), 2373&#8211;2379. doi:10.1109/36.964973</li>
+    <li>Small, D. (2011). Flattening gamma: Radiometric terrain correction for SAR imagery. <i>IEEE Transactions on
+        Geoscience and Remote Sensing</i>, 49(8), 3081&#8211;3093. doi:10.1109/TGRS.2011.2120616</li>
+    <li>Small, D. (2012). SAR backscatter multitemporal compositing via local resolution weighting. <i>2012 IEEE International Geoscience and Remote Sensing Symposium (IGARSS)</i>, 4521&#8211;4524. doi:10.1109/IGARSS.2012.6350465</li>
+    <li>Colin Koeniguer, E., Nicolas, J.-M. (2020). Change detection based on the coefficient of variation in SAR
+        time-series of urban areas. <i>Remote Sensing</i>, 12(13), 2089. doi:10.3390/rs12132089</li>
+    <li>Schwartz, C., Ramos, L. P., Duarte, L. T., Pinho, M. S., Pettersson, M. I., Vu, V. T., Machado, R. (2020).
+        Change detection in UWB SAR images based on robust principal component analysis. <i>Remote Sensing</i>, 12(12),
+        1916. doi:10.3390/rs12121916</li>
+</ol>
+
+<hr>
+</body>
+</html>

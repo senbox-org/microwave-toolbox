@@ -366,7 +366,9 @@ public class GoldsteinFilterOp extends Operator {
                         // low coherence  => alpha ~ 1 (aggressive filtering of noisy spectrum).
                         final double blockAlpha;
                         if (useAdaptiveAlpha && cohBandData != null) {
-                            blockAlpha = computeBlockAlpha(x, y, cohBandData, cohIndex);
+                            final double blockCohNoData = cohBand != null && cohBand.isNoDataValueUsed()
+                                    ? cohBand.getNoDataValue() : Double.NaN;
+                            blockAlpha = computeBlockAlpha(x, y, cohBandData, cohIndex, blockCohNoData);
                         } else {
                             blockAlpha = alpha;
                         }
@@ -676,11 +678,13 @@ public class GoldsteinFilterOp extends Operator {
     /**
      * Mean coherence over the FFT block, clamped via [alphaMin, alphaMax] into
      * the Baran (2003) adaptive exponent: alpha = clamp(1 - mean(gamma)).
-     * No-data and out-of-range coherence samples are skipped; if every sample
-     * is invalid, the block falls back to the user-specified fixed alpha.
+     * No-data (the band's no-data value, NaN, or exactly 0 - the coherence no-data
+     * written by the coherence estimators) and out-of-range samples are skipped; if
+     * every sample is invalid, the block falls back to the user-specified fixed alpha.
      */
     private double computeBlockAlpha(final int x, final int y,
-                                     final ProductData cohData, final TileIndex cohIndex) {
+                                     final ProductData cohData, final TileIndex cohIndex,
+                                     final double cohNoDataValue) {
         final int yEnd = Math.min(y + fftSizeY, sourceImageHeight);
         final int xEnd = Math.min(x + fftSizeX, sourceImageWidth);
         double sum = 0.0;
@@ -689,7 +693,7 @@ public class GoldsteinFilterOp extends Operator {
             cohIndex.calculateStride(yy);
             for (int xx = x; xx < xEnd; xx++) {
                 final float coh = cohData.getElemFloatAt(cohIndex.getIndex(xx));
-                if (coh >= 0.0f && coh <= 1.0f && !Float.isNaN(coh)) {
+                if (isValidBlockCoherence(coh, cohNoDataValue)) {
                     sum += coh;
                     n++;
                 }
@@ -702,6 +706,11 @@ public class GoldsteinFilterOp extends Operator {
         if (a < alphaMin) return alphaMin;
         if (a > alphaMax) return alphaMax;
         return a;
+    }
+
+    /** A coherence sample usable for the adaptive alpha: in (0, 1] and not the band's no-data value. */
+    static boolean isValidBlockCoherence(final double coh, final double cohNoDataValue) {
+        return !isNoData(coh, cohNoDataValue) && coh > 0.0 && coh <= 1.0;
     }
 
     private static void getFilteredPowerSpectrum(

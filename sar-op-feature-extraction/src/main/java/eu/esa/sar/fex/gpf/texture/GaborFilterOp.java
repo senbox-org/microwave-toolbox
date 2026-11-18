@@ -54,7 +54,7 @@ public class GaborFilterOp extends Operator {
             rasterDataNodeType = Band.class, label = "Source Bands")
     private String[] sourceBandNames;
 
-    @Parameter
+    @Parameter(description = "Orientation of the Gabor filter in radians", defaultValue = "0.6")
     private double theta = 0.6;
 
     private final HashMap<String, String[]> targetBandNameToSourceBandName = new HashMap<>();

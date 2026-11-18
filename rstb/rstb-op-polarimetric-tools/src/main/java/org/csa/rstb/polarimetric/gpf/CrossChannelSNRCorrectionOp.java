@@ -48,7 +48,7 @@ import java.util.Map;
         authors = "Jun Lu, Luis Veci",
         version = "1.0",
         copyright = "Copyright (C) 2016 by Array Systems Computing Inc.",
-        description = "Compute general polarimetric parameters")
+        description = "Correct the HV and VH channels for additive noise using the HV/VH coherence")
 public final class CrossChannelSNRCorrectionOp extends Operator implements QuadPolProcessor {
 
     @SourceProduct(alias = "source")
@@ -195,6 +195,9 @@ public final class CrossChannelSNRCorrectionOp extends Operator implements QuadP
                                 sourceProductType, sourceTiles, dataBuffers, Cr, Ci);
 
                         final double gamma = Math.sqrt((Cr[1][2] * Cr[1][2] + Ci[1][2] * Ci[1][2]) / (Cr[1][1] * Cr[2][2]));
+                        // HV = s + n1, VH = s + n2 with uncorrelated equal-power noise: gamma = S / (S + N), so the
+                        // noise-free power is S = gamma (S + N) and the amplitude scale factor is sqrt(gamma).
+                        final double scale = Math.sqrt(gamma);
 
                         for (final TileData tileData : tileDataList) {
                             double v = 0.0;
@@ -207,7 +210,7 @@ public final class CrossChannelSNRCorrectionOp extends Operator implements QuadP
                             } else if (tileData.bandName.contains("q_VH")) {
                                 v = dataBuffers[5].getElemDoubleAt(srcIndex.getIndex(x));
                             }
-                            tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) (gamma * v));
+                            tileData.dataBuffer.setElemFloatAt(tgtIdx, (float) (scale * v));
                         }
                     }
                 }

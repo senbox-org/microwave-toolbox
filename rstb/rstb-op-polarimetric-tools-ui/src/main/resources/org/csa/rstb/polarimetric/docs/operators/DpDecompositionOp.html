@@ -10,7 +10,7 @@
     <tbody>
     <tr class="header">
         <td class="header">&nbsp; Dual-pol Scattering Powers (Decomposition) Generation</td>
-        <td class="header" align="right"><a href="../general/Overview.html"><img src="../images/snap_header.jpg"
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg"
                                                                                  border="0"></a></td>
     </tr>
     </tbody>
@@ -33,26 +33,51 @@
 <h3>1. Dual-pol Scattering Powers Formulation (Decomposition method) </h3>
 <p>The dual-pol scattering powers (decomposition method) are calculated from the processed dual-pol 2x2 wave covariance C2 matrix.</p>
 <p>This method is based on the two dual-pol indices: DpRBI and DpRSI. First, a dual-pol target characteristic parameter is computed using DpRBI and DpRSI.
-It varies between 0° and 90°, with low values close to 0° indicating "surface-like" targets, high values close to 90° describing "dihedral-like", and intermediate
-values close to 45° representing mixed targets [1].</p>
+It varies between 0&deg; and 90&deg;, with low values close to 0&deg; indicating "surface-like" targets, high values close to 90&deg; describing "dihedral-like", and intermediate
+values close to 45&deg; representing mixed targets [1].</p>
 <p> Subsequently, the degree of polarization and target characteristic parameter are together employed to split the total power into "Dihedral-like" (P<sub>d-l</sub>),
 "Surface-like" (P<sub>s-l</sub>), unpolarized (P<sub>u</sub>) component as shown in the figure below and in [1].</p>
 <p>It is important to note that hills or mountains facing the radar produce strong backscatter and are often confused with built-up areas, resulting in high DpRBI values. 
 Therefore, we employ a slope layer to mask such areas to avoid misinterpretations over such areas. 
 Please include a slope layer along with the C2 matrix (Raster -> DEM Tools -> Compute Slope and Aspect). </p>
 
-<p align="center"><img src="images/DpDcmpformulation.PNG" width="900"></p>
+<p align="center"><img src="images/DpDcmpformulation.png" width="900"></p>
 
 <h3>2. Dual-pol Scattering Powers Flowchart (Decomposition method) </h3>
 <p>A schematic flowchart to compute dual-pol scattering power components using decomposition method is shown below [1]:</p>
-<p align="center"><img src="images/DpDcmpflowchart.PNG" width="1300"></p>
+<p align="center"><img src="images/DpDcmpflowchart.png" width="1300"></p>
 
 
-<p> Reference:&nbsp;</p>
+<h4>References</h4>
+<ol>
+    <li>Verma, A., Bhattacharya, A., Dey, S., Marino, A., Gamba, P. (2024). Target characterization and scattering power components from dual-pol Sentinel-1 SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 62, 1&#8211;19. doi:10.1109/TGRS.2024.3460476</li>
+</ol>
 
-<p>[1] Verma, A., Bhattacharya, A., Dey, S., Marino, A., and Gamba, P., 2024. Target Characterization and Scattering Power Components From Dual-Pol Sentinel-1 SAR Data.
-IEEE Transactions on Geoscience and Remote Sensing, vol. 62, pp. 1-19, 2024, Art no. 5222619. </p>	
-		
+<!-- params:begin op="DualPol-Powers-Decomposition" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>DualPol-Powers-Decomposition</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>windowSize</code></td><td>int</td><td>5</td><td>3, 5, 7, 9, 11, 13, 15, 17, 19</td><td>&nbsp;</td><td>Window Size</td></tr>
+<tr><td><code>NESZ</code></td><td>double</td><td>-16.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Threshold (dB) applied to the C11 intensity: pixels with C11 above it use the signal formula, pixels at or below it are treated as noise-dominated and use the noise formula. Set to the sensor noise floor (NESZ), e.g. S1 IW ~ -22, S1 EW ~ -19, RCM ~ -25, NISAR ~ -25.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/dual_compact_pol.html">Dual-pol and Compact Polarimetry</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>Dual-pol C2 covariance matrix product (create it with <a href="PolarimetricMatricesOp.html">Polarimetric Matrices</a>); other product types are rejected</li>
+    <li>Band named "slope" in the product (Raster &gt; DEM Tools &gt; Compute Slope and Aspect); the operator stops with "Slope band is required" without it</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li>Export or analyse the result</li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

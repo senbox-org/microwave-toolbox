@@ -50,7 +50,7 @@ public class SnaphuExportOp extends Operator {
     private File targetFolder;
 
     @Parameter(valueSet = {"TOPO", "DEFO", "SMOOTH", "NOSTATCOSTS"},
-            description = "Size of coherence estimation window in Azimuth direction",
+            description = "Statistical cost mode used by SNAPHU: TOPO (topographic data), DEFO (deformation), SMOOTH (generic smooth surfaces) or NOSTATCOSTS (no statistical costs)",
             defaultValue = "DEFO",
             label = "Statistical-cost mode")
     private String statCostMode = "DEFO";

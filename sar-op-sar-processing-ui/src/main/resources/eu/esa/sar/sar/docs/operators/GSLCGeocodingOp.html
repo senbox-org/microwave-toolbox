@@ -7,7 +7,7 @@
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">GSLC Orthorectification</td>
+        <td class="header">GSLC Terrain Correction</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
@@ -44,39 +44,26 @@
     <li>
         <b>Slant Range Calculation:</b> The precise distance (slant range) from the sensor to the ground point is
         calculated. Optional corrections for Solid Earth Tide and tropospheric path delay
-        may be applied at this step.
+        may be applied at this step. They change the <code>flatteningPhase</code> band (and the flattened
+        output); the tide also moves the sampling position by a sub-pixel amount. In the default (unflattened)
+        mode Interferogram recomputes its own reference phase without them, so they are not a correction of
+        the interferogram. In a stack of flattened products they are part of the phase removed from each
+        product, so the modelled tide and dry-delay differences are removed from the interferogram.
     </li>
     <li>
-        <b>Phase Flattening (Carrier Phase Compensation):</b> Before resampling the complex data, the operator
-        simulates the phase contribution from the sensor-to-target path geometry (the "carrier" phase). This
-        simulated phase is then removed from the original complex signal. This "flattens" the phase, making the
-        subsequent resampling process more accurate as it deals with a signal with lower fringe frequencies.
-        The flattened complex value <i>C'</i> is computed as:
-        <br>
-        <i>C' = C * exp(+j * &phi;<sub>sim</sub>)</i>
-        <br>
-        where <i>C</i> is the original complex value and <i>&phi;<sub>sim</sub></i> is the simulated phase
-        (the SLC carrier is <i>exp(-j &middot; &phi;<sub>sim</sub>)</i>, so multiplying by <i>exp(+j &middot; &phi;<sub>sim</sub>)</i> cancels it):
-        <br>
-        <i>&phi;<sub>sim</sub> = 4&pi; * R / &lambda;</i>
-        <br>
-        (<i>R</i> is the slant range, <i>&lambda;</i> is the wavelength).
+        <b>Complex resampling in baseband:</b> I/Q are interpolated at the source position with a high-fidelity
+        kernel (default BISINC_5_POINT). In range a focused SLC is already in baseband. In azimuth the
+        Doppler-centroid carrier (TOPS: deramp/demod) is removed before the kernel. For stripmap it is put back
+        after the kernel; for TOPS the output stays deramped unless <i>Restore TOPS azimuth carrier</i> is on.
     </li>
     <li>
-        <b>High-Fidelity Complex Resampling:</b> The flattened complex (I and Q) bands are resampled from the
-        source slant-range grid to the target map grid using a high-fidelity interpolator (e.g., a truncated Sinc
-        function) to preserve signal integrity.
-    </li>
-    <li>
-        <b>Phase Restoration (default):</b> By default (<i>Output flattened complex data</i> = <b>false</b>), the
-        simulated phase is re-introduced to the resampled complex signal. This restores the absolute phase relative
-        to the new map geometry. The final complex value <i>C<sub>geo</sub></i> is:
-        <br>
-        <i>C<sub>geo</sub> = C'<sub>resampled</sub> * exp(-j * &phi;<sub>sim</sub>)</i>
-        <br>
-        This restored-phase output is what InSAR requires &mdash; the
-        <i>master &middot; conj(slave)</i> product then carries the differential-range phase
-        <i>exp(&minus;j &middot; 4&pi;(R<sub>M</sub> &minus; R<sub>S</sub>)/&lambda;)</i>.
+        <b>Optional flattening (off by default):</b> with <i>Output phase-flattened complex data</i> on, each
+        pixel is multiplied by exp(+j&middot;4&pi;R<sub>mod</sub>/&lambda;) after the kernel, where
+        R<sub>mod</sub> is the orbit+DEM range model. By default no flattening is applied and the output keeps
+        the natural SLC phase &#8722;4&pi;R/&lambda; + &psi;<sub>scat</sub>.
+        This unflattened output is the default for InSAR &mdash; the
+        <i>Reference &middot; conj(Secondary)</i> product then carries the differential-range phase
+        <i>exp(&minus;j &middot; 4&pi;(R<sub>ref</sub> &minus; R<sub>sec</sub>)/&lambda;)</i>.
     </li>
 </ol>
 <p>
@@ -84,12 +71,14 @@
     with its phase correctly representing the sensor-to-target path length for each pixel in the new grid.
 </p>
 
-<h2>References</h2>
-<ul>
-    <li>Agram, P.S., Warren, M.S., Calef, M.T., &amp; Arko, S.A. &mdash; "An Efficient Global Scale Sentinel-1
-        Radar Backscatter and Interferometric Processing System" (2022). Preprints.org: doi:10.20944/preprints202206.0252.v1
-    </li>
-</ul>
+<h3>References</h3>
+<ol>
+    <li>Agram, P. S., Warren, M. S., Calef, M. T., Arko, S. A. (2022). An efficient global scale Sentinel-1 radar
+        backscatter and interferometric processing system. <i>Remote Sensing</i>, 14(15), 3524.
+        doi:10.3390/rs14153524</li>
+    <li>Zebker, H. A. (2017). User-friendly InSAR data products: fast and simple timeseries processing.
+        <i>IEEE Geoscience and Remote Sensing Letters</i>, 14(11), 2122&#8211;2126. doi:10.1109/LGRS.2017.2753580</li>
+</ol>
 
 <h2>Parameters</h2>
 <table border="1" cellpadding="5">
@@ -120,7 +109,7 @@
     </tr>
     <tr>
         <td><b>External DEM Apply EGM</b></td>
-        <td>Apply Earth Gravitational Model to the external DEM.</td>
+        <td>If selected, the heights of the external DEM are converted from geoid heights (as in SRTM or Copernicus DEM files) to the ellipsoid heights that SAR geometry needs. Clear it only if your file already contains ellipsoid heights. It has no effect on DEMs downloaded by SNAP. Default: selected.</td>
         <td>true</td>
     </tr>
     <tr>
@@ -192,16 +181,17 @@
     </tr>
     <tr>
         <td><b>Output phase-flattened complex data</b></td>
-        <td>If <b>true</b>, removes the SLC geometric carrier (4&pi;&middot;R/&lambda;) so each complex pixel
-            holds only the local scattering coefficient &sigma;(P). This makes the GSLC <b>unusable for InSAR</b>:
-            the <i>R<sub>master</sub> &minus; R<sub>slave</sub></i> phase difference is zeroed out.
-            Leave <b>false</b> (default) for InSAR pipelines &mdash; the natural SLC carrier is preserved so
-            downstream <i>master &middot; conj(slave)</i> carries the differential phase. Set to <b>true</b> only
-            for non-InSAR use cases (e.g. amplitude / scattering analysis where you want a phase-clean complex band).
+        <td>If <b>true</b>, multiplies each resampled pixel by exp(+j&middot;4&pi;R<sub>mod</sub>/&lambda;), which
+            removes the orbit+DEM range phase. The result keeps &psi;<sub>scat</sub> plus the unmodelled range
+            (deformation, atmosphere, DEM and orbit errors), so a flattened pair is already a topography-removed
+            interferogram. Interferogram reads the <code>gslc_output_flattened</code> stamp: when every product
+            in the stack is flattened it does not subtract the flat-Earth and topographic phase again, and it
+            refuses a stack that mixes flattened and unflattened products. Use one setting for every product in
+            a stack; the default (<b>false</b>) keeps the natural SLC phase.
             <br><br>
-            When this GSLC is later fed into <i>CreateStack</i> together with a raw SLC slave, the auto-coregister
-            path reads the master's <i>gslc_output_flattened</i> metadata stamp and builds the slave with the
-            <b>same</b> flattening state &mdash; preventing the master/slave mismatch that would otherwise produce
+            When this GSLC is later fed into <i>CreateStack</i> together with a raw Secondary SLC, the auto-coregister
+            path reads the Reference's <i>gslc_output_flattened</i> metadata stamp and builds the Secondary with the
+            <b>same</b> flattening state &mdash; preventing the Reference/Secondary mismatch that would otherwise produce
             a noise interferogram.</td>
         <td>false</td>
     </tr>
@@ -218,34 +208,40 @@
     <tr>
         <td><b>Slant-range offset (pixels)</b></td>
         <td>Constant offset in slant-range pixels added to this product's geometric sampling solution. Intended
-            for InSAR slave geocoding: when a master and slave SLC have a residual misregistration (clock-bias,
+            for InSAR Secondary geocoding: when a Reference and Secondary SLC have a residual misregistration (clock-bias,
             processor-time delta, orbit residual) beyond what orbit + DEM alone can predict, run cross-correlation
-            between the two raw SLCs, take the median (slave &minus; master) GCP offset in range, and pass that
+            between the two raw SLCs, take the median (Secondary &minus; Reference) GCP offset in range, and pass that
             value here. The geometric model then samples each ground point at
-            <i>geomRangeIndex + rangeOffsetPixels</i> of the source SLC, so the slave aligns with the master at
-            the sub-pixel level. <b>CreateStack's GSLC auto-coregister sets this automatically.</b></td>
+            <i>geomRangeIndex + rangeOffsetPixels</i> of the source SLC, so the Secondary aligns with the Reference at
+            the sub-pixel level. <b>Create Stack sets this automatically for the Secondaries it geocodes</b>
+            (for a stripmap offset field it sets the <code>rangeOffsetPoly</code> field instead).</td>
         <td>0.0</td>
     </tr>
     <tr>
         <td><b>Azimuth offset (pixels)</b></td>
         <td>Constant offset in azimuth pixels added to this product's geometric sampling solution. Pairs with
-            <i>Slant-range offset (pixels)</i> for scalar-bias coregistration of an InSAR slave. Also set
+            <i>Slant-range offset (pixels)</i> for scalar-bias coregistration of an InSAR Secondary. Also set
             automatically by CreateStack's auto-coregister.</td>
         <td>0.0</td>
     </tr>
     <tr>
         <td><b>Apply Solid Earth Tide correction</b></td>
-        <td>Apply Solid Earth Tide displacement to the target geometry before slant-range computation. The peak
-            tidal displacement is ~10 cm and varies with latitude and time of day &mdash; required for
-            displacement-grade InSAR (deformation monitoring at the sub-decimetre level). Negligible for
-            coherence-only or amplitude-only workflows.</td>
+        <td>Displaces each ground point by the modelled solid-Earth body tide (IERS 2010, up to ~30 cm vertical) before the
+            range solve. This changes the <code>flatteningPhase</code> band (and the flattened output) and shifts
+            the sampling position by a sub-pixel amount. In the default (unflattened) mode Interferogram
+            recomputes its reference phase without tide terms, so it is not a tide correction of the
+            interferogram. In a stack where every product is flattened, the modelled tide difference between the
+            dates is removed from the interferogram, because Interferogram does not subtract its own reference
+            phase there.</td>
         <td>false</td>
     </tr>
     <tr>
         <td><b>Apply tropospheric correction</b></td>
-        <td>Apply the Saastamoinen dry tropospheric path delay to the slant range before phase computation. Uses
-            a standard-atmosphere model (no real-time meteorology). Useful for displacement-grade InSAR; not
-            sufficient for atmospheric-noise-dominated scenes (use ERA5 or InSAR-specific atmospheric models for that).</td>
+        <td>Adds a Saastamoinen dry path delay (standard atmosphere, no meteorological data) to the modelled slant
+            range. It changes only the <code>flatteningPhase</code> band (and the flattened output). In the
+            default (unflattened) mode Interferogram does not use it, so it is not a troposphere correction of the
+            interferogram. In a stack where every product is flattened, the modelled dry-delay difference between
+            the dates is removed from the interferogram.</td>
         <td>false</td>
     </tr>
 </table>
@@ -264,17 +260,18 @@
         <td><code>gslc_source_slc_path</code></td>
         <td>string (file path)</td>
         <td>Absolute path of the slant-range SLC this GSLC was geocoded from. <i>CreateStack</i> reads this
-            stamp when it needs to cross-correlate the master against a raw slave SLC to estimate the
-            coregistration bias. If the stamp is missing (e.g. the master is a subset of a GSLC and the subset
+            stamp when it estimates the coregistration bias of a Secondary it geocodes itself (Back-Geocoding +
+            ESD for TOPS, a cross-correlation offset field for stripmap). If the stamp is missing (e.g. the Reference is a subset of a GSLC and the subset
             operation stripped it), <i>CreateStack</i> falls back to a name-based search for the source SLC in
-            the master's directory.</td>
+            the Reference's directory.</td>
     </tr>
     <tr>
         <td><code>gslc_output_flattened</code></td>
         <td>string ("true" / "false")</td>
         <td>Whether the GSLC was built with <i>Output phase-flattened complex data</i> = true. Used by
-            <i>CreateStack</i> to ensure an auto-built slave GSLC matches the master's flattening state.
-            Mixing flattened/non-flattened bands in the same stack produces a meaningless interferometric phase.</td>
+            <i>CreateStack</i> to ensure an auto-built Secondary GSLC matches the Reference's flattening state,
+            and by <i>Interferogram</i>, which skips its own flat-Earth/topographic phase subtraction when every
+            product in the stack is flattened and refuses a stack that mixes the two states.</td>
     </tr>
 </table>
 
@@ -289,7 +286,7 @@
         <td>Stripmap (SM) SLC</td>
         <td>Yes</td>
         <td>Direct input. No additional preprocessing required beyond orbit file application.
-            Tested on Sentinel-1 SM and ENVISAT ASAR IMS.</td>
+            Validated on an ERS-1/ERS-2 tandem pair; other stripmap missions have not been tested.</td>
     </tr>
     <tr>
         <td>IW/EW SLC (split, burst-level)</td>
@@ -316,11 +313,11 @@
 
 <h4>Stripmap SLC</h4>
 <pre>
-  S-1 SM / ENVISAT ASAR IMS SLC Product
+  Stripmap SLC product (validated on ERS-1/ERS-2)
     &rarr; Apply-Orbit-File
-    &rarr; (optional) Thermal-Noise-Removal
     &rarr; GSLC-Terrain-Correction
 </pre>
+<p><b>Do not add Thermal-Noise-Removal here.</b> It converts complex data to detected intensity and destroys the phase that GSLC needs.</p>
 
 <h4>TOPS (IW/EW) SLC</h4>
 <pre>
@@ -337,35 +334,40 @@
     with a single geocoding step per acquisition. Each scene becomes a phase-preserving complex product on a
     common map grid, and the rest of the InSAR chain consumes those directly.</p>
 
-<h4>Simplest path &mdash; only the master is geocoded explicitly</h4>
+<h4>Simplest path &mdash; only the Reference is geocoded explicitly</h4>
 <pre>
-  Master SLC (Date 1)            Secondary SLC (Date 2)
+  Reference SLC (Date 1)         Secondary SLC (Date 2)
     &rarr; Apply-Orbit-File          &rarr; Apply-Orbit-File
     &rarr; GSLC-Terrain-Correction   (raw SLC, no GSLC step)
-      &darr; master GSLC                       &darr;
-            CreateStack(master GSLC + raw secondary SLC)
+      &darr; Reference GSLC                    &darr;
+            CreateStack(Reference GSLC + raw Secondary SLC)
                        &darr;
-            (CreateStack auto-geocodes the secondary on the master's grid,
-             reloads the master's source SLC from the gslc_source_slc_path stamp,
-             cross-correlates to estimate the residual (&Delta;r, &Delta;a) bias,
-             rebuilds the secondary GSLC with that bias, and stacks the two.)
+            (CreateStack auto-geocodes the Secondary on the Reference grid
+             with the Reference's DEM, tide and troposphere settings,
+             reloads the Reference's source SLC from the gslc_source_slc_path
+             stamp, measures the residual offset (TOPS: Back-Geocoding + ESD,
+             constant (&Delta;r, &Delta;a); stripmap: cross-correlation offset field),
+             re-geocodes the Secondary only if the offset exceeds 0.05 pixel
+             anywhere in the scene, and stacks the two.)
                        &darr;
             Interferogram &rarr; (optional) Goldstein-Phase-Filtering &rarr; Phase-Unwrapping
 </pre>
 
 <h4>Explicit path &mdash; both scenes geocoded up front</h4>
 <pre>
-  Master SLC                            Secondary SLC
+  Reference SLC                         Secondary SLC
     &rarr; Apply-Orbit-File                  &rarr; Apply-Orbit-File
     &rarr; GSLC-Terrain-Correction           &rarr; GSLC-Terrain-Correction
-      &darr; master GSLC                         &darr; secondary GSLC
+      &darr; Reference GSLC                      &darr; Secondary GSLC
                 CreateStack
                      &darr;
             Interferogram &rarr; ...
 </pre>
-<p>In this path you generally also want to run cross-correlation to find the sub-pixel residual offset
-    and feed it back as <i>Slant-range offset (pixels)</i> / <i>Azimuth offset (pixels)</i> on the secondary's
-    GSLC step. The simplest path above does this automatically.</p>
+<p>In this path Create Stack stacks a Secondary GSLC that is already on the Reference lattice, with the same
+    flattening and carrier settings, as-is: no re-geocoding and no bias estimation. A residual offset is
+    estimated only for Secondaries that Create Stack geocodes itself (the simplest path above). On
+    well-synchronised Sentinel-1 pairs that bias is below about 0.04 pixel, under the 0.05-pixel level below
+    which Create Stack ignores it, so no manual offset is needed.</p>
 
 <h3>Comparison with Traditional TOPS InSAR Workflow</h3>
 <table border="1" cellpadding="5">
@@ -387,7 +389,7 @@
     <tr>
         <td>3</td>
         <td>BackGeocoding (coregistration)</td>
-        <td>GSLC-Terrain-Correction (master)</td>
+        <td>GSLC-Terrain-Correction (Reference)</td>
     </tr>
     <tr>
         <td>4</td>
@@ -421,7 +423,7 @@
     <li>Each acquisition can be processed independently and in parallel</li>
     <li>The output is directly geocoded &mdash; ready for time-series analysis</li>
     <li>Consistent geocoding across all acquisitions (same DEM and geometry)</li>
-    <li>Secondary coregistration is folded into <i>CreateStack</i> &mdash; user runs GSLC once on the master,
+    <li>Secondary coregistration is folded into <i>CreateStack</i> &mdash; user runs GSLC once on the Reference,
         feeds raw SLC secondaries, and CreateStack handles the rest.</li>
 </ul>
 
@@ -444,8 +446,11 @@
     <li>For each burst, the azimuth deramp and demodulation phase is computed using the Doppler
         rate and centroid annotations from the product metadata.</li>
     <li>The phase is applied to the source complex data before resampling.</li>
-    <li>After resampling, the interpolated phase is used to re-ramp the data.</li>
-    <li>Range phase flattening is then applied as in the Stripmap case.</li>
+    <li>By default the output stays deramped (carrier-free, as OPERA CSLC). The deramp phase is written to
+        <code>azimuthCarrierPhase</code> so that Interferogram can subtract the carrier difference.
+        <i>Restore TOPS azimuth carrier</i> re-ramps it; do not use that for InSAR.</li>
+    <li>Range flattening is applied only when <i>Output phase-flattened complex data</i> is on, as for
+        stripmap.</li>
 </ol>
 
 <h3>Stripmap Azimuth Deramp (residual Doppler centroid)</h3>
@@ -455,16 +460,78 @@
     coherent GSLC stacking.</p>
 
 <h3>Phase Flattening</h3>
-<p>The operator removes the geometric (carrier) phase before resampling to reduce fringe density
-    and improve interpolation accuracy. The simulated phase is:</p>
-<p style="margin-left: 40px;"><i>&phi;<sub>sim</sub> = 4&pi; R / &lambda;</i></p>
-<p>By default (<i>Output phase-flattened complex data</i> = <b>false</b>), the simulated phase is restored
-    after resampling, so the output complex band carries the natural SLC carrier. This is what InSAR needs:
-    a master/slave pair's conjugate product then yields the differential-range phase
-    <i>exp(&minus;j &middot; 4&pi;(R<sub>master</sub> &minus; R<sub>slave</sub>)/&lambda;)</i>.</p>
-<p>When the parameter is set to <b>true</b>, the simulated phase is <i>not</i> restored &mdash; the output
-    holds only the local scattering coefficient. That is useful for non-InSAR analysis (e.g. coherent
-    magnitude statistics, PolSAR decomposition on a single date) but produces a noise interferogram if such
-    a GSLC is paired with a non-flattened counterpart. Use one mode consistently across all dates in a stack.</p>
+<p style="margin-left: 40px;"><i>&phi; = 4&pi;R<sub>mod</sub>/&lambda;</i></p>
+<p>It is never applied before resampling, because the per-column ramp would alias. By default it is not
+    applied at all and is only written to the <code>flatteningPhase</code> band;
+    <i>ref &middot; conj(sec)</i> of the default output then gives
+    <i>exp(&minus;j &middot; 4&pi;(R<sub>ref</sub> &minus; R<sub>sec</sub>)/&lambda;)</i>. With the option on,
+    it is applied after the kernel. The flattened output keeps the residuals, and Interferogram, seeing that
+    every product in the stack is flattened, does not subtract the flat-Earth phase again. Use one mode across
+    a stack: Interferogram refuses a mixed stack, and Create Stack puts the Secondaries it geocodes onto the
+    Reference's mode.</p>
 
+<!-- params:begin op="GSLC-Terrain-Correction" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>GSLC-Terrain-Correction</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>sourceBands</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The list of source bands.</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>gridSpacing</code></td><td>String</td><td>NATIVE_ANISOTROPIC</td><td>SQUARE_COARSEST, NATIVE_ANISOTROPIC, SQUARE_FINEST</td><td>&nbsp;</td><td>How the output grid step is derived when no explicit pixel spacing is given. SQUARE_COARSEST: square cells at the coarser axis &#8212; smallest output, but for Sentinel-1 IW that is the azimuth spacing (~14 m) while native ground-range sampling is ~3.5 m, so about 4x of range detail is discarded. NATIVE_ANISOTROPIC (default): rectangular cells at native sampling on both axes &#8212; nothing discarded, ~6x the pixels of SQUARE_COARSEST (the range step is the slant-range spacing, ~2.3 m for Sentinel-1 IW, so range is slightly oversampled). SQUARE_FINEST: square cells at the finer axis &#8212; nothing discarded and pixels stay square, but ~16x the pixels. Each choice yields a different grid step and therefore a different standard-grid lattice, so use the same setting for every product in a stack. Products made before this default changed used SQUARE_COARSEST; set it explicitly to extend such a stack.</td></tr>
+<tr><td><code>externalDEMFile</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM</td></tr>
+<tr><td><code>externalDEMNoDataValue</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM No Data Value</td></tr>
+<tr><td><code>externalDEMApplyEGM</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>External DEM Apply EGM</td></tr>
+<tr><td><code>demResamplingMethod</code></td><td>String</td><td>BILINEAR_INTERPOLATION</td><td>NEAREST_NEIGHBOUR, BILINEAR_INTERPOLATION, CUBIC_CONVOLUTION, BISINC_5_POINT_INTERPOLATION, BISINC_11_POINT_INTERPOLATION, BISINC_21_POINT_INTERPOLATION, BICUBIC_INTERPOLATION, DELAUNAY_INTERPOLATION</td><td>&nbsp;</td><td>DEM Resampling Method</td></tr>
+<tr><td><code>imgResamplingMethod</code></td><td>String</td><td>BISINC_5_POINT_INTERPOLATION</td><td>NEAREST_NEIGHBOUR, BILINEAR_INTERPOLATION, CUBIC_CONVOLUTION, BISINC_5_POINT_INTERPOLATION, BISINC_11_POINT_INTERPOLATION, BISINC_21_POINT_INTERPOLATION, BICUBIC_INTERPOLATION</td><td>&nbsp;</td><td>Image Resampling Method</td></tr>
+<tr><td><code>pixelSpacingInMeter</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>The pixel spacing in meters. With a north (Y) spacing also set, this is the east/longitude (X) spacing of a rectangular cell.</td></tr>
+<tr><td><code>pixelSpacingInDegree</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>The pixel spacing in degrees. With a north (Y) spacing also set, this is the east/longitude (X) spacing of a rectangular cell.</td></tr>
+<tr><td><code>pixelSpacingInMeterY</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Optional north/latitude (Y) pixel spacing in meters for a RECTANGULAR output cell. Leave 0 for square cells. Rectangular cells preserve the SLC's anisotropic native resolution (S1 IW: ~3.4 m ground range x ~14 m azimuth) without oversampling one axis; because the radar axes are rotated by the heading from the map axes, the Nyquist-adequate north step is somewhat finer than native azimuth (S1 IW: ~7-8 m rather than 14 m).</td></tr>
+<tr><td><code>pixelSpacingInDegreeY</code></td><td>double</td><td>0</td><td>&nbsp;</td><td>&nbsp;</td><td>Optional north/latitude (Y) pixel spacing in degrees for a rectangular output cell. Leave 0 for square cells.</td></tr>
+<tr><td><code>oversamplingPercent</code></td><td>double</td><td>0.0</td><td>&nbsp;</td><td>&nbsp;</td><td>The pixel spacing oversampling percentage (0-100%)</td></tr>
+<tr><td><code>mapProjection</code></td><td>String</td><td>WGS84(DD)</td><td>&nbsp;</td><td>&nbsp;</td><td>The coordinate reference system in well known text format</td></tr>
+<tr><td><code>nodataValueAtSea</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Mask the sea with no data value (faster)</td></tr>
+<tr><td><code>saveDEM</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save DEM as band</td></tr>
+<tr><td><code>saveLatLon</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save latitude and longitude as band</td></tr>
+<tr><td><code>saveIncidenceAngleFromEllipsoid</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save incidence angle from ellipsoid as band</td></tr>
+<tr><td><code>saveLocalIncidenceAngle</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save local incidence angle as band</td></tr>
+<tr><td><code>saveProjectedLocalIncidenceAngle</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save projected local incidence angle as band</td></tr>
+<tr><td><code>saveLayoverShadowMask</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save layover shadow mask</td></tr>
+<tr><td><code>outputFlattened</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>If true, multiplies each resampled pixel by exp(+j&#183;4&#960;&#183;R_mod/&#955;), removing the orbit+DEM range phase; deformation, atmosphere, DEM and orbit errors remain, so a flattened pair is already a topography-removed interferogram. Interferogram supports this when every product in the stack is flattened (it then does not subtract the flat-Earth phase again); it refuses a stack that mixes flattened and un-flattened products.</td></tr>
+<tr><td><code>outputAzimuthCarrier</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Restore the native TOPS azimuth (deramp) carrier in the output. The carrier is acquisition-specific (burst timing, FM rate) and does NOT cancel between two acquisitions, so restoring it corrupts cross-acquisition interferometry (tens of spurious fringes per burst for a cross-platform pair). Leave false (carrier-free output, as OPERA CSLC) for InSAR.</td></tr>
+<tr><td><code>outputPhaseTerms</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Also write the azimuth-carrier phase and the flattening phase as bands, so either term can be applied or removed after the fact instead of being baked into the complex data. Mirrors ISCE3 geocodeSlc's carrierPhaseRaster / flattenPhaseRaster, and is what makes the product's phase convention reversible and comparable term-by-term against that reference implementation. Default true: InterferogramOp's exact carrier-difference subtraction (the deterministic removal of the cross-acquisition deramp-model mismatch) requires these bands on both stack legs, so InSAR-ready is the default convention.</td></tr>
+<tr><td><code>refBurstValidTimes</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Reference GSLC burst time table (one row per burst, 'burstId:firstLine:firstValid:lastValid' or 'firstLine:firstValid:lastValid', times in seconds) used to LOCK burst-overlap selection to the reference's boundaries. Each acquisition otherwise splits the ~2 km TOPS burst overlap at its own valid-time midpoint; the two boundaries differ wherever the valid-line trimming differs, and in the strip between them a stack pairs looks from different bursts (~4 kHz apart in Doppler centroid) &#8212; inherently incoherent. Bursts are matched by track-anchored burst ID when available (handles splits framing different burst windows), else by index. Set automatically by CreateStack's auto-coregistration from the reference GSLC's gslc_burst_valid_times stamp; rarely set by hand.</td></tr>
+<tr><td><code>saveSimulatedPhase</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save simulated phase</td></tr>
+<tr><td><code>saveSimulatedUnwrappedPhase</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Save simulated unwrapped phase</td></tr>
+<tr><td><code>rangeOffsetPixels</code></td><td>double</td><td>0.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Constant offset (in slant-range pixels) added to the geometric sampling position. Used to apply a cross-correlation-derived (Secondary &#8722; Reference) bias when geocoding a Secondary for InSAR.</td></tr>
+<tr><td><code>azimuthOffsetPixels</code></td><td>double</td><td>0.0</td><td>&nbsp;</td><td>&nbsp;</td><td>Constant offset (in azimuth pixels) added to the geometric sampling position. Pairs with rangeOffsetPixels for scalar-bias coregistration of an InSAR Secondary.</td></tr>
+<tr><td><code>rangeOffsetPoly</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Affine range-offset field 'a0,a1,a2' in source pixels, evaluated as a0 + a1*rangeIndex + a2*azimuthIndex and added to the source sampling position (stripmap only). Empty = disabled.</td></tr>
+<tr><td><code>azimuthOffsetPoly</code></td><td>String</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Affine azimuth-offset field 'b0,b1,b2' in source pixels, evaluated as b0 + b1*rangeIndex + b2*azimuthIndex and added to the source sampling position (stripmap only). Empty = disabled.</td></tr>
+<tr><td><code>applySolidEarthTide</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Displace each ground point by the modelled solid Earth body tide (IERS 2010, up to ~30 cm vertical) before the range solve. This shifts the sampling position by a sub-pixel amount and changes the modelled range. In the default (unflattened) mode only the flatteningPhase band (written when Output separable phase terms is on) carries the tide phase. With phase-flattened output the modelled tide is also removed from the pixels, so the differential tide is removed from an Interferogram of a fully flattened stack.</td></tr>
+<tr><td><code>applyTroposphericCorrection</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Add the Saastamoinen dry tropospheric path delay (standard atmosphere, no meteorological data) to the modelled slant range; the sampling position is not changed. In the default (unflattened) mode only the flatteningPhase band (written when Output separable phase terms is on) changes. With phase-flattened output the modelled delay is also removed from the pixels, so the differential delay is removed from an Interferogram of a fully flattened stack.</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/geometry.html">SAR Geometry and Geometric Distortions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li>Workflow: <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_gslc.html">Geocode-First InSAR with GSLC</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/height_references.html">DEMs and Height References</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/orbits_etad.html">Orbits and timing corrections (ETAD, EAP)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/gslc.html">Geocoded SLC (Geocode-First InSAR)</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration of SAR Images</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/terrain_correction.html">Range-Doppler Terrain Correction in Depth</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>A SAR SLC product that is not map projected. Debursted TOPS SLC products are refused: use Apply Orbit File, then TOPS Split, then this operator</li>
+    <li>Valid orbit state vectors and, unless an external DEM is given, an installed DEM</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a> (standard-grid stack of GSLC products)</li>
+    <li>Interferogram formation on the geocoded stack</li>
+</ul>
+<!-- footer:end -->
 </body></html>

@@ -1,20 +1,13 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import ERS1/2 SAR or ATSR</title>
-
-
-
-
-    
-    <link rel="stylesheet" href="../style.css"></head><body>
-
+<html><head><title>Help - Import RADARSAT-1</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
 <table class="header">
 
     <tbody>
     <tr class="header">
 
-        <td class="header">&nbsp;
-            Import RADARSAT-1 SAR
-        </td>
+        <td class="header">&nbsp; Import RADARSAT-1</td>
 
 
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
@@ -24,75 +17,56 @@
     </tbody>
 </table>
 
+<p>RADARSAT-1 was a Canadian C-band SAR satellite. SNAP reads its CEOS
+products with the <b>RADARSAT-1</b> reader.</p>
 
-<h3>Import RADARSAT-1 Product</h3>
-
-<p class="MsoNormal">Radarsat-1 was Canada&#8217;s first Earth Observation mission. The
-mission operated for 17 years.</p>
-
-
-<p class="MsoNormal"><b style="">Operational: </b>1995-11-04
-to 2013-03-29</p>
-
-
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-C-band</p>
-
-
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap, ScanSAR</p>
-
-
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span></p>
-
-
+<h2>Mission</h2>
 <ul>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SLC Single Look Complex</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SGF&nbsp;Path Image mulitlooked ground range</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SGX&nbsp;Path Image Plus mulitlooked ground
-range</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SSG&nbsp;Map Image mulitlooked ground range projected</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SCW&nbsp;ScanSAR Wide</li>
-  <li><!--[if !supportLists]--><span style="font-family: Symbol;"><span style=""><span style="font-family: &quot;Times New Roman&quot;; font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"> 
-</span></span></span><!--[endif]-->SCN ScanSAR Narrow</li>
+  <li><b>Operator:</b> Canadian Space Agency (CSA).</li>
+  <li><b>Radar:</b> C-band, 5.3 GHz (wavelength about 5.6 cm), HH polarisation.</li>
+  <li><b>Orbit:</b> sun-synchronous at about 798 km, 24-day repeat cycle.</li>
+  <li><b>Lifetime:</b> launched 4 November 1995; stopped working after an anomaly on 29 March 2013.</li>
+  <li><b>Beam modes:</b> Standard, Wide, Fine, ScanSAR Narrow, ScanSAR Wide and Extended (high and low
+      incidence), with resolutions from about 8 m to 100 m.</li>
 </ul>
 
+<h2>Supported products</h2>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Product</th><th>Content</th></tr>
+  <tr><td>SLC</td><td>Single Look Complex, slant range</td></tr>
+  <tr><td>SGF</td><td>Path Image: detected, ground range</td></tr>
+  <tr><td>SGX</td><td>Path Image Plus: as SGF with finer pixel spacing</td></tr>
+  <tr><td>SSG</td><td>Map Image: detected, map projected</td></tr>
+  <tr><td>SCN, SCW</td><td>ScanSAR Narrow and ScanSAR Wide, detected</td></tr>
+</table>
 
+<h2>How to open</h2>
+<p>Select the CEOS <b>volume file</b> (name starting with <code>VDF</code> or <code>VOL</code>). The
+leader, image and trailer files must be in the same folder. A zipped product whose name starts with
+<code>R1_</code> or <code>RS1_</code> can be opened directly.</p>
 
+<h2>What you get</h2>
+<ul>
+  <li>SLC: <code>i_HH</code> and <code>q_HH</code> bands and a virtual <code>Intensity_HH</code> band.</li>
+  <li>Detected products: an <code>Amplitude_HH</code> band and a virtual <code>Intensity_HH</code> band.</li>
+  <li>Tie-point grids for latitude, longitude, incidence angle and slant-range time.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
 
+<h2>Known limitations</h2>
+<ul>
+  <li>SNAP has no RADARSAT-1 calibrator, so <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a> does not accept these products.</li>
+  <li>Apply Orbit File has no RADARSAT-1 orbit source; the orbit comes from the leader file.</li>
+</ul>
 
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>, then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>. For SLC pairs, see
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a> and <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram Formation</a>.</p>
 
-
-
-
-
-
-
-<p class="MsoNormal"><b style="">Polarizations: </b>All
-modes are Single Pol (HH)</p>
-
-
-<p class="MsoNormal"><b style="">Opening products:</b>
-Products can be opened by selecting the Volume file. Opening zipped products
-(*.zip) directly is also supported.</p>
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="http://www.asc-csa.gc.ca/eng/satellites/radarsat1/">http://www.asc-csa.gc.ca/eng/satellites/radarsat1/</a></p>
-
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/r/radarsat-1">https://directory.eoportal.org/web/eoportal/satellite-missions/r/radarsat-1</a><b style=""></b></p>
-
-
-<ul></ul>
-
+<h2>Product format specification</h2>
+<p>No public format document is linked here. Mission:
+<a href="https://www.asc-csa.gc.ca/eng/satellites/radarsat1/">CSA: RADARSAT-1</a> and
+<a href="https://www.eoportal.org/satellite-missions/radarsat-1">eoPortal: RADARSAT-1</a>.</p>
 
 <hr>
 </body></html>

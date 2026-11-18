@@ -18,6 +18,7 @@
 operator creates the following polarimetric covariance or coherency
 matrices for a given full polarimetric SAR product:<br>
 <ul>
+    <li>covariance matrix C2 (dual-pol or compact-pol product)</li>
     <li>covariance matrix C3</li>
     <li>covariance matrix C4</li>
     <li>coherency matrix T3</li>
@@ -56,7 +57,7 @@ matrix&nbsp;C<sub>3</sub> is given by<br>
 
 <div style="margin-left: 40px;"><img style="width: 78px; height: 32px;" alt=""
                                      src="images/covarianceMatrixGenerationOp_eq5.jpeg"><br></div>
-<h4>Cohrency Matrix T<sub>4</sub></h4>&nbsp;&nbsp; Let &nbsp;the 4-D target vector be defined as the follows<br>
+<h4>Coherency Matrix T<sub>4</sub></h4>&nbsp;&nbsp; Let &nbsp;the 4-D target vector be defined as the follows<br>
 
 <div style="margin-left: 40px;"><img style="width: 462px; height: 55px;" alt=""
                                      src="images/coherencyMatrixGenerationOp_eq1.jpeg"><br></div>
@@ -64,7 +65,7 @@ matrix&nbsp;C<sub>3</sub> is given by<br>
 
 <div style="margin-left: 40px;"><img style="width: 77px; height: 30px;" alt=""
                                      src="images/coherencyMatrixGenerationOp_eq2.jpeg"></div>
-<h4>Cohrency Matrix T<sub>3</sub></h4>&nbsp;&nbsp; For monostatic backscattering case,&nbsp;&nbsp;the&nbsp;target vector
+<h4>Coherency Matrix T<sub>3</sub></h4>&nbsp;&nbsp; For monostatic backscattering case,&nbsp;&nbsp;the&nbsp;target vector
 becomes<br>
 
 <div style="margin-left: 40px;"><img style="width: 312px; height: 55px;" alt=""
@@ -75,14 +76,19 @@ becomes<br>
                                      src="images/coherencyMatrixGenerationOp_eq4.jpeg"><br></div>
 <h4>Input and Output</h4>
 <ul>
-    <li>The
-        input to this operator is a full polarimetric SAR product with 8 bands,
-        i.e. I and Q bands for HH, VV, HV and VH polarizations.
+    <li>For C3, C4, T3 and T4 the input is a full polarimetric SLC product with 8 bands,
+        i.e. I and Q bands for HH, VV, HV and VH polarizations. A C3 or T3 product can also be
+        converted to the other 3&times;3 form, and a C4 or T4 product down to C3 or T3.
+    </li>
+    <li>For C2 the input is a dual-pol (HH+HV, VV+VH or HH+VV) or compact-pol SLC product with 4 bands.
+        A quad-pol product is rejected; select two polarizations with Band Select first. The output bands
+        are C<sub>11</sub>, C<sub>12_real</sub>, C<sub>12_imag</sub> and C<sub>22</sub>; for VV+VH,
+        C<sub>11</sub> is the VV power and C<sub>22</sub> the VH power.
     </li>
     <li>Since the output covariance or coherency matrix is Hermitian positive semidefinite, only 9 elements
         in&nbsp;C<sub>3</sub> or T<sub>3</sub>&nbsp;are independent, and 16 elements in C<sub>4</sub> or T<sub>4</sub>
         are independent. Therefore only the independent elements are output. For example, the following 9 bands are
-        output:&nbsp;C<sub>11</sub>,&nbsp;C<sub>22_real</sub>, C<sub>12_imag</sub>, C<sub>13_real</sub>,
+        output:&nbsp;C<sub>11</sub>,&nbsp;C<sub>12_real</sub>, C<sub>12_imag</sub>, C<sub>13_real</sub>,
         C<sub>13_imag</sub>, C<sub>22</sub>, C<sub>23_real</sub>, C<sub>23_imag</sub>, C<sub>33</sub> for covariance
         matrix C<sub>3</sub>.
     </li>
@@ -92,15 +98,46 @@ becomes<br>
 <h4>Parameters Used</h4>
 <ol>
     <li>&nbsp;&nbsp; Polarimetrix Matrix: The covariance or coherency matrix type. The available types
-        are:&nbsp;C<sub>3</sub>,&nbsp;C<sub>4</sub>, T<sub>3</sub> and T<sub>4</sub>.
+        are:&nbsp;C<sub>2</sub> (dual-pol or compact-pol input), C<sub>3</sub>,&nbsp;C<sub>4</sub>, T<sub>3</sub> and T<sub>4</sub>.
     </li>
 </ol>
 <br>
 <img style="width: 500px; height: 500px;" alt="" src="images/coherencyMatrixGenerationOp.jpeg"><br>
 
-<p> Reference:&nbsp;</p>
+<h3>References</h3>
+<ol>
+    <li>Lee, J.-S., Pottier, E. (2009). <i>Polarimetric Radar Imaging: From Basics to Applications</i>. CRC Press, Boca Raton. doi:10.1201/9781420054989</li>
+    <li>Cloude, S. R., Pottier, E. (1996). A review of target decomposition theorems in radar polarimetry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 34(2), 498&#8211;518. doi:10.1109/36.485127</li>
+</ol>
 
-<p>[1] Jong-Sen Lee and Eric Pottier, Polarimetric Radar Imaging: From Basics to Applications, CRC Press, 2009</p>
+<!-- params:begin op="Polarimetric-Matrices" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Polarimetric-Matrices</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>matrix</code></td><td>String</td><td>T3</td><td>C2, C3, C4, T3, T4</td><td>&nbsp;</td><td>The covariance or coherency matrix</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/polarimetry.html">Polarimetry Primer</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_matrices.html">Polarimetric Matrices and Parameters</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/decompositions.html">Polarimetric Decompositions</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/pol_calibration.html">Polarimetric Calibration and Propagation Effects</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>SLC product (not a TOPS burst product: apply TOPS Deburst first)</li>
+    <li>Quad-pol scattering-matrix product for C3, C4, T3 and T4; dual-pol or compact-pol product for C2 (use Band Select to pick two polarizations from a quad-pol product)</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a></li>
+    <li><a href="PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.classification.ui/org/csa/rstb/classification/docs/operators/PolarimetricClassificationOp.html">Polarimetric Classification</a></li>
+</ul>
+<!-- footer:end -->
 <hr>
 </body>
 </html>

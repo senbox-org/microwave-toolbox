@@ -211,9 +211,13 @@ public class vanZyl extends DecompositionBase implements Decomposition, QuadPolP
         final double lambda2 = 0.5 * C * (zeta + 1.0 - Math.sqrt(delta));
         final double lambda3 = C * eta;
 
-        // Assign lambda1 and lambda2 to surface and double bounce scatterings
+        // Assign lambda1 and lambda2 to surface and double bounce scattering by the co-pol phase of their
+        // eigenvectors, not by size. The eigenvectors are k = [2 rho / (zeta - 1 +- sqrt(delta)), 0, 1]; since
+        // zeta - 1 + sqrt(delta) >= 0 >= zeta - 1 - sqrt(delta), the lambda1 eigenvector has HH and VV in phase
+        // (odd bounce, surface) when Re(rho) > 0, and in anti-phase (even bounce, double bounce) when
+        // Re(rho) < 0; the lambda2 eigenvector is the opposite (van Zyl 1993, [1]).
         double Ps, Pd, Pv;
-        if (lambda1 > lambda2) {
+        if (C13_re >= 0.0) {
             Ps = lambda1;
             Pd = lambda2;
         } else {

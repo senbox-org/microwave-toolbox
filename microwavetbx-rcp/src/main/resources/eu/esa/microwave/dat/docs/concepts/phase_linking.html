@@ -1,0 +1,224 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Phase Linking in Depth</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Phase Linking in Depth</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Phase Linking in Depth</h1>
+
+<p class="lead">Phase linking estimates one phase per date for each distributed-scatterer pixel by fitting all
+interferometric pairs of a coregistered stack at once. The phase-linked stack is less noisy over fields, rangeland
+and debris, which helps unwrapping and SBAS inversion. The overview of time-series methods is in
+<a href="time_series.html">InSAR time series</a>.</p>
+
+<h2>Distributed and persistent scatterers</h2>
+<p>A <b>persistent scatterer</b> (PS) is dominated by one stable reflector, so a single pixel's phase is
+meaningful on every date. A <b>distributed scatterer</b> (DS) holds many small scatterers: its single-pixel phase is
+speckle-noisy and its <a href="coherence.html">coherence</a> decays with time. Averaging similar neighbours gives the
+covariance of the N dates, modelled as</p>
+<p class="eq">E[s<sub>i</sub> s<sub>j</sub><sup>*</sup>] = &sigma;<sub>i</sub> &sigma;<sub>j</sub>
+    |&gamma;<sub>ij</sub>| exp( j(&theta;<sub>i</sub> &#8722; &theta;<sub>j</sub>) )</p>
+<p>where s<sub>n</sub> is the complex SLC value on date n, &sigma;<sub>n</sub><sup>2</sup> its mean intensity,
+|&gamma;<sub>ij</sub>| the coherence between dates i and j, and &theta;<sub>n</sub> the phase of date n
+(deformation, atmosphere, residual topography), in SNAP's Reference &times; conj(Secondary) order
+(<a href="insar.html">InSAR</a>). A single-reference stack uses N&#8722;1 of the N(N&#8722;1)/2 pairwise phases, an
+SBAS network a few more; phase linking uses all of them (780 pairs for 40 dates) to estimate N&#8722;1 phases.</p>
+
+<h2>Statistically homogeneous pixels (SHPs)</h2>
+<p>For each pixel p the operator compares the amplitude time series of p with that of every pixel q in a
+<code>windowAzimuth</code> &times; <code>windowRange</code> window (made odd) and keeps q as an SHP if a two-sample
+test does not reject "same distribution" at significance &alpha; (<code>shpAlpha</code>, 0.05):</p>
+<ul>
+    <li><b>KS</b> (default): largest distance D between the empirical distribution functions; accepted if
+        D &le; c(&alpha;)&middot;&radic;(2/N), c(0.05) = 1.36.</li>
+    <li><b>AD</b>: standardised Anderson-Darling statistic, accepted if &le; 1.961 at &alpha; = 0.05; more
+        sensitive to the tails.</li>
+    <li><b>TLog</b>: Welch t-test on mean log-amplitude (|t| &le; 1.96); fast, but blind to the distribution
+        shape.</li>
+</ul>
+<p>With only N samples per pixel, short stacks accept generously; a larger &alpha; rejects more (KS only; TLog and AD use fixed table
+values). Candidates with
+no-data on any date, or outside the scene, are skipped. If fewer than max(<code>shpMin</code>, N) SHPs remain, the
+pixel is <b>passed through</b>: the output keeps the original SLC samples and <code>tempCoh</code> is no-data. The
+floor of N is needed because a covariance from L &lt; N samples is singular. Isolated PS and narrow features thus
+keep their original phase.</p>
+
+<h2>The coherence matrix</h2>
+<p>From the set &Omega; of L SHPs the operator forms the sample covariance and normalises it:</p>
+<p class="eq">C<sub>ij</sub> = (1/L) &Sigma;<sub>q&isin;&Omega;</sub> s<sub>i</sub>(q) s<sub>j</sub><sup>*</sup>(q),
+    &nbsp;&nbsp; T<sub>ij</sub> = C<sub>ij</sub> / &radic;( C<sub>ii</sub> C<sub>jj</sub> )</p>
+<p>T is Hermitian with a unit diagonal. Each |T<sub>ij</sub>| comes from L looks and is biased upward,
+E[|&gamma;<sub>est</sub>|<sup>2</sup>] &asymp; |&gamma;|<sup>2</sup> + (1 &#8722; |&gamma;|<sup>2</sup>)/L
+(|T<sub>ij</sub>| about 0.2, &radic;(1/L), for unrelated dates at L = 20), more so because neighbouring pixels are correlated. Decorrelated long
+pairs then look more reliable than they are. The optional <code>coherenceBiasCorrection</code> (off) sets each
+off-diagonal magnitude to &radic;max(0, (L|T<sub>ij</sub>|<sup>2</sup> &#8722; 1)/(L &#8722; 1)), keeping the phase;
+it helps EVD but can degrade EMI. There is no other regularisation (no shrinkage); EMI only ignores eigenvalues of
+|T| below 10<sup>&#8722;9</sup> when inverting it.</p>
+
+<h2>Estimators</h2>
+<p>With &xi; = [exp(j&theta;<sub>1</sub>) &#8230; exp(j&theta;<sub>N</sub>)]<sup>T</sup>, the maximum-likelihood
+(ML) estimate for the Gaussian model above is (Monti Guarnieri &amp; Tebaldini, 2008)</p>
+<p class="eq">&theta;<sub>ML</sub> = arg min<sub>&theta;</sub> &xi;<sup>H</sup> ( |&Gamma;|<sup>&#8722;1</sup> &#9675; T ) &xi;</p>
+<p>where |&Gamma;| holds the coherence magnitudes, <sup>&#8722;1</sup> is the matrix inverse and &#9675; the
+element-wise product. SqueeSAR (Ferretti et al., 2011) uses this "phase triangulation"; the constraint
+|&xi;<sub>n</sub>| = 1 makes it iterative. SNAP offers two closed-form estimators (<code>estimator</code>):</p>
+<ul>
+    <li><b>EVD</b> (default): &theta;<sub>n</sub> = arg u<sub>n</sub>, where u is the eigenvector of T with
+        the largest eigenvalue (Fornaro et al., 2015; Cao, Lee &amp; Jung, 2015). Robust, but its weighting of the
+        pairs is not the statistically optimal one.</li>
+    <li><b>EMI</b>: the eigenvector of |T|<sup>&#8722;1</sup> &#9675; T with the smallest eigenvalue (Ansari, De Zan
+        &amp; Bamler, 2018): the ML criterion with |T| for |&Gamma;| and the unit-modulus constraint relaxed. Close to
+        ML, at about twice the cost of EVD in SNAP.</li>
+</ul>
+<p>Both subtract the phase of the reference epoch, so &theta;<sub>ref</sub> = 0.</p>
+
+<h2>Temporal coherence and reference epoch</h2>
+<p>The fit is scored by the temporal coherence</p>
+<p class="eq">&gamma;<sub>T</sub> = 2 / (N(N&#8722;1)) &middot; | &Sigma;<sub>i&lt;j</sub>
+    exp( j( arg T<sub>ij</sub> &#8722; (&theta;<sub>i</sub> &#8722; &theta;<sub>j</sub>) ) ) |</p>
+<p>with &theta;<sub>n</sub> now the estimates. It is 1 when they explain every pairwise phase. Below
+<code>tempCohMin</code> (0.6) the pixel is passed through with its original samples, while <code>tempCoh</code>
+still records &gamma;<sub>T</sub>.</p>
+<p>The reference epoch is the zero-phase datum; its output sample is real-valued, which is harmless because only
+phase differences are used downstream. If <code>referenceEpochDate</code> is empty, the date with index N/2 in date
+order (from 0) is used: the median, or the later middle date when N is even, as in SBAS Inversion.</p>
+<p><img src="images/phase_linking_1.png" width="560" height="290" alt="Synthetic coherence matrix and EVD phase estimate"></p>
+<p class="figcap">Figure 1. Synthetic example, 40 dates 12 days apart. (a) True coherence: exponential decay
+(36-day constant) plus a seasonal term that recovers near one year. (b) True phase (C-band, linear plus annual
+motion), the single-pair phase to the median reference date, and the EVD estimate, both from one 50-SHP sample
+matrix. Over 500 realisations the RMS error is 0.27 rad (EVD) against 0.53 rad (single pair).</p>
+
+<h2>Closure phase and the fading signal</h2>
+<p>Under the model above the closure phase arg(T<sub>ij</sub> T<sub>jk</sub> T<sub>ik</sub><sup>*</sup>) of any
+three dates is zero. Real DS violate this: soil moisture (De Zan et al., 2014) and vegetation leave non-zero
+closure. Ansari, De Zan &amp; Parizzi (2021) describe short-lived "fading signals" present in short-baseline
+interferograms but not in long ones; a network of only short pairs sums them into a bias that can look like slow
+deformation. Phase linking uses the long pairs too, which reduces the bias but does not remove it.</p>
+<ul>
+    <li>Over vegetation and farmland, add long pairs (months to over a year) or phase-link first, and compare
+        velocities from networks with different maximum temporal baselines: a systematic difference is bias.</li>
+    <li>Read <code>closure_phase_rms</code> (SBAS Inversion) on <i>original</i> interferograms. Each triplet is wrapped
+        to (&#8722;&pi;, &pi;], so it shows sub-cycle inconsistency, not whole-cycle unwrapping errors. Single-look
+        phase-linked interferograms close exactly at linked pixels; after multilooking or filtering, nearly
+        so.</li>
+</ul>
+
+<h2>In SNAP</h2>
+<p><b>Phase Linking</b> (<code>PhaseLinking</code>, Radar &gt; Interferometric &gt; Phase Linking &gt; Phase Linking) needs a
+coregistered complex stack of at least 3 dates, with the same number of dates for each polarisation (processed
+separately). Burst
+TOPS products are refused: run TOPSAR-Deburst first (<a href="tops.html">TOPS</a>). The <code>_PL</code> product
+contains:</p>
+<ul>
+    <li><code>i_pl_&lt;swath&gt;_&lt;pol&gt;_ref_&lt;date&gt;</code> and
+        <code>i_pl_&lt;swath&gt;_&lt;pol&gt;_sec&lt;k&gt;_&lt;date&gt;</code>, with matching <code>q_pl_*</code> bands
+        and virtual Intensity and Phase bands: original amplitude, estimated phase. Swath and polarisation are
+        omitted throughout if the input names have none. The stack metadata is updated for Interferogram, Coherence and
+        Multi-Reference InSAR.</li>
+    <li><code>tempCoh_&lt;pol&gt;</code> (unit coherence, on by default; NaN where too few SHPs or valid dates).</li>
+    <li><code>numSHP_&lt;pol&gt;</code> (integer, off by default; 0 is no-data).</li>
+</ul>
+<p><b>Stack size.</b> Memory grows with N and the per-pixel eigen-decomposition as N<sup>3</sup>, so the code
+recommends at most about 50 dates, and longer stacks also raise the SHP floor to N.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+    <tr><th>Parameter</th><th>Default</th><th>How to choose</th></tr>
+    <tr><td><code>windowAzimuth</code> &times; <code>windowRange</code></td><td>21 &times; 7</td>
+        <td>Aim for a roughly square ground footprint holding at least 2N SHPs. On Sentinel-1 IW (about 14 m azimuth,
+            3.7 m ground range) the default covers about 290 m &times; 26 m; <code>windowAzimuth</code> 7 and <code>windowRange</code> 21
+            give about 100 m &times; 80 m with the same pixel count.</td></tr>
+    <tr><td><code>shpTest</code></td><td>KS</td><td>KS in general; AD for stricter selection; TLog for speed.</td></tr>
+    <tr><td><code>shpAlpha</code></td><td>0.05</td><td>Raise to reject more neighbours near boundaries (KS only; TLog and AD use
+        fixed table values).</td></tr>
+    <tr><td><code>shpMin</code></td><td>20</td><td>Effective minimum is max(<code>shpMin</code>, N).</td></tr>
+    <tr><td><code>estimator</code></td><td>EVD</td><td>EMI for low-coherence DS (closer to ML); compare with EVD
+        on a test area.</td></tr>
+    <tr><td><code>tempCohMin</code></td><td>0.6</td><td>Lower it to link more pixels at more risk; mask on
+        <code>tempCoh</code> afterwards.</td></tr>
+    <tr><td><code>coherenceBiasCorrection</code></td><td>off</td><td>Consider with EVD when SHP counts are low; leave off
+        with EMI.</td></tr>
+    <tr><td><code>referenceEpochDate</code></td><td>empty (median)</td><td><code>ddMMMyyyy</code>; a date with good
+        coherence to the rest.</td></tr>
+</table>
+<p><b>Next steps.</b> Form pairs from the <code>_PL</code> stack with Multi-Reference InSAR, filter, unwrap with
+SNAPHU and run <a
+href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS
+Inversion</a>. Band requirements and export routes (PyRate) are in <a href="time_series.html">InSAR time series</a>
+and the <a href="../workflows/workflow_time_series.html">time-series workflow</a>.</p>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Keeping the default window on Sentinel-1 IW: its 290 m &times; 26 m footprint is a long azimuth strip that
+        crosses field boundaries.</li>
+    <li>A stack longer than the window supports: most pixels are passed through. Check <code>numSHP</code> and the
+        NaN share of <code>tempCoh</code>.</li>
+    <li>Treating every <code>_PL</code> pixel as phase-linked. Where <code>tempCoh</code> is NaN or below the
+        threshold, the phase is the original.</li>
+    <li>Expecting a gain on PS such as buildings. Isolated PS usually have too few SHPs and are passed through; PS
+        that do find SHPs are averaged with them. SNAP has no PS/DS combination; for PS analysis use StaMPS
+        Export.</li>
+    <li>Reading a velocity from a short-pair-only network over vegetation as deformation.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/PhaseLinkingOp.html">Phase Linking</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/SBASInversionOp.html">SBAS Inversion</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/MultiReferenceInSAROp.html">Multi-Reference InSAR</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+</ul>
+<p>Related concepts: <a href="time_series.html">InSAR time series</a>, <a href="coherence.html">coherence</a>,
+<a href="insar.html">InSAR</a>, <a href="unwrapping.html">phase unwrapping</a>, <a href="tops.html">TOPS</a>,
+<a href="glossary.html">glossary</a>, <a href="bibliography.html">bibliography</a>.</p>
+
+<h2>References</h2>
+<ol>
+    <li>Monti Guarnieri, A., Tebaldini, S. (2008). On the exploitation of target statistics for SAR interferometry
+        applications. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 46(11), 3436&#8211;3443.
+        doi:10.1109/TGRS.2008.2001756</li>
+    <li>Ferretti, A., Fumagalli, A., Novali, F., Prati, C., Rocca, F., Rucci, A. (2011). A new algorithm for
+        processing interferometric data-stacks: SqueeSAR. <i>IEEE Transactions on Geoscience and Remote Sensing</i>,
+        49(9), 3460&#8211;3470. doi:10.1109/TGRS.2011.2124465</li>
+    <li>Fornaro, G., Verde, S., Reale, D., Pauciullo, A. (2015). CAESAR: An approach based on covariance matrix
+        decomposition to improve multibaseline&#8211;multitemporal interferometric SAR processing. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 53(4), 2050&#8211;2065. doi:10.1109/TGRS.2014.2352853</li>
+    <li>Cao, N., Lee, H., Jung, H. C. (2015). Mathematical framework for phase-triangulation algorithms in
+        distributed-scatterer interferometry. <i>IEEE Geoscience and Remote Sensing Letters</i>, 12(9),
+        1838&#8211;1842. doi:10.1109/LGRS.2015.2430752</li>
+    <li>Ansari, H., De Zan, F., Bamler, R. (2018). Efficient phase estimation for interferogram stacks. <i>IEEE
+        Transactions on Geoscience and Remote Sensing</i>, 56(7), 4109&#8211;4125. doi:10.1109/TGRS.2018.2826045</li>
+    <li>De Zan, F., Parizzi, A., Prats-Iraola, P., L&oacute;pez-Dekker, P. (2014). A SAR interferometric model for
+        soil moisture. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 52(1), 418&#8211;425.
+        doi:10.1109/TGRS.2013.2241069</li>
+    <li>Ansari, H., De Zan, F., Parizzi, A. (2021). Study of systematic bias in measuring surface deformation with
+        SAR interferometry. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 59(2), 1285&#8211;1301.
+        doi:10.1109/TGRS.2020.3003421</li>
+</ol>
+<p>Methods mentioned above that SNAP does not implement:</p>
+<ul>
+    <li>Ansari, H., De Zan, F., Bamler, R. (2017). Sequential estimator: Toward efficient InSAR time series analysis.
+        <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 55(10), 5637&#8211;5652.
+        doi:10.1109/TGRS.2017.2711037</li>
+    <li>Mirzaee, S., Amelung, F., Fattahi, H. (2023). Non-linear phase linking using joined distributed and
+        persistent scatterers. <i>Computers &amp; Geosciences</i>, 171, 105291. doi:10.1016/j.cageo.2022.105291</li>
+</ul>
+
+<hr>
+</body>
+</html>

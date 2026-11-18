@@ -1,49 +1,59 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><title>Help - Import SeaSat</title>
-
-
-
-    <link rel="stylesheet" href="../style.css"></head><body>
+<html><head><title>Help - Import Seasat</title>
+    <link rel="stylesheet" href="../style.css"></head>
+<body>
 <table class="header">
     <tbody>
     <tr class="header">
-        <td class="header">&nbsp; Import TerraSarX SAR</td>
+        <td class="header">&nbsp; Import Seasat</td>
         <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
     </tr>
     </tbody>
 </table>
-<h3>Import&nbsp;SeaSat Product</h3>
 
-<p class="MsoNormal">SeaSat was the first civilian SAR satellite designed for
-monitoring of the oceans.</p>
+<p>Seasat was NASA's 1978 ocean-observation satellite, with an L-band SAR on board. SNAP reads the Seasat products distributed by the Alaska Satellite Facility (ASF)
+with the <b>SeaSat</b> reader.</p>
 
+<h2>Mission</h2>
+<ul>
+  <li><b>Operator:</b> NASA/JPL.</li>
+  <li><b>Radar:</b> L-band, 1.275 GHz (wavelength about 23.5 cm), HH polarisation.</li>
+  <li><b>Orbit:</b> about 800 km altitude.</li>
+  <li><b>Lifetime:</b> launched 26 June 1978 (27 June UTC); an electrical short circuit ended the
+      mission in October 1978, after 105 days in orbit.</li>
+  <li><b>Imaging:</b> stripmap, about 25 m resolution, 100 km swath.</li>
+</ul>
 
-<p class="MsoNormal"><b style="">Operational: </b>June
-26, 1978 to October 10, 1978</p>
+<h2>Supported products</h2>
+<p>Detected ground-range products (for example <code>SS_00263_STD_F0886</code>): GeoTIFF image with
+an XML metadata file. HH only.</p>
 
+<h2>How to open</h2>
+<p>Select the product XML file <code>SS_*.xml</code> (not the <code>.iso.xml</code> file) in the
+unpacked folder, or the zipped product <code>SS_*.zip</code>.</p>
 
-<p class="MsoNormal"><b style="">Frequency Band:</b>
-L-band</p>
+<h2>What you get</h2>
+<ul>
+  <li>An <code>Amplitude_HH</code> band and a virtual <code>Intensity_HH</code> band.</li>
+  <li>Geocoding from the GeoTIFF, plus tie-point grids.</li>
+</ul>
+<p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
 
+<h2>Known limitations</h2>
+<ul>
+  <li>SNAP has no Seasat calibrator, so <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a> does not accept these products.</li>
+  <li>Apply Orbit File has no Seasat orbit source.</li>
+</ul>
 
-<p class="MsoNormal"><b style="">Acquisition Modes:</b>
-Stripmap</p>
+<h2>Recommended next step</h2>
+<p><a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>, then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a> or
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/EllipsoidCorrectionRDOp.html">Ellipsoid Correction</a>.</p>
 
-
-<p class="MsoNormal"><b style="">Product Types:</b> <span style="">&nbsp;</span>GRD Ground Range Detected</p>
-
-
-<p class="MsoNormal"><b style="">Polarizations: </b>All
-modes are single pol HH.</p>
-
-
-<p class="MsoNormal"><b style="">Further Information: </b></p>
-
-
-<p class="MsoNormal"><a href="https://asf.alaska.edu/data-sets/sar-data-sets/seasat/seasat-about/">https://asf.alaska.edu/data-sets/sar-data-sets/seasat/seasat-about/</a></p>
-
-<p class="MsoNormal"><a href="https://directory.eoportal.org/web/eoportal/satellite-missions/s/seasat">https://directory.eoportal.org/web/eoportal/satellite-missions/s/seasat</a></p>
-
+<h2>Product format specification</h2>
+<p>No format document is linked here; ASF distributes the products. Mission background:
+<a href="https://www.jpl.nasa.gov/missions/seasat">NASA JPL: Seasat</a>,
+<a href="https://earth.esa.int/eogateway/missions/seasat">ESA Earth Online: Seasat</a> and
+<a href="https://www.eoportal.org/satellite-missions/seasat">eoPortal: Seasat</a>.</p>
 
 <hr>
 </body></html>

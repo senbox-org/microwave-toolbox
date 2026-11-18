@@ -79,7 +79,7 @@ public class IEMMultiPolInverOp extends IEMInverBase {
     Product targetProduct;
 
     // The LUT has 4 columns: rms, RDC, sigmaHH, sigmaVV.
-    @Parameter
+    @Parameter(description = "The look-up table (LUT) file used for the inversion")
     private File lutFile;
     @Parameter(description = "Optional rms in output", defaultValue = "false", label = "Output rms")
     private Boolean outputRMS = false;

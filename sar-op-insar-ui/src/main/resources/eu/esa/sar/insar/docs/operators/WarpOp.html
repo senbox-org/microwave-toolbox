@@ -16,7 +16,7 @@
 </table>
 <h3>Warp Operator</h3>
 <br>
-The Warp operator is a component of <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/tutorials/coregistering_products.html">coregistration</a>. This operator
+The Warp operator is a component of <a href="Coregistration.html">coregistration</a>. This operator
 computes a warp function from the reference-secondary ground control point (GCP) pairs produced
 by <a href="CrossCorrelationOp.html">GCP Selection operator</a>, and generates the final co-registered image. <br><h4>
     Compute Warp Polynomial</h4>&nbsp;&nbsp;
@@ -24,38 +24,45 @@ Once the valid reference-secondary GCP pairs are&nbsp;known, a polynomial of a
 certain order is computed using a least square method, which
 maps&nbsp;the reference GCPs&nbsp;onto the secondary GCPs. This function is
 known as the warp function and is used to perform the co-registration.
-Generally the warp function computed with the initial reference-secondary GCPs
-is&nbsp;not the final warp function used in co-registration because it
-normally introduces large errors for GCPs. These GCPs must be removed.
-Therefore the warp function is
-determined in an iterative manner.<br>
+Some of the initial GCP pairs are wrong (outliers) and must be removed before the final warp
+function is computed. The operator does this in one of two ways.<br>
+<h4>Outlier removal for complex (SLC) data: w-test</h4>
+For complex data, with a significance level of 0.001, 0.05 or 0.1, the operator uses a
+statistical outlier test (the jLinda/DORIS coregistration polynomial model, CPM):
 <ol>
-    <li>First&nbsp;a warp function is computed using the initial reference-secondary GCP pairs.</li>
-    <li>Then&nbsp;the reference GCPs are mapped to the secondary image with the&nbsp;warp function,
-        and&nbsp;the residuals between the mapped reference GCPs and&nbsp;their corresponding secondary GCPs are computed. The
-        root
-        mean square&nbsp;(RMS) and the standard deviation for the residuals are also computed.
-    </li>
-    <li>Next,&nbsp;the reference-secondary GCP pairs are filtered with the mean
-        RMS. GCP pairs with RMS greater than the mean RMS&nbsp;are eliminated.
-    </li>
-    <li>The
-        same procedure (step 1 to 3) is repeated up to 2 times if needed and
-        each time&nbsp;the remaining reference-secondary GCP pairs from previous
-        elimination are used.
-    </li>
-    <li>Finally&nbsp;the reference-secondary GCP pairs are filtered with the user
-        selected RMS threshold and the final warp function is computed with the
-        remaining reference-secondary GCP pairs.
-    </li>
+    <li>The warp polynomial is fitted to all GCP pairs by least squares.</li>
+    <li>For each GCP a normalised residual (the w-test statistic) is computed, separately in
+        azimuth and in range.</li>
+    <li>If the largest statistic in either direction is above the critical value, the GCP with
+        the largest combined statistic (w<sub>azimuth</sub><sup>2</sup> + w<sub>range</sub><sup>2</sup>)
+        is removed and the fit is repeated, so outliers in azimuth and in range are both removed.</li>
+    <li>This stops when all GCPs pass the test, when no redundant GCPs are left, or after
+        20 iterations.</li>
+</ol>
+The critical value follows from the significance level: 3.29 for 0.001, 1.96 for 0.05 and
+1.64 for 0.1. A larger significance level gives a smaller critical value, so more GCPs are
+rejected; a smaller significance level keeps more GCPs, including more outliers.<br>
+<h4>Outlier removal by RMS threshold</h4>
+For detected (amplitude or intensity) stacks, and for the values 0.5 and 1.0, the legacy RMS
+rule applies and the value is read as an RMS threshold in pixels. On a detected stack the
+default 0.05 therefore means a final cut at 0.05 pixel RMS, which is very strict: Cross-Correlation
+gives only coarse GCPs there (quantised to 1/interpolation factor), so choose 0.5 or 1.0.
+If the w-test fit fails (the log shows "Error computing complex polynomial model"), Warp falls
+back to the RMS rule for all Secondaries, again with the value in pixels. The RMS rule is:
+<ol>
+    <li>The warp polynomial is fitted and the RMS residual of each GCP pair is computed.</li>
+    <li>While the mean RMS is above the threshold, GCP pairs with RMS greater than
+        (mean RMS + standard deviation) are removed and the fit is repeated.</li>
+    <li>Finally the GCP pairs with RMS above the threshold are removed and the final warp
+        function is computed with the remaining pairs.</li>
 </ol>
 &nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp; The WARP polynomial order is specified by user in the dialog box.<br>
 <ul>
     <li>The valid values for the&nbsp;polynomial order are
-        1, 2 and 3.
+        1, 2 and 3. The default is 2.
     </li>
-    <li>For most cases where the input images do not suffer from a high level of
-        distortion, linear&nbsp;warp is generally enough and is recommended as&nbsp;default.
+    <li>For images without strong distortion a linear (order 1) or quadratic (order 2) warp is
+        usually enough.
     </li>
     <li>Higher order warp should be used only&nbsp;when image suffers from a high level distortion and a very good
         co-registration
@@ -64,6 +71,10 @@ determined in an iterative manner.<br>
     <li>Higher order&nbsp;warp requires more GCPs and can introduce large distortions
         in image regions containing only a few GCPs.
     </li>
+    <li>If fewer GCPs remain for a Secondary than the polynomial has coefficients (3, 6 or 10
+        for order 1, 2 or 3), Warp logs the warning "&lt;band&gt; does not have enough valid
+        GCPs for the warp".
+    </li>
 </ul>
 <h4>Generate Co-Registered Image</h4>&nbsp;&nbsp;&nbsp;With the
 determination of&nbsp;warp function which maps&nbsp;pixels in the reference
@@ -71,11 +82,13 @@ image to the secondary image, the co-registered image can be obtained with
 interpolation. Currently the following interpolation methods are
 supported:<br>
 <ol>
-    <li>Nearest-neighbour interpolation</li>
+    <li>Nearest-neighbor interpolation</li>
     <li>Bilinear interpolation</li>
     <li>Bicubic interpolation</li>
-    <li>Cubic interpolation (4 and 6 points)</li>
-    <li>Truncated sinc interpolation (6, 8 and 16 points)</li>
+    <li>Bicubic2 interpolation</li>
+    <li>Linear interpolation (TRI; this operator computes it with the bilinear interpolator)</li>
+    <li>Cubic convolution (4 and 6 points); the default is Cubic convolution (6 points)</li>
+    <li>Truncated sinc (6, 8 and 16 points)</li>
 
 </ol>
 <h4>Interpolation for InSAR</h4>&nbsp;&nbsp;&nbsp;
@@ -92,7 +105,9 @@ the information contained within the&nbsp;residual file to see if the
 co-registration process can be considered to have been successful. For
 example, the "RMS mean" value&nbsp;can be used as an approximate figure
 of merit for the co-registration. User can view the residual file by
-checkmarking the "Show Residuals" box in the dialog box. Detailed
+checkmarking the "Show Residuals" box in the dialog box. The residual file is written only
+when the RMS-threshold method is used; with the w-test the GCPs and warp results are stored in
+the product metadata (<code>WarpData</code> element of each band). Detailed
 information contained in the residual file are listed below:<br>
 <ul>
     <li>Band name</li>
@@ -112,18 +127,54 @@ information contained in the residual file are listed below:<br>
 </ul>
 <h4>Parameters Used</h4>&nbsp;&nbsp;&nbsp;The following parameters are used by the operator:<br>
 <ol>
-    <li>RMS Threshold: The criterion for eliminating invalid GCPs. In general, the
-        smaller the threshold, the better the GCP quality, but lower the number of GCPs.
+    <li>Significance Level for Outlier Removal (shown in the dialog as "RMS Threshold (pixel
+        accuracy)", parameter <code>rmsThreshold</code>): values 0.001, 0.05, 0.1, 0.5, 1.0;
+        default 0.05. For complex data, 0.001, 0.05 and 0.1 are significance levels of the
+        w-test; 0.5 and 1.0, and any value for detected data, are RMS thresholds in pixels
+        (see above). For detected stacks with coarse-only GCPs use 0.5 to 1.0.
     </li>
-    <li>Warp Polynomial Order: The degree of the warp polynomial.&nbsp;</li>
+    <li>Warp Polynomial Order: The degree of the warp polynomial. Values 1, 2, 3; default 2.</li>
     <li>Interpolation Method: The interpolation method used computing co-registered secondary image
-        pixel value.
+        pixel value. Default: Cubic convolution (6 points).
     </li>
     <li>Show Residuals: Display GCP residual file if selected.</li>
 </ol>
 <br>
 <img style="width: 600px; height: 500px;" alt="" src="images/warp_dlg.jpg">
-<br><br><br><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/tutorials/coregistering_products.html"></a><br>
+<br><br><br><br>
+<!-- params:begin op="Warp" -->
+<h3>Processing parameters (reference)</h3>
+<p>GPT operator: <code>Warp</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
+<tr><td><code>rmsThreshold</code></td><td>float</td><td>0.05</td><td>0.001, 0.05, 0.1, 0.5, 1.0</td><td>&nbsp;</td><td>Confidence level for outlier detection procedure, lower value accepts more outliers</td></tr>
+<tr><td><code>warpPolynomialOrder</code></td><td>int</td><td>2</td><td>1, 2, 3</td><td>&nbsp;</td><td>The order of WARP polynomial function</td></tr>
+<tr><td><code>interpolationMethod</code></td><td>String</td><td>Cubic convolution (6 points)</td><td>Nearest-neighbor interpolation, Bilinear interpolation, Bicubic interpolation, Bicubic2 interpolation, Linear interpolation, Cubic convolution (4 points), Cubic convolution (6 points), Truncated sinc (6 points), Truncated sinc (8 points), Truncated sinc (16 points)</td><td>&nbsp;</td><td>Interpolation Method</td></tr>
+<tr><td><code>demRefinement</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Refine estimated offsets using a-priori DEM</td></tr>
+<tr><td><code>demName</code></td><td>String</td><td>Copernicus 30m Global DEM</td><td>&nbsp;</td><td>&nbsp;</td><td>The digital elevation model.</td></tr>
+<tr><td><code>excludeMaster</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Exclude the reference (master) bands from the output; secondary band names are then written without the date suffix</td></tr>
+<tr><td><code>openResidualsFile</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Show the Residuals file in a text viewer</td></tr>
+</table>
+<!-- params:end -->
+<!-- footer:begin -->
+<h3>Background</h3>
+<ul>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/insar.html">InSAR Fundamentals</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/coregistration.html">Coregistration of SAR Images</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/concepts/resampling.html">Resampling and Interpolation for SAR Data</a></li>
+    <li><a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/workflows/workflow_stripmap_dinsar.html">Workflow: Stripmap DInSAR</a></li>
+</ul>
+<h3>Prerequisites</h3>
+<ul>
+    <li>GCPs from <a href="CrossCorrelationOp.html">Cross-Correlation</a> on the same stack: Warp uses a secondary's GCP list when it holds at least 3 GCPs</li>
+</ul>
+<h3>Next step</h3>
+<ul>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram</a></li>
+    <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/CoherenceOp.html">Coherence</a></li>
+</ul>
+<!-- footer:end -->
+
 <hr>
 </body>
 </html>

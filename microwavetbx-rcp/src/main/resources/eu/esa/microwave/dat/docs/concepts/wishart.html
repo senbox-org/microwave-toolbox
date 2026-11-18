@@ -1,0 +1,172 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+    <title>Help - Polarimetric Speckle, Wishart Statistics and Classification</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="../style.css">
+    <style type="text/css">
+        p.lead { font-size: 13; margin-top: 4pt; margin-bottom: 10pt; }
+        p.eq { font-family: Times New Roman, serif; font-size: 14; margin-left: 30; }
+        p.figcap { font-size: 11; color: #444444; margin-left: 6pt; margin-top: 2pt; }
+        th { background-color: #E8E8E8; }
+    </style>
+</head>
+<body>
+<table class="header" width="100%">
+    <tbody>
+    <tr class="header">
+        <td class="header">&nbsp;&nbsp;SAR Concepts: Polarimetric Speckle, Wishart Statistics and Classification</td>
+        <td class="header" align="right"><a href="nbdocs://org.esa.snap.snap.help/org/esa/snap/snap/help/docs/general/overview/SnapOverview.html"><img src="../images/snap_header.jpg" border="0"></a></td>
+    </tr>
+    </tbody>
+</table>
+
+<h1>Polarimetric Speckle, Wishart Statistics and Classification</h1>
+
+<p class="lead">In polarimetric data, speckle affects the whole covariance matrix, not just one intensity.
+The averaged matrix of a uniform area follows a known distribution, the complex Wishart distribution.
+It tells you how much averaging a result needs, how a filter must treat the matrix, and how SNAP's
+Wishart classifiers and change detector decide between classes or dates.</p>
+
+<p>The matrices C and T are defined on the <a href="polarimetry.html">Polarimetry Primer</a> page; speckle
+in single-channel images is covered on <a href="speckle.html">Speckle and multilooking</a>.</p>
+
+<h2>From speckle to the Wishart distribution</h2>
+<p>For a distributed target, the target vector k of one look (dimension q = 2, 3 or 4) is a zero-mean,
+circular complex Gaussian vector with covariance &Sigma; = E[k k<sup>H</sup>] (Goodman 1963). Averaging L
+independent looks gives the sample matrix</p>
+<p class="eq">&lt;C&gt; = (1/L) &Sigma;<sub>i=1..L</sub> k<sub>i</sub> k<sub>i</sub><sup>H</sup></p>
+<p>L&lt;C&gt; follows a complex Wishart distribution with L degrees of freedom. For L &ge; q its density
+is</p>
+<p class="eq">p(&lt;C&gt;) = L<sup>Lq</sup> det(&lt;C&gt;)<sup>L&#8722;q</sup> exp[ &#8722;L tr(&Sigma;<sup>&#8722;1</sup> &lt;C&gt;) ] / [ K(L, q) det(&Sigma;)<sup>L</sup> ]</p>
+<p class="eq">K(L, q) = &pi;<sup>q(q&#8722;1)/2</sup> &Gamma;(L) &Gamma;(L&#8722;1) ... &Gamma;(L&#8722;q+1)</p>
+<p>The mean of &lt;C&gt; is &Sigma;, so averaging is unbiased for the matrix itself. Each diagonal element
+on its own is an L-look intensity with the usual gamma distribution. Quantities computed
+<i>non-linearly</i> from &lt;C&gt;, such as eigenvalues, entropy, alpha angle and coherence, are biased
+when L is small (Figure 1).</p>
+<p><img src="images/wishart_1.png" width="560" height="320" alt="Mean estimated entropy versus number of looks for three true entropy values"></p>
+<p class="figcap">Figure 1. Monte Carlo simulation of the entropy estimated from a Wishart-distributed
+coherency matrix, 2000 trials per point. With few looks the entropy is underestimated, most strongly for
+high-entropy (vegetated) targets. True values are the dotted lines.</p>
+
+<h2>Equivalent number of looks</h2>
+<p>The equivalent number of looks (ENL) measures how much averaging an intensity has received. It is
+estimated over a uniform area as</p>
+<p class="eq">ENL = (mean of I)<sup>2</sup> / variance of I</p>
+<p>A single-look SLC has ENL &asymp; 1. Averaging a matrix over a window of n pixels raises it to roughly
+ENL<sub>in</sub> &times; n<sub>indep</sub>, where n<sub>indep</sub> &le; n is the number of independent
+pixels in the window. Oversampled SLC pixels and products that were already filtered or multilooked are
+correlated with their neighbours, so n<sub>indep</sub> is smaller than n.</p>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Window on an SLC (ENL<sub>in</sub> &asymp; 1)</th><th>Upper bound on looks</th><th>Entropy bias for H = 0.9 (Figure 1)</th></tr>
+    <tr><td>3 &times; 3</td><td>9</td><td>about &#8722;0.1</td></tr>
+    <tr><td>5 &times; 5</td><td>25</td><td>about &#8722;0.04</td></tr>
+    <tr><td>7 &times; 7</td><td>49</td><td>about &#8722;0.02</td></tr>
+</table>
+
+<h2>Filters must preserve the matrix</h2>
+<p>A polarimetric speckle filter must apply the <i>same</i> weights to every element of C or T. A
+weighted sum of valid covariance matrices with non-negative weights is again Hermitian and positive
+semi-definite, and the correlations between channels are kept. Filtering each band separately, or with
+weights that differ between elements, can produce matrices with negative eigenvalues, cross-talk between
+channels and wrong entropy and alpha values. The filters in SNAP derive one set of weights per pixel from
+the span and apply it to all elements:</p>
+<table border="1" cellpadding="4" cellspacing="0">
+    <tr><th>Filter</th><th>How it averages</th><th>Strength</th><th>Weakness</th></tr>
+    <tr><td>Box car</td><td>Plain mean over a square window</td><td>Maximum speckle reduction, unbiased</td><td>Blurs edges, lines and point targets</td></tr>
+    <tr><td>Refined Lee</td><td>Minimum mean-square-error weighting in an edge-aligned sub-window (Lee, Grunes and De Grandi 1999)</td><td>Keeps edges</td><td>Less smoothing in textured areas</td></tr>
+    <tr><td>Improved Lee Sigma</td><td>Averages only pixels within a sigma range; detects and keeps strong point targets (Lee et al. 2009)</td><td>Keeps point targets</td><td>More parameters to set</td></tr>
+    <tr><td>IDAN</td><td>Grows an adaptive neighbourhood of similar pixels by region growing (Vasile et al. 2006)</td><td>Many looks in large uniform areas, sharp boundaries</td><td>Slower</td></tr>
+</table>
+
+<h2>Wishart distance and classification</h2>
+<p>For a class with centre V<sub>m</sub> (its mean coherency or covariance matrix), the maximum-likelihood
+rule derived from the Wishart density assigns a pixel to the class with the smallest distance</p>
+<p class="eq">d(&lt;T&gt;, V<sub>m</sub>) = ln det(V<sub>m</sub>) + tr(V<sub>m</sub><sup>&#8722;1</sup> &lt;T&gt;)</p>
+<p>(Lee, Grunes and Kwok 1994). The classifiers in SNAP differ in how they find the class centres:</p>
+<ul>
+    <li><b>H-Alpha Wishart</b> (unsupervised, Lee et al. 1999): start from the H&ndash;&alpha; zones of
+        <a href="decompositions.html">Polarimetric Decompositions</a>, then reassign pixels by Wishart
+        distance and update the centres, as in k-means.</li>
+    <li><b>Freeman-Durden Wishart</b> (unsupervised, Lee et al. 2004): group pixels by their dominant
+        Freeman-Durden mechanism (surface, double bounce, volume, or mixed), split each group into many
+        clusters, merge them to the requested number, then iterate with the Wishart distance inside each
+        mechanism. Classes keep their scattering type.</li>
+    <li><b>General Wishart</b>: the same scheme with a decomposition of your choice.</li>
+    <li><b>Supervised Wishart</b>: class centres are the mean matrices of training areas you draw.</li>
+</ul>
+
+<h2>Wishart-based change detection</h2>
+<p>To test whether two coregistered, averaged matrices C<sub>1</sub> and C<sub>2</sub>, each with N looks,
+come from the same &Sigma;, Conradsen et al. (2003) use the likelihood-ratio statistic</p>
+<p class="eq">ln Q = N [ ln det C<sub>1</sub> + ln det C<sub>2</sub> &#8722; 2 ln det((C<sub>1</sub> + C<sub>2</sub>)/2) ]</p>
+<p>When nothing has changed, &#8722;2 ln Q is approximately &chi;<sup>2</sup>-distributed with
+q<sup>2</sup> degrees of freedom (4 for C2, 9 for C3/T3). The paper also gives a small-sample correction
+factor that is close to 1 for large N. Because ln Q is proportional to N, N must be the number of looks of the
+matrices actually compared, after window averaging, not the ENL of the input.</p>
+
+<h2>In SNAP</h2>
+<ul>
+    <li><b>Polarimetric Speckle Filter</b> (<code>Polarimetric-Speckle-Filter</code>): Box Car Filter,
+        Refined Lee Filter (default), Improved Lee Sigma Filter, IDAN Filter. A quad-pol SLC is written as
+        T3 bands, a dual-pol or compact-pol SLC as C2 bands, and a matrix product keeps its matrix type.
+        <i>Number of Looks</i> (1&ndash;4, default 1) is the ENL of the input and sets the expected speckle
+        level. Box car uses <i>Filter Size</i> (default 5); Refined Lee and Lee Sigma use <i>Window
+        Size</i> (5&times;5 to 17&times;17, default 7&times;7); Lee Sigma adds a sigma of 0.5&ndash;0.9
+        (default 0.9) and a point-target window (3&times;3 or 5&times;5); IDAN uses the <i>Adaptive
+        Neighbourhood Size</i> (default 50 pixels).</li>
+    <li><b>Polarimetric Unsupervised Classification</b> (<code>Polarimetric-Classification</code>):
+        Cloude-Pottier, Cloude-Pottier Dual Pol, H Alpha Wishart (default), H Alpha Wishart Dual Pol,
+        Freeman-Durden Wishart and General Wishart. Window Size default 5; Maximum Number of Iterations
+        default 3; for Freeman-Durden and General Wishart, initial classes 90, final classes 15 and a
+        mixed-category threshold of 0.5. Output bands: <code>H_alpha_class</code>,
+        <code>H_alpha_wishart_class</code>, <code>Freeman_Durden_wishart_class</code>,
+        <code>General_wishart_class</code>; class 0 is no-data.</li>
+    <li><b>Supervised Wishart Classification</b>: first run <i>Supervised Wishart Classification
+        Training</i> (Radar &gt; Polarimetric &gt; Polarimetric Classification) on vector training areas
+        to write a file of class centres, then classify (band <code>supervised_wishart_class</code>).
+        Input: a quad-pol SLC, T3 or C3, or a dual-pol SLC or C2.</li>
+    <li><b>Polarimetric Change Detection</b> (<code>Polarimetric-Change-Detection</code>) implements the
+        test above for C2, C3 or T3 pairs. Its <i>Number of Looks (ENL)</i> (default 5) is used as N
+        exactly as entered; the window looks are not added and no small-sample correction is applied. Set
+        it to about ENL<sub>in</sub> &times; Window Size<sup>2</sup>, reduced for correlated pixels.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+    <li>Filtering each matrix band with the single-channel Speckle Filter. Use the Polarimetric Speckle
+        Filter, which keeps the matrix valid.</li>
+    <li>Computing entropy or alpha from 3&times;3 windows on an SLC and reading the low values as
+        physics.</li>
+    <li>Setting Number of Looks to 1 in change detection for an SLC averaged over 5&times;5 pixels. The test
+        statistic is then 25 times too small and real changes are missed.</li>
+    <li>Applying a speckle filter and then a large decomposition window as well, without accounting for the
+        resolution lost in both steps.</li>
+    <li>Training a supervised classification on areas that mix several land covers. The class centre then
+        matches none of them.</li>
+</ul>
+
+<h2>Used by</h2>
+<ul>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.classification.ui/org/csa/rstb/classification/docs/operators/PolarimetricClassificationOp.html">Polarimetric Unsupervised Classification</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.classification.ui/org/csa/rstb/classification/docs/operators/SupervisedWishartClassificationOp.html">Supervised Wishart Classification</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricChangeDetectionOp.html">Polarimetric Change Detection</a></li>
+    <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a></li>
+</ul>
+
+<h2>References</h2>
+<ol>
+    <li>Goodman, N. R. (1963). Statistical analysis based on a certain multivariate complex Gaussian distribution (an introduction). <i>The Annals of Mathematical Statistics</i>, 34(1), 152&#8211;177. doi:10.1214/aoms/1177704250</li>
+    <li>Lee, J.-S., Grunes, M. R., Kwok, R. (1994). Classification of multi-look polarimetric SAR imagery based on complex Wishart distribution. <i>International Journal of Remote Sensing</i>, 15(11), 2299&#8211;2311. doi:10.1080/01431169408954244</li>
+    <li>Lee, J.-S., Grunes, M. R., De Grandi, G. (1999). Polarimetric SAR speckle filtering and its implication for classification. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 37(5), 2363&#8211;2373. doi:10.1109/36.789635</li>
+    <li>Lee, J.-S., Grunes, M. R., Ainsworth, T. L., Du, L.-J., Schuler, D. L., Cloude, S. R. (1999). Unsupervised classification using polarimetric decomposition and the complex Wishart classifier. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 37(5), 2249&#8211;2258. doi:10.1109/36.789621</li>
+    <li>Lee, J.-S., Grunes, M. R., Pottier, E., Ferro-Famil, L. (2004). Unsupervised terrain classification preserving polarimetric scattering characteristics. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 42(4), 722&#8211;731. doi:10.1109/TGRS.2003.819883</li>
+    <li>Conradsen, K., Nielsen, A. A., Schou, J., Skriver, H. (2003). A test statistic in the complex Wishart distribution and its application to change detection in polarimetric SAR data. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 41(1), 4&#8211;19. doi:10.1109/TGRS.2002.808066</li>
+    <li>Lee, J.-S., Wen, J.-H., Ainsworth, T. L., Chen, K.-S., Chen, A. J. (2009). Improved sigma filter for speckle filtering of SAR imagery. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 47(1), 202&#8211;213. doi:10.1109/TGRS.2008.2002881</li>
+    <li>Vasile, G., Trouv&eacute;, E., Lee, J.-S., Buzuloiu, V. (2006). Intensity-driven adaptive-neighborhood technique for polarimetric and interferometric SAR parameters estimation. <i>IEEE Transactions on Geoscience and Remote Sensing</i>, 44(6), 1609&#8211;1621. doi:10.1109/TGRS.2005.864142</li>
+</ol>
+
+<hr>
+</body>
+</html>

@@ -55,18 +55,23 @@ public class TestGSLCGridSpacing {
         assertEquals("range detail discarded", 4.0, step / GROUND_RANGE_SPACING, 0.05);
     }
 
-    /** Rectangular native: nothing discarded, ~4x the pixels of the default. */
+    /**
+     * Rectangular native: nothing discarded, ~6x the pixels of SQUARE_COARSEST. The range step is the
+     * SLANT-range spacing (a sensor/mode constant, so every scene of a beam gets the same lattice), as
+     * in GSLCGeocodingOp.initTargetGridFromSource; it is finer than ground range, so range is
+     * slightly oversampled rather than discarded.
+     */
     @Test
-    public void nativeAnisotropicPreservesBothAxesAtFourTimesTheData() {
-        final double stepX = GROUND_RANGE_SPACING;
+    public void nativeAnisotropicPreservesBothAxesAtSixTimesTheData() {
+        final double stepX = SLANT_RANGE_SPACING;
         final double stepY = AZIMUTH_SPACING;
 
-        assertEquals("no range detail lost", 1.0, stepX / GROUND_RANGE_SPACING, 1e-9);
+        assertTrue("no range detail lost", stepX <= GROUND_RANGE_SPACING);
         assertEquals("no azimuth oversampling", 1.0, stepY / AZIMUTH_SPACING, 1e-9);
 
         final double defaultStep = Math.max(AZIMUTH_SPACING, SLANT_RANGE_SPACING);
         final double dataRatio = (defaultStep * defaultStep) / (stepX * stepY);
-        assertEquals("about 4x the pixels of the default", 4.0, dataRatio, 0.2);
+        assertEquals("about 6x the pixels of SQUARE_COARSEST", 6.0, dataRatio, 0.2);
     }
 
     /** Square at the finest axis: nothing discarded, pixels stay square, ~16x the data. */

@@ -35,7 +35,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -63,17 +63,15 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
 
     private final static OperatorSpi spi = new TerrainFlatteningOp.Spi();
 
-    // Pixel comparison tolerance. There is an unresolved state leak in
-    // snap-engine: when TestRangeDopplerOp / TestSARSimulationOp run earlier in
-    // the same surefire fork, TerrainFlattening's pixel output at (200, 200)
-    // smooths out by up to ~0.016 absolute (5-13% of value). The values are
-    // bit-identical across runs — not flakiness, deterministic JVM-state
-    // dependency — but the mutator is buried somewhere in snap-engine
-    // (GeoTiffProductReader.closeResources, JAI tile cache, or the SRTM
-    // ElevationModel cache lifecycle). The surefire configuration in
-    // sar-op-sar-processing/pom.xml forks this class into its own JVM so the
-    // leak can't reach it; this tolerance is the belt to that suspenders.
-    private static final float PIXEL_TOLERANCE = 0.05f;
+    // Relative pixel tolerance: 1% is 0.04 dB. It has to pin the radiometric level, which the
+    // Beta0 (1/sin(theta), x2.4) and SRGR ratio (x1.24) fixes moved by far more than that; the
+    // old 0.05 absolute tolerance was 11% (0.5 dB) of these values.
+    // There is an unresolved state leak in snap-engine: when TestRangeDopplerOp / TestSARSimulationOp
+    // run earlier in the same surefire fork, TerrainFlattening's pixel output at (200, 200) smooths out
+    // by 5-13%. The mutator is buried somewhere in snap-engine (GeoTiffProductReader.closeResources,
+    // JAI tile cache, or the SRTM ElevationModel cache lifecycle). The surefire configuration in
+    // sar-op-sar-processing/pom.xml forks this class into its own JVM so the leak can't reach it.
+    private static final double RELATIVE_TOLERANCE = 0.01;
 
     /**
      * Forces a full TerrainFlattening pass on inputFile1 before any timed test runs,
@@ -134,9 +132,23 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         }
         final float[] actual = new float[expected.length];
         band.readPixels(x, y, expected.length, 1, actual, ProgressMonitor.NULL);
-        assertArrayEquals("expected=" + Arrays.toString(expected) + " actual=" + Arrays.toString(actual),
-                expected, actual, PIXEL_TOLERANCE);
+        final String msg = "expected=" + Arrays.toString(expected) + " actual=" + Arrays.toString(actual);
+        for (int i = 0; i < expected.length; i++) {
+            assertEquals(msg, expected[i], actual[i], RELATIVE_TOLERANCE * Math.abs(expected[i]));
+        }
     }
+
+    /*
+     * The ERS IMP regression values were re-recorded for two fixes. Both are pinned elsewhere, by
+     * closed-form tests:
+     *  - ERSCalibrator wrote sigma0 into the Beta0 band Terrain-Flattening reads; Beta0 is now
+     *    sigma0 / sin(theta), x2.40 here (TestBaseCalibrator, TestCalibrationIceye).
+     *  - computeSRGRRatio ignored ground_range_origin. This fixture is a subset with
+     *    ground_range_origin = 68900 m, so the slant/ground range ratio at x = 200 is 1.238 larger
+     *    (TestTerrainFlatteningSRGRRatio, TestTerrainFlatteningSubsetLevel).
+     * Gamma0 and Sigma0 carry both factors, x2.97 against the old values; the simulated image carries
+     * only the second, /1.238.
+     */
 
     /**
      * Processes a IMP product and compares it to processed product known to be correct
@@ -160,7 +172,7 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{0.14750221f, 0.15169495f, 0.12196117f, 0.15185618f};
+        final float[] expected = new float[]{0.43853235f, 0.45097739f, 0.3625649f, 0.45141622f};
         assertPixelsClose(targetProduct, targetProduct.getBandAt(0).getName(), 200, 200, expected);
     }
 
@@ -182,7 +194,7 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{2.685696f, 2.6963534f, 2.7251422f, 2.6842563f};
+        final float[] expected = new float[]{2.1695888f, 2.178224f, 2.2015066f, 2.1685026f};
         assertPixelsClose(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
     }
 
@@ -204,7 +216,7 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{0.13404073f, 0.13784982f, 0.110829115f, 0.13799441f};
+        final float[] expected = new float[]{0.3985106f, 0.4098169f, 0.32947162f, 0.41020992f};
         assertPixelsClose(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
     }
 
