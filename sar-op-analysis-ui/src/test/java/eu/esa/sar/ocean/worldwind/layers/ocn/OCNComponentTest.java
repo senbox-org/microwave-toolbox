@@ -49,22 +49,22 @@ public class OCNComponentTest {
     }
 
     @Test
-    public void getData_returnsZeroWhenNoValuesElement() {
+    public void getData_returnsNaNWhenNoValuesElement() {
         MetadataElement mockElement = mock(MetadataElement.class);
         when(mockElement.getElement("Values")).thenReturn(null);
 
-        double result = ocnComponent.getData(mockElement);
-
-        assertEquals(0.0, result, 0.0);
+        // missing data must not be read as 0 (which would place vignettes at lat 0, lon 0)
+        assertTrue(Double.isNaN(ocnComponent.getData(mockElement)));
+        assertTrue(Double.isNaN(ocnComponent.getData(null)));
     }
 
     @Test
     public void createColorSurfaceWithGradient_createsSurfaceAndGradient() {
         GeoPos geoPos1 = new GeoPos(0, 0);
         GeoPos geoPos2 = new GeoPos(1, 1);
-        double[] latValues = {0, 1};
-        double[] lonValues = {0, 1};
-        double[] values = {0.5, 1.0};
+        double[] latValues = {0, 0, 1, 1};
+        double[] lonValues = {0, 1, 0, 1};
+        double[] values = {0.5, 1.0, 0.5, 1.0};
         List<Renderable> renderableList = new ArrayList<>();
 
         ocnComponent.createColorSurfaceWithGradient(geoPos1, geoPos2, latValues, lonValues, values, 2, 2, 0.0, 1.0, true, renderableList, mockProdRenderInfo, "comp");
@@ -79,7 +79,8 @@ public class OCNComponentTest {
         double[] values = {0.5, 1.0};
         List<Renderable> renderableList = new ArrayList<>();
 
-        ocnComponent.createWVColorSurfaceWithGradient(mockProduct, latValues, lonValues, values, renderableList, "osw");
+        ocnComponent.createWVColorSurfaceWithGradient(mockProduct, latValues, lonValues, values, 0, 10, false,
+                                                      renderableList, mockProdRenderInfo, "osw");
 
         assertEquals(4, renderableList.size());
     }
@@ -87,10 +88,10 @@ public class OCNComponentTest {
     @Test
     @STTM("SNAP-2521")
     public void addWaveLengthArrows_createsArrowsCorrectly() {
-        double[] latValues = {0.0, 1.0};
-        double[] lonValues = {0.0, 1.0};
+        double[] latValues = {0.0, 1.0, 2.0};
+        double[] lonValues = {0.0, 1.0, 2.0};
         double[] waveLengthValues = {4000.0, 8000.0, -999.0};
-        double[] waveDirValues = {45.0, 90.0};
+        double[] waveDirValues = {45.0, 90.0, 0.0};
         List<Renderable> renderableList = new ArrayList<>();
 
         ocnComponent.addWaveLengthArrows(latValues, lonValues, waveLengthValues, waveDirValues, renderableList);
@@ -98,5 +99,12 @@ public class OCNComponentTest {
         assertEquals(2, renderableList.size());
         assertTrue(renderableList.get(0) instanceof DirectedPath);
         assertTrue(renderableList.get(1) instanceof DirectedPath);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void addWaveLengthArrows_rejectsMismatchedArrays() {
+        // used to be hidden by a per-element catch, which skipped the missing directions silently
+        ocnComponent.addWaveLengthArrows(new double[]{0, 1}, new double[]{0, 1}, new double[]{4000, 8000, 100},
+                                         new double[]{45, 90}, new ArrayList<>());
     }
 }

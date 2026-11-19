@@ -28,6 +28,7 @@ import gov.nasa.worldwindx.examples.util.DirectedPath;
 import eu.esa.sar.ocean.toolviews.polarview.OceanSwellTopComponent;
 import org.esa.snap.core.datamodel.*;
 import org.esa.snap.rcp.SnapApp;
+import org.esa.snap.rcp.util.Dialogs;
 import org.esa.snap.worldwind.ColorBarLegend;
 import org.esa.snap.worldwind.ProductRenderablesInfo;
 import org.esa.snap.worldwind.layers.BaseLayer;
@@ -39,9 +40,19 @@ import java.awt.event.ActionEvent;
 import java.text.DecimalFormat;
 import java.text.Format;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * S-1 L2 OCN visualization
@@ -53,11 +64,13 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
     private boolean theOWILimitChanged = false;
     private boolean theRVLLimitChanged = false;
     private final static int MAX_WIND_SPEED = 50;
+    private final static int DEFAULT_MIN_WIND_SPEED = 0;
 
     private JCheckBox theArrowsCB;
     private String theSelectedComp = null;
 
-    final Map<String, ColorBarLegend> theColorBarLegendHash = new HashMap<>();
+    // also read by the components while they build the renderables on the background thread
+    final Map<String, ColorBarLegend> theColorBarLegendHash = new ConcurrentHashMap<>();
     private final Map<Object, String> theObjectInfoHash = new HashMap<>();
     private final Map<Object, Product> theSurfaceProductHash = new HashMap<>();
     private final Map<Object, Integer> theSurfaceSequenceHash = new HashMap<>();
@@ -67,8 +80,24 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
     final ScreenAnnotation theInfoAnnotation;
 
     private DirectedPath theLastSelectedDP = null;
+    private boolean theInfoAnnotationAdded = false;
+    // reports errors to the user; replaced in tests
+    BiConsumer<String, Exception> errorHandler = (message, e) -> SnapApp.getDefault().handleError(message, e);
+    // shows warnings to the user; replaced in tests
+    Consumer<String> warningHandler = Dialogs::showWarning;
 
     private final List<OCNComponent> ocnComponents = new ArrayList<>();
+
+    private static final AtomicInteger threadCount = new AtomicInteger();
+    // one thread: OCN products are small, and products are installed in the order they were added
+    private static final ExecutorService productExecutor = Executors.newSingleThreadExecutor(r -> {
+        final Thread t = new Thread(r, "WorldWind-OCN-" + threadCount.incrementAndGet());
+        t.setDaemon(true);
+        return t;
+    });
+    // products whose renderables are being created; removing a product cancels its pending install
+    private final Set<Product> pendingProducts = Collections.newSetFromMap(Collections.synchronizedMap(new IdentityHashMap<>()));
+    private final AtomicInteger pendingTasks = new AtomicInteger();
 
     public Level2ProductLayer() {
         this.setName("S-1 Level-2 OCN");
@@ -119,6 +148,10 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
             if (event.getTopObject() instanceof DirectedPath) {
                 //SystemUtils.LOG.info("DirectedPath:::");
                 DirectedPath dp = (DirectedPath) event.getTopObject();
+                // moving from one arrow directly onto another leaves no rollover in between
+                if (theLastSelectedDP != null && theLastSelectedDP != dp) {
+                    theLastSelectedDP.setHighlighted(false);
+                }
                 //dp.getAttributes().setOutlineMaterial(Material.WHITE);
                 dp.setHighlighted(true);
                 //dp.setAttributes(productLayer.dpHighlightAttrs);
@@ -164,16 +197,17 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
             return;
         }
 
-        // if the product has already been added, just return
-        if (theProductRenderablesInfoHash.get(product) != null) {
+        // if the product has already been added or is being added, just return
+        if (theProductRenderablesInfoHash.get(product) != null || !pendingProducts.add(product)) {
             return;
         }
 
-        addRenderable(theInfoAnnotation);
-
-        final String text = "First line<br />Second line";
-        theInfoAnnotation.setText(text);
-        theInfoAnnotation.getAttributes().setVisible(false);
+        if (!theInfoAnnotationAdded) {
+            addRenderable(theInfoAnnotation);
+            theInfoAnnotationAdded = true;
+            theInfoAnnotation.setText("");
+            theInfoAnnotation.getAttributes().setVisible(false);
+        }
 
         //theColorBarLegendProduct = product;
         final ProductRenderablesInfo productRenderablesInfo = new ProductRenderablesInfo();
@@ -185,25 +219,161 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
         //SystemUtils.LOG.info("product " + product.getName());
 
+        // the components read whole bands: build the renderables on a background thread and install them on the EDT
+        pendingTasks.incrementAndGet();
+        productExecutor.execute(() -> {
+            Throwable failure = null;
+            try {
+                for (OCNComponent component : ocnComponents) {
+                    component.addProduct(product, productRenderablesInfo);
+                }
+            } catch (Throwable e) {
+                failure = e;
+            }
+            final Throwable result = failure;
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    installProduct(product, productRenderablesInfo, result, wwd);
+                } finally {
+                    pendingTasks.decrementAndGet();
+                }
+            });
+        });
+    }
+
+    private void installProduct(final Product product, final ProductRenderablesInfo productRenderablesInfo,
+                                final Throwable failure, final WorldWindowGLCanvas wwd) {
+        if (!pendingProducts.remove(product)) {
+            // the product was removed while its renderables were being created; none was added to the layer
+            return;
+        }
+        if (failure != null) {
+            handleAddFailure(product, productRenderablesInfo, failure);
+            return;
+        }
+
         try {
-            for(OCNComponent component : ocnComponents) {
-                component.addProduct(product, productRenderablesInfo);
+            for (List<Renderable> renderableList : productRenderablesInfo.theRenderableListHash.values()) {
+                for (Renderable renderable : renderableList) {
+                    addRenderable(renderable);
+                }
+            }
+            theProductRenderablesInfoHash.put(product, productRenderablesInfo);
+
+            // the legend limits may have been changed while the product was being read
+            for (Map.Entry<String, ColorBarLegend> entry : theColorBarLegendHash.entrySet()) {
+                ColorGradient.createColorGradient(entry.getValue().getMinValue(), entry.getValue().getMaxValue(),
+                                                  ColorGradient.isWhiteZero(entry.getKey()), productRenderablesInfo,
+                                                  entry.getKey());
             }
 
-            theProductRenderablesInfoHash.put(product, productRenderablesInfo);
             if (theControlLevel2Panel != null) {
                 theControlLevel2Panel.setVisible(true);
             }
             setComponentVisible(theSelectedComp, wwd);
 
-        } catch (Exception e) {
-            SnapApp.getDefault().handleError("L2ProductLayer unable to add product " + product.getName(), e);
+        } catch (Exception | Error e) {
+            handleAddFailure(product, productRenderablesInfo, e);
         }
+    }
+
+    private void handleAddFailure(final Product product, final ProductRenderablesInfo productRenderablesInfo,
+                                  final Throwable e) {
+        // renderables may already have been added: remove them, otherwise they could never be removed
+        removeRenderables(product, productRenderablesInfo);
+        // the product may already have been registered when showing it failed; it could then never be re-added
+        theProductRenderablesInfoHash.remove(product);
+        if (e instanceof Error) {
+            throw (Error) e;
+        }
+        errorHandler.accept("L2ProductLayer unable to add product " + product.getName(), (Exception) e);
+    }
+
+    /**
+     * Waits until all queued products have been installed on the EDT. For tests.
+     */
+    boolean awaitPendingProducts(final long timeoutMillis) throws Exception {
+        if (SwingUtilities.isEventDispatchThread()) {
+            throw new IllegalStateException("must not be called on the EDT");
+        }
+        final long end = System.currentTimeMillis() + timeoutMillis;
+        while (pendingTasks.get() > 0) {
+            if (System.currentTimeMillis() > end) {
+                return false;
+            }
+            SwingUtilities.invokeAndWait(() -> { });
+            TimeUnit.MILLISECONDS.sleep(10);
+        }
+        return true;
+    }
+
+    private void removeRenderables(final Product product, final ProductRenderablesInfo productRenderablesInfo) {
+        for (List<Renderable> renderableList : productRenderablesInfo.theRenderableListHash.values()) {
+            for (Renderable renderable : renderableList) {
+                removeRenderable(renderable);
+            }
+            renderableList.clear();
+        }
+
+        // the pick info maps are keyed by objects created while rendering (arrows inside wrapper renderables,
+        // clamp-to-ground surfaces), which cannot be traced back to the renderables above.
+        // Drop all entries of this product; the info of the remaining products is recreated on the next render.
+        final List<Object> productKeys = new ArrayList<>();
+        for (Map.Entry<Object, Product> entry : theSurfaceProductHash.entrySet()) {
+            if (entry.getValue() == product) {
+                productKeys.add(entry.getKey());
+            }
+        }
+        for (Object key : productKeys) {
+            theSurfaceProductHash.remove(key);
+            theSurfaceSequenceHash.remove(key);
+        }
+        theObjectInfoHash.clear();
+        if (theLastSelectedDP != null) {
+            theLastSelectedDP.setHighlighted(false);
+            theLastSelectedDP = null;
+        }
+        // the shown info may belong to the removed product
+        theInfoAnnotation.getAttributes().setVisible(false);
+    }
+
+    int getNumProducts() {
+        return theProductRenderablesInfoHash.size();
+    }
+
+    Map<Object, Product> getSurfaceProductHash() {
+        return theSurfaceProductHash;
     }
 
 
 
 
+
+    /**
+     * Applies the colour limits of the control panel to the legends and to the surfaces of all products.
+     */
+    void updateLimits(final int minWindSpeed, final int maxWindSpeed, final int maxRadialVelocity,
+                      final WorldWindowGLCanvas wwd) {
+        if (theOWILimitChanged) {
+            if (maxWindSpeed <= minWindSpeed) {
+                // keep the change pending until the limits are corrected
+                warningHandler.accept("The maximum OWI wind speed must be larger than the minimum.");
+            } else {
+                recreateColorBarAndGradient(minWindSpeed, maxWindSpeed, "owi", wwd, "owi".equalsIgnoreCase(theSelectedComp));
+                theOWILimitChanged = false;
+            }
+        }
+
+        if (theRVLLimitChanged) {
+            recreateColorBarAndGradient(-maxRadialVelocity, maxRadialVelocity, "rvl", wwd, "rvl".equalsIgnoreCase(theSelectedComp));
+            theRVLLimitChanged = false;
+        }
+    }
+
+    void setLimitsChanged(final boolean owiLimitChanged, final boolean rvlLimitChanged) {
+        theOWILimitChanged = owiLimitChanged;
+        theRVLLimitChanged = rvlLimitChanged;
+    }
 
     private void recreateColorBarAndGradient(double minValue, double maxValue, String comp, WorldWindowGLCanvas wwd, boolean redraw) {
         //SystemUtils.LOG.info("recreateColorBarAndGradient " + minValue + " " + maxValue + " " + comp + " " + theColorBarLegendHash.get(comp));
@@ -226,8 +396,8 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
             addRenderable(theColorBarLegendHash.get(comp));
         }
         for (ProductRenderablesInfo productRenderablesInfo : theProductRenderablesInfoHash.values()) {
-            //createColorGradient(minValue, maxValue, false, theProductRenderablesInfoHash.get(theColorBarLegendProduct), comp);
-            ColorGradient.createColorGradient(minValue, maxValue, false, productRenderablesInfo, comp);
+            // radial velocities keep white at zero, as when the surfaces were created
+            ColorGradient.createColorGradient(minValue, maxValue, ColorGradient.isWhiteZero(comp), productRenderablesInfo, comp);
         }
 
         if (redraw) {
@@ -245,11 +415,11 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         final Format legendLabelFormat = new DecimalFormat("# " + unit);
 
         final ColorBarLegend colorBarLegend = new ColorBarLegend();
-        colorBarLegend.setColorGradient(32, 256, minValue, maxValue, ColorGradient.HUE_RED, ColorGradient.HUE_MAX_RED,
+        colorBarLegend.setColorGradient(32, 256, minValue, maxValue, ColorGradient.getMinHue(comp), ColorGradient.getMaxHue(comp),
                 Color.WHITE,
                 ColorBarLegend.createDefaultColorGradientLabels(minValue, maxValue, legendLabelFormat),
                 ColorBarLegend.createDefaultTitle(title),
-                comp.equalsIgnoreCase("rvl"));
+                ColorGradient.isWhiteZero(comp));
 
         colorBarLegend.setOpacity(0.8);
         colorBarLegend.setScreenLocation(new Point(900, 320));
@@ -290,29 +460,20 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
 
     @Override
     public void removeProduct(final Product product) {
+        // cancels a pending install
+        pendingProducts.remove(product);
 
         final ProductRenderablesInfo productRenderablesInfo = theProductRenderablesInfoHash.get(product);
 
         if (productRenderablesInfo != null) {
-
-            for (List<Renderable> renderableList : productRenderablesInfo.theRenderableListHash.values()) {
-                //SystemUtils.LOG.info(":: renderableList " + renderableList);
-                for (Renderable renderable : renderableList) {
-                    //SystemUtils.LOG.info(":: renderable " + renderable);
-                    removeRenderable(renderable);
-                    if (renderable instanceof DirectedPath) {
-                        theObjectInfoHash.remove(renderable);
-                        theSurfaceProductHash.remove(renderable);
-                        theSurfaceSequenceHash.remove(renderable);
-                    }
-                }
-                renderableList.clear();
-            }
+            removeRenderables(product, productRenderablesInfo);
             theProductRenderablesInfoHash.remove(product);
         }
 
         if (theProductRenderablesInfoHash.isEmpty()) {
-            theControlLevel2Panel.setVisible(false);
+            if (theControlLevel2Panel != null) {
+                theControlLevel2Panel.setVisible(false);
+            }
             for (ColorBarLegend colorBarLegend : theColorBarLegendHash.values()) {
                 removeRenderable(colorBarLegend);
             }
@@ -400,7 +561,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         final JPanel maxPanel = new JPanel(new GridLayout(1, 2, 5, 5));
         maxPanel.add(new JLabel("Max OWI Wind Speed:"));
 
-        final JSpinner maxSP = new JSpinner(new SpinnerNumberModel(10, 0, MAX_WIND_SPEED, 1));
+        final JSpinner maxSP = new JSpinner(new SpinnerNumberModel(OWI.DEFAULT_MAX_WIND_SPEED, 1, MAX_WIND_SPEED, 1));
         maxSP.addChangeListener(e -> {
             int newValue = (Integer) ((JSpinner) e.getSource()).getValue();
 
@@ -412,7 +573,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         final JPanel minPanel = new JPanel(new GridLayout(1, 2, 5, 5));
         minPanel.add(new JLabel("Min OWI Wind Speed:"));
 
-        final JSpinner minSP = new JSpinner(new SpinnerNumberModel(0, 0, 10, 1));
+        final JSpinner minSP = new JSpinner(new SpinnerNumberModel(DEFAULT_MIN_WIND_SPEED, 0, MAX_WIND_SPEED - 1, 1));
         minSP.addChangeListener(e -> theOWILimitChanged = true);
         minPanel.add(minSP);
         theControlLevel2Panel.add(minPanel);
@@ -420,7 +581,7 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         final JPanel maxRVLPanel = new JPanel(new GridLayout(1, 2, 5, 5));
         maxRVLPanel.add(new JLabel("Max RVL Rad Vel.:"));
 
-        final JSpinner maxRVLSP = new JSpinner(new SpinnerNumberModel(6, 0, 10, 1));
+        final JSpinner maxRVLSP = new JSpinner(new SpinnerNumberModel(RVL.DEFAULT_MAX_RADIAL_VELOCITY, 1, 10, 1));
         maxRVLSP.addChangeListener(e -> {
             int newValue = (Integer) ((JSpinner) e.getSource()).getValue();
             theRVLLimitChanged = true;
@@ -429,37 +590,14 @@ public class Level2ProductLayer extends BaseLayer implements WWLayer {
         theControlLevel2Panel.add(maxRVLPanel);
 
         final JButton updateButton = new JButton("Update");
-        updateButton.addActionListener(actionEvent -> {
-
-            if (theOWILimitChanged) {
-
-                //double minValue = ((Integer) minSP.getValue()) * 1.0e4;
-                //double maxValue = ((Integer) maxSP.getValue()) * 1.0e4;
-                double minValue = ((Integer) minSP.getValue());
-                double maxValue = ((Integer) maxSP.getValue());
-                recreateColorBarAndGradient(minValue, maxValue, "owi", wwd, theSelectedComp.equalsIgnoreCase("owi"));
-            }
-
-            if (theRVLLimitChanged) {
-                //SystemUtils.LOG.info("theRVLLimitChanged");
-
-                //double minValue = ((Integer) minSP.getValue()) * 1.0e4;
-                //double maxValue = ((Integer) maxSP.getValue()) * 1.0e4;
-
-                double maxValue = ((Integer) maxRVLSP.getValue());
-                double minValue = -1 * maxValue;
-
-                recreateColorBarAndGradient(minValue, maxValue, "rvl", wwd, theSelectedComp.equalsIgnoreCase("rvl"));
-            }
-
-            theOWILimitChanged = false;
-            theRVLLimitChanged = false;
-        });
+        updateButton.addActionListener(actionEvent -> updateLimits((Integer) minSP.getValue(), (Integer) maxSP.getValue(),
+                                                                   (Integer) maxRVLSP.getValue(), wwd));
         theControlLevel2Panel.add(updateButton);
 
-        createColorBarLegend(0, MAX_WIND_SPEED, "OWI Wind Speed", "owi");
-        createColorBarLegend(0, 10, "OSW Wave Height.", "osw");
-        createColorBarLegend(-6, 5, "RVL Rad. Vel.", "rvl");
+        // initial limits match the initial spinner values
+        createColorBarLegend(DEFAULT_MIN_WIND_SPEED, OWI.DEFAULT_MAX_WIND_SPEED, "OWI Wind Speed", "owi");
+        createColorBarLegend(0, OSW.DEFAULT_MAX_WAVE_HEIGHT, "OSW Wave Height.", "osw");
+        createColorBarLegend(-RVL.DEFAULT_MAX_RADIAL_VELOCITY, RVL.DEFAULT_MAX_RADIAL_VELOCITY, "RVL Rad. Vel.", "rvl");
         //addRenderable(theColorBarLegendHash.get("owi"));
 
         return theControlLevel2Panel;

@@ -32,9 +32,9 @@ public class ColorGradientTest {
     public void createColorSurface_createsSurfaceCorrectly() {
         GeoPos geoPos1 = new GeoPos(0, 0);
         GeoPos geoPos2 = new GeoPos(1, 1);
-        double[] latValues = {0, 1};
-        double[] lonValues = {0, 1};
-        double[] vals = {0.5, 1.0};
+        double[] latValues = {0, 0, 1, 1};
+        double[] lonValues = {0, 1, 0, 1};
+        double[] vals = {0.5, 1.0, 0.5, 1.0};
         List<Renderable> renderableList = new ArrayList<>();
         ProductRenderablesInfo prodRenderInfo = new ProductRenderablesInfo();
 
