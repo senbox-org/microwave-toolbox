@@ -170,66 +170,42 @@ public class MultiMasterOp extends Operator{
         ThreadExecutor te = new ThreadExecutor();
 
         final int worked = 100 / (dates.size() - 1);
-        final Product [] toOpenInSnap = new Product[dates.size() - 1];
         // Worker threads append concurrently; use a synchronized list.
         final List<String> writtenProductPaths = Collections.synchronizedList(new ArrayList<>());
         final List<ThreadRunnable> runnables = new ArrayList<>();
 
         for (int x = 0; x < dates.size() - 1; x++){
-            int dateRef = dates.get(x);
-            int dateSec = dates.get(x + 1);
-            String productName = singleReference_MultiSecondary.getProductType() + "_" + dateRef + "_" + dateSec;
-            Product tmp = new Product(productName,singleReference_MultiSecondary.getProductType());
-            ProductUtils.copyProductNodes(singleReference_MultiSecondary, tmp);
-            final Product p = cleanProduct(tmp);
-            MetadataElement root = p.getMetadataRoot();
-            MetadataElement absMetadata = new MetadataElement("Abstracted_Metadata");// date_metadatapairs.get(dateMst);
-            ProductUtils.copyMetadata(referenceAbstractedMetadata, absMetadata);
-            root.addElement(absMetadata);
-            MetadataAttribute multireference = new MetadataAttribute("multireference_split", ProductData.TYPE_UINT8);
-            absMetadata.addAttribute(multireference);
-            //absMetadata.removeElement(absMetadata.getElement("Orbit_State_Vectors"));
-            //absMetadata.addElement(refOrbitData);
-            final MetadataElement original_product_metadata = rootMetadata.getElement("Original_Product_Metadata");
-            // Each pair gets its own copies: addElement takes ownership, so attaching the source's elements
-            // re-parents them and lets every pair (and the source) share and edit one metadata tree.
-            if (original_product_metadata != null) {
-                root.addElement(original_product_metadata.createDeepClone());
-            } else {
-                SystemUtils.LOG.warning("MultiMasterStackGenerator: source product has no Original_Product_Metadata; "
-                        + productName + " is written without it");
-            }
-
-            absMetadata.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
-            MetadataElement secondary_data = new MetadataElement(AbstractMetadata.SECONDARY_METADATA_ROOT);
-
-            secondary_data.addElement(date_metadatapairs.get(dateRef).createDeepClone());
-            secondary_data.addElement(date_metadatapairs.get(dateSec).createDeepClone());
-
-
-            root.addElement(secondary_data);
-            refBands = date_bandpairs.get(dateRef);
+            final int dateRef = dates.get(x);
+            final int dateSec = dates.get(x + 1);
+            final String productName = singleReference_MultiSecondary.getProductType() + "_" + dateRef + "_" + dateSec;
+            final ArrayList<Band> finalRefBands = date_bandpairs.get(dateRef);
             final ArrayList<Band> secBands = date_bandpairs.get(dateSec);
-            final ArrayList<Band> finalRefBands = refBands;
-            GeoCoding g = singleReference_MultiSecondary.getSceneGeoCoding();
-            //p.setSceneGeoCoding(g);
-            final int finalX = x;
+            final MetadataElement refDateMetadata = date_metadatapairs.get(dateRef);
+            final MetadataElement secDateMetadata = date_metadatapairs.get(dateSec);
             final ThreadRunnable runnable = new ThreadRunnable() {
 
                 @Override
                 public void process() throws Exception {
-                    for (Band b: finalRefBands){
-                        ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
-                        p.getBand(b.getName()).setName(b.getName().replace("sec", "ref").replace("slv", "ref"));
-                    }
-                    for (Band b: secBands){
-                        ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
-                        p.getBand(b.getName()).setName(b.getName().replace("ref", "sec").replace("mst", "sec"));
+                    // Each pair carries its own copy of the source metadata (tens of MB for S1), so build it here,
+                    // per worker: building every pair up front kept N copies alive until the end.
+                    final Product p;
+                    synchronized (singleReference_MultiSecondary) {
+                        p = createPairProduct(singleReference_MultiSecondary, productName,
+                                referenceAbstractedMetadata, refDateMetadata, secDateMetadata);
+                        for (Band b: finalRefBands){
+                            ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
+                            p.getBand(b.getName()).setName(b.getName().replace("sec", "ref").replace("slv", "ref"));
+                        }
+                        for (Band b: secBands){
+                            ProductUtils.copyBand(b.getName(), singleReference_MultiSecondary, p, true);
+                            p.getBand(b.getName()).setName(b.getName().replace("ref", "sec").replace("mst", "sec"));
+                        }
                     }
 
+                    // p is not disposed: its bands share the source's images (Band.dispose would dispose them),
+                    // and nothing else references it, so it becomes collectable once written.
                     final File pairFile = new File(outputFolder, p.getName());
                     ProductIO.writeProduct(p, pairFile, "BEAM-DIMAP", false);
-                    toOpenInSnap[finalX] = p;
                     writtenProductPaths.add(pairFile.getPath());
 
                     pm.worked(worked);
@@ -248,6 +224,40 @@ public class MultiMasterOp extends Operator{
             }
         }
     }
+    /**
+     * A pair product with the source's product nodes and its own copies of the source metadata it needs.
+     * The copies matter: addElement takes ownership, so attaching the source's elements re-parents them
+     * and lets every pair (and the source) share and edit one metadata tree.
+     */
+    private static Product createPairProduct(final Product source, final String productName,
+                                             final MetadataElement referenceAbstractedMetadata,
+                                             final MetadataElement refDateMetadata,
+                                             final MetadataElement secDateMetadata) {
+        final Product tmp = new Product(productName, source.getProductType());
+        ProductUtils.copyProductNodes(source, tmp);
+        final Product p = cleanProduct(tmp);
+        final MetadataElement root = p.getMetadataRoot();
+        final MetadataElement absMetadata = new MetadataElement("Abstracted_Metadata");
+        ProductUtils.copyMetadata(referenceAbstractedMetadata, absMetadata);
+        root.addElement(absMetadata);
+        absMetadata.addAttribute(new MetadataAttribute("multireference_split", ProductData.TYPE_UINT8));
+
+        final MetadataElement original_product_metadata = source.getMetadataRoot().getElement("Original_Product_Metadata");
+        if (original_product_metadata != null) {
+            root.addElement(original_product_metadata.createDeepClone());
+        } else {
+            SystemUtils.LOG.warning("MultiMasterStackGenerator: source product has no Original_Product_Metadata; "
+                    + productName + " is written without it");
+        }
+
+        absMetadata.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
+        final MetadataElement secondary_data = new MetadataElement(AbstractMetadata.SECONDARY_METADATA_ROOT);
+        secondary_data.addElement(refDateMetadata.createDeepClone());
+        secondary_data.addElement(secDateMetadata.createDeepClone());
+        root.addElement(secondary_data);
+        return p;
+    }
+
     private int strDatetoInt(String date){
         String [] tmp = date.split("-");
         if ("JAN".equals(tmp[1])) {
@@ -278,7 +288,7 @@ public class MultiMasterOp extends Operator{
         date = tmp[2] + tmp[1] + tmp[0];
         return Integer.parseInt(date);
     }
-    private Product cleanProduct(Product origProduct){
+    private static Product cleanProduct(Product origProduct){
         for(Band b: origProduct.getBands()){
             origProduct.removeBand(b);
         }

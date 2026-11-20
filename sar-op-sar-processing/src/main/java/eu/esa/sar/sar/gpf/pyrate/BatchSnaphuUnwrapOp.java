@@ -105,7 +105,8 @@ public class BatchSnaphuUnwrapOp extends Operator {
         if(!Files.isWritable(snaphuProcessingLocation.toPath())){
             throw new OperatorException("Path provided for Snaphu processing is not writeable.");
         }
-        if (!isSnaphuBinary(snaphuInstallLocation) &&
+        // only a folder needs to be writable (the binary is downloaded into it); a file is checked in downloadSnaphu
+        if (!snaphuInstallLocation.isFile() &&
                 !Files.isWritable(snaphuInstallLocation.toPath())){
             throw new OperatorException("Path provided for Snaphu install is not writeable.");
         }
@@ -220,6 +221,16 @@ public class BatchSnaphuUnwrapOp extends Operator {
         if (isSnaphuBinary(snaphuInstallLocation)){
             snaphuBinaryLocation = snaphuInstallLocation;
             return snaphuBinaryLocation;
+        }
+        // A file is the user's own binary (the usual set-up on macOS, where nothing is downloaded): never
+        // download into it. A copy that lost its execute bit is repaired, anything else is reported.
+        if (snaphuInstallLocation.isFile()) {
+            if (snaphuInstallLocation.getName().equals(snaphuBinaryName())
+                    && snaphuInstallLocation.setExecutable(true) && isSnaphuBinary(snaphuInstallLocation)) {
+                return snaphuInstallLocation;
+            }
+            throw new IOException("Snaphu Install Location " + snaphuInstallLocation + " is not an executable "
+                    + snaphuBinaryName() + ". Make it executable (chmod +x) or set the location to its folder.");
         }
         // Reuse a binary downloaded by an earlier run instead of downloading it again.
         if (snaphuInstallLocation.isDirectory()) {

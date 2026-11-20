@@ -616,8 +616,9 @@ public class WarpOp extends Operator {
                     warpDataMap.put(srcBand, cpm);
 
                     final int nodeCount = slaveGCPGroup.getNodeCount();
-                    if (nodeCount < 3) {
-                        cpm.noRedundancy = true;
+                    // Too few GCPs for this Secondary's polynomial: skip just this band (announceGCPWarning
+                    // names it). Letting the estimation throw dropped the CPM fit for every Secondary below.
+                    if (!cpm.isValid()) {
                         continue;
                     }
 

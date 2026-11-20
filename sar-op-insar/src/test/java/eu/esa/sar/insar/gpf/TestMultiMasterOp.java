@@ -129,7 +129,10 @@ public class TestMultiMasterOp {
         final MetadataElement absRoot = root.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
         final MetadataElement original = AbstractMetadata.addOriginalProductMetadata(root);
 
-        final MultiMasterOp op = createOp(stack, tmp.newFolder("pairs").getPath());
+        original.addElement(new MetadataElement("annotation"));
+
+        final File folder = tmp.newFolder("pairs");
+        final MultiMasterOp op = createOp(stack, folder.getPath());
         op.getTargetProduct();
         op.execute(ProgressMonitor.NULL);
 
@@ -140,6 +143,18 @@ public class TestMultiMasterOp {
         }
         assertSame(root, absRoot.getParentElement());
         assertSame(root, original.getParentElement());
+
+        // and every written pair carries its own copies
+        for (String name : new String[]{"SLC_20200112_20200124.dim", "SLC_20200124_20200205.dim"}) {
+            final Product pair = org.esa.snap.core.dataio.ProductIO.readProduct(new File(folder, name));
+            try {
+                final MetadataElement pairRoot = pair.getMetadataRoot();
+                assertNotNull(name, pairRoot.getElement("Original_Product_Metadata").getElement("annotation"));
+                assertEquals(name, 2, pairRoot.getElement(AbstractMetadata.SECONDARY_METADATA_ROOT).getNumElements());
+            } finally {
+                pair.dispose();
+            }
+        }
     }
 
     @Test

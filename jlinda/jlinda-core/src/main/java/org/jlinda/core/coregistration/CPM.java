@@ -95,7 +95,8 @@ public class CPM implements PolynomialModel {
         this.cpmDegree = cpmDegree;
         this.numUnknowns = PolyUtils.numberOfCoefficients(cpmDegree);
 
-        if (numObservations < numUnknowns) {
+        // the outlier tests divide by the redundancy numObservations - numUnknowns, so it must be at least 1
+        if (numObservations <= numUnknowns) {
             this.noRedundancy = true;
             logger.severe("Number of windows > threshold is smaller than parameters solved for.");
             // the GCP lists below stay empty, so report no observations rather than the GCP count
@@ -605,7 +606,8 @@ public class CPM implements PolynomialModel {
 
             /** Test if we are estimationDone yet */
             // check on number of observations
-            if (numObservations <= numUnknowns) {
+            // removing another outlier would leave no redundancy (and a division by zero in the model test)
+            if (numObservations <= numUnknowns + 1) {
                 logger.warning("NO redundancy!  Exiting iterations.");
                 estimationDone = true;// cannot remove more than this
             }

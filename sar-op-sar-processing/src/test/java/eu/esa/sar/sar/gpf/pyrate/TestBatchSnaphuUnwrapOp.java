@@ -209,6 +209,31 @@ public class TestBatchSnaphuUnwrapOp {
         assertTrue(found.canExecute());
     }
 
+    /** A file that is not the SNAPHU binary must be reported, not used as a download folder. */
+    @Test
+    public void testInstallLocationFileThatIsNotSnaphuIsReported() throws IOException {
+        final File f = tempDir.resolve("snaphu.conf.brief").toFile();
+        assertTrue(f.createNewFile());
+        try {
+            op.downloadSnaphu(f);
+            org.junit.Assert.fail("expected IOException");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("is not an executable"));
+        }
+    }
+
+    /** A user-installed binary that lost its execute bit (e.g. copied from a zip) is made executable and used. */
+    @Test
+    public void testInstallLocationNonExecutableBinaryIsRepaired() throws IOException {
+        final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+        final File binary = tempDir.resolve(isWindows ? "snaphu.exe" : "snaphu").toFile();
+        assertTrue(binary.createNewFile());
+        Assume.assumeTrue("file system cannot clear the execute bit", binary.setExecutable(false) && !binary.canExecute());
+
+        assertEquals(binary.getAbsoluteFile(), op.downloadSnaphu(binary).getAbsoluteFile());
+        assertTrue(binary.canExecute());
+    }
+
     // ---------- unwrapped-band assembly (regression: all-zero output after c322d2d7b) ----------
 
     private static final int W = 4;

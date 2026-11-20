@@ -124,6 +124,40 @@ public class CPMTest {
         assertEquals(0, cpm.getNumObservations());
     }
 
+    /** As many GCPs as unknowns leaves no redundancy for the outlier tests, which divide by n - u. */
+    @Test
+    public void testExactlyDeterminedIsInvalid() {
+        final ProductNodeGroup<Placemark> master = newGroup("master");
+        final ProductNodeGroup<Placemark> slave = newGroup("slave");
+        final int[][] pos = {{100, 100}, {800, 150}, {400, 900}};   // degree 1 has 3 unknowns
+        for (int k = 0; k < pos.length; k++) {
+            master.add(pin("gcp_" + k, pos[k][0], pos[k][1]));
+            slave.add(pin("gcp_" + k, pos[k][0] + 3, pos[k][1] - 2));
+        }
+        final CPM cpm = new CPM(1, 20, CRITICAL_VALUE, new Window(0, HEIGHT, 0, WIDTH), master, slave);
+        assertFalse(cpm.isValid());
+        assertEquals(0, cpm.getNumObservations());
+    }
+
+    /**
+     * One GCP more than unknowns, one of them flagged by the w-test: removing it would leave n == u and divide by
+     * zero in the overall model test. Outlier removal must stop with n = u + 1 instead.
+     */
+    @Test
+    public void testOutlierRemovalKeepsOneRedundantObservation() throws Exception {
+        final ProductNodeGroup<Placemark> master = newGroup("master");
+        final ProductNodeGroup<Placemark> slave = newGroup("slave");
+        final int[][] pos = {{100, 100}, {800, 150}, {400, 900}, {850, 800}};
+        for (int k = 0; k < pos.length; k++) {
+            final double err = k == 3 ? 0.4 : 0.0;   // flagged by the w-test, yet within the overall model test
+            master.add(pin("gcp_" + k, pos[k][0], pos[k][1]));
+            slave.add(pin("gcp_" + k, pos[k][0] + SHIFT_X + err, pos[k][1] + SHIFT_Y));
+        }
+        final CPM cpm = new CPM(1, 20, CRITICAL_VALUE, new Window(0, HEIGHT, 0, WIDTH), master, slave);
+        cpm.computeCPM();
+        assertEquals(4, cpm.getNumObservations());
+    }
+
     /** Identical Reference/Secondary positions skip estimation; the per-GCP rms must still be filled. */
     @Test
     public void testIdentityOffsetsFillRms() throws Exception {
