@@ -1,6 +1,8 @@
 # Microwave Toolbox Roadmap: Parked Work
 
-Date: 2026-11-13. Sections 1–7 collect every item parked during the JavaHelp overhaul and its Phase 8 code-defect pass. None of these items has been changed in the working tree.
+Date: 2026-11-13. Sections 1–7 collect every item parked during the JavaHelp overhaul and its Phase 8 code-defect pass. Ticked items are fixed; each has a dated note saying what changed. Unticked items that carry a "Checked … not changed" note were looked at and deliberately left alone, for the reason given in the note.
+
+**2026-11-20 quick-fix pass** (branch `roadmap-quick-fixes`): PhaseToDisplacement no-data (§3), Basic CEOS mission (§4), InSARStackOverview comment (§5), AzimuthFilter SAOCOM TOPS guard (§7.1), Batch SNAPHU https and the stale PyRateExportUI registration (§7.4). The QPS-SAR frequency (§4) and the TOPSARSplit valueSet (§5) were checked and are not safe one-liners; see the notes on those items.
 
 Sections 8 and 9 (added 2026-11-17) are new workstreams, not parked items: **§8 Memory efficiency** and **§9 Validation framework**.
 
@@ -62,7 +64,7 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Bug]** SBAS: check coherence before starting, and key pairs beyond two dates.
 - [ ] **[Bug]** ESD on a single burst silently applies no azimuth shift.
 - [ ] **[Bug]** Oversample assumes zero Doppler for sensors other than ERS/ENVISAT.
-- [ ] **[Bug]** PhaseToDisplacement sets no no-data value.
+- [x] **[Bug]** PhaseToDisplacement sets no no-data value. *Fixed 2026-11-20: NaN no-data; source no-data and NaN pixels map to NaN.*
 - [ ] **[Bug]** RangeFilterOp with several Secondaries: the filtered Reference matches only the last pair, only one Secondary per polarisation reaches the output, and dual-pol stacks never filter the Reference. Interim fix: refuse more than one Secondary per Reference; full support needs a redesign (see §7.1).
 - [ ] **[Bug]** RangeFilterOp has no TOPS guard; AzimuthFilter now has one.
 - [ ] **[Bug]** TLogSelector uses critical value 2.326 at α = 0.025, and the normal instead of the t distribution.
@@ -98,10 +100,10 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Bug]** ALOS-4 GeoTIFF reader writes one made-up orbit vector and fixes frequency, PRF and pass direction.
 - [ ] **[Bug]** COSMO-SkyMed Second Generation GeoTIFF has no import menu action.
 - [ ] **[Bug]** Gaofen-3: no calibrator, and Level 2 products are not recognised.
-- [ ] **[Bug]** QPS-SAR reader hard-codes 9650 MHz (actual 9.38 GHz) and VV.
+- [ ] **[Bug]** QPS-SAR reader hard-codes 9650 MHz and VV. *Checked 2026-11-20, not changed: the frequency is unsettled. iQPS publishes 9.6 GHz, and WMO OSCAR lists both 9.38 GHz (instrument page) and 9.65 GHz (satellite page). Take it from a real product's metadata.*
 - [ ] **[Bug]** The EOS-04 and RISAT-1 readers both claim any zip containing `BAND_META.txt`. There is no EOS-04 CEOS reader.
 - [ ] **[Bug]** UAVSAR reader accepts `.dat` files and reads them as garbage float32.
-- [ ] **[Bug]** Basic CEOS reader records every product's mission as `RS1`.
+- [x] **[Bug]** Basic CEOS reader records every product's mission as `RS1`. *Fixed 2026-11-20: read from the scene record's "Sensor platform mission identifier", falling back to `CEOS`. No calibrator dispatches on `RS1`. Not yet run on a real CEOS product.*
 - [ ] **[Bug]** SNAPHU reader creates `q_band` as float32 even for float64 data.
 - [ ] **[Bug]** ETAD reader geocoding is a simple lat/lon box.
 - [ ] **[Bug]** CIMR reader has no fallback for an unknown `format_version`.
@@ -109,10 +111,10 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 
 ## 5. Hygiene: labels, comments and tests
 
-- [ ] **[Hygiene]** TOPSARSplit `subswath` has no valueSet; only its description was fixed.
+- [ ] **[Hygiene]** TOPSARSplit `subswath` has no valueSet; only its description was fixed. *Checked 2026-11-20, not changed: 24 shipped graphs carry an empty `<subswath/>`. A valueSet rejects `""` (it lets only `null` through), so first confirm that graph parsing turns the empty element into `null`.*
 - [ ] **[Hygiene]** S1 ETAD Correction: the dialog labels (`S1ETADCorrectionOp.java:76-82`) differ from the GPF `@Parameter` labels.
 - [ ] **[Hygiene]** HaAlphaDescriptor has a stale TODO.
-- [ ] **[Hygiene]** `InSARStackOverview.java:51-53`: the comment claims the C-band model constants match Sentinel-1 IW; they are ERS-era values.
+- [x] **[Hygiene]** `InSARStackOverview.java:51-53`: the comment claims the C-band model constants match Sentinel-1 IW; they are ERS-era values. *Fixed 2026-11-20.*
 - [ ] **[Hygiene]** TestWarpOp has only smoke tests; add tests for the CPM outlier path and the CC4P kernel through WarpOp.
 - [ ] **[Hygiene]** PolarimetricDecomposition van Zyl golden values are regenerated but only run with `../testData`; check them on the test-data machine.
 - [ ] **[Hygiene]** GSLC: write explicit stamps for tide and troposphere instead of relying on the Processing_Graph record that Create Stack reads (prerequisite for §7.2 items B and C).
@@ -141,7 +143,7 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 - [ ] **[Bug]** RangeFilterOp leaves the top and bottom (nlMean-1)/2 lines of every tile unfiltered, because `TILE_OVERLAP_Y` is never set. Pad the tile rectangle and crop. S.
 - [ ] **[Bug]** RangeFilterOp crashes (IllegalArgumentException) when the last tile row has fewer lines than nlMean. Fixed by the same padding. XS.
 - [ ] **[Bug]** AzimuthFilterOp: the last matching band wins regardless of polarisation, so dual-pol stacks silently lose one polarisation. Loop per polarisation, as RangeFilterOp does. M.
-- [ ] **[Bug]** AzimuthFilterOp refuses only Sentinel-1 TOPS; SAOCOM TOPSARNarrow/Wide still pass. Also refuse modes starting with "TOPS". XS. Decision: other ScanSAR modes? Move the TOPS detection into a shared helper in snap-engine?
+- [x] **[Bug]** AzimuthFilterOp refuses only Sentinel-1 TOPS; SAOCOM TOPSARNarrow/Wide still pass. Also refuse modes starting with "TOPS". XS. *Fixed 2026-11-20, with a test; the decision below is still open.* Decision: other ScanSAR modes? Move the TOPS detection into a shared helper in snap-engine?
 - [ ] **[Bug]** Azimuth/Range Filter maps are keyed by ABS_ORBIT. Missions without an orbit number all get 99999, so Secondaries collide and are dropped. Key by acquisition date and polarisation. S.
 
 - [ ] **[Bug]** Split stack into multiple references (MultiMasterStackGenerator): the pair products share the source product's metadata elements instead of copying them, so edits to one pair's metadata affect the others. S.
@@ -167,8 +169,8 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 ### 7.4 SAR processing (Batch SNAPHU, compositing)
 - [ ] **[Bug]** Batch SNAPHU: operators that copy the band image at their own initialize (MergeOp, BandSelectOp) still read zeros, because the band image is swapped in doExecute. Keep the operator image and copy the SNAPHU data in `computeTile` from the ENVI reader; reads stay lazy. M. This has been verified with a scratch probe.
 - [ ] **[Bug]** Batch SNAPHU on Linux: the unzipped binary is not executable, so it is rejected, re-downloaded every run, and then fails with a NullPointerException. Match the exact name `snaphu`, `setExecutable(true)` after unzip, and throw a clear IOException. S. The help page's "downloaded once and reused" is false on Linux until this is fixed.
-- [ ] **[Bug]** Batch SNAPHU downloads an executable over plain http with no checksum. Switch to https (the files are byte-identical; verified). XS. Decision: pin SHA-256 hashes? [no, unless ESA publishes them].
-- [ ] **[Hygiene]** `sar-op-sar-processing-ui` layer.xml:431-434 registers `PyRateExportUI`, a class that no longer exists, so SNAP logs SEVERE at every start. Delete the entry. XS.
+- [x] **[Bug]** Batch SNAPHU downloads an executable over plain http with no checksum. Switch to https (the files are byte-identical; verified). XS. *Fixed 2026-11-20 (byte-identity re-checked by SHA-256 for all three archives).* Decision: pin SHA-256 hashes? [no, unless ESA publishes them].
+- [x] **[Hygiene]** `sar-op-sar-processing-ui` layer.xml:431-434 registers `PyRateExportUI`, a class that no longer exists, so SNAP logs SEVERE at every start. Delete the entry. XS. *Fixed 2026-11-20.* (The help index still lists "PyrateExport (GPT operator)", but no such operator exists.)
 - [ ] **[Hygiene]** Multitemporal Compositing refuses two Secondaries on the same day, and its output bands have no unit or no-data value.
 
 ### 7.5 Feature extraction, calibration and readers

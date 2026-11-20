@@ -378,6 +378,11 @@ public class TestBatchSnaphuUnwrapOp {
         assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Windows 11", "amd64").contains("win64"));
         assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Windows 10", "x86").contains("win32"));
         assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Linux", "amd64").contains("linux"));
+        // an executable must not be fetched over plain http
+        for (String os : new String[]{"Windows 11", "Linux"}) {
+            assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl(os, "amd64").startsWith("https://"));
+        }
+        assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Windows 10", "x86").startsWith("https://"));
         assertNull("no macOS build is published; the Linux binary must not be offered",
                 BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Mac OS X", "aarch64"));
     }

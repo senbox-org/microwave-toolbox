@@ -86,6 +86,23 @@ public class AzimuthFilterOpTest {
         }
     }
 
+    /** SAOCOM TOPSAR modes sweep the Doppler centroid too and carry no IW/EW band tags. */
+    @Test
+    public void testRefusesSaocomTOPSARProduct() throws IOException {
+        for (String mode : new String[]{"TOPSARNarrow", "TOPSARWide"}) {
+            final Product saocom = createStack("", SEC1);
+            final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(saocom);
+            absRoot.setAttributeString(AbstractMetadata.MISSION, "SAOCOM");
+            absRoot.setAttributeString(AbstractMetadata.ACQUISITION_MODE, mode);
+            try {
+                runOn(saocom);
+                fail("SAOCOM " + mode + " input must be refused");
+            } catch (OperatorException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("TOPS"));
+            }
+        }
+    }
+
     /** Sentinel-1 Stripmap (createStack default metadata) and Wave mode are not TOPS and must pass. */
     @Test
     public void testAcceptsSentinel1WaveMode() throws IOException {

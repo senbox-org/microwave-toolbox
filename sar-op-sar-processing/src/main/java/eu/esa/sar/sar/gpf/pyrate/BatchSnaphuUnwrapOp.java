@@ -178,9 +178,9 @@ public class BatchSnaphuUnwrapOp extends Operator {
         return configFiles.toArray(new File[0]);
     }
 
-    private static final String LINUX_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
-    private static final String WINDOWS64_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
-    private static final String WINDOWS32_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
+    private static final String LINUX_DOWNLOAD_PATH = "https://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
+    private static final String WINDOWS64_DOWNLOAD_PATH = "https://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
+    private static final String WINDOWS32_DOWNLOAD_PATH = "https://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
 
     /**
      * @return the SNAPHU archive for this platform, or null when no build is published for it (macOS).
