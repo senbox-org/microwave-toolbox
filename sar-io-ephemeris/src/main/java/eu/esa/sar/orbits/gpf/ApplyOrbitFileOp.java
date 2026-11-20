@@ -15,7 +15,6 @@
  */
 package eu.esa.sar.orbits.gpf;
 
-import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.orbits.io.OrbitFile;
 import eu.esa.sar.orbits.io.biomass.BiomassPODOrbitFile;
 import eu.esa.sar.orbits.io.delft.DelftOrbitFile;
@@ -207,37 +206,30 @@ public final class ApplyOrbitFileOp extends Operator {
 
             createTargetProduct();
 
+            // The orbit must be applied here, not in doExecute(): GPF initializes every node of a
+            // graph before executing any of them, so a downstream operator (Subset, Calibration,
+            // TOPSAR-Split, ...) copies this product's metadata and tie-point grids during its own
+            // initialize(). Anything updated later in doExecute() never reaches it.
+            applyOrbits();
+
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
     }
 
-    /**
-     * Called by the GPF framework after {@link #initialize()} and before any {@link #computeTile} call.
-     * Network I/O (orbit-file download) is deferred to this method so that the UI parameter dialog
-     * and Graph Builder validation do not block on network access.
-     */
-    @Override
-    public void doExecute(final ProgressMonitor pm) throws OperatorException {
+    private void applyOrbits() throws Exception {
+        if (productUpdated) {
+            return;
+        }
         try {
-            pm.beginTask("Downloading orbit file", 1);
-            if (!productUpdated) {
-                try {
-                    updateOrbits();
-                } catch (Exception e) {
-                    if (continueOnFail != null && continueOnFail) {
-                        SystemUtils.LOG.warning("ApplyOrbit ignoring error and continuing: " + e.toString());
-                        productUpdated = true;
-                    } else {
-                        throw e;
-                    }
-                }
+            updateOrbits();
+        } catch (Exception e) {
+            if (continueOnFail != null && continueOnFail) {
+                SystemUtils.LOG.warning("ApplyOrbit ignoring error and continuing: " + e.toString());
+                productUpdated = true;
+            } else {
+                throw e;
             }
-            pm.worked(1);
-        } catch (Throwable e) {
-            OperatorUtils.catchOperatorException(getId(), e);
-        } finally {
-            pm.done();
         }
     }
 
@@ -375,8 +367,8 @@ public final class ApplyOrbitFileOp extends Operator {
 
         TiePointGrid latitude = OperatorUtils.getLatitude(sourceProduct);
         TiePointGrid longitude = OperatorUtils.getLongitude(sourceProduct);
-        int targetTiePointGridHeight = latitude.getGridWidth();
-        int targetTiePointGridWidth = latitude.getGridHeight();
+        final int targetTiePointGridWidth = latitude.getGridWidth();
+        final int targetTiePointGridHeight = latitude.getGridHeight();
 
         final float[] targetLatTiePoints = new float[targetTiePointGridHeight * targetTiePointGridWidth];
         final float[] targetLonTiePoints = new float[targetTiePointGridHeight * targetTiePointGridWidth];

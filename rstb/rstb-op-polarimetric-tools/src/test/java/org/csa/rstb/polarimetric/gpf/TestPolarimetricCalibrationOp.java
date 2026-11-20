@@ -18,6 +18,7 @@ package org.csa.rstb.polarimetric.gpf;
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.junit.Test;
 
@@ -183,6 +184,47 @@ public class TestPolarimetricCalibrationOp {
         assertTrue("|corr(VV,HV)| after", Math.abs(corr(k, 3, 1)) < 0.02);
         assertTrue("|corr(VV,VH)| after", Math.abs(corr(k, 3, 2)) < 0.02);
         assertEquals("VV/HH power after", 1.0, power(k, 3) / power(k, 0), 0.03);
+    }
+
+    // ----- graph behaviour ----------------------------------------------------------------------------
+
+    /**
+     * GPF initializes every node of a graph before it executes any of them, and a downstream operator
+     * (Multilook, Terrain-Correction, ...) copies or reads this product's metadata in its own initialize().
+     * The polsarData flag and the estimated distortion must therefore be in the metadata by the time
+     * getTargetProduct() returns, not only after doExecute().
+     */
+    @Test
+    public void testMetadataCompleteBeforeDownstreamCopy() throws Exception {
+        final Product src = createProduct(0.0, D_AMP, F_AMP, F_PHASE);
+        final PolarimetricCalibrationOp op =
+                (PolarimetricCalibrationOp) new PolarimetricCalibrationOp.Spi().createOperator();
+        op.setSourceProduct(src);
+        op.setParameter("subsample", 1);
+        final Product trg = op.getTargetProduct();
+
+        // what a downstream operator copies during graph initialisation
+        final Product downstream = new Product("downstream", trg.getProductType(),
+                trg.getSceneRasterWidth(), trg.getSceneRasterHeight());
+        ProductUtils.copyMetadata(trg, downstream);
+
+        // then GPF executes the graph
+        op.execute(ProgressMonitor.NULL);
+
+        final MetadataElement downstreamAbs = AbstractMetadata.getAbstractedMetadata(downstream);
+        assertEquals("polsarData", 1, downstreamAbs.getAttributeInt(AbstractMetadata.polsarData, 0));
+        final MetadataElement downstreamCal = downstreamAbs.getElement("Polarimetric_Calibration");
+        assertNotNull("Polarimetric_Calibration missing from the downstream copy", downstreamCal);
+        final MetadataElement cal = getCal(trg);
+        for (int i = 1; i <= 4; i++) {
+            for (String part : new String[]{"_re", "_im"}) {
+                final String name = "delta" + i + part;
+                assertEquals(name, cal.getAttributeDouble(name), downstreamCal.getAttributeDouble(name), 0.0);
+            }
+        }
+        assertTrue("cross-talk was not estimated",
+                Math.hypot(cal.getAttributeDouble("delta1_re"), cal.getAttributeDouble("delta1_im")) > 0.5 * D_AMP);
+        downstream.dispose();
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -168,23 +168,16 @@ public final class PolarimetricCalibrationOp extends Operator implements QuadPol
             srcBandList = PolBandUtils.getSourceBands(sourceProduct, sourceProductType);
 
             createTargetProduct();
-        } catch (Throwable e) {
-            OperatorUtils.catchOperatorException(getId(), e);
-        }
-    }
 
-    @Override
-    public void doExecute(final ProgressMonitor pm) throws OperatorException {
-        try {
-            pm.beginTask("Estimating polarimetric distortion", 1);
+            // The estimate goes into the target metadata (polsarData flag, Polarimetric_Calibration), so it
+            // has to be done here, not in doExecute(): GPF initializes every node of a graph before executing
+            // any of them, and a downstream operator (Multilook, Terrain-Correction, ...) copies or reads this
+            // product's metadata in its own initialize(). The covariance is collected on a sub-sampled grid.
             estimateDistortion();
             computeInverseDistortion();
             updateTargetProductMetadata();
-            pm.worked(1);
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
-        } finally {
-            pm.done();
         }
     }
 

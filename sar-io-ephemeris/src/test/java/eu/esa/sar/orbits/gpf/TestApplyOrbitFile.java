@@ -15,16 +15,25 @@
  */
 package eu.esa.sar.orbits.gpf;
 
+import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.dataio.ProductIO;
 import org.esa.snap.core.datamodel.Product;
+import org.esa.snap.core.datamodel.TiePointGrid;
+import org.esa.snap.core.gpf.OperatorException;
+import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.dataio.envisat.EnvisatOrbitReader;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assume.assumeNoException;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -78,6 +87,56 @@ public class TestApplyOrbitFile {
             ApplyOrbitFileOp op = new ApplyOrbitFileOp();
             op.setSourceProduct(srcProduct);
             Product trgProduct = op.getTargetProduct();
+            trgProduct.close();
+        }
+    }
+
+    /**
+     * GPF initializes every node of a graph before it executes any of them, and a downstream operator
+     * (Subset, Calibration, TOPSAR-Split, ...) copies its source's metadata and tie-point grids in its own
+     * initialize(). The orbit therefore has to be applied by the time getTargetProduct() returns; an
+     * update made later in doExecute() leaves the downstream copy with the original orbit and geocoding.
+     */
+    @Test
+    public void testOrbitAppliedBeforeDownstreamCopy_ASAR_IMS() throws Exception {
+        assumeTrue(TestData.inputASAR_IMS + " not found", TestData.inputASAR_IMS.exists());
+        try (final Product srcProduct = ProductIO.readProduct(TestData.inputASAR_IMS)) {
+            final String srcOrbitFile = AbstractMetadata.getAbstractedMetadata(srcProduct)
+                    .getAttributeString(AbstractMetadata.orbit_state_vector_file, "");
+
+            final ApplyOrbitFileOp op = new ApplyOrbitFileOp();
+            op.setSourceProduct(srcProduct);
+            final Product trgProduct;
+            try {
+                trgProduct = op.getTargetProduct();
+            } catch (OperatorException e) {
+                assumeNoException("orbit file not available", e);
+                return;
+            }
+
+            // what a downstream operator copies during graph initialisation
+            final Product downstream = new Product("downstream", trgProduct.getProductType(),
+                    trgProduct.getSceneRasterWidth(), trgProduct.getSceneRasterHeight());
+            ProductUtils.copyMetadata(trgProduct, downstream);
+            ProductUtils.copyTiePointGrids(trgProduct, downstream);
+
+            // then GPF executes the graph
+            op.execute(ProgressMonitor.NULL);
+
+            final String trgOrbitFile = AbstractMetadata.getAbstractedMetadata(trgProduct)
+                    .getAttributeString(AbstractMetadata.orbit_state_vector_file);
+            assertNotEquals("orbit not applied", srcOrbitFile, trgOrbitFile);
+            assertEquals(trgOrbitFile, AbstractMetadata.getAbstractedMetadata(downstream)
+                    .getAttributeString(AbstractMetadata.orbit_state_vector_file));
+
+            for (TiePointGrid trgGrid : trgProduct.getTiePointGrids()) {
+                final TiePointGrid copied = downstream.getTiePointGrid(trgGrid.getName());
+                assertNotNull(trgGrid.getName(), copied);
+                assertEquals(trgGrid.getName(), trgGrid.getGridWidth(), copied.getGridWidth());
+                assertEquals(trgGrid.getName(), trgGrid.getGridHeight(), copied.getGridHeight());
+                assertArrayEquals(trgGrid.getName(), trgGrid.getTiePoints(), copied.getTiePoints(), 0.0f);
+            }
+            downstream.dispose();
             trgProduct.close();
         }
     }
