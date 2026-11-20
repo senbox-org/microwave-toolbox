@@ -68,6 +68,45 @@ public class TestStackAveragingStatistics {
         return out[W + 1];
     }
 
+    /**
+     * Same stack with 0 as no-data and the third date (3) missing at pixel (1,1), as outside a Secondary's
+     * footprint. The statistics must use the two valid dates (1, 2), not average the 0 in.
+     */
+    private static float[] runWithGap(final String statistic, final int minValidDates) throws Exception {
+        final Product src = newStack();
+        for (Band b : src.getBands()) {
+            b.setNoDataValue(0.0);
+            b.setNoDataValueUsed(true);
+        }
+        src.getBand("Amplitude_VV_sec_25Jan2020").getRasterData().setElemFloatAt(W + 1, 0f);
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(src);
+        op.setParameter("statistic", statistic);
+        op.setParameter("minValidDates", minValidDates);
+        final Band band = op.getTargetProduct().getBand("Amplitude_VV");
+        final float[] out = new float[W * H];
+        band.readPixels(0, 0, W, H, out);
+        return out;
+    }
+
+    @Test
+    public void testNoDataDatesAreLeftOut() throws Exception {
+        assertEquals("mean of 1, 2", 1.5, runWithGap("Mean Average", 1)[W + 1], 1e-6);
+        assertEquals("mean elsewhere unchanged", 2.0, runWithGap("Mean Average", 1)[0], 1e-6);
+        assertEquals("min ignores the 0", 1.0, runWithGap("Minimum", 1)[W + 1], 1e-6);
+        assertEquals("max of 1, 2", 2.0, runWithGap("Maximum", 1)[W + 1], 1e-6);
+        assertEquals("population std of 1, 2", 0.5, runWithGap("Standard Deviation", 1)[W + 1], 1e-6);
+        assertEquals("cv of 1, 2", 0.5 / 1.5, runWithGap("Coefficient of Variation", 1)[W + 1], 1e-6);
+    }
+
+    /** Fewer valid dates than required gives the output's no-data value. */
+    @Test
+    public void testTooFewValidDatesGiveNoData() throws Exception {
+        final float[] out = runWithGap("Mean Average", 3);
+        assertEquals("pixel with 2 of 3 dates", 0.0, out[W + 1], 0.0);
+        assertEquals("pixel with all dates", 2.0, out[0], 1e-6);
+    }
+
     @Test
     public void testMean() throws Exception {
         assertEquals(2.0, run("Mean Average"), 1e-6);

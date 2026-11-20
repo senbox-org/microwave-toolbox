@@ -53,6 +53,11 @@ public class StackAveragingOp extends Operator {
             defaultValue = "Mean Average", label = "Statistic")
     private String statistic = "Mean Average";
 
+    @Parameter(description = "Minimum number of valid (not no-data) dates a pixel needs; fewer gives no-data. " +
+            "Standard Deviation and Coefficient of Variation always need at least 2.",
+            defaultValue = "1", interval = "[1,*)", label = "Minimum valid dates")
+    private int minValidDates = 1;
+
     private BandInfo[] nameGroups;
 
     /**
@@ -92,19 +97,19 @@ public class StackAveragingOp extends Operator {
 
                     switch (statistic) {
                         case "Mean Average":
-                            addVirtualBand("average", name_prefix, mean(sourceBands), unit, nodatavalue);
+                            addVirtualBand("average", name_prefix, mean(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                         case "Minimum":
-                            addVirtualBand("min", name_prefix, min(sourceBands), unit, nodatavalue);
+                            addVirtualBand("min", name_prefix, min(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                         case "Maximum":
-                            addVirtualBand("max", name_prefix, max(sourceBands), unit, nodatavalue);
+                            addVirtualBand("max", name_prefix, max(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                         case "Standard Deviation":
-                            addVirtualBand("stddev", name_prefix, stddev(sourceBands), unit, nodatavalue);
+                            addVirtualBand("stddev", name_prefix, stddev(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                         case "Coefficient of Variation":
-                            addVirtualBand("coefVar", name_prefix, coefVar(sourceBands), unit, nodatavalue);
+                            addVirtualBand("coefVar", name_prefix, coefVar(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                     }
                 }
@@ -223,87 +228,92 @@ public class StackAveragingOp extends Operator {
         return false;
     }
 
-    private static String mean(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0)
+    /*
+     * The statistics count only valid samples: a date where a band is NaN or equals its own no-data value
+     * (0-filled outside a Secondary's footprint) is left out of the sum and of the divisor, instead of being
+     * averaged in as a real 0. A pixel with fewer than the minimum number of valid dates gives NaN, which the
+     * virtual band writes as its no-data value.
+     */
+
+    /** True where the band holds a valid sample. */
+    static String isValid(final Band band) {
+        final String name = band.getName();
+        // the band symbol evaluates to the geophysical value, widened from float for float32 bands
+        double noData = band.getGeophysicalNoDataValue();
+        if (band.getDataType() == ProductData.TYPE_FLOAT32) {
+            noData = (float) noData;
+        }
+        if (band.isNoDataValueUsed() && !Double.isNaN(noData)) {
+            return "(!nan(" + name + ") && " + name + " != " + noData + ")";
+        }
+        return "!nan(" + name + ")";
+    }
+
+    /** Sum over the bands of {@code term} (with {@code %s} standing for the band) where valid, else {@code other}. */
+    private static String sumValid(final Band[] sourceBands, final String term, final String other) {
+        final StringBuilder expression = new StringBuilder("(");
+        for (int i = 0; i < sourceBands.length; ++i) {
+            if (i > 0)
                 expression.append(" + ");
-            expression.append(band.getName());
-            ++cnt;
+            expression.append('(').append(isValid(sourceBands[i])).append(" ? ")
+                    .append(String.format(term, sourceBands[i].getName())).append(" : ").append(other).append(')');
         }
-        expression.append(") / ");
-        expression.append(sourceBands.length);
-
-        return expression.toString();
+        return expression.append(')').toString();
     }
 
-    private static String min(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("min( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0) {
-                expression.append(", ");
-                if (cnt < sourceBands.length - 1)
-                    expression.append("min( ");
-            }
-            expression.append(band.getName());
-            ++cnt;
-        }
-        for (int i = 0; i < sourceBands.length - 1; ++i) {
-            expression.append(')');
-        }
-
-        return expression.toString();
+    private static String count(final Band[] sourceBands) {
+        return sumValid(sourceBands, "1", "0");
     }
 
-    private static String max(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("max( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0) {
-                expression.append(", ");
-                if (cnt < sourceBands.length - 1)
-                    expression.append("max( ");
-            }
-            expression.append(band.getName());
-            ++cnt;
-        }
-        for (int i = 0; i < sourceBands.length - 1; ++i) {
-            expression.append(')');
-        }
-
-        return expression.toString();
+    private static String enoughValid(final Band[] sourceBands, final int minValid) {
+        return count(sourceBands) + " >= " + Math.max(1, minValid);
     }
 
-    private static String mean2(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0)
-                expression.append(" + ");
-            expression.append("sq(");
-            expression.append(band.getName());
-            expression.append(')');
-            ++cnt;
-        }
-        expression.append(") / ");
-        expression.append(sourceBands.length);
-
-        return expression.toString();
+    private static String mean(final Band[] sourceBands, final int minValid) {
+        return "(" + enoughValid(sourceBands, minValid) + " ? " + sumValid(sourceBands, "%s", "0") + " / " +
+                count(sourceBands) + " : NaN)";
     }
 
-    private static String stddev(final Band[] sourceBands) {
-        return "sqrt( " + mean2(sourceBands) + " - " + "sq(" + mean(sourceBands) + "))";
+    /** Nested binary min/max over the valid samples; invalid samples are replaced by {@code neutral}. */
+    private static String extreme(final String function, final String neutral, final Band[] sourceBands,
+                                  final int minValid) {
+        String expression = "(" + isValid(sourceBands[0]) + " ? " + sourceBands[0].getName() + " : " + neutral + ")";
+        for (int i = 1; i < sourceBands.length; ++i) {
+            expression = function + "(" + expression + ", (" + isValid(sourceBands[i]) + " ? " +
+                    sourceBands[i].getName() + " : " + neutral + "))";
+        }
+        return "(" + enoughValid(sourceBands, minValid) + " ? " + expression + " : NaN)";
+    }
+
+    private static String min(final Band[] sourceBands, final int minValid) {
+        return extreme("min", String.valueOf(Float.MAX_VALUE), sourceBands, minValid);
+    }
+
+    private static String max(final Band[] sourceBands, final int minValid) {
+        return extreme("max", String.valueOf(-Float.MAX_VALUE), sourceBands, minValid);
+    }
+
+    /** Population standard deviation of the valid samples; max(0, ..) absorbs rounding below zero. */
+    private static String populationStd(final Band[] sourceBands) {
+        final String n = count(sourceBands);
+        final String mean = "(" + sumValid(sourceBands, "%s", "0") + " / " + n + ")";
+        final String mean2 = "(" + sumValid(sourceBands, "sq(%s)", "0") + " / " + n + ")";
+        return "sqrt(max(0, " + mean2 + " - sq(" + mean + ")))";
+    }
+
+    private static String stddev(final Band[] sourceBands, final int minValid) {
+        return "(" + enoughValid(sourceBands, Math.max(2, minValid)) + " ? " + populationStd(sourceBands) + " : NaN)";
     }
 
     /**
-     * Coefficient of variation of the input samples: population standard deviation / mean.
+     * Coefficient of variation of the valid samples: population standard deviation / mean.
      * (It used to be computed on the squared samples, and the unparenthesised divisor also
      * divided by N a second time.)
      */
-    private static String coefVar(final Band[] sourceBands) {
-        return "(" + stddev(sourceBands) + ") / (" + mean(sourceBands) + ")";
+    private static String coefVar(final Band[] sourceBands, final int minValid) {
+        final String mean = "(" + sumValid(sourceBands, "%s", "0") + " / " + count(sourceBands) + ")";
+        return "(" + enoughValid(sourceBands, Math.max(2, minValid)) + " ? " + populationStd(sourceBands) +
+                " / " + mean + " : NaN)";
     }
 
     private static class BandInfo {
