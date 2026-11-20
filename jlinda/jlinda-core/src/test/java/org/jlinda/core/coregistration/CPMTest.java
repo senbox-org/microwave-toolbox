@@ -110,6 +110,53 @@ public class CPMTest {
         assertEquals("Exactly the azimuth outlier should be removed", masterPositions.size() - 1, survivors.size());
     }
 
+    /** Fewer GCPs than unknowns: the lists stay empty, so callers looping to getNumObservations() must not overrun. */
+    @Test
+    public void testTooFewGCPsReportsNoObservations() {
+        final ProductNodeGroup<Placemark> master = newGroup("master");
+        final ProductNodeGroup<Placemark> slave = newGroup("slave");
+        for (int k = 0; k < 2; k++) {   // degree 1 has 3 unknowns
+            master.add(pin("gcp_" + k, 100 + 100 * k, 100));
+            slave.add(pin("gcp_" + k, 103 + 100 * k, 98));
+        }
+        final CPM cpm = new CPM(1, 20, CRITICAL_VALUE, new Window(0, HEIGHT, 0, WIDTH), master, slave);
+        assertFalse(cpm.isValid());
+        assertEquals(0, cpm.getNumObservations());
+    }
+
+    /** Identical Reference/Secondary positions skip estimation; the per-GCP rms must still be filled. */
+    @Test
+    public void testIdentityOffsetsFillRms() throws Exception {
+        final CPM cpm = constantShiftCPM(0.0, 0.0);
+        cpm.computeCPM();
+        cpm.computeEstimationStats();
+        for (int i = 0; i < cpm.getNumObservations(); i++) {
+            assertEquals(0.0, cpm.getRMS(i), 1e-12);
+        }
+    }
+
+    /** dx = +1, dy = -1 cancel in |dx+dy|; such a shift is not the identity and must be estimated. */
+    @Test
+    public void testCancellingOffsetsAreEstimated() throws Exception {
+        final CPM cpm = constantShiftCPM(1.0, -1.0);
+        cpm.computeCPM();
+        cpm.computeEstimationStats();
+        // the identity model would leave a residual of sqrt(2) px; the estimated shift fits exactly
+        assertEquals(0.0, cpm.getRMS(0), 1e-6);
+    }
+
+    private CPM constantShiftCPM(final double dx, final double dy) {
+        final ProductNodeGroup<Placemark> master = newGroup("master");
+        final ProductNodeGroup<Placemark> slave = newGroup("slave");
+        final List<int[]> positions = buildMasterGrid();
+        for (int k = 0; k < positions.size(); k++) {
+            final int[] m = positions.get(k);
+            master.add(pin("gcp_" + k, m[0], m[1]));
+            slave.add(pin("gcp_" + k, m[0] + dx, m[1] + dy));
+        }
+        return new CPM(1, 20, CRITICAL_VALUE, new Window(0, HEIGHT, 0, WIDTH), master, slave);
+    }
+
     private static List<int[]> buildMasterGrid() {
         final List<int[]> positions = new ArrayList<>();
         final int spacingX = WIDTH / (GRID + 1);

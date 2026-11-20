@@ -191,8 +191,10 @@ public class MultiMasterOp extends Operator{
             //absMetadata.removeElement(absMetadata.getElement("Orbit_State_Vectors"));
             //absMetadata.addElement(refOrbitData);
             final MetadataElement original_product_metadata = rootMetadata.getElement("Original_Product_Metadata");
+            // Each pair gets its own copies: addElement takes ownership, so attaching the source's elements
+            // re-parents them and lets every pair (and the source) share and edit one metadata tree.
             if (original_product_metadata != null) {
-                root.addElement(original_product_metadata);
+                root.addElement(original_product_metadata.createDeepClone());
             } else {
                 SystemUtils.LOG.warning("MultiMasterStackGenerator: source product has no Original_Product_Metadata; "
                         + productName + " is written without it");
@@ -201,8 +203,8 @@ public class MultiMasterOp extends Operator{
             absMetadata.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
             MetadataElement secondary_data = new MetadataElement(AbstractMetadata.SECONDARY_METADATA_ROOT);
 
-            secondary_data.addElement(date_metadatapairs.get(dateRef));
-            secondary_data.addElement(date_metadatapairs.get(dateSec));
+            secondary_data.addElement(date_metadatapairs.get(dateRef).createDeepClone());
+            secondary_data.addElement(date_metadatapairs.get(dateSec).createDeepClone());
 
 
             root.addElement(secondary_data);

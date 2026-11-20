@@ -130,16 +130,32 @@ public class BatchSnaphuUnwrapOp extends Operator {
 
     }
 
+    // exact name: the Linux archive also holds src/snaphu.c, snaphu.h, man/snaphu.1, config/snaphu.conf.*
+    private static String snaphuBinaryName() {
+        return System.getProperty("os.name").toLowerCase().startsWith("windows") ? "snaphu.exe" : "snaphu";
+    }
+
     boolean isSnaphuBinary(File file){
-        if(System.getProperty("os.name").toLowerCase().startsWith("windows")){
-            return ! file.isDirectory() &&
-                    file.canExecute() &&
-                    file.getName().equals("snaphu.exe");
-        }else{
-            return ! file.isDirectory() &&
-                    file.canExecute() &&
-                    file.getName().startsWith("snaphu");
+        return ! file.isDirectory() &&
+                file.canExecute() &&
+                file.getName().equals(snaphuBinaryName());
+    }
+
+    /**
+     * Like {@link #findSnaphuBinary}, but also accepts a binary that lacks the execute permission and grants it:
+     * zip entries carry no Unix permissions, so a freshly unzipped Linux binary is never executable.
+     */
+    File findOrMakeExecutableSnaphuBinary(File rootDir) {
+        final File binary = findSnaphuBinary(rootDir);
+        if (binary != null) {
+            return binary;
         }
+        for (File file : FileUtils.listFiles(rootDir, TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE)) {
+            if (file.getName().equals(snaphuBinaryName()) && file.setExecutable(true) && isSnaphuBinary(file)) {
+                return file;
+            }
+        }
+        return null;
     }
 
     File findSnaphuBinary(File rootDir){
@@ -207,7 +223,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
         }
         // Reuse a binary downloaded by an earlier run instead of downloading it again.
         if (snaphuInstallLocation.isDirectory()) {
-            final File existing = findSnaphuBinary(snaphuInstallLocation);
+            final File existing = findOrMakeExecutableSnaphuBinary(snaphuInstallLocation);
             if (existing != null) {
                 return existing;
             }
@@ -220,8 +236,12 @@ public class BatchSnaphuUnwrapOp extends Operator {
         }
         File zipFile = FileDownloader.downloadFile(new URL(downloadPath), snaphuInstallLocation, null);
         ZipUtils.unzip(zipFile.toPath(), snaphuInstallLocation.toPath(), true);
-        snaphuBinaryLocation = findSnaphuBinary(snaphuInstallLocation);
-
+        snaphuBinaryLocation = findOrMakeExecutableSnaphuBinary(snaphuInstallLocation);
+        if (snaphuBinaryLocation == null) {
+            throw new IOException("No executable " + snaphuBinaryName() + " found in " + snaphuInstallLocation
+                    + " after downloading " + downloadPath + ". Install SNAPHU and set the Snaphu Install Location"
+                    + " to the snaphu executable or its folder.");
+        }
 
         return snaphuBinaryLocation;
     }

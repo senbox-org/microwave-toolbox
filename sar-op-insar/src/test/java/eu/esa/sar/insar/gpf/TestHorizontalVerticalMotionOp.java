@@ -26,6 +26,8 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests for {@link HorizontalVerticalMotionOp}.
@@ -86,23 +88,89 @@ public class TestHorizontalVerticalMotionOp {
     }
 
     private static Product newCollocatedPair(final double eastM, final double upM) {
+        return newCollocatedPair(eastM, upM, HEADING_ASC, INC_ASC);
+    }
+
+    private static Product newCollocatedPair(final double eastM, final double upM,
+                                             final double headingAsc, final double incAsc) {
         final Product p = new Product("hvm", "SLC", W, H);
         final MetadataElement abs = AbstractMetadata.addAbstractedMetadataHeader(p.getMetadataRoot());
         abs.setAttributeDouble(AbstractMetadata.radar_frequency, FREQ_MHZ);
         abs.setAttributeString(AbstractMetadata.PASS, "DESCENDING");
         abs.setAttributeDouble("centre_heading", HEADING_DSC);
         final MetadataElement sec = new MetadataElement("Secondary_Heading_Angles");
-        sec.setAttributeDouble("centre_heading_0", HEADING_ASC);
+        sec.setAttributeDouble("centre_heading_0", headingAsc);
         abs.addElement(sec);
 
         final double phiDsc = phaseOf(losTowardsSatellite(eastM, upM, HEADING_DSC, INC_DSC));
-        final double phiAsc = phaseOf(losTowardsSatellite(eastM, upM, HEADING_ASC, INC_ASC));
+        final double phiAsc = phaseOf(losTowardsSatellite(eastM, upM, headingAsc, incAsc));
         // reference pixel (0,0) is stable: zero phase there
         addConstBand(p, "Unw_Phase_ifg_M", Unit.ABS_PHASE, phiDsc, 0.0);
         addConstBand(p, "Unw_Phase_ifg_S", Unit.ABS_PHASE, phiAsc, 0.0);
         addConstBand(p, "incidenceAngleFromEllipsoid_M", Unit.DEGREES, INC_DSC, INC_DSC);
-        addConstBand(p, "incidenceAngleFromEllipsoid_S", Unit.DEGREES, INC_ASC, INC_ASC);
+        addConstBand(p, "incidenceAngleFromEllipsoid_S", Unit.DEGREES, incAsc, incAsc);
         return p;
+    }
+
+    /** Marks 0 as the unwrapped-phase no-data value, as SNAPHU import and terrain correction do. */
+    private static void zeroIsNoData(final Product p) {
+        for (String name : new String[]{"Unw_Phase_ifg_M", "Unw_Phase_ifg_S"}) {
+            p.getBand(name).setNoDataValue(0.0);
+            p.getBand(name).setNoDataValueUsed(true);
+        }
+    }
+
+    private static boolean causeMentions(Throwable t, final String text) {
+        for (; t != null; t = t.getCause()) {
+            if (t.getMessage() != null && t.getMessage().contains(text)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A 0-filled no-data reference pixel would leave both interferograms unreferenced: refuse it. */
+    @Test
+    public void testNoDataReferencePixelRefused() {
+        final Product src = newCollocatedPair(0.0, 0.010);
+        zeroIsNoData(src);   // the reference pixel (0,0) holds 0 = no-data
+        final HorizontalVerticalMotionOp op = new HorizontalVerticalMotionOp();
+        op.setSourceProduct(src);
+        try {
+            read(op.getTargetProduct(), "verticalMotion");
+            fail("a no-data reference pixel must be refused");
+        } catch (Exception e) {
+            assertTrue(e.toString(), causeMentions(e, "no-data"));
+        }
+    }
+
+    /** Where only one pass has data the 2x2 system has one equation: output NaN, not a finite value. */
+    @Test
+    public void testOnePassNoDataGivesNaN() throws Exception {
+        final Product src = newCollocatedPair(0.005, 0.010);
+        final Band asc = src.getBand("Unw_Phase_ifg_S");
+        asc.setNoDataValue(-9999.0);
+        asc.setNoDataValueUsed(true);
+        asc.getRasterData().setElemFloatAt(W + 1, -9999.0f);
+        src.getBand("Unw_Phase_ifg_M").getRasterData().setElemFloatAt(2 * W + 1, Float.NaN);
+
+        final HorizontalVerticalMotionOp op = new HorizontalVerticalMotionOp();
+        op.setSourceProduct(src);
+        final Product target = op.getTargetProduct();
+        final float[] up = read(target, "verticalMotion");
+        final float[] east = read(target, "horizontalMotion");
+        assertTrue("asc no-data", Float.isNaN(up[W + 1]) && Float.isNaN(east[W + 1]));
+        assertTrue("dsc NaN", Float.isNaN(up[2 * W + 1]) && Float.isNaN(east[2 * W + 1]));
+        assertEquals("valid pixel unaffected", 10.0, up[2 * W + 2], 1e-3);
+    }
+
+    /** Nearly identical lines of sight make the system ill-conditioned: output NaN rather than amplified noise. */
+    @Test
+    public void testNearParallelGeometryGivesNaN() throws Exception {
+        final HorizontalVerticalMotionOp op = new HorizontalVerticalMotionOp();
+        op.setSourceProduct(newCollocatedPair(0.0, 0.010, HEADING_DSC + 0.01, INC_DSC));
+        final float[] up = read(op.getTargetProduct(), "verticalMotion");
+        assertTrue(Float.isNaN(up[W + 1]));
     }
 
     private static float[] read(final Product target, final String band) throws Exception {

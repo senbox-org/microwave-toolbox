@@ -175,6 +175,40 @@ public class TestBatchSnaphuUnwrapOp {
         assertFalse(op.isSnaphuBinary(f));
     }
 
+    /** The Linux archive ships src/snaphu.c, man/snaphu.1 etc. next to bin/snaphu: only the exact name counts. */
+    @Test
+    public void testIsSnaphuBinaryRejectsSnaphuPrefixedFiles() throws IOException {
+        for (String name : new String[]{"snaphu.c", "snaphu.1", "snaphu.conf.brief"}) {
+            final File f = tempDir.resolve(name).toFile();
+            assertTrue(f.createNewFile());
+            f.setExecutable(true);
+            assertFalse(name, op.isSnaphuBinary(f));
+        }
+    }
+
+    @Test
+    public void testFindIgnoresSourceAndManFiles() throws IOException {
+        final File src = Files.createDirectories(tempDir.resolve("snaphu-v1.4.2_linux").resolve("src")).toFile();
+        final File c = new File(src, "snaphu.c");
+        assertTrue(c.createNewFile());
+        c.setExecutable(true);
+        assertNull(op.findOrMakeExecutableSnaphuBinary(tempDir.toFile()));
+    }
+
+    /** Unzipping drops the Unix execute bit; the binary must be made executable, not rejected and re-downloaded. */
+    @Test
+    public void testFindGrantsExecutePermissionAfterUnzip() throws IOException {
+        final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+        final File bin = Files.createDirectories(tempDir.resolve("snaphu-v1.4.2_linux").resolve("bin")).toFile();
+        final File binary = new File(bin, isWindows ? "snaphu.exe" : "snaphu");
+        assertTrue(binary.createNewFile());
+        Assume.assumeTrue("file system cannot clear the execute bit", binary.setExecutable(false) && !binary.canExecute());
+
+        final File found = op.findOrMakeExecutableSnaphuBinary(tempDir.toFile());
+        assertEquals(binary.getAbsoluteFile(), found.getAbsoluteFile());
+        assertTrue(found.canExecute());
+    }
+
     // ---------- unwrapped-band assembly (regression: all-zero output after c322d2d7b) ----------
 
     private static final int W = 4;

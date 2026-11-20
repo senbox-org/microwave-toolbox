@@ -274,8 +274,10 @@ public class HorizontalVerticalMotionOp extends Operator {
         final Tile unwrappedPhaseTileAsc = getSourceTile(unwrappedPhaseAsc, rectangle);
         refOffsetDsc = unwrappedPhaseTileDsc.getSampleDouble(refPixelX, refPixelY);
         refOffsetAsc = unwrappedPhaseTileAsc.getSampleDouble(refPixelX, refPixelY);
-        if (Double.isNaN(refOffsetDsc) || Double.isNaN(refOffsetAsc)) {
-            throw new OperatorException("Reference pixel (" + refPixelX + "," + refPixelY + ") sampled to NaN; "
+        // a 0-filled no-data reference (typical at the (0,0) corner of terrain-corrected products)
+        // would leave both interferograms unreferenced
+        if (!isValid(refOffsetDsc, unwrappedPhaseDsc) || !isValid(refOffsetAsc, unwrappedPhaseAsc)) {
+            throw new OperatorException("Reference pixel (" + refPixelX + "," + refPixelY + ") is no-data; "
                     + "pick a pixel where both ascending and descending unwrapped phases are valid.");
         }
 
@@ -318,6 +320,14 @@ public class HorizontalVerticalMotionOp extends Operator {
                 final double valueIncAngleDsc = sourceBufferIncidenceAngleDsc.getElemDoubleAt(sourceIdx);
                 final double valueIncAngleAsc = sourceBufferIncidenceAngleAsc.getElemDoubleAt(sourceIdx);
 
+                // where either pass has no data the inversion has one equation, not two
+                if (!isValid(valueUnwPhaseDsc, unwrappedPhaseDsc) || !isValid(valueUnwPhaseAsc, unwrappedPhaseAsc)
+                        || !isValid(valueIncAngleDsc, incidenceAngleDsc) || !isValid(valueIncAngleAsc, incidenceAngleAsc)) {
+                    targetBufferHorizontalMotion.setElemDoubleAt(targetIdx, Double.NaN);
+                    targetBufferVerticalMotion.setElemDoubleAt(targetIdx, Double.NaN);
+                    continue;
+                }
+
                 // LOS displacement in mm, positive towards the satellite. The interferogram is
                 // ref * conj(sec), so phi = 4*pi/lambda * (R_sec - R_ref) and d_LOS = -lambda/(4*pi) * phi,
                 // the same convention as PhaseToDisplacementOp and SBASInversionOp. The inversion
@@ -342,6 +352,12 @@ public class HorizontalVerticalMotionOp extends Operator {
         }
     }
 
+    static final double MIN_DETERMINANT = 1e-3;
+
+    private static boolean isValid(final double value, final Band band) {
+        return !Double.isNaN(value) && !(band.isNoDataValueUsed() && value == band.getNoDataValue());
+    }
+
     /**
      * Solves for y1 and y2, given the following system of equations:
      * x1 = a1 * y1 + b1 * y2
@@ -352,6 +368,10 @@ public class HorizontalVerticalMotionOp extends Operator {
                                          final double x1, final double x2) {
 
         final double denominator = a1 * b2 - b1 * a2;
+        // asc/desc geometry gives |det| ~ 1; near-parallel lines of sight amplify LOS noise by 1/|det|
+        if (!(Math.abs(denominator) >= MIN_DETERMINANT)) {
+            return new double[]{Double.NaN, Double.NaN};
+        }
         final double y1 = (x1 * b2 - b1 * x2) / denominator;
         final double y2 = (a1 * x2 - x1 * a2) / denominator;
         return new double[]{y1, y2};

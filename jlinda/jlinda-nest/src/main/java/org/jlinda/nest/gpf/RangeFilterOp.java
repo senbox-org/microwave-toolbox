@@ -100,7 +100,6 @@ public class RangeFilterOp extends Operator {
     private static final boolean CREATE_VIRTUAL_BAND = true;
 
     private static int TILE_OVERLAP_X;
-    private static int TILE_OVERLAP_Y;
     private static int TILE_EXTENT_X;
     private static int TILE_EXTENT_Y;
 
@@ -361,9 +360,13 @@ public class RangeFilterOp extends Operator {
 
             final BorderExtender border = BorderExtender.createInstance(BorderExtender.BORDER_ZERO);
 
+            // The walking mean needs (nlMean-1)/2 lines either side of an output line; without them the
+            // tile's edge lines keep the all-pass filter, and a tile shorter than nlMean overruns the window.
+            final int halfWindow = (nlMean - 1) / 2;
             final Rectangle rect = new Rectangle(targetRectangle);
             rect.width += (TILE_OVERLAP_X + extraRange);
-            rect.height += TILE_OVERLAP_Y;
+            rect.y -= halfWindow;
+            rect.height += 2 * halfWindow;
             //System.out.println("x0 = " + rect.x + ", y0 = " + rect.y + ", w = " + rect.width + ", h = " + rect.height);
 
             boolean doFilterReference = true;
@@ -421,27 +424,32 @@ public class RangeFilterOp extends Operator {
                     filteredReference = referenceMatrix;
                 }
 
-                // commit real() to target
+                // commit real() to target, dropping the halfWindow padding lines
+                final int lastRow = halfWindow + targetRectangle.height;
                 targetBand = targetProduct.getBand(ifg.masterSubProduct.targetBandName_I);
                 tileRealReference = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredReference.real(), tileRealReference, targetRectangle);
+                TileUtilsDoris.pushFloatMatrix(filteredReference.real().getRange(halfWindow, lastRow, 0, filteredReference.columns),
+                        tileRealReference, targetRectangle);
 
                 // commit imag() to target
                 targetBand = targetProduct.getBand(ifg.masterSubProduct.targetBandName_Q);
                 tileImagReference = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredReference.imag(), tileImagReference, targetRectangle);
+                TileUtilsDoris.pushFloatMatrix(filteredReference.imag().getRange(halfWindow, lastRow, 0, filteredReference.columns),
+                        tileImagReference, targetRectangle);
 
                 /// SECONDARY
                 final ComplexDoubleMatrix filteredSecondary = rangeFilter.getData1();
                 // commit real() to target
                 targetBand = targetProduct.getBand(ifg.slaveSubProduct.targetBandName_I);
                 tileRealSecondary = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredSecondary.real(), tileRealSecondary, targetRectangle);
+                TileUtilsDoris.pushFloatMatrix(filteredSecondary.real().getRange(halfWindow, lastRow, 0, filteredSecondary.columns),
+                        tileRealSecondary, targetRectangle);
 
                 // commit imag() to target
                 targetBand = targetProduct.getBand(ifg.slaveSubProduct.targetBandName_Q);
                 tileImagSecondary = targetTileMap.get(targetBand);
-                TileUtilsDoris.pushFloatMatrix(filteredSecondary.imag(), tileImagSecondary, targetRectangle);
+                TileUtilsDoris.pushFloatMatrix(filteredSecondary.imag().getRange(halfWindow, lastRow, 0, filteredSecondary.columns),
+                        tileImagSecondary, targetRectangle);
 
 //                // save imag band of computation : this is somehow too slow?
 //                targetBand = targetProduct.getBand(ifg.targetBandName_Q);

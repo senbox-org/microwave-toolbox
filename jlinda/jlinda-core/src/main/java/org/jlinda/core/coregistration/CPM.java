@@ -98,6 +98,8 @@ public class CPM implements PolynomialModel {
         if (numObservations < numUnknowns) {
             this.noRedundancy = true;
             logger.severe("Number of windows > threshold is smaller than parameters solved for.");
+            // the GCP lists below stay empty, so report no observations rather than the GCP count
+            this.numObservations = 0;
         }
 
         if (!noRedundancy) {
@@ -137,7 +139,7 @@ public class CPM implements PolynomialModel {
                 // check if master and slave coordinates are identical, if yes CPM coefficients will be set
                 // directly, no need to compute them using estimators because most likely they would produce
                 // incorrect result due to ill conditioned matrix.
-                tempSum += Math.abs(xOffset.get(i) + yOffset.get(i));
+                tempSum += Math.abs(xOffset.get(i)) + Math.abs(yOffset.get(i));
             }
 
             if (tempSum < 0.01) {
@@ -326,6 +328,13 @@ public class CPM implements PolynomialModel {
                 }
                 default:
                     throw new OperatorException("Incorrect WARP degree");
+            }
+            // residuals of the identity model are the offsets themselves; without them rms stays empty
+            yError = new double[numObservations];
+            xError = new double[numObservations];
+            for (int i = 0; i < numObservations; i++) {
+                yError[i] = yOffset.get(i);
+                xError[i] = xOffset.get(i);
             }
             return;
         }

@@ -37,6 +37,7 @@ import java.util.Locale;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -114,6 +115,31 @@ public class TestMultiMasterOp {
         Arrays.sort(written);
         // N = 3 acquisitions -> N-1 = 2 consecutive-date pairs
         assertArrayEquals(new String[]{"SLC_20200112_20200124.dim", "SLC_20200124_20200205.dim"}, written);
+    }
+
+    /**
+     * Pair products must get copies of the source metadata. addElement takes ownership, so attaching the source's
+     * elements re-parented them: the middle date sat in both pairs and the source lost its own Secondary_Metadata.
+     */
+    @Test
+    public void pairsDoNotTakeOverSourceMetadata() throws Exception {
+        final Product stack = buildStack();
+        final MetadataElement root = stack.getMetadataRoot();
+        final MetadataElement secRoot = root.getElement(AbstractMetadata.SECONDARY_METADATA_ROOT);
+        final MetadataElement absRoot = root.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
+        final MetadataElement original = AbstractMetadata.addOriginalProductMetadata(root);
+
+        final MultiMasterOp op = createOp(stack, tmp.newFolder("pairs").getPath());
+        op.getTargetProduct();
+        op.execute(ProgressMonitor.NULL);
+
+        for (int k = 1; k < DATES.length; k++) {
+            final MetadataElement sec = secRoot.getElement("secondary_" + DATES[k]);
+            assertNotNull(DATES[k] + " left the source's Secondary_Metadata", sec);
+            assertSame(secRoot, sec.getParentElement());
+        }
+        assertSame(root, absRoot.getParentElement());
+        assertSame(root, original.getParentElement());
     }
 
     @Test
