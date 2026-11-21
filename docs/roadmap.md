@@ -36,7 +36,7 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 
 ## 2. Cross-repository
 
-- [ ] **[Cross-repo]** **Copernicus DEM vertical datum.** `snap-engine CopernicusElevationTile:57` converts with EGM96, but GLO-30 heights are EGM2008.
+- [x] **[Cross-repo]** **Copernicus DEM vertical datum.** `snap-engine CopernicusElevationTile:57` converts with EGM96, but GLO-30 heights are EGM2008. *Fixed 2026-11-20 on snap-engine branch `copernicus-egm2008` (1eccd23ed0): new `EarthGravitationalModel2008` (5' grid derived from NGA's 2.5' grid; 5 mm RMS, 29 cm worst case against it), used by both `CopernicusElevationTile` and `CopernicusDirectElevationTile`. EGM2008 − EGM96 is 0.72 m RMS, 3 m at the 99th percentile, up to 12 m (eastern Himalaya). **Pending:** upload `egm2008_5min_cm.zip` (13.2 MB, regenerate with `snap-dem/tools/make_egm2008_5min.py`) to https://step.esa.int/auxdata/dem/egm2008/; until then the tiles fall back to EGM96 with a one-time warning, so behaviour is unchanged. Follow-up: `DEMFactory` fills DEM no-data at sea with the EGM96 geoid for every DEM, including Copernicus.*
 - [ ] **[Cross-repo]** **ProductSubsetBuilder** shifts `ground_range_origin` incorrectly for flipped RS2/RCM descending subsets (snap-engine).
 - [ ] **[Cross-repo]** `guides-docs-tutorials/microwave-toolbox/gslc/GSLC-Tutorial.md` (and its .docx/.pdf builds): update it for the Phase 8 GSLC/Interferogram changes.
     - L87: "True only for amplitude/PolSAR single-date use". Interferogram now accepts a fully flattened stack (it skips the second flat-Earth subtraction) and refuses a mixed one.
