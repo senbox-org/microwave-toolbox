@@ -132,8 +132,18 @@ public class BatchSnaphuUnwrapOp extends Operator {
     }
 
     // exact name: the Linux archive also holds src/snaphu.c, snaphu.h, man/snaphu.1, config/snaphu.conf.*
+    private static boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase().startsWith("windows");
+    }
+
     private static String snaphuBinaryName() {
-        return System.getProperty("os.name").toLowerCase().startsWith("windows") ? "snaphu.exe" : "snaphu";
+        return isWindows() ? "snaphu.exe" : "snaphu";
+    }
+
+    /** An executable the user named directly. On Windows every file reports as executable, so it must be a .exe. */
+    static boolean isUserSnaphuExecutable(final File file) {
+        return file.isFile() && file.canExecute()
+                && (!isWindows() || file.getName().toLowerCase().endsWith(".exe"));
     }
 
     boolean isSnaphuBinary(File file){
@@ -223,14 +233,20 @@ public class BatchSnaphuUnwrapOp extends Operator {
             return snaphuBinaryLocation;
         }
         // A file is the user's own binary (the usual set-up on macOS, where nothing is downloaded): never
-        // download into it. A copy that lost its execute bit is repaired, anything else is reported.
+        // download into it. Any name is accepted (e.g. snaphu-2.0.6); the exact-name rule is only for searching
+        // a folder, where src/snaphu.c and the like must be skipped. A "snaphu" copy that lost its execute bit
+        // is repaired, anything else is reported.
         if (snaphuInstallLocation.isFile()) {
+            if (isUserSnaphuExecutable(snaphuInstallLocation)) {
+                return snaphuInstallLocation;
+            }
             if (snaphuInstallLocation.getName().equals(snaphuBinaryName())
                     && snaphuInstallLocation.setExecutable(true) && isSnaphuBinary(snaphuInstallLocation)) {
                 return snaphuInstallLocation;
             }
-            throw new IOException("Snaphu Install Location " + snaphuInstallLocation + " is not an executable "
-                    + snaphuBinaryName() + ". Make it executable (chmod +x) or set the location to its folder.");
+            throw new IOException("Snaphu Install Location " + snaphuInstallLocation + " is not executable"
+                    + (isWindows() ? " (expected a .exe file)" : "; make it executable (chmod +x)")
+                    + ", or set the location to the folder that holds " + snaphuBinaryName() + ".");
         }
         // Reuse a binary downloaded by an earlier run instead of downloading it again.
         if (snaphuInstallLocation.isDirectory()) {

@@ -32,7 +32,12 @@ maximum, standard deviation and coefficient of variation. There is no median. <b
 </ul>
 <h4>How the statistics are computed</h4>
 <ul>
-    <li>Standard Deviation is the population standard deviation over the <i>N</i> dates:
+    <li>Only valid dates count. A date is left out of a pixel's statistic where its band is NaN or holds that
+        band's own no-data value (for example 0 outside a Secondary's footprint), and <i>N</i> below is the
+        number of valid dates at that pixel. A pixel with fewer than <i>Minimum valid dates</i> valid dates
+        is written as no-data. Standard Deviation and Coefficient of Variation always need at least two.
+        <b>Changed in SNAP 15:</b> earlier versions averaged no-data dates in as real values.</li>
+    <li>Standard Deviation is the population standard deviation over the <i>N</i> valid dates:
         sqrt(mean(x<sup>2</sup>) &#8722; mean(x)<sup>2</sup>), that is with <i>N</i>, not
         <i>N</i>&#8722;1, in the denominator.</li>
     <li>Coefficient of Variation is the population Standard Deviation divided by the Mean Average
@@ -46,10 +51,13 @@ maximum, standard deviation and coefficient of variation. There is no median. <b
         this is not the mean intensity and is usually much lower. Convert complex data to
         intensity first.</li>
 </ul>
-<h4>Parameters Used</h4>&nbsp;&nbsp; The following processing parameter is required for this operator (see Figure
+<h4>Parameters Used</h4>&nbsp;&nbsp; The following processing parameters are used by this operator (see Figure
 1):<br>
 <ul>
     <li>Statistic: Mean Average (default), Minimum, Maximum, Standard Deviation or Coefficient of Variation.<br>
+    </li>
+    <li>Minimum valid dates: the number of valid (not no-data) dates a pixel needs (default 1); pixels with
+        fewer are written as no-data.<br>
     </li>
 </ul>
 <img style="width: 450px; height: 450px;" alt="" src="images/stack_averaging_dlg.jpg"><br>
@@ -63,6 +71,7 @@ UI<br>
 <table border="1" cellpadding="3" cellspacing="0">
 <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
 <tr><td><code>statistic</code></td><td>String</td><td>Mean Average</td><td>Mean Average, Minimum, Maximum, Standard Deviation, Coefficient of Variation</td><td>&nbsp;</td><td>Statistic</td></tr>
+<tr><td><code>minValidDates</code></td><td>int</td><td>1</td><td>[1,*)</td><td>&nbsp;</td><td>Minimum number of valid (not no-data) dates a pixel needs; fewer gives no-data. Standard Deviation and Coefficient of Variation always need at least 2.</td></tr>
 </table>
 <!-- params:end -->
 <!-- footer:begin -->

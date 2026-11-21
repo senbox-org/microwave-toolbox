@@ -29,14 +29,19 @@
     file per pair; Snaphu Export writes these only for a stack with more than one Secondary. The tool runs SNAPHU
     for every configuration file and reads the results back.
     <br><br>
-    <i>Snaphu Install Location</i> can be the snaphu executable itself or a folder. If the folder already holds a
-    snaphu executable, that executable is used. Otherwise the tool downloads the SNAPHU build for your system
-    (Windows or Linux) into the folder. On Windows the downloaded <code>snaphu.exe</code> is found and reused on
-    later runs. On Linux the automatic download does not set the executable bit, so the unzipped
-    <code>snaphu</code> binary is not recognised and the run fails: install SNAPHU yourself (or run
-    <code>chmod +x</code> on the downloaded <code>snaphu</code> binary) and set <i>Snaphu Install Location</i> to
-    the executable or its folder. No build is downloaded for macOS: install SNAPHU yourself and set <i>Snaphu
-    Install Location</i> to the snaphu executable or its folder, or the tool stops with an error saying so.
+    <i>Snaphu Install Location</i> can be the snaphu executable itself or a folder.
+    <ul>
+        <li>An executable you select directly is used whatever its name (for example <code>snaphu-2.0.6</code>;
+            on Windows it must be a <code>.exe</code> file). A file named <code>snaphu</code> that is not
+            executable is made executable; any other file that is not executable is reported.</li>
+        <li>In a folder, the tool looks for an executable named exactly <code>snaphu</code>
+            (<code>snaphu.exe</code> on Windows) in the folder or its subfolders, and uses it.</li>
+        <li>Otherwise the tool downloads the SNAPHU build for your system (Windows or Linux) over https into the
+            folder, so the folder must be writable. On Linux the downloaded binary is made executable. The download
+            is found and reused on later runs.</li>
+    </ul>
+    No build is downloaded for macOS: install SNAPHU yourself and set <i>Snaphu Install Location</i> to the
+    snaphu executable or its folder, or the tool stops with an error saying so.
     <br><br>
     The target product keeps the geocoding, the metadata and every band of the input that is not a wrapped phase
     band, including the <code>coh_*</code> coherence bands. Each wrapped phase band is replaced by one

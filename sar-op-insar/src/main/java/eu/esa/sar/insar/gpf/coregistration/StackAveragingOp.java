@@ -238,15 +238,20 @@ public class StackAveragingOp extends Operator {
     /** True where the band holds a valid sample. */
     static String isValid(final Band band) {
         final String name = band.getName();
-        // the band symbol evaluates to the geophysical value, widened from float for float32 bands
+        // The band symbol evaluates to the geophysical value, widened from float when the geophysical type is
+        // float32: float32 bands and also scaled integer bands, whose no-data must be rounded the same way.
         double noData = band.getGeophysicalNoDataValue();
-        if (band.getDataType() == ProductData.TYPE_FLOAT32) {
+        if (band.getGeophysicalDataType() == ProductData.TYPE_FLOAT32) {
             noData = (float) noData;
         }
-        if (band.isNoDataValueUsed() && !Double.isNaN(noData)) {
-            return "(!nan(" + name + ") && " + name + " != " + noData + ")";
+        if (!band.isNoDataValueUsed() || Double.isNaN(noData)) {
+            return "!nan(" + name + ")";
         }
-        return "!nan(" + name + ")";
+        if (Double.isInfinite(noData)) {
+            // "Infinity" is not an expression literal
+            return "(!nan(" + name + ") && !inf(" + name + "))";
+        }
+        return "(!nan(" + name + ") && " + name + " != " + noData + ")";
     }
 
     /** Sum over the bands of {@code term} (with {@code %s} standing for the band) where valid, else {@code other}. */

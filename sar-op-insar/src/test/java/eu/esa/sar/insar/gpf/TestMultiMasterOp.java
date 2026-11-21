@@ -157,6 +157,41 @@ public class TestMultiMasterOp {
         }
     }
 
+    /**
+     * ThreadRunnable records only Exceptions. A pair whose worker ends in an Error (here raised while the pair is
+     * built, as an OutOfMemoryError could be) must still fail the operator, not be reported as success.
+     */
+    @Test
+    public void errorInOnePairIsReported() throws Exception {
+        final Product stack = buildStack();
+        final String name = "i_VV_sec2_" + DATES[2];
+        final org.esa.snap.core.datamodel.Band original = stack.getBand(name);
+        stack.removeBand(original);
+        final java.util.concurrent.atomic.AtomicBoolean armed = new java.util.concurrent.atomic.AtomicBoolean();
+        final org.esa.snap.core.datamodel.Band failing = new org.esa.snap.core.datamodel.Band(
+                name, original.getDataType(), original.getRasterWidth(), original.getRasterHeight()) {
+            @Override
+            public com.bc.ceres.multilevel.MultiLevelImage getSourceImage() {
+                if (armed.get()) {
+                    throw new InternalError("simulated");   // only once the pairs are being built
+                }
+                return original.getSourceImage();
+            }
+        };
+        failing.setUnit(original.getUnit());
+        stack.addBand(failing);
+        final MultiMasterOp op = createOp(stack, tmp.newFolder("errors").getPath());
+        op.getTargetProduct();
+        armed.set(true);
+        try {
+            op.execute(ProgressMonitor.NULL);
+        } catch (Exception e) {
+            assertTrue(String.valueOf(e), String.valueOf(e).contains("simulated"));
+            return;
+        }
+        fail("a pair that failed with an Error must not look like success");
+    }
+
     @Test
     public void writeFailureIsReported() throws Exception {
         final File folder = tmp.newFolder("vanishing");

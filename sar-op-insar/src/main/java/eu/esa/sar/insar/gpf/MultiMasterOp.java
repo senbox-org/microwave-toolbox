@@ -34,6 +34,7 @@ import org.esa.snap.engine_utilities.gpf.InputProductValidator;
 import org.esa.snap.engine_utilities.gpf.StackUtils;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -186,6 +187,16 @@ public class MultiMasterOp extends Operator{
 
                 @Override
                 public void process() throws Exception {
+                    try {
+                        buildAndWritePair();
+                    } catch (Error e) {
+                        // ThreadRunnable records only Exceptions: an Error (e.g. OutOfMemoryError) would end this
+                        // worker unrecorded and the missing pair would be reported as success
+                        throw new IOException("Pair " + productName + " failed: " + e, e);
+                    }
+                }
+
+                private void buildAndWritePair() throws Exception {
                     // Each pair carries its own copy of the source metadata (tens of MB for S1), so build it here,
                     // per worker: building every pair up front kept N copies alive until the end.
                     final Product p;
@@ -222,6 +233,11 @@ public class MultiMasterOp extends Operator{
             if (r.hasError()) {
                 throw r.getException();
             }
+        }
+        // second guard: a worker that died without a recorded error still leaves its pair missing
+        if (writtenProductPaths.size() != runnables.size()) {
+            throw new OperatorException("Only " + writtenProductPaths.size() + " of " + runnables.size() +
+                    " pair products were written to " + outputFolder);
         }
     }
     /**

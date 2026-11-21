@@ -499,8 +499,16 @@ public class WarpOp extends Operator {
                 return;
 
             final PolynomialModel warpData = warpDataMap.get(realSrcBand);
-            if (!warpData.isValid())
+            if (!warpData.isValid()) {
+                // no warp for this Secondary: write no-data, not a valid-looking zero image
+                final ProductData noData = targetTile.getRawSamples();
+                final double value = targetBand.isNoDataValueUsed() ? targetBand.getNoDataValue() : 0.0;
+                for (int i = 0; i < noData.getNumElems(); i++) {
+                    noData.setElemDoubleAt(i, value);
+                }
+                targetTile.setRawSamples(noData);
                 return;
+            }
 
             // get warped image (demodulation bands can be interpolated linearly)
             RenderedOp warpedImage = createWarp(srcBand, targetRectangle, warpData);
@@ -616,9 +624,22 @@ public class WarpOp extends Operator {
                     warpDataMap.put(srcBand, cpm);
 
                     final int nodeCount = slaveGCPGroup.getNodeCount();
-                    // Too few GCPs for this Secondary's polynomial: skip just this band (announceGCPWarning
-                    // names it). Letting the estimation throw dropped the CPM fit for every Secondary below.
+                    // No redundant GCPs for this Secondary's CPM (n <= unknowns): fall back to the plain WarpData fit
+                    // for this band only, which also accepts an exactly determined system. Letting the estimation
+                    // throw dropped the CPM fit for every Secondary; leaving the band invalid wrote zeros.
                     if (!cpm.isValid()) {
+                        final WarpData warpData = new WarpData(slaveGCPGroup);
+                        warpDataMap.put(srcBand, warpData);
+                        if (nodeCount < 3) {
+                            warpData.setInValid();
+                        } else {
+                            warpData.computeWARPPolynomialFromGCPs(sourceProduct, srcBand, warpPolynomialOrder,
+                                    masterGCPGroup, maxIterations, rmsThreshold, appendFlag);
+                            appendFlag = true;   // the residuals file now exists
+                        }
+                        SystemUtils.LOG.warning("WarpOp: " + nodeCount + " GCPs leave no redundancy for the CPM of " +
+                                srcBand.getName() + "; " + (warpData.isValid() ?
+                                "using the plain polynomial fit for this band" : "the band has no valid warp"));
                         continue;
                     }
 
@@ -798,6 +819,8 @@ public class WarpOp extends Operator {
                 }
             }
 
+            // 0 when the band could not be warped (too few GCPs); its image then holds no-data
+            warpDataElem.setAttributeInt("warpValid", warpData.isValid() ? 1 : 0);
             warpDataElem.setAttributeDouble("rmsStd", warpData.getRMSStd());
             warpDataElem.setAttributeDouble("rmsMean", warpData.getRMSMean());
             warpDataElem.setAttributeDouble("rowResidualStd", warpData.getRowResidualStd());

@@ -99,6 +99,100 @@ public class TestStackAveragingStatistics {
         assertEquals("cv of 1, 2", 0.5 / 1.5, runWithGap("Coefficient of Variation", 1)[W + 1], 1e-6);
     }
 
+    /**
+     * Stack of three dates with geophysical values 1, 2, 3, where date {@code gapDate} holds {@code gapRaw} at
+     * pixel (1,1). Each band gets its own data type, scaling and no-data value.
+     */
+    private static Product stackWithGap(final int dataType, final double scaling, final double[] noData,
+                                        final int gapDate, final double gapRaw) {
+        final Product p = new Product("stack", "SLC", W, H);
+        AbstractMetadata.addAbstractedMetadataHeader(p.getMetadataRoot());
+        final String[] names = {"Amplitude_VV_ref_01Jan2020", "Amplitude_VV_sec_13Jan2020", "Amplitude_VV_sec_25Jan2020"};
+        for (int k = 0; k < names.length; k++) {
+            final ProductData data = ProductData.createInstance(dataType, W * H);
+            for (int i = 0; i < W * H; i++) {
+                data.setElemDoubleAt(i, SAMPLES[k] / scaling);
+            }
+            if (k == gapDate) {
+                data.setElemDoubleAt(W + 1, gapRaw);
+            }
+            final Band b = new Band(names[k], dataType, W, H);
+            b.setUnit(Unit.AMPLITUDE);
+            b.setScalingFactor(scaling);
+            b.setRasterData(data);
+            b.setNoDataValue(noData[k]);
+            b.setNoDataValueUsed(true);
+            p.addBand(b);
+        }
+        return p;
+    }
+
+    private static float[] run(final Product src, final String statistic, final int minValidDates) throws Exception {
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(src);
+        op.setParameter("statistic", statistic);
+        op.setParameter("minValidDates", minValidDates);
+        final float[] out = new float[W * H];
+        op.getTargetProduct().getBand("Amplitude_VV").readPixels(0, 0, W, H, out);
+        return out;
+    }
+
+    /** Scaled int16 (raw -9999, geophysical -999.9): the no-data must be compared as the float the band yields. */
+    @Test
+    public void testScaledIntegerNoDataIsLeftOut() throws Exception {
+        final Product src = stackWithGap(ProductData.TYPE_INT16, 0.1, new double[]{-9999, -9999, -9999}, 2, -9999);
+        final float[] out = run(src, "Mean Average", 1);
+        assertEquals(1.5, out[W + 1], 1e-5);
+        assertEquals(2.0, out[0], 1e-5);
+    }
+
+    @Test
+    public void testUnscaledIntegerNoDataIsLeftOut() throws Exception {
+        final Product src = stackWithGap(ProductData.TYPE_INT16, 1.0, new double[]{-9999, -9999, -9999}, 2, -9999);
+        assertEquals(1.5, run(src, "Mean Average", 1)[W + 1], 1e-6);
+    }
+
+    @Test
+    public void testNaNNoDataIsLeftOut() throws Exception {
+        final double nan = Double.NaN;
+        final Product src = stackWithGap(ProductData.TYPE_FLOAT32, 1.0, new double[]{nan, nan, nan}, 2, nan);
+        assertEquals(1.5, run(src, "Mean Average", 1)[W + 1], 1e-6);
+    }
+
+    /** Each date is checked against its own no-data value: -1 is no-data only for the third date. */
+    @Test
+    public void testEachBandUsesItsOwnNoData() throws Exception {
+        final Product src = stackWithGap(ProductData.TYPE_FLOAT32, 1.0, new double[]{0, 0, -1}, 2, -1);
+        assertEquals(1.5, run(src, "Mean Average", 1)[W + 1], 1e-6);
+        assertEquals(1.0, run(src, "Minimum", 1)[W + 1], 1e-6);
+    }
+
+    /** An infinite no-data value must not break the expression ("Infinity" is not a literal). */
+    @Test
+    public void testInfiniteNoData() throws Exception {
+        final double inf = Double.POSITIVE_INFINITY;
+        final Product src = stackWithGap(ProductData.TYPE_FLOAT32, 1.0, new double[]{inf, inf, inf}, 2, inf);
+        assertEquals(1.5, run(src, "Mean Average", 1)[W + 1], 1e-6);
+    }
+
+    /** A single valid date has no spread: Standard Deviation needs at least two, whatever minValidDates says. */
+    @Test
+    public void testStdNeedsTwoValidDates() throws Exception {
+        final Product src = stackWithGap(ProductData.TYPE_FLOAT32, 1.0, new double[]{0, 0, 0}, 2, 0);
+        src.getBand("Amplitude_VV_sec_13Jan2020").getRasterData().setElemDoubleAt(W + 1, 0);
+        final float[] out = run(src, "Standard Deviation", 1);
+        assertEquals("one valid date gives no-data (0)", 0.0, out[W + 1], 0.0);
+        assertEquals(Math.sqrt(2.0 / 3.0), out[0], 1e-6);
+    }
+
+    @Test
+    public void testMinMaxHonourMinValidDates() throws Exception {
+        final Product src = stackWithGap(ProductData.TYPE_FLOAT32, 1.0, new double[]{0, 0, 0}, 2, 0);
+        assertEquals(0.0, run(src, "Minimum", 3)[W + 1], 0.0);
+        assertEquals(0.0, run(src, "Maximum", 3)[W + 1], 0.0);
+        assertEquals(3.0, run(src, "Maximum", 3)[0], 1e-6);
+    }
+
     /** Fewer valid dates than required gives the output's no-data value. */
     @Test
     public void testTooFewValidDatesGiveNoData() throws Exception {

@@ -218,8 +218,19 @@ public class TestBatchSnaphuUnwrapOp {
             op.downloadSnaphu(f);
             org.junit.Assert.fail("expected IOException");
         } catch (IOException e) {
-            assertTrue(e.getMessage(), e.getMessage().contains("is not an executable"));
+            assertTrue(e.getMessage(), e.getMessage().contains("is not executable"));
         }
+    }
+
+    /** A binary the user names directly may have any name (e.g. snaphu-2.0.6); only folder searches need "snaphu". */
+    @Test
+    public void testInstallLocationExecutableWithOtherNameIsUsed() throws IOException {
+        final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+        final File binary = tempDir.resolve(isWindows ? "snaphu-v2.0.6.exe" : "snaphu-2.0.6").toFile();
+        assertTrue(binary.createNewFile());
+        binary.setExecutable(true);
+        Assume.assumeTrue("file system cannot mark files executable", binary.canExecute());
+        assertEquals(binary.getAbsoluteFile(), op.downloadSnaphu(binary).getAbsoluteFile());
     }
 
     /** A user-installed binary that lost its execute bit (e.g. copied from a zip) is made executable and used. */
