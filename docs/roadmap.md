@@ -238,6 +238,39 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 - [ ] Add an **ArchUnit or grep check** in CI that flags `getSourceTile(..., new Rectangle(0, 0, width, height))` and `new X[height][width]` for scene dimensions in operator code. Allow listed exceptions. S.
 - [ ] Add the minimum-heap and wall-time results to the release notes per release, so users can see the trend.
 
+### 8.4 snap-engine core **[Cross-repo]** (code survey 2026-11-24; confirm with 8.1 before fixing)
+Read-only survey of snap-engine `master` (2e1c979ce5): data model, GPF runtime and I/O. Items marked *verified* were checked against the code; the rest are survey findings not yet checked. Paths are relative to snap-engine.
+
+**Quick, safe fixes**
+- [ ] **[Bug]** *Verified.* The external-DEM line cache never evicts. `FileElevationTile.updateCache` calls `linesCache.setObject(i, null)` with `i` = the list position (always `maxLines`), not the line number. Also, `CachingObjectArray.setObject` writes only into an empty slot. So eviction does nothing, and a user's external DEM ends up on the heap line by line. `FileElevationModel.getElevation` is also `synchronized`. S.
+- [ ] **[Bug]** *Verified.* `GraphProcessor.executeGraph(Graph, pm)` calls `graphContext.dispose()` outside the `finally`. A failed graph keeps its operators, products and cached tiles until finalization. S.
+- [ ] **[Bug]** *Verified.* `TiePointGrid.getRasterData()` caches a float array interpolated to full scene size (about 1.7 GB at 25k×17k). Neither `TiePointGrid.dispose()` nor `RasterDataNode.dispose()` releases it, and there is no `unloadRasterData` override. Also check which mtbx operators and readers call `getRasterData()` on tie-point grids. S.
+- [ ] **[Decision]** *Verified.* gpt's tile cache defaults to a fixed 512 MB (`CommandLineArgs.getDefaultTileCacheSize`), overriding the 25%-of-heap default in `SystemUtils`. One row of 512 px tiles for one float band at S1 width is about 51 MB, so long chains evict tiles and recompute them. Scale it from `maxMemory` (0.4–0.5 for headless gpt) and warn when it is too small for parallelism × bands × tile size. Note: snap-validation runs gpt with a fixed `-c 4096M` (`tile_cache_mb` in its machine config) at every heap rung. Its low-rung MinHeap numbers are therefore partly a cache effect (for example, grd_tc 6144 MB includes up to 4 GB of cache), not the working set. Decide whether the cache scales with the rung or stays pinned. S.
+- [ ] **[Bug]** WriteOp's `OperatorImage` gets a destination tile that is never filled and is put in the tile cache. `WriteOp.removeFromCache` removes only the upstream tile, so junk output tiles push out useful ones. `getSourceTile` also copies. Give the output node no tile cache. S.
+- [ ] **[Bug]** `GeoCodingFactory` (pixel geocoding) keeps 2–3 full-scene copies of lat/lon: `loadRasterData()` without unloading, plus `getGeophysicalImage().getData()`, plus the `double[]`. Read straight into the `double[]` and unload, as `RasterUtils.loadGeoData` already does. S.
+- [ ] **[Bug]** *Verified.* `PixelGeoIndexInverse.clone()` copies the whole TreeMap index at every geocoding transfer. The index is read-only after initialization, so share it. Building it also boxes a `Long` per pixel. S.
+- [ ] **[Bug]** `Band.readRasterData` fallback allocates the full scene twice (`getData(rect)`, then a copy). Use `copyData` into a raster that wraps the target array. S.
+- [ ] **[Bug]** Lifecycle leftovers: `ProductNodeList.removedNodes` keeps removed bands and metadata until the product is saved, which in GPF is a leak. `resetValidMask()` drops the mask image without disposing its tiles. `dispose()` does not clear `stx`. `ProductCache`/`CacheManager` accounting double-subtracts and is unsynchronized (only the netCDF reader uses it). S–M.
+
+**Structural (design note first)**
+- [ ] **[Decision]** *Verified.* **Metadata deep copy per node.** `ProductUtils.copyMetadata` calls `createDeepClone()` on the whole tree, about 100 B per attribute plus about 500 B per empty element (two `ProductNodeGroup`s, synchronized lists). There is no way to share it, because every node has a single owner. This is the engine side of §8.2/spec §7.1: shared read-only `ProductData`, a lazy copy-on-write `MetadataElement`, and cheaper empty groups. M–L.
+- [ ] **[Decision]** *Verified.* **A DEM model per operator.** `DEMFactory.createElevationModel` makes a new model on every call. Each one has its own LRU of up to 60 tiles (Copernicus is about 49 MiB per tile, so up to about 3 GB worst case). Use a shared, reference-counted model per (DEM, resampling) with a byte budget, folded into the cache governor in §8.2. Tiles are also filled row by row through the synchronized GeoTIFF reader. M.
+- [ ] **[Decision]** **Tile scheduling and recompute.** When one band's tile is evicted, tile-stack operators recompute every band. The `OperatorExecutor` default `SCHEDULE_ROW_BAND_COLUMN` makes this worse (WriteOp already uses `ROW_COLUMN_BAND`). Make `ROW_COLUMN_BAND` the default. Remove finished rows of intermediate images during a run, instead of relying only on LRU. M.
+- [ ] **[Decision]** **Avoid copies on the tile path.** `getSourceTile`, `VirtualBandOpImage` and `ProductIO.writeRasterDataFully` call `getData(rect)`, which always copies, even for exactly one cached tile. Use `getTile` wrapped read-only, behind a flag, because a misbehaving operator could otherwise corrupt the cache. M.
+- [ ] **[Decision]** **I/O throughput:**
+  - The GeoTIFF reader is synchronized per file and decodes every band to return one. int16 reads go through `double[]`.
+  - The BigGeoTIFF writer writes the whole product on the first call while holding the WriteOp writer lock, so the graph runs on one thread. It uses LZW without a predictor by default.
+  - The GDAL COG path uses the `MEM` driver, so the whole product sits in native memory, and it calls `allocateDirect` per tile.
+  - The DIMAP write cache copies into 128-line full-width blocks, with no-data filled per pixel.
+  - The DIMAP reader reopens the stream on every tile.
+  - Each needs a benchmark before and after. M each.
+- [ ] **[Hygiene]** Per-pixel slow paths:
+  - The `ProductSubsetBuilder` polygon test allocates JTS objects per pixel.
+  - jexp is interpreted per pixel and the term is cloned per tile.
+  - `AbstractBand.getPixels` calls a virtual method per element.
+  - Name lookups are linear.
+  - Zero-code mitigation: `-XX:+UseStringDeduplication` for duplicated metadata names.
+
 ---
 
 ## 9. Validation framework (workstream)
