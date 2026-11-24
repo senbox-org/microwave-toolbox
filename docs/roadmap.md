@@ -273,7 +273,7 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 - **`microwavetbx-benchmark`:** stays as a developer profiling tool. It is switched on by `-Dbenchmark.enable`, and gains `MemoryProbe`.
 
 **Order of work**
-1. **`snap-validation`**: the plan above, *in progress*.
+1. **`snap-validation`**: the plan above. The initial S1 pass was built by 2026-11-24 and is waiting for the user's review and commit. The next work is the expansion projects in §9.0.1.
 2. **T1 contract tier (`sar-contract-tests`, §9.2)**, *after snap-validation*.
    - It gets its own brainstorm, then its own plan. Review §9.2 and the 2026-11-17 spec's T1 sections first: they were written before the user confirmed anything.
    - Open question: does it run in the default build from day one, or stay opt-in until the known-failures list is short?
@@ -281,6 +281,110 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
    - Expect a long first-run failure list that maps onto §3–§7. Triaging it is the main work of V1.
 3. **§8 memory fixes (P2)**, *after T1 V0 exists*. The Wishart and ForestArea fixes use T1's tile-size invariance check as their test. P0 measurement for S1 comes from `snap-validation`'s efficiency pass.
 4. **T2 additions in snap-gpt-tests (§9.3)**, independent. The heap-sweep item there is superseded.
+
+### 9.0.1 snap-validation expansion projects (added 2026-11-24)
+
+**Intent (user, 2026-11-24).** Extend `snap-validation` past Sentinel-1, as was done for S1. For each sensor and topic, the report must show two things:
+- the standard processing is **correct** against an independent reference;
+- **performance and memory** improvements are real.
+
+"SNAP opens the product" is not a report row: T1 and T2 already cover it, and a processing case fails anyway if the reader fails.
+
+**Survey finding.** No microwave-toolbox test checks a value against an independent source. Their golden values are earlier SNAP output. The exceptions are a few closed-form synthetic tests: `TestDecompositionFormulas`, `TestPolarimetricParametersOp`, the `SpeckleFilterOperatorTest` ramps, the ICEYE calibration identities and the RCM noise model. So every project below needs a reference from outside SNAP:
+- the provider's own higher-level product of the same acquisition;
+- a peer tool;
+- a synthetic input with a known answer;
+- corner reflectors.
+
+**How each project runs.** One project per sensor or topic. Each gets its own brainstorm, then its own design and plan. The order is not decided yet.
+
+**Data.** Many inputs are only in `E:\EO`. Today's manifest roots are `testdata` and `scenes`, and `E:\EO` is neither. It also does not sync to OVH. Each project must either copy its inputs into `E:\TestData` or add a manifest root, and must upload them to the S3 `SNAPTestData/` copy for cloud runs.
+
+- [ ] **P0 Improvement detection (cross-cutting; do this before the sensor projects' efficiency rows).**
+  - Today's grading flags only regressions. The report must also confirm a real, significant improvement.
+  - Repeat wall and heap measurements enough to put a noise band on each feature. The S1 tops_insar minimum heap ranges 7680–8448 MB over 4 runs.
+  - Mark an improvement only outside that band.
+  - Record heap as a range for noisy features (already deferred from the S1 work).
+  - Decide how the report adds a sensor dimension next to the topic pages (Calibration, Terrain Correction, InSAR).
+- [ ] **Apply-Orbit (added 2026-11-24; used by most chains).**
+  - Reference 1, interpolation: the precise orbit files themselves. ESA POD accuracy is about 5 cm.
+    - Withhold state vectors from a POEORB file and compare SNAP's interpolated position and velocity at those epochs.
+    - Compare the orbit SNAP writes into the product against an independent interpolator (ISCE3/s1-reader) at the same epochs.
+  - Reference 2, geolocation: corner-reflector position error at Rosamond and Surat with the annotated orbit, RESORB and POEORB. That shows the orbit's effect on the final product.
+  - Reference 3, file choice: the right orbit file is picked, and RESORB is used when POEORB is missing. The rival-rule check from the S1 orbit staging work can be reused.
+  - Other missions with orbit files in SNAP: BIOMASS POD (the MAAP option is unreachable today, see §7), ENVISAT DORIS and ERS.
+  - Data: `E:\TestData\orbits` (S1A, S1B and S1C POEORB) and `SAR/Orbits` (2014 POEORB/RESORB).
+  - Efficiency: seconds per product, so not a row of its own. It is timed inside the chains that use it.
+  - Known defect to cover: ApplyOrbit → Subset keeps a stale tie-point grid (found in the snap-gpt-tests run).
+- [ ] **Coregistration (added 2026-11-24; used by InSAR, multi-temporal speckle, polarimetric stacks and change detection).**
+  - S1 TOPS (Back-Geocoding + ESD):
+    - residual offset after coregistration, by sub-pixel cross-correlation of the coregistered pair, against the 0.001 px azimuth requirement for TOPS interferometry;
+    - the ESD residual (already in the tops_insar case);
+    - agreement with COMPASS coregistered CSLCs (the Docker peer exists).
+  - Stripmap and other sensors (CreateStack + Cross-Correlation + Warp, and DEM-Assisted Coregistration):
+    - recover a known synthetic shift or warp applied to a real SLC (analytic truth);
+    - compare with NISAR's ISCE3 offset products (ROFF/GOFF from the simulated 2008 set and the S-band set);
+    - compare with the ESA-coregistered BIOMASS L1C STA stack;
+    - check the residual offset after coregistration.
+  - Data:
+    - Venezuela S1 pair;
+    - ETAD SM stack (`E:\EO\S1\ETAD\SM`);
+    - RCM BC Border 3 dates;
+    - BIOMASS simulated INT set;
+    - NISAR simulated RSLC pair with ROFF;
+    - RS2 Manitoba 5-date quad stack;
+    - the ICEYE Turkey/Syria SM dates (check that the geometry repeats).
+  - Efficiency: Back-Geocoding on a stack; the memory spec's W3 (10-date S1 stack) and W5 (100-date SBAS); CreateStack + CC + Warp on a stripmap stack.
+  - Known defect to cover: Warp silently falls back to the legacy RMS rule when the CPM fit throws (§2 decision item).
+- [ ] **ETAD (S1).**
+  - Data: ESA's ETAD InSAR test set, `E:\EO\S1\ETAD\snap_test_data`. It has differential interferograms made with and without ETAD, and the correction phase screens `int_<id>_geco_phase.tiff`. The SM stack's primary SLC (20200920) and the 20201002 and 20201014 SLCs are on disk with their ETAD products, in `E:\EO\S1\ETAD\SM`. Of the IW stack only 20201014 is on disk.
+  - Case 1: SNAP's phase-correction mode against ESA's phase screen and corrected interferogram. This closes the README's phase-correction coverage gap.
+  - Case 2: classical TOPS geometric ETAD on Surat. Compare corner-reflector position error with and without ETAD, using the IW SLC and ETAD product already in the manifest.
+  - Efficiency: ETAD on an IW SLC pair.
+  - The ESA corner-reflector sites (Côte d'Azur, Metsähovi, Wettzell, Yarragadee) have ETAD products only. Their SLCs would have to be downloaded.
+- [ ] **Speckle filtering.**
+  - Reference: a synthetic speckle field with known reflectivity and a known number of looks (gamma-distributed multiplicative noise). Measure ENL gain, mean bias and edge and point preservation per filter (Lee, Lee Sigma, Refined Lee, Frost, Gamma Map, IDAN, Boxcar, Median).
+  - Also measure the peak loss of the Rosamond and Surat corner reflectors after filtering.
+  - Efficiency: each filter on a full S1 GRD.
+  - No ENL test exists in the Java tests today.
+- [ ] **Polarimetry.**
+  - References:
+    - closed-form synthetic matrices (van Zyl, Cameron, Krogager, H/A/α, Span/RVI);
+    - PolSARpro in Docker as the peer tool, already named in the design (C3/T3, decompositions, polarimetric speckle filters, Wishart);
+    - CP Stokes closed forms for compact-pol.
+  - Data: RS2 FQ14 quad (`SAR/RS2`), the RS2 Manitoba 5-date FQ10W stack, RCM QP (`SAR/RCM/QP`, `OpenData/Quebec City`, `EODMS/SLC` QP8), RCM CP (Winnipeg 3MCP24, BC Border 3MCP30), CSG quad (`SAR/Cosmo/QUAD POL`).
+  - Efficiency: memory-spec W4 (quad-pol → T3 → decomposition → Wishart).
+  - Blocker for NISAR polarimetry: SNAP-4384 (GCOV is not exposed as C2/C3).
+- [ ] **NISAR.**
+  - References: NISAR's own processor (built on ISCE3) made the RIFG/RUNW, GCOV and GSLC products. Compare SNAP's interferogram from the RSLC pair, SNAP's RTC and SNAP's geocoding against them.
+  - The simulated 2008 L-band set (`SAR/NISAR`, track 005 frame 219, lat 34.24–35.36, lon −118.48 to −117.47) covers the Rosamond corner-reflector site. Check whether reflectors are visible in that 2008 data.
+  - Data: a real 12-day pair, RSLC + GSLC 20260108/20260120, track 162 frame 24, Ontario, in `E:\EO\NISAR\NISAR`. Also a real RUNW and a real GCOV in `E:\EO\NISAR\Real`, and the S-band simulated set with a 2026 "New" RSLC/RIFG/GSLC.
+  - Efficiency: RSLC → calibration → terrain correction, and pair InSAR on full-size products.
+  - Gaps: no numeric NISAR assertion and no calibration test exist today.
+- [ ] **BIOMASS.**
+  - References: ESA's documented gamma0 processor (`E:\ESA\biomass_gamma0_allpol.txt`, PFD v1.6.1 §4.3.2) for calibration. The ESA-coregistered L1C STA stack (`SAR/BIOMASS/L1C_INT_phase`) for coregistration.
+  - Data:
+    - the simulated 3-date SCS interferometric set (`SAR/BIOMASS/L1A_INT_phase`);
+    - real June 2025 DGM/SCS in `E:\EO\BIOMASS\Real`, with repeat passes F308 and F158 on 6 and 9 June;
+    - real L2A (FD/FH/GN) in `E:\EO\BIOMASS\L2`.
+  - Efficiency: DGM → calibration → terrain correction; SCS pair InSAR.
+- [ ] **RCM.**
+  - References: RCM's own GRD/GRC/GCD of the same acquisition, against SNAP's SLC → multilook → terrain correction. Analytic thermal-noise model (already in T1).
+  - Data:
+    - `SAR/RCM/QP` and `CP`, simulated 2011, each at SLC/GRD/GRC;
+    - Winnipeg 3MCP24 at SLC/GRC/GCC/GCD;
+    - EODMS GRD/GCD/SLC.
+  - Polarimetric cases join the Polarimetry project.
+- [ ] **ICEYE.**
+  - References: ICEYE's GRD of the same acquisition. The published calibration σ⁰ = cf·amp².
+  - Data: SLC+GRD pairs in `SAR/Iceye` and `E:\EO\Iceye` (Brawley, Copeland, Corpus Christi, London, Escondida, Houston Dwell and others); the 15.8 GB Open Data SLC.
+  - No corner reflectors, so geometric truth needs a reflector-site acquisition.
+  - Efficiency: memory-spec W6 (large SLC → calibrate → multilook → terrain correction) and the large-product reader.
+- [ ] **COSMO-SkyMed / CSG.**
+  - References: the provider's DGM, for SNAP's detection and multilook. The provider's GEC, for SNAP's terrain-correction geolocation.
+  - Data: CSG SCS/DGM/GEC of the same acquisitions (`SAR/Cosmo/NG`, `STRIPMAP`, `SCANSAR-1`, CSK level1B); the 2026 two-frame DGM larger than 2^31 pixels (`E:\EO\Cosmo`).
+  - Efficiency: W6 and the large-product read path.
+  - No corner reflectors on disk.
 
 **Goal.** Show for every feature (reader, operator, shipped graph) that it (a) runs correctly, (b) is comparable to or better than other tools, and (c) is scientifically correct. Publish the evidence per release.
 
