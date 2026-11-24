@@ -190,6 +190,12 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 
 **Spec:** [`superpowers/specs/2026-11-17-memory-efficiency-design.md`](superpowers/specs/2026-11-17-memory-efficiency-design.md) covers the metric definitions, the workflow suite W1–W7, the measurement architecture, the suspect table with fixes and tests, the phases P0–P4 and the guard rails.
 
+**Update 2026-11-20.**
+- The release-time minimum-heap and wall-time measurement (the "heap sweep") is now built in **`snap-validation`**, not snap-gpt-tests. The initial pass covers S1 only, for the four scorecard features (W1 GRD→TC, W2 TOPS InSAR, GSLC).
+- W3 (S1 stack) and W5 (SBAS) can be added later as efficiency-only rows. W4 and W6 (non-S1) wait until those missions join. W7 (Desktop) stays here.
+- The P2 local fixes come after the T1 contract scaffold exists, because they use its tile-size invariance check.
+- See §9.0 for the overall order.
+
 **Problem.** Users report that SNAP needs too much memory, and that this hurts performance: GC thrash, swapping, OOM on 16 GB laptops. Today nothing measures it. `microwavetbx-benchmark` records only time. `snap-gpt-tests` records process `memory_max`, but under a fixed `-Xmx` the RSS reflects the heap setting, not what the workflow needs.
 
 **Metric.** The number that matches the complaint is the **minimum heap a standard workflow completes in**, plus the wall time at 4, 8 and 16 GB. Track both per release, and treat any increase as a regression.
@@ -202,7 +208,7 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
   4. An RS2/RCM quad-pol → Decomposition → Wishart classification.
   5. SBAS on 100 dates.
   6. Open a large product in SNAP Desktop, then view and pan it.
-- [ ] Add a **heap sweep** runner: run each workflow at `-Xmx` 2/3/4/6/8/12/16 GB and record pass/fail, wall time and GC time (from `-Xlog:gc`). Then find the minimum heap by bisection. M.
+- [ ] Add a **heap sweep** runner: run each workflow at `-Xmx` 2/3/4/6/8/12/16 GB and record pass/fail, wall time and GC time (from `-Xlog:gc`). Then find the minimum heap by bisection. M. **Now built in `snap-validation`** (plan Tasks 6, 7 and 11): a 256 MB ladder from 1 GB, starting at the baseline's value, with an output-equality check per rung.
 - [ ] Add peak heap-after-GC, allocation rate and GC-pause share to `microwavetbx-benchmark` (`Benchmark.java` currently writes runtimes only). Use the `GarbageCollectorMXBean` and `MemoryPoolMXBean` peak usage. S.
 - [ ] Profile every suite workflow once with **JFR** (allocation profiling, old-object sample) and take a heap dump at peak. Rank the retainers by class and owner (operator, reader, cache, metadata). This ranking replaces guesswork. M.
 
@@ -231,9 +237,49 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 
 **Spec:** [`superpowers/specs/2026-11-17-validation-framework-design.md`](superpowers/specs/2026-11-17-validation-framework-design.md) covers the tier model and placement, the contract checks C1–C9 and R1–R8, the fixture registry, the T2 tolerance model, the T3 repository layout and case schema, the register schema and the phases V0–V4.
 
+### 9.0 Status and order of work (updated 2026-11-20)
+
+**T3 and the release efficiency measurement are now a new Python repo, `snap-validation`.** It is on GitHub, cloned to `E:\ESA\snap-validation`.
+- **Design (approved):** [`superpowers/specs/2026-11-20-snap-validation-design.md`](superpowers/specs/2026-11-20-snap-validation-design.md).
+  - It replaces §6 of the 2026-11-17 validation spec.
+  - It also takes over the release heap sweep from §5.2 of the memory spec, which had placed it in snap-gpt-tests.
+- **Report mockup:** [`superpowers/specs/2026-11-20-snap-validation-report-mockup.html`](superpowers/specs/2026-11-20-snap-validation-report-mockup.html).
+- **Implementation plan:** [`superpowers/plans/2026-11-20-snap-validation-plan.md`](superpowers/plans/2026-11-20-snap-validation-plan.md). It has 20 tasks in phases A–E and is executed subagent-driven.
+
+**Decisions taken 2026-11-20**
+- **Repo and runtime:**
+  - `snap-validation` is written in Python. It tests the installed SNAP through `gpt`; the peer tools run in Docker.
+  - Microwave Toolbox comes first; optical may join later.
+  - It runs on the user's Windows workstation before each release, started manually. It is built to run on AWS, but that path is not implemented.
+- **Initial pass:** Sentinel-1 only, for both correctness and memory. Four scorecard features:
+  - S1 Calibration;
+  - S1 GRD → Terrain Correction;
+  - S1 TOPS InSAR (the classical chain);
+  - GSLC.
+- **Report:**
+  - The front page is a scorecard table with pass/fail, accuracy, peer agreement, and speed and minimum heap compared with the last release. Each row links to a detail page per feature.
+  - It uses the SNAP house palette with modern cards and charts.
+  - Toolbox test results are not included.
+- **Test data:** the S3 copy is `s3://skywatch-image-processing-test/SNAPTestData/`, holding only what the first-wave cases need. The data is *not* in `skywatch-image-processing`; only `E:\TestData\s1tbx\SAR` syncs to OVH `snap-s3`.
+- **Corner reflectors:** the user-facing corner reflector and point-target tools will live in microwave-toolbox. They are deferred and out of scope for `snap-validation`.
+- **`sar-test-stacks`:** the CR tests move to `snap-validation`, and are deleted only after the Python port reproduces them within 0.1 px. The stack tests stay.
+- **`microwavetbx-benchmark`:** stays as a developer profiling tool. It is switched on by `-Dbenchmark.enable`, and gains `MemoryProbe`.
+
+**Order of work**
+1. **`snap-validation`**: the plan above, *in progress*.
+2. **T1 contract tier (`sar-contract-tests`, §9.2)**, *after snap-validation*.
+   - It gets its own brainstorm, then its own plan. Review §9.2 and the 2026-11-17 spec's T1 sections first: they were written before the user confirmed anything.
+   - Open question: does it run in the default build from day one, or stay opt-in until the known-failures list is short?
+   - Move `MemoryProbe` somewhere both can use (e.g. `sar-commons` test-jar), so check C8 (bounded allocation) can reuse it.
+   - Expect a long first-run failure list that maps onto §3–§7. Triaging it is the main work of V1.
+3. **§8 memory fixes (P2)**, *after T1 V0 exists*. The Wishart and ForestArea fixes use T1's tile-size invariance check as their test. P0 measurement for S1 comes from `snap-validation`'s efficiency pass.
+4. **T2 additions in snap-gpt-tests (§9.3)**, independent. The heap-sweep item there is superseded.
+
 **Goal.** Show for every feature (reader, operator, shipped graph) that it (a) runs correctly, (b) is comparable to or better than other tools, and (c) is scientifically correct. Publish the evidence per release.
 
 ### 9.1 Three tiers, three homes
+
+T3 design (repo layout, cases, per-release scorecard): see `docs/superpowers/specs/2026-11-20-snap-validation-design.md`.
 
 These are three different questions. Each needs different data and a different runtime, so each lives where its runtime already is.
 
@@ -241,7 +287,7 @@ These are three different questions. Each needs different data and a different r
 |---|---|---|---|---|
 | **T1 Contract** | Does it behave correctly on known input? | Synthetic plus tiny committed fixtures | Every commit (CI) | **microwave-toolbox** (unit tests plus long-gated integration tests, as now) |
 | **T2 Regression** | Does the shipped build give the same answer on real data, through gpt and graphs? | Real products, GB scale, on the test-data server | Nightly / per RC | **snap-gpt-tests** (already ESA's gpt runner; already has `s1tbx/` tests, expected outputs and a performance DB) |
-| **T3 Scientific** | Is it right against ground truth, and how does it compare with peer tools? | Reference sites, truth data, peer-tool outputs | Per release / quarterly | **New repo `microwave-validation`**: move `microwave-toolbox/validation/` there, plus the corner-reflector tests from `sar-test-stacks` |
+| **T3 Scientific** | Is it right against ground truth, and how does it compare with peer tools? | Reference sites, truth data, peer-tool outputs | Per release / quarterly | **New repo `snap-validation`** (renamed from `microwave-validation`, 2026-11-20; see §9.0): move `microwave-toolbox/validation/` there, plus the corner-reflector tests from `sar-test-stacks` |
 
 Why a separate repo for T3: it is Python and Docker (ISCE3, Dolphin, MintPy, PolSARpro), needs multi-GB truth data, runs on a release cadence rather than per commit, and has a different audience (ESA reviewers, users). It tests the **installed** build, not the source tree, so pinning a SNAP build version in each report is enough. The single-commit argument in `validation/README.md` no longer holds once reports record the SNAP version and git hash. Keep T1 and T2 out of it; a validation repo that also does regression testing becomes a second gpt-tests.
 
@@ -270,9 +316,11 @@ These parametrised tests run over **every** registered plug-in, so new readers a
 - [ ] Add a gpt test for **every shipped graph**: 97 graph XMLs under the `*-ui` modules' `graphs/` resources, against about 35 tests in `tests/s1tbx` today; the §3 bug "shipped TOPS graphs lack ESD" shows that the graphs themselves are untested.
 - [ ] Add per-mission reader-to-Calibration-to-Terrain-Correction tests for each supported mission (S1, RS2, RCM, CSK/CSG, TSX/PAZ, ICEYE, Capella, SAOCOM, ALOS-2, NISAR, BIOMASS, ERS/ASAR). Today `missions/` holds only Sentinel1.
 - [ ] Compare with tolerances, not MD5. Use per-band statistics plus sampled pixels with an explicit tolerance per test, so a legitimate change can be accepted deliberately (regenerate with a reason recorded).
-- [ ] Wire the §8 heap sweep into the existing performance database (it already has `memory_max`; add `min_heap_mb` and `gc_time`).
+- [x] ~~Wire the §8 heap sweep into the existing performance database (it already has `memory_max`; add `min_heap_mb` and `gc_time`).~~ Superseded 2026-11-20: the release heap sweep runs in `snap-validation` (§9.0).
 
-### 9.4 T3: scientific validation (microwave-validation repo)
+### 9.4 T3: scientific validation (`snap-validation` repo; tracked by its plan, see §9.0)
+
+T3 design (repo layout, cases, per-release scorecard): see `docs/superpowers/specs/2026-11-20-snap-validation-design.md`.
 Each feature gets a **reference** (ground truth or peer tool), a **metric** and an **acceptance threshold** taken from mission requirements or the literature. Examples:
 
 | Area | Reference | Metric / threshold |
@@ -287,8 +335,8 @@ Each feature gets a **reference** (ground truth or peer tool), a **metric** and 
 | Noise removal | S1 NESZ annotations; RCM noise | Residual noise floor; scalloping |
 | Ocean (wind, ships) | ECMWF/ASCAT wind; AIS | Wind RMSE in m/s; detection probability / false-alarm rate |
 
-- [ ] Move `microwave-toolbox/validation/` into `microwave-validation`, keeping the engines/compare/cases layout. Add `truth/` adapters (CR, GNSS, AIS).
-- [ ] Move the corner-reflector tests (`sar-test-stacks` `CRValidation*`) into it as T3 cases. They are already excluded from the default build (`-Pcorner-reflectors`).
+- [x] (done 2026-11-21: moved to snap-validation; see 2026-11-20 design) Move `microwave-toolbox/validation/` into `snap-validation`, keeping the engines/compare/cases layout. Add `truth/` adapters (CR, GNSS, AIS). This is plan Task 1. The first wave needs only the CR and OPERA adapters; GNSS and AIS come later.
+- [x] (done 2026-11-21: moved to snap-validation; see 2026-11-20 design) Move the corner-reflector tests (`sar-test-stacks` `CRValidation*`) into it as T3 cases. The Java CR tests, their resources and the `-Pcorner-reflectors` profile were deleted.
 - [ ] Generate a **per-release validation report** (HTML/PDF): a pass/fail scorecard per feature, plots, the SNAP build and the peer-tool versions. This is the artifact for ESA and users.
 
 ### 9.5 Validation register
