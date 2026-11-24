@@ -1,7 +1,7 @@
 # Memory Efficiency: Design
 
 **Date:** 2026-11-17
-**Status:** proposed
+**Status:** proposed. **§5.2 (heap sweep in snap-gpt-tests) superseded 2026-11-20:** the release heap sweep is built in `snap-validation` ([design](2026-11-20-snap-validation-design.md) §7), S1 only for now. Order of work: roadmap §9.0.
 **Roadmap:** [§8 Memory efficiency](../../roadmap.md#8-memory-efficiency-workstream)
 **Owner:** microwave-toolbox. Items marked **[Cross-repo]** need changes in snap-engine or snap-installer.
 **Companion:** [Validation framework design](2026-11-17-validation-framework-design.md). Its tier T2 runs the heap sweep defined here.

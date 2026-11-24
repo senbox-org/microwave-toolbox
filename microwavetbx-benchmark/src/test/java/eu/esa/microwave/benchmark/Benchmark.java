@@ -55,7 +55,11 @@ import java.util.Arrays;
 @SuppressWarnings("unchecked")
 public abstract class Benchmark {
 
-    private final static boolean DISABLE_BENCHMARKS = true;
+    /** Benchmarks are opt-in: run with -Dbenchmark.enable=true. Evaluated per call. */
+    private static boolean benchmarksDisabled() {
+        return !Boolean.getBoolean("benchmark.enable");
+    }
+
     private final static String REFERENCE_NAME = "";
     private final static int DEFAULT_ITERATIONS = 5;
     private final static boolean deleteTempOutputFiles = true;
@@ -100,7 +104,7 @@ public abstract class Benchmark {
     }
 
     public void run() throws Exception {
-        if (DISABLE_BENCHMARKS) {
+        if (benchmarksDisabled()) {
             System.out.println("Benchmark " + groupName + " disabled");
             return;
         }
@@ -119,11 +123,14 @@ public abstract class Benchmark {
                 FileUtils.deleteTree(outputFolder);
 
             final long[] runtimes = new long[iterations];
+            final MemoryProbe.Reading[] memory = new MemoryProbe.Reading[iterations];
             for (int i = 1; i <= iterations; ++i) {
                 SystemUtils.LOG.info("Run " + i + " of " + iterations + " started");
                 StopWatch timer = new StopWatch();
                 outputFolder = createTempFolder(testName + i);
+                final MemoryProbe probe = MemoryProbe.start();
                 this.execute();
+                memory[i - 1] = probe.stop();
                 timer.stop();
 
                 runtimes[i - 1] = timer.getTimeDiff();
@@ -133,7 +140,7 @@ public abstract class Benchmark {
                 FileUtils.deleteTree(outputFolder);
             }
 
-            writeResults(coldStartMillis, runtimes);
+            writeResults(coldStartMillis, runtimes, memory);
         } catch (Exception e) {
             SystemUtils.LOG.severe("Benchmark " + testName + " failed: " + e.getMessage());
             writeFailedResult(e.getMessage());
@@ -179,7 +186,8 @@ public abstract class Benchmark {
 
     // ---- result records -----------------------------------------------------
 
-    private void writeResults(final long coldStartMillis, final long[] runtimes) throws Exception {
+    private void writeResults(final long coldStartMillis, final long[] runtimes,
+                              final MemoryProbe.Reading[] memory) throws Exception {
         final long minMillis = min(runtimes);
         final long maxMillis = max(runtimes);
         final long avgMillis = avg(runtimes);
@@ -221,6 +229,15 @@ public abstract class Benchmark {
             record.put("megapixelsPerSec", Math.round(mpps * 100.0) / 100.0);
         }
 
+        // Memory readings (see MemoryProbe) of the pass whose wall time is the median.
+        final MemoryProbe.Reading mem = medianReading(runtimes, memory);
+        if (mem != null) {
+            record.put("peakLiveMB", Math.round(mem.peakLiveMB * 10.0) / 10.0);
+            record.put("allocMB", Math.round(mem.allocMB * 10.0) / 10.0);
+            record.put("gcPauseMs", mem.gcPauseMs);
+            record.put("gcShare", Math.round(mem.gcShare * 1000.0) / 1000.0);
+        }
+
         record.put("environment", environment());
 
         // Trend vs the most recent prior record for the same machine+group+test.
@@ -237,6 +254,17 @@ public abstract class Benchmark {
 
         appendHistory(record);
         mergeLatest(record);
+    }
+
+    /** Reading of the pass whose wall time is the median (upper median for an even count). */
+    private static MemoryProbe.Reading medianReading(final long[] runtimes, final MemoryProbe.Reading[] memory) {
+        if (runtimes.length == 0) {
+            return null;
+        }
+        final Integer[] order = new Integer[runtimes.length];
+        for (int i = 0; i < order.length; i++) order[i] = i;
+        Arrays.sort(order, (a, b) -> Long.compare(runtimes[a], runtimes[b]));
+        return memory[order[order.length / 2]];
     }
 
     private void writeFailedResult(final String errorMsg) throws Exception {
