@@ -106,6 +106,13 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Bug]** ETAD reader geocoding is a simple lat/lon box.
 - [ ] **[Bug]** CIMR reader has no fallback for an unknown `format_version`.
 - [ ] **[Bug]** No reader for ESA's reprocessed ERS-1/2 and Envisat ASAR heritage products, if they are distributed in a new format.
+- [ ] **[Bug]** NISAR GCOV reader cannot feed the polarimetric tools (added 2026-11-24, [SNAP-4384](https://senbox.atlassian.net/browse/SNAP-4384)). Spec: [`superpowers/specs/2026-11-24-nisar-gcov-reader-design.md`](superpowers/specs/2026-11-24-nisar-gcov-reader-design.md).
+  - Off-diagonal covariance terms (`HHHV`, `HHVV`, `HVVV`, …) are complex but read as one `INTENSITY` band holding the real part only.
+  - Compact-pol terms `RHRH`/`RHRV`/`RVRV` are not read at all.
+  - GCOV is not exposed as C3/C2 (no `C11`… bands, no `polsar_data`/`compact_mode`), so decompositions, H/A/α, speckle filters and Wishart refuse it.
+  - `mask`, `numberOfLooks` and the RTC γ⁰→σ⁰ factor are not exposed. No-data is 0 but GCOV fill is NaN.
+  - Latent: `PolBandUtils.getSourceProductType` would misdetect `RHRH` as raw `RCHCP` (substring match on `RH`).
+  - Phases P1–P4 in the spec. Needs quad-pol full-covariance, dual-pol and compact-pol GCOV test products, plus answers on the conjugation convention and compact-pol chirality (spec §9).
 
 ## 5. Hygiene: labels, comments and tests
 
