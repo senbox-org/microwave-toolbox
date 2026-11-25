@@ -5,4 +5,5 @@
 
 <map version="2.0">
     <mapID target="TimeSeries" url="rcp/TimeSeries.html"/>
+    <mapID target="polarView" url="wave/PolarView.html"/>
 </map>

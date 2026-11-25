@@ -24,7 +24,7 @@ sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/TOPSA
 sar-op-sentinel1-ui/src/main/resources/eu/esa/sar/sentinel1/docs/operators/TOPSARMergeOp.html|sub-swath mosaicking/data handling; method context is on TOPSARDeburst and the tops concept page
 sar-op-feature-extraction-ui/src/main/resources/eu/esa/sar/fex/docs/operators/DecisionTreeOp.html|user-defined Band Maths rule tree; no method paper
 sar-op-analysis-ui/src/main/resources/eu/esa/sar/analysis/docs/rcp/TimeSeries.html|interactive viewer tool, not an algorithm
-sar-op-analysis-ui/src/main/resources/eu/esa/sar/ocean/docs/wave/PolarView.html|spectrum display tool (Hasselmann & Hasselmann 1991 is on the ocean concept page)
+sar-op-analysis-ui/src/main/resources/eu/esa/sar/analysis/docs/wave/PolarView.html|spectrum display tool (Hasselmann & Hasselmann 1991 is on the ocean concept page)
 rstb/rstb-op-soil-moisture-ui/src/main/resources/org/csa/rstb/soilmoisture/docs/operators/MultiAnglePreProcessing.html|graph-only preprocessing (calibration, speckle filter, terrain correction cited elsewhere)
 rstb/rstb-op-soil-moisture-ui/src/main/resources/org/csa/rstb/soilmoisture/docs/operators/MultiPolPreProcessing.html|graph-only preprocessing
 sar-op-sar-processing-ui/src/main/resources/eu/esa/sar/sar/docs/operators/MosaicOp.html|pure data handling: mosaicking/resampling utility, no published method
