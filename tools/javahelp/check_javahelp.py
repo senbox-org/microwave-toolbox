@@ -27,6 +27,11 @@ Linux are caught on Windows too):
   index         every help.hs declares the Index view (javax.help.IndexView), every
                 index.xml target is a map ID of its own helpset, and every index.xml
                 is up to date; see gen_index.py
+  search        at most one @HelpSetRegistration helpset with a Search view per module (the
+                build-time indexer only works once per javac run; a second helpset gets an
+                empty JavaHelpSearch and the whole Help window fails with "view is invalid"),
+                and, when the module's jar is built, every Search view's JavaHelpSearch in
+                target/*.jar is complete (DOCS, DOCS.TAB, OFFSETS, POSITIONS, SCHEMA, TMAP)
 
 Usage:  python tools/javahelp/check_javahelp.py [--repo DIR] [--external DIR ...]
 
@@ -46,6 +51,7 @@ import hashlib
 import re
 import sys
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import defaultdict
 from pathlib import Path
 
@@ -502,8 +508,67 @@ class Checker:
         for msg in gen_index.check(self.repo):
             self.err("index", msg.split(":", 1)[0], msg)
 
+    # -- full-text search database (JavaHelp SearchView)
+    _SEARCH_VIEW = re.compile(r"<view\b[^>]*>(?:(?!</view>).)*?<type>\s*javax\.help\.SearchView\s*</type>"
+                              r"(?:(?!</view>).)*?</view>", re.S)
+    _VIEW_DATA = re.compile(r"<data\b[^>]*>\s*([^<\s]+)\s*</data>")
+    SEARCH_DB_FILES = ("DOCS", "DOCS.TAB", "OFFSETS", "POSITIONS", "SCHEMA", "TMAP")
+
+    def _search_db(self, h: Helpset) -> str | None:
+        """Name of the helpset's search database folder, or None without a Search view."""
+        m = self._SEARCH_VIEW.search(h.hs.read_text(encoding="utf-8", errors="replace"))
+        d = self._VIEW_DATA.search(m.group(0)) if m else None
+        return d.group(1) if d else None
+
+    def check_search(self):
+        """The @HelpSetRegistration processor indexes each helpset with JavaHelp's Indexer, whose
+        indexer kit is a static singleton: only the first helpset indexed in a javac run gets
+        a usable database. A broken database makes JHelp throw "view is invalid" for all help."""
+        by_module = defaultdict(list)
+        for h in self.helpsets:
+            db = self._search_db(h)
+            if db:
+                by_module[h.module_root].append((h, db))
+        for mod, hss in by_module.items():
+            annotated = [h for h, _ in hss if "@HelpSetRegistration" in self._read(
+                mod / "src/main/java" / h.pkg_path / "package-info.java")]
+            if len(annotated) > 1:
+                self.err("search", self.rel(mod),
+                         f"{self.rel(mod)}: {len(annotated)} @HelpSetRegistration helpsets with a Search view "
+                         f"({', '.join(h.pkg_path for h in annotated)}); only the first gets a search index, "
+                         "merge them into one helpset")
+            # resources/ help ships in the module jar; javahelp/ help is indexed by nbm-maven-plugin
+            # into a separate docs jar (modules/docs/<cnb>.jar)
+            main = [j for j in sorted((mod / "target").glob("*.jar"))
+                    if not j.name.endswith(("-tests.jar", "-sources.jar", "-javadoc.jar"))]
+            docs = sorted((mod / "target/nbm/clusters").glob("*/modules/docs/*.jar"))
+            for h, db in hss:
+                from_javahelp = str(h.hs).startswith(str(mod / "src/main/javahelp"))
+                self._check_search_jars(h, db, docs if from_javahelp else main)
+
+    def _check_search_jars(self, h: Helpset, db: str, jars: list[Path]):
+        for jar in jars:
+            try:
+                with zipfile.ZipFile(jar) as z:
+                    sizes = {i.filename: i.file_size for i in z.infolist()}
+            except (zipfile.BadZipFile, OSError):
+                continue
+            if f"{h.pkg_path}/{h.hs.name}" not in sizes:
+                continue  # this jar does not carry the helpset
+            base = f"{h.pkg_path}/{db}/"
+            missing = [f for f in self.SEARCH_DB_FILES if base + f not in sizes]
+            if missing or sizes.get(base + "DOCS") == 0:
+                what = f"missing {', '.join(missing)}" if missing else "DOCS is empty (no pages indexed)"
+                self.err("search", f"{h.pkg_path}:{jar.name}",
+                         f"{self.rel(jar)}: search database {base} is broken: {what}")
+
+    @staticmethod
+    def _read(p: Path) -> str:
+        return p.read_text(encoding="utf-8", errors="replace") if p.exists() else ""
+
     def run(self, only: set[str] | None = None):
         self.check_registration()
+        self.check_search()
         self.check_maps_and_tocs()
         self.check_help_ids()
         self.check_links()
