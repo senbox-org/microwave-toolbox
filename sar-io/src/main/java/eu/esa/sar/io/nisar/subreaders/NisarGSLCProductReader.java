@@ -168,11 +168,12 @@ public class NisarGSLCProductReader extends NisarSubReader {
         for (String pol : pols) {
             Variable variable = groupFrequency.findVariable(pol);
             if (variable != null) {
-
-                Band i = newBand(variable, "i_" + pol, "real", Unit.REAL, 0);
-                Band q = newBand(variable, "q_" + pol, "imag", Unit.IMAGINARY, 0);
-                ReaderUtils.createVirtualIntensityBand(product, i, q, pol);
-                ReaderUtils.createVirtualPhaseBand(product, i, q, pol);
+                // the suffix keeps frequency B apart from A in dual-frequency products
+                final String name = '_' + pol + suffix;
+                Band i = newBand(variable, "i" + name, "real", Unit.REAL, 0);
+                Band q = newBand(variable, "q" + name, "imag", Unit.IMAGINARY, 0);
+                ReaderUtils.createVirtualIntensityBand(product, i, q, name);
+                ReaderUtils.createVirtualPhaseBand(product, i, q, name);
             }
         }
     }

@@ -109,6 +109,7 @@ public final class BandSelectOp extends Operator {
             addSelectedBands(selectedBands);
 
             ProductUtils.copyProductNodes(sourceProduct, targetProduct);
+            useSelectedBandsGeoCodingAsScene(selectedBands);
 
             if (sourceMaskNames != null) {
                 Set<String> keep = new HashSet<>(Arrays.asList(sourceMaskNames));
@@ -221,6 +222,28 @@ public final class BandSelectOp extends Operator {
         }
 
         return selectedBands.toArray(new Band[0]);
+    }
+
+    /**
+     * copyProductNodes gives the target the source's scene geocoding. When every selected band is on one
+     * other grid with its own geocoding (for example NISAR frequency B), the target is that grid, and its
+     * scene geocoding must be that grid's.
+     */
+    private void useSelectedBandsGeoCodingAsScene(final Band[] selectedBands) {
+        final GeoCoding sourceScene = sourceProduct.getSceneGeoCoding();
+        GeoCoding common = null;
+        for (Band band : selectedBands) {
+            final GeoCoding geoCoding = band.getGeoCoding();
+            if (geoCoding == null || geoCoding == sourceScene || (common != null && geoCoding != common)
+                    || band.getRasterWidth() != targetProduct.getSceneRasterWidth()
+                    || band.getRasterHeight() != targetProduct.getSceneRasterHeight()) {
+                return;
+            }
+            common = geoCoding;
+        }
+        if (common != null) {
+            ProductUtils.copyGeoCoding(selectedBands[0], targetProduct);
+        }
     }
 
     private void addSelectedBands(Band[] selectedBands) {

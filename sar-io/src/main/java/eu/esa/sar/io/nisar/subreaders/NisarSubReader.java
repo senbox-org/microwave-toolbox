@@ -30,13 +30,19 @@ import org.esa.snap.core.dataio.IllegalFileFormatException;
 import org.esa.snap.core.dataio.ProductReader;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.CrsGeoCoding;
+import org.esa.snap.core.datamodel.GeoCoding;
+import org.esa.snap.core.datamodel.Mask;
 import org.esa.snap.core.datamodel.MetadataAttribute;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.RasterDataNode;
 import org.esa.snap.core.datamodel.StxFactory;
 import org.esa.snap.core.datamodel.TiePointGeoCoding;
 import org.esa.snap.core.datamodel.TiePointGrid;
+import org.esa.snap.core.datamodel.VirtualBand;
+import org.esa.snap.core.dataop.barithm.BandArithmetic;
+import org.esa.snap.core.jexp.ParseException;
 import org.esa.snap.core.util.StopWatch;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.geotiff.EPSGCodes;
@@ -61,10 +67,12 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 
 import static eu.esa.snap.core.dataio.CfConstants.TITLE;
 import static eu.esa.snap.core.dataio.CfConstants.UNITS;
@@ -79,6 +87,14 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
     // Tracks which complex bands want the imaginary component (vs real)
     private final java.util.Set<String> imaginaryBandNames = new java.util.HashSet<>();
+
+    /** Suffix of the bands and masks of frequency B, the narrow second band. */
+    protected static final String FREQUENCY_B_SUFFIX = "_S";
+
+    /** Height layer of the metadata grid used for the tie-point grids, see {@link #ellipsoidLayer}. */
+    private int gridLayer = 0;
+    /** The metadata grid's incidence angle before it is placed on an image, for bands on their own grid. */
+    private TiePointGrid unplacedIncidenceAngle;
 
     // Row-strip LRU cache for compound/Structure reads.
     // SNAP requests tiles from many Y positions concurrently (multi-threaded),
@@ -275,7 +291,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
         Group groupFreqB = getFrequencyBGroup(groupSAR);
         if (groupFreqB != null) {
-            addBandsForFrequency(groupFreqB, "_S");
+            addBandsForFrequency(groupFreqB, FREQUENCY_B_SUFFIX);
         }
     }
 
@@ -363,7 +379,8 @@ public abstract class NisarSubReader implements CacheDataProvider {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT, product.getName());
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, Missions.NISAR);
 
-        String title = globals.getAttributeString(TITLE);
+        // Not every NISAR product carries a global 'title' attribute.
+        final String title = globals != null ? globals.getAttributeString(TITLE, productType) : productType;
         product.setDescription(title);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SPH_DESCRIPTOR, title);
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, productType);
@@ -501,10 +518,10 @@ public abstract class NisarSubReader implements CacheDataProvider {
      * supports HH / HV / VH / VV in any combination per frequency.
      */
     private void populatePolarisations(final MetadataElement absRoot, final MetadataElement sar) {
-        final java.util.LinkedHashSet<String> pols = new java.util.LinkedHashSet<>();
+        final java.util.LinkedHashSet<String> pols = new java.util.LinkedHashSet<>(readListOfPolarizations());
         try {
             final MetadataElement productTypeElem = sar.getElement(productType);
-            if (productTypeElem != null) {
+            if (pols.isEmpty() && productTypeElem != null) {
                 // Two layouts: RSLC uses /swaths/frequencyX/<POL>; geocoded products use
                 // /grids/frequencyX/<POL>. Look under both, ignoring missing branches.
                 for (final String container : new String[]{"swaths", "grids"}) {
@@ -537,6 +554,58 @@ public abstract class NisarSubReader implements CacheDataProvider {
             }
             idx++;
         }
+    }
+
+    /**
+     * Polarisations listed in the {@code listOfPolarizations} dataset of each frequency group, in product
+     * order. Covers products whose layers are not named after a single polarisation (GCOV terms such as
+     * HHHH, compact-pol RH/RV).
+     */
+    private List<String> readListOfPolarizations() {
+        final List<String> pols = new ArrayList<>();
+        try {
+            final Group sarGroup = getSARGroup();
+            if (sarGroup == null) return pols;
+            for (Group freqGroup : new Group[]{getFrequencyAGroup(sarGroup), getFrequencyBGroup(sarGroup)}) {
+                pols.addAll(readStringList(freqGroup, "listOfPolarizations"));
+            }
+        } catch (RuntimeException e) {
+            // Product types without the usual group layout fall back to probing layer names.
+            SystemUtils.LOG.fine("NISAR: no listOfPolarizations: " + e.getMessage());
+        }
+        return pols;
+    }
+
+    /**
+     * Reads a 1-D list of fixed-length strings (e.g. {@code listOfCovarianceTerms}) from a group.
+     *
+     * @return the trimmed, upper-case values, or an empty list if the dataset is missing or unreadable
+     */
+    protected static List<String> readStringList(final Group group, final String name) {
+        final List<String> values = new ArrayList<>();
+        final Variable var = group == null ? null : group.findVariable(name);
+        if (var == null) return values;
+        try {
+            final Array array = var.read();
+            if (array instanceof ucar.ma2.ArrayChar) {
+                final ucar.ma2.ArrayChar.StringIterator it = ((ucar.ma2.ArrayChar) array).getStringIterator();
+                while (it.hasNext()) {
+                    addTrimmed(values, it.next());
+                }
+            } else {
+                for (int i = 0; i < array.getSize(); i++) {
+                    addTrimmed(values, String.valueOf(array.getObject(i)));
+                }
+            }
+        } catch (IOException e) {
+            SystemUtils.LOG.warning("NISAR: cannot read " + name + ": " + e.getMessage());
+        }
+        return values;
+    }
+
+    private static void addTrimmed(final List<String> values, final String value) {
+        final String v = value.trim().toUpperCase();
+        if (!v.isEmpty()) values.add(v);
     }
 
     private static boolean isPolName(final String name) {
@@ -572,6 +641,12 @@ public abstract class NisarSubReader implements CacheDataProvider {
             }
             if(centerFreq == null) {
                 centerFreq = freqGroup.findVariable("centerFrequency");
+            }
+            if(centerFreq == null) {
+                // operational L2 products keep it with the source swaths
+                final Group sourceFreq = netcdfFile.findGroup(groupProductType.getFullName()
+                        + "/metadata/sourceData/swaths/" + freqGroup.getShortName());
+                centerFreq = sourceFreq == null ? null : sourceFreq.findVariable("centerFrequency");
             }
             if(centerFreq != null) {
                 AbstractMetadata.setAttribute(absRoot, AbstractMetadata.radar_frequency,
@@ -843,8 +918,55 @@ public abstract class NisarSubReader implements CacheDataProvider {
         int gridHeight = var.getDimension(rank - 2).getLength();
         if (rank >= 3 && gridHeight <= 1)
             gridHeight = var.getDimension(rank - 3).getLength();
-        return NetCDFUtils.createTiePointGrid(var, gridWidth, gridHeight,
+        final TiePointGrid grid = NetCDFUtils.createTiePointGrid(var, gridWidth, gridHeight,
                 product.getSceneRasterWidth(), product.getSceneRasterHeight());
+        if (rank != 3 || gridLayer == 0) {
+            return grid;
+        }
+        final TiePointGrid layer = new TiePointGrid(grid.getName(), gridWidth, gridHeight, grid.getOffsetX(),
+                grid.getOffsetY(), grid.getSubSamplingX(), grid.getSubSamplingY(), readGridLayer(var));
+        layer.setUnit(grid.getUnit());
+        layer.setDescription(grid.getDescription());
+        return layer;
+    }
+
+    /** Layer {@link #gridLayer} of a (height, azimuth, range) metadata grid; a 2-D grid whole. */
+    private float[] readGridLayer(final Variable var) throws IOException {
+        try {
+            final Array data = var.getRank() == 3
+                    ? var.read(new int[]{gridLayer, 0, 0},
+                            new int[]{1, var.getDimension(1).getLength(), var.getDimension(2).getLength()})
+                    : var.read();
+            return (float[]) data.get1DJavaArray(DataType.FLOAT);
+        } catch (ucar.ma2.InvalidRangeException e) {
+            throw new IOException(e);
+        }
+    }
+
+    /**
+     * The layer of the metadata grid at the ellipsoid (height 0 m), or the first layer if the grid has no
+     * heights. The grids list positions for a set of heights from below the ellipsoid (-500 m) upwards;
+     * the first layer is up to hundreds of metres from the ellipsoid position.
+     */
+    private static int ellipsoidLayer(final Group grid) {
+        try {
+            final Variable heights = grid.findVariable("heightAboveEllipsoid");
+            if (heights == null || heights.getRank() != 1) {
+                return 0;
+            }
+            final double[] h = (double[]) heights.read().get1DJavaArray(DataType.DOUBLE);
+            int best = 0;
+            for (int i = 1; i < h.length; i++) {
+                if (Math.abs(h[i]) < Math.abs(h[best])) {
+                    best = i;
+                }
+            }
+            return best;
+        } catch (IOException e) {
+            SystemUtils.LOG.warning("NISAR: cannot read the geolocation grid heights (" + e.getMessage()
+                    + "); using its first layer, which can be hundreds of metres off the ellipsoid");
+            return 0;
+        }
     }
 
     private static class Grids {
@@ -867,8 +989,8 @@ public abstract class NisarSubReader implements CacheDataProvider {
         TiePointGrid northingTPG = NetCDFUtils.createTiePointGrid(varY, gridWidth, gridHeight, sceneWidth, sceneHeight);
 
         final int length = gridWidth * gridHeight;
-        float[] easting = eastingTPG.getTiePoints();
-        float[] northing = northingTPG.getTiePoints();
+        float[] easting = rank == 3 ? readGridLayer(varX) : eastingTPG.getTiePoints();
+        float[] northing = rank == 3 ? readGridLayer(varY) : northingTPG.getTiePoints();
         final float[] latTiePoints = new float[length];
         final float[] lonTiePoints = new float[length];
 
@@ -904,6 +1026,137 @@ public abstract class NisarSubReader implements CacheDataProvider {
         return grids;
     }
 
+    /**
+     * The 1-D projected coordinates (pixel-centre eastings, northings) of the image grid itself: the
+     * xCoordinates / yCoordinates in the frequency group (or below it) whose lengths match the raster.
+     * Null for products that have none, such as the radar-geometry L1 products.
+     */
+    private Variable[] findImageCoordinates() {
+        try {
+            final Group groupSAR = getSARGroup();
+            Group freq = getFrequencyAGroup(groupSAR);
+            if (freq == null) {
+                freq = getFrequencyBGroup(groupSAR);
+            }
+            if (freq == null) {
+                return null;
+            }
+            // the axes beside the scene's own raster variable; any of the scene's size in the frequency otherwise
+            final Variable[] rasters = getRasterVariables(freq);
+            Variable x = rasters.length > 0 ? findAxis(rasters[0], "xCoordinates", product.getSceneRasterWidth()) : null;
+            Variable y = rasters.length > 0 ? findAxis(rasters[0], "yCoordinates", product.getSceneRasterHeight()) : null;
+            if (x == null || y == null) {
+                x = findVectorOfLength(freq, "xCoordinates", product.getSceneRasterWidth());
+                y = findVectorOfLength(freq, "yCoordinates", product.getSceneRasterHeight());
+            }
+            return x != null && y != null ? new Variable[]{x, y} : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Variable findVectorOfLength(final Group group, final String name, final int length) {
+        final Variable v = group.findVariable(name);
+        if (v != null && v.getRank() == 1 && v.getDimension(0).getLength() == length) {
+            return v;
+        }
+        for (Group sub : group.getGroups()) {
+            final Variable found = findVectorOfLength(sub, name, length);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Where the metadata cube's 1-D lattice lies on the image grid, as TiePointGrid offsets and
+     * sub-sampling {offsetX, offsetY, subSamplingX, subSamplingY} in image pixels (pixel i is centred on i + 0.5).
+     * Null if the cube has no 1-D projected coordinates.
+     */
+    private double[] cubePlacement(final Group cube, final Variable[] image) throws IOException {
+        final Variable cubeX = findVariable(cube, "coordinateX", "xCoordinates");
+        final Variable cubeY = findVariable(cube, "coordinateY", "yCoordinates");
+        if (cubeX == null || cubeY == null || cubeX.getRank() != 1 || cubeY.getRank() != 1) {
+            return null;
+        }
+        return placement(cubeX, cubeY, image[0], image[1]);
+    }
+
+    /**
+     * Where the L1 metadata grid's (zeroDopplerTime, slantRange) lattice lies on the radar image of the
+     * given frequency, from the image's own time and range axes; see {@link #cubePlacement}. Null if the
+     * axes are not found with the image's dimensions.
+     */
+    private double[] radarGridPlacement(final Group grid, final Group freq, final int width, final int height)
+            throws IOException {
+        if (freq == null) {
+            return null;
+        }
+        final Variable gridTime = grid.findVariable("zeroDopplerTime");
+        final Variable gridRange = grid.findVariable("slantRange");
+        final Variable range = findVectorOfLength(freq, "slantRange", width);
+        final Variable time = freq.getParentGroup() == null ? null
+                : findVectorOfLength(freq.getParentGroup(), "zeroDopplerTime", height);
+        if (gridTime == null || gridRange == null || range == null || time == null
+                || gridTime.getRank() != 1 || gridRange.getRank() != 1
+                || !sameUnits(gridTime, time) || !sameUnits(gridRange, range)) {
+            return null;
+        }
+        return placement(gridRange, gridTime, range, time);
+    }
+
+    /**
+     * Same units, or either unknown. "seconds since 2008-10-12 00:00:00.000000000" is the same as
+     * "seconds since 2008-10-12T00:00:00".
+     */
+    private static boolean sameUnits(final Variable a, final Variable b) {
+        final Attribute ua = a.findAttribute(UNITS), ub = b.findAttribute(UNITS);
+        return ua == null || ub == null
+                || normalisedUnits(ua.getStringValue()).equals(normalisedUnits(ub.getStringValue()));
+    }
+
+    static String normalisedUnits(final String units) {
+        return String.valueOf(units).trim()
+                .replaceAll("(\\d{4}-\\d{2}-\\d{2})[T ]+(\\d{2}:)", "$1 $2")
+                .replaceAll("(\\d{2}:\\d{2}:\\d{2})\\.0+\\b", "$1")
+                .replaceAll("\\s+", " ");
+    }
+
+    /**
+     * TiePointGrid {offsetX, offsetY, subSamplingX, subSamplingY} for a grid lattice on (gridX, gridY)
+     * over an image whose pixel centres are (imageX, imageY); pixel i is centred on i + 0.5.
+     */
+    private static double[] placement(final Variable gridX, final Variable gridY,
+                                      final Variable imageX, final Variable imageY) throws IOException {
+        final double[] cx = (double[]) gridX.read().get1DJavaArray(DataType.DOUBLE);
+        final double[] cy = (double[]) gridY.read().get1DJavaArray(DataType.DOUBLE);
+        final double[] ix = (double[]) imageX.read().get1DJavaArray(DataType.DOUBLE);
+        final double[] iy = (double[]) imageY.read().get1DJavaArray(DataType.DOUBLE);
+        if (cx.length < 2 || cy.length < 2 || ix.length < 2 || iy.length < 2) {
+            return null;
+        }
+        final double stepX = ix[1] - ix[0], stepY = iy[1] - iy[0];
+        if (stepX == 0 || stepY == 0) {
+            return null;
+        }
+        return new double[]{
+                (cx[0] - ix[0]) / stepX + 0.5, (cy[0] - iy[0]) / stepY + 0.5,
+                (cx[1] - cx[0]) / stepX, (cy[1] - cy[0]) / stepY};
+    }
+
+    /** The tie-point grid with its tie points placed per {@link #cubePlacement}, or unchanged if that is null. */
+    private static TiePointGrid placeOnImage(final TiePointGrid grid, final double[] placement) {
+        if (grid == null || placement == null) {
+            return grid;
+        }
+        final TiePointGrid placed = new TiePointGrid(grid.getName(), grid.getGridWidth(), grid.getGridHeight(),
+                placement[0], placement[1], placement[2], placement[3], grid.getTiePoints(), grid.getDiscontinuity());
+        placed.setUnit(grid.getUnit());
+        placed.setDescription(grid.getDescription());
+        return placed;
+    }
+
     protected void addTiePointGridsToProduct() throws IOException {
 
         try {
@@ -916,9 +1169,26 @@ public abstract class NisarSubReader implements CacheDataProvider {
             Group gridGroup = findGridGroup(metadataGroup);
             if(gridGroup == null) return;
 
+            gridLayer = ellipsoidLayer(gridGroup);
+
+            // The metadata grid is a coarse lattice over a larger area than the image: place it on the
+            // image from the image grid's coordinates (L2) or its time and range axes (L1).
+            final Variable[] imageCoordinates = findImageCoordinates();
+            final double[] cubePlacement = imageCoordinates != null
+                    ? cubePlacement(gridGroup, imageCoordinates)
+                    : radarGridPlacement(gridGroup, sceneFrequencyGroup(),
+                            product.getSceneRasterWidth(), product.getSceneRasterHeight());
+
+            if (cubePlacement == null) {
+                SystemUtils.LOG.warning("NISAR: cannot place the metadata grid " + gridGroup.getShortName()
+                        + " on the image from its axes; it is stretched over the image instead, and positions"
+                        + " can be kilometres off");
+            }
+
             Variable incidenceAngleVar = gridGroup.findVariable("incidenceAngle");
             if (incidenceAngleVar != null) {
-                TiePointGrid incidenceAngleGrid = createTiePointGrid(incidenceAngleVar);
+                unplacedIncidenceAngle = createTiePointGrid(incidenceAngleVar);
+                TiePointGrid incidenceAngleGrid = placeOnImage(unplacedIncidenceAngle, cubePlacement);
                 incidenceAngleGrid.setName(OperatorUtils.TPG_INCIDENT_ANGLE);
                 product.addTiePointGrid(incidenceAngleGrid);
             }
@@ -961,7 +1231,14 @@ public abstract class NisarSubReader implements CacheDataProvider {
                     if(coordXVar.getRank() == 1 && coordYVar.getRank() == 1) {
                         // A 1-D projected grid is a regular lattice, so an affine CrsGeoCoding
                         // describes it exactly. Prefer it over interpolated tie-points.
-                        exactCrsSet = setProjectedCrsGeoCoding(epsg, coordXVar, coordYVar);
+                        // The image grid's own coordinates give it; the cube's only if they are the image grid.
+                        if (imageCoordinates != null) {
+                            exactCrsSet = setProjectedCrsGeoCoding(epsg, imageCoordinates[0], imageCoordinates[1]);
+                            setBandCrsGeoCodings(epsg, imageCoordinates, gridGroup);
+                        } else if (coordXVar.getDimension(0).getLength() == product.getSceneRasterWidth()
+                                && coordYVar.getDimension(0).getLength() == product.getSceneRasterHeight()) {
+                            exactCrsSet = setProjectedCrsGeoCoding(epsg, coordXVar, coordYVar);
+                        }
                         grids = createTiePointGridFrom1DProjected(epsg, coordXVar, coordYVar);
                     } else {
                         grids = createTiePointGridFromUTM(epsg, coordXVar, coordYVar);
@@ -984,6 +1261,8 @@ public abstract class NisarSubReader implements CacheDataProvider {
                     }
                 }
 
+                latGrid = placeOnImage(latGrid, cubePlacement);
+                lonGrid = placeOnImage(lonGrid, cubePlacement);
                 product.addTiePointGrid(latGrid);
                 product.addTiePointGrid(lonGrid);
 
@@ -992,10 +1271,14 @@ public abstract class NisarSubReader implements CacheDataProvider {
                 if (!exactCrsSet) {
                     final TiePointGeoCoding tpGeoCoding = new TiePointGeoCoding(latGrid, lonGrid);
                     product.setSceneGeoCoding(tpGeoCoding);
+                    if (imageCoordinates == null) {
+                        setBandRadarGeoCodings(gridGroup, latGrid, lonGrid);
+                    }
                 }
             }
         } catch (Exception e) {
-            SystemUtils.LOG.warning("Error creating tie-point grids: " + e.getMessage());
+            SystemUtils.LOG.log(Level.SEVERE, "NISAR: error creating the geocoding: " + e
+                    + "; bands without their own geocoding are geolocated as the scene", e);
         }
     }
 
@@ -1016,22 +1299,268 @@ public abstract class NisarSubReader implements CacheDataProvider {
      * @return true if the geocoding was set; false to fall back to tie-points.
      */
     private boolean setProjectedCrsGeoCoding(final int epsg, final Variable varX, final Variable varY) {
+        final CrsGeoCoding geoCoding = createProjectedCrsGeoCoding(epsg, varX, varY);
+        if (geoCoding == null) {
+            return false;
+        }
+        product.setSceneGeoCoding(geoCoding);
+        return true;
+    }
+
+    /**
+     * Bands on a grid other than the scene's get the geocoding of their own grid: frequency B of an L2
+     * product (for example 80 m under a 20 m GCOV) and the 20 m wrapped interferogram under an 80 m GUNW.
+     * A band's grid is the {@code xCoordinates}/{@code yCoordinates} pair of its size nearest its variable.
+     */
+    private void setBandCrsGeoCodings(final int epsg, final Variable[] sceneAxes, final Group grid) {
+        setBandGeoCodings("xCoordinates", "yCoordinates", sceneAxes[0], sceneAxes[1], (x, y) -> {
+            final CrsGeoCoding geoCoding = createProjectedCrsGeoCoding(epsg, x, y);
+            if (geoCoding != null) {
+                addIncidenceAngle(gridTag(x), cubePlacement(grid, new Variable[]{x, y}), geoCoding, x);
+            }
+            return geoCoding;
+        });
+    }
+
+    /** Builds the geocoding of a grid from its x (column) and y (row) axes; null if it cannot. */
+    private interface GridGeoCoder {
+        GeoCoding create(Variable x, Variable y) throws IOException;
+    }
+
+    /**
+     * Gives each band whose own axes (the vectors named xName and yName of its width and height nearest
+     * its variable) differ from the scene's the geocoding of its own grid, one per distinct grid, then
+     * passes it on to the virtual bands and masks built from it. A band that cannot get one is reported.
+     */
+    private void setBandGeoCodings(final String xName, final String yName, final Variable sceneX,
+                                   final Variable sceneY, final GridGeoCoder coder) {
+        if (sceneX == null || sceneY == null) {
+            SystemUtils.LOG.warning("NISAR: the scene's " + xName + "/" + yName + " are not found; bands on"
+                    + " other grids are geolocated as the scene");
+            return;
+        }
+        final Map<String, GeoCoding> byGrid = new HashMap<>();
+        for (Band band : product.getBands()) {
+            final Variable var = bandMap.get(band);
+            if (var == null) {
+                continue;
+            }
+            try {
+                final Variable x = findAxis(var, xName, band.getRasterWidth());
+                final Variable y = findAxis(var, yName, band.getRasterHeight());
+                if (x == null || y == null) {
+                    if (!isSceneSize(band)) {
+                        warnNotGeocoded(band, "no " + xName + "/" + yName + " of its size");
+                    }
+                    continue;
+                }
+                if (sameAxis(x, sceneX) && sameAxis(y, sceneY)) {
+                    continue;
+                }
+                final String key = axisKey(x) + '|' + axisKey(y);
+                if (!byGrid.containsKey(key)) {
+                    byGrid.put(key, coder.create(x, y));
+                }
+                final GeoCoding geoCoding = byGrid.get(key);
+                if (geoCoding != null) {
+                    band.setGeoCoding(geoCoding);
+                } else {
+                    warnNotGeocoded(band, "its grid cannot be geocoded");
+                }
+            } catch (IOException e) {
+                warnNotGeocoded(band, e.toString());
+            }
+        }
+        shareGeoCodingWithDerivedNodes();
+    }
+
+    /** The frequency group the scene raster comes from: A, or B in a product without A. */
+    private Group sceneFrequencyGroup() {
+        final Group groupSAR = getSARGroup();
+        final Group freqA = getFrequencyAGroup(groupSAR);
+        return freqA != null ? freqA : getFrequencyBGroup(groupSAR);
+    }
+
+    /**
+     * Bands of an L1 product sampled other than the scene (frequency B's coarser range, the pixel offsets
+     * of RIFG and RUNW) get a tie-point geocoding from the same lat/lon lattice placed on their own
+     * zero-Doppler time and slant range axes.
+     * <p>
+     * SNAP binds a TiePointGeoCoding to its grids by name when it copies, subsets or saves a product, so
+     * each such grid has its own name and is in the product. Its own geocoding is the band's, so a
+     * multi-size subset cuts it with the band's region.
+     */
+    private void setBandRadarGeoCodings(final Group grid, final TiePointGrid lat, final TiePointGrid lon) {
+        final Group sceneFreq = sceneFrequencyGroup();
+        final Variable sceneRange = sceneFreq == null ? null
+                : findVectorOfLength(sceneFreq, "slantRange", product.getSceneRasterWidth());
+        final Variable sceneTime = sceneFreq == null || sceneFreq.getParentGroup() == null ? null
+                : findVectorOfLength(sceneFreq.getParentGroup(), "zeroDopplerTime", product.getSceneRasterHeight());
+        setBandGeoCodings("slantRange", "zeroDopplerTime", sceneRange, sceneTime,
+                (range, time) -> createRadarGeoCoding(grid, lat, lon, range, time));
+    }
+
+    private TiePointGeoCoding createRadarGeoCoding(final Group grid, final TiePointGrid lat, final TiePointGrid lon,
+                                                   final Variable range, final Variable time) throws IOException {
+        final Variable gridTime = grid.findVariable("zeroDopplerTime");
+        final Variable gridRange = grid.findVariable("slantRange");
+        if (gridTime == null || gridRange == null || gridTime.getRank() != 1 || gridRange.getRank() != 1
+                || !sameUnits(gridTime, time) || !sameUnits(gridRange, range)) {
+            return null;
+        }
+        final double[] placement = placement(gridRange, gridTime, range, time);
+        if (placement == null) {
+            return null;
+        }
+        final String tag = gridTag(range);
+        final TiePointGrid latBand = placeOnImage(lat, placement);
+        final TiePointGrid lonBand = placeOnImage(lon, placement);
+        latBand.setName(uniqueTiePointGridName(lat.getName() + tag));
+        lonBand.setName(uniqueTiePointGridName(lon.getName() + tag));
+        latBand.setDescription("Latitude on the " + range.getParentGroup().getShortName() + " pixel grid");
+        lonBand.setDescription("Longitude on the " + range.getParentGroup().getShortName() + " pixel grid");
+        product.addTiePointGrid(latBand);
+        product.addTiePointGrid(lonBand);
+        final TiePointGeoCoding geoCoding = new TiePointGeoCoding(latBand, lonBand);
+        latBand.setGeoCoding(geoCoding);
+        lonBand.setGeoCoding(geoCoding);
+        addIncidenceAngle(tag, placement, geoCoding, range);
+        return geoCoding;
+    }
+
+    /**
+     * Calibration and other operators read the incidence angle at a band's own pixel: a grid other than the
+     * scene's gets its own, "incident_angle" with the grid's tag (incident_angle_S for frequency B).
+     */
+    private void addIncidenceAngle(final String tag, final double[] placement, final GeoCoding geoCoding,
+                                   final Variable axis) {
+        if (unplacedIncidenceAngle == null || placement == null || tag.isEmpty()) {
+            return;
+        }
+        final TiePointGrid incidence = placeOnImage(unplacedIncidenceAngle, placement);
+        incidence.setName(uniqueTiePointGridName(OperatorUtils.TPG_INCIDENT_ANGLE + tag));
+        incidence.setDescription("Incidence angle on the " + axis.getParentGroup().getShortName() + " pixel grid");
+        product.addTiePointGrid(incidence);
+        incidence.setGeoCoding(geoCoding);
+    }
+
+    /** "_S" for frequency B's own grid, "_pixelOffsets" or "_pixelOffsets_S" for a grid inside a frequency. */
+    private static String gridTag(final Variable axis) {
+        final StringBuilder tag = new StringBuilder();
+        boolean frequencyB = false;
+        for (Group g = axis.getParentGroup(); g != null; g = g.getParentGroup()) {
+            final String name = g.getShortName();
+            if (name.startsWith("frequency")) {
+                frequencyB = name.equals("frequencyB");
+                break;
+            }
+            tag.insert(0, "_" + name);
+        }
+        return frequencyB ? tag + FREQUENCY_B_SUFFIX : tag.toString();
+    }
+
+    private String uniqueTiePointGridName(final String name) {
+        String unique = name;
+        for (int i = 2; product.containsTiePointGrid(unique); i++) {
+            unique = name + "_" + i;
+        }
+        return unique;
+    }
+
+    /**
+     * The 1-D axis of the given length nearest a variable: in its own group, else in the closest group
+     * above it (RSLC bands find slantRange in their frequency group and zeroDopplerTime in swaths).
+     */
+    private static Variable findAxis(final Variable var, final String name, final int length) {
+        for (Group g = var.getParentGroup(); g != null; g = g.getParentGroup()) {
+            final Variable axis = g.findVariable(name);
+            if (axis != null && axis.getRank() == 1 && axis.getDimension(0).getLength() == length) {
+                return axis;
+            }
+        }
+        return null;
+    }
+
+    /** Same length, first and last value, to a millionth of a sample. */
+    private static boolean sameAxis(final Variable a, final Variable b) throws IOException {
+        if (a == b) {
+            return true;
+        }
+        final double[] va = (double[]) a.read().get1DJavaArray(DataType.DOUBLE);
+        final double[] vb = (double[]) b.read().get1DJavaArray(DataType.DOUBLE);
+        if (va.length != vb.length || va.length < 2) {
+            return false;
+        }
+        final double tolerance = Math.abs(va[1] - va[0]) * 1e-6;
+        return Math.abs(va[0] - vb[0]) <= tolerance && Math.abs(va[va.length - 1] - vb[vb.length - 1]) <= tolerance;
+    }
+
+    private static String axisKey(final Variable axis) throws IOException {
+        final double[] v = (double[]) axis.read().get1DJavaArray(DataType.DOUBLE);
+        return v.length + ":" + v[0] + ":" + v[v.length - 1];
+    }
+
+    private boolean isSceneSize(final Band band) {
+        return band.getRasterWidth() == product.getSceneRasterWidth()
+                && band.getRasterHeight() == product.getSceneRasterHeight();
+    }
+
+    private static void warnNotGeocoded(final Band band, final String reason) {
+        SystemUtils.LOG.warning("NISAR: no geocoding of its own for " + band.getName() + " ("
+                + band.getRasterWidth() + " x " + band.getRasterHeight() + "): " + reason
+                + "; it is not on the scene grid, so it is geolocated wrongly");
+    }
+
+    /** Virtual bands and masks take the geocoding of the first same-size raster their expression uses. */
+    private void shareGeoCodingWithDerivedNodes() {
+        final List<RasterDataNode> nodes = new ArrayList<>();
+        for (Band band : product.getBands()) {
+            if (!bandMap.containsKey(band)) {
+                nodes.add(band);
+            }
+        }
+        nodes.addAll(Arrays.asList(product.getMaskGroup().toArray(new Mask[0])));
+        for (RasterDataNode node : nodes) {
+            final String expression = node instanceof VirtualBand ? ((VirtualBand) node).getExpression()
+                    : node instanceof Mask && ((Mask) node).getImageType() == Mask.BandMathsType.INSTANCE
+                    ? Mask.BandMathsType.getExpression((Mask) node) : null;
+            if (expression == null) {
+                continue;
+            }
+            try {
+                for (RasterDataNode ref : BandArithmetic.getRefRasters(expression, product)) {
+                    if (ref != node && ref.getRasterWidth() == node.getRasterWidth()
+                            && ref.getRasterHeight() == node.getRasterHeight()) {
+                        if (ref.getGeoCoding() != product.getSceneGeoCoding()) {
+                            node.setGeoCoding(ref.getGeoCoding());
+                        }
+                        break;
+                    }
+                }
+            } catch (ParseException e) {
+                SystemUtils.LOG.warning("NISAR: cannot parse the expression of " + node.getName() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /** An exact CrsGeoCoding for the 1-D projected pixel-centre coordinates, or null if they are not a uniform lattice. */
+    private CrsGeoCoding createProjectedCrsGeoCoding(final int epsg, final Variable varX, final Variable varY) {
         try {
             final double[] x = (double[]) varX.read().get1DJavaArray(double.class);
             final double[] y = (double[]) varY.read().get1DJavaArray(double.class);
             if (x.length < 2 || y.length < 2) {
-                return false;
+                return null;
             }
             final double stepX = x[1] - x[0];
             final double stepY = y[1] - y[0];
             if (stepX == 0 || stepY == 0) {
-                return false;
+                return null;
             }
             // Reject a non-uniform lattice rather than misrepresenting it as affine.
             if (!isUniformLattice(x, stepX) || !isUniformLattice(y, stepY)) {
                 SystemUtils.LOG.warning("NISAR: projected coordinates are not a uniform lattice — " +
                         "using tie-point geocoding instead of an affine CrsGeoCoding");
-                return false;
+                return null;
             }
             // CrsGeoCoding assumes northings DESCEND with image row. Ascending northings would mean
             // row 0 is the southernmost line, which cannot be expressed by the northing/step pair
@@ -1039,7 +1568,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
             if (stepY > 0) {
                 SystemUtils.LOG.warning("NISAR: yCoordinates ascend (row 0 is the southernmost line) — " +
                         "using tie-point geocoding to avoid a flipped CrsGeoCoding");
-                return false;
+                return null;
             }
 
             final org.opengis.referencing.crs.CoordinateReferenceSystem crs =
@@ -1047,18 +1576,17 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
             // x[0]/y[0] are pixel CENTRES, which is exactly what referencePixel (0.5, 0.5) denotes.
             // The step magnitudes are passed positive; CrsGeoCoding applies the northing sign itself.
-            product.setSceneGeoCoding(new CrsGeoCoding(crs,
-                    product.getSceneRasterWidth(), product.getSceneRasterHeight(),
-                    x[0], y[0], Math.abs(stepX), Math.abs(stepY), 0.5, 0.5));
+            final CrsGeoCoding geoCoding = new CrsGeoCoding(crs, x.length, y.length,
+                    x[0], y[0], Math.abs(stepX), Math.abs(stepY), 0.5, 0.5);
 
             SystemUtils.LOG.info(String.format(
                     "NISAR: exact CrsGeoCoding from EPSG:%d — origin (%.3f, %.3f), step %.6f x %.6f",
                     epsg, x[0], y[0], Math.abs(stepX), Math.abs(stepY)));
-            return true;
+            return geoCoding;
         } catch (Exception e) {
             SystemUtils.LOG.warning("NISAR: could not build a CrsGeoCoding from EPSG " + epsg +
                     " (" + e.getMessage() + ") — falling back to tie-point geocoding");
-            return false;
+            return null;
         }
     }
 
@@ -1249,11 +1777,14 @@ public abstract class NisarSubReader implements CacheDataProvider {
     }
 
     protected static void setStxFromAttributes(final Band band, final Variable var) {
+        // complex variables carry statistics per part: the imaginary band takes the imaginary ones
+        final String part = Unit.IMAGINARY.equals(band.getUnit()) || band.getName().startsWith("q_")
+                || band.getName().contains("_imag") ? "imag" : "real";
         try {
             Attribute minAt = var.findAttribute("min_value");
             Attribute maxAt = var.findAttribute("max_value");
-            if (minAt == null) minAt = var.findAttribute("min_real_value");
-            if (maxAt == null) maxAt = var.findAttribute("max_real_value");
+            if (minAt == null) minAt = var.findAttribute("min_" + part + "_value");
+            if (maxAt == null) maxAt = var.findAttribute("max_" + part + "_value");
             if (minAt != null && maxAt != null) {
                 double min = minAt.getNumericValue().doubleValue();
                 double max = maxAt.getNumericValue().doubleValue();
@@ -1264,9 +1795,9 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
             // Fallback: try mean +/- 3*stddev
             Attribute meanAt = var.findAttribute("mean_value");
-            if (meanAt == null) meanAt = var.findAttribute("mean_real_value");
+            if (meanAt == null) meanAt = var.findAttribute("mean_" + part + "_value");
             Attribute stdAt = var.findAttribute("sample_stddev");
-            if (stdAt == null) stdAt = var.findAttribute("sample_stddev_real");
+            if (stdAt == null) stdAt = var.findAttribute("sample_stddev_" + part);
             if (meanAt != null && stdAt != null) {
                 double mean = meanAt.getNumericValue().doubleValue();
                 double std = stdAt.getNumericValue().doubleValue();
@@ -1680,7 +2211,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
             throw new IOException(e);
         }
 
-        final float[] tempArray = (float[]) array.get1DJavaArray(DataType.FLOAT);
+        final float[] tempArray = toFloatArray(array);
         final int actualHeight = array.getShape()[0];
         final int actualWidth = array.getShape()[1];
 
@@ -1776,7 +2307,7 @@ public abstract class NisarSubReader implements CacheDataProvider {
                     throw new IOException(e);
                 }
             }
-            targetData.setElems(rawBuffer.get1DJavaArray(DataType.FLOAT));
+            targetData.setElems(toFloatArray(rawBuffer));
         }
 
         return new DataBuffer(targetData, offsets, shapes);
@@ -1810,7 +2341,9 @@ public abstract class NisarSubReader implements CacheDataProvider {
             } else if (variable instanceof ucar.nc2.Structure) {
                 // rank-0 fallback: read each tile row separately so we don't wrap past
                 // column tileWidth into the next row's pixels when tileWidth < sceneRasterWidth.
-                final int sceneWidth = product.getSceneRasterWidth();
+                // the band's own width: a band on another grid (frequency B) is not scene-sized
+                final Band band = product.getBand(bandName);
+                final int sceneWidth = band != null ? band.getRasterWidth() : product.getSceneRasterWidth();
                 final ucar.nc2.Structure struct = (ucar.nc2.Structure) variable;
                 synchronized (netcdfFile) {
                     for (int r = 0; r < tileHeight; r++) {
@@ -1883,6 +2416,22 @@ public abstract class NisarSubReader implements CacheDataProvider {
             }
         }
         return new int[]{realOffset, imagOffset};
+    }
+
+    /**
+     * Converts a raster array to float, keeping unsigned integer layers (e.g. the uint8 GCOV mask)
+     * unsigned: a plain FLOAT conversion turns mask value 255 into -1.
+     */
+    static float[] toFloatArray(final Array array) {
+        if (!array.getDataType().isUnsigned()) {
+            return (float[]) array.get1DJavaArray(DataType.FLOAT);
+        }
+        final int n = (int) array.getSize();
+        final float[] out = new float[n];
+        for (int i = 0; i < n; i++) {
+            out[i] = DataType.widenNumberIfNegative((Number) array.getObject(i)).floatValue();
+        }
+        return out;
     }
 
     /**
@@ -2033,28 +2582,25 @@ public abstract class NisarSubReader implements CacheDataProvider {
 
         final boolean wantImag = Unit.IMAGINARY.equals(destBand.getUnit()) || destBand.getName().startsWith("q_");
 
-        final StripData strip = getStrip(variable, sceneWidth, sceneHeight, sourceOffsetY);
-        if (strip == null) return;
-
-        final float[] stripData = wantImag ? strip.imag : strip.real;
         final float[] dest = (float[]) destBuffer.getElems();
-        final int stripW = strip.width;
 
-        if (sourceStepX == 1) {
-            for (int tileY = 0; tileY < destHeight; tileY++) {
-                final int srcRow = sourceOffsetY + tileY * sourceStepY;
-                if (srcRow < strip.startRow || srcRow >= strip.endRow) break;
-                final int stripOffset = (srcRow - strip.startRow) * stripW + sourceOffsetX;
-                System.arraycopy(stripData, stripOffset, dest, tileY * destWidth, destWidth);
+        // A tile can span several strips (sub-sampled reads, or tiles crossing a strip boundary):
+        // fetch the strip of each line.
+        StripData strip = null;
+        for (int tileY = 0; tileY < destHeight; tileY++) {
+            final int srcRow = sourceOffsetY + tileY * sourceStepY;
+            if (srcRow >= sceneHeight) break;
+            if (strip == null || srcRow < strip.startRow || srcRow >= strip.endRow) {
+                strip = getStrip(variable, sceneWidth, sceneHeight, srcRow);
+                if (strip == null) return;
             }
-        } else {
-            int destIdx = 0;
-            for (int tileY = 0; tileY < destHeight; tileY++) {
-                final int srcRow = sourceOffsetY + tileY * sourceStepY;
-                if (srcRow < strip.startRow || srcRow >= strip.endRow) break;
-                final int stripRowOffset = (srcRow - strip.startRow) * stripW;
+            final float[] stripData = wantImag ? strip.imag : strip.real;
+            final int stripRowOffset = (srcRow - strip.startRow) * strip.width + sourceOffsetX;
+            if (sourceStepX == 1) {
+                System.arraycopy(stripData, stripRowOffset, dest, tileY * destWidth, destWidth);
+            } else {
                 for (int tileX = 0; tileX < destWidth; tileX++) {
-                    dest[destIdx++] = stripData[stripRowOffset + sourceOffsetX + tileX * sourceStepX];
+                    dest[tileY * destWidth + tileX] = stripData[stripRowOffset + tileX * sourceStepX];
                 }
             }
         }
