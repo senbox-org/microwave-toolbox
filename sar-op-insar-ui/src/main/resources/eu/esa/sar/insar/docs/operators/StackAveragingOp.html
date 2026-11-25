@@ -28,7 +28,10 @@ maximum, standard deviation and coefficient of variation. There is no median. <b
         (amplitude or intensity, not dB) of the same unit.
     </li>
     <li>The output has one band per band group, named without the date suffix, holding the
-        selected statistic. The band takes the unit of the first band in the group.</li>
+        selected statistic. The band takes the unit of the first band in the group. Its no-data value is
+        NaN, so a statistic of 0 (a constant pixel has a standard deviation of 0) stays a valid value.</li>
+    <li>Bands without a date in their name (for example an elevation or incidence angle band added to the
+        stack) are not part of any group: they are copied to the output unchanged.</li>
 </ul>
 <h4>How the statistics are computed</h4>
 <ul>

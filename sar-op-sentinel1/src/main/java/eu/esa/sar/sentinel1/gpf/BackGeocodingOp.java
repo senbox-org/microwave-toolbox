@@ -39,7 +39,7 @@ import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dem.dataio.DEMFactory;
-import org.esa.snap.dem.dataio.EarthGravitationalModel96;
+import org.esa.snap.dem.dataio.GeoidModel;
 import org.esa.snap.dem.dataio.FileElevationModel;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.PosVector;
@@ -675,7 +675,7 @@ public final class BackGeocodingOp extends Operator {
 
         final PositionData posData = new PositionData();
         final PixelPos pix = new PixelPos();
-        final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+        final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
 
         boolean noValidSecondaryPixPos = true;
         for (int l = 0; l < numLines; ++l) {
@@ -1289,7 +1289,7 @@ public final class BackGeocodingOp extends Operator {
                                        final double[] extendedAmount)
             throws Exception {
 
-        final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+        final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
 
         final GeoPos geoPos = new GeoPos();
         final PositionData posData = new PositionData();
@@ -1516,7 +1516,7 @@ public final class BackGeocodingOp extends Operator {
             final PositionData posData = new PositionData();
             final PixelPos pix = new PixelPos();
 
-            final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+            final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
 
             boolean noValidSecondaryPixPos = true;
             for (int l = 0; l < numLines; l++) {

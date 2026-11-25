@@ -245,6 +245,100 @@ public class TestBatchSnaphuUnwrapOp {
         assertTrue(binary.canExecute());
     }
 
+    // ---------- running SNAPHU ----------
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase().startsWith("windows");
+    }
+
+    /** A config file whose 7th line holds the given text. */
+    private File config(final String line7) throws IOException {
+        final File conf = tempDir.resolve("20200101_20200113snaphu.conf").toFile();
+        Files.write(conf.toPath(), ("1\n2\n3\n4\n5\n6\n" + line7 + "\n").getBytes(StandardCharsets.UTF_8));
+        return conf;
+    }
+
+    /** A stand-in for SNAPHU that prints a line and exits with the given code. */
+    private File fakeSnaphu(final int exitCode) throws IOException {
+        final File script;
+        if (isWindows()) {
+            script = tempDir.resolve("fake_snaphu.cmd").toFile();
+            Files.write(script.toPath(), ("@echo unwrapping\r\n@exit /b " + exitCode + "\r\n").getBytes(StandardCharsets.US_ASCII));
+        } else {
+            script = tempDir.resolve("fake_snaphu.sh").toFile();
+            Files.write(script.toPath(), ("#!/bin/sh\necho unwrapping\nexit " + exitCode + "\n").getBytes(StandardCharsets.US_ASCII));
+            Assume.assumeTrue("cannot make the script executable", script.setExecutable(true));
+        }
+        return script;
+    }
+
+    /** Without arguments on line 7 SNAPHU would not run and a stale output would be read: report it. */
+    @Test
+    public void testConfigWithoutSnaphuCommandIsReported() throws IOException {
+        for (String line7 : new String[]{"#", "", "# snaphu"}) {
+            try {
+                op.callSnaphuUnwrap(fakeSnaphu(0), config(line7), tempDir.resolve("log.txt").toFile(),
+                        ProgressMonitor.NULL, "");
+                org.junit.Assert.fail("expected IOException for line 7 '" + line7 + "'");
+            } catch (IOException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("No snaphu command on line 7"));
+            }
+        }
+    }
+
+    @Test
+    public void testSnaphuOutputIsLogged() throws IOException {
+        final File log = tempDir.resolve("log.txt").toFile();
+        op.callSnaphuUnwrap(fakeSnaphu(0), config("# snaphu -f snaphu.conf ifg.img 4"), log, ProgressMonitor.NULL, "");
+        assertTrue(new String(Files.readAllBytes(log.toPath()), StandardCharsets.UTF_8).contains("unwrapping"));
+    }
+
+    @Test
+    public void testSnaphuFailureIsReported() throws IOException {
+        final File log = tempDir.resolve("log.txt").toFile();
+        try {
+            op.callSnaphuUnwrap(fakeSnaphu(3), config("# snaphu -f snaphu.conf ifg.img 4"), log,
+                    ProgressMonitor.NULL, "");
+            org.junit.Assert.fail("a failed SNAPHU run must be reported");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("exited with code 3"));
+            assertTrue("the message names the log", e.getMessage().contains(log.getName()));
+        }
+    }
+
+    /** A read-only folder that already holds SNAPHU (a system install) is used; it is not refused. */
+    @Test
+    public void testReadOnlyInstallFolderWithBinaryIsUsed() throws IOException {
+        final File dir = tempDir.resolve("system").toFile();
+        assertTrue(dir.mkdir());
+        final File binary = new File(dir, isWindows() ? "snaphu.exe" : "snaphu");
+        assertTrue(binary.createNewFile());
+        binary.setExecutable(true);
+        Assume.assumeTrue("file system cannot mark files executable", binary.canExecute());
+        try {
+            Assume.assumeTrue("file system cannot make the folder read-only",
+                    dir.setWritable(false) && !Files.isWritable(dir.toPath()));
+            assertEquals(binary.getAbsoluteFile(), op.downloadSnaphu(dir).getAbsoluteFile());
+        } finally {
+            dir.setWritable(true);
+        }
+    }
+
+    /** Progress only moves forward and ends at the same place for any number of pairs (it went backwards above 100). */
+    @Test
+    public void testProgressNeverGoesBackwards() {
+        for (int total : new int[]{1, 7, 100, 101, 250, 5000}) {
+            int previous = BatchSnaphuUnwrapOp.progressAfter(0, total);
+            assertEquals(0, previous);
+            for (int done = 1; done <= total; done++) {
+                final int now = BatchSnaphuUnwrapOp.progressAfter(done, total);
+                assertTrue("total " + total + " at " + done, now >= previous);
+                previous = now;
+            }
+            assertEquals(98, previous);
+        }
+    }
+
     // ---------- unwrapped-band assembly (regression: all-zero output after c322d2d7b) ----------
 
     private static final int W = 4;

@@ -37,7 +37,7 @@ import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dem.dataio.DEMFactory;
-import org.esa.snap.dem.dataio.EarthGravitationalModel96;
+import org.esa.snap.dem.dataio.GeoidModel;
 import org.esa.snap.dem.dataio.FileElevationModel;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.OrbitStateVector;
@@ -589,7 +589,7 @@ public final class TerrainFlatteningOp extends Operator {
             final int rows = (int) Math.round((latMax - latMin) / demResolution);
             final int cols = (int) Math.round((lonMax - lonMin) / demResolution);
 
-            final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+            final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
             final double[][] height = new double[rows][cols];
             // Reuse one GeoPos across rows*cols iterations instead of allocating per-pixel.
             // BaseElevationModel.getElevation mutates geoPos.lon (wraps > 180), so setLocation

@@ -25,7 +25,7 @@ import org.esa.snap.core.dataop.dem.ElevationModel;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.dem.dataio.DEMFactory;
-import org.esa.snap.dem.dataio.EarthGravitationalModel96;
+import org.esa.snap.dem.dataio.GeoidModel;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.TileGeoreferencing;
 
@@ -132,7 +132,7 @@ public class ProjectedDEM {
             final GeoPos geoPos = new GeoPos();
             ProductData demBuffer = ProductData.createInstance(ProductData.TYPE_FLOAT32, elevationBand.getRasterWidth() * elevationBand.getRasterHeight());
 
-            final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+            final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
 
             final int maxY = y0 + h;
             final int maxX = x0 + w;

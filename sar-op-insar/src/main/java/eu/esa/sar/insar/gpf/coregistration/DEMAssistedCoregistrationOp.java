@@ -35,7 +35,7 @@ import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dem.dataio.DEMFactory;
-import org.esa.snap.dem.dataio.EarthGravitationalModel96;
+import org.esa.snap.dem.dataio.GeoidModel;
 import org.esa.snap.dem.dataio.FileElevationModel;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.OrbitStateVector;
@@ -509,7 +509,7 @@ public final class DEMAssistedCoregistrationOp extends Operator {
             final int lonMinIdx = (int)Math.floor(upperLeft.getX());
             final int lonMaxIdx = (int)Math.ceil(lowerRight.getX());
 
-            final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+            final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
 
             // Loop through all DEM points bounded by the indices computed above. For each point,
             // get its lat/lon and its azimuth/range indices in target image;

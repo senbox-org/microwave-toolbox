@@ -163,8 +163,19 @@ public class TestMultiMasterOp {
      */
     @Test
     public void errorInOnePairIsReported() throws Exception {
+        // the last pair: ThreadExecutor.complete() rethrows its error itself
+        assertPairErrorIsReported("i_VV_sec2_" + DATES[2]);
+    }
+
+    /** An earlier pair failing: complete() does not report it, so each pair's error must be checked. */
+    @Test
+    public void errorInAnEarlierPairIsReported() throws Exception {
+        // the reference date is only in the first pair
+        assertPairErrorIsReported("i_VV_ref_" + DATES[0]);
+    }
+
+    private void assertPairErrorIsReported(final String name) throws Exception {
         final Product stack = buildStack();
-        final String name = "i_VV_sec2_" + DATES[2];
         final org.esa.snap.core.datamodel.Band original = stack.getBand(name);
         stack.removeBand(original);
         final java.util.concurrent.atomic.AtomicBoolean armed = new java.util.concurrent.atomic.AtomicBoolean();
@@ -180,7 +191,7 @@ public class TestMultiMasterOp {
         };
         failing.setUnit(original.getUnit());
         stack.addBand(failing);
-        final MultiMasterOp op = createOp(stack, tmp.newFolder("errors").getPath());
+        final MultiMasterOp op = createOp(stack, tmp.newFolder().getPath());
         op.getTargetProduct();
         armed.set(true);
         try {

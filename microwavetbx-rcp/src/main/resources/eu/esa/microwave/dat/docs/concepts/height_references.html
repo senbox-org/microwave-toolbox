@@ -105,12 +105,14 @@ Grid and ASTER 1sec GDEM for locally installed tiles; check the provider's docum
         anything. The <code>elevation</code> band written by "Save DEM as band" holds these ellipsoidal heights.</li>
     <li>EGM2008 is a 5 arc-minute grid downloaded once into the SNAP auxdata folder
         (<code>dem/egm2008</code>, about 13 MB), within 5 mm RMS of NGA's 2.5' grid. If it cannot be downloaded,
-        SNAP logs a warning and converts the Copernicus DEM with EGM96 for that session; the error is then the
+        SNAP logs a warning and converts the Copernicus DEM with EGM96 meanwhile, trying the download again after
+        10 minutes; the error is then the
         EGM2008&#8722;EGM96 difference (0.7 m RMS, up to a few metres in mountains, 12 m at most).
         <b>Changed in SNAP 15:</b> earlier versions always used EGM96, also for the Copernicus DEM.</li>
     <li>External DEM files always get EGM96 when <i>Apply Earth Gravitational Model</i> is set, so an external DEM
         referenced to EGM2008 keeps the EGM2008&#8722;EGM96 difference. Where a DEM has no data at sea, SNAP uses the
-        EGM96 geoid height as sea level, also next to Copernicus tiles.</li>
+        geoid height of that DEM's geoid as sea level: EGM2008 next to Copernicus tiles, EGM96 otherwise, so the
+        fill meets the land heights without a step at the coast.</li>
 </ul>
 <table border="1" cellpadding="3" cellspacing="0">
     <tr><th>Operator</th><th>"Apply EGM" for external DEMs</th></tr>
@@ -121,7 +123,8 @@ Grid and ASTER 1sec GDEM for locally installed tiles; check the provider's docum
 </table>
 <ul>
     <li>"Mask out areas with no elevation" in Terrain Correction (default on) sets output pixels to no-data where the
-        DEM has no data. When cleared, pixels without DEM data are geocoded at the EGM96 geoid height (sea level).</li>
+        DEM has no data. When cleared, pixels without DEM data are geocoded at the geoid height (sea level) of the DEM's
+        geoid: EGM2008 for the Copernicus DEM, EGM96 for the others.</li>
 </ul>
 
 <h2>Common mistakes</h2>

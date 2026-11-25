@@ -59,6 +59,9 @@ public class StackAveragingOp extends Operator {
     private int minValidDates = 1;
 
     private BandInfo[] nameGroups;
+    // virtual bands this operator added to the source product, removed again in dispose()
+    private final List<Band> addedSourceBands = new ArrayList<>();
+    private boolean sourceWasModified;
 
     /**
      * Initializes this operator and sets the one and only target product.
@@ -83,6 +86,7 @@ public class StackAveragingOp extends Operator {
 
             ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
+            sourceWasModified = sourceProduct.isModified();
             nameGroups = getBandGroupNames();
 
             for (BandInfo bandInfo : nameGroups) {
@@ -93,7 +97,9 @@ public class StackAveragingOp extends Operator {
                     final String name_prefix = bandInfo.name;
                     final Band[] sourceBands = getSourceBands(name_prefix);
                     final String unit = sourceBands[0].getUnit();
-                    final double nodatavalue = sourceBands[0].getNoDataValue();
+                    // the statistic is float: NaN marks too few valid dates, without masking a real 0
+                    // (a constant pixel has a standard deviation of 0)
+                    final double nodatavalue = Double.NaN;
 
                     switch (statistic) {
                         case "Mean Average":
@@ -115,6 +121,14 @@ public class StackAveragingOp extends Operator {
                 }
             }
 
+            // bands that are not part of the stack (no date in the name, e.g. an added elevation band)
+            for (Band band : sourceProduct.getBands()) {
+                if (!isStackBand(band.getName()) && !addedSourceBands.contains(band) &&
+                        targetProduct.getBand(band.getName()) == null) {
+                    ProductUtils.copyBand(band.getName(), sourceProduct, targetProduct, true);
+                }
+            }
+
             updateMetadata(targetProduct);
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
@@ -123,13 +137,29 @@ public class StackAveragingOp extends Operator {
 
     @Override
     public void dispose() {
-        for (BandInfo bandInfo : nameGroups) {
-            final Band srcBand = sourceProduct.getBand(bandInfo.name);
-            if (srcBand != null) {
-                sourceProduct.removeBand(srcBand);
-            }
+        // only the bands added here: the source product keeps all of its own bands
+        for (Band band : addedSourceBands) {
+            sourceProduct.removeBand(band);
         }
-        sourceProduct.setModified(false);
+        if (!addedSourceBands.isEmpty()) {
+            addedSourceBands.clear();
+            sourceProduct.setModified(sourceWasModified);
+        }
+    }
+
+    /**
+     * A band of the stack: its name carries a reference/secondary marker or ends in a date (_01Jan2020).
+     * Other bands (elevation, incidence angle, ...) are not averaged but copied.
+     */
+    static boolean isStackBand(final String name) {
+        if (StackUtils.getBandNameWithoutDate(name).equals(name)) {
+            return false;
+        }
+        if (name.contains(StackUtils.REF) || name.contains(StackUtils.SEC) ||
+                name.contains(StackUtils.MST) || name.contains(StackUtils.SLV)) {
+            return true;
+        }
+        return name.substring(name.lastIndexOf('_') + 1).matches("\\d{1,2}[A-Za-z]{3}\\d{4}");
     }
 
     private static void updateMetadata(final Product targetProduct) {
@@ -144,6 +174,9 @@ public class StackAveragingOp extends Operator {
         final Set<String> nameSet = new LinkedHashSet<>();
         final List<BandInfo> bandGroup = new ArrayList<>();
         for (Band band : bands) {
+            if (!isStackBand(band.getName())) {
+                continue;
+            }
             final String name = StackUtils.getBandNameWithoutDate(band.getName());
             if (!nameSet.contains(name)) {
                 nameSet.add(name);
@@ -157,7 +190,9 @@ public class StackAveragingOp extends Operator {
         final Band[] bands = sourceProduct.getBands();
         final List<Band> bandList = new ArrayList<>();
         for (Band band : bands) {
-            if (!(band instanceof VirtualBand) && band.getName().startsWith(name_prefix)) {
+            // the same group only: Sigma0_VV must not take in Sigma0_VV_db_... bands
+            if (!(band instanceof VirtualBand) && isStackBand(band.getName()) &&
+                    StackUtils.getBandNameWithoutDate(band.getName()).equals(name_prefix)) {
                 bandList.add(band);
             }
         }
@@ -166,7 +201,13 @@ public class StackAveragingOp extends Operator {
 
     private void addVirtualBand(final String operation, final String name_prefix, final String expression,
                                 final String unit, final double nodatavalue) {
-        final VirtualBand virtBand = new VirtualBand(name_prefix,
+        // The expression is evaluated in the source product, under a name no source band has, so it can
+        // neither refer to itself nor replace a band of the source.
+        String tmpName = name_prefix + "_stack_" + operation;
+        for (int i = 2; sourceProduct.containsRasterDataNode(tmpName); i++) {
+            tmpName = name_prefix + "_stack_" + operation + i;
+        }
+        final VirtualBand virtBand = new VirtualBand(tmpName,
                 ProductData.TYPE_FLOAT32,
                 sourceProduct.getSceneRasterWidth(),
                 sourceProduct.getSceneRasterHeight(),
@@ -176,20 +217,18 @@ public class StackAveragingOp extends Operator {
         virtBand.setNoDataValueUsed(true);
         virtBand.setNoDataValue(nodatavalue);
 
-        final Band srcBand = sourceProduct.getBand(virtBand.getName());
-        if (srcBand != null) {
-            sourceProduct.removeBand(srcBand);
-        }
         sourceProduct.addBand(virtBand);
+        addedSourceBands.add(virtBand);
 
-        ProductUtils.copyBand(name_prefix, sourceProduct, targetProduct, true);
+        final Band targetBand = ProductUtils.copyBand(tmpName, sourceProduct, targetProduct, true);
+        targetBand.setName(name_prefix);
     }
 
     private void addOriginalVirtualBands(final String trgBandName) {
         final Band[] srcBands = sourceProduct.getBands();
         Band virtSrcBand = null;
         for (Band band : srcBands) {
-            if (band.getName().startsWith(trgBandName) && band instanceof VirtualBand) {
+            if (band instanceof VirtualBand && StackUtils.getBandNameWithoutDate(band.getName()).equals(trgBandName)) {
                 virtSrcBand = band;
                 break;
             }
@@ -204,7 +243,7 @@ public class StackAveragingOp extends Operator {
             final String bName = b.getName();
             if (expression.contains(bName) && !nameGroupContains(bName)) {
                 final String newName = StackUtils.getBandNameWithoutDate(bName);
-                expression = expression.replaceAll(bName, newName);
+                expression = expression.replace(bName, newName);     // a band name is not a regex
             }
         }
 
