@@ -220,6 +220,23 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 - [ ] Profile every suite workflow once with **JFR** (allocation profiling, old-object sample) and take a heap dump at peak. Rank the retainers by class and owner (operator, reader, cache, metadata). This ranking replaces guesswork. M.
 
 ### 8.2 Known suspects (found by code scan; confirm with 8.1 before fixing)
+- [ ] **[Bug]** **ESD sets tops_insar's minimum heap (measured 2026-11-25 with heap dumps and JFR on AWS, SNAP 15.0.0-20261124).** At 8448 MB Xmx, 5.4 of 5.9 GB live is 20 × 268 MB `ComplexDoubleMatrix` buffers. In the OOM dump at 7424 MB it is 26 of them, 7.0 GB. Tiles are only about 0.23 GB. They come from range-offset estimation (`SpectralDiversityOp.crossCorrelatePair`), which runs one task per burst on a pool of 2×cores threads. Each task goes through `CoregistrationUtils.crossCorrelateFFT:349` → `SarUtils.oversample`, which oversamples a 32×32 chip 128× to 4096² complex. `SpectralUtils.fft2D_inplace` and `invfft2D_inplace` then make transposed copies, so each task peaks at about 0.9 GB. Peak heap therefore grows with burst count × core count, not with image size. Fixes in priority order:
+  - (a) Upsample only around the peak with a matrix-multiply DFT (Guizar-Sicairos), or oversample a small chip. This saves about 5–7 GB, and because it is in jlinda, `CrossCorrelationOp`, `RangeShiftOp` and `OffsetTrackingOp` benefit too.
+  - (b) Drop the transposes, since jblas is column-major and `DoubleFFT_2D(columns, rows)` works on its data directly. Take the argmax without the `getReal()` copy.
+  - (c) Cap the concurrency in `crossCorrelatePair`.
+  - (d) **Correctness:** the 7424 MB run's OOMs were lost and the step reported "done". The cause is that snap-engine's `ThreadExecutor.complete()` only checks the last submitted task, and only for an `Exception` (see 8.4). Errors must fail the operator.
+  - **Status 2026-11-25 (branch mem-efficiency):** (a), (b) and (d) are implemented.
+    - (a) is `SarUtils.oversampledPeak`, used by both `CoregistrationUtils` cross-correlation paths. It searches ±1.5 samples around the chip maximum, and tests check it finds the same peak as the full `oversample` grid.
+    - (b) removes the transposed copies from `SpectralUtils.fft2D_inplace` and `invfft2D_inplace`. This also fixes the forward FFT for non-square matrices, which was wrong before (its tests were `@Ignore`d and now pass). That changes PhaseFilter output only where a block is non-square.
+    - (d) is `SpectralDiversityOp.WorkerFailures`.
+    - **Confirmed on AWS (memory only):**
+      - ESD now completes at 7424 MB, where it ran out of heap before; peak 5849 MB post-GC (`20261125T141329Z-diag-esdfix-tops_insar-7424`).
+      - It also completes at 5120 MB, with a peak of 4740 MB (`20261125T141403Z-diag-esdfix-tops_insar-5120`).
+      - In the 5120 MB dump, `double[]` is down from 5.49 GB to 0.16 GB, and live heap from 5.87 GB to 2.29 GB. What remains is mostly tile data (float and short), with a tile cache of about 1.3 GB.
+      - Still to do: a full `sv cloud launch` with the overlay, to get the new minimum heap and check correctness.
+  - (e) In the write phase (`performRangeAzimuthShift`), reuse flat buffers in place of five `double[h][w]` per tile, and cache the FFT plan or pad h to a power of 2. This step is mostly churn and may become the binding step after (a) and (b). Get a dump of this phase to confirm.
+
+  Evidence: `sv cloud diagnose` batches `20261125T043557Z-diag-tops_insar-8448` and `20261125T043620Z-diag-tops_insar-7424`. S–M.
 - [ ] **[Bug]** Whole-scene arrays in operators that should be tiled:
   - `GeneralWishart` and `FreemanDurdenWishart` hold `int[H][W]` + `double[H][W]` (about 1.2 GB for a 10k×10k scene). Train the clusters on a sample, then classify per tile. L.
   - `ForestAreaClassificationOp` holds a full-scene `byte[H][W]` mask.
@@ -239,6 +256,7 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 - [ ] Add the minimum-heap and wall-time results to the release notes per release, so users can see the trend.
 
 ### 8.4 snap-engine core **[Cross-repo]** (code survey 2026-11-24; confirm with 8.1 before fixing)
+- [ ] **[Bug]** `ThreadExecutor.complete()` checks only the last submitted `ThreadRunnable` for an error, and `ThreadRunnable.run` catches only `Exception`. So failures in other tasks, and any `Error` (including OutOfMemoryError), are dropped silently, and callers carry on with partial results. Found through ESD (8.2), but every caller is affected. Fix: record failures from all tasks, catch `Throwable`, and rethrow from `complete()`. S.
 Read-only survey of snap-engine `master` (2e1c979ce5): data model, GPF runtime and I/O. Items marked *verified* were checked against the code; the rest are survey findings not yet checked. Paths are relative to snap-engine.
 
 **Quick, safe fixes**

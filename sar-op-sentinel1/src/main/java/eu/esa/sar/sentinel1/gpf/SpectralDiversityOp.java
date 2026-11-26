@@ -69,6 +69,7 @@ import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -1055,6 +1056,7 @@ public class SpectralDiversityOp extends Operator {
                     status.beginTask("Azimuth shift: ESD for overlap blocks (" + imagesKey + ")...", numOverlaps * numBlocksPerOverlap);
                     for (int i = 0; i < numOverlaps; i++) {
                         final ThreadExecutor executor = new ThreadExecutor();
+                        final WorkerFailures failures = new WorkerFailures();
                         SystemUtils.LOG.info("Estimating azimuth offset for blocks in overlap: " +
                                                      (i + 1) + "/" + numOverlaps);
                         final Rectangle overlapInBurstOneRectangle = new Rectangle();
@@ -1081,28 +1083,26 @@ public class SpectralDiversityOp extends Operator {
                             final Rectangle blockRectangle2 = new Rectangle(x0, y0BurstTwo, w, h);
 
                             // apply ESD for pairs in this block stack
-                            final ThreadRunnable worker = new ThreadRunnable() {
-                                @Override
-                                public void process() {
-                                    ShiftData[] azimuthShiftsPerBlock = applyESDToBlockStack(
-                                            swath,
-                                            polarization,
-                                            overlapIndex,
-                                            blockIndex,
-                                            blockRectangle1,
-                                            blockRectangle2,
-                                            spectralSeparation,
-                                            searchBoundary,
-                                            usePeriodogram);
-                                    synchronized (shiftAllBlocks) {
-                                        shiftAllBlocks[overlapIndex][blockIndex] = azimuthShiftsPerBlock;
-                                    }
+                            final ThreadRunnable worker = failures.wrap(() -> {
+                                ShiftData[] azimuthShiftsPerBlock = applyESDToBlockStack(
+                                        swath,
+                                        polarization,
+                                        overlapIndex,
+                                        blockIndex,
+                                        blockRectangle1,
+                                        blockRectangle2,
+                                        spectralSeparation,
+                                        searchBoundary,
+                                        usePeriodogram);
+                                synchronized (shiftAllBlocks) {
+                                    shiftAllBlocks[overlapIndex][blockIndex] = azimuthShiftsPerBlock;
                                 }
-                            };
+                            });
                             executor.execute(worker);
                             status.worked(1);
                         }
                         executor.complete();
+                        failures.throwIfAny("Azimuth shift estimation for overlap " + (i + 1));
                     }
                     status.done();
 
@@ -1429,32 +1429,27 @@ public class SpectralDiversityOp extends Operator {
             final List<Integer> burstIndexArray = new ArrayList<>(numBursts);
 
             final ThreadExecutor executor = new ThreadExecutor();
+            final WorkerFailures failures = new WorkerFailures();
             for (int i = 0; i < numBursts; i++) {
                 checkForCancellation();
                 final int burstIndex = i;
 
-                final ThreadRunnable worker = new ThreadRunnable() {
-                    @Override
-                    public void process() {
-                        try {
-                            final double[] offset = new double[2]; // az/rg offset
+                final ThreadRunnable worker = failures.wrap(() -> {
+                    final double[] offset = new double[2]; // az/rg offset
 
-                            estimateAzRgOffsets(image1.realBand, image1.imagBand, image2.realBand, image2.imagBand,
-                                                burstIndex, offset);
+                    estimateAzRgOffsets(image1.realBand, image1.imagBand, image2.realBand, image2.imagBand,
+                                        burstIndex, offset);
 
-                            synchronized (azOffsetArray) {
-                                azOffsetArray.add(offset[0]);
-                                rgOffsetArray.add(offset[1]);
-                                burstIndexArray.add(burstIndex);
-                            }
-                        } catch (Throwable e) {
-                            OperatorUtils.catchOperatorException("estimateOffset", e);
-                        }
+                    synchronized (azOffsetArray) {
+                        azOffsetArray.add(offset[0]);
+                        rgOffsetArray.add(offset[1]);
+                        burstIndexArray.add(burstIndex);
                     }
-                };
+                });
                 executor.execute(worker);
             }
             executor.complete();
+            failures.throwIfAny("Range shift estimation for " + imagePairTag);
 
             double sumRgOffset = 0.0;
             int count = 0;
@@ -2521,4 +2516,45 @@ public class SpectralDiversityOp extends Operator {
         }
     }
 
+    /**
+     * Collects every failure of the worker tasks of one ThreadExecutor. ThreadExecutor.complete() reports only
+     * the last submitted task's Exception and never an Error, so an OutOfMemoryError in any other task used to
+     * leave the operator running on partial results.
+     */
+    static final class WorkerFailures {
+
+        interface Task {
+            void run() throws Exception;
+        }
+
+        private final List<Throwable> failures = Collections.synchronizedList(new ArrayList<>());
+
+        ThreadRunnable wrap(final Task task) {
+            return new ThreadRunnable() {
+                @Override
+                public void process() {
+                    try {
+                        task.run();
+                    } catch (Throwable e) {
+                        failures.add(e);
+                    }
+                }
+            };
+        }
+
+        void throwIfAny(final String what) {
+            synchronized (failures) {
+                if (failures.isEmpty()) {
+                    return;
+                }
+                final Throwable first = failures.get(0);
+                final OperatorException e = new OperatorException(
+                        what + " failed in " + failures.size() + " task(s): " + first, first);
+                for (int i = 1; i < failures.size(); i++) {
+                    e.addSuppressed(failures.get(i));
+                }
+                throw e;
+            }
+        }
+    }
 }
