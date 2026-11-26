@@ -52,6 +52,12 @@
             <groupId>eu.esa.microwavetbx</groupId>
             <artifactId>sar-commons</artifactId>
         </dependency>
+        <dependency>
+            <!-- NISAR GCOV reader for the GCOV polarimetry tests -->
+            <groupId>eu.esa.microwavetbx</groupId>
+            <artifactId>sar-io</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

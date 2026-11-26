@@ -78,7 +78,8 @@ public class TestSARSimulationOp extends ProcessorTest {
             band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.01345945f, 0.0022644033f, 4.9961345E-5f, 5.912213E-5f};
+            // Copernicus DEM heights converted with EGM2008 (was EGM96)
+            final float[] expected = new float[]{0.014030282f, 0.0016933962f, 5.3816795E-5f, 5.554929E-5f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }

@@ -37,6 +37,7 @@ import java.util.Locale;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -114,6 +115,92 @@ public class TestMultiMasterOp {
         Arrays.sort(written);
         // N = 3 acquisitions -> N-1 = 2 consecutive-date pairs
         assertArrayEquals(new String[]{"SLC_20200112_20200124.dim", "SLC_20200124_20200205.dim"}, written);
+    }
+
+    /**
+     * Pair products must get copies of the source metadata. addElement takes ownership, so attaching the source's
+     * elements re-parented them: the middle date sat in both pairs and the source lost its own Secondary_Metadata.
+     */
+    @Test
+    public void pairsDoNotTakeOverSourceMetadata() throws Exception {
+        final Product stack = buildStack();
+        final MetadataElement root = stack.getMetadataRoot();
+        final MetadataElement secRoot = root.getElement(AbstractMetadata.SECONDARY_METADATA_ROOT);
+        final MetadataElement absRoot = root.getElement(AbstractMetadata.ABSTRACT_METADATA_ROOT);
+        final MetadataElement original = AbstractMetadata.addOriginalProductMetadata(root);
+
+        original.addElement(new MetadataElement("annotation"));
+
+        final File folder = tmp.newFolder("pairs");
+        final MultiMasterOp op = createOp(stack, folder.getPath());
+        op.getTargetProduct();
+        op.execute(ProgressMonitor.NULL);
+
+        for (int k = 1; k < DATES.length; k++) {
+            final MetadataElement sec = secRoot.getElement("secondary_" + DATES[k]);
+            assertNotNull(DATES[k] + " left the source's Secondary_Metadata", sec);
+            assertSame(secRoot, sec.getParentElement());
+        }
+        assertSame(root, absRoot.getParentElement());
+        assertSame(root, original.getParentElement());
+
+        // and every written pair carries its own copies
+        for (String name : new String[]{"SLC_20200112_20200124.dim", "SLC_20200124_20200205.dim"}) {
+            final Product pair = org.esa.snap.core.dataio.ProductIO.readProduct(new File(folder, name));
+            try {
+                final MetadataElement pairRoot = pair.getMetadataRoot();
+                assertNotNull(name, pairRoot.getElement("Original_Product_Metadata").getElement("annotation"));
+                assertEquals(name, 2, pairRoot.getElement(AbstractMetadata.SECONDARY_METADATA_ROOT).getNumElements());
+            } finally {
+                pair.dispose();
+            }
+        }
+    }
+
+    /**
+     * ThreadRunnable records only Exceptions. A pair whose worker ends in an Error (here raised while the pair is
+     * built, as an OutOfMemoryError could be) must still fail the operator, not be reported as success.
+     */
+    @Test
+    public void errorInOnePairIsReported() throws Exception {
+        // the last pair: ThreadExecutor.complete() rethrows its error itself
+        assertPairErrorIsReported("i_VV_sec2_" + DATES[2]);
+    }
+
+    /** An earlier pair failing: complete() does not report it, so each pair's error must be checked. */
+    @Test
+    public void errorInAnEarlierPairIsReported() throws Exception {
+        // the reference date is only in the first pair
+        assertPairErrorIsReported("i_VV_ref_" + DATES[0]);
+    }
+
+    private void assertPairErrorIsReported(final String name) throws Exception {
+        final Product stack = buildStack();
+        final org.esa.snap.core.datamodel.Band original = stack.getBand(name);
+        stack.removeBand(original);
+        final java.util.concurrent.atomic.AtomicBoolean armed = new java.util.concurrent.atomic.AtomicBoolean();
+        final org.esa.snap.core.datamodel.Band failing = new org.esa.snap.core.datamodel.Band(
+                name, original.getDataType(), original.getRasterWidth(), original.getRasterHeight()) {
+            @Override
+            public com.bc.ceres.multilevel.MultiLevelImage getSourceImage() {
+                if (armed.get()) {
+                    throw new InternalError("simulated");   // only once the pairs are being built
+                }
+                return original.getSourceImage();
+            }
+        };
+        failing.setUnit(original.getUnit());
+        stack.addBand(failing);
+        final MultiMasterOp op = createOp(stack, tmp.newFolder().getPath());
+        op.getTargetProduct();
+        armed.set(true);
+        try {
+            op.execute(ProgressMonitor.NULL);
+        } catch (Exception e) {
+            assertTrue(String.valueOf(e), String.valueOf(e).contains("simulated"));
+            return;
+        }
+        fail("a pair that failed with an Error must not look like success");
     }
 
     @Test

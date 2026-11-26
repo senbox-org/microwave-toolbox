@@ -11,7 +11,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-@Ignore
 public class ResFileTest {
 
     static Logger logger = SystemUtils.LOG;
@@ -28,7 +27,7 @@ public class ResFileTest {
     @BeforeClass
     public static void setupTestData() throws Exception {
 
-        testFile = new File("test.res");
+        testFile = File.createTempFile("jlinda-resfile-test", ".res");
 
         processControlBlock = "Start_process_control\n" +
                 "readfiles:	        1\n" +
@@ -108,9 +107,14 @@ public class ResFileTest {
         resFile = new ResFile(testFile);
     }
 
+    /** ResFile re-joins the lines it reads with the platform line separator. */
+    private static String platformLines(final String text) {
+        return text.replace("\n", System.lineSeparator());
+    }
+
     @Test
     public void testBufferIO() throws Exception {
-        Assert.assertEquals(resFileString, resFile.getBuffer().toString());
+        Assert.assertEquals(platformLines(resFileString), resFile.getBuffer().toString());
     }
 
     @Test
@@ -123,7 +127,7 @@ public class ResFileTest {
         tempResFile.setStartIdx(0);
         tempResFile.setEndIdx(tempResFile.getBuffer().length());
 
-        Assert.assertEquals(resFileString, tempResFile.getBuffer().toString());
+        Assert.assertEquals(platformLines(resFileString), tempResFile.getBuffer().toString());
 
     }
 
@@ -132,11 +136,12 @@ public class ResFileTest {
 
         resFile.setSubBuffer("Start_process_control", "End_process_control");
         int idxStartExpected = 0;
-        int idxEndExpected = processControlBlock.length();
+        final String expectedBlock = platformLines(processControlBlock);
+        int idxEndExpected = expectedBlock.length();
 
         Assert.assertEquals(idxStartExpected, resFile.getStartIdx());
         Assert.assertEquals(idxEndExpected, resFile.getEndIdx());
-        Assert.assertEquals(processControlBlock, resFile.getBuffer().substring(resFile.getStartIdx(), resFile.getEndIdx()));
+        Assert.assertEquals(expectedBlock, resFile.getBuffer().substring(resFile.getStartIdx(), resFile.getEndIdx()));
 
     }
 

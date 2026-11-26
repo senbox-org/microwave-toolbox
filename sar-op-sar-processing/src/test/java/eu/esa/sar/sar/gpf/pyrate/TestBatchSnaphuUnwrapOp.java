@@ -175,6 +175,200 @@ public class TestBatchSnaphuUnwrapOp {
         assertFalse(op.isSnaphuBinary(f));
     }
 
+    /** The Linux archive ships src/snaphu.c, man/snaphu.1 etc. next to bin/snaphu: only the exact name counts. */
+    @Test
+    public void testIsSnaphuBinaryRejectsSnaphuPrefixedFiles() throws IOException {
+        for (String name : new String[]{"snaphu.c", "snaphu.1", "snaphu.conf.brief"}) {
+            final File f = tempDir.resolve(name).toFile();
+            assertTrue(f.createNewFile());
+            f.setExecutable(true);
+            assertFalse(name, op.isSnaphuBinary(f));
+        }
+    }
+
+    @Test
+    public void testFindIgnoresSourceAndManFiles() throws IOException {
+        final File src = Files.createDirectories(tempDir.resolve("snaphu-v1.4.2_linux").resolve("src")).toFile();
+        final File c = new File(src, "snaphu.c");
+        assertTrue(c.createNewFile());
+        c.setExecutable(true);
+        assertNull(op.findOrMakeExecutableSnaphuBinary(tempDir.toFile()));
+    }
+
+    /** Unzipping drops the Unix execute bit; the binary must be made executable, not rejected and re-downloaded. */
+    @Test
+    public void testFindGrantsExecutePermissionAfterUnzip() throws IOException {
+        final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+        final File bin = Files.createDirectories(tempDir.resolve("snaphu-v1.4.2_linux").resolve("bin")).toFile();
+        final File binary = new File(bin, isWindows ? "snaphu.exe" : "snaphu");
+        assertTrue(binary.createNewFile());
+        Assume.assumeTrue("file system cannot clear the execute bit", binary.setExecutable(false) && !binary.canExecute());
+
+        final File found = op.findOrMakeExecutableSnaphuBinary(tempDir.toFile());
+        assertEquals(binary.getAbsoluteFile(), found.getAbsoluteFile());
+        assertTrue(found.canExecute());
+    }
+
+    /** A file that is not the SNAPHU binary must be reported, not used as a download folder. */
+    @Test
+    public void testInstallLocationFileThatIsNotSnaphuIsReported() throws IOException {
+        final File f = tempDir.resolve("snaphu.conf.brief").toFile();
+        assertTrue(f.createNewFile());
+        try {
+            op.downloadSnaphu(f);
+            org.junit.Assert.fail("expected IOException");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("is not executable"));
+        }
+    }
+
+    /** A binary the user names directly may have any name (e.g. snaphu-2.0.6); only folder searches need "snaphu". */
+    @Test
+    public void testInstallLocationExecutableWithOtherNameIsUsed() throws IOException {
+        final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+        final File binary = tempDir.resolve(isWindows ? "snaphu-v2.0.6.exe" : "snaphu-2.0.6").toFile();
+        assertTrue(binary.createNewFile());
+        binary.setExecutable(true);
+        Assume.assumeTrue("file system cannot mark files executable", binary.canExecute());
+        assertEquals(binary.getAbsoluteFile(), op.downloadSnaphu(binary).getAbsoluteFile());
+    }
+
+    /** A user-installed binary that lost its execute bit (e.g. copied from a zip) is made executable and used. */
+    @Test
+    public void testInstallLocationNonExecutableBinaryIsRepaired() throws IOException {
+        final boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+        final File binary = tempDir.resolve(isWindows ? "snaphu.exe" : "snaphu").toFile();
+        assertTrue(binary.createNewFile());
+        Assume.assumeTrue("file system cannot clear the execute bit", binary.setExecutable(false) && !binary.canExecute());
+
+        assertEquals(binary.getAbsoluteFile(), op.downloadSnaphu(binary).getAbsoluteFile());
+        assertTrue(binary.canExecute());
+    }
+
+    // ---------- running SNAPHU ----------
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase().startsWith("windows");
+    }
+
+    /** A config file whose 7th line holds the given text. */
+    private File config(final String line7) throws IOException {
+        final File conf = tempDir.resolve("20200101_20200113snaphu.conf").toFile();
+        Files.write(conf.toPath(), ("1\n2\n3\n4\n5\n6\n" + line7 + "\n").getBytes(StandardCharsets.UTF_8));
+        return conf;
+    }
+
+    /** A stand-in for SNAPHU that prints a line and exits with the given code. */
+    private File fakeSnaphu(final int exitCode) throws IOException {
+        final File script;
+        if (isWindows()) {
+            script = tempDir.resolve("fake_snaphu.cmd").toFile();
+            Files.write(script.toPath(), ("@echo unwrapping\r\n@exit /b " + exitCode + "\r\n").getBytes(StandardCharsets.US_ASCII));
+        } else {
+            script = tempDir.resolve("fake_snaphu.sh").toFile();
+            Files.write(script.toPath(), ("#!/bin/sh\necho unwrapping\nexit " + exitCode + "\n").getBytes(StandardCharsets.US_ASCII));
+            Assume.assumeTrue("cannot make the script executable", script.setExecutable(true));
+        }
+        return script;
+    }
+
+    /** Without arguments on line 7 SNAPHU would not run and a stale output would be read: report it. */
+    @Test
+    public void testConfigWithoutSnaphuCommandIsReported() throws IOException {
+        for (String line7 : new String[]{"#", "", "# snaphu"}) {
+            try {
+                op.callSnaphuUnwrap(fakeSnaphu(0), config(line7), tempDir.resolve("log.txt").toFile(),
+                        ProgressMonitor.NULL, "");
+                org.junit.Assert.fail("expected IOException for line 7 '" + line7 + "'");
+            } catch (IOException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("No snaphu command on line 7"));
+            }
+        }
+    }
+
+    @Test
+    public void testSnaphuOutputIsLogged() throws IOException {
+        final File log = tempDir.resolve("log.txt").toFile();
+        op.callSnaphuUnwrap(fakeSnaphu(0), config("# snaphu -f snaphu.conf ifg.img 4"), log, ProgressMonitor.NULL, "");
+        assertTrue(new String(Files.readAllBytes(log.toPath()), StandardCharsets.UTF_8).contains("unwrapping"));
+    }
+
+    @Test
+    public void testSnaphuFailureIsReported() throws IOException {
+        final File log = tempDir.resolve("log.txt").toFile();
+        try {
+            op.callSnaphuUnwrap(fakeSnaphu(3), config("# snaphu -f snaphu.conf ifg.img 4"), log,
+                    ProgressMonitor.NULL, "");
+            org.junit.Assert.fail("a failed SNAPHU run must be reported");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("exited with code 3"));
+            assertTrue("the message names the log", e.getMessage().contains(log.getName()));
+        }
+    }
+
+    /** A read-only folder that already holds SNAPHU (a system install) is used; it is not refused. */
+    @Test
+    public void testReadOnlyInstallFolderWithBinaryIsUsed() throws IOException {
+        final File dir = tempDir.resolve("system").toFile();
+        assertTrue(dir.mkdir());
+        final File binary = new File(dir, isWindows() ? "snaphu.exe" : "snaphu");
+        assertTrue(binary.createNewFile());
+        binary.setExecutable(true);
+        Assume.assumeTrue("file system cannot mark files executable", binary.canExecute());
+        try {
+            Assume.assumeTrue("file system cannot make the folder read-only",
+                    dir.setWritable(false) && !Files.isWritable(dir.toPath()));
+            assertEquals(binary.getAbsoluteFile(), op.downloadSnaphu(dir).getAbsoluteFile());
+        } finally {
+            dir.setWritable(true);
+        }
+    }
+
+    /** A location that does not exist is reported before any download (which then failed with a bare error). */
+    @Test
+    public void testMissingInstallLocationIsReported() {
+        final File missing = tempDir.resolve("no-such-folder").toFile();
+        try {
+            op.downloadSnaphu(missing);
+            org.junit.Assert.fail("expected IOException");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("does not exist"));
+        }
+        assertFalse("nothing is created", missing.exists());
+    }
+
+    /** A read-only folder without SNAPHU cannot take the download: say so, before any network access. */
+    @Test
+    public void testReadOnlyInstallFolderWithoutBinaryIsReported() {
+        final File dir = tempDir.resolve("readonly").toFile();
+        assertTrue(dir.mkdir());
+        try {
+            Assume.assumeTrue("file system cannot make the folder read-only",
+                    dir.setWritable(false) && !Files.isWritable(dir.toPath()));
+            op.downloadSnaphu(dir);
+            org.junit.Assert.fail("expected IOException");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("not writeable"));
+        } finally {
+            dir.setWritable(true);
+        }
+    }
+
+    /** Progress only moves forward and ends at the same place for any number of pairs (it went backwards above 100). */
+    @Test
+    public void testProgressNeverGoesBackwards() {
+        for (int total : new int[]{1, 7, 100, 101, 250, 5000}) {
+            int previous = BatchSnaphuUnwrapOp.progressAfter(0, total);
+            assertEquals(0, previous);
+            for (int done = 1; done <= total; done++) {
+                final int now = BatchSnaphuUnwrapOp.progressAfter(done, total);
+                assertTrue("total " + total + " at " + done, now >= previous);
+                previous = now;
+            }
+            assertEquals(98, previous);
+        }
+    }
+
     // ---------- unwrapped-band assembly (regression: all-zero output after c322d2d7b) ----------
 
     private static final int W = 4;
@@ -378,6 +572,11 @@ public class TestBatchSnaphuUnwrapOp {
         assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Windows 11", "amd64").contains("win64"));
         assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Windows 10", "x86").contains("win32"));
         assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Linux", "amd64").contains("linux"));
+        // an executable must not be fetched over plain http
+        for (String os : new String[]{"Windows 11", "Linux"}) {
+            assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl(os, "amd64").startsWith("https://"));
+        }
+        assertTrue(BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Windows 10", "x86").startsWith("https://"));
         assertNull("no macOS build is published; the Linux binary must not be offered",
                 BatchSnaphuUnwrapOp.getSnaphuDownloadUrl("Mac OS X", "aarch64"));
     }

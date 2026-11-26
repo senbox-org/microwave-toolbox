@@ -269,6 +269,15 @@ class BasicCeosProductDirectory extends CEOSProductDirectory {
         addAbstractedMetadataHeader(product, product.getMetadataRoot());
     }
 
+    /**
+     * The generic CEOS reader serves any mission, so take the mission from the scene record
+     * instead of assuming Radarsat-1 (which has its own reader).
+     */
+    static String getMission(final BinaryRecord sceneRec) {
+        final String id = sceneRec.getAttributeString("Sensor platform mission identifier");
+        return id == null || id.trim().isEmpty() ? "CEOS" : id.trim();
+    }
+
     private void addAbstractedMetadataHeader(Product product, MetadataElement root) {
 
         final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(root);
@@ -292,7 +301,7 @@ class BasicCeosProductDirectory extends CEOSProductDirectory {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PRODUCT_TYPE, getProductType());
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.SPH_DESCRIPTOR,
                 sceneRec.getAttributeString("Product type descriptor"));
-        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, "RS1");
+        AbstractMetadata.setAttribute(absRoot, AbstractMetadata.MISSION, getMission(sceneRec));
 
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.PROC_TIME,
                 getProcTime(volumeDirectoryFile.getVolumeDescriptorRecord()));

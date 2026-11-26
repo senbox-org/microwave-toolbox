@@ -19,12 +19,28 @@ import org.csa.rstb.polarimetric.gpf.support.QuadPolProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Unit test for PolOpUtils.
  */
 public class TestQuadPolProcessor implements QuadPolProcessor {
+
+    /** Source bands are matched by prefix and polarisation token, for single products and coregistered stacks. */
+    @Test
+    public void testBandNameMatching() {
+        assertTrue(contains("i_HH", "i_", "_HH"));
+        assertTrue(contains("q_VV", "q_", "_VV"));
+        assertTrue(contains("i_HH_ref_13Jun2012", "i_", "_HH"));
+        assertTrue(contains("q_VH_sec7_17Sep2012", "q_", "_VH"));
+
+        assertFalse(contains("q_HH_ref_13Jun2012", "i_", "_HH"));
+        assertFalse(contains("i_HV_sec2_07Jul2012", "i_", "_HH"));
+        assertFalse(contains("i_VH", "i_", "_HV"));
+        assertFalse(contains("Intensity_HH_ref_13Jun2012", "i_", "_HH"));
+    }
 
     static {
         TestUtils.initTestEnvironment();
@@ -69,8 +85,8 @@ public class TestQuadPolProcessor implements QuadPolProcessor {
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                assertTrue(Double.compare(t4Re[i][j], expRe[i][j]) == 0);
-                assertTrue(Double.compare(t4Im[i][j], expIm[i][j]) == 0);
+                assertEquals("T4 real [" + i + "][" + j + "]", expRe[i][j], t4Re[i][j], 1e-12);
+                assertEquals("T4 imag [" + i + "][" + j + "]", expIm[i][j], t4Im[i][j], 1e-12);
             }
         }
     }

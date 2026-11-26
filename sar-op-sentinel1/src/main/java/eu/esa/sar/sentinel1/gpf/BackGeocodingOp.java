@@ -39,7 +39,7 @@ import org.esa.snap.core.util.ProductUtils;
 import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.dem.dataio.DEMFactory;
-import org.esa.snap.dem.dataio.EarthGravitationalModel96;
+import org.esa.snap.dem.dataio.GeoidModel;
 import org.esa.snap.dem.dataio.FileElevationModel;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.PosVector;
@@ -675,7 +675,8 @@ public final class BackGeocodingOp extends Operator {
 
         final PositionData posData = new PositionData();
         final PixelPos pix = new PixelPos();
-        final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+        final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
+        final double[][] egmWorkspace = new double[4][4];   // reused for every sea pixel
 
         boolean noValidSecondaryPixPos = true;
         for (int l = 0; l < numLines; ++l) {
@@ -688,7 +689,7 @@ public final class BackGeocodingOp extends Operator {
 
                 Double alt = dem.getElevation(gp);
                 if (alt.equals(demNoDataValue) && !maskOutAreaWithoutElevation) { // get corrected elevation for 0
-                    alt = (double)egm.getEGM(gp.lat, gp.lon);
+                    alt = (double)egm.getEGM(gp.lat, gp.lon, egmWorkspace);
                 }
 
                 if (!alt.equals(demNoDataValue)) {
@@ -1289,7 +1290,8 @@ public final class BackGeocodingOp extends Operator {
                                        final double[] extendedAmount)
             throws Exception {
 
-        final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+        final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
+        final double[][] egmWorkspace = new double[4][4];   // reused for every sea pixel
 
         final GeoPos geoPos = new GeoPos();
         final PositionData posData = new PositionData();
@@ -1309,7 +1311,7 @@ public final class BackGeocodingOp extends Operator {
                 geoPos.setLocation(lat, lon);
                 Double alt = dem.getElevation(geoPos);
                 if (alt.equals(demNoDataValue)) {
-                    alt = (double)egm.getEGM(lat, lon);
+                    alt = (double)egm.getEGM(lat, lon, egmWorkspace);
                 }
 
                 GeoUtils.geo2xyzWGS84(geoPos.getLat(), geoPos.getLon(), alt, posData.earthPoint);
@@ -1516,7 +1518,8 @@ public final class BackGeocodingOp extends Operator {
             final PositionData posData = new PositionData();
             final PixelPos pix = new PixelPos();
 
-            final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+            final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
+            final double[][] egmWorkspace = new double[4][4];   // reused for every sea pixel
 
             boolean noValidSecondaryPixPos = true;
             for (int l = 0; l < numLines; l++) {
@@ -1529,7 +1532,7 @@ public final class BackGeocodingOp extends Operator {
 
                     Double alt = dem.getElevation(gp);
                     if (alt.equals(demNoDataValue) && !maskOutAreaWithoutElevation) { // get corrected elevation for 0
-                        alt = (double)egm.getEGM(gp.lat, gp.lon);
+                        alt = (double)egm.getEGM(gp.lat, gp.lon, egmWorkspace);
                     }
 
                     if (!alt.equals(demNoDataValue)) {

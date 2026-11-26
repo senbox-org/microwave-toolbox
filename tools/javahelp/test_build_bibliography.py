@@ -63,6 +63,13 @@ class BiblioCheckTest(unittest.TestCase):
         self.assertEqual(1, len(msgs), msgs)
         self.assertIn("stale", msgs[0])
 
+    def test_lf_checkout_is_not_stale(self):
+        # git stores the page with LF, and a Linux checkout (the CI) keeps LF
+        self.page("speckle", GOLD)
+        self.regenerate()
+        bb.OUT.write_bytes(bb.OUT.read_bytes().replace(b"\r\n", b"\n"))
+        self.assertEqual([], self.problems())
+
     def test_missing_page_is_stale(self):
         self.page("speckle", GOLD)
         bb.configure(self.tmp)

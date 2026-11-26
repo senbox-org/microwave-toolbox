@@ -55,10 +55,7 @@ public final class ResFile {
     // method to buffer doris res file
     public void streamBuffer(File file) {
 
-        BufferedReader input;
-
-        try {
-            input = new BufferedReader(new FileReader(file), 1);
+        try (BufferedReader input = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = input.readLine()) != null) {
                 buffer.append(line);

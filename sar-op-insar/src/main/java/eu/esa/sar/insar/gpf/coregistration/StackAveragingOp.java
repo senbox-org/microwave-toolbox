@@ -24,13 +24,16 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.StackUtils;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -53,7 +56,17 @@ public class StackAveragingOp extends Operator {
             defaultValue = "Mean Average", label = "Statistic")
     private String statistic = "Mean Average";
 
+    @Parameter(description = "Minimum number of valid (not no-data) dates a pixel needs; fewer gives no-data. " +
+            "Standard Deviation and Coefficient of Variation always need at least 2.",
+            defaultValue = "1", interval = "[1,*)", label = "Minimum valid dates")
+    private int minValidDates = 1;
+
     private BandInfo[] nameGroups;
+    // virtual bands this operator added to the source product, removed again in dispose()
+    private final List<Band> addedSourceBands = new ArrayList<>();
+    // source bands that belong to a group; the others are copied unchanged
+    private final Set<Band> groupedBands = new HashSet<>();
+    private boolean sourceWasModified;
 
     /**
      * Initializes this operator and sets the one and only target product.
@@ -78,6 +91,7 @@ public class StackAveragingOp extends Operator {
 
             ProductUtils.copyProductNodes(sourceProduct, targetProduct);
 
+            sourceWasModified = sourceProduct.isModified();
             nameGroups = getBandGroupNames();
 
             for (BandInfo bandInfo : nameGroups) {
@@ -88,43 +102,73 @@ public class StackAveragingOp extends Operator {
                     final String name_prefix = bandInfo.name;
                     final Band[] sourceBands = getSourceBands(name_prefix);
                     final String unit = sourceBands[0].getUnit();
-                    final double nodatavalue = sourceBands[0].getNoDataValue();
+                    // the statistic is float: NaN marks too few valid dates, without masking a real 0
+                    // (a constant pixel has a standard deviation of 0)
+                    final double nodatavalue = Double.NaN;
 
                     switch (statistic) {
                         case "Mean Average":
-                            addVirtualBand("average", name_prefix, mean(sourceBands), unit, nodatavalue);
+                            addVirtualBand("average", name_prefix, mean(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                         case "Minimum":
-                            addVirtualBand("min", name_prefix, min(sourceBands), unit, nodatavalue);
+                            addVirtualBand("min", name_prefix, min(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                         case "Maximum":
-                            addVirtualBand("max", name_prefix, max(sourceBands), unit, nodatavalue);
+                            addVirtualBand("max", name_prefix, max(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                         case "Standard Deviation":
-                            addVirtualBand("stddev", name_prefix, stddev(sourceBands), unit, nodatavalue);
+                            addVirtualBand("stddev", name_prefix, stddev(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                         case "Coefficient of Variation":
-                            addVirtualBand("coefVar", name_prefix, coefVar(sourceBands), unit, nodatavalue);
+                            addVirtualBand("coefVar", name_prefix, coefVar(sourceBands, minValidDates), unit, nodatavalue);
                             break;
                     }
                 }
             }
 
+            // bands that are not part of the stack (e.g. an added elevation or incidence angle band)
+            for (Band band : sourceProduct.getBands()) {
+                if (!groupedBands.contains(band) && !addedSourceBands.contains(band) &&
+                        targetProduct.getBand(band.getName()) == null) {
+                    ProductUtils.copyBand(band.getName(), sourceProduct, targetProduct, true);
+                }
+            }
+
             updateMetadata(targetProduct);
         } catch (Throwable e) {
+            // the framework does not call dispose() after a failed initialize
+            removeAddedSourceBands();
             OperatorUtils.catchOperatorException(getId(), e);
         }
     }
 
     @Override
     public void dispose() {
-        for (BandInfo bandInfo : nameGroups) {
-            final Band srcBand = sourceProduct.getBand(bandInfo.name);
-            if (srcBand != null) {
-                sourceProduct.removeBand(srcBand);
-            }
+        removeAddedSourceBands();
+    }
+
+    // only the bands added here: the source product keeps all of its own bands
+    private void removeAddedSourceBands() {
+        for (Band band : addedSourceBands) {
+            sourceProduct.removeBand(band);
         }
-        sourceProduct.setModified(false);
+        if (!addedSourceBands.isEmpty()) {
+            addedSourceBands.clear();
+            sourceProduct.setModified(sourceWasModified);
+        }
+    }
+
+    /**
+     * True if the name ends like a band of a stack: a reference/secondary marker (_ref, _sec, _mst, _slv), a date
+     * (_01Jan2020 or _20200101) or a Collocate suffix (_M, _S, _S0, _S1, ...).
+     */
+    static boolean hasStackSuffix(final String name) {
+        if (name.contains(StackUtils.REF) || name.contains(StackUtils.SEC) ||
+                name.contains(StackUtils.MST) || name.contains(StackUtils.SLV)) {
+            return true;
+        }
+        final int i = name.lastIndexOf('_');
+        return i > 0 && name.substring(i + 1).matches("\\d{1,2}[A-Za-z]{3}\\d{4}|\\d{8}|M|S\\d*");
     }
 
     private static void updateMetadata(final Product targetProduct) {
@@ -133,17 +177,47 @@ public class StackAveragingOp extends Operator {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack, 0);
     }
 
+    /**
+     * Groups the bands by their name without the date or stack suffix. A band without any suffix (elevation), and
+     * a group in which no band name ends like a stack band (incident_angle; Sigma0_VV with Sigma0_VH), is not a
+     * stack and is copied unchanged instead; so is a group whose output name another node already has.
+     */
     private BandInfo[] getBandGroupNames() {
-
-        final Band[] bands = sourceProduct.getBands();
-        final Set<String> nameSet = new LinkedHashSet<>();
-        final List<BandInfo> bandGroup = new ArrayList<>();
-        for (Band band : bands) {
+        final Map<String, List<Band>> groups = new LinkedHashMap<>();
+        for (Band band : sourceProduct.getBands()) {
             final String name = StackUtils.getBandNameWithoutDate(band.getName());
-            if (!nameSet.contains(name)) {
-                nameSet.add(name);
-                bandGroup.add(new BandInfo(band, name));
+            if (!name.equals(band.getName())) {
+                groups.computeIfAbsent(name, k -> new ArrayList<>()).add(band);
             }
+        }
+        final List<BandInfo> bandGroup = new ArrayList<>();
+        final List<String> taken = new ArrayList<>();
+        for (Map.Entry<String, List<Band>> group : groups.entrySet()) {
+            final List<Band> members = group.getValue();
+            // bands that only share the part before the last underscore (Sigma0_VV and Sigma0_VH, T12_real and
+            // T12_imag) are different quantities, not dates of one
+            if (members.stream().noneMatch(band -> hasStackSuffix(band.getName()))) {
+                continue;
+            }
+            // The statistic takes the group name. If a tie-point grid, mask or band already has it (Collocate
+            // turns the secondary's latitude grid into a band latitude_S0, next to the reference grid latitude),
+            // the members are copied unchanged.
+            final String name = group.getKey();
+            if (targetProduct.containsRasterDataNode(name) || sourceProduct.containsRasterDataNode(name)) {
+                SystemUtils.LOG.warning("Stack-Averaging: " + name + " already exists in " +
+                        sourceProduct.getName() + "; its stack bands are copied unchanged");
+                taken.add(name);
+                continue;
+            }
+            groupedBands.addAll(members);
+            bandGroup.add(new BandInfo(members.get(0), name));
+        }
+        if (bandGroup.isEmpty()) {
+            // copying every band through would look like success
+            throw new OperatorException("No stack bands found in " + sourceProduct.getName() + ": band names must " +
+                    "end in a date or a stack suffix (e.g. Sigma0_VV_mst_01Jan2020, Sigma0_VV_slv1_13Jan2020, " +
+                    "Sigma0_VV_M, Sigma0_VV_S0)" +
+                    (taken.isEmpty() ? "" : ", and the output name must not exist already: " + taken));
         }
         return bandGroup.toArray(new BandInfo[0]);
     }
@@ -152,7 +226,9 @@ public class StackAveragingOp extends Operator {
         final Band[] bands = sourceProduct.getBands();
         final List<Band> bandList = new ArrayList<>();
         for (Band band : bands) {
-            if (!(band instanceof VirtualBand) && band.getName().startsWith(name_prefix)) {
+            // the same group only: Sigma0_VV must not take in Sigma0_VV_db_... bands
+            if (!(band instanceof VirtualBand) && groupedBands.contains(band) &&
+                    StackUtils.getBandNameWithoutDate(band.getName()).equals(name_prefix)) {
                 bandList.add(band);
             }
         }
@@ -161,7 +237,13 @@ public class StackAveragingOp extends Operator {
 
     private void addVirtualBand(final String operation, final String name_prefix, final String expression,
                                 final String unit, final double nodatavalue) {
-        final VirtualBand virtBand = new VirtualBand(name_prefix,
+        // The expression is evaluated in the source product, under a name no source band has, so it can
+        // neither refer to itself nor replace a band of the source.
+        String tmpName = name_prefix + "_stack_" + operation;
+        for (int i = 2; sourceProduct.containsRasterDataNode(tmpName); i++) {
+            tmpName = name_prefix + "_stack_" + operation + i;
+        }
+        final VirtualBand virtBand = new VirtualBand(tmpName,
                 ProductData.TYPE_FLOAT32,
                 sourceProduct.getSceneRasterWidth(),
                 sourceProduct.getSceneRasterHeight(),
@@ -171,20 +253,18 @@ public class StackAveragingOp extends Operator {
         virtBand.setNoDataValueUsed(true);
         virtBand.setNoDataValue(nodatavalue);
 
-        final Band srcBand = sourceProduct.getBand(virtBand.getName());
-        if (srcBand != null) {
-            sourceProduct.removeBand(srcBand);
-        }
         sourceProduct.addBand(virtBand);
+        addedSourceBands.add(virtBand);
 
-        ProductUtils.copyBand(name_prefix, sourceProduct, targetProduct, true);
+        final Band targetBand = ProductUtils.copyBand(tmpName, sourceProduct, targetProduct, true);
+        targetBand.setName(name_prefix);
     }
 
     private void addOriginalVirtualBands(final String trgBandName) {
         final Band[] srcBands = sourceProduct.getBands();
         Band virtSrcBand = null;
         for (Band band : srcBands) {
-            if (band.getName().startsWith(trgBandName) && band instanceof VirtualBand) {
+            if (band instanceof VirtualBand && StackUtils.getBandNameWithoutDate(band.getName()).equals(trgBandName)) {
                 virtSrcBand = band;
                 break;
             }
@@ -199,7 +279,7 @@ public class StackAveragingOp extends Operator {
             final String bName = b.getName();
             if (expression.contains(bName) && !nameGroupContains(bName)) {
                 final String newName = StackUtils.getBandNameWithoutDate(bName);
-                expression = expression.replaceAll(bName, newName);
+                expression = expression.replace(bName, newName);     // a band name is not a regex
             }
         }
 
@@ -223,87 +303,97 @@ public class StackAveragingOp extends Operator {
         return false;
     }
 
-    private static String mean(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0)
+    /*
+     * The statistics count only valid samples: a date where a band is NaN or equals its own no-data value
+     * (0-filled outside a Secondary's footprint) is left out of the sum and of the divisor, instead of being
+     * averaged in as a real 0. A pixel with fewer than the minimum number of valid dates gives NaN, which the
+     * virtual band writes as its no-data value.
+     */
+
+    /** True where the band holds a valid sample. */
+    static String isValid(final Band band) {
+        final String name = band.getName();
+        // The band symbol evaluates to the geophysical value, widened from float when the geophysical type is
+        // float32: float32 bands and also scaled integer bands, whose no-data must be rounded the same way.
+        double noData = band.getGeophysicalNoDataValue();
+        if (band.getGeophysicalDataType() == ProductData.TYPE_FLOAT32) {
+            noData = (float) noData;
+        }
+        if (!band.isNoDataValueUsed() || Double.isNaN(noData)) {
+            return "!nan(" + name + ")";
+        }
+        if (Double.isInfinite(noData)) {
+            // "Infinity" is not an expression literal
+            return "(!nan(" + name + ") && !inf(" + name + "))";
+        }
+        return "(!nan(" + name + ") && " + name + " != " + noData + ")";
+    }
+
+    /** Sum over the bands of {@code term} (with {@code %s} standing for the band) where valid, else {@code other}. */
+    private static String sumValid(final Band[] sourceBands, final String term, final String other) {
+        final StringBuilder expression = new StringBuilder("(");
+        for (int i = 0; i < sourceBands.length; ++i) {
+            if (i > 0)
                 expression.append(" + ");
-            expression.append(band.getName());
-            ++cnt;
+            expression.append('(').append(isValid(sourceBands[i])).append(" ? ")
+                    .append(String.format(term, sourceBands[i].getName())).append(" : ").append(other).append(')');
         }
-        expression.append(") / ");
-        expression.append(sourceBands.length);
-
-        return expression.toString();
+        return expression.append(')').toString();
     }
 
-    private static String min(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("min( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0) {
-                expression.append(", ");
-                if (cnt < sourceBands.length - 1)
-                    expression.append("min( ");
-            }
-            expression.append(band.getName());
-            ++cnt;
-        }
-        for (int i = 0; i < sourceBands.length - 1; ++i) {
-            expression.append(')');
-        }
-
-        return expression.toString();
+    private static String count(final Band[] sourceBands) {
+        return sumValid(sourceBands, "1", "0");
     }
 
-    private static String max(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("max( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0) {
-                expression.append(", ");
-                if (cnt < sourceBands.length - 1)
-                    expression.append("max( ");
-            }
-            expression.append(band.getName());
-            ++cnt;
-        }
-        for (int i = 0; i < sourceBands.length - 1; ++i) {
-            expression.append(')');
-        }
-
-        return expression.toString();
+    private static String enoughValid(final Band[] sourceBands, final int minValid) {
+        return count(sourceBands) + " >= " + Math.max(1, minValid);
     }
 
-    private static String mean2(final Band[] sourceBands) {
-        final StringBuilder expression = new StringBuilder("( ");
-        int cnt = 0;
-        for (Band band : sourceBands) {
-            if (cnt > 0)
-                expression.append(" + ");
-            expression.append("sq(");
-            expression.append(band.getName());
-            expression.append(')');
-            ++cnt;
-        }
-        expression.append(") / ");
-        expression.append(sourceBands.length);
-
-        return expression.toString();
+    private static String mean(final Band[] sourceBands, final int minValid) {
+        return "(" + enoughValid(sourceBands, minValid) + " ? " + sumValid(sourceBands, "%s", "0") + " / " +
+                count(sourceBands) + " : NaN)";
     }
 
-    private static String stddev(final Band[] sourceBands) {
-        return "sqrt( " + mean2(sourceBands) + " - " + "sq(" + mean(sourceBands) + "))";
+    /** Nested binary min/max over the valid samples; invalid samples are replaced by {@code neutral}. */
+    private static String extreme(final String function, final String neutral, final Band[] sourceBands,
+                                  final int minValid) {
+        String expression = "(" + isValid(sourceBands[0]) + " ? " + sourceBands[0].getName() + " : " + neutral + ")";
+        for (int i = 1; i < sourceBands.length; ++i) {
+            expression = function + "(" + expression + ", (" + isValid(sourceBands[i]) + " ? " +
+                    sourceBands[i].getName() + " : " + neutral + "))";
+        }
+        return "(" + enoughValid(sourceBands, minValid) + " ? " + expression + " : NaN)";
+    }
+
+    private static String min(final Band[] sourceBands, final int minValid) {
+        return extreme("min", String.valueOf(Float.MAX_VALUE), sourceBands, minValid);
+    }
+
+    private static String max(final Band[] sourceBands, final int minValid) {
+        return extreme("max", String.valueOf(-Float.MAX_VALUE), sourceBands, minValid);
+    }
+
+    /** Population standard deviation of the valid samples; max(0, ..) absorbs rounding below zero. */
+    private static String populationStd(final Band[] sourceBands) {
+        final String n = count(sourceBands);
+        final String mean = "(" + sumValid(sourceBands, "%s", "0") + " / " + n + ")";
+        final String mean2 = "(" + sumValid(sourceBands, "sq(%s)", "0") + " / " + n + ")";
+        return "sqrt(max(0, " + mean2 + " - sq(" + mean + ")))";
+    }
+
+    private static String stddev(final Band[] sourceBands, final int minValid) {
+        return "(" + enoughValid(sourceBands, Math.max(2, minValid)) + " ? " + populationStd(sourceBands) + " : NaN)";
     }
 
     /**
-     * Coefficient of variation of the input samples: population standard deviation / mean.
+     * Coefficient of variation of the valid samples: population standard deviation / mean.
      * (It used to be computed on the squared samples, and the unparenthesised divisor also
      * divided by N a second time.)
      */
-    private static String coefVar(final Band[] sourceBands) {
-        return "(" + stddev(sourceBands) + ") / (" + mean(sourceBands) + ")";
+    private static String coefVar(final Band[] sourceBands, final int minValid) {
+        final String mean = "(" + sumValid(sourceBands, "%s", "0") + " / " + count(sourceBands) + ")";
+        return "(" + enoughValid(sourceBands, Math.max(2, minValid)) + " ? " + populationStd(sourceBands) +
+                " / " + mean + " : NaN)";
     }
 
     private static class BandInfo {

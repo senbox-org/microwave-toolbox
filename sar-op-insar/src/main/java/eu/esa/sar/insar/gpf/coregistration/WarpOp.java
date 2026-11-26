@@ -55,6 +55,7 @@ import java.awt.image.RenderedImage;
 import java.io.File;
 import java.util.*;
 import java.util.List;
+import java.util.logging.Level;
 
 /**
  * Image co-registration is fundamental for Interferometry SAR (InSAR) imaging and its applications, such as
@@ -142,6 +143,7 @@ public class WarpOp extends Operator {
     private final Map<Band, Band> sourceRasterMap = new HashMap<>(10);
     private final Map<Band, Band> complexSrcMap = new HashMap<>(10);
     private final Map<Band, PolynomialModel> warpDataMap = new HashMap<>(10);
+    private final Map<Band, WarpMethod> warpMethodMap = new HashMap<>(10);
 
     private String processedSlaveBand;
     private String[] masterBandNames;
@@ -499,8 +501,10 @@ public class WarpOp extends Operator {
                 return;
 
             final PolynomialModel warpData = warpDataMap.get(realSrcBand);
-            if (!warpData.isValid())
-                return;
+            if (!warpData.isValid()) {
+                // announceGCPWarning() has already failed the run; never write a valid-looking zero image
+                throw new OperatorException("Warp: no valid warp model for " + realSrcBand.getName());
+            }
 
             // get warped image (demodulation bands can be interpolated linearly)
             RenderedOp warpedImage = createWarp(srcBand, targetRectangle, warpData);
@@ -554,7 +558,8 @@ public class WarpOp extends Operator {
 
     private ProductNodeGroup<Placemark> getGCPGroup(final Band srcBand) {
         ProductNodeGroup<Placemark> secondaryGCPGroup = GCPManager.instance().getGcpGroup(srcBand);
-        if (secondaryGCPGroup.getNodeCount() < 3) {
+        // too few for a degree-1 fit that can be checked (more GCPs than its 3 coefficients)
+        if (secondaryGCPGroup.getNodeCount() <= numCoefficients(1)) {
             // find others for same secondary product
             final String secProductName = StackUtils.getSecondaryProductName(sourceProduct, srcBand, null);
             for (Band band : sourceProduct.getBands()) {
@@ -562,13 +567,128 @@ public class WarpOp extends Operator {
                     final String productName = StackUtils.getSecondaryProductName(sourceProduct, band, null);
                     if (secProductName != null && secProductName.equals(productName)) {
                         secondaryGCPGroup = GCPManager.instance().getGcpGroup(band);
-                        if (secondaryGCPGroup.getNodeCount() >= 3)
+                        if (secondaryGCPGroup.getNodeCount() > numCoefficients(1))
                             break;
                     }
                 }
             }
         }
         return secondaryGCPGroup;
+    }
+
+    static final String WARP_METHOD_CPM = "CPM";
+    static final String WARP_METHOD_POLYNOMIAL = "Polynomial";
+    static final String WARP_METHOD_NONE = "None";
+
+    /**
+     * How a Secondary band was warped: the estimation method, the polynomial degree (0 for none) and whether the
+     * DEM refinement was applied (only the CPM applies it).
+     */
+    static final class WarpMethod {
+        final String name;
+        final int degree;
+        final boolean demRefined;
+
+        WarpMethod(final String name, final int degree, final boolean demRefined) {
+            this.name = name;
+            this.degree = degree;
+            this.demRefined = demRefined;
+        }
+    }
+
+    // On a complex stack the threshold parameter is a w-test significance level (0.001 to 0.1). A Secondary that
+    // falls back to the RMS rule reads it as a cut in pixels. It falls back when the CPM failed, typically on GCPs
+    // with several tenths of a pixel of noise, and a cut below this removes good GCPs until no over-determined fit
+    // is left (0.05 px gave no warp for most such Secondaries).
+    static final float MIN_FALLBACK_RMS_PIXELS = 0.5f;
+
+    private static final class PlainWarp {
+        final WarpData model;
+        final WarpMethod method;
+        final boolean residualsWritten;
+
+        PlainWarp(final WarpData model, final WarpMethod method, final boolean residualsWritten) {
+            this.model = model;
+            this.method = method;
+            this.residualsWritten = residualsWritten;
+        }
+    }
+
+    static int numCoefficients(final int degree) {
+        return (degree + 1) * (degree + 2) / 2;
+    }
+
+    /**
+     * Plain polynomial fit of a Secondary's GCPs with the RMS rule. The degree is lowered until the GCPs
+     * over-determine it (more GCPs than coefficients): an exactly determined fit passes through every GCP, so its
+     * zero residuals would mark a possibly wrong warp as perfect. Without enough GCPs even for degree 1 the band
+     * has no valid warp.
+     */
+    private PlainWarp fitPlainWarp(final Band srcBand, final ProductNodeGroup<Placemark> slaveGCPGroup,
+                                   final ProductNodeGroup<Placemark> masterGCPGroup, final boolean appendResiduals) {
+        final int nodeCount = slaveGCPGroup.getNodeCount();
+        final float threshold = inSAROptimized ? Math.max(rmsThreshold, MIN_FALLBACK_RMS_PIXELS) : rmsThreshold;
+        boolean written = false;
+        for (int degree = warpPolynomialOrder; degree >= 1; degree--) {
+            if (nodeCount <= numCoefficients(degree)) {
+                continue;
+            }
+            final WarpData warpData = new WarpData(slaveGCPGroup);
+            warpData.computeWARPPolynomialFromGCPs(sourceProduct, srcBand, degree, masterGCPGroup,
+                    maxIterations, threshold, appendResiduals || written);
+            written = true;
+            // The RMS rule removes GCPs as it goes: the final fit must still have more GCPs than coefficients,
+            // or it passes through all of them and its zero residuals hide a wrong warp.
+            if (warpData.isValid() && warpData.getNumValidGCPs() > numCoefficients(degree)) {
+                if (degree < warpPolynomialOrder) {
+                    SystemUtils.LOG.warning("WarpOp: " + srcBand.getName() + " warped with a degree " + degree +
+                            " polynomial: too few GCPs for degree " + warpPolynomialOrder);
+                }
+                return new PlainWarp(warpData, new WarpMethod(WARP_METHOD_POLYNOMIAL, degree, false), true);
+            }
+        }
+        SystemUtils.LOG.warning("WarpOp: " + nodeCount + " GCPs are too few to warp " + srcBand.getName());
+        final WarpData none = new WarpData(slaveGCPGroup);
+        none.setInValid();
+        return new PlainWarp(none, new WarpMethod(WARP_METHOD_NONE, 0, false), written);
+    }
+
+    private void setUpCPMDemRefinement(final CPM cpm, final Band srcBand,
+                                       final ProductNodeGroup<Placemark> slaveGCPGroup,
+                                       final ProductNodeGroup<Placemark> masterGCPGroup,
+                                       final SLCImage masterMeta, final Orbit masterOrbit) throws Exception {
+        // get height for corresponding points
+        final int nodeCount = slaveGCPGroup.getNodeCount();
+        final double[] heightArray = new double[nodeCount];
+        for (int j = 0; j < nodeCount; j++) {
+            final Placemark sPin = slaveGCPGroup.get(j);
+            final Placemark mPin = masterGCPGroup.get(sPin.getName());
+            final PixelPos mGCPPos = mPin.getPixelPos();
+
+            double[] phiLamPoint = masterOrbit.lph2ell(mGCPPos.y, mGCPPos.x, 0, masterMeta);
+            PixelPos demIndexPoint = dem.getIndex(new GeoPos((phiLamPoint[0] * org.jlinda.core.Constants.RTOD), (phiLamPoint[1] * org.jlinda.core.Constants.RTOD)));
+
+            double height = dem.getSample(demIndexPoint.x, demIndexPoint.y);
+
+            if (Double.isNaN(height)) {
+                height = demNoDataValue;
+            }
+
+            heightArray[j] = height;
+        }
+
+        // Find the secondary metadata element that owns this slave band,
+        // rather than always taking element 0. With more than one slave,
+        // element 0 is the wrong orbit/geometry for slaves >= 1.
+        final MetadataElement slaveRoot = findSecondaryRootForBand(srcBand);
+        if (slaveRoot == null) {
+            throw new OperatorException("Could not find secondary metadata for band " + srcBand.getName());
+        }
+        final SLCImage slaveMeta = new SLCImage(slaveRoot, targetProduct);
+        final Orbit slaveOrbit = new Orbit(slaveRoot, ORBIT_INTERP_DEGREE);
+        cpm.setDemNoDataValue(demNoDataValue);
+        cpm.setUpDEMRefinement(masterMeta, masterOrbit, slaveMeta, slaveOrbit, heightArray);
+        cpm.setUpDemOffset();
     }
 
     private synchronized void getWarpData(final Rectangle targetRectangle) throws Exception {
@@ -597,126 +717,48 @@ public class WarpOp extends Operator {
         // for all secondary bands or band pairs compute a warp
         final Band[] sourceBands = sourceProduct.getBands();
 
-        if (inSAROptimized) {
-            boolean appendFlag = false;
-            for (int i = 0; i < sourceBands.length; i++) {
+        boolean residualsWritten = false;
+        for (int i = 0; i < sourceBands.length; i++) {
 
-                final Band srcBand = sourceProduct.getBandAt(i);
-                if (StringUtils.contains(masterBandNames, srcBand.getName()))
-                    continue;
+            final Band srcBand = sourceProduct.getBandAt(i);
+            if (StringUtils.contains(masterBandNames, srcBand.getName()))
+                continue;
 
-                if (complexCoregistration && !srcBand.getUnit().equals(Unit.REAL))
-                    continue;
+            if (complexCoregistration && !srcBand.getUnit().equals(Unit.REAL))
+                continue;
 
-                final ProductNodeGroup<Placemark> slaveGCPGroup = getGCPGroup(srcBand);
+            final ProductNodeGroup<Placemark> slaveGCPGroup = getGCPGroup(srcBand);
 
+            if (inSAROptimized) {
                 try {
                     final CPM cpm = new CPM(warpPolynomialOrder, maxIterations, cpmWtestCriticalValue,
                             masterWindow, masterGCPGroup, slaveGCPGroup);
-                    warpDataMap.put(srcBand, cpm);
-
-                    final int nodeCount = slaveGCPGroup.getNodeCount();
-                    if (nodeCount < 3) {
-                        cpm.noRedundancy = true;
+                    if (cpm.isValid()) {
+                        if (demRefinement) {
+                            setUpCPMDemRefinement(cpm, srcBand, slaveGCPGroup, masterGCPGroup, masterMeta, masterOrbit);
+                        }
+                        cpm.computeCPM();
+                        cpm.computeEstimationStats();
+                        cpm.wrapJaiWarpPolynomial();
+                        warpDataMap.put(srcBand, cpm);
+                        warpMethodMap.put(srcBand, new WarpMethod(WARP_METHOD_CPM, warpPolynomialOrder, demRefinement));
                         continue;
                     }
-
-                    // setup secondary metadata
-                    if (demRefinement && !cpm.noRedundancy) {
-
-                        // get height for corresponding points
-                        double[] heightArray = new double[nodeCount];
-                        final List<Placemark> slaveGCPList = new ArrayList<>();
-
-                        for (int j = 0; j < nodeCount; j++) {
-
-                            // work only with windows that survived threshold for this secondary
-                            slaveGCPList.add(slaveGCPGroup.get(j));
-                            final Placemark sPin = slaveGCPList.get(j);
-                            final Placemark mPin = masterGCPGroup.get(sPin.getName());
-                            final PixelPos mGCPPos = mPin.getPixelPos();
-
-                            double[] phiLamPoint = masterOrbit.lph2ell(mGCPPos.y, mGCPPos.x, 0, masterMeta);
-                            PixelPos demIndexPoint = dem.getIndex(new GeoPos((phiLamPoint[0] * org.jlinda.core.Constants.RTOD), (phiLamPoint[1] * org.jlinda.core.Constants.RTOD)));
-
-                            double height = dem.getSample(demIndexPoint.x, demIndexPoint.y);
-
-                            if (Double.isNaN(height)) {
-                                height = demNoDataValue;
-                            }
-
-                            heightArray[j] = height;
-                        }
-
-                        // Find the secondary metadata element that owns this slave band,
-                        // rather than always taking element 0. With more than one slave,
-                        // element 0 is the wrong orbit/geometry for slaves >= 1.
-                        final MetadataElement slaveRoot = findSecondaryRootForBand(srcBand);
-                        if (slaveRoot == null) {
-                            throw new OperatorException("Could not find secondary metadata for band " + srcBand.getName());
-                        }
-                        final SLCImage slaveMeta = new SLCImage(slaveRoot, targetProduct);
-                        final Orbit slaveOrbit = new Orbit(slaveRoot, ORBIT_INTERP_DEGREE);
-                        cpm.setDemNoDataValue(demNoDataValue);
-                        cpm.setUpDEMRefinement(masterMeta, masterOrbit, slaveMeta, slaveOrbit, heightArray);
-                        cpm.setUpDemOffset();
-                    }
-
-                    cpm.computeCPM();
-                    cpm.computeEstimationStats();
-                    cpm.wrapJaiWarpPolynomial();
-
-                    if (cpm.noRedundancy) {
-                        continue;
-                    }
-
-                    if (!appendFlag) {
-                        appendFlag = true;
-                    }
-
-                    //outputCoRegistrationInfo(sourceProduct, warpPolynomialOrder, cpm, appendFlag, srcBand.getName());
-
+                    SystemUtils.LOG.warning("WarpOp: " + slaveGCPGroup.getNodeCount() + " GCPs leave no redundancy " +
+                            "for the CPM of " + srcBand.getName() + "; using a plain polynomial fit for this band");
                 } catch (Exception e) {
-                    SystemUtils.LOG.warning("Error computing complex polynomial model. Continuing with computeWARPPolynomialFromGCPs " + e.getMessage());
-                    inSAROptimized = false;
-                    warpDataMap.clear();
-                    break;
+                    // only this Secondary falls back: the others keep their CPM
+                    SystemUtils.LOG.warning("WarpOp: the CPM of " + srcBand.getName() + " failed (" +
+                            e.getMessage() + "); using a plain polynomial fit for this band" +
+                            (demRefinement ? ", without DEM refinement" : ""));
+                    SystemUtils.LOG.log(Level.FINE, "WarpOp: CPM failure of " + srcBand.getName(), e);
                 }
             }
-        }
 
-        if(!inSAROptimized) {
-            boolean appendFlag = false;
-            for (int i = 0; i < sourceBands.length; i++) {
-
-                final Band srcBand = sourceProduct.getBandAt(i);
-                if (StringUtils.contains(masterBandNames, srcBand.getName()))
-                    continue;
-
-                if (complexCoregistration && !srcBand.getUnit().equals(Unit.REAL))
-                    continue;
-
-                final ProductNodeGroup<Placemark> slaveGCPGroup = getGCPGroup(srcBand);
-
-                final WarpData warpData = new WarpData(slaveGCPGroup);
-                warpDataMap.put(srcBand, warpData);
-
-                if (slaveGCPGroup.getNodeCount() < 3) {
-                    warpData.setInValid();
-                    continue;
-                }
-
-                warpData.computeWARPPolynomialFromGCPs(sourceProduct, srcBand, warpPolynomialOrder, masterGCPGroup,
-                        maxIterations, rmsThreshold, appendFlag);
-
-                if (!warpData.isValid()) {
-                    continue;
-                }
-
-                if (!appendFlag) {
-                    appendFlag = true;
-                }
-            }
+            final PlainWarp plainWarp = fitPlainWarp(srcBand, slaveGCPGroup, masterGCPGroup, residualsWritten);
+            residualsWritten |= plainWarp.residualsWritten;
+            warpDataMap.put(srcBand, plainWarp.model);
+            warpMethodMap.put(srcBand, plainWarp.method);
         }
 
         for(Band band : warpDataMap.keySet()) {
@@ -772,10 +814,13 @@ public class WarpOp extends Operator {
                 warpDataElem = new MetadataElement("WarpData");
                 bandElem.addElement(warpDataElem);
             } else {
-                // empty out element
+                // empty out element, including the GCPs of an earlier warp
                 final MetadataAttribute[] attribList = warpDataElem.getAttributes();
                 for (MetadataAttribute attrib : attribList) {
                     warpDataElem.removeAttribute(attrib);
+                }
+                for (MetadataElement elem : warpDataElem.getElements()) {
+                    warpDataElem.removeElement(elem);
                 }
             }
 
@@ -797,6 +842,14 @@ public class WarpOp extends Operator {
                 }
             }
 
+            // 0 when the band could not be warped (too few GCPs); the run then fails in announceGCPWarning()
+            warpDataElem.setAttributeInt("warpValid", warpData.isValid() ? 1 : 0);
+            final WarpMethod method = warpMethodMap.get(band);
+            if (method != null) {
+                warpDataElem.setAttributeString("warpMethod", method.name);
+                warpDataElem.setAttributeInt("warpDegree", method.degree);
+                warpDataElem.setAttributeInt("demRefined", method.demRefined ? 1 : 0);
+            }
             warpDataElem.setAttributeDouble("rmsStd", warpData.getRMSStd());
             warpDataElem.setAttributeDouble("rmsMean", warpData.getRMSMean());
             warpDataElem.setAttributeDouble("rowResidualStd", warpData.getRowResidualStd());
@@ -835,17 +888,26 @@ public class WarpOp extends Operator {
         return new File(ResourceUtils.getReportFolder(), fileName);
     }
 
+    /**
+     * A Secondary band without a valid warp model cannot be resampled; it used to be written as zeros in a product
+     * flagged as coregistered. Fail instead, naming the bands and the usual remedies.
+     */
     private void announceGCPWarning() {
-        String msg = "";
+        final StringBuilder msg = new StringBuilder();
         for (Band srcBand : sourceProduct.getBands()) {
             final PolynomialModel warpData = warpDataMap.get(srcBand);
             if (warpData != null && !warpData.isValid()) {
-                msg += srcBand.getName() + " does not have enough valid GCPs for the warp\n";
+                msg.append(srcBand.getName()).append(" (").append(getGCPGroup(srcBand).getNodeCount())
+                        .append(" GCPs)\n");
                 openResidualsFile = true;
             }
         }
-        if (!msg.isEmpty()) {
-            SystemUtils.LOG.warning(msg);
+        if (msg.length() > 0) {
+            throw new OperatorException("Warp: not enough valid GCPs to compute a warp model for\n" + msg +
+                    "Cross-Correlation found too few matching GCPs, or too many were rejected as outliers. " +
+                    "For temporally decorrelated SLC pairs, lower the Cross-Correlation coherence threshold or " +
+                    "switch off 'Apply Fine Registration' to coregister on amplitude only; otherwise increase " +
+                    "the number of GCPs or the registration window size.");
         }
     }
 

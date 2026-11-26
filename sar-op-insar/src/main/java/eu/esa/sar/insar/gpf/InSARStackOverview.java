@@ -48,9 +48,11 @@ public class InSARStackOverview {
      *   - dfDcCritical (Hz): Doppler-centroid difference beyond which the
      *     azimuth spectra no longer overlap.
      *
-     * Numbers chosen to match published practice for the canonical mission per
-     * band: Sentinel-1 IW (C), TerraSAR-X SM (X), NovaSAR (S), NISAR/ALOS-2 (L),
-     * BIOMASS (P).
+     * The C-band values are the ERS/Envisat-era Doris/NEST stack-overview
+     * defaults, not Sentinel-1 IW: the S1 IW geometric critical baseline is
+     * several km (56.5 MHz range bandwidth), so 1200 m is conservative there.
+     * The other bands follow published practice for TerraSAR-X SM (X),
+     * NovaSAR (S), NISAR/ALOS-2 (L) and BIOMASS (P).
      */
     public enum Band {
         X(0.025, 0.040,   600,  730, 2200),
