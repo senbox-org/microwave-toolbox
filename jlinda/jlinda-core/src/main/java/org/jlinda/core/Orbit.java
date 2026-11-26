@@ -112,14 +112,116 @@ public final class Orbit {
         }
     }
 
-    // TODO: switch on interpolation method, either spline method or degree of polynomial
     private void computeCoefficients() {
 
+        // the single least-squares polynomial is kept for getCoeff_*(); positions, velocities and
+        // accelerations come from the local interpolation built below
         this.coeff_X = PolyUtils.polyFitNormalized(new DoubleMatrix(time), new DoubleMatrix(data_X), poly_degree);
         this.coeff_Y = PolyUtils.polyFitNormalized(new DoubleMatrix(time), new DoubleMatrix(data_Y), poly_degree);
         this.coeff_Z = PolyUtils.polyFitNormalized(new DoubleMatrix(time), new DoubleMatrix(data_Z), poly_degree);
 
+        buildLocalInterpolation();
+
         isInterpolated = true;
+    }
+
+    /*
+     * Local orbit interpolation. One polynomial fitted through every state vector misses the vectors
+     * by a margin that grows with the span: on a Sentinel-1 product after Apply-Orbit (1 s vectors
+     * over ~50 s) degree 3 is off by 11-14 mm and degree 4 by ~2 mm; on a BIOMASS product (261
+     * vectors at 1 s) degree 3 is off by 229 m and degree 4 by 36 m. Instead, between two
+     * consecutive vectors the orbit is the Lagrange polynomial through the LOCAL_POINTS nearest
+     * vectors (as eu.esa.sar.commons.OrbitStateVectors does), whatever the span; velocity and
+     * acceleration are its derivatives, so the three stay consistent.
+     */
+    private static final int LOCAL_POINTS = 8;
+
+    private double[] segTime;     // distinct vector times, increasing; segment k = [segTime[k], segTime[k+1]]
+    private double[] segScale;    // segTime[k+1] - segTime[k]
+    private double[][] segNodes;  // per segment: node times in units of segScale, relative to segTime[k]
+    private double[][][] segCoef; // per segment and axis: Newton divided-difference coefficients
+
+    private void buildLocalInterpolation() {
+        final Integer[] order = new Integer[numStateVectors];
+        for (int i = 0; i < numStateVectors; i++) {
+            order[i] = i;
+        }
+        java.util.Arrays.sort(order, (a, b) -> Double.compare(time[a], time[b]));
+        final int[] keep = new int[numStateVectors];
+        int n = 0;
+        for (int i : order) {
+            if (n == 0 || time[i] > time[keep[n - 1]]) {   // a repeated epoch is used once
+                keep[n++] = i;
+            }
+        }
+        if (n < 2) {
+            segTime = null;
+            return;
+        }
+        final int m = Math.min(LOCAL_POINTS, n);
+        segTime = new double[n];
+        for (int i = 0; i < n; i++) {
+            segTime[i] = time[keep[i]];
+        }
+        segScale = new double[n - 1];
+        segNodes = new double[n - 1][m];
+        segCoef = new double[n - 1][3][m];
+        for (int k = 0; k < n - 1; k++) {
+            final int start = Math.max(0, Math.min(k - m / 2 + 1, n - m));
+            segScale[k] = segTime[k + 1] - segTime[k];
+            for (int j = 0; j < m; j++) {
+                final int idx = keep[start + j];
+                segNodes[k][j] = (time[idx] - segTime[k]) / segScale[k];
+                segCoef[k][0][j] = data_X[idx];
+                segCoef[k][1][j] = data_Y[idx];
+                segCoef[k][2][j] = data_Z[idx];
+            }
+            for (double[] a : segCoef[k]) {
+                dividedDifferences(segNodes[k], a);
+            }
+        }
+    }
+
+    private static void dividedDifferences(final double[] x, final double[] a) {
+        for (int j = 1; j < a.length; j++) {
+            for (int i = a.length - 1; i >= j; i--) {
+                a[i] = (a[i] - a[i - 1]) / (x[i] - x[i - j]);
+            }
+        }
+    }
+
+    /** position, velocity and acceleration at azTime, as {x, y, z, vx, vy, vz, ax, ay, az} */
+    private double[] interpolate(final double azTime) {
+        final double[] out = new double[9];
+        if (segTime == null) {   // fewer than two distinct epochs: the polynomial is all there is
+            final SatPos sp = polySatPos(azTime);
+            out[0] = sp.position.x; out[1] = sp.position.y; out[2] = sp.position.z;
+            out[3] = sp.velocity.x; out[4] = sp.velocity.y; out[5] = sp.velocity.z;
+            out[6] = sp.acceleration.x; out[7] = sp.acceleration.y; out[8] = sp.acceleration.z;
+            return out;
+        }
+        int k = java.util.Arrays.binarySearch(segTime, azTime);
+        if (k < 0) {
+            k = -k - 2;
+        }
+        k = Math.max(0, Math.min(k, segTime.length - 2));
+        final double h = segScale[k];
+        final double u = (azTime - segTime[k]) / h;
+        final double[] x = segNodes[k];
+        for (int c = 0; c < 3; c++) {
+            final double[] a = segCoef[k][c];
+            double p = a[a.length - 1], dp = 0, ddp = 0;
+            for (int i = a.length - 2; i >= 0; i--) {
+                final double d = u - x[i];
+                ddp = ddp * d + 2 * dp;
+                dp = dp * d + p;
+                p = p * d + a[i];
+            }
+            out[c] = p;
+            out[3 + c] = dp / h;
+            out[6 + c] = ddp / (h * h);
+        }
+        return out;
     }
 
     public void computeCoefficients(int degree) {
@@ -339,6 +441,12 @@ public final class Orbit {
     }
 
     public SatPos getSatPos(final double azTime) {
+        final double[] s = interpolate(azTime);
+        return new SatPos(new Point(s[0], s[1], s[2]), new Point(s[3], s[4], s[5]), new Point(s[6], s[7], s[8]));
+    }
+
+    /** the single least-squares polynomial (getCoeff_*) and its derivatives */
+    private SatPos polySatPos(final double azTime) {
         // Normalize time for polynomial evaluation
         final double t = (azTime - time[time.length / 2]) / 10.0;
 
@@ -373,55 +481,18 @@ public final class Orbit {
     }
 
     public Point getXYZ(final double azTime) {
-
-        // normalize time
-        double azTimeNormal = (azTime - time[time.length / 2]) / 10.0;
-
-        return new Point(
-                PolyUtils.polyVal1D(azTimeNormal, coeff_X),
-                PolyUtils.polyVal1D(azTimeNormal, coeff_Y),
-                PolyUtils.polyVal1D(azTimeNormal, coeff_Z));
+        final double[] s = interpolate(azTime);
+        return new Point(s[0], s[1], s[2]);
     }
 
-    public Point getXYZDot(double azTime) {
-
-        // normalize time
-        azTime = (azTime - time[time.length / 2]) / 10.0;
-
-        int DEGREE = coeff_X.length - 1;
-
-        double x = coeff_X[1];
-        double y = coeff_Y[1];
-        double z = coeff_Z[1];
-
-        for (int i = 2; i <= DEGREE; ++i) {
-            double powT = i * FastMath.pow(azTime, i - 1);
-            x += coeff_X[i] * powT;
-            y += coeff_Y[i] * powT;
-            z += coeff_Z[i] * powT;
-        }
-
-        return new Point(x/10.0, y/10.0, z/10.0);
+    public Point getXYZDot(final double azTime) {
+        final double[] s = interpolate(azTime);
+        return new Point(s[3], s[4], s[5]);
     }
 
     public Point getXYZDotDot(final double azTime) {
-
-        // normalize time
-        double azTimeNormal = (azTime - time[time.length / 2]) / 10.0d;
-
-        // NOTE: orbit interpolator is simple polynomial
-        // 2a_2 + 2*3a_3*t^1 + 3*4a_4*t^2...
-
-        double x=0, y=0, z=0;
-        for (int i = 2; i <= poly_degree; ++i) {
-            double powT = ((i - 1) * i) * FastMath.pow(azTimeNormal, i - 2);
-            x += coeff_X[i] * powT;
-            y += coeff_Y[i] * powT;
-            z += coeff_Z[i] * powT;
-        }
-
-        return new Point(x/100.0, y/100.0, z/100.0);
-
+        final double[] s = interpolate(azTime);
+        return new Point(s[6], s[7], s[8]);
     }
 
     public double eq1_Doppler(final Point satVelocity, final Point pointOnEllips) {
