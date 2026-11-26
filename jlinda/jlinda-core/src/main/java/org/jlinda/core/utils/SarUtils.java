@@ -149,6 +149,92 @@ public class SarUtils {
 
     }
 
+    /**
+     * Finds the maximum of {@code oversample(new ComplexDoubleMatrix(chip), factorRow, factorCol).getReal()}
+     * without building the oversampled matrix.
+     * <p>
+     * oversample is separable, so its real output is {@code Kr * chip * Kc'}, with one row of the kernel per
+     * output line (pixel). The maximum is searched on the same output grid, but only within
+     * {@link #PEAK_SEARCH_RADIUS} input samples of the chip's largest sample, which holds the peak of a
+     * correlation surface. For a 32x32 chip oversampled 128x this needs about 1 MB instead of 0.8 GB.
+     *
+     * @return {row, column, value} with row and column as indices of the oversampled grid, or null when the
+     * chip holds a non-finite value (oversample then yields no maximum either)
+     */
+    public static double[] oversampledPeak(final DoubleMatrix chip, final int factorRow, final int factorCol) {
+        final int l = chip.rows;
+        final int p = chip.columns;
+        if (chip.isVector()) {
+            throw new IllegalArgumentException("oversampledPeak: only 2d matrices");
+        }
+        if (factorRow < 1 || factorCol < 1) {
+            throw new IllegalArgumentException("oversampledPeak: factors must be >= 1");
+        }
+        if (!MathUtils.isPower2(l) && factorRow != 1) {
+            throw new IllegalArgumentException("oversampledPeak: numlines != 2^n");
+        }
+        if (!MathUtils.isPower2(p) && factorCol != 1) {
+            throw new IllegalArgumentException("oversampledPeak: numcols != 2^n");
+        }
+        for (int i = 0; i < chip.length; i++) {
+            if (!Double.isFinite(chip.data[i])) {
+                return null;
+            }
+        }
+
+        final int centre = chip.argmax();
+        final int[] rows = searchRange(chip.indexRows(centre), l, factorRow);
+        final int[] cols = searchRange(chip.indexColumns(centre), p, factorCol);
+
+        final DoubleMatrix kr = interpolationKernel(rows[0], rows[1], l, factorRow);
+        final DoubleMatrix kc = interpolationKernel(cols[0], cols[1], p, factorCol);
+        final DoubleMatrix window = kr.mmul(chip).mmul(kc.transpose());
+
+        // first maximum in column-major order, as DoubleMatrix.argmax() picks on the full grid
+        final int best = window.argmax();
+        if (best < 0) {
+            return null;
+        }
+        return new double[]{rows[0] + window.indexRows(best), cols[0] + window.indexColumns(best), window.get(best)};
+    }
+
+    /** Input samples on each side of the chip maximum that {@link #oversampledPeak} searches. */
+    static final double PEAK_SEARCH_RADIUS = 1.5;
+
+    private static int[] searchRange(final int centreSample, final int n, final int factor) {
+        final int halfWidth = (int) Math.ceil(PEAK_SEARCH_RADIUS * factor);
+        final int lo = Math.max(0, centreSample * factor - halfWidth);
+        final int hi = Math.min(n * factor - 1, centreSample * factor + halfWidth);
+        return new int[]{lo, hi};
+    }
+
+    /**
+     * Rows lo..hi of the matrix that maps n real samples to the n*factor outputs of 1D oversample: zero-padding
+     * of the spectrum, the Nyquist bin split over both halves, and the factor rescaling. Output i lies at
+     * t = i/factor - k samples from input k, and gets weight (1/n) * (sum_{|q|<n/2} cos(2 pi q t/n) + cos(pi t)).
+     */
+    private static DoubleMatrix interpolationKernel(final int lo, final int hi, final int n, final int factor) {
+        final DoubleMatrix kernel = new DoubleMatrix(hi - lo + 1, n);
+        final int half = n / 2;
+        for (int i = lo; i <= hi; i++) {
+            for (int k = 0; k < n; k++) {
+                double w;
+                if (factor == 1) {
+                    w = (i == k) ? 1.0 : 0.0;
+                } else {
+                    final double t = (double) i / factor - k;
+                    w = 1.0 + FastMath.cos(Math.PI * t);
+                    for (int q = 1; q < half; q++) {
+                        w += 2.0 * FastMath.cos(2.0 * Math.PI * q * t / n);
+                    }
+                    w /= n;
+                }
+                kernel.put(i - lo, k, w);
+            }
+        }
+        return kernel;
+    }
+
     public static DoubleMatrix intensity(final ComplexDoubleMatrix inputMatrix) {
         return pow(inputMatrix.real(), 2).add(pow(inputMatrix.imag(), 2));
     }

@@ -282,6 +282,23 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 - [ ] Profile every suite workflow once with **JFR** (allocation profiling, old-object sample) and take a heap dump at peak. Rank the retainers by class and owner (operator, reader, cache, metadata). This ranking replaces guesswork. M.
 
 ### 8.2 Known suspects (found by code scan; confirm with 8.1 before fixing)
+- [ ] **[Bug]** **ESD sets tops_insar's minimum heap (measured 2026-11-25 with heap dumps and JFR on AWS, SNAP 15.0.0-20261124).** At 8448 MB Xmx, 5.4 of 5.9 GB live is 20 × 268 MB `ComplexDoubleMatrix` buffers. In the OOM dump at 7424 MB it is 26 of them, 7.0 GB. Tiles are only about 0.23 GB. They come from range-offset estimation (`SpectralDiversityOp.crossCorrelatePair`), which runs one task per burst on a pool of 2×cores threads. Each task goes through `CoregistrationUtils.crossCorrelateFFT:349` → `SarUtils.oversample`, which oversamples a 32×32 chip 128× to 4096² complex. `SpectralUtils.fft2D_inplace` and `invfft2D_inplace` then make transposed copies, so each task peaks at about 0.9 GB. Peak heap therefore grows with burst count × core count, not with image size. Fixes in priority order:
+  - (a) Upsample only around the peak with a matrix-multiply DFT (Guizar-Sicairos), or oversample a small chip. This saves about 5–7 GB, and because it is in jlinda, `CrossCorrelationOp`, `RangeShiftOp` and `OffsetTrackingOp` benefit too.
+  - (b) Drop the transposes, since jblas is column-major and `DoubleFFT_2D(columns, rows)` works on its data directly. Take the argmax without the `getReal()` copy.
+  - (c) Cap the concurrency in `crossCorrelatePair`.
+  - (d) **Correctness:** the 7424 MB run's OOMs were lost and the step reported "done". The cause is that snap-engine's `ThreadExecutor.complete()` only checks the last submitted task, and only for an `Exception` (see 8.4). Errors must fail the operator.
+  - **Status 2026-11-25 (branch mem-efficiency):** (a), (b) and (d) are implemented.
+    - (a) is `SarUtils.oversampledPeak`, used by both `CoregistrationUtils` cross-correlation paths. It searches ±1.5 samples around the chip maximum, and tests check it finds the same peak as the full `oversample` grid.
+    - (b) removes the transposed copies from `SpectralUtils.fft2D_inplace` and `invfft2D_inplace`. This also fixes the forward FFT for non-square matrices, which was wrong before (its tests were `@Ignore`d and now pass). That changes PhaseFilter output only where a block is non-square.
+    - (d) is `SpectralDiversityOp.WorkerFailures`.
+    - **Confirmed on AWS (memory only):**
+      - ESD now completes at 7424 MB, where it ran out of heap before; peak 5849 MB post-GC (`20261125T141329Z-diag-esdfix-tops_insar-7424`).
+      - It also completes at 5120 MB, with a peak of 4740 MB (`20261125T141403Z-diag-esdfix-tops_insar-5120`).
+      - In the 5120 MB dump, `double[]` is down from 5.49 GB to 0.16 GB, and live heap from 5.87 GB to 2.29 GB. What remains is mostly tile data (float and short), with a tile cache of about 1.3 GB.
+      - Still to do: a full `sv cloud launch` with the overlay, to get the new minimum heap and check correctness.
+  - (e) In the write phase (`performRangeAzimuthShift`), reuse flat buffers in place of five `double[h][w]` per tile, and cache the FFT plan or pad h to a power of 2. This step is mostly churn and may become the binding step after (a) and (b). Get a dump of this phase to confirm.
+
+  Evidence: `sv cloud diagnose` batches `20261125T043557Z-diag-tops_insar-8448` and `20261125T043620Z-diag-tops_insar-7424`. S–M.
 - [ ] **[Bug]** Whole-scene arrays in operators that should be tiled:
   - `GeneralWishart` and `FreemanDurdenWishart` hold `int[H][W]` + `double[H][W]` (about 1.2 GB for a 10k×10k scene). Train the clusters on a sample, then classify per tile. L.
   - `ForestAreaClassificationOp` holds a full-scene `byte[H][W]` mask.
@@ -299,6 +316,40 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 - [ ] **Bounded-heap tests**: run each suite workflow on a cropped fixture at a fixed small `-Xmx` (e.g. 1.5 GB) under `LongTestRunner`. If a change needs more memory, the test fails. M.
 - [ ] Add an **ArchUnit or grep check** in CI that flags `getSourceTile(..., new Rectangle(0, 0, width, height))` and `new X[height][width]` for scene dimensions in operator code. Allow listed exceptions. S.
 - [ ] Add the minimum-heap and wall-time results to the release notes per release, so users can see the trend.
+
+### 8.4 snap-engine core **[Cross-repo]** (code survey 2026-11-24; confirm with 8.1 before fixing)
+- [ ] **[Bug]** `ThreadExecutor.complete()` checks only the last submitted `ThreadRunnable` for an error, and `ThreadRunnable.run` catches only `Exception`. So failures in other tasks, and any `Error` (including OutOfMemoryError), are dropped silently, and callers carry on with partial results. Found through ESD (8.2), but every caller is affected. Fix: record failures from all tasks, catch `Throwable`, and rethrow from `complete()`. S.
+Read-only survey of snap-engine `master` (2e1c979ce5): data model, GPF runtime and I/O. Items marked *verified* were checked against the code; the rest are survey findings not yet checked. Paths are relative to snap-engine.
+
+**Quick, safe fixes**
+- [ ] **[Bug]** *Verified.* The external-DEM line cache never evicts. `FileElevationTile.updateCache` calls `linesCache.setObject(i, null)` with `i` = the list position (always `maxLines`), not the line number. Also, `CachingObjectArray.setObject` writes only into an empty slot. So eviction does nothing, and a user's external DEM ends up on the heap line by line. `FileElevationModel.getElevation` is also `synchronized`. S.
+- [ ] **[Bug]** *Verified.* `GraphProcessor.executeGraph(Graph, pm)` calls `graphContext.dispose()` outside the `finally`. A failed graph keeps its operators, products and cached tiles until finalization. S.
+- [ ] **[Bug]** *Verified.* `TiePointGrid.getRasterData()` caches a float array interpolated to full scene size (about 1.7 GB at 25k×17k). Neither `TiePointGrid.dispose()` nor `RasterDataNode.dispose()` releases it, and there is no `unloadRasterData` override. Also check which mtbx operators and readers call `getRasterData()` on tie-point grids. S.
+- [ ] **[Decision]** *Verified.* gpt's tile cache defaults to a fixed 512 MB (`CommandLineArgs.getDefaultTileCacheSize`), overriding the 25%-of-heap default in `SystemUtils`. One row of 512 px tiles for one float band at S1 width is about 51 MB, so long chains evict tiles and recompute them. Scale it from `maxMemory` (0.4–0.5 for headless gpt) and warn when it is too small for parallelism × bands × tile size. Note: snap-validation runs gpt with a fixed `-c 4096M` (`tile_cache_mb` in its machine config) at every heap rung. Its low-rung MinHeap numbers are therefore partly a cache effect (for example, grd_tc 6144 MB includes up to 4 GB of cache), not the working set. Decide whether the cache scales with the rung or stays pinned. S.
+- [ ] **[Bug]** WriteOp's `OperatorImage` gets a destination tile that is never filled and is put in the tile cache. `WriteOp.removeFromCache` removes only the upstream tile, so junk output tiles push out useful ones. `getSourceTile` also copies. Give the output node no tile cache. S.
+- [ ] **[Bug]** `GeoCodingFactory` (pixel geocoding) keeps 2–3 full-scene copies of lat/lon: `loadRasterData()` without unloading, plus `getGeophysicalImage().getData()`, plus the `double[]`. Read straight into the `double[]` and unload, as `RasterUtils.loadGeoData` already does. S.
+- [ ] **[Bug]** *Verified.* `PixelGeoIndexInverse.clone()` copies the whole TreeMap index at every geocoding transfer. The index is read-only after initialization, so share it. Building it also boxes a `Long` per pixel. S.
+- [ ] **[Bug]** `Band.readRasterData` fallback allocates the full scene twice (`getData(rect)`, then a copy). Use `copyData` into a raster that wraps the target array. S.
+- [ ] **[Bug]** Lifecycle leftovers: `ProductNodeList.removedNodes` keeps removed bands and metadata until the product is saved, which in GPF is a leak. `resetValidMask()` drops the mask image without disposing its tiles. `dispose()` does not clear `stx`. `ProductCache`/`CacheManager` accounting double-subtracts and is unsynchronized (only the netCDF reader uses it). S–M.
+
+**Structural (design note first)**
+- [ ] **[Decision]** *Verified.* **Metadata deep copy per node.** `ProductUtils.copyMetadata` calls `createDeepClone()` on the whole tree, about 100 B per attribute plus about 500 B per empty element (two `ProductNodeGroup`s, synchronized lists). There is no way to share it, because every node has a single owner. This is the engine side of §8.2/spec §7.1: shared read-only `ProductData`, a lazy copy-on-write `MetadataElement`, and cheaper empty groups. M–L.
+- [ ] **[Decision]** *Verified.* **A DEM model per operator.** `DEMFactory.createElevationModel` makes a new model on every call. Each one has its own LRU of up to 60 tiles (Copernicus is about 49 MiB per tile, so up to about 3 GB worst case). Use a shared, reference-counted model per (DEM, resampling) with a byte budget, folded into the cache governor in §8.2. Tiles are also filled row by row through the synchronized GeoTIFF reader. M.
+- [ ] **[Decision]** **Tile scheduling and recompute.** When one band's tile is evicted, tile-stack operators recompute every band. The `OperatorExecutor` default `SCHEDULE_ROW_BAND_COLUMN` makes this worse (WriteOp already uses `ROW_COLUMN_BAND`). Make `ROW_COLUMN_BAND` the default. Remove finished rows of intermediate images during a run, instead of relying only on LRU. M.
+- [ ] **[Decision]** **Avoid copies on the tile path.** `getSourceTile`, `VirtualBandOpImage` and `ProductIO.writeRasterDataFully` call `getData(rect)`, which always copies, even for exactly one cached tile. Use `getTile` wrapped read-only, behind a flag, because a misbehaving operator could otherwise corrupt the cache. M.
+- [ ] **[Decision]** **I/O throughput:**
+  - The GeoTIFF reader is synchronized per file and decodes every band to return one. int16 reads go through `double[]`.
+  - The BigGeoTIFF writer writes the whole product on the first call while holding the WriteOp writer lock, so the graph runs on one thread. It uses LZW without a predictor by default.
+  - The GDAL COG path uses the `MEM` driver, so the whole product sits in native memory, and it calls `allocateDirect` per tile.
+  - The DIMAP write cache copies into 128-line full-width blocks, with no-data filled per pixel.
+  - The DIMAP reader reopens the stream on every tile.
+  - Each needs a benchmark before and after. M each.
+- [ ] **[Hygiene]** Per-pixel slow paths:
+  - The `ProductSubsetBuilder` polygon test allocates JTS objects per pixel.
+  - jexp is interpreted per pixel and the term is cloned per tile.
+  - `AbstractBand.getPixels` calls a virtual method per element.
+  - Name lookups are linear.
+  - Zero-code mitigation: `-XX:+UseStringDeduplication` for duplicated metadata names.
 
 ---
 

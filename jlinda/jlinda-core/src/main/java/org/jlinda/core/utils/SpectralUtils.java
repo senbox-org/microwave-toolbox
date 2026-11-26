@@ -97,14 +97,13 @@ public class SpectralUtils {
         fftTransformInPlace(inMatrix, dimension, -1);
     }
 
+    /**
+     * jblas stores A column-major, which is A transposed in row-major order. The 2D DFT commutes with
+     * transposition, so transforming the data as a (columns x rows) row-major array gives the DFT of A
+     * in A's own layout, without the two transposed copies.
+     */
     public static void fft2D_inplace(ComplexDoubleMatrix A) {
-        // jblas stores column-major: the transpose's data is A in row-major order, as JTransforms expects,
-        // so the transform dimensions are those of A (as in invfft2D_inplace), not of the transpose.
-        ComplexDoubleMatrix aTemp = A.transpose();
-        DoubleFFT_2D fft2d = new DoubleFFT_2D(A.rows, A.columns);
-//        fft2d.complexForward(A.data);
-        fft2d.complexForward(aTemp.data);
-        A.data = aTemp.transpose().data;
+        new DoubleFFT_2D(A.columns, A.rows).complexForward(A.data);
     }
 
     public static ComplexDoubleMatrix fft2D(ComplexDoubleMatrix inMatrix) {
@@ -118,12 +117,9 @@ public class SpectralUtils {
         fft2d.realForwardFull(A.data);
     }
 
+    /** Inverse of {@link #fft2D_inplace(ComplexDoubleMatrix)}, scaled by 1/(rows*columns). */
     public static void invfft2D_inplace(ComplexDoubleMatrix A) {
-        DoubleFFT_2D fft2d = new DoubleFFT_2D(A.rows, A.columns);
-//        fft2d.complexInverse(A.data, true);
-        ComplexDoubleMatrix aTemp = A.transpose();
-        fft2d.complexInverse(aTemp.data, true);
-        A.data = aTemp.transpose().data;
+        new DoubleFFT_2D(A.columns, A.rows).complexInverse(A.data, true);
     }
 
     public static ComplexDoubleMatrix invfft2d(ComplexDoubleMatrix inMatrix) {

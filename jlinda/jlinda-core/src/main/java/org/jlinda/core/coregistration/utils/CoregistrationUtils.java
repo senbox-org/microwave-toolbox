@@ -120,14 +120,11 @@ public class CoregistrationUtils {
             final DoubleMatrix chip = new DoubleMatrix((int) win3.lines(), (int) win3.pixels());
             LinearAlgebraUtils.setdata(chip, ncc, win3);
 
-            DoubleMatrix chipOversampled = SarUtils.oversample(
-                    new ComplexDoubleMatrix(chip), overSamplingFactor, overSamplingFactor).getReal();
-
-            int corrIndex = chipOversampled.argmax();
-            if(corrIndex >= 0) {
-                int offP = chipOversampled.indexColumns(corrIndex);
-                int offL = chipOversampled.indexRows(corrIndex);
-                maxCorr = chipOversampled.get(corrIndex);
+            final double[] peak = SarUtils.oversampledPeak(chip, overSamplingFactor, overSamplingFactor);
+            if (peak != null) {
+                final int offL = (int) peak[0];
+                final int offP = (int) peak[1];
+                maxCorr = peak[2];
 
                 offsetL = linelo + (double)(offL + 1) / (double) overSamplingFactor - L + 1;
                 offsetP = pixello + (double)(offP + 1) / (double) overSamplingFactor - P + 1;
@@ -346,12 +343,11 @@ public class CoregistrationUtils {
 
             // (4b) oversample chip to obtain sub-pixel max : here I can also fit the PolyNomial - much faster!
 
-            DoubleMatrix chipOversampled = SarUtils.oversample(new ComplexDoubleMatrix(chip), ovsfactor, ovsfactor).getReal();
-            int corrIndex = chipOversampled.argmax();
-            if(corrIndex >= 0) {
-                int offP = chipOversampled.indexColumns(corrIndex);
-                int offL = chipOversampled.indexRows(corrIndex);
-                maxCorr = chipOversampled.get(corrIndex);
+            final double[] peak = SarUtils.oversampledPeak(chip, ovsfactor, ovsfactor);
+            if (peak != null) {
+                final int offL = (int) peak[0];
+                final int offP = (int) peak[1];
+                maxCorr = peak[2];
 
                 offsetL = -halfL + maxcorrL - AccL + (double) offL / (double) ovsfactor;
                 offsetP = -halfP + maxcorrP - AccP + (double) offP / (double) ovsfactor;
