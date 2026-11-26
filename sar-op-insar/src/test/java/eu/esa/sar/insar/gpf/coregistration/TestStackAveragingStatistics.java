@@ -45,7 +45,10 @@ public class TestStackAveragingStatistics {
     private static final double[] SAMPLES = {1.0, 2.0, 3.0};
 
     private static Product newStack() {
-        final Product p = new Product("stack", "SLC", W, H);
+        return newStack(new Product("stack", "SLC", W, H));
+    }
+
+    private static Product newStack(final Product p) {
         AbstractMetadata.addAbstractedMetadataHeader(p.getMetadataRoot());
         final String[] names = {"Amplitude_VV_ref_01Jan2020", "Amplitude_VV_sec_13Jan2020", "Amplitude_VV_sec_25Jan2020"};
         for (int k = 0; k < names.length; k++) {
@@ -291,11 +294,185 @@ public class TestStackAveragingStatistics {
     }
 
     @Test
-    public void testStackBandNames() {
-        assertTrue(StackAveragingOp.isStackBand("Sigma0_VV_mst_01Jan2020"));
-        assertTrue(StackAveragingOp.isStackBand("Amplitude_VV_sec_13Jan2020"));
-        assertTrue(StackAveragingOp.isStackBand("Sigma0_VV_01Jan2020"));
-        assertFalse(StackAveragingOp.isStackBand("elevation"));
-        assertFalse(StackAveragingOp.isStackBand("incident_angle"));
+    public void testStackSuffixes() {
+        assertTrue(StackAveragingOp.hasStackSuffix("Sigma0_VV_mst_01Jan2020"));
+        assertTrue(StackAveragingOp.hasStackSuffix("Sigma0_VV_slv1_13Jan2020"));
+        assertTrue(StackAveragingOp.hasStackSuffix("Amplitude_VV_sec_13Jan2020"));
+        assertTrue(StackAveragingOp.hasStackSuffix("Sigma0_VV_01Jan2020"));
+        assertTrue(StackAveragingOp.hasStackSuffix("Sigma0_VV_20200101"));
+        assertTrue(StackAveragingOp.hasStackSuffix("Sigma0_VV_M"));
+        assertTrue(StackAveragingOp.hasStackSuffix("Sigma0_VV_S0"));
+        assertFalse(StackAveragingOp.hasStackSuffix("elevation"));
+        assertFalse(StackAveragingOp.hasStackSuffix("incident_angle"));
+    }
+
+    private static Product stackOf(final String... names) {
+        final Product p = new Product("stack", "GRD", W, H);
+        AbstractMetadata.addAbstractedMetadataHeader(p.getMetadataRoot());
+        for (int k = 0; k < names.length; k++) {
+            final float[] data = new float[W * H];
+            java.util.Arrays.fill(data, (float) SAMPLES[k % SAMPLES.length]);
+            final Band b = new Band(names[k], ProductData.TYPE_FLOAT32, W, H);
+            b.setUnit(Unit.INTENSITY);
+            b.setRasterData(ProductData.createInstance(data));
+            p.addBand(b);
+        }
+        return p;
+    }
+
+    private static float centre(final Product target, final String band) throws Exception {
+        assertNotNull(band + " missing", target.getBand(band));
+        final float[] out = new float[W * H];
+        target.getBand(band).readPixels(0, 0, W, H, out);
+        return out[W + 1];
+    }
+
+    /** Collocate names its bands _M, _S0, _S1: a collocated stack is averaged (it was copied unchanged). */
+    @Test
+    public void testCollocatedStackIsAveraged() throws Exception {
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(stackOf("Sigma0_VV_M", "Sigma0_VV_S0", "Sigma0_VV_S1"));
+        assertEquals(2.0, centre(op.getTargetProduct(), "Sigma0_VV"), 1e-6);
+    }
+
+    @Test
+    public void testNumericDatesAreAveraged() throws Exception {
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(stackOf("Sigma0_VV_20200101", "Sigma0_VV_20200113", "Sigma0_VV_20200125"));
+        assertEquals(2.0, centre(op.getTargetProduct(), "Sigma0_VV"), 1e-6);
+    }
+
+    /** An auxiliary band with an underscore but no date keeps its name, instead of becoming "incident". */
+    @Test
+    public void testAuxiliaryBandIsCopiedUnderItsOwnName() throws Exception {
+        final Product src = newStack();
+        final Band angle = new Band("incident_angle", ProductData.TYPE_FLOAT32, W, H);
+        final float[] data = new float[W * H];
+        java.util.Arrays.fill(data, 35f);
+        angle.setRasterData(ProductData.createInstance(data));
+        src.addBand(angle);
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(src);
+        final Product target = op.getTargetProduct();
+        assertEquals(35f, centre(target, "incident_angle"), 0f);
+        assertEquals(null, target.getBand("incident"));
+    }
+
+    /**
+     * Bands that only share the part before the last underscore are different quantities: Sigma0_VV and Sigma0_VH
+     * must not be averaged into Sigma0, nor T12_real and T12_imag into T12.
+     */
+    @Test
+    public void testUnmarkedBandsAreNotAveraged() throws Exception {
+        final Product src = newStack();
+        for (String name : new String[]{"Sigma0_VV", "Sigma0_VH", "T12_real", "T12_imag"}) {
+            final Band b = new Band(name, ProductData.TYPE_FLOAT32, W, H);
+            final float[] data = new float[W * H];
+            java.util.Arrays.fill(data, name.endsWith("VV") ? 1f : 5f);
+            b.setRasterData(ProductData.createInstance(data));
+            src.addBand(b);
+        }
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(src);
+        final Product target = op.getTargetProduct();
+        assertEquals(2.0, centre(target, "Amplitude_VV"), 1e-6);
+        assertEquals(1f, centre(target, "Sigma0_VV"), 0f);
+        assertEquals(5f, centre(target, "Sigma0_VH"), 0f);
+        assertNotNull(target.getBand("T12_real"));
+        assertNotNull(target.getBand("T12_imag"));
+        assertEquals(null, target.getBand("Sigma0"));
+        assertEquals(null, target.getBand("T12"));
+    }
+
+    /**
+     * Collocate output whose secondary had tie-point grids: they become bands latitude_S0, ... next to the
+     * reference grids. Their statistic cannot be named latitude, so they are copied unchanged and the stack is
+     * still averaged.
+     */
+    @Test
+    public void testCollocatedTiePointGridBandsAreCopied() throws Exception {
+        final Product src = stackOf("Sigma0_VV_M", "Sigma0_VV_S0", "latitude_S0");
+        src.addTiePointGrid(new org.esa.snap.core.datamodel.TiePointGrid("latitude", 2, 2, 0, 0, W, H,
+                new float[]{10f, 10f, 11f, 11f}));
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(src);
+        final Product target = op.getTargetProduct();
+        assertEquals(1.5, centre(target, "Sigma0_VV"), 1e-6);
+        assertEquals(3f, centre(target, "latitude_S0"), 0f);
+        assertNotNull(target.getTiePointGrid("latitude"));
+    }
+
+    /** A product without stack bands is an error, not a copy that looks like a result. */
+    @Test
+    public void testNoStackBandsIsAnError() {
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(stackOf("elevation", "incident_angle"));
+        try {
+            op.getTargetProduct();
+            org.junit.Assert.fail("expected an OperatorException");
+        } catch (org.esa.snap.core.gpf.OperatorException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("No stack bands found"));
+        }
+    }
+
+    /** A failed initialize removes the bands it had added to the source (the framework does not call dispose). */
+    @Test
+    public void testFailedInitializeLeavesTheSourceUnchanged() {
+        // a source that refuses the second statistic band, after the first one was added
+        final Product src = newStack(new Product("stack", "SLC", W, H) {
+            private int statisticBands;
+
+            @Override
+            public void addBand(final Band band) {
+                if (band.getName().contains("_stack_") && ++statisticBands == 2) {
+                    throw new IllegalStateException("test failure");
+                }
+                super.addBand(band);
+            }
+        });
+        for (String name : new String[]{"Intensity_VV_ref_01Jan2020", "Intensity_VV_sec_13Jan2020"}) {
+            final Band b = new Band(name, ProductData.TYPE_FLOAT32, W, H);
+            b.setRasterData(ProductData.createInstance(new float[W * H]));
+            src.addBand(b);
+        }
+        src.setModified(false);
+        final int bands = src.getNumBands();
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(src);
+        try {
+            op.getTargetProduct();
+            org.junit.Assert.fail("expected an OperatorException");
+        } catch (org.esa.snap.core.gpf.OperatorException expected) {
+            // the refused band
+        }
+        assertEquals(bands, src.getNumBands());
+        assertFalse(src.isModified());
+    }
+
+    /**
+     * A complex stack: the virtual intensity band of each date is rebuilt on the averaged i and q bands
+     * (mean i = 2, mean q = 2, so intensity = 8).
+     */
+    @Test
+    public void testVirtualIntensityIsRebuiltFromTheAveragedBands() throws Exception {
+        final Product src = stackOf("i_VV_ref_01Jan2020", "i_VV_sec_13Jan2020", "i_VV_sec_25Jan2020");
+        for (String date : new String[]{"ref_01Jan2020", "sec_13Jan2020", "sec_25Jan2020"}) {
+            final Band q = new Band("q_VV_" + date, ProductData.TYPE_FLOAT32, W, H);
+            final float[] data = new float[W * H];
+            java.util.Arrays.fill(data, (float) SAMPLES[q.getName().contains("ref") ? 0 :
+                    q.getName().contains("13Jan") ? 1 : 2]);
+            q.setRasterData(ProductData.createInstance(data));
+            src.addBand(q);
+        }
+        for (String date : new String[]{"ref_01Jan2020", "sec_13Jan2020", "sec_25Jan2020"}) {
+            final String i = "i_VV_" + date, q = "q_VV_" + date;
+            src.addBand(new org.esa.snap.core.datamodel.VirtualBand("Intensity_VV_" + date,
+                    ProductData.TYPE_FLOAT32, W, H, i + " * " + i + " + " + q + " * " + q));
+        }
+        final StackAveragingOp op = new StackAveragingOp();
+        op.setSourceProduct(src);
+        final Product target = op.getTargetProduct();
+        assertEquals(2.0, centre(target, "i_VV"), 1e-6);
+        assertEquals(8.0, centre(target, "Intensity_VV"), 1e-5);
     }
 }

@@ -590,6 +590,7 @@ public final class TerrainFlatteningOp extends Operator {
             final int cols = (int) Math.round((lonMax - lonMin) / demResolution);
 
             final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
+            final double[][] egmWorkspace = new double[4][4];   // reused for every sea pixel
             final double[][] height = new double[rows][cols];
             // Reuse one GeoPos across rows*cols iterations instead of allocating per-pixel.
             // BaseElevationModel.getElevation mutates geoPos.lon (wraps > 180), so setLocation
@@ -602,7 +603,7 @@ public final class TerrainFlatteningOp extends Operator {
                     geoPos.setLocation(lat, lon);
                     double alt = dem.getElevation(geoPos);
                     if ((Double.isNaN(alt) || alt == demNoDataValue) && !nodataValueAtSea) { // get corrected elevation for 0
-                        alt = egm.getEGM(lat, lon);
+                        alt = egm.getEGM(lat, lon, egmWorkspace);
                     }
                     height[i][j] = alt;
                 }

@@ -463,7 +463,9 @@ public class WarpData implements PolynomialModel {
             }
 
             p.println();
-            p.print("------------------------ Band: " + bandName + " (Parse " + parseIndex + ") ------------------------");
+            // the degree can differ between attempts and bands (a Secondary short of GCPs falls back to a lower one)
+            p.print("------------------------ Band: " + bandName + " (Parse " + parseIndex + ", degree " +
+                    warpPolynomialOrder + ") ------------------------");
             p.println();
 
             if (!warpData.notEnoughGCPs) {

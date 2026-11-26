@@ -510,6 +510,7 @@ public final class DEMAssistedCoregistrationOp extends Operator {
             final int lonMaxIdx = (int)Math.ceil(lowerRight.getX());
 
             final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
+            final double[][] egmWorkspace = new double[4][4];   // reused for every sea pixel
 
             // Loop through all DEM points bounded by the indices computed above. For each point,
             // get its lat/lon and its azimuth/range indices in target image;
@@ -562,7 +563,7 @@ public final class DEMAssistedCoregistrationOp extends Operator {
                     Double alt = dem.getElevation(gp);
 
                     if (alt.equals(demNoDataValue)) { // get corrected elevation for 0
-                        alt = (double)egm.getEGM(gp.lat, gp.lon);
+                        alt = (double)egm.getEGM(gp.lat, gp.lon, egmWorkspace);
                     }
 
                     GeoUtils.geo2xyzWGS84(gp.lat, gp.lon, alt, posData.earthPoint);

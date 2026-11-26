@@ -324,6 +324,36 @@ public class TestBatchSnaphuUnwrapOp {
         }
     }
 
+    /** A location that does not exist is reported before any download (which then failed with a bare error). */
+    @Test
+    public void testMissingInstallLocationIsReported() {
+        final File missing = tempDir.resolve("no-such-folder").toFile();
+        try {
+            op.downloadSnaphu(missing);
+            org.junit.Assert.fail("expected IOException");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("does not exist"));
+        }
+        assertFalse("nothing is created", missing.exists());
+    }
+
+    /** A read-only folder without SNAPHU cannot take the download: say so, before any network access. */
+    @Test
+    public void testReadOnlyInstallFolderWithoutBinaryIsReported() {
+        final File dir = tempDir.resolve("readonly").toFile();
+        assertTrue(dir.mkdir());
+        try {
+            Assume.assumeTrue("file system cannot make the folder read-only",
+                    dir.setWritable(false) && !Files.isWritable(dir.toPath()));
+            op.downloadSnaphu(dir);
+            org.junit.Assert.fail("expected IOException");
+        } catch (IOException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("not writeable"));
+        } finally {
+            dir.setWritable(true);
+        }
+    }
+
     /** Progress only moves forward and ends at the same place for any number of pairs (it went backwards above 100). */
     @Test
     public void testProgressNeverGoesBackwards() {

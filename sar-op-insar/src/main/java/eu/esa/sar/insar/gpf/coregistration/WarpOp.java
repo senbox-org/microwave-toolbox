@@ -564,7 +564,8 @@ public class WarpOp extends Operator {
 
     private ProductNodeGroup<Placemark> getGCPGroup(final Band srcBand) {
         ProductNodeGroup<Placemark> secondaryGCPGroup = GCPManager.instance().getGcpGroup(srcBand);
-        if (secondaryGCPGroup.getNodeCount() < 3) {
+        // too few for a degree-1 fit that can be checked (more GCPs than its 3 coefficients)
+        if (secondaryGCPGroup.getNodeCount() <= numCoefficients(1)) {
             // find others for same secondary product
             final String secProductName = StackUtils.getSecondaryProductName(sourceProduct, srcBand, null);
             for (Band band : sourceProduct.getBands()) {
@@ -572,7 +573,7 @@ public class WarpOp extends Operator {
                     final String productName = StackUtils.getSecondaryProductName(sourceProduct, band, null);
                     if (secProductName != null && secProductName.equals(productName)) {
                         secondaryGCPGroup = GCPManager.instance().getGcpGroup(band);
-                        if (secondaryGCPGroup.getNodeCount() >= 3)
+                        if (secondaryGCPGroup.getNodeCount() > numCoefficients(1))
                             break;
                     }
                 }
@@ -585,16 +586,27 @@ public class WarpOp extends Operator {
     static final String WARP_METHOD_POLYNOMIAL = "Polynomial";
     static final String WARP_METHOD_NONE = "None";
 
-    /** How a Secondary band was warped: the estimation method and the polynomial degree (0 for none). */
+    /**
+     * How a Secondary band was warped: the estimation method, the polynomial degree (0 for none) and whether the
+     * DEM refinement was applied (only the CPM applies it).
+     */
     static final class WarpMethod {
         final String name;
         final int degree;
+        final boolean demRefined;
 
-        WarpMethod(final String name, final int degree) {
+        WarpMethod(final String name, final int degree, final boolean demRefined) {
             this.name = name;
             this.degree = degree;
+            this.demRefined = demRefined;
         }
     }
+
+    // On a complex stack the threshold parameter is a w-test significance level (0.001 to 0.1). A Secondary that
+    // falls back to the RMS rule reads it as a cut in pixels. It falls back when the CPM failed, typically on GCPs
+    // with several tenths of a pixel of noise, and a cut below this removes good GCPs until no over-determined fit
+    // is left (0.05 px gave no warp for most such Secondaries).
+    static final float MIN_FALLBACK_RMS_PIXELS = 0.5f;
 
     private static final class PlainWarp {
         final WarpData model;
@@ -621,6 +633,7 @@ public class WarpOp extends Operator {
     private PlainWarp fitPlainWarp(final Band srcBand, final ProductNodeGroup<Placemark> slaveGCPGroup,
                                    final ProductNodeGroup<Placemark> masterGCPGroup, final boolean appendResiduals) {
         final int nodeCount = slaveGCPGroup.getNodeCount();
+        final float threshold = inSAROptimized ? Math.max(rmsThreshold, MIN_FALLBACK_RMS_PIXELS) : rmsThreshold;
         boolean written = false;
         for (int degree = warpPolynomialOrder; degree >= 1; degree--) {
             if (nodeCount <= numCoefficients(degree)) {
@@ -628,21 +641,23 @@ public class WarpOp extends Operator {
             }
             final WarpData warpData = new WarpData(slaveGCPGroup);
             warpData.computeWARPPolynomialFromGCPs(sourceProduct, srcBand, degree, masterGCPGroup,
-                    maxIterations, rmsThreshold, appendResiduals || written);
+                    maxIterations, threshold, appendResiduals || written);
             written = true;
-            if (warpData.isValid()) {
+            // The RMS rule removes GCPs as it goes: the final fit must still have more GCPs than coefficients,
+            // or it passes through all of them and its zero residuals hide a wrong warp.
+            if (warpData.isValid() && warpData.getNumValidGCPs() > numCoefficients(degree)) {
                 if (degree < warpPolynomialOrder) {
                     SystemUtils.LOG.warning("WarpOp: " + srcBand.getName() + " warped with a degree " + degree +
                             " polynomial: too few GCPs for degree " + warpPolynomialOrder);
                 }
-                return new PlainWarp(warpData, new WarpMethod(WARP_METHOD_POLYNOMIAL, degree), true);
+                return new PlainWarp(warpData, new WarpMethod(WARP_METHOD_POLYNOMIAL, degree, false), true);
             }
         }
         SystemUtils.LOG.warning("WarpOp: " + nodeCount + " GCPs are too few to warp " + srcBand.getName() +
                 "; the band is filled with no-data");
         final WarpData none = new WarpData(slaveGCPGroup);
         none.setInValid();
-        return new PlainWarp(none, new WarpMethod(WARP_METHOD_NONE, 0), written);
+        return new PlainWarp(none, new WarpMethod(WARP_METHOD_NONE, 0, false), written);
     }
 
     private void setUpCPMDemRefinement(final CPM cpm, final Band srcBand,
@@ -733,15 +748,17 @@ public class WarpOp extends Operator {
                         cpm.computeEstimationStats();
                         cpm.wrapJaiWarpPolynomial();
                         warpDataMap.put(srcBand, cpm);
-                        warpMethodMap.put(srcBand, new WarpMethod(WARP_METHOD_CPM, warpPolynomialOrder));
+                        warpMethodMap.put(srcBand, new WarpMethod(WARP_METHOD_CPM, warpPolynomialOrder, demRefinement));
                         continue;
                     }
                     SystemUtils.LOG.warning("WarpOp: " + slaveGCPGroup.getNodeCount() + " GCPs leave no redundancy " +
                             "for the CPM of " + srcBand.getName() + "; using a plain polynomial fit for this band");
                 } catch (Exception e) {
                     // only this Secondary falls back: the others keep their CPM
-                    SystemUtils.LOG.log(Level.WARNING, "WarpOp: the CPM of " + srcBand.getName() +
-                            " failed; using a plain polynomial fit for this band: " + e.getMessage(), e);
+                    SystemUtils.LOG.warning("WarpOp: the CPM of " + srcBand.getName() + " failed (" +
+                            e.getMessage() + "); using a plain polynomial fit for this band" +
+                            (demRefinement ? ", without DEM refinement" : ""));
+                    SystemUtils.LOG.log(Level.FINE, "WarpOp: CPM failure of " + srcBand.getName(), e);
                 }
             }
 
@@ -838,6 +855,7 @@ public class WarpOp extends Operator {
             if (method != null) {
                 warpDataElem.setAttributeString("warpMethod", method.name);
                 warpDataElem.setAttributeInt("warpDegree", method.degree);
+                warpDataElem.setAttributeInt("demRefined", method.demRefined ? 1 : 0);
             }
             warpDataElem.setAttributeDouble("rmsStd", warpData.getRMSStd());
             warpDataElem.setAttributeDouble("rmsMean", warpData.getRMSMean());

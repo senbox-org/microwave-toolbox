@@ -49,8 +49,10 @@ default 0.05 therefore means a final cut at 0.05 pixel RMS, which is very strict
 gives only coarse GCPs there (quantised to 1/interpolation factor), so choose 0.5 or 1.0.
 If the w-test cannot be used for a Secondary, because it has no more GCPs than the polynomial has
 coefficients or because the estimation fails (for example the overall model test, on a decorrelated
-date), that Secondary alone falls back to the RMS rule, again with the value in pixels; the other
-Secondaries keep their w-test fit. The log names the Secondary. The RMS rule is:
+date), that Secondary alone falls back to the RMS rule, with a cut of 0.5 pixel instead of the
+significance level (a Secondary falls back when its GCPs are noisy, and a 0.001- or 0.05-pixel cut would remove good
+GCPs until no checkable fit is left); the other Secondaries keep their w-test fit. The fallback does not apply the DEM refinement. The log
+names the Secondary. The RMS rule is:
 <ol>
     <li>The warp polynomial is fitted and the RMS residual of each GCP pair is computed.</li>
     <li>While the mean RMS is above the threshold, GCP pairs with RMS greater than
@@ -58,13 +60,15 @@ Secondaries keep their w-test fit. The log names the Secondary. The RMS rule is:
     <li>Finally the GCP pairs with RMS above the threshold are removed and the final warp
         function is computed with the remaining pairs.</li>
 </ol>
-The RMS rule needs more GCPs than the polynomial has coefficients (3, 6 and 10 for orders 1, 2 and 3):
-a fit through exactly as many GCPs passes through all of them, so its zero residuals would say nothing
-about the warp. With fewer GCPs the order is lowered for that Secondary until the GCPs over-determine it.
+The RMS rule needs more GCPs than the polynomial has coefficients (3, 6 and 10 for orders 1, 2 and 3),
+also after it has removed GCPs: a fit through exactly as many GCPs passes through all of them, so its zero
+residuals would say nothing about the warp. Otherwise the order is lowered for that Secondary until the
+remaining GCPs over-determine it.
 With 3 GCPs or fewer no warp is possible: the Secondary's bands are then filled with no-data.<br>
 Each warped band records in its <code>WarpData</code> metadata element how it was warped:
 <code>warpMethod</code> (CPM, Polynomial or None), <code>warpDegree</code> (the polynomial order used,
-0 for none) and <code>warpValid</code> (1, or 0 when the band holds no-data).
+0 for none), <code>demRefined</code> (1 when the DEM refinement was applied) and <code>warpValid</code>
+(1, or 0 when the band holds no-data).
 &nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp; The WARP polynomial order is specified by user in the dialog box.<br>
 <ul>
     <li>The valid values for the&nbsp;polynomial order are
@@ -80,9 +84,9 @@ Each warped band records in its <code>WarpData</code> metadata element how it wa
     <li>Higher order&nbsp;warp requires more GCPs and can introduce large distortions
         in image regions containing only a few GCPs.
     </li>
-    <li>If fewer GCPs remain for a Secondary than the polynomial has coefficients (3, 6 or 10
-        for order 1, 2 or 3), Warp logs the warning "&lt;band&gt; does not have enough valid
-        GCPs for the warp".
+    <li>If a Secondary is warped with a lower order than selected, Warp logs "&lt;band&gt; warped with a
+        degree &lt;n&gt; polynomial"; if even order 1 is not possible, it logs "&lt;n&gt; GCPs are too few to
+        warp &lt;band&gt;" and the band is filled with no-data.
     </li>
 </ul>
 <h4>Generate Co-Registered Image</h4>&nbsp;&nbsp;&nbsp;With the

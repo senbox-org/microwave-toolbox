@@ -259,7 +259,13 @@ public class BatchSnaphuUnwrapOp extends Operator {
             throw new IOException("No SNAPHU build can be downloaded for " + operatingSystem
                     + ". Install SNAPHU and set the Snaphu Install Location to the snaphu executable or its folder.");
         }
-        if (snaphuInstallLocation.exists() && !Files.isWritable(snaphuInstallLocation.toPath())) {
+        // checked before the download starts: otherwise it fails afterwards with a bare FileNotFoundException,
+        // or offline with a network error that hides the real problem
+        if (!snaphuInstallLocation.exists()) {
+            throw new IOException("Snaphu Install Location " + snaphuInstallLocation + " does not exist. Select the "
+                    + "snaphu executable, or an existing folder to download SNAPHU into.");
+        }
+        if (!Files.isWritable(snaphuInstallLocation.toPath())) {
             throw new IOException("Snaphu Install Location " + snaphuInstallLocation + " holds no " +
                     snaphuBinaryName() + " and is not writeable, so SNAPHU cannot be downloaded into it.");
         }

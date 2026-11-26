@@ -19,7 +19,9 @@ one statistic over time for the corresponding bands in the given stack product. 
 are grouped by their name without the <code>_ref</code>/<code>_sec</code> (or
 <code>_mst</code>/<code>_slv</code>) date suffix: for example all
 <code>Gamma0_VV_ref_&lt;date&gt;</code> and <code>Gamma0_VV_sec&lt;k&gt;_&lt;date&gt;</code>
-bands give one output band <code>Gamma0_VV</code>. The statistics are mean, minimum,
+bands give one output band <code>Gamma0_VV</code>. Collocated stacks (<code>Gamma0_VV_M</code>,
+<code>Gamma0_VV_S0</code>, ...) and names ending in a date such as <code>_20200101</code> are grouped the
+same way. The statistics are mean, minimum,
 maximum, standard deviation and coefficient of variation. There is no median. <br>
 <h4>Input and Output</h4>
 <ul>
@@ -30,8 +32,13 @@ maximum, standard deviation and coefficient of variation. There is no median. <b
     <li>The output has one band per band group, named without the date suffix, holding the
         selected statistic. The band takes the unit of the first band in the group. Its no-data value is
         NaN, so a statistic of 0 (a constant pixel has a standard deviation of 0) stays a valid value.</li>
-    <li>Bands without a date in their name (for example an elevation or incidence angle band added to the
-        stack) are not part of any group: they are copied to the output unchanged.</li>
+    <li>Bands that are not part of the stack are copied to the output unchanged: a band without any
+        suffix (<code>elevation</code>), and bands that share the name before the last underscore but none of
+        which ends in a date or a stack suffix (<code>incident_angle</code> alone; <code>Sigma0_VV</code> with
+        <code>Sigma0_VH</code>; <code>T12_real</code> with <code>T12_imag</code>). So are the bands of a group whose
+        output name already exists, for example Collocate's <code>latitude_S0</code> band next to the
+        <code>latitude</code> tie-point grid (the log names them). A product with no stack bands at all is an
+        error.</li>
 </ul>
 <h4>How the statistics are computed</h4>
 <ul>

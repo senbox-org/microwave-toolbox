@@ -118,8 +118,13 @@ public class TestWarpOpTooFewGCPs {
     }
 
     private static Product warp(final Product source) {
+        return warp(source, 0.05f);
+    }
+
+    private static Product warp(final Product source, final float rmsThreshold) {
         final WarpOp op = (WarpOp) new WarpOp.Spi().createOperator();
         op.setSourceProduct(source);
+        op.setParameter("rmsThreshold", rmsThreshold);
         return op.getTargetProduct();
     }
 
@@ -204,5 +209,114 @@ public class TestWarpOpTooFewGCPs {
         assertTrue(target.getBand(SEC_I).isNoDataValueUsed());
         assertEquals(0, warpValid(target, SEC_I));
         assertEquals("None 0", warpMethod(target, SEC_I));
+    }
+
+    /**
+     * A complex stack whose single Secondary has numGcps GCPs with the given noise (pixels, per axis) and, at k = 3,
+     * a gross outlier of 7 pixels.
+     */
+    private static Product noisyStack(final int numGcps, final double noise, final long seed) {
+        final Product p = new Product("stack", "SLC", W, H);
+        final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(p.getMetadataRoot());
+        absRoot.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
+        absRoot.setAttributeString("processed_slave", SEC_I);
+        final Band refI = addBand(p, REF_I, Unit.REAL, 0, 0);
+        addBand(p, REF_Q, Unit.IMAGINARY, 0, 0);
+        final Band secI = addBand(p, SEC_I, Unit.REAL, DX, DY);
+        addBand(p, SEC_Q, Unit.IMAGINARY, DX, DY);
+        final ProductNodeGroup<Placemark> refGcps = GCPManager.instance().getGcpGroup(refI);
+        final ProductNodeGroup<Placemark> secGcps = GCPManager.instance().getGcpGroup(secI);
+        final java.util.Random random = new java.util.Random(seed);
+        for (int k = 0; k < numGcps; k++) {
+            final String name = "gcp_" + k;
+            refGcps.add(Placemark.createPointPlacemark(GcpDescriptor.getInstance(), name, name, "",
+                    new PixelPos(POS[k][0], POS[k][1]), null, null));
+            final double err = k == 3 ? 7.0 : 0.0;
+            secGcps.add(Placemark.createPointPlacemark(GcpDescriptor.getInstance(), name, name, "",
+                    new PixelPos(POS[k][0] + DX + err + noise * random.nextGaussian(),
+                            POS[k][1] + DY + noise * random.nextGaussian()), null, null));
+        }
+        return p;
+    }
+
+    /**
+     * The fallback fit of a noisy Secondary must be valid, keep more GCPs than coefficients and drop the outlier;
+     * the warped band then matches the reference within the GCP noise. Returns its degree.
+     */
+    private static int assertValidFallback(final Product target, final double noise, final String what)
+            throws Exception {
+        final float[] out = new float[W * H];
+        target.getBand(SEC_I).readPixels(0, 0, W, H, out);
+        final MetadataElement wd = warpData(target, SEC_I);
+        final int degree = wd.getAttributeInt("warpDegree");
+        assertEquals(what + ": " + wd.getAttributeString("warpMethod"), 1, wd.getAttributeInt("warpValid"));
+        assertEquals(what, WarpOp.WARP_METHOD_POLYNOMIAL, wd.getAttributeString("warpMethod"));
+        assertTrue(what + ": " + wd.getNumElements() + " GCPs left for degree " + degree,
+                wd.getNumElements() > WarpOp.numCoefficients(degree));
+        for (MetadataElement gcp : wd.getElements()) {
+            assertTrue(what + ": the outlier is kept", gcp.getAttributeDouble("ref_x") != POS[3][0] ||
+                    gcp.getAttributeDouble("ref_y") != POS[3][1]);
+        }
+        // the image is 100 + x + 2y: a few times the noise of a fit through 5 or more GCPs
+        assertEquals(what + ": warped onto the reference", 100 + 32 + 2 * 32, out[32 * W + 32],
+                Math.max(1.0, 6 * noise));
+        return degree;
+    }
+
+    /**
+     * GCPs with 0.1 px noise and one gross outlier, so the CPM fails. The RMS rule removes GCPs as it iterates; it
+     * must not stop at exactly as many GCPs as coefficients, a fit through every GCP whose zero residuals hide a
+     * wrong warp (often keeping the outlier), nor remove good GCPs until no fit is left (a 0.05-pixel cut gave
+     * no warp for 12 of these 20 draws). Several noise draws, since how many GCPs the rule removes depends on them.
+     */
+    @Test
+    public void testFallbackFitKeepsRedundantGcps() throws Exception {
+        for (int seed = 1; seed <= 20; seed++) {
+            GCPManager.instance().removeAllGcpGroups();
+            // 7 GCPs: one more than degree 2 needs, so the CPM fails on the outlier
+            assertValidFallback(warp(noisyStack(7, 0.1, seed)), 0.1, "seed " + seed);
+        }
+    }
+
+    /**
+     * The significance level 0.001 must not become a 0.001-pixel cut in the fallback: with GCPs as noisy as those
+     * that make the CPM fail, such a cut removes every good GCP.
+     */
+    @Test
+    public void testFallbackAtSmallestSignificanceLevelGivesWarp() throws Exception {
+        for (int seed = 1; seed <= 10; seed++) {
+            GCPManager.instance().removeAllGcpGroups();
+            assertValidFallback(warp(noisyStack(7, 0.3, seed), 0.001f), 0.3, "seed " + seed);
+        }
+    }
+
+    /** A detected (amplitude) stack uses the RMS rule throughout; the same order rule applies there. */
+    private static Product detectedStack(final int numGcps) {
+        final Product p = new Product("stack", "GRD", W, H);
+        final MetadataElement absRoot = AbstractMetadata.addAbstractedMetadataHeader(p.getMetadataRoot());
+        absRoot.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
+        absRoot.setAttributeString("processed_slave", "Amplitude_VV_sec1_13Jan2020");
+        final Band ref = addBand(p, "Amplitude_VV_ref_01Jan2020", Unit.AMPLITUDE, 0, 0);
+        final Band sec = addBand(p, "Amplitude_VV_sec1_13Jan2020", Unit.AMPLITUDE, DX, DY);
+        addGcps(ref, sec, numGcps, DX, DY, -1);
+        return p;
+    }
+
+    @Test
+    public void testDetectedStackFallsBackToLowerDegree() throws Exception {
+        final Product target = warp(detectedStack(5));
+        assertWarpedOntoReference(target, "Amplitude_VV_sec1_13Jan2020");
+        assertEquals("Polynomial 1", warpMethod(target, "Amplitude_VV_sec1_13Jan2020"));
+        assertEquals(0, warpData(target, "Amplitude_VV_sec1_13Jan2020").getAttributeInt("demRefined"));
+    }
+
+    /** 3 GCPs determine a degree-1 fit exactly: nothing checks it, so the band has no warp. */
+    @Test
+    public void testThreeGcpsGiveNoWarp() throws Exception {
+        final Product target = warp(detectedStack(3));
+        final float[] out = new float[W * H];
+        target.getBand("Amplitude_VV_sec1_13Jan2020").readPixels(0, 0, W, H, out);
+        assertEquals(NO_DATA, out[W + 1], 0.0);
+        assertEquals("None 0", warpMethod(target, "Amplitude_VV_sec1_13Jan2020"));
     }
 }

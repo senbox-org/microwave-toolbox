@@ -24,13 +24,16 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.gpf.OperatorUtils;
 import org.esa.snap.engine_utilities.gpf.StackUtils;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -61,6 +64,8 @@ public class StackAveragingOp extends Operator {
     private BandInfo[] nameGroups;
     // virtual bands this operator added to the source product, removed again in dispose()
     private final List<Band> addedSourceBands = new ArrayList<>();
+    // source bands that belong to a group; the others are copied unchanged
+    private final Set<Band> groupedBands = new HashSet<>();
     private boolean sourceWasModified;
 
     /**
@@ -121,9 +126,9 @@ public class StackAveragingOp extends Operator {
                 }
             }
 
-            // bands that are not part of the stack (no date in the name, e.g. an added elevation band)
+            // bands that are not part of the stack (e.g. an added elevation or incidence angle band)
             for (Band band : sourceProduct.getBands()) {
-                if (!isStackBand(band.getName()) && !addedSourceBands.contains(band) &&
+                if (!groupedBands.contains(band) && !addedSourceBands.contains(band) &&
                         targetProduct.getBand(band.getName()) == null) {
                     ProductUtils.copyBand(band.getName(), sourceProduct, targetProduct, true);
                 }
@@ -131,13 +136,19 @@ public class StackAveragingOp extends Operator {
 
             updateMetadata(targetProduct);
         } catch (Throwable e) {
+            // the framework does not call dispose() after a failed initialize
+            removeAddedSourceBands();
             OperatorUtils.catchOperatorException(getId(), e);
         }
     }
 
     @Override
     public void dispose() {
-        // only the bands added here: the source product keeps all of its own bands
+        removeAddedSourceBands();
+    }
+
+    // only the bands added here: the source product keeps all of its own bands
+    private void removeAddedSourceBands() {
         for (Band band : addedSourceBands) {
             sourceProduct.removeBand(band);
         }
@@ -148,18 +159,16 @@ public class StackAveragingOp extends Operator {
     }
 
     /**
-     * A band of the stack: its name carries a reference/secondary marker or ends in a date (_01Jan2020).
-     * Other bands (elevation, incidence angle, ...) are not averaged but copied.
+     * True if the name ends like a band of a stack: a reference/secondary marker (_ref, _sec, _mst, _slv), a date
+     * (_01Jan2020 or _20200101) or a Collocate suffix (_M, _S, _S0, _S1, ...).
      */
-    static boolean isStackBand(final String name) {
-        if (StackUtils.getBandNameWithoutDate(name).equals(name)) {
-            return false;
-        }
+    static boolean hasStackSuffix(final String name) {
         if (name.contains(StackUtils.REF) || name.contains(StackUtils.SEC) ||
                 name.contains(StackUtils.MST) || name.contains(StackUtils.SLV)) {
             return true;
         }
-        return name.substring(name.lastIndexOf('_') + 1).matches("\\d{1,2}[A-Za-z]{3}\\d{4}");
+        final int i = name.lastIndexOf('_');
+        return i > 0 && name.substring(i + 1).matches("\\d{1,2}[A-Za-z]{3}\\d{4}|\\d{8}|M|S\\d*");
     }
 
     private static void updateMetadata(final Product targetProduct) {
@@ -168,20 +177,47 @@ public class StackAveragingOp extends Operator {
         AbstractMetadata.setAttribute(absRoot, AbstractMetadata.coregistered_stack, 0);
     }
 
+    /**
+     * Groups the bands by their name without the date or stack suffix. A band without any suffix (elevation), and
+     * a group in which no band name ends like a stack band (incident_angle; Sigma0_VV with Sigma0_VH), is not a
+     * stack and is copied unchanged instead; so is a group whose output name another node already has.
+     */
     private BandInfo[] getBandGroupNames() {
-
-        final Band[] bands = sourceProduct.getBands();
-        final Set<String> nameSet = new LinkedHashSet<>();
+        final Map<String, List<Band>> groups = new LinkedHashMap<>();
+        for (Band band : sourceProduct.getBands()) {
+            final String name = StackUtils.getBandNameWithoutDate(band.getName());
+            if (!name.equals(band.getName())) {
+                groups.computeIfAbsent(name, k -> new ArrayList<>()).add(band);
+            }
+        }
         final List<BandInfo> bandGroup = new ArrayList<>();
-        for (Band band : bands) {
-            if (!isStackBand(band.getName())) {
+        final List<String> taken = new ArrayList<>();
+        for (Map.Entry<String, List<Band>> group : groups.entrySet()) {
+            final List<Band> members = group.getValue();
+            // bands that only share the part before the last underscore (Sigma0_VV and Sigma0_VH, T12_real and
+            // T12_imag) are different quantities, not dates of one
+            if (members.stream().noneMatch(band -> hasStackSuffix(band.getName()))) {
                 continue;
             }
-            final String name = StackUtils.getBandNameWithoutDate(band.getName());
-            if (!nameSet.contains(name)) {
-                nameSet.add(name);
-                bandGroup.add(new BandInfo(band, name));
+            // The statistic takes the group name. If a tie-point grid, mask or band already has it (Collocate
+            // turns the secondary's latitude grid into a band latitude_S0, next to the reference grid latitude),
+            // the members are copied unchanged.
+            final String name = group.getKey();
+            if (targetProduct.containsRasterDataNode(name) || sourceProduct.containsRasterDataNode(name)) {
+                SystemUtils.LOG.warning("Stack-Averaging: " + name + " already exists in " +
+                        sourceProduct.getName() + "; its stack bands are copied unchanged");
+                taken.add(name);
+                continue;
             }
+            groupedBands.addAll(members);
+            bandGroup.add(new BandInfo(members.get(0), name));
+        }
+        if (bandGroup.isEmpty()) {
+            // copying every band through would look like success
+            throw new OperatorException("No stack bands found in " + sourceProduct.getName() + ": band names must " +
+                    "end in a date or a stack suffix (e.g. Sigma0_VV_mst_01Jan2020, Sigma0_VV_slv1_13Jan2020, " +
+                    "Sigma0_VV_M, Sigma0_VV_S0)" +
+                    (taken.isEmpty() ? "" : ", and the output name must not exist already: " + taken));
         }
         return bandGroup.toArray(new BandInfo[0]);
     }
@@ -191,7 +227,7 @@ public class StackAveragingOp extends Operator {
         final List<Band> bandList = new ArrayList<>();
         for (Band band : bands) {
             // the same group only: Sigma0_VV must not take in Sigma0_VV_db_... bands
-            if (!(band instanceof VirtualBand) && isStackBand(band.getName()) &&
+            if (!(band instanceof VirtualBand) && groupedBands.contains(band) &&
                     StackUtils.getBandNameWithoutDate(band.getName()).equals(name_prefix)) {
                 bandList.add(band);
             }
