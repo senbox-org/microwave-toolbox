@@ -24,6 +24,7 @@ import org.esa.snap.core.gpf.annotations.Parameter;
 import org.esa.snap.core.gpf.annotations.SourceProduct;
 import org.esa.snap.core.gpf.annotations.TargetProduct;
 import org.esa.snap.core.util.ProductUtils;
+import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.io.FileDownloader;
 import org.esa.snap.dataio.envi.EnviProductReaderPlugIn;
 import org.esa.snap.engine_utilities.datamodel.Unit;
@@ -56,7 +57,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
             label="Snaphu Export folder")
     protected File snaphuProcessingLocation;
 
-    @Parameter(description = "Directory to install the SNAPHU binary to",
+    @Parameter(description = "The SNAPHU executable, or a folder that holds it or that SNAPHU is downloaded into",
             label="Snaphu Install Location")
     protected File snaphuInstallLocation;
 
@@ -105,10 +106,8 @@ public class BatchSnaphuUnwrapOp extends Operator {
         if(!Files.isWritable(snaphuProcessingLocation.toPath())){
             throw new OperatorException("Path provided for Snaphu processing is not writeable.");
         }
-        if (!isSnaphuBinary(snaphuInstallLocation) &&
-                !Files.isWritable(snaphuInstallLocation.toPath())){
-            throw new OperatorException("Path provided for Snaphu install is not writeable.");
-        }
+        // The install location needs to be writable only if SNAPHU has to be downloaded into it (checked in
+        // downloadSnaphu): a read-only system folder that already holds snaphu is fine.
 
         trgProduct = new Product(sourceProduct.getName(), sourceProduct.getProductType(), sourceProduct.getSceneRasterWidth(), sourceProduct.getSceneRasterHeight());
         trgProduct.setSceneGeoCoding(sourceProduct.getSceneGeoCoding());
@@ -130,16 +129,42 @@ public class BatchSnaphuUnwrapOp extends Operator {
 
     }
 
+    // exact name: the Linux archive also holds src/snaphu.c, snaphu.h, man/snaphu.1, config/snaphu.conf.*
+    private static boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase().startsWith("windows");
+    }
+
+    private static String snaphuBinaryName() {
+        return isWindows() ? "snaphu.exe" : "snaphu";
+    }
+
+    /** An executable the user named directly. On Windows every file reports as executable, so it must be a .exe. */
+    static boolean isUserSnaphuExecutable(final File file) {
+        return file.isFile() && file.canExecute()
+                && (!isWindows() || file.getName().toLowerCase().endsWith(".exe"));
+    }
+
     boolean isSnaphuBinary(File file){
-        if(System.getProperty("os.name").toLowerCase().startsWith("windows")){
-            return ! file.isDirectory() &&
-                    file.canExecute() &&
-                    file.getName().equals("snaphu.exe");
-        }else{
-            return ! file.isDirectory() &&
-                    file.canExecute() &&
-                    file.getName().startsWith("snaphu");
+        return ! file.isDirectory() &&
+                file.canExecute() &&
+                file.getName().equals(snaphuBinaryName());
+    }
+
+    /**
+     * Like {@link #findSnaphuBinary}, but also accepts a binary that lacks the execute permission and grants it:
+     * zip entries carry no Unix permissions, so a freshly unzipped Linux binary is never executable.
+     */
+    File findOrMakeExecutableSnaphuBinary(File rootDir) {
+        final File binary = findSnaphuBinary(rootDir);
+        if (binary != null) {
+            return binary;
         }
+        for (File file : FileUtils.listFiles(rootDir, TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE)) {
+            if (file.getName().equals(snaphuBinaryName()) && file.setExecutable(true) && isSnaphuBinary(file)) {
+                return file;
+            }
+        }
+        return null;
     }
 
     File findSnaphuBinary(File rootDir){
@@ -178,9 +203,9 @@ public class BatchSnaphuUnwrapOp extends Operator {
         return configFiles.toArray(new File[0]);
     }
 
-    private static final String LINUX_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
-    private static final String WINDOWS64_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
-    private static final String WINDOWS32_DOWNLOAD_PATH = "http://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
+    private static final String LINUX_DOWNLOAD_PATH = "https://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_linux.zip";
+    private static final String WINDOWS64_DOWNLOAD_PATH = "https://step.esa.int/thirdparties/snaphu/2.0.4/snaphu-v2.0.4_win64.zip";
+    private static final String WINDOWS32_DOWNLOAD_PATH = "https://step.esa.int/thirdparties/snaphu/1.4.2-2/snaphu-v1.4.2_win32.zip";
 
     /**
      * @return the SNAPHU archive for this platform, or null when no build is published for it (macOS).
@@ -205,9 +230,25 @@ public class BatchSnaphuUnwrapOp extends Operator {
             snaphuBinaryLocation = snaphuInstallLocation;
             return snaphuBinaryLocation;
         }
+        // A file is the user's own binary (the usual set-up on macOS, where nothing is downloaded): never
+        // download into it. Any name is accepted (e.g. snaphu-2.0.6); the exact-name rule is only for searching
+        // a folder, where src/snaphu.c and the like must be skipped. A "snaphu" copy that lost its execute bit
+        // is repaired, anything else is reported.
+        if (snaphuInstallLocation.isFile()) {
+            if (isUserSnaphuExecutable(snaphuInstallLocation)) {
+                return snaphuInstallLocation;
+            }
+            if (snaphuInstallLocation.getName().equals(snaphuBinaryName())
+                    && snaphuInstallLocation.setExecutable(true) && isSnaphuBinary(snaphuInstallLocation)) {
+                return snaphuInstallLocation;
+            }
+            throw new IOException("Snaphu Install Location " + snaphuInstallLocation + " is not executable"
+                    + (isWindows() ? " (expected a .exe file)" : "; make it executable (chmod +x)")
+                    + ", or set the location to the folder that holds " + snaphuBinaryName() + ".");
+        }
         // Reuse a binary downloaded by an earlier run instead of downloading it again.
         if (snaphuInstallLocation.isDirectory()) {
-            final File existing = findSnaphuBinary(snaphuInstallLocation);
+            final File existing = findOrMakeExecutableSnaphuBinary(snaphuInstallLocation);
             if (existing != null) {
                 return existing;
             }
@@ -218,10 +259,24 @@ public class BatchSnaphuUnwrapOp extends Operator {
             throw new IOException("No SNAPHU build can be downloaded for " + operatingSystem
                     + ". Install SNAPHU and set the Snaphu Install Location to the snaphu executable or its folder.");
         }
+        // checked before the download starts: otherwise it fails afterwards with a bare FileNotFoundException,
+        // or offline with a network error that hides the real problem
+        if (!snaphuInstallLocation.exists()) {
+            throw new IOException("Snaphu Install Location " + snaphuInstallLocation + " does not exist. Select the "
+                    + "snaphu executable, or an existing folder to download SNAPHU into.");
+        }
+        if (!Files.isWritable(snaphuInstallLocation.toPath())) {
+            throw new IOException("Snaphu Install Location " + snaphuInstallLocation + " holds no " +
+                    snaphuBinaryName() + " and is not writeable, so SNAPHU cannot be downloaded into it.");
+        }
         File zipFile = FileDownloader.downloadFile(new URL(downloadPath), snaphuInstallLocation, null);
         ZipUtils.unzip(zipFile.toPath(), snaphuInstallLocation.toPath(), true);
-        snaphuBinaryLocation = findSnaphuBinary(snaphuInstallLocation);
-
+        snaphuBinaryLocation = findOrMakeExecutableSnaphuBinary(snaphuInstallLocation);
+        if (snaphuBinaryLocation == null) {
+            throw new IOException("No executable " + snaphuBinaryName() + " found in " + snaphuInstallLocation
+                    + " after downloading " + downloadPath + ". Install SNAPHU and set the Snaphu Install Location"
+                    + " to the snaphu executable or its folder.");
+        }
 
         return snaphuBinaryLocation;
     }
@@ -258,23 +313,26 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 }
             }
         }
-        if (snaphuArgs != null && !snaphuArgs.isEmpty()) {
-            // Build the argv list explicitly so paths containing spaces in the binary
-            // location don't get fragmented by string-form whitespace tokenization.
-            final List<String> argv = new ArrayList<>();
-            argv.add(snaphuBinary.toString());
-            argv.addAll(snaphuArgs);
-            final ProcessBuilder pb = new ProcessBuilder(argv);
-            pb.directory(workingDir);
-            pb.redirectErrorStream(true);
-            final Process proc = pb.start();
-
+        // Without arguments SNAPHU would not run, and a stale output of an earlier run would be read instead.
+        if (snaphuArgs == null || snaphuArgs.isEmpty()) {
+            throw new IOException("No snaphu command on line 7 of SNAPHU config file " + configFile
+                    + "; run Snaphu Export again.");
+        }
+        // Build the argv list explicitly so paths containing spaces in the binary
+        // location don't get fragmented by string-form whitespace tokenization.
+        final List<String> argv = new ArrayList<>();
+        argv.add(snaphuBinary.toString());
+        argv.addAll(snaphuArgs);
+        final ProcessBuilder pb = new ProcessBuilder(argv);
+        pb.directory(workingDir);
+        pb.redirectErrorStream(true);
+        final Process proc = pb.start();
+        try {
             try (BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
                  FileWriter logWriter = new FileWriter(logFile, true)) {
                 String s;
                 while ((s = stdInput.readLine()) != null) {
                     if (pm.isCanceled()) {
-                        proc.destroy();
                         throw new IOException("SNAPHU unwrap cancelled by user");
                     }
                     logWriter.write(s);
@@ -288,14 +346,23 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 final int exitCode = proc.waitFor();
                 if (exitCode != 0) {
                     throw new IOException("SNAPHU exited with code " + exitCode
-                            + " for config " + configFile.getName());
+                            + " for config " + configFile.getName() + "; see " + logFile);
                 }
             } catch (InterruptedException e) {
-                proc.destroy();
                 Thread.currentThread().interrupt();
                 throw new IOException("Interrupted while waiting for SNAPHU", e);
             }
+        } finally {
+            // on cancel, interrupt or any I/O error SNAPHU must not keep running in the background
+            if (proc.isAlive()) {
+                proc.destroyForcibly();
+            }
         }
+    }
+
+    /** Progress (out of 100, after the first 1) once {@code done} of {@code total} configurations have run. */
+    static int progressAfter(final int done, final int total) {
+        return total <= 0 ? 0 : (int) (98L * done / total);
     }
 
 
@@ -389,8 +456,7 @@ public class BatchSnaphuUnwrapOp extends Operator {
             // Find all SNAPHU configuration files and execute them.
             File [] configFiles = getSnaphuConfigFiles(snaphuProcessingLocation);
 
-            // Move progress bar for each product processed.
-            int work = (int) ((1.0 / configFiles.length) * 100) - 1;
+            SystemUtils.LOG.info("BatchSnaphuUnwrap: using " + snaphuBinary);
 
             for (int x = 0; x < configFiles.length; x++){
                 // Display current product indicator on the progress monitor.
@@ -398,7 +464,8 @@ public class BatchSnaphuUnwrapOp extends Operator {
                 // Add prefix to progress monitor to indicate which product we are currently on.
                 String prefix = "(" + count + "/" + configFiles.length + "): ";
                 callSnaphuUnwrap(snaphuBinary, configFiles[x], snaphuLogFile, pm, prefix);
-                pm.worked(work);
+                // Move progress bar for each product processed (never backwards, also for more than 100 pairs).
+                pm.worked(progressAfter(count, configFiles.length) - progressAfter(x, configFiles.length));
             }
 
             // Point the Unw* bands from initialize at SNAPHU's output; coherence and other
@@ -419,8 +486,9 @@ public class BatchSnaphuUnwrapOp extends Operator {
 
         } catch (IOException e) {
             throw new OperatorException(e.getMessage(), e);
+        } finally {
+            pm.done();
         }
-        pm.done();
     }
 
     /**

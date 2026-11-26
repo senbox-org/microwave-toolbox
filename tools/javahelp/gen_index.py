@@ -289,10 +289,16 @@ def write(repo: Path) -> list[Path]:
             changed.append(hs)
         idx = hs.parent / INDEX
         data = _index_text(hs, entries).encode("utf-8")
-        if not idx.exists() or idx.read_bytes() != data:
+        if not idx.exists() or not same_text(idx.read_bytes(), data):
             idx.write_bytes(data)
             changed.append(idx)
     return changed
+
+
+def same_text(a: bytes, b: bytes) -> bool:
+    """Equal apart from line endings: git stores the help with LF and a Linux checkout keeps LF, while the
+    generated text is CRLF (Windows checkouts convert back to CRLF)."""
+    return a.replace(b"\r\n", b"\n") == b.replace(b"\r\n", b"\n")
 
 
 def _is_utf8(raw: bytes) -> bool:
@@ -313,7 +319,7 @@ def check(repo: Path) -> list[str]:
         idx = hs.parent / INDEX
         if not idx.exists():
             msgs.append(f"{idx.relative_to(repo).as_posix()}: missing (run gen_index.py --write)")
-        elif idx.read_bytes() != _index_text(hs, entries).encode("utf-8"):
+        elif not same_text(idx.read_bytes(), _index_text(hs, entries).encode("utf-8")):
             msgs.append(f"{idx.relative_to(repo).as_posix()}: stale (run gen_index.py --write)")
     return msgs
 

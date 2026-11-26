@@ -47,16 +47,94 @@ the NISAR interferogram is enough.</p>
 <h2>What you get</h2>
 <ul>
   <li>RSLC and GSLC: <code>i_</code>/<code>q_</code> bands per polarisation (for example
-      <code>i_HH</code>) with virtual <code>Intensity_</code> and <code>Phase_</code> bands.</li>
-  <li>GCOV: the covariance terms, for example <code>HHHH</code>, <code>HVHV</code>, <code>VVVV</code>
-      and the cross terms such as <code>HHHV</code>.</li>
+      <code>i_HH</code>) with virtual <code>Intensity_</code> and <code>Phase_</code> bands. (Earlier
+      versions of the reader named the GSLC phase band <code>PhaseHH</code>; it is now <code>Phase_HH</code>,
+      as for RSLC, so graphs that refer to the old name need updating.)</li>
+  <li>GCOV: the covariance terms, auxiliary layers and, where the terms allow, a C3 or C2 matrix. See
+      <a href="#gcov">GCOV bands</a>.</li>
   <li>Interferogram and offset products: layers such as <code>unwrappedPhase</code>,
       <code>coherenceMagnitude</code> and <code>connectedComponents</code>, with the polarisation
-      appended (for example <code>coherenceMagnitude_HH</code>).</li>
+      appended (for example <code>coherenceMagnitude_HH</code>). The complex wrapped interferogram is
+      read as <code>i_</code>/<code>q_</code> bands with its phase in a virtual band (GUNW
+      <code>wrappedInterferogram_HH</code>, with its coherence <code>wrappedCoherenceMagnitude_HH</code>;
+      RIFG <code>Phase_HH</code>). RIFG and RUNW also give the <code>digitalElevationModel</code> used by
+      the processor, and its coarser copy on the pixel-offset grid,
+      <code>digitalElevationModel_pixelOffsets</code>.</li>
   <li>Many acquisitions carry a main band (frequency A) and a narrow second band (frequency B). Bands of
-      frequency B get the suffix <code>_S</code>, for example <code>i_HH_S</code>.</li>
-  <li>Level-2 products are geocoded from their coordinate arrays, in latitude/longitude or UTM.</li>
+      frequency B get the suffix <code>_S</code>, for example <code>i_HH_S</code>. Frequency B has a
+      coarser pixel spacing (for example 80&nbsp;m against 20&nbsp;m in GCOV, 25&nbsp;m against 6&nbsp;m slant range in
+      RSLC), so such a product holds rasters of two sizes, each with its own geocoding. Other layers on
+      their own grid are geocoded the same way: the 20&nbsp;m wrapped interferogram of a GUNW, whose other
+      layers are at 80&nbsp;m, and the coarser pixel offsets of RIFG and RUNW. Each such grid also has its own
+      incidence angle, <code>incident_angle</code> with the grid's suffix (<code>incident_angle_S</code>
+      for frequency B), which Calibration uses for its bands.</li>
+  <li>Level-2 products are geocoded from their coordinate arrays, in latitude/longitude or UTM.
+      Level-1 products are geocoded from the metadata geolocation grid at the ellipsoid (0&nbsp;m height);
+      use Terrain Correction for map-accurate positions.</li>
 </ul>
+<h2><a name="gcov">GCOV bands</a></h2>
+<p>A GCOV term <code>XYZW</code> is the multilooked product &lang;S<sub>XY</sub>&nbsp;S<sub>ZW</sub><sup>*</sup>&rang;,
+already radiometrically terrain corrected (&gamma;<sup>0</sup>) and geocoded.</p>
+<table border="1" cellpadding="3" cellspacing="0">
+  <tr><th>Band</th><th>Content</th></tr>
+  <tr><td><code>HHHH</code>, <code>HVHV</code>, <code>VHVH</code>, <code>VVVV</code>, <code>RHRH</code>, &hellip;</td>
+      <td>Backscatter power (&gamma;<sup>0</sup>, linear) of one channel</td></tr>
+  <tr><td><code>HHHV_real</code>, <code>HHHV_imag</code>, &hellip;</td>
+      <td>Real and imaginary parts of a cross term. The product lists the terms it carries: 10 for
+          quad-pol, 2 or 3 for dual-pol.</td></tr>
+  <tr><td><code>mask</code></td><td>0: a sample in the averaging window was partially focused or invalid;
+      1&hellip;n: the subswath of a valid sample; 255: outside the swath</td></tr>
+  <tr><td><code>numberOfLooks</code></td><td>Equivalent number of looks of each pixel</td></tr>
+  <tr><td><code>rtcGamma0ToSigma0Factor</code></td><td>Multiply a power term by this factor to get &sigma;<sup>0</sup></td></tr>
+  <tr><td><code>inputDataExceptionMask</code></td><td>Processor bit flags on the input data</td></tr>
+</table>
+<p>Pixels outside the swath are NaN, the bands' no-data value. The <code>gcov_valid</code> mask
+(<code>gcov_valid_S</code> for frequency B) selects the samples the product marks valid, <code>mask</code>
+1&hellip;n. It is not applied to the bands: samples with <code>mask</code> 0 still hold data, about a fifth
+of the footprint in current products. To exclude them, use <code>gcov_valid</code> as a band's
+valid-pixel expression or in Band Maths.</p>
+
+<h3>Polarimetric matrix</h3>
+<p>The reader adds virtual matrix bands so the polarimetric operators accept GCOV directly:</p>
+<ul>
+  <li><b>Quad-pol</b>: C3 bands <code>C11</code>, <code>C12_real</code>, &hellip;, <code>C33</code> on
+      k&nbsp;=&nbsp;[S<sub>HH</sub>, &radic;2&nbsp;S<sub>X</sub>, S<sub>VV</sub>]. NISAR keeps HV and VH
+      separate; the reader averages them, S<sub>X</sub>&nbsp;=&nbsp;(S<sub>HV</sub>&nbsp;+&nbsp;S<sub>VH</sub>)/2:
+      <ul>
+        <li><code>C11</code> = <code>HHHH</code>, <code>C13</code> = <code>HHVV</code>, <code>C33</code> = <code>VVVV</code></li>
+        <li><code>C12</code> = (<code>HHHV</code> + <code>HHVH</code>)/&radic;2</li>
+        <li><code>C22</code> = (<code>HVHV</code> + <code>VHVH</code> + 2&nbsp;Re&nbsp;<code>HVVH</code>)/2</li>
+        <li><code>C23</code> = (<code>HVVV</code> + <code>VHVV</code>)/&radic;2</li>
+      </ul>
+      A product with only one of HV and VH uses it for S<sub>X</sub>.</li>
+  <li><b>Dual-pol</b> with a cross term: C2 bands, for example <code>C11</code> = <code>HHHH</code>,
+      <code>C12</code> = <code>HHHV</code>, <code>C22</code> = <code>HVHV</code>. Dual-pol products with
+      only the power terms (<code>HHHH</code>, <code>HVHV</code>) get no matrix.</li>
+  <li><b>Compact-pol</b> (<code>RHRH</code>, <code>RVRV</code>, <code>RHRV</code>): C2 bands, with the
+      abstracted-metadata <code>compact_mode</code> set from the transmit polarisation (R or L circular).</li>
+</ul>
+<p>Products with a matrix are flagged polarimetric in the abstracted metadata (<code>polsar_data</code>
+= 1, sample type COMPLEX). The matrix is built for frequency A only, so the polarimetric operators do
+not process frequency B. Its <code>_S</code> power terms can still be kept with
+<a href="nbdocs://eu.esa.microwavetbx.sar.op.utilities.ui/eu/esa/sar/utilities/docs/operators/BandSelectOp.html">Band Select</a>
+and used as backscatter. The abstracted metadata still describes the matrix product (polarimetric,
+sample type COMPLEX), so operators that look for a matrix reject a product with only those bands.</p>
+<p>Typical next steps; GCOV needs no calibration, multilooking or terrain correction:</p>
+<ul>
+  <li><a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricSpeckleFilterOp.html">Polarimetric Speckle Filter</a>
+      (optional, GCOV is already multilooked), then
+      <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a>
+      (H-A-&alpha;, Freeman-Durden, &hellip;; H-&alpha; dual pol for C2) or
+      <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricMatricesOp.html">Polarimetric Matrices</a> for T3.</li>
+  <li>Compact-pol: <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/CompactPolStokesParametersOp.html">Compact Pol Stokes Parameters</a>
+      or <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/CompactPolDecompositionOp.html">Compact Pol Decomposition</a>.</li>
+  <li><a href="nbdocs://org.csa.rstb.rstb.op.classification.ui/org/csa/rstb/classification/docs/operators/PolarimetricClassificationOp.html">Polarimetric Classification</a>:
+      Wishart on C3, or the dual-pol Cloude-Pottier and H-&alpha; Wishart on C2.</li>
+</ul>
+<p>The matrix bands are virtual. BEAM-DIMAP stores them as expressions; other formats such as GeoTIFF
+write their values, making the file about a third to a half larger. GeoTIFF also needs bands of one
+size: keep one frequency first.</p>
+
 <p>The mission and acquisition parameters SNAP uses are listed in the <a href="nbdocs://eu.esa.microwavetbx.microwavetbx.rcp/eu/esa/microwave/dat/docs/general/AbstractedMetadata.html">Abstracted Metadata</a>.</p>
 
 <h2>Known limitations</h2>
@@ -64,6 +142,17 @@ the NISAR interferogram is enough.</p>
   <li>Only RSLC can be radiometrically calibrated. <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a> rejects the other products:
       GCOV is already calibrated, GSLC is calibrated by the NISAR processor, and the interferometric,
       offset and soil-moisture products are not backscatter.</li>
+  <li>Operators that need all bands the same size reject a product with both frequencies. Keep one
+      frequency first with <a href="nbdocs://eu.esa.microwavetbx.sar.op.utilities.ui/eu/esa/sar/utilities/docs/operators/BandSelectOp.html">Band Select</a>
+      or Subset. The abstracted metadata (radar frequency, pixel spacing, bandwidth) describes frequency A.</li>
+  <li>An RSLC with both frequencies can be subset and saved as BEAM-DIMAP. Subset it again after re-opening
+      the saved file only after keeping one frequency: BEAM-DIMAP does not keep a tie-point grid's own
+      geocoding, so a further subset of both frequencies misplaces frequency B.</li>
+  <li>When subsetting a product with both frequencies, keep the frequency B tie-point grids
+      (<code>latitude_S</code>, <code>longitude_S</code>, <code>incident_angle_S</code>) selected. SNAP
+      versions without the fix for this case stop with a NullPointerException if they are left out.</li>
+  <li>RIFG, RUNW and ROFF over the poles (polar stereographic grids) open without geocoding.</li>
+  <li>Current SME2 soil-moisture products (2026 layout) cannot be read yet.</li>
   <li>The reader also accepts files named <code>WINNIP*</code>, the pre-launch simulated products in the
       same layout.</li>
 </ul>
@@ -72,8 +161,10 @@ the NISAR interferogram is enough.</p>
 <ul>
   <li>RSLC: <a href="nbdocs://eu.esa.microwavetbx.sar.op.calibration.ui/eu/esa/sar/calibration/docs/operators/CalibrationOp.html">Calibration</a>, then <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/MultilookOp.html">Multilook</a> and <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/RangeDopplerGeocodingOp.html">Range-Doppler Terrain Correction</a>,
       or <a href="nbdocs://eu.esa.microwavetbx.sar.op.insar.ui/eu/esa/sar/insar/docs/operators/CreateStackOp.html">Create Stack</a> and <a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/InterferogramOp.html">Interferogram Formation</a> for InSAR.</li>
-  <li>GCOV: <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a> or <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a>; no terrain
-      correction is needed.</li>
+  <li>GCOV with a matrix: <a href="nbdocs://org.csa.rstb.rstb.op.polarimetric.tools.ui/org/csa/rstb/polarimetric/docs/operators/PolarimetricDecompositionOp.html">Polarimetric Decomposition</a>,
+      after the optional Polarimetric Speckle Filter. GCOV without one (single-pol or power-only dual-pol):
+      <a href="nbdocs://eu.esa.microwavetbx.sar.op.sar.processing.ui/eu/esa/sar/sar/docs/operators/SpeckleFilterOp.html">Speckle Filter</a>.
+      No terrain correction is needed. See <a href="#gcov">GCOV bands</a>.</li>
 </ul>
 
 <h2>Product format specification</h2>

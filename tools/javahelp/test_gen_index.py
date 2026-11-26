@@ -216,6 +216,15 @@ class RenderAndCheckTest(unittest.TestCase):
         self.assertIn("mod-a/src/main/resources/a/docs/index.xml: stale", msgs[0])
         self.assertEqual(gi.main(["--repo", str(root), "--check"]), 1)
 
+    def test_check_ignores_line_endings(self):
+        # git stores the index with LF, and a Linux checkout (the CI) keeps LF
+        root = self.fx.root
+        gi.write(root)
+        idx = self.fx.ops / "index.xml"
+        idx.write_bytes(idx.read_bytes().replace(b"\r\n", b"\n"))
+        self.assertEqual(gi.check(root), [])
+        self.assertEqual(gi.write(root), [])
+
 
 if __name__ == "__main__":
     unittest.main()

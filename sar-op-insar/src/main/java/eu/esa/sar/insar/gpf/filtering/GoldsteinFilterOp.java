@@ -41,8 +41,10 @@ import org.esa.snap.engine_utilities.gpf.ReaderUtils;
 import org.esa.snap.engine_utilities.gpf.TileIndex;
 
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @OperatorMetadata(alias = "GoldsteinPhaseFiltering",
@@ -109,8 +111,9 @@ public class GoldsteinFilterOp extends Operator {
     private int halfFFTSizeY;
     private int windowSize;
     private int halfWindowSize;
-    private Band cohBand = null;
     private final Map<Band, Band> targetIQPair = new HashMap<>();
+    // target i band -> the source coherence band of the same pair
+    private final Map<Band, Band> cohBandOf = new HashMap<>();
 
     private static final String PRODUCT_SUFFIX = "_Flt";
 
@@ -151,13 +154,21 @@ public class GoldsteinFilterOp extends Operator {
             createTargetProduct();
 
             if (useCoherenceMask || useAdaptiveAlpha) {
+                final List<Band> cohBands = new ArrayList<>();
                 for (Band band : sourceProduct.getBands()) {
                     if(band.getUnit() != null && band.getUnit().equals(Unit.COHERENCE)) {
-                        cohBand = band;
-                        break;
+                        cohBands.add(band);
                     }
                 }
-                if (cohBand == null) {
+                for (Band iBand : targetIQPair.keySet()) {
+                    final Band coh = findCoherenceBand(iBand.getName(), cohBands);
+                    if (coh != null) {
+                        cohBandOf.put(iBand, coh);
+                    } else if (useCoherenceMask && !cohBands.isEmpty()) {
+                        throw new OperatorException("Cannot find the coherence band of " + iBand.getName());
+                    }
+                }
+                if (cohBands.isEmpty()) {
                     if (useCoherenceMask) {
                         throw new OperatorException("Cannot find coherence band");
                     }
@@ -252,6 +263,30 @@ public class GoldsteinFilterOp extends Operator {
     }
 
     /**
+     * The coherence band of the interferogram pair {@code iBandName}: Interferogram writes {@code i_<productTag><tag>}
+     * and {@code coh<tag>}, so pick the coherence band whose tag ends the i band name. A product with a single
+     * coherence band keeps using it whatever its name.
+     */
+    static Band findCoherenceBand(final String iBandName, final List<Band> cohBands) {
+        Band best = null;
+        int bestLength = 0;
+        for (Band band : cohBands) {
+            final String name = band.getName();
+            if (name.startsWith("coh")) {
+                final String tag = name.substring("coh".length());
+                if (tag.length() > bestLength && iBandName.endsWith(tag)) {
+                    best = band;
+                    bestLength = tag.length();
+                }
+            }
+        }
+        if (best == null && cohBands.size() == 1) {
+            return cohBands.get(0);
+        }
+        return best;
+    }
+
+    /**
      * Called by the framework in order to compute the stack of tiles for the given target bands.
      * <p>The default implementation throws a runtime exception with the message "not implemented".</p>
      *
@@ -282,20 +317,19 @@ public class GoldsteinFilterOp extends Operator {
             final int sw = sourceTileRectangle.width;
             final int sh = sourceTileRectangle.height;
 
-            // Coherence tile fetched once per target rectangle so that both the
-            // adaptive-alpha selection (per-FFT-block mean) and the optional
-            // post-filter low-coherence mask can read from it.
-            Tile cohBandRaster = null;
-            ProductData cohBandData = null;
-            TileIndex cohIndex = null;
-            if (cohBand != null) {
-                cohBandRaster = getSourceTile(cohBand, sourceTileRectangle);
-                cohBandData = cohBandRaster.getDataBuffer();
-                cohIndex = new TileIndex(cohBandRaster);
-            }
-
             for (Band iBand : targetIQPair.keySet()) {
                 final Band qBand = targetIQPair.get(iBand);
+
+                // This pair's own coherence, read by both the adaptive-alpha selection (per-FFT-block
+                // mean) and the optional post-filter low-coherence mask.
+                final Band cohBand = cohBandOf.get(iBand);
+                ProductData cohBandData = null;
+                TileIndex cohIndex = null;
+                if (cohBand != null) {
+                    final Tile cohBandRaster = getSourceTile(cohBand, sourceTileRectangle);
+                    cohBandData = cohBandRaster.getDataBuffer();
+                    cohIndex = new TileIndex(cohBandRaster);
+                }
 
                 final Tile iTargetTile = targetTileMap.get(iBand);
                 final Tile qTargetTile = targetTileMap.get(qBand);

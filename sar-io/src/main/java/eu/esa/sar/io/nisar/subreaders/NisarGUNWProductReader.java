@@ -15,6 +15,9 @@
  */
 package eu.esa.sar.io.nisar.subreaders;
 
+import org.esa.snap.core.datamodel.Band;
+import org.esa.snap.core.datamodel.ProductData;
+import org.esa.snap.core.datamodel.VirtualBand;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import ucar.nc2.Group;
 import ucar.nc2.Variable;
@@ -81,7 +84,20 @@ public class NisarGUNWProductReader extends NisarSubReader {
 
             for (Group polGroup : groupInterferogram.getGroups()) {
                 String pol = "_" + polGroup.getShortName() + suffix;
-                createBand(polGroup, "wrappedInterferogram", "wrappedInterferogram" + pol, Unit.PHASE, Float.NaN);
+                // complex: both parts, and the phase under the band's former name
+                final Band i = createBand(polGroup, "wrappedInterferogram", "i_wrappedInterferogram" + pol, Unit.REAL, Float.NaN);
+                final Band q = createBand(polGroup, "wrappedInterferogram", "q_wrappedInterferogram" + pol, Unit.IMAGINARY, Float.NaN);
+                if (i != null && q != null) {
+                    final VirtualBand phase = new VirtualBand("wrappedInterferogram" + pol, ProductData.TYPE_FLOAT32,
+                            i.getRasterWidth(), i.getRasterHeight(), "atan2(" + q.getName() + ", " + i.getName() + ")");
+                    phase.setUnit(Unit.PHASE);
+                    phase.setDescription("Wrapped interferometric phase");
+                    phase.setNoDataValue(Float.NaN);
+                    phase.setNoDataValueUsed(true);
+                    product.addBand(phase);
+                }
+                // the coherence at the wrapped interferogram's own (finer) spacing
+                createBand(polGroup, "coherenceMagnitude", "wrappedCoherenceMagnitude" + pol, Unit.COHERENCE, Float.NaN);
             }
         }
 

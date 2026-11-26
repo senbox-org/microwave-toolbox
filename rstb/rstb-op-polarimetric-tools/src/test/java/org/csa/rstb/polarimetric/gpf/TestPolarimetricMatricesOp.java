@@ -28,6 +28,10 @@ import java.io.File;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.STACK_DATES;
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.assertClose;
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.assertStackBandsPerDate;
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.readBand;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
@@ -87,8 +91,8 @@ public class TestPolarimetricMatricesOp {
     @Before
     public void setUp() {
         // If any of the file does not exist: the test will be ignored
-        assumeTrue(quadInputPath + "not found", new File(quadInputPath).exists());
-        assumeTrue(inputQuadFullStack + "not found", new File(inputQuadFullStack).exists());
+        assumeTrue(quadInputPath + " not found", new File(quadInputPath).exists());
+        assumeTrue(inputQuadFullStack + " not found", new File(inputQuadFullStack).exists());
 
         assumeTrue(expectedPathC3 + " not found", new File(expectedPathC3).exists());
         assumeTrue(expectedPathT3 + " not found", new File(expectedPathT3).exists());
@@ -119,8 +123,7 @@ public class TestPolarimetricMatricesOp {
 
         final PolarimetricMatricesOp op = (PolarimetricMatricesOp) spi.createOperator();
         final Product targetProduct = runMatrix(op, PolarimetricMatricesOp.C3, quadInputPath);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedPathC3, null);
+        TestUtils.compareProducts(targetProduct, expectedPathC3, null);
     }
 
     /**
@@ -133,45 +136,143 @@ public class TestPolarimetricMatricesOp {
 
         final PolarimetricMatricesOp op = (PolarimetricMatricesOp) spi.createOperator();
         final Product targetProduct = runMatrix(op, PolarimetricMatricesOp.T3, quadInputPath);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedPathT3, null);
+        TestUtils.compareProducts(targetProduct, expectedPathT3, null);
+    }
+
+    /** Complex scattering element S_pol = i_pol + j q_pol of every pixel of the quad-pol source. */
+    private static double[][] scattering(final Product source, final String pol) throws Exception {
+        return new double[][]{readBand(source, "i_" + pol), readBand(source, "q_" + pol)};
+    }
+
+    private static double[] intensity(final double[][] s) {
+        final double[] out = new double[s[0].length];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = s[0][i] * s[0][i] + s[1][i] * s[1][i];
+        }
+        return out;
     }
 
     /**
-     * Compute covariance matrix C4 from a Radarsat-2 product and compares it to processed product known to be correct
-     *
-     * @throws Exception general exception
+     * C4 is the per-pixel outer product of the lexicographic vector [S_hh, S_hv, S_vh, S_vv]:
+     * the diagonal holds the channel intensities and C14 = S_hh * conj(S_vv).
      */
     @Test
     public void testComputeC4() throws Exception {
 
         final PolarimetricMatricesOp op = (PolarimetricMatricesOp) spi.createOperator();
         final Product targetProduct = runMatrix(op, PolarimetricMatricesOp.C4, quadInputPath);
+        final Product source = loadCached(new File(quadInputPath));
+
+        final double[][] hh = scattering(source, "HH");
+        final double[][] hv = scattering(source, "HV");
+        final double[][] vh = scattering(source, "VH");
+        final double[][] vv = scattering(source, "VV");
+
+        assertClose("C11", intensity(hh), readBand(targetProduct, "C11"), 1e-5, 1e-6);
+        assertClose("C22", intensity(hv), readBand(targetProduct, "C22"), 1e-5, 1e-6);
+        assertClose("C33", intensity(vh), readBand(targetProduct, "C33"), 1e-5, 1e-6);
+        assertClose("C44", intensity(vv), readBand(targetProduct, "C44"), 1e-5, 1e-6);
+
+        final int n = hh[0].length;
+        final double[] c14Re = new double[n];
+        final double[] c14Im = new double[n];
+        for (int i = 0; i < n; i++) {
+            c14Re[i] = hh[0][i] * vv[0][i] + hh[1][i] * vv[1][i];
+            c14Im[i] = hh[1][i] * vv[0][i] - hh[0][i] * vv[1][i];
+        }
+        // floor relative to the channel power so near-zero cross products are not over-constrained
+        final double floor = 1e-3 * mean(intensity(hh));
+        assertClose("C14_real", c14Re, readBand(targetProduct, "C14_real"), 1e-4, floor);
+        assertClose("C14_imag", c14Im, readBand(targetProduct, "C14_imag"), 1e-4, floor);
     }
 
     /**
-     * Compute coherency matrix T4 from a Radarsat-2 product and compares it to processed product known to be correct
-     *
-     * @throws Exception general exception
+     * T4 is a unitary transform of C4, so its trace equals the total power, and in the Pauli basis
+     * T11 = |S_hh + S_vv|^2 / 2 and T22 = |S_hh - S_vv|^2 / 2.
      */
     @Test
     public void testComputeT4() throws Exception {
 
         final PolarimetricMatricesOp op = (PolarimetricMatricesOp) spi.createOperator();
         final Product targetProduct = runMatrix(op, PolarimetricMatricesOp.T4, quadInputPath);
+        final Product source = loadCached(new File(quadInputPath));
+
+        final double[][] hh = scattering(source, "HH");
+        final double[][] hv = scattering(source, "HV");
+        final double[][] vh = scattering(source, "VH");
+        final double[][] vv = scattering(source, "VV");
+
+        final int n = hh[0].length;
+        final double[] span = new double[n];
+        final double[] t11 = new double[n];
+        final double[] t22 = new double[n];
+        final double[] iHH = intensity(hh), iHV = intensity(hv), iVH = intensity(vh), iVV = intensity(vv);
+        for (int i = 0; i < n; i++) {
+            span[i] = iHH[i] + iHV[i] + iVH[i] + iVV[i];
+            final double sr = hh[0][i] + vv[0][i], si = hh[1][i] + vv[1][i];
+            final double dr = hh[0][i] - vv[0][i], di = hh[1][i] - vv[1][i];
+            t11[i] = (sr * sr + si * si) / 2;
+            t22[i] = (dr * dr + di * di) / 2;
+        }
+
+        final double[] trace = new double[n];
+        for (String d : new String[]{"T11", "T22", "T33", "T44"}) {
+            final double[] v = readBand(targetProduct, d);
+            for (int i = 0; i < n; i++) {
+                trace[i] += v[i];
+            }
+        }
+        assertClose("trace(T4) = span", span, trace, 1e-5, 1e-6);
+        assertClose("T11", t11, readBand(targetProduct, "T11"), 1e-5, 1e-6);
+        assertClose("T22", t22, readBand(targetProduct, "T22"), 1e-5, 1e-6);
+    }
+
+    private static double mean(final double[] v) {
+        double s = 0;
+        for (double d : v) {
+            s += d;
+        }
+        return s / v.length;
     }
 
     /**
-     * Compute coherency matrix T3 from a stack of Quad Pol Radarsat-2 products
-     *
-     * @throws Exception general exception
+     * Matrices of a stack of Quad Pol Radarsat-2 products: one complete matrix per acquisition date, each built
+     * from that date's own scattering elements (catches date / polarisation mispairing in the stack handling).
      */
     @Test
     public void testQuadPolStack() throws Exception {
 
-        runMatrix((PolarimetricMatricesOp) spi.createOperator(), PolarimetricMatricesOp.T3, inputQuadFullStack);
-        runMatrix((PolarimetricMatricesOp) spi.createOperator(), PolarimetricMatricesOp.C3, inputQuadFullStack);
-        runMatrix((PolarimetricMatricesOp) spi.createOperator(), PolarimetricMatricesOp.T4, inputQuadFullStack);
-        runMatrix((PolarimetricMatricesOp) spi.createOperator(), PolarimetricMatricesOp.C4, inputQuadFullStack);
+        for (String matrix : new String[]{PolarimetricMatricesOp.T3, PolarimetricMatricesOp.C3,
+                PolarimetricMatricesOp.T4, PolarimetricMatricesOp.C4}) {
+            final Product single = runMatrix((PolarimetricMatricesOp) spi.createOperator(), matrix, quadInputPath);
+            final Product stack = runMatrix((PolarimetricMatricesOp) spi.createOperator(), matrix, inputQuadFullStack);
+            assertStackBandsPerDate(single, stack, STACK_DATES);
+        }
+
+        final Product source = loadCached(new File(inputQuadFullStack));
+        final Product c3 = runMatrix((PolarimetricMatricesOp) spi.createOperator(), PolarimetricMatricesOp.C3, inputQuadFullStack);
+        final Product t3 = runMatrix((PolarimetricMatricesOp) spi.createOperator(), PolarimetricMatricesOp.T3, inputQuadFullStack);
+        for (String date : STACK_DATES) {
+            final double[][] hh = stackScattering(source, "HH", date);
+            final double[][] vv = stackScattering(source, "VV", date);
+            final double[] t11 = new double[hh[0].length];
+            for (int i = 0; i < t11.length; i++) {
+                final double sr = hh[0][i] + vv[0][i], si = hh[1][i] + vv[1][i];
+                t11[i] = (sr * sr + si * si) / 2;
+            }
+            assertClose("C11_" + date, intensity(hh), readBand(c3, "C11_" + date), 1e-5, 1e-6);
+            assertClose("C33_" + date, intensity(vv), readBand(c3, "C33_" + date), 1e-5, 1e-6);
+            assertClose("T11_" + date, t11, readBand(t3, "T11_" + date), 1e-5, 1e-6);
+        }
+    }
+
+    /** S_pol of one acquisition of a coregistered stack (band names i_POL_ref_DATE / i_POL_secN_DATE). */
+    private static double[][] stackScattering(final Product stack, final String pol, final String date) throws Exception {
+        for (String name : stack.getBandNames()) {
+            if (name.startsWith("i_" + pol + '_') && name.endsWith('_' + date)) {
+                return new double[][]{readBand(stack, name), readBand(stack, 'q' + name.substring(1))};
+            }
+        }
+        throw new AssertionError("no i_" + pol + " band for " + date + " in " + java.util.Arrays.toString(stack.getBandNames()));
     }
 }

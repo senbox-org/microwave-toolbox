@@ -172,7 +172,8 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{0.43853235f, 0.45097739f, 0.3625649f, 0.45141622f};
+        // Copernicus DEM heights converted with EGM2008 (was EGM96)
+        final float[] expected = new float[]{0.45504254f, 0.4254174f, 0.38640052f, 0.44619852f};
         assertPixelsClose(targetProduct, targetProduct.getBandAt(0).getName(), 200, 200, expected);
     }
 
@@ -194,7 +195,8 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{2.1695888f, 2.178224f, 2.2015066f, 2.1685026f};
+        // Copernicus DEM heights converted with EGM2008 (was EGM96)
+        final float[] expected = new float[]{2.0908701f, 2.3090963f, 2.0657036f, 2.1938603f};
         assertPixelsClose(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
     }
 
@@ -216,7 +218,8 @@ public class TestTerrainFlatteningOp extends ProcessorTest {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[]{0.3985106f, 0.4098169f, 0.32947162f, 0.41020992f};
+        // Copernicus DEM heights converted with EGM2008 (was EGM96)
+        final float[] expected = new float[]{0.41351268f, 0.38658845f, 0.35113046f, 0.4054673f};
         assertPixelsClose(targetProduct, targetProduct.getBandAt(1).getName(), 200, 200, expected);
     }
 

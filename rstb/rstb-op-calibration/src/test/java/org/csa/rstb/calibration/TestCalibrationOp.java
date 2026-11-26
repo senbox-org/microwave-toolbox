@@ -40,7 +40,7 @@ public class TestCalibrationOp extends ProcessorTest {
     public void setUp() throws Exception {
         try {
             // If any of the file does not exist: the test will be ignored
-            assumeTrue(TestData.inputRS2_SQuad + "not found", TestData.inputRS2_SQuad.exists());
+            assumeTrue(TestData.inputRS2_SQuad + " not found", TestData.inputRS2_SQuad.exists());
         } catch (Exception e) {
             TestUtils.skipTest(this, e.getMessage());
             throw e;

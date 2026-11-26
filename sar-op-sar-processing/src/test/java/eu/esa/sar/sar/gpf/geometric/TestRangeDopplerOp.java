@@ -93,7 +93,8 @@ public class TestRangeDopplerOp extends ProcessorTest {
             band.readPixels(200, 200, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.15872392f, 0.11773925f, 0.12842435f, 0.130156f};
+            // Copernicus DEM heights converted with EGM2008 (was EGM96)
+            final float[] expected = new float[]{0.15866515f, 0.11830136f, 0.12841474f, 0.13043007f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }
@@ -154,7 +155,8 @@ public class TestRangeDopplerOp extends ProcessorTest {
             band.readPixels(0, 0, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.056213267f, 0.12311943f, 0.07303023f, 0.051143993f};
+            // Copernicus DEM heights converted with EGM2008 (was EGM96)
+            final float[] expected = new float[]{0.056569595f, 0.12291063f, 0.075323164f, 0.050230257f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }
@@ -188,7 +190,8 @@ public class TestRangeDopplerOp extends ProcessorTest {
             band.readPixels(1000, 1000, 2, 2, floatValues, ProgressMonitor.NULL);
 
             // compare with expected outputs:
-            final float[] expected = new float[]{0.27502492f, 0.2549157f, 0.23757976f, 0.21083903f};
+            // Copernicus DEM heights converted with EGM2008 (was EGM96)
+            final float[] expected = new float[]{0.27581125f, 0.25590894f, 0.23816435f, 0.21164738f};
             assertArrayEquals(Arrays.toString(floatValues), expected, floatValues, 0.0001f);
         }
     }

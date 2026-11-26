@@ -29,6 +29,7 @@ import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -220,6 +221,60 @@ public class TestGoldsteinFilterOp {
             if (Float.compare(a.i[k], b.i[k]) != 0 || Float.compare(a.q[k], b.q[k]) != 0) differ++;
         }
         assertEquals("coherence no-data (0) changed the adaptive alpha at " + differ + " pixels", 0, differ);
+    }
+
+    /** Each interferogram pair takes the coherence band with its own tag, not the first one in the product. */
+    @Test
+    public void testFindCoherenceBandMatchesPairTag() {
+        final Product p = new Product("p", "SLC", 1, 1);
+        final Band cohB = p.addBand("coh_IW1_VV_01Jan2020_13Jan2020", ProductData.TYPE_FLOAT32);
+        final Band cohC = p.addBand("coh_IW1_VV_01Jan2020_25Jan2020", ProductData.TYPE_FLOAT32);
+        final java.util.List<Band> both = java.util.Arrays.asList(cohB, cohC);
+        assertEquals(cohB, GoldsteinFilterOp.findCoherenceBand("i_ifg_IW1_VV_01Jan2020_13Jan2020", both));
+        assertEquals(cohC, GoldsteinFilterOp.findCoherenceBand("i_ifg_IW1_VV_01Jan2020_25Jan2020", both));
+        assertNull(GoldsteinFilterOp.findCoherenceBand("i_ifg_IW1_VV_01Jan2020_06Feb2020", both));
+
+        final Band other = p.addBand("coherence", ProductData.TYPE_FLOAT32);
+        assertEquals("a lone coherence band is used whatever its name", other,
+                GoldsteinFilterOp.findCoherenceBand("i_ifg", java.util.Collections.singletonList(other)));
+    }
+
+    /**
+     * Two pairs, the first coherent (0.9) and the second not (0.1). With the coherence mask on, only the second
+     * must get its raw samples back. Before the fix both pairs used the first coherence band.
+     */
+    @Test
+    public void testCoherenceMaskUsesEachPairsOwnCoherence() throws Exception {
+        final Scene scene = new Scene(Fill.NONE, 0.0, 0.9f, 0.9f);
+        final Product src = TestUtils.createProduct("SLC", W, H);
+        final MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(src);
+        absRoot.setAttributeInt(AbstractMetadata.coregistered_stack, 1);
+        absRoot.setAttributeString(AbstractMetadata.SAMPLE_TYPE, "COMPLEX");
+        absRoot.setAttributeDouble("radar_frequency", 5405.0);
+        src.setPreferredTileSize(W, H);
+        final float[] high = new float[W * H];
+        final float[] low = new float[W * H];
+        java.util.Arrays.fill(high, 0.9f);
+        java.util.Arrays.fill(low, 0.1f);
+        for (String tag : new String[]{"_VV_01Jan2020_13Jan2020", "_VV_01Jan2020_25Jan2020"}) {
+            Scene.addBand(src, "i_ifg" + tag, Unit.REAL, scene.i, 0.0);
+            Scene.addBand(src, "q_ifg" + tag, Unit.IMAGINARY, scene.q, 0.0);
+            Scene.addBand(src, "coh" + tag, Unit.COHERENCE, tag.endsWith("13Jan2020") ? high : low, 0.0);
+        }
+
+        final GoldsteinFilterOp op = (GoldsteinFilterOp) new GoldsteinFilterOp.Spi().createOperator();
+        op.setSourceProduct(src);
+        op.setParameter("useCoherenceMask", true);
+        op.setParameter("coherenceThreshold", THRESHOLD);
+        final Product tgt = op.getTargetProduct();
+
+        final float[] coherent = new float[W * H];
+        final float[] incoherent = new float[W * H];
+        tgt.getBand("i_ifg_VV_01Jan2020_13Jan2020").readPixels(0, 0, W, H, coherent);
+        tgt.getBand("i_ifg_VV_01Jan2020_25Jan2020").readPixels(0, 0, W, H, incoherent);
+        final int k = (H / 2) * W + W / 2;
+        assertTrue("coherent pair must be filtered", coherent[k] != scene.i[k]);
+        assertEquals("incoherent pair must get its raw sample back", scene.i[k], incoherent[k], 0f);
     }
 
     /**

@@ -32,6 +32,7 @@ The format is `nbdocs://<module code name>/<resource path>`. The code name is th
 
 ```
 python -I tools/javahelp/test_check_refs.py
+python -I tools/javahelp/test_check_search.py
 python -I tools/javahelp/test_check_style.py
 python -I tools/javahelp/test_gen_index.py
 ```

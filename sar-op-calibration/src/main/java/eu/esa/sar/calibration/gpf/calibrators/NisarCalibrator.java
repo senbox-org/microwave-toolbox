@@ -19,6 +19,8 @@ import com.bc.ceres.core.ProgressMonitor;
 import eu.esa.sar.calibration.gpf.support.BaseCalibrator;
 import eu.esa.sar.calibration.gpf.support.Calibrator;
 import org.apache.commons.math3.util.FastMath;
+import org.esa.snap.core.datamodel.TiePointGeoCoding;
+import org.esa.snap.core.datamodel.GeoCoding;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
@@ -284,6 +286,7 @@ public final class NisarCalibrator extends BaseCalibrator implements Calibrator 
 
             final CALTYPE calType = getCalibrationType(targetBandName);
             final String bandPol = OperatorUtils.getPolarizationFromBandName(targetBandName);
+            final TiePointGrid incidenceAngle = incidenceAngleFor(sourceBand1);
             final double srcNodataValue = sourceBand1.getNoDataValue();
             final double trgNodataValue = targetBand.getNoDataValue();
 
@@ -303,11 +306,11 @@ public final class NisarCalibrator extends BaseCalibrator implements Calibrator 
 
                     double calibrationFactor = 1.0;
                     if (calType != null) {
-                        calibrationFactor = getLutValue(calType, x, y, bandPol);
+                        calibrationFactor = getLutValue(calType, x, y, bandPol, incidenceAngle);
                     }
 
                     if (doRetroCalibration && dataType != null) {
-                        final double inv = getLutValue(dataType, x, y, bandPol);
+                        final double inv = getLutValue(dataType, x, y, bandPol, incidenceAngle);
                         if (inv != 0.0) calibrationFactor /= inv;
                     }
 
@@ -357,7 +360,28 @@ public final class NisarCalibrator extends BaseCalibrator implements Calibrator 
         return CALTYPE.SIGMA0;
     }
 
-    private double getLutValue(final CALTYPE calType, final double x, final double y, final String bandPol) {
+    /**
+     * The incidence angle grid on the band's own pixels. A band on a grid other than the scene's (NISAR
+     * frequency B) is geocoded from its own latitude grid, "latitude" plus a tag such as "_S", and its
+     * incidence angle is "incident_angle" with the same tag.
+     */
+    private TiePointGrid incidenceAngleFor(final Band band) {
+        final GeoCoding geoCoding = band.getGeoCoding();
+        if (geoCoding instanceof TiePointGeoCoding) {
+            final String lat = ((TiePointGeoCoding) geoCoding).getLatGrid().getName();
+            if (lat.startsWith(OperatorUtils.TPG_LATITUDE) && !lat.equals(OperatorUtils.TPG_LATITUDE)) {
+                final TiePointGrid own = sourceProduct.getTiePointGrid(
+                        OperatorUtils.TPG_INCIDENT_ANGLE + lat.substring(OperatorUtils.TPG_LATITUDE.length()));
+                if (own != null) {
+                    return own;
+                }
+            }
+        }
+        return incidenceAngleTPG;
+    }
+
+    private double getLutValue(final CALTYPE calType, final double x, final double y, final String bandPol,
+                               final TiePointGrid incidenceAngleTPG) {
         // Pre-computed LUT tie-point grids would override the per-polarisation constant.
         // NISAR Phase-1 calibrator: not yet populated by the reader.
         if (calType == CALTYPE.SIGMA0 && sigma0TPG != null) {
@@ -398,7 +422,9 @@ public final class NisarCalibrator extends BaseCalibrator implements Calibrator 
             final double satelliteHeight, final double sceneToEarthCentre, final double localIncidenceAngle,
             final String bandName, final String bandPolar, final Unit.UnitType bandUnit, int[] subSwathIndex) {
         final CALTYPE calType = getCalibrationType(bandName);
-        final double lutVal = getLutValue(calType, rangeIndex, azimuthIndex, bandPolar);
+        final Band band = sourceProduct == null ? null : sourceProduct.getBand(bandName);
+        final double lutVal = getLutValue(calType, rangeIndex, azimuthIndex, bandPolar,
+                band != null ? incidenceAngleFor(band) : incidenceAngleTPG);
 
         if (bandUnit == Unit.UnitType.AMPLITUDE) {
             return v * v * lutVal;

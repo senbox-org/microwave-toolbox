@@ -71,6 +71,36 @@ public class BandSelectOpTest {
         assertTrue(targetProduct.containsBand("fband"));
     }
 
+    /**
+     * Selecting only the bands of a smaller grid that has its own geocoding (for example NISAR frequency B)
+     * gives a product of that grid's size, whose scene geocoding must be that grid's, not the source scene's.
+     */
+    @Test
+    @STTM("SNAP-4384")
+    public void bandsOnTheirOwnGridKeepTheirGeoCodingAsTheScene() throws Exception {
+        final Product source = new Product("test", "type", 40, 20);
+        source.addBand("a", ProductData.TYPE_FLOAT32);
+        source.setSceneGeoCoding(new CrsGeoCoding(org.geotools.referencing.CRS.decode("EPSG:32611", true),
+                40, 20, 500000, 4000000, 5, 5, 0.5, 0.5));
+        final Band b = new Band("b_S", ProductData.TYPE_FLOAT32, 10, 20);
+        source.addBand(b);
+        final GeoCoding gcB = new CrsGeoCoding(org.geotools.referencing.CRS.decode("EPSG:32611", true),
+                10, 20, 510000, 3990000, 20, 5, 0.5, 0.5);
+        b.setGeoCoding(gcB);
+
+        BandSelectOp selectOp = new BandSelectOp();
+        selectOp.setParameterDefaultValues();
+        selectOp.setSourceProduct("source", source);
+        selectOp.setParameter("sourceBands", "b_S");
+        Product targetProduct = selectOp.getTargetProduct();
+        assertEquals(10, targetProduct.getSceneRasterWidth());
+        final PixelPos p = new PixelPos(9.5, 10.5);
+        final GeoPos expected = gcB.getGeoPos(p, null);
+        final GeoPos scene = targetProduct.getSceneGeoCoding().getGeoPos(p, null);
+        assertEquals(expected.lat, scene.lat, 1e-9);
+        assertEquals(expected.lon, scene.lon, 1e-9);
+    }
+
     private Product createSourceProduct() {
         Product product = new Product("test", "type", 10, 10);
         product.addBand("b1", ProductData.TYPE_INT16);

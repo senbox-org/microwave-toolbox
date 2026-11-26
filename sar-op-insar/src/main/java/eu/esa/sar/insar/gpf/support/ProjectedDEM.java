@@ -18,14 +18,12 @@ package eu.esa.sar.insar.gpf.support;
 import eu.esa.sar.commons.CRSGeoCodingHandler;
 import eu.esa.sar.commons.SARGeocoding;
 import org.esa.snap.core.datamodel.Band;
-import org.esa.snap.core.datamodel.GeoPos;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.dataop.dem.ElevationModel;
 import org.esa.snap.core.dataop.resamp.ResamplingFactory;
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.dem.dataio.DEMFactory;
-import org.esa.snap.dem.dataio.EarthGravitationalModel96;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.gpf.TileGeoreferencing;
 
@@ -129,11 +127,9 @@ public class ProjectedDEM {
                 return;
             }
 
-            final GeoPos geoPos = new GeoPos();
             ProductData demBuffer = ProductData.createInstance(ProductData.TYPE_FLOAT32, elevationBand.getRasterWidth() * elevationBand.getRasterHeight());
 
-            final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
-
+            // getLocalDEM (nodataValueAtSea false) has already filled sea pixels with the DEM's geoid height
             final int maxY = y0 + h;
             final int maxX = x0 + w;
             for (int y = y0; y < maxY; y++) {
@@ -144,17 +140,6 @@ public class ProjectedDEM {
                     Double alt = localDEM[yy][x - x0 + 1];
                     if (alt.equals(demNoDataValue)) {
                         continue;
-                    }
-
-                    tileGeoRef.getGeoPos(x, y, geoPos);
-                    final double lat = geoPos.lat;
-                    double lon = geoPos.lon;
-                    if (lon >= 180.0) {
-                        lon -= 360.0;
-                    }
-
-                    if (alt.equals(demNoDataValue)) { // get corrected elevation for 0
-                        alt = (double) egm.getEGM(lat, lon);
                     }
 
                     demBuffer.setElemDoubleAt(index, alt);
