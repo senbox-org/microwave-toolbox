@@ -70,6 +70,11 @@ public final class SliceAssemblyOp extends Operator {
     private MetadataElement absRoot = null;
     private String productType = null;
 
+    // True for TOPS (IW/EW) SLC, whose slices are assembled burst by burst per swath.
+    // GRD and stripmap (SM) SLC are assembled as continuous lines: one image per band, no swath
+    // in the band names and no bursts. For the dimension maps such products use "" as swath.
+    private boolean isBurstProduct = false;
+
     // The slice products will be in order in the array: 1st (top) slice is the 1st element in the array followed by
     // 2nd slice and so on.
     private Product[] sliceProducts;
@@ -141,6 +146,8 @@ public final class SliceAssemblyOp extends Operator {
             productType = sliceProducts[0].getProductType();
 
             absRoot = AbstractMetadata.getAbstractedMetadata(sliceProducts[0]);
+            isBurstProduct = isTOPSBurstProduct(absRoot.getAttributeString(AbstractMetadata.PRODUCT_TYPE),
+                    absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE));
 
             if (selectedPolarisations == null || selectedPolarisations.length == 0) {
                 final Sentinel1Utils su = new Sentinel1Utils(sliceProducts[0]);
@@ -159,6 +166,10 @@ public final class SliceAssemblyOp extends Operator {
         } catch (Throwable e) {
             OperatorUtils.catchOperatorException(getId(), e);
         }
+    }
+
+    static boolean isTOPSBurstProduct(final String productType, final String acquisitionMode) {
+        return "SLC".equals(productType) && !"SM".equals(acquisitionMode);
     }
 
     private void getIPFVersion() {
@@ -445,9 +456,12 @@ public final class SliceAssemblyOp extends Operator {
         //  IW2: w x h = 26351 x 30726
         //  IW3: w x h = 25350 x 31077
         // product width = 26351 and height = 31077
+        //
+        // Stripmap SLC is a single swath without bursts (bands i_VV, q_VV, ...). Consecutive slices abut
+        // line to line, so it is assembled like GRD.
 
 
-        if (productType.equals("GRD")) {
+        if (!isBurstProduct) {
 
             for (Product srcProduct : sliceProducts) {
 
@@ -507,7 +521,7 @@ public final class SliceAssemblyOp extends Operator {
 
     private Dimension computeTargetBandWidthAndHeight(final String bandName) throws OperatorException {
 
-        if (productType.equals("GRD")) {
+        if (!isBurstProduct) {
             // See comments in computeTargetWidthAndHeight().
             // For band width, we take the max for that band among all slice products.
             final Dimension dim = new Dimension(0, 0);
@@ -596,8 +610,7 @@ public final class SliceAssemblyOp extends Operator {
         targetProduct.setEndTime(lastSliceProduct.getEndTime());
         targetProduct.setDescription(firstSliceProduct.getDescription());
 
-        final String productType = absRoot.getAttributeString(AbstractMetadata.PRODUCT_TYPE);
-        if (productType.equals("GRD")) {
+        if (!isBurstProduct) {
             createTiePointGrids("");
             addGeocoding();
         } else {
@@ -1319,7 +1332,7 @@ public final class SliceAssemblyOp extends Operator {
             int numLines = Integer.parseInt(targetVectorList.getAttribute("count").getData().getElemString());
             final int pixelSpacing = getCalibrationOrNoisePixelSpacing(targetProduct, imageNum, dataName);  // TODO
 
-            int height = productType.equals("GRD") ?
+            int height = !isBurstProduct ?
                     sliceProducts[0].getSceneRasterHeight() :
                     sliceSwathImageDimMap.get(sliceProducts[0]).get(swathID.toUpperCase())[0];
 
@@ -1442,7 +1455,7 @@ public final class SliceAssemblyOp extends Operator {
                     throw new OperatorException("numLines = " + numLines + " != numElems = " + targetVectorList.getNumElements());
                 }
                 targetVectorList.setAttributeString("count", Integer.toString(numLines));
-                height += (productType.equals("GRD") ?
+                height += (!isBurstProduct ?
                         sliceProduct.getSceneRasterHeight() :
                         sliceSwathImageDimMap.get(sliceProduct).get(swathID.toUpperCase())[0]);
             }
@@ -1495,7 +1508,7 @@ public final class SliceAssemblyOp extends Operator {
                                                                               extractImageNumber(target.getName())));
 
             final String swathID;
-            if (productType.equals("GRD")) {
+            if (!isBurstProduct) {
                 swathID = "";
             } else {
                 swathID = extractSwathIdentifier(target.getName());
@@ -1506,6 +1519,11 @@ public final class SliceAssemblyOp extends Operator {
     }
 
     private void updateSwathTiming() {
+
+        if (!isBurstProduct) {
+            // GRD and stripmap SLC have an empty burst list
+            return;
+        }
 
         final MetadataElement targetOrigProdRoot = AbstractMetadata.getOriginalProductMetadata(targetProduct);
         MetadataElement[] elements = getElementsToUpdate(targetOrigProdRoot, "annotation");
@@ -1817,6 +1835,15 @@ public final class SliceAssemblyOp extends Operator {
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.num_output_lines, targetHeight);
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.num_samples_per_line, targetWidth);
 
+        if (!isBurstProduct && "SLC".equals(absTgt.getAttributeString(AbstractMetadata.PRODUCT_TYPE))) {
+            // Stripmap SLC: the last-line corners are those of the last slice
+            // (multi-swath TOPS SLC sets them in createLatLonTiePointGridsForSLC)
+            for (String corner : new String[]{AbstractMetadata.last_near_lat, AbstractMetadata.last_near_long,
+                    AbstractMetadata.last_far_lat, AbstractMetadata.last_far_long}) {
+                AbstractMetadata.setAttribute(absTgt, corner, absLast.getAttributeDouble(corner));
+            }
+        }
+
         for (Band band : targetProduct.getBands()) {
             MetadataElement bandMeta = AbstractMetadata.getBandAbsMetadata(absTgt, band);
 
@@ -1906,7 +1933,7 @@ public final class SliceAssemblyOp extends Operator {
             for (Product srcProduct : sliceProducts) {
                 final Band srcBand = srcProduct.getBand(targetBand.getName());
                 int start = height;
-                if (productType.equals("GRD")) {
+                if (!isBurstProduct) {
                     height += srcBand.getRasterHeight();
                 } else {
                     final String swath = getSwathFromBandName(srcBand.getName());
@@ -1963,7 +1990,7 @@ public final class SliceAssemblyOp extends Operator {
             final Rectangle srcRect = new Rectangle();
 
             int targetLinesPerBurst = 0;
-            if (!productType.equals("GRD")) {
+            if (isBurstProduct) {
                 final String swath = getSwathFromBandName(targetBand.getName());
                 targetLinesPerBurst = targetSwathBurstDimMap.get(swath).linesPerBurst;
             }
@@ -1980,7 +2007,7 @@ public final class SliceAssemblyOp extends Operator {
 
                 // convert target product line index y to source product line index yy
                 int yy = 0;
-                if (productType.equals("GRD")) {
+                if (!isBurstProduct) {
                     yy = y - line.start;
                 } else {
                     final int sourceLinesPerBurst = sliceBandBurstDimMap.get(line.band).linesPerBurst;
