@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.commons.polsar;
 
+import com.bc.ceres.annotation.STTM;
 import org.esa.snap.core.datamodel.Band;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
@@ -503,5 +504,57 @@ public class TestPolBandUtils {
             assertTrue("message should name the missing band: " + e.getMessage(),
                     e.getMessage().contains("i_HV_ref_01Jan2020"));
         }
+    }
+
+    // --- getSourceProductType: compact-pol detection (SNAP-4384) ---
+
+    private static Product productWithBands(final String... names) {
+        final Product product = new Product("p", "type", 4, 4);
+        for (String name : names) {
+            product.addBand(new Band(name, ProductData.TYPE_FLOAT32, 4, 4));
+        }
+        return product;
+    }
+
+    @Test
+    @STTM("SNAP-4384")
+    public void testGcovCompactPolTermsAreNotRawCompactPol() {
+        // NISAR GCOV compact-pol covariance terms without a C2 matrix: no matrix type applies.
+        assertEquals(PolBandUtils.MATRIX.UNKNOWN, PolBandUtils.getSourceProductType(
+                productWithBands("RHRH", "RVRV", "RHRV_real", "RHRV_imag")));
+    }
+
+    @Test
+    @STTM("SNAP-4384")
+    public void testGcovCompactPolWithC2IsC2() {
+        assertEquals(PolBandUtils.MATRIX.C2, PolBandUtils.getSourceProductType(
+                productWithBands("RHRH", "RVRV", "RHRV_real", "RHRV_imag", "C11", "C12_real", "C12_imag", "C22")));
+    }
+
+    @Test
+    @STTM("SNAP-4384")
+    public void testGcovQuadPolTermsAreUnknown() {
+        assertEquals(PolBandUtils.MATRIX.UNKNOWN, PolBandUtils.getSourceProductType(
+                productWithBands("HHHH", "HVHV", "VVVV", "HHHV_real", "HHHV_imag", "HHVV_real", "HHVV_imag")));
+    }
+
+    @Test
+    @STTM("SNAP-4384")
+    public void testRawRightCircularCompactPol() {
+        assertEquals(PolBandUtils.MATRIX.RCHCP, PolBandUtils.getSourceProductType(
+                productWithBands("i_RCH", "q_RCH", "i_RCV", "q_RCV")));
+        assertEquals(PolBandUtils.MATRIX.RCHCP, PolBandUtils.getSourceProductType(
+                productWithBands("i_RCH_mst_01Jan2020", "q_RCH_mst_01Jan2020", "i_RCV_mst_01Jan2020", "q_RCV_mst_01Jan2020")));
+        assertEquals(PolBandUtils.MATRIX.RCHCP, PolBandUtils.getSourceProductType(
+                productWithBands("i_RH", "q_RH")));
+    }
+
+    @Test
+    @STTM("SNAP-4384")
+    public void testRawLeftCircularCompactPol() {
+        assertEquals(PolBandUtils.MATRIX.LCHCP, PolBandUtils.getSourceProductType(
+                productWithBands("i_LCH", "q_LCH", "i_LCV", "q_LCV")));
+        assertEquals(PolBandUtils.MATRIX.LCHCP, PolBandUtils.getSourceProductType(
+                productWithBands("i_LH", "q_LH")));
     }
 }
