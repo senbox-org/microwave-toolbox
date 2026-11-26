@@ -1,5 +1,7 @@
 package eu.esa.sar.sentinel1.gpf;
 
+import com.bc.ceres.annotation.STTM;
+
 import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.core.util.ThreadExecutor;
 import org.junit.Test;
@@ -15,6 +17,7 @@ import static org.junit.Assert.fail;
 public class TestSpectralDiversityWorkerFailures {
 
     @Test
+    @STTM("SNAP-4387")
     public void errorInAnEarlierTaskIsRethrown() throws Exception {
         final ThreadExecutor executor = new ThreadExecutor(2);
         final SpectralDiversityOp.WorkerFailures failures = new SpectralDiversityOp.WorkerFailures();
@@ -35,6 +38,7 @@ public class TestSpectralDiversityWorkerFailures {
     }
 
     @Test
+    @STTM("SNAP-4387")
     public void allFailuresAreKept() throws Exception {
         final ThreadExecutor executor = new ThreadExecutor(3);
         final SpectralDiversityOp.WorkerFailures failures = new SpectralDiversityOp.WorkerFailures();
@@ -55,6 +59,7 @@ public class TestSpectralDiversityWorkerFailures {
     }
 
     @Test
+    @STTM("SNAP-4387")
     public void noFailuresDoesNotThrow() throws Exception {
         final ThreadExecutor executor = new ThreadExecutor(2);
         final SpectralDiversityOp.WorkerFailures failures = new SpectralDiversityOp.WorkerFailures();

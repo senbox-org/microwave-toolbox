@@ -1,5 +1,7 @@
 package org.jlinda.core.utils;
 
+import com.bc.ceres.annotation.STTM;
+
 import org.jblas.ComplexDoubleMatrix;
 import org.jblas.DoubleMatrix;
 import org.junit.Test;
@@ -40,6 +42,7 @@ public class OversampledPeakTest {
     }
 
     @Test
+    @STTM("SNAP-4387")
     public void matchesFullOversamplingOnRandomPeaks() {
         final Random random = new Random(42);
         for (int trial = 0; trial < 40; trial++) {
@@ -51,6 +54,7 @@ public class OversampledPeakTest {
     }
 
     @Test
+    @STTM("SNAP-4387")
     public void matchesWithDefaultEsdSettings() {
         // ESD defaults: 2 x fineWinAcc 16 = 32x32 chip, oversampling 128 (the 4096x4096 case)
         final Random random = new Random(7);
@@ -58,6 +62,7 @@ public class OversampledPeakTest {
     }
 
     @Test
+    @STTM("SNAP-4387")
     public void matchesWhenPeakIsAtTheChipEdge() {
         final Random random = new Random(3);
         assertSamePeak(correlationChip(16, 16, 0.2, 15.6, 1.5, 0.01, random), 16, 16);
@@ -65,6 +70,7 @@ public class OversampledPeakTest {
     }
 
     @Test
+    @STTM("SNAP-4387")
     public void matchesForUnequalFactorsAndShapes() {
         final Random random = new Random(11);
         assertSamePeak(correlationChip(16, 8, 7.3, 3.6, 1.5, 0.01, random), 16, 8);
@@ -72,6 +78,7 @@ public class OversampledPeakTest {
     }
 
     @Test
+    @STTM("SNAP-4387")
     public void factorOneInOneDimensionIsAnIdentityThere() {
         final Random random = new Random(5);
         assertSamePeak(correlationChip(16, 16, 7.6, 8.2, 2.0, 0.01, random), 1, 16);
@@ -79,6 +86,7 @@ public class OversampledPeakTest {
     }
 
     @Test
+    @STTM("SNAP-4387")
     public void returnsNullForNonFiniteChip() {
         final DoubleMatrix chip = correlationChip(8, 8, 4, 4, 1.5, 0.0, new Random(1));
         chip.put(2, 3, Double.NaN);
@@ -88,6 +96,7 @@ public class OversampledPeakTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
+    @STTM("SNAP-4387")
     public void rejectsNonPowerOfTwoSize() {
         SarUtils.oversampledPeak(new DoubleMatrix(12, 16), 8, 8);
     }
