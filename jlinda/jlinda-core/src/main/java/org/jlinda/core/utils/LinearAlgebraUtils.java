@@ -94,6 +94,7 @@ public class LinearAlgebraUtils {
         return abs(inMatrix);
     }
 
+    /** Absolute values of {@code inMatrix}, computed IN PLACE: the input array is modified and returned. */
     public static double[][] absMatrix(double[][] inMatrix) {
         for (int i = 0; i < inMatrix.length; i++) {
             for (int j = 0; j < inMatrix[0].length; j++) {

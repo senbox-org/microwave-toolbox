@@ -72,6 +72,7 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Bug]** BIOMASS Precise (MAAP) orbit option is unreachable, and it throws on non-BIOMASS products.
 - [ ] **[Bug]** The shipped TOPS coregistration/interferogram graphs lack ESD, the Deformation/DEM-generation graphs lack Multilook, and the graphs hard-code Sentinel precise orbits.
 - [ ] **[Bug]** WarpOp LUT: table rows are built at f = i/127 but JAI reads them at i/128, up to 1/128 pixel off.
+- [ ] **[Decision]** Cross-Correlation on temporally decorrelated SLC pairs (added 2026-11-25). The fine-step amplitude NCC is often 0.1–0.3 (RS2 Manitoba cropland, 24 and 96 days), so the default Coherence Threshold of 0.6 rejects almost every GCP. Warp now stops with "not enough valid GCPs" instead of writing zero Secondaries, and `applyFineRegistration=false` is now honoured for SLCs. Open: an automatic fallback to the coarse GCPs, or a threshold derived from the NCC distribution. Regression data: `SAR/RS2/Manitoba/subsets` (`TestCoregistrationDecorrelatedPair`).
 
 ### Polarimetry and soil moisture
 - [ ] **[Bug]** Polarimetric Calibration does not estimate cross-pol imbalance. The co-pol imbalance estimate assumes equal HH/VV power, and arg f is ambiguous by π. A design note is in the P8-rstb report.
@@ -79,6 +80,8 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Bug]** The PolarimetricDecomposition dialog has no OAC (orientation-angle correction) checkbox.
 - [ ] **[Bug]** The soil-moisture graphs save the ellipsoid incidence angle, not the local one.
 - [ ] **[Bug]** SAOCOM thermal noise removal: the noise LUT may be power while the data are amplitude (per the CONAE spec). Fix this in the reader's intensity labelling once confirmed.
+- [ ] **[Decision]** Polarimetric Box Car treats image edges differently by input type (added 2026-11-25). Quad-pol input averages over the window clipped to the image (`getMeanCoherencyMatrix`); C3/T3/C4/T4 input replicates the edge pixels (`BoxCar.getNeighborValues`). In the 2-pixel border the results differ (35 % at the corner pixel of the QuadPolStack fixture). Pick one convention; `TestPolarimetricSpeckleFilterOp` excludes the border until then.
+- [ ] **[Decision]** The polarimetric tools reject Create-Stack-only stacks (added 2026-11-25). `PolBandUtils.getSourceBands` groups bands by date only when `coregistered_stack=1` (set by Warp); a Create Stack product without Warp has `collocated_stack=1`, so all dates are treated as one acquisition and the operators fail with "A full polarization product is expected as input".
 
 ### Change detection and feature extraction
 - [ ] **[Bug]** LogRatio change detection zeroes dB input and applies ±2 thresholds to every output.
@@ -114,6 +117,10 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
   - Latent: `PolBandUtils.getSourceProductType` would misdetect `RHRH` as raw `RCHCP` (substring match on `RH`).
   - Phases P1–P4 in the spec. Needs quad-pol full-covariance, dual-pol and compact-pol GCOV test products, plus answers on the conjugation convention and compact-pol chirality (spec §9).
 
+- [ ] **[Bug]** RCM burst-mode (ScanSAR) SLC products are not supported (added 2026-11-25). They deliver one image per burst (`imagery/<id>_<pol>_<burst>.tif`); the reader assumes one per polarisation. It now refuses them with a clear message instead of failing on a duplicate band name (`TestEODMSRCMProductReaderLongTest.testScanSAR_CX_SLCZipIsRefusedClearly`; test product `RCM/EODMS/SLC/RCM1_OK1683816_..._SC30MCPB_..._CH_CV_SLC.zip`).
+- [ ] **[Bug]** **[Cross-repo]** Subsetting the ALOS test products fails (added 2026-11-25): `ArrayIndexOutOfBoundsException: Index 9 out of bounds for length 9` from `ProductSubsetBuilder` via snap-engine `TestProcessor.createSubsetProduct`, so all 9 `testProcessAllALOS` tests in sar-op-sar-processing error. Not investigated; possibly the tie-point-grid subset (compare the ApplyOrbit→Subset stale-TPG bug found in snap-gpt-tests).
+- [ ] **[Bug]** There is no RADARSAT-1 calibrator (added 2026-11-25): Calibration refuses mission RS1. `TestCalibrationOpenAll.testProcessAllRadarsat1` is ignored until one exists. (The RS1 ScanSAR Wide read failure it also hit is fixed.)
+
 ## 5. Hygiene: labels, comments and tests
 
 - [ ] **[Hygiene]** TOPSARSplit `subswath` has no valueSet; only its description was fixed.
@@ -125,6 +132,11 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Hygiene]** GSLC: write explicit stamps for tide and troposphere instead of relying on the Processing_Graph record that Create Stack reads (prerequisite for §7.2 items B and C).
 - [ ] **[Hygiene]** Create Stack bias estimation still uses a hard-coded Copernicus DEM (see §7.2 D).
 - [ ] **[Hygiene]** HorizontalVerticalMotion uses (0, 0) as the default reference pixel (see §7.3: a no-data reference is accepted).
+- [ ] **[Hygiene]** Soil moisture: `TestIEMMultiPolInverOp` still has its value check commented out (since SNAP-3562). Rebuild it like `TestIEMHybridInverOp` / `TestIEMMultiAngleInverOp` (added 2026-11-25): inputs copied from shipped-LUT rows, N=1 must return that row, plus an N=5 reference. Note the javaml KDTree keeps only the first of duplicate keys.
+- [ ] **[Hygiene]** jLinda: 15 test classes and 5 RangeFilterTest methods are ignored because they need Doris `.res` files and Doris-produced binaries from the original developer's `/d2/…` tree, which cannot be regenerated without Doris (added 2026-11-25): BaselineTest, OrbitTest, SLCImageTest, AzimuthFilterTest, PhaseFilterTest, RangeFilterTest, DInSARTest, Slant2HeightTest, DemTileTest, TopoPhaseTest, FlatBinaryDoubleTest, SnaphuConfigFileTest, SarUtilsTest, TriangleInterpolatorTest, GeoUtilsTest. Rewrite them on synthetic data or SNAP-produced fixtures (raw ASAR Bam and ERS Etna scenes are in the test data), or delete them.
+- [ ] **[Hygiene]** jLinda `SpectralUtils.fft2D_inplace(DoubleMatrix)` calls `realForwardFull` on a rows×cols buffer (it needs 2×rows×cols) and has no callers: fix or remove (added 2026-11-25).
+- [ ] **[Hygiene]** rstb data-dependent tests check every fixture file in a class-level `@Before`, so one missing file skips the whole class, including tests that need no data (added 2026-11-25). Move the `assumeTrue` calls into the tests that use each file.
+- [ ] **[Hygiene]** Tests added in the 2026-11-25 rstb/jLinda test review have no `@STTM` ticket tag (the work was on master without a ticket).
 
 ## 6. Verification still to do before release
 
