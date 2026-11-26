@@ -84,7 +84,8 @@ public class TestStackAveragingOp {
         final Product targetProduct = op.getTargetProduct();
         TestUtils.verifyProduct(targetProduct, true, true, true);
 
-        final float[] expected = new float[] { 2.0f,12.5f,33.5f };
+        // the Secondary is no-data (0) on row 0, so only the Reference date counts
+        final float[] expected = new float[] { 4.0f, 25.0f, 67.0f };
         TestUtils.comparePixels(targetProduct, targetProduct.getBandAt(0).getName(), expected);
     }
 

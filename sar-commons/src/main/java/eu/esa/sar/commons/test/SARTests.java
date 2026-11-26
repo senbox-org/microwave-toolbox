@@ -38,7 +38,7 @@ public class SARTests {
 
     public final static File[] rootPathsTerraSarX = loadFilePath("test.rootPathTerraSarX", TestData.inputSAR + "TerraSAR-X");
     public final static File[] rootPathsASAR = loadFilePath("test.rootPathASAR", TestData.inputSAR + "ASAR");
-    public final static File[] rootPathsRadarsat2 = loadFilePath("test.rootPathASAR", TestData.inputSAR + "RS2");
+    public final static File[] rootPathsRadarsat2 = loadFilePath("test.rootPathRadarsat2", TestData.inputSAR + "RS2");
     public final static File[] rootPathsRadarsat1 = loadFilePath("test.rootPathRadarsat1", TestData.inputSAR + "RS1");
     public final static File[] rootPathsSentinel1 = loadFilePath("test.rootPathSentinel1", TestData.inputSAR + "S1");
     public final static File[] rootPathsERS = loadFilePath("test.rootPathERS", TestData.inputSAR + "ERS");

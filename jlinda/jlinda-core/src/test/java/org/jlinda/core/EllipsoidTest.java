@@ -1,14 +1,11 @@
 package org.jlinda.core;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.jlinda.core.Constants.DTOR;
 
 public class EllipsoidTest {
-
-    private Ellipsoid inputEll = new Ellipsoid();
 
     private final static double[] cr_GEO_expected = {51.9903894167,4.3896355000,41.670};
     private final static double[] cr_XYZ_expected = {3.92428342070434e+06, 3.01243077763538e+05, 5.00217775318444e+06};
@@ -16,12 +13,6 @@ public class EllipsoidTest {
     private final static double deltaGEO = 1E-06; // up to msec
     private final static double N_expected = 6391431.77177463;
 
-
-    @Ignore
-    @Test
-    public void testShowdata() throws Exception {
-        inputEll.showdata();
-    }
 
 
     @Test

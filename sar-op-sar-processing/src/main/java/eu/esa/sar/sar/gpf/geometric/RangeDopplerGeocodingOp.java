@@ -44,7 +44,7 @@ import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.core.util.ThreadExecutor;
 import org.esa.snap.core.util.ThreadRunnable;
 import org.esa.snap.dem.dataio.DEMFactory;
-import org.esa.snap.dem.dataio.EarthGravitationalModel96;
+import org.esa.snap.dem.dataio.GeoidModel;
 import org.esa.snap.dem.dataio.FileElevationModel;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.OrbitStateVector;
@@ -1050,7 +1050,8 @@ public class RangeDopplerGeocodingOp extends Operator {
             final int maxY = y0 + h;
             final int maxX = x0 + w;
 
-            final EarthGravitationalModel96 egm = EarthGravitationalModel96.instance();
+            final GeoidModel egm = DEMFactory.getGeoidModel(dem);   // EGM2008 for the Copernicus DEM
+            final double[][] egmWorkspace = new double[4][4];   // reused for every sea pixel
 
             final GeoPos posFirst = targetProduct.getSceneGeoCoding().getGeoPos(new PixelPos(0, 0), null);
             // Use targetImageHeight - 1 (the last valid row), not targetImageHeight (one past).
@@ -1084,7 +1085,7 @@ public class RangeDopplerGeocodingOp extends Operator {
                     }
 
                     if (altIsNoData && !nodataValueAtSea) { // get corrected elevation for 0
-                        alt = egm.getEGM(lat, lon);
+                        alt = egm.getEGM(lat, lon, egmWorkspace);
                     }
 
                     if (!getPosition(lat, lon, alt, posData)) {

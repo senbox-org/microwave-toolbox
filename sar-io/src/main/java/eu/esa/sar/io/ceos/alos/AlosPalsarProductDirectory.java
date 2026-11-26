@@ -623,15 +623,16 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
 
     public void readTiePointGridRasterData(final TiePointGrid tpg, Rectangle destRect, ProductData destBuffer, ProgressMonitor pm) {
 
-        final int gridWidth = destRect.width;
-        final int gridHeight = destRect.height;
+        // rangeDist always holds the FULL tie-point grid; a request may be a sub-region of it
+        // (e.g. a subset reads only its window of the source grid) and is cut out below.
+        final int fullGridWidth = tpg.getGridWidth();
+        final int fullGridHeight = tpg.getGridHeight();
         final int subSamplingX = (int) tpg.getSubSamplingX();
-        final float[] rangeTime = new float[gridWidth * gridHeight];
 
         final BinaryRecord sceneRec = leaderFile.getSceneRecord();
 
-        if (rangeDist == null) {
-            rangeDist = new float[gridWidth * gridHeight];
+        if (rangeDist == null || rangeDist.length != fullGridWidth * fullGridHeight) {
+            rangeDist = new float[fullGridWidth * fullGridHeight];
 
             // slant range time (2-way)
             if (leaderFile.getProductLevel() == AlosPalsarConstants.LEVEL1_1 && sceneRec != null) {
@@ -641,8 +642,8 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
                 final double rangePixelSpacing = subSamplingX * Constants.halfLightSpeed / samplingRate;
                 final double slantRangeToFirstPixel = imageFiles[0].getSlantRangeToFirstPixel(0);
                 int k = 0;
-                for (int j = destRect.y; j < gridHeight; j++) {
-                    for (int i = destRect.x; i < gridWidth; i++) {
+                for (int j = 0; j < fullGridHeight; j++) {
+                    for (int i = 0; i < fullGridWidth; i++) {
                         rangeDist[k++] = (float) (slantRangeToFirstPixel + i * rangePixelSpacing);
                     }
                 }
@@ -652,15 +653,13 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
                 final double slantRangeToFirstPixel = imageFiles[0].getSlantRangeToFirstPixel(0); // meters
                 final double slantRangeToMidPixel = imageFiles[0].getSlantRangeToMidPixel(0);
                 final double slantRangeToLastPixel = imageFiles[0].getSlantRangeToLastPixel(0);
-
+                final double[] polyCoef = computePolynomialCoefficients(slantRangeToFirstPixel,
+                                                                        slantRangeToMidPixel,
+                                                                        slantRangeToLastPixel,
+                                                                        sceneWidth);
                 int k = 0;
-                for (int j = destRect.y; j < gridHeight; j++) {
-                    final double[] polyCoef = computePolynomialCoefficients(slantRangeToFirstPixel,
-                                                                            slantRangeToMidPixel,
-                                                                            slantRangeToLastPixel,
-                                                                            sceneWidth);
-
-                    for (int i = destRect.x; i < gridWidth; i++) {
+                for (int j = 0; j < fullGridHeight; j++) {
+                    for (int i = 0; i < fullGridWidth; i++) {
                         final int x = i * subSamplingX;
                         rangeDist[k++] = (float) (polyCoef[0] + polyCoef[1] * x + polyCoef[2] * x * x);
                     }
@@ -668,10 +667,17 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
             }
         }
 
+        final int width = destRect.width;
+        final int height = destRect.height;
+
         if (tpg.getName().equals(OperatorUtils.TPG_SLANT_RANGE_TIME)) {
             // get slant range time in nanoseconds from range distance in meters
-            for (int k = 0; k < rangeDist.length; k++) {
-                rangeTime[k] = (float) (rangeDist[k] / Constants.halfLightSpeed * Constants.oneBillion); // in ns
+            final float[] rangeTime = new float[width * height];
+            int k = 0;
+            for (int j = destRect.y; j < destRect.y + height; j++) {
+                for (int i = destRect.x; i < destRect.x + width; i++) {
+                    rangeTime[k++] = (float) (rangeDist[j * fullGridWidth + i] / Constants.halfLightSpeed * Constants.oneBillion); // in ns
+                }
             }
 
             destBuffer.setElems(rangeTime);
@@ -685,17 +691,14 @@ public class AlosPalsarProductDirectory extends CEOSProductDirectory {
                 final double a4 = sceneRec.getAttributeDouble("Incidence angle fourth term");
                 final double a5 = sceneRec.getAttributeDouble("Incidence angle fifth term");
 
-                final float[] angles = new float[gridWidth * gridHeight];
+                final float[] angles = new float[width * height];
                 int k = 0;
-                for (int j = destRect.y; j < gridHeight; j++) {
-                    for (int i = destRect.x; i < gridWidth; i++) {
+                for (int j = destRect.y; j < destRect.y + height; j++) {
+                    for (int i = destRect.x; i < destRect.x + width; i++) {
                         // Horner's method, computing rkm = rangeDist/1000 once per pixel
-                        // instead of five times. Eliminates 4 FastMath.pow per pixel inside
-                        // this per-tile-pixel grid sweep.
-                        final double rkm = rangeDist[k] / 1000.0;
-                        angles[k] = (float) ((a0 + rkm * (a1 + rkm * (a2 + rkm
+                        final double rkm = rangeDist[j * fullGridWidth + i] / 1000.0;
+                        angles[k++] = (float) ((a0 + rkm * (a1 + rkm * (a2 + rkm
                                 * (a3 + rkm * (a4 + rkm * a5))))) * Constants.RTOD);
-                        k++;
                     }
                 }
 

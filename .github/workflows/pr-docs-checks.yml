@@ -1,0 +1,52 @@
+# Quick checks on help pages and shipped XML (about 2 minutes, no build, no test data).
+name: Docs and XML checks
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-xml:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out microwave-toolbox
+        uses: actions/checkout@v4
+        with:
+          path: microwave-toolbox
+
+      # check_javahelp.py resolves help links into these sibling repositories (read-only, shallow)
+      - name: Check out sibling repositories for cross-repo help links
+        run: |
+          for repo in snap-engine snap-desktop optical-toolbox; do
+            git clone --depth 1 --quiet "https://github.com/senbox-org/${repo}.git" "${repo}"
+          done
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Shipped XML is well-formed (graphs, layer.xml, help sets)
+        working-directory: microwave-toolbox
+        run: python -I tools/ci/check_xml_wellformed.py
+
+      - name: Help parameter tables match the operator sources
+        working-directory: microwave-toolbox
+        run: python -I tools/javahelp/gen_params.py --check
+
+      - name: Help pages (links, index, search, style)
+        working-directory: microwave-toolbox
+        run: python -I tools/javahelp/check_javahelp.py
+
+      - name: Help tool unit tests
+        working-directory: microwave-toolbox
+        run: python -I -m unittest discover -s tools/javahelp -p "test_*.py"

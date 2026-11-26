@@ -84,11 +84,13 @@ fine registration and <i>Optimize for InSAR</i>.</p>
         refines the peak with the row and column interpolation factors (default 2, i.e. 1/2 pixel) and repeats,
         up to <i>Max Iterations</i> (10), until the shift is within <i>GCP Tolerance</i> (0.5 pixel; it may not
         be smaller than 1/interpolation factor; the Coregistration menu graph sets interpolation factor 4 and
-        GCP Tolerance 0.25). For complex input the operator always adds the fine step,
-        whatever the check boxes say: 32 &times; 32 windows of de-meaned amplitude are correlated, and the
-        correlation surface around the peak (&plusmn;16 pixels) is oversampled 16 times, giving offsets in
-        steps of 1/16 pixel. GCPs whose normalised peak correlation is below <i>Coherence Threshold</i> (0.6)
-        are dropped.</li>
+        GCP Tolerance 0.25). For complex input the operator then adds the fine step (unless
+        <i>Apply Fine Registration</i> is switched off): 32 &times; 32 windows of de-meaned amplitude are
+        correlated, and the correlation surface around the peak (&plusmn;16 pixels) is oversampled 16 times,
+        giving offsets in steps of 1/16 pixel. GCPs whose normalised peak correlation is below
+        <i>Coherence Threshold</i> (0.6) are dropped. Over temporally decorrelated scenes this correlation is
+        often 0.1&ndash;0.3; lower the threshold or switch off fine registration to coregister on amplitude
+        alone.</li>
     <li><b>Warp</b> (<code>Warp</code>) fits a polynomial of <i>Warp Polynomial Order</i> 2 (default; 1 or 3
         possible) per Secondary. For complex stacks, <i>Significance Level for Outlier Removal</i> 0.05
         (default), 0.1 or 0.001 run data snooping (Baarda, 1968): the worst GCP (largest

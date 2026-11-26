@@ -27,25 +27,56 @@ import org.esa.snap.core.util.ResourceInstaller;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.file.Path;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Unit test for IEMHybridInverOperator.
+ *
+ * The 2x3 test product is built from the shipped LUT auxdata/sm_luts/IEM_cb_nt_RDC_RSAT2_QP.mat
+ * (columns rms, cl, RDC, sigmaHH, sigmaVV; 13252 rows per integer incidence angle starting at 18 deg).
+ * Each pixel's four sigmas are copied verbatim from one LUT row (row index given per pixel) in the
+ * angle sections of the AM and PM incidence angles, and each row was chosen so that no other row
+ * lies within 0.05 dB of it. An exact search must therefore return that row's rms, cl and RDC.
  */
 public class TestIEMHybridInverOp {
 
     private final static OperatorSpi spi = new IEMHybridInverOp.Spi();
+    // target rms and RDC bands are float32
     private final static double epsilon = 1.0e-4d;
 
     final private int rows = 3;
     final private int cols = 2;
+
+    // LUT rows used per pixel:                     1508,    4200,    6900,    9100,    11300,   0
+    private static final double[] SIGMA_HH_AM = {-12.117, -8.6295, -5.8998, -4.8353, -17.865, -15.056};
+    private static final double[] SIGMA_VV_AM = {-11.082, -7.5433, -4.6176, -4.072, -18.528, -14.331};
+    private static final double[] THETA_AM = {18.1, 21.2, 19.0, 20.0, 20.3, 19.3};
+    private static final double[] SIGMA_HH_PM = {-19.379, -13.289, -7.5829, -6.7779, -14.06, -18.13};
+    private static final double[] SIGMA_VV_PM = {-16.604, -11.006, -4.8143, -4.887, -14.08, -16.378};
+    private static final double[] THETA_PM = {30.3, 31.4, 30.9, 32.2, 32.4, 30.6};
+
+    // rms, cl, RDC of the LUT rows above
+    private static final double[] EXACT_RMS = {0.3, 0.5, 0.8, 1.1, 1.7, 0.3};
+    private static final double[] EXACT_CL = {13.0, 4.6, 1.4, 3.8, 2.2, 1.0};
+    private static final double[] EXACT_RDC = {10.214416, 5.9536, 20.6116, 14.961424, 11.888704, 3.125824};
+
+    // Default N=5 nearest neighbours + 5x5 RDC outlier filter (threshold 0.5, outliers replaced by the
+    // neighbourhood mean). Values from an independent brute-force implementation of the documented
+    // algorithm (IEMInverBase.getBestKDTreeNeighbour) over the same LUT; pixels 1, 2 and 5 are outliers.
+    // The javaml KDTree keeps only the first inserted (lowest) LUT row for duplicate sigma keys.
+    private static final double[] FILTERED_RMS = {0.3, 0.4, 0.78, 1.1, 1.7, 0.88};
+    private static final double[] FILTERED_CL = {13.0, 3.4, 4.92, 3.8, 2.2, 5.0};
+    private static final double[] FILTERED_RDC = {10.214416, 7.246864, 9.228794, 14.961424, 11.888704, 12.725949};
+
+    private static final double[] CLAY = {13.0, 23.0, 3.0, 3.0, 99.0, 23.0};
+    private static final double[] SAND = {15.0, 83.0, 43.0, 98.0, 26.0, 75.0};
 
     @Test
     public void testSpiCreatesOperator() {
@@ -72,304 +103,110 @@ public class TestIEMHybridInverOp {
         assertTrue(trgProduct.containsBand("RDC"));
     }
 
-    private static boolean almostEqual(final double a, final double b, final double epsilon) {
-        return Math.abs(a - b) < epsilon;
-    }
-
-    private static void addClay(final Product prod, final int w, final int h) {
-
-        final double[] clayValues = new double[w * h];
-        final Band clayBand = prod.addBand("AAFC Canada Clay Pct", ProductData.TYPE_FLOAT64);
-        clayBand.setUnit(Unit.REAL);
-        clayValues[0] = 0.13 * 100.0;   // (1, 1)
-        clayValues[1] = 0.23 * 100.0;   // (1, 2)
-        clayValues[2] = 0.03 * 100.0;   // (2, 1)
-        clayValues[3] = 0.03 * 100.0;   // (2, 2)
-        clayValues[4] = 0.99 * 100.0;   // (3, 1)
-        clayValues[5] = 0.23 * 100.0;   // (3, 2)
-        final ProductData clayData = ProductData.createInstance(clayValues);
-        clayBand.setData(clayData);
-    }
-
-    private static void addSand(final Product prod, final int w, final int h) {
-
-        final double[] sandValues = new double[w * h];
-        final Band sandBand = prod.addBand("AAFC Canada Sand Pct", ProductData.TYPE_FLOAT64);
-        sandBand.setUnit(Unit.REAL);
-        sandValues[0] = 0.15 * 100.0;   // (1, 1)
-        sandValues[1] = 0.83 * 100.0;   // (1, 2)
-        sandValues[2] = 0.43 * 100.0;   // (2, 1)
-        sandValues[3] = 0.98 * 100.0;   // (2, 2)
-        sandValues[4] = 0.26 * 100.0;   // (3, 1)
-        sandValues[5] = 0.75 * 100.0;   // (3, 2)
-        final ProductData sandData = ProductData.createInstance(sandValues);
-        sandBand.setData(sandData);
+    private static void addBand(final Product prod, final String name, final String unit, final double[] values) {
+        final Band band = prod.addBand(name, ProductData.TYPE_FLOAT64);
+        band.setUnit(unit);
+        final double[] data = new double[prod.getSceneRasterWidth() * prod.getSceneRasterHeight()];
+        System.arraycopy(values, 0, data, 0, Math.min(values.length, data.length));
+        band.setData(ProductData.createInstance(data));
     }
 
     private static Product createOneTestProduct(final int w, final int h, final boolean clay, final boolean sand) {
 
-        final Product[] testProduct = new Product[1];
-
-        testProduct[0] = TestUtils.createProduct("backscatter and LIA", w, h);
+        final Product product = TestUtils.createProduct("backscatter and LIA", w, h);
+        final double[] zeros = new double[w * h];
 
         // AM image
+        addBand(product, "Sigma0_HH_sec2_11Oct2013", Unit.INTENSITY_DB, SIGMA_HH_AM);
+        addBand(product, "Sigma0_VV_ref_11Oct2013", Unit.INTENSITY_DB, SIGMA_VV_AM);
+        addBand(product, "incidenceAngleFromEllipsoid_sec4_11Oct2013", Unit.DEGREES, THETA_AM);
+        addBand(product, "Sigma0_HV_sec3_11Oct2103", Unit.INTENSITY_DB, zeros);
+        addBand(product, "Sigma0_VH_sec1_11Oct2103", Unit.INTENSITY_DB, zeros);
 
-        final double[] sigmaHHValuesAM = new double[w * h];
-        final Band sigmaHHBandAM = testProduct[0].addBand("Sigma0_HH_sec2_11Oct2013", ProductData.TYPE_FLOAT64);
-        sigmaHHBandAM.setUnit("dB");
-        sigmaHHValuesAM[0] = -5.945;    // (1, 1)
-        sigmaHHValuesAM[1] = -65.945;   // (1, 2)
-        sigmaHHValuesAM[2] = -19.163;   // (2, 1)
-        sigmaHHValuesAM[3] = 1.01;     // (2, 2)
-        sigmaHHValuesAM[4] = -4.572;    // (3, 1)
-        sigmaHHValuesAM[5] = -64.572;   // (3, 2)
-        final ProductData sigmaHHDataAM = ProductData.createInstance(sigmaHHValuesAM);
-        sigmaHHBandAM.setData(sigmaHHDataAM);
+        // PM image
+        addBand(product, "Sigma0_HH_sec7_11Oct2013", Unit.INTENSITY_DB, SIGMA_HH_PM);
+        addBand(product, "Sigma0_VV_sec5_11Oct2013", Unit.INTENSITY_DB, SIGMA_VV_PM);
+        addBand(product, "incidenceAngleFromEllipsoid_sec9_11Oct2013", Unit.DEGREES, THETA_PM);
+        addBand(product, "Sigma0_HV_sec8_11Oct2103", Unit.INTENSITY_DB, zeros);
+        addBand(product, "Sigma0_VH_sec6_11Oct2103", Unit.INTENSITY_DB, zeros);
 
-        final double[] sigmaVVValuesAM = new double[w * h];
-        final Band sigmaVVBandAM = testProduct[0].addBand("Sigma0_VV_ref_11Oct2013", ProductData.TYPE_FLOAT64);
-        sigmaVVBandAM.setUnit("dB");
-        sigmaVVValuesAM[0] = -14.78;    // (1, 1)
-        sigmaVVValuesAM[1] = -18.78;    // (1, 2)
-        sigmaVVValuesAM[2] = -8.262;    // (2, 1)
-        sigmaVVValuesAM[3] = 1.6;       // (2, 2)
-        sigmaVVValuesAM[4] = 4.597;     // (3, 1)
-        sigmaVVValuesAM[5] = -64.597;   // (3, 2)
-        final ProductData sigmaVVDataAM = ProductData.createInstance(sigmaVVValuesAM);
-        sigmaVVBandAM.setData(sigmaVVDataAM);
-
-        final double[] thetaValuesAM = new double[w * h];
-        final Band thetaBandAM = testProduct[0].addBand("incidenceAngleFromEllipsoid_sec4_11Oct2013", ProductData.TYPE_FLOAT64);
-        thetaBandAM.setUnit("degrees");
-        thetaValuesAM[0] = 18.1;    // (1, 1)
-        thetaValuesAM[1] = 21.2;    // (1, 2)
-        thetaValuesAM[2] = 19.0;    // (2, 1)
-        thetaValuesAM[3] = 20.0;    // (2, 2)
-        thetaValuesAM[4] = 20.3;    // (3, 1)
-        thetaValuesAM[5] = 19.3;    // (3, 2)
-        final ProductData thetaDataAM = ProductData.createInstance(thetaValuesAM);
-        thetaBandAM.setData(thetaDataAM);
-
-        final double[] sigmaHVValuesAM = new double[w * h];
-        final Band sigmaHVBandAM = testProduct[0].addBand("Sigma0_HV_sec3_11Oct2103", ProductData.TYPE_FLOAT64);
-        sigmaHVBandAM.setUnit("dB");
-        for (int i = 0; i < sigmaHVValuesAM.length; i++) {
-            sigmaHVValuesAM[i] = 0.0;
-        }
-        final ProductData sigmaHVDataAM = ProductData.createInstance(sigmaHVValuesAM);
-        sigmaHVBandAM.setData(sigmaHVDataAM);
-
-        final double[] sigmaVHValuesAM = new double[w * h];
-        final Band sigmaVHBandAM = testProduct[0].addBand("Sigma0_VH_sec1_11Oct2103", ProductData.TYPE_FLOAT64);
-        sigmaVHBandAM.setUnit("dB");
-        for (int i = 0; i < sigmaVHValuesAM.length; i++) {
-            sigmaVHValuesAM[i] = 0.0;
-        }
-        final ProductData sigmaVHDataAM = ProductData.createInstance(sigmaVHValuesAM);
-        sigmaVHBandAM.setData(sigmaVHDataAM);
-
-        // PM source image
-
-        final double[] sigmaHHValuesPM = new double[w * h];
-        final Band sigmaHHBandPM = testProduct[0].addBand("Sigma0_HH_sec7_11Oct2013", ProductData.TYPE_FLOAT64);
-        sigmaHHBandPM.setUnit(Unit.INTENSITY_DB);
-        sigmaHHValuesPM[0] = -2.2722;  // (1, 1)
-        sigmaHHValuesPM[1] = -2.2722;   // (1, 2)
-        sigmaHHValuesPM[2] = -15.134;   // (2, 1)
-        sigmaHHValuesPM[3] = -5.134;    // (2, 2)
-        sigmaHHValuesPM[4] = -11.012;   // (3, 1)
-        sigmaHHValuesPM[5] = -55.12;    // (3, 2)
-        final ProductData sigmaHHDataPM = ProductData.createInstance(sigmaHHValuesPM);
-        sigmaHHBandPM.setData(sigmaHHDataPM);
-
-        final double[] sigmaVVValuesPM = new double[w * h];
-        final Band sigmaVVBandPM = testProduct[0].addBand("Sigma0_VV_sec5_11Oct2013", ProductData.TYPE_FLOAT64);
-        sigmaVVBandPM.setUnit(Unit.INTENSITY_DB);
-        sigmaVVValuesPM[0] = -21.2389;  // (1, 1)
-        sigmaVVValuesPM[1] = -1.2389;   // (1, 2)
-        sigmaVVValuesPM[2] = -8.443;    // (2, 1)
-        sigmaVVValuesPM[3] = -18.443;   // (2, 2)
-        sigmaVVValuesPM[4] = -10.318;   // (3, 1)
-        sigmaVVValuesPM[5] = -40.318;   // (3, 2)
-        ProductData sigmaVVDataPM = ProductData.createInstance(sigmaVVValuesPM);
-        sigmaVVBandPM.setData(sigmaVVDataPM);
-
-        final double[] thetaValuesPM = new double[w * h];
-        final Band thetaBandPM = testProduct[0].addBand("incidenceAngleFromEllipsoid_sec9_11Oct2013", ProductData.TYPE_FLOAT64);
-        thetaBandPM.setUnit("degrees");
-        thetaValuesPM[0] = 30.3;    // (1, 1)
-        thetaValuesPM[1] = 31.4;    // (1, 2)
-        thetaValuesPM[2] = 30.9;    // (2, 1)
-        thetaValuesPM[3] = 32.20;   // (2, 2)
-        thetaValuesPM[4] = 32.4;    // (3, 1)
-        thetaValuesPM[5] = 30.6;    // (3, 2)
-        final ProductData thetaDataPM = ProductData.createInstance(thetaValuesPM);
-        thetaBandPM.setData(thetaDataPM);
-
-        final double[] sigmaHVValuesPM = new double[w * h];
-        final Band sigmaHVBandPM = testProduct[0].addBand("Sigma0_HV_sec8_11Oct2103", ProductData.TYPE_FLOAT64);
-        sigmaHVBandPM.setUnit("dB");
-        for (int i = 0; i < sigmaHVValuesPM.length; i++) {
-            sigmaHVValuesPM[i] = 0.0;
-        }
-        final ProductData sigmaHVDataPM = ProductData.createInstance(sigmaHVValuesPM);
-        sigmaHVBandPM.setData(sigmaHVDataPM);
-
-        final double[] sigmaVHValuesPM = new double[w * h];
-        final Band sigmaVHBandPM = testProduct[0].addBand("Sigma0_VH_sec6_11Oct2103", ProductData.TYPE_FLOAT64);
-        sigmaVHBandPM.setUnit("dB");
-        for (int i = 0; i < sigmaVHValuesPM.length; i++) {
-            sigmaVHValuesPM[i] = 0.0;
-        }
-        final ProductData sigmaVHDataPM = ProductData.createInstance(sigmaVHValuesPM);
-        sigmaVHBandPM.setData(sigmaVHDataPM);
-
-        final MetadataElement metadata0 = AbstractMetadata.getAbstractedMetadata(testProduct[0]);
-
+        final MetadataElement metadata0 = AbstractMetadata.getAbstractedMetadata(product);
         metadata0.setAttributeDouble(AbstractMetadata.incidence_near, 18.1d);
         metadata0.setAttributeDouble(AbstractMetadata.incidence_far, 21.2d);
 
-        final MetadataElement secMetadata = AbstractMetadata.getSecondaryMetadata(testProduct[0].getMetadataRoot());
-
+        final MetadataElement secMetadata = AbstractMetadata.getSecondaryMetadata(product.getMetadataRoot());
         final MetadataElement metadata1 = new MetadataElement("sec");
-
         metadata1.setAttributeDouble(AbstractMetadata.incidence_near, 30.3d);
         metadata1.setAttributeDouble(AbstractMetadata.incidence_far, 32.4d);
-
         secMetadata.addElement(metadata1);
 
         if (clay) {
-            addClay(testProduct[0], w, h);
+            addBand(product, "AAFC Canada Clay Pct", Unit.REAL, CLAY);
         }
-
         if (sand) {
-            addSand(testProduct[0], w, h);
+            addBand(product, "AAFC Canada Sand Pct", Unit.REAL, SAND);
         }
-
-        return testProduct[0];
+        return product;
     }
 
     /**
-     * Tests IEM Hybrid Inversion operator with a test product.
-     *
-     * @throws Exception general exception
+     * With N=1 the inversion is a pure LUT lookup: sigmas copied from a LUT row must give back that row.
      */
     @Test
-    @Ignore
-    public void testIEMHybridInversionOfRealImage() throws Exception {
-
-        myTest(false, false); // no clay, no sand
-        myTest(true, false); // just clay, no sand
-        myTest(false, true); // no clay, just sand
-        myTest(true, true);  // both clay and sand
+    public void testExactLUTRowsAreInverted() throws Exception {
+        for (boolean clay : new boolean[]{false, true}) {
+            for (boolean sand : new boolean[]{false, true}) {
+                final Product target = runInversion(clay, sand, 1);
+                assertBand(target, "rms", EXACT_RMS);
+                assertBand(target, "cl", EXACT_CL);
+                assertBand(target, "RDC", EXACT_RDC);
+                assertPassThroughBands(target, clay, sand);
+            }
+        }
     }
 
-    private void myTest(final boolean clay, final boolean sand) throws Exception {
+    /**
+     * Default parameters (N=5 nearest neighbours) also run the spatial RDC outlier filter.
+     */
+    @Test
+    public void testDefaultInversionWithOutlierFilter() throws Exception {
+        final Product target = runInversion(true, true, null);
+        assertBand(target, "rms", FILTERED_RMS);
+        assertBand(target, "cl", FILTERED_CL);
+        assertBand(target, "RDC", FILTERED_RDC);
+        assertPassThroughBands(target, true, true);
+    }
 
-        TestUtils.log.info("***************** myTest: clay = " + clay + " sand = " + sand + " epsilon = " + epsilon);
-
-        int numBands = 3;
-        if (clay) {
-            numBands++;
-        }
-        if (sand) {
-            numBands++;
-        }
-
+    private Product runInversion(final boolean clay, final boolean sand, final Integer n) {
         final Product sourceProduct = createOneTestProduct(cols, rows, clay, sand);
         final Path resourcePath = ResourceInstaller.findModuleCodeBasePath(IEMInverBase.class).resolve("auxdata/sm_luts");
 
         final IEMHybridInverOp op = (IEMHybridInverOp) spi.createOperator();
-        assertNotNull(op);
         op.setSourceProduct(sourceProduct);
         op.setLUTFile(resourcePath.resolve("IEM_cb_nt_RDC_RSAT2_QP.mat").toFile().getAbsolutePath());
         op.setOptionalOutputs(true);
-
-        // get targetProduct: execute initialize()
-        final Product targetProduct = op.getTargetProduct();
-
-        TestUtils.log.info("Target product name = " + targetProduct.getName() +
-                "; #bands in target product = " + targetProduct.getNumBands() +
-                "; expected numBands = " + numBands);
-
-        // target bands
-        final Band[] band = new Band[numBands];
-        for (int i = 0; i < band.length; i++) {
-            band[i] = targetProduct.getBandAt(i);
-            assertNotNull(band[i]);
+        if (n != null) {
+            op.setParameter("N", n);
         }
+        return op.getTargetProduct();
+    }
 
-        // readPixels: execute computeTiles()
-        final double[][] resultValues = new double[numBands][cols * rows];
-        for (int i = 0; i < resultValues.length; i++) {
-
-            final ProductData prodData = band[i].createCompatibleProductData((int) band[i].getNumDataElems());
-
-            band[i].readRasterData(0, 0, cols, rows, prodData, ProgressMonitor.NULL);
-
-            for (int j = 0; j < resultValues[i].length; j++) {
-
-                resultValues[i][j] = prodData.getElemDoubleAt(j);
-            }
-
-            prodData.dispose();
-        }
-
-        final double[] rmsExpectedValues = {1.5d, 1.7d, 1.6d, 1.0d, 0.9d, 2.4d};
-        final double[] rdcExpectedValues = {30.780304d, 3.125824d, 9.684544d, 38.6884d, 13.075456d, 3.748096d};
-        final double[] clExpectedValues = {4.6d, 1.0d, 1.4d, 4.2d, 3.0d, 1.0d};
-
-        final double[] clayExpectedValues = {13.0d, 23.0d, 3.0d, 3.0d, 99.0d, 23.0d};
-        final double[] sandExpectedValues = {15.0d, 83.0d, 43.0d, 98.0d, 26.0d, 75.0};
-
-        // compare with expected outputs:
-        final double[][] expectedValues = new double[numBands][cols * rows];
-
-        int idx = 2;
-
-        expectedValues[0] = rmsExpectedValues; // 1st band rms is 1st col in LUT
-        expectedValues[1] = rdcExpectedValues; // 2nd band rdc is 3rd col in LUT
-
+    private void assertPassThroughBands(final Product target, final boolean clay, final boolean sand) throws Exception {
+        assertEquals(clay, target.containsBand("AAFC Canada Clay Pct"));
+        assertEquals(sand, target.containsBand("AAFC Canada Sand Pct"));
         if (clay) {
-            expectedValues[2] = clayExpectedValues; // band clay
-            idx++;
+            assertBand(target, "AAFC Canada Clay Pct", CLAY);
         }
-
         if (sand) {
-            expectedValues[idx] = sandExpectedValues; // band sand
-            idx++;
+            assertBand(target, "AAFC Canada Sand Pct", SAND);
         }
+    }
 
-        expectedValues[idx] = clExpectedValues; // band cl is 2nd col in LUT
-
-        final StringBuilder resultsStr = new StringBuilder("Result values:");
-        for (double[] resultValue : resultValues) {
-            for (double aResultValue : resultValue) {
-                resultsStr.append(" ");
-                resultsStr.append(aResultValue);
-            }
-            resultsStr.append("\n");
-        }
-        TestUtils.log.info(resultsStr.toString());
-
-        final StringBuilder expectedStr = new StringBuilder("Expected values:");
-        for (double[] expectedValue : expectedValues) {
-            for (double anExpectedValue : expectedValue) {
-                expectedStr.append(" ");
-                expectedStr.append(anExpectedValue);
-            }
-            expectedStr.append("\n");
-        }
-        TestUtils.log.info(expectedStr.toString());
-
-        for (int i = 0; i < resultValues.length; i++) {
-            for (int j = 0; j < resultValues[i].length; j++) {
-                assertTrue(almostEqual(resultValues[i][j], expectedValues[i][j], epsilon));
-                if (!almostEqual(resultValues[i][j], expectedValues[i][j], epsilon)) {
-                    TestUtils.log.warning("Not Equal: i = " + i + " j = " + j + " " + resultValues[i][j] + " " + expectedValues[i][j]);
-                    //throw new Exception("");
-                }
-            }
-        }
+    private void assertBand(final Product target, final String bandName, final double[] expected) throws Exception {
+        final Band band = target.getBand(bandName);
+        assertNotNull(bandName, band);
+        final double[] actual = new double[cols * rows];
+        band.readPixels(0, 0, cols, rows, actual, ProgressMonitor.NULL);
+        assertArrayEquals(bandName, expected, actual, epsilon);
     }
 }

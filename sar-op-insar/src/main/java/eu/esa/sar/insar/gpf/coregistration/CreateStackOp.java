@@ -3777,6 +3777,8 @@ public class CreateStackOp extends Operator {
     }
 
     private void addOffset(final Product secProd, final int offsetX, final int offsetY) {
+        SystemUtils.LOG.info(String.format("CreateStack: initial offset for '%s' (%s) = (%+d, %+d) px",
+                secProd.getName(), initialOffsetMethod, offsetX, offsetY));
         secondaryOffsetMap.put(secProd, new int[]{offsetX, offsetY});
     }
 

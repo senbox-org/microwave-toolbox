@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.io.nisar;
 
+import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.SARTests;
@@ -40,10 +41,11 @@ public class TestNISARReader extends ReaderTest {
     public final static File input_L1_RUNW_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L1_PR_RUNW_001_005_A_219_220_4020_SH_20081012T060910_20081012T060926_20081127T060959_20081127T061015_P01101_M_F_J_001.h5");
     public final static File input_L1_RSLC_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L1_PR_RSLC_001_005_A_219_2005_DHDH_A_20081012T060910_20081012T060926_P01101_F_N_J_001.h5");
 
-    public final static File input_L2_GCOV_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L2_PR_GCOV_001_005_A_219_4020_SHNA_A_20081012T060910_20081012T060926_P01101_F_N_J_001.h5");
+    // current operational products (ASF, 2026-11); the 2024 pre-launch GCOV/GSLC samples were HDF5 superblock v3, which NetCDF-Java cannot open
+    public final static File input_L2_GCOV_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L2_PR_GCOV_036_066_A_004_2005_DHDH_A_20261121T181649_20261121T181653_P05036_N_P_J_001.h5");
+    public final static File input_L2_GSLC_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L2_PR_GSLC_036_034_A_019_4005_DHDH_A_20261119T130824_20261119T130859_P05036_N_F_J_001.h5");
     public final static File input_L2_GOFF_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L2_PR_GOFF_001_005_A_219_220_4020_SH_20081012T060910_20081012T060926_20081127T060959_20081127T061015_P01101_M_F_J_001.h5");
     public final static File input_L2_GUNW_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L2_PR_GUNW_001_005_A_219_220_4020_SH_20081012T060910_20081012T060926_20081127T060959_20081127T061015_P01101_M_F_J_001.h5");
-    public final static File input_L2_GSLC_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L2_PR_GSLC_001_005_A_219_2005_DHDH_A_20081127T060959_20081127T061015_P01101_F_N_J_001.h5");
 
     public final static File input_L3_SME2_H5 = new File(TestData.inputSAR + "NISAR/NISAR_L3_PR_SME2_001_008_D_070_4000_QPNA_A_20190829T180759_20190829T180809_P01101_M_P_J_001.h5");
 
@@ -59,10 +61,8 @@ public class TestNISARReader extends ReaderTest {
         assumeTrue(input_L1_RUNW_H5 + " not found", input_L1_RUNW_H5.exists());
         assumeTrue(input_L1_RSLC_H5 + " not found", input_L1_RSLC_H5.exists());
 
-        assumeTrue(input_L2_GCOV_H5 + " not found", input_L2_GCOV_H5.exists());
         assumeTrue(input_L2_GOFF_H5 + " not found", input_L2_GOFF_H5.exists());
         assumeTrue(input_L2_GUNW_H5 + " not found", input_L2_GUNW_H5.exists());
-        assumeTrue(input_L2_GSLC_H5 + " not found", input_L2_GSLC_H5.exists());
 
         assumeTrue(input_L3_SME2_H5 + " not found", input_L3_SME2_H5.exists());
     }
@@ -132,13 +132,14 @@ public class TestNISARReader extends ReaderTest {
     }
 
     @Test
+    @STTM("SNAP-4384")
     public void testOpening_L2_GUNW_H5() throws Exception {
         Product prod = testReader(input_L2_GUNW_H5.toPath());
 
         final ProductValidator validator = new ProductValidator(prod);
         validator.validateProduct();
         validator.validateMetadata();
-        validator.validateBands(new String[] {"coherenceMagnitude_HH", "connectedComponents_HH", "ionospherePhaseScreen_HH", "ionospherePhaseScreenUncertainty_HH", "unwrappedPhase_HH", "wrappedInterferogram_HH", "alongTrackOffset_HH", "slantRangeOffset_HH", "correlationSurfacePeak_HH"});
+        validator.validateBands(new String[] {"coherenceMagnitude_HH", "connectedComponents_HH", "ionospherePhaseScreen_HH", "ionospherePhaseScreenUncertainty_HH", "unwrappedPhase_HH", "i_wrappedInterferogram_HH", "q_wrappedInterferogram_HH", "wrappedInterferogram_HH", "wrappedCoherenceMagnitude_HH", "alongTrackOffset_HH", "slantRangeOffset_HH", "correlationSurfacePeak_HH"});
         validator.validateBandData();
     }
 

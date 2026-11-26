@@ -29,14 +29,20 @@
     file per pair; Snaphu Export writes these only for a stack with more than one Secondary. The tool runs SNAPHU
     for every configuration file and reads the results back.
     <br><br>
-    <i>Snaphu Install Location</i> can be the snaphu executable itself or a folder. If the folder already holds a
-    snaphu executable, that executable is used. Otherwise the tool downloads the SNAPHU build for your system
-    (Windows or Linux) into the folder. On Windows the downloaded <code>snaphu.exe</code> is found and reused on
-    later runs. On Linux the automatic download does not set the executable bit, so the unzipped
-    <code>snaphu</code> binary is not recognised and the run fails: install SNAPHU yourself (or run
-    <code>chmod +x</code> on the downloaded <code>snaphu</code> binary) and set <i>Snaphu Install Location</i> to
-    the executable or its folder. No build is downloaded for macOS: install SNAPHU yourself and set <i>Snaphu
-    Install Location</i> to the snaphu executable or its folder, or the tool stops with an error saying so.
+    <i>Snaphu Install Location</i> can be the snaphu executable itself or a folder.
+    <ul>
+        <li>An executable you select directly is used whatever its name (for example <code>snaphu-2.0.6</code>;
+            on Windows it must be a <code>.exe</code> file). A file named <code>snaphu</code> that is not
+            executable is made executable; any other file that is not executable is reported.</li>
+        <li>In a folder, the tool looks for an executable named exactly <code>snaphu</code>
+            (<code>snaphu.exe</code> on Windows) in the folder or its subfolders, and uses it. The folder may be
+            read-only, for example a system-wide installation.</li>
+        <li>Otherwise the tool downloads the SNAPHU build for your system (Windows or Linux) over https into the
+            folder, so the folder must exist and be writable. On Linux the downloaded binary is made executable. The download
+            is found and reused on later runs.</li>
+    </ul>
+    No build is downloaded for macOS: install SNAPHU yourself and set <i>Snaphu Install Location</i> to the
+    snaphu executable or its folder, or the tool stops with an error saying so.
     <br><br>
     The target product keeps the geocoding, the metadata and every band of the input that is not a wrapped phase
     band, including the <code>coh_*</code> coherence bands. Each wrapped phase band is replaced by one
@@ -48,7 +54,9 @@
 </p>
 <p>
     Logs for all SNAPHU runs are written out to the SNAPHU export directory, with the progress monitor printing out the
-    current export step.
+    current export step. If SNAPHU fails for a pair, or a configuration file holds no snaphu command on its 7th line,
+    the run stops with an error naming the configuration file (and the log file), rather than reading an output
+    left by an earlier run.
     <br><br>
     More information on phase unwrapping and how SNAPHU operates can be found in the corresponding SNAPHU export help
     pages.
@@ -66,7 +74,7 @@
 <table border="1" cellpadding="3" cellspacing="0">
 <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
 <tr><td><code>snaphuProcessingLocation</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Directory that the Snaphu Export operator wrote to</td></tr>
-<tr><td><code>snaphuInstallLocation</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>Directory to install the SNAPHU binary to</td></tr>
+<tr><td><code>snaphuInstallLocation</code></td><td>File</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>The SNAPHU executable, or a folder that holds it or that SNAPHU is downloaded into</td></tr>
 </table>
 <!-- params:end -->
 <!-- footer:begin -->
@@ -81,7 +89,8 @@
 <ul>
     <li>The multi-pair interferogram product (for example from Multi-Reference InSAR) with at least two bands of unit phase and at least one coherence band</li>
     <li><a href="nbdocs://org.jlinda.jlinda.nest.ui/org/jlinda/nest/docs/operators/SnaphuExportOp.html">Snaphu Export</a> run on that product first</li>
-    <li>A writeable SNAPHU processing folder and install folder (on macOS, a SNAPHU you installed yourself)</li>
+    <li>A writeable SNAPHU processing folder, and either a SNAPHU executable (on macOS, one you installed yourself)
+        or a writeable install folder to download it into</li>
 </ul>
 <h3>Next step</h3>
 <ul>

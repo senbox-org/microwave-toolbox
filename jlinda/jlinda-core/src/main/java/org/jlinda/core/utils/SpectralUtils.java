@@ -98,8 +98,10 @@ public class SpectralUtils {
     }
 
     public static void fft2D_inplace(ComplexDoubleMatrix A) {
+        // jblas stores column-major: the transpose's data is A in row-major order, as JTransforms expects,
+        // so the transform dimensions are those of A (as in invfft2D_inplace), not of the transpose.
         ComplexDoubleMatrix aTemp = A.transpose();
-        DoubleFFT_2D fft2d = new DoubleFFT_2D(aTemp.rows, aTemp.columns);
+        DoubleFFT_2D fft2d = new DoubleFFT_2D(A.rows, A.columns);
 //        fft2d.complexForward(A.data);
         fft2d.complexForward(aTemp.data);
         A.data = aTemp.transpose().data;

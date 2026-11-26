@@ -257,6 +257,13 @@ public class RCMProductDirectory extends XMLProductDirectory {
             if (product.containsBand(name)) {
                 name += "2";
             }
+            if (product.containsBand(name)) {
+                // ScanSAR SLC products deliver one image per burst (imagery/<id>_<pol>_<burst>.tif). Unchecked on
+                // purpose: addBands() logs and skips IOExceptions, which would leave a half-built product.
+                throw new UnsupportedOperationException("RCM product " + product.getName() +
+                        " has more than two images for band " + name.substring(0, name.length() - 1) +
+                        ": burst-mode (ScanSAR) SLC products are not supported");
+            }
             Band band = new Band(name, srcBand.getDataType(), w, h);
             band.setNoDataValue(0);
             band.setNoDataValueUsed(true);

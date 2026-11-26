@@ -32,7 +32,11 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.STACK_DATES;
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.assertSameBands;
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.assertStackBandsPerDate;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -157,8 +161,7 @@ public class TestPolarimetricDecompositionOp {
         final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
         final Product targetProduct = runDecomposition(op,
                 PolarimetricDecompositionOp.SINCLAIR_DECOMPOSITION, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedSinclair, null);
+        TestUtils.compareProducts(targetProduct, expectedSinclair, null);
     }
 
     /**
@@ -172,8 +175,7 @@ public class TestPolarimetricDecompositionOp {
         final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
         final Product targetProduct = runDecomposition(op,
                 PolarimetricDecompositionOp.PAULI_DECOMPOSITION, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedPauli, null);
+        TestUtils.compareProducts(targetProduct, expectedPauli, null);
     }
 
     /**
@@ -187,8 +189,7 @@ public class TestPolarimetricDecompositionOp {
         final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
         final Product targetProduct = runDecomposition(op,
                 PolarimetricDecompositionOp.FREEMAN_DURDEN_DECOMPOSITION, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedFreeman, null);
+        TestUtils.compareProducts(targetProduct, expectedFreeman, null);
     }
 
     @Test
@@ -197,8 +198,7 @@ public class TestPolarimetricDecompositionOp {
         final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
         final Product targetProduct = runDecomposition(op,
                 PolarimetricDecompositionOp.CLOUDE_DECOMPOSITION, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedCloude, null);
+        TestUtils.compareProducts(targetProduct, expectedCloude, null);
     }
 
     /**
@@ -213,18 +213,17 @@ public class TestPolarimetricDecompositionOp {
         op.setHAAlphaParameters(true, true, true, true);
         final Product targetProduct = runDecomposition(op,
                 PolarimetricDecompositionOp.H_A_ALPHA_DECOMPOSITION, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedHaAlpha, null);
+        TestUtils.compareProducts(targetProduct, expectedHaAlpha, null);
     }
 
+    @Test
     public void testTouziDecomposition() throws Exception {
 
         final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
         op.setTouziParameters(true, true, true, true);
         final Product targetProduct = runDecomposition(op,
                 PolarimetricDecompositionOp.TOUZI_DECOMPOSITION, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedTouzi, null);
+        TestUtils.compareProducts(targetProduct, expectedTouzi, null);
     }
 
     @Test
@@ -270,111 +269,76 @@ public class TestPolarimetricDecompositionOp {
         final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
         final Product targetProduct = runDecomposition(op,
                 PolarimetricDecompositionOp.YAMAGUCHI_DECOMPOSITION, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedYamaguchi, null);
+        TestUtils.compareProducts(targetProduct, expectedYamaguchi, null);
     }
 
     // Quad Pol Stack
+    // Every acquisition date must get the same set of decomposition bands as a single-date decomposition, and
+    // since RS2-C3-Stack / RS2-T3-Stack are the C3 / T3 of RS2-Quad_Pol_Stack, all three inputs must give the
+    // same values.
+
+    private void assertStackDecomposition(final String decomposition,
+                                          final Consumer<PolarimetricDecompositionOp> configure) throws Exception {
+        final PolarimetricDecompositionOp singleOp = (PolarimetricDecompositionOp) spi.createOperator();
+        configure.accept(singleOp);
+        final Product single = runDecomposition(singleOp, decomposition, inputPathQuad);
+
+        Product fromQuad = null;
+        for (String stackPath : new String[]{inputQuadFullStack, inputC3Stack, inputT3Stack}) {
+            final PolarimetricDecompositionOp op = (PolarimetricDecompositionOp) spi.createOperator();
+            configure.accept(op);
+            final Product stack = runDecomposition(op, decomposition, stackPath);
+            assertStackBandsPerDate(single, stack, STACK_DATES);
+            if (fromQuad == null) {
+                fromQuad = stack;
+            } else {
+                // C3/T3 stacks are stored as float32: allow 0.1% relative, or 1% of the band's mean magnitude
+                // for values near zero (e.g. Touzi phases)
+                assertSameBands(decomposition + " from " + new File(stackPath).getName(), fromQuad, stack, 1e-3, 1e-2);
+            }
+        }
+    }
 
     @Test
     public void testSinclairStack() throws Exception {
-
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.SINCLAIR_DECOMPOSITION, inputQuadFullStack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.SINCLAIR_DECOMPOSITION, inputC3Stack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.SINCLAIR_DECOMPOSITION, inputT3Stack);
+        assertStackDecomposition(PolarimetricDecompositionOp.SINCLAIR_DECOMPOSITION, op -> {});
     }
 
     @Test
     public void testPauliStack() throws Exception {
-
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.PAULI_DECOMPOSITION, inputQuadFullStack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.PAULI_DECOMPOSITION, inputC3Stack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.PAULI_DECOMPOSITION, inputT3Stack);
+        assertStackDecomposition(PolarimetricDecompositionOp.PAULI_DECOMPOSITION, op -> {});
     }
 
     @Test
     public void testFreemanStack() throws Exception {
-
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.FREEMAN_DURDEN_DECOMPOSITION, inputQuadFullStack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.FREEMAN_DURDEN_DECOMPOSITION, inputC3Stack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.FREEMAN_DURDEN_DECOMPOSITION, inputT3Stack);
+        assertStackDecomposition(PolarimetricDecompositionOp.FREEMAN_DURDEN_DECOMPOSITION, op -> {});
     }
 
     @Test
     public void testCloudeStack() throws Exception {
-
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.CLOUDE_DECOMPOSITION, inputQuadFullStack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.CLOUDE_DECOMPOSITION, inputC3Stack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.CLOUDE_DECOMPOSITION, inputT3Stack);
+        assertStackDecomposition(PolarimetricDecompositionOp.CLOUDE_DECOMPOSITION, op -> {});
     }
 
     @Test
     public void testHAAlphaStack() throws Exception {
-
-        PolarimetricDecompositionOp op;
-
-        op = (PolarimetricDecompositionOp) spi.createOperator();
-        op.setHAAlphaParameters(true, true, true, true);
-        runDecomposition(op, PolarimetricDecompositionOp.H_A_ALPHA_DECOMPOSITION, inputQuadFullStack);
-
-        op = (PolarimetricDecompositionOp) spi.createOperator();
-        op.setHAAlphaParameters(true, true, true, true);
-        runDecomposition(op, PolarimetricDecompositionOp.H_A_ALPHA_DECOMPOSITION, inputC3Stack);
-
-        op = (PolarimetricDecompositionOp) spi.createOperator();
-        op.setHAAlphaParameters(true, true, true, true);
-        runDecomposition(op, PolarimetricDecompositionOp.H_A_ALPHA_DECOMPOSITION, inputT3Stack);
+        assertStackDecomposition(PolarimetricDecompositionOp.H_A_ALPHA_DECOMPOSITION,
+                op -> op.setHAAlphaParameters(true, true, true, true));
     }
 
     @Test
     public void testTouziStack() throws Exception {
-
-        PolarimetricDecompositionOp op;
-
-        op = (PolarimetricDecompositionOp) spi.createOperator();
-        op.setTouziParameters(true, true, true, true);
-        runDecomposition(op, PolarimetricDecompositionOp.TOUZI_DECOMPOSITION, inputQuadFullStack);
-
-        op = (PolarimetricDecompositionOp) spi.createOperator();
-        op.setTouziParameters(true, true, true, true);
-        runDecomposition(op, PolarimetricDecompositionOp.TOUZI_DECOMPOSITION, inputC3Stack);
-
-        op = (PolarimetricDecompositionOp) spi.createOperator();
-        op.setTouziParameters(true, true, true, true);
-        runDecomposition(op, PolarimetricDecompositionOp.TOUZI_DECOMPOSITION, inputT3Stack);
+        assertStackDecomposition(PolarimetricDecompositionOp.TOUZI_DECOMPOSITION,
+                op -> op.setTouziParameters(true, true, true, true));
     }
 
     @Test
     public void testVanZylStack() throws Exception {
-
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.VANZYL_DECOMPOSITION, inputQuadFullStack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.VANZYL_DECOMPOSITION, inputC3Stack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.VANZYL_DECOMPOSITION, inputT3Stack);
+        assertStackDecomposition(PolarimetricDecompositionOp.VANZYL_DECOMPOSITION, op -> {});
     }
 
+    @Test
     public void testYamaguchiStack() throws Exception {
-
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.YAMAGUCHI_DECOMPOSITION, inputQuadFullStack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.YAMAGUCHI_DECOMPOSITION, inputC3Stack);
-        runDecomposition((PolarimetricDecompositionOp) spi.createOperator(),
-                PolarimetricDecompositionOp.YAMAGUCHI_DECOMPOSITION, inputT3Stack);
+        assertStackDecomposition(PolarimetricDecompositionOp.YAMAGUCHI_DECOMPOSITION, op -> {});
     }
 
     private Product createTestC3Product(final int w, final int h) {

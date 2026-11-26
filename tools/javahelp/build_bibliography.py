@@ -493,7 +493,8 @@ def annotation_problem(raw):
 def check_problems(entries, rendered, current):
     """Messages for --check: stale page, entries spelled differently on different pages, annotations."""
     out = []
-    if current is None or current != rendered:
+    # line endings aside: a Linux checkout keeps the LF that git stores, the page is rendered with CRLF
+    if current is None or current.replace(b"\r\n", b"\n") != rendered.replace(b"\r\n", b"\n"):
         out.append("bibliography.html is stale; run: python -I tools/javahelp/build_bibliography.py")
     for e in sorted(entries.values(), key=sort_key):
         label = strip_tags(e["best"])[:70]

@@ -36,7 +36,7 @@ statistical outlier test (the jLinda/DORIS coregistration polynomial model, CPM)
     <li>If the largest statistic in either direction is above the critical value, the GCP with
         the largest combined statistic (w<sub>azimuth</sub><sup>2</sup> + w<sub>range</sub><sup>2</sup>)
         is removed and the fit is repeated, so outliers in azimuth and in range are both removed.</li>
-    <li>This stops when all GCPs pass the test, when no redundant GCPs are left, or after
+    <li>This stops when all GCPs pass the test, when only one redundant GCP is left, or after
         20 iterations.</li>
 </ol>
 The critical value follows from the significance level: 3.29 for 0.001, 1.96 for 0.05 and
@@ -47,8 +47,12 @@ For detected (amplitude or intensity) stacks, and for the values 0.5 and 1.0, th
 rule applies and the value is read as an RMS threshold in pixels. On a detected stack the
 default 0.05 therefore means a final cut at 0.05 pixel RMS, which is very strict: Cross-Correlation
 gives only coarse GCPs there (quantised to 1/interpolation factor), so choose 0.5 or 1.0.
-If the w-test fit fails (the log shows "Error computing complex polynomial model"), Warp falls
-back to the RMS rule for all Secondaries, again with the value in pixels. The RMS rule is:
+If the w-test cannot be used for a Secondary, because it has no more GCPs than the polynomial has
+coefficients or because the estimation fails (for example the overall model test, on a decorrelated
+date), that Secondary alone falls back to the RMS rule, with a cut of 0.5 pixel instead of the
+significance level (a Secondary falls back when its GCPs are noisy, and a 0.001- or 0.05-pixel cut would remove good
+GCPs until no checkable fit is left); the other Secondaries keep their w-test fit. The fallback does not apply the DEM refinement. The log
+names the Secondary. The RMS rule is:
 <ol>
     <li>The warp polynomial is fitted and the RMS residual of each GCP pair is computed.</li>
     <li>While the mean RMS is above the threshold, GCP pairs with RMS greater than
@@ -56,6 +60,16 @@ back to the RMS rule for all Secondaries, again with the value in pixels. The RM
     <li>Finally the GCP pairs with RMS above the threshold are removed and the final warp
         function is computed with the remaining pairs.</li>
 </ol>
+The RMS rule needs more GCPs than the polynomial has coefficients (3, 6 and 10 for orders 1, 2 and 3),
+also after it has removed GCPs: a fit through exactly as many GCPs passes through all of them, so its zero
+residuals would say nothing about the warp. Otherwise the order is lowered for that Secondary until the
+remaining GCPs over-determine it.
+With 3 GCPs or fewer no warp is possible, and Warp fails, naming the Secondary bands and their GCP counts
+(a Secondary without a warp is not written as zeros in a coregistered product).<br>
+Each warped band records in its <code>WarpData</code> metadata element how it was warped:
+<code>warpMethod</code> (CPM, Polynomial or None), <code>warpDegree</code> (the polynomial order used,
+0 for none), <code>demRefined</code> (1 when the DEM refinement was applied) and <code>warpValid</code>
+(1 for a valid warp).
 &nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp; The WARP polynomial order is specified by user in the dialog box.<br>
 <ul>
     <li>The valid values for the&nbsp;polynomial order are
@@ -71,9 +85,9 @@ back to the RMS rule for all Secondaries, again with the value in pixels. The RM
     <li>Higher order&nbsp;warp requires more GCPs and can introduce large distortions
         in image regions containing only a few GCPs.
     </li>
-    <li>If fewer GCPs remain for a Secondary than the polynomial has coefficients (3, 6 or 10
-        for order 1, 2 or 3), Warp logs the warning "&lt;band&gt; does not have enough valid
-        GCPs for the warp".
+    <li>If a Secondary is warped with a lower order than selected, Warp logs "&lt;band&gt; warped with a
+        degree &lt;n&gt; polynomial"; if even order 1 is not possible, it logs "&lt;n&gt; GCPs are too few to
+        warp &lt;band&gt;" and the run fails with "not enough valid GCPs to compute a warp model".
     </li>
 </ul>
 <h4>Generate Co-Registered Image</h4>&nbsp;&nbsp;&nbsp;With the
@@ -106,7 +120,8 @@ co-registration process can be considered to have been successful. For
 example, the "RMS mean" value&nbsp;can be used as an approximate figure
 of merit for the co-registration. User can view the residual file by
 checkmarking the "Show Residuals" box in the dialog box. The residual file is written only
-when the RMS-threshold method is used; with the w-test the GCPs and warp results are stored in
+for the Secondaries warped with the RMS rule (all of them on a detected stack, and on a complex stack the
+ones that fell back); with the w-test the GCPs and warp results are stored in
 the product metadata (<code>WarpData</code> element of each band). Detailed
 information contained in the residual file are listed below:<br>
 <ul>

@@ -104,10 +104,16 @@ public class CrossCorrelationOp extends Operator {
     private double gcpTolerance = 0.5;
 
     // ==================== input parameters used for complex co-registration ==================
-    @Parameter(defaultValue = "false", label = "Apply Fine Registration")
-    private boolean applyFineRegistration = false;
-    @Parameter(defaultValue = "false", label = "Optimize for InSAR")
-    private boolean inSAROptimized = false;
+    // Both default to true, which is what complex (SLC) coregistration always did: until 2026-11 they were forced
+    // on for complex input regardless of their values. They are now honoured, so a decorrelated SLC pair can be
+    // coregistered on amplitude alone (applyFineRegistration=false). They have no effect on detected data.
+    @Parameter(defaultValue = "true", label = "Apply Fine Registration",
+            description = "For complex (SLC) data, refine each coarse GCP by fine registration. Switch off to " +
+                    "keep the coarse GCPs only, e.g. for temporally decorrelated pairs")
+    private boolean applyFineRegistration = true;
+    @Parameter(defaultValue = "true", label = "Optimize for InSAR",
+            description = "Fine registration by oversampled cross-correlation (true) or by coherence maximisation (false)")
+    private boolean inSAROptimized = true;
 
     @Parameter(valueSet = {"8", "16", "32", "64", "128", "256", "512"}, defaultValue = "32", label = "Fine Registration Window Width")
     private String fineRegistrationWindowWidth = "32";
@@ -206,10 +212,8 @@ public class CrossCorrelationOp extends Operator {
 
             getMasterBands();
 
-            if (isComplex && complexCoregistration) {
-                applyFineRegistration = true;
-                inSAROptimized = true;
-            }
+            // Fine registration needs complex data; on detected data it is simply not applied.
+            applyFineRegistration = applyFineRegistration && isComplex && complexCoregistration;
 
             // parameters: Fine
             if(applyFineRegistration) {

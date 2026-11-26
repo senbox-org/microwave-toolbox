@@ -7,46 +7,55 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class CoregistrationUtilsTest {
 
+    /**
+     * computeLocalSum returns the (2L-1)x(2P-1) "full" box sum: element (l, p) is the sum of the input over the
+     * L x P window whose bottom-right corner sits at (l, p) (zero outside the input).
+     */
     @Test
     public void firstTest_localSum() throws Exception {
         final double[][] m = {{3, 1, 4}, {1, 5, 9}, {2, 6, 5}};
-        final DoubleMatrix M = new DoubleMatrix(m);
-        final DoubleMatrix localSumTable = CoregistrationUtils.computeLocalSum(M, 3, 3);
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < 5; j++) {
-                System.out.print(localSumTable.get(i, j) + ", ");
-            }
-            System.out.println();
-        }
-        // The result should be
-        // 3.0, 4.0, 8.0, 5.0, 4.0,
-        // 4.0, 10.0, 23.0, 19.0, 13.0,
-        // 6.0, 18.0, 36.0, 30.0, 18.0,
-        // 3.0, 14.0, 28.0, 25.0, 14.0,
-        // 2.0, 8.0, 13.0, 11.0, 5.0,
+        final DoubleMatrix localSumTable = CoregistrationUtils.computeLocalSum(new DoubleMatrix(m), 3, 3);
 
-        // test matrix square calculation
-        final DoubleMatrix M2 = M.mul(M);
-        System.out.println();
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                System.out.print(M2.get(i, j) + ", ");
+        final double[][] expected = {
+                {3, 4, 8, 5, 4},
+                {4, 10, 23, 19, 13},
+                {6, 18, 36, 30, 18},
+                {3, 14, 28, 25, 14},
+                {2, 8, 13, 11, 5}};
+        assertEquals(5, localSumTable.rows);
+        assertEquals(5, localSumTable.columns);
+        for (int l = 0; l < 5; l++) {
+            for (int p = 0; p < 5; p++) {
+                assertEquals("(" + l + "," + p + ")", expected[l][p], localSumTable.get(l, p), 1e-12);
             }
-            System.out.println();
         }
 
-        // test matrix std calculation
-        final double mean = M.mean();
-        final DoubleMatrix MCol = M.dup();
-        MCol.subi(mean);
-        MCol.muli(MCol);
-        final double mStd = Math.sqrt(MCol.mean());
-        System.out.println();
-        System.out.println("Mean = " + mean + ", Std = " + mStd);
+        // non-square window: brute-force box sums of a 4 x 2 input
+        final double[][] r = {{1, 2}, {3, 4}, {5, 6}, {7, 8}};
+        final int L = 4, P = 2;
+        final DoubleMatrix rect = CoregistrationUtils.computeLocalSum(new DoubleMatrix(r), L, P);
+        assertEquals(2 * L - 1, rect.rows);
+        assertEquals(2 * P - 1, rect.columns);
+        for (int l = 0; l < 2 * L - 1; l++) {
+            for (int p = 0; p < 2 * P - 1; p++) {
+                double sum = 0;
+                for (int i = l - L + 1; i <= l; i++) {
+                    for (int j = p - P + 1; j <= p; j++) {
+                        if (i >= 0 && i < L && j >= 0 && j < P) {
+                            sum += r[i][j];
+                        }
+                    }
+                }
+                assertEquals("rect (" + l + "," + p + ")", sum, rect.get(l, p), 1e-12);
+            }
+        }
     }
 
     @Test
@@ -154,26 +163,31 @@ public class CoregistrationUtilsTest {
                 {1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00,  1.0618348e+00, -1.0618348e+00},
                 {9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01,  9.1014412e-01, -9.1014412e-01}};
 
-        final int w = 32;
-        final int h = 32;
+        // square 32 x 32 window and a non-square 32 x 16 window over the same data must both find the shift
+        assertShift(mI, sIr, sIi, 32, 32);
+        assertShift(mI, sIr, sIi, 32, 16);
+    }
 
-        ComplexDoubleMatrix master = new ComplexDoubleMatrix(h, w);
-        ComplexDoubleMatrix slave = new ComplexDoubleMatrix(h, w);
-
+    /** sI is mI shifted by 0.3 pixel in range: expect azimuth offset 0 and range offset 0.3. */
+    private static void assertShift(final double[][] mI, final double[][] sIr, final double[][] sIi,
+                                    final int h, final int w) {
+        final ComplexDoubleMatrix master = new ComplexDoubleMatrix(h, w);
+        final ComplexDoubleMatrix slave = new ComplexDoubleMatrix(h, w);
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 master.put(y, x, new ComplexDouble(mI[y][x], 0.0));
                 slave.put(y, x, new ComplexDouble(sIr[y][x], sIi[y][x]));
             }
         }
+        final double[] offset = {0, 0};
+        final int ovsFactor = 16;
+        final int accL = 8;
+        final int accP = 8;
+        final double coherence = CoregistrationUtils.crossCorrelateFFT(offset, master, slave, ovsFactor, accL, accP);
 
-        final double[] Offset = {0, 0};
-        final int ovsfactor = 16;
-        final int AccL = 16;
-        final int AccP = 16;
-        final double coherence = CoregistrationUtils.crossCorrelateFFT(Offset, master, slave, ovsfactor, AccL, AccP);
-//        final double coherence = CoregistrationUtils.normalizedCrossCorrelation(Offset, master, slave, ovsfactor, AccL, AccP);
-        System.out.println("Range Offset = " + Offset[1] + ", Azimuth Offset = " + Offset[0]);
-        // Azimuth shift should be 0 and range shift should be around 0.3
+        final String window = h + "x" + w + " window";
+        assertEquals(window + " azimuth offset", 0.0, offset[0], 0.1);
+        assertEquals(window + " range offset", 0.3, Math.abs(offset[1]), 0.1);
+        assertTrue(window + " coherence " + coherence, coherence > 0.8 && coherence <= 1.0 + 1e-9);
     }
 }

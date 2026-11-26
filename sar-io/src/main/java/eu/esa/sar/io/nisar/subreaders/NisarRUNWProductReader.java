@@ -50,11 +50,13 @@ public class NisarRUNWProductReader extends NisarSubReader {
     protected void addBandsForFrequency(Group groupFrequency, String suffix) {
         final Group groupInterferogram = groupFrequency.findGroup("interferogram");
         if (groupInterferogram != null) {
+            // beside the polarisation groups, not in them
+            createBand(groupInterferogram, "digitalElevationModel", "digitalElevationModel" + suffix, Unit.METERS, Float.NaN);
 
             for (Group polGroup : groupInterferogram.getGroups()) {
                 String pol = "_" + polGroup.getShortName() + suffix;
 
-                createBand(polGroup, "coherenceMagnitude", "coherenceMagnitude" + pol, Unit.COHERENCE, 0);
+                createBand(polGroup, "coherenceMagnitude", "coherenceMagnitude" + pol, Unit.COHERENCE, Float.NaN);
                 createBand(polGroup, "connectedComponents", "connectedComponents" + pol, Unit.AMPLITUDE, 255);
                 createBand(polGroup, "ionospherePhaseScreen", "ionospherePhaseScreen" + pol, Unit.PHASE, Float.NaN);
                 createBand(polGroup, "ionospherePhaseScreenUncertainty", "ionospherePhaseScreenUncertainty" + pol, Unit.PHASE, Float.NaN);
@@ -65,10 +67,11 @@ public class NisarRUNWProductReader extends NisarSubReader {
 
         Group groupPixelOffsets = groupFrequency.findGroup("pixelOffsets");
         if (groupPixelOffsets != null) {
+            createBand(groupPixelOffsets, "digitalElevationModel", "digitalElevationModel_pixelOffsets" + suffix,
+                    Unit.METERS, Float.NaN);
 
             for (Group polGroup : groupPixelOffsets.getGroups()) {
                 String pol = "_" + polGroup.getShortName() + suffix;
-                createBand(polGroup, "digitalElevationModel", "digitalElevationModel" + pol, Unit.METERS, Float.NaN);
                 createBand(polGroup, "alongTrackOffset", "alongTrackOffset" + pol, Unit.METERS, Float.NaN);
                 createBand(polGroup, "slantRangeOffset", "slantRangeOffset" + pol, Unit.METERS, Float.NaN);
                 createBand(polGroup, "correlationSurfacePeak", "correlationSurfacePeak" + pol, Unit.COHERENCE, Float.NaN);

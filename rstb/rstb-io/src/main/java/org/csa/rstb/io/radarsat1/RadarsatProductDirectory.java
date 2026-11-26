@@ -312,10 +312,10 @@ class RadarsatProductDirectory extends CEOSProductDirectory {
 
         final ProductData.UTC startTime = getUTCScanStartTime(sceneRec, detProcRec);
         final ProductData.UTC endTime = getUTCScanStopTime(sceneRec, detProcRec);
-        final MetadataElement leaderElem = origProdRoot.getElement("Leader");
-        final MetadataElement sceneParametersElem = leaderElem.getElement("Scene Parameters");
-        final String lineTimeDirct = sceneParametersElem.getAttributeString("Time direction indicator along line direction");
-        if (lineTimeDirct.equals("DECREASE")) {
+        // Read the flag from the scene record itself: for ScanSAR it comes from the trailer file, so the
+        // Leader metadata has no "Scene Parameters" element.
+        final String lineTimeDirct = sceneRec.getAttributeString("Time direction indicator along line direction");
+        if (lineTimeDirct != null && lineTimeDirct.trim().equals("DECREASE")) {
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.first_line_time, endTime);
             AbstractMetadata.setAttribute(absRoot, AbstractMetadata.last_line_time, startTime);
         } else {

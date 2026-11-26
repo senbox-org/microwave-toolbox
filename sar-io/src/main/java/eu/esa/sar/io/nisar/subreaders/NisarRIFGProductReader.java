@@ -53,6 +53,8 @@ public class NisarRIFGProductReader extends NisarSubReader {
         final Group groupPixelOffsets = groupFrequency.findGroup("pixelOffsets");
         
         if (groupInterferogram != null) {
+            // beside the polarisation groups, not in them
+            createBand(groupInterferogram, "digitalElevationModel", "digitalElevationModel" + suffix, Unit.METERS, Float.NaN);
             for (Group polGroup : groupInterferogram.getGroups()) {
                 String pol = "_" + polGroup.getShortName() + suffix;
 
@@ -61,14 +63,15 @@ public class NisarRIFGProductReader extends NisarSubReader {
                 ReaderUtils.createVirtualIntensityBand(product, i, q, pol);
                 ReaderUtils.createVirtualPhaseBand(product, i, q, pol);
 
-                createBand(polGroup, "coherenceMagnitude", "coherenceMagnitude" + pol, Unit.COHERENCE, 0);
+                createBand(polGroup, "coherenceMagnitude", "coherenceMagnitude" + pol, Unit.COHERENCE, Float.NaN);
             }
         }
         
         if (groupPixelOffsets != null) {
+            createBand(groupPixelOffsets, "digitalElevationModel", "digitalElevationModel_pixelOffsets" + suffix,
+                    Unit.METERS, Float.NaN);
             for (Group polGroup : groupPixelOffsets.getGroups()) {
                 String pol = "_" + polGroup.getShortName() + suffix;
-                createBand(polGroup, "digitalElevationModel", "digitalElevationModel" + pol, Unit.METERS, Float.NaN);
                 createBand(polGroup, "alongTrackOffset", "alongTrackOffset" + pol, Unit.METERS, Float.NaN);
                 createBand(polGroup, "slantRangeOffset", "slantRangeOffset" + pol, Unit.METERS, Float.NaN);
                 createBand(polGroup, "correlationSurfacePeak", "correlationSurfacePeak" + pol, Unit.COHERENCE, Float.NaN);

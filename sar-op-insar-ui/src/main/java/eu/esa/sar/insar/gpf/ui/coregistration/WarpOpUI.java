@@ -74,7 +74,8 @@ public class WarpOpUI extends BaseOperatorUI {
     public void initParameters() {
 
         rmsThreshold.setSelectedItem(String.valueOf(paramMap.get("rmsThreshold")));
-        warpPolynomialOrder.setSelectedItem(paramMap.get("warpPolynomialOrder"));
+        // the combo holds Strings: an Integer matches none of them and left the order at 1 instead of the default 2
+        warpPolynomialOrder.setSelectedItem(String.valueOf(paramMap.get("warpPolynomialOrder")));
 
         interpolationMethod.setSelectedItem(paramMap.get("interpolationMethod"));
 
