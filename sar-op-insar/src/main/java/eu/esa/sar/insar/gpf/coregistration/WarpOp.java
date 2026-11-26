@@ -502,14 +502,8 @@ public class WarpOp extends Operator {
 
             final PolynomialModel warpData = warpDataMap.get(realSrcBand);
             if (!warpData.isValid()) {
-                // no warp for this Secondary: write no-data, not a valid-looking zero image
-                final ProductData noData = targetTile.getRawSamples();
-                final double value = targetBand.isNoDataValueUsed() ? targetBand.getNoDataValue() : 0.0;
-                for (int i = 0; i < noData.getNumElems(); i++) {
-                    noData.setElemDoubleAt(i, value);
-                }
-                targetTile.setRawSamples(noData);
-                return;
+                // announceGCPWarning() has already failed the run; never write a valid-looking zero image
+                throw new OperatorException("Warp: no valid warp model for " + realSrcBand.getName());
             }
 
             // get warped image (demodulation bands can be interpolated linearly)
@@ -653,8 +647,7 @@ public class WarpOp extends Operator {
                 return new PlainWarp(warpData, new WarpMethod(WARP_METHOD_POLYNOMIAL, degree, false), true);
             }
         }
-        SystemUtils.LOG.warning("WarpOp: " + nodeCount + " GCPs are too few to warp " + srcBand.getName() +
-                "; the band is filled with no-data");
+        SystemUtils.LOG.warning("WarpOp: " + nodeCount + " GCPs are too few to warp " + srcBand.getName());
         final WarpData none = new WarpData(slaveGCPGroup);
         none.setInValid();
         return new PlainWarp(none, new WarpMethod(WARP_METHOD_NONE, 0, false), written);
@@ -849,7 +842,7 @@ public class WarpOp extends Operator {
                 }
             }
 
-            // 0 when the band could not be warped (too few GCPs); its image then holds no-data
+            // 0 when the band could not be warped (too few GCPs); the run then fails in announceGCPWarning()
             warpDataElem.setAttributeInt("warpValid", warpData.isValid() ? 1 : 0);
             final WarpMethod method = warpMethodMap.get(band);
             if (method != null) {
@@ -895,17 +888,26 @@ public class WarpOp extends Operator {
         return new File(ResourceUtils.getReportFolder(), fileName);
     }
 
+    /**
+     * A Secondary band without a valid warp model cannot be resampled; it used to be written as zeros in a product
+     * flagged as coregistered. Fail instead, naming the bands and the usual remedies.
+     */
     private void announceGCPWarning() {
-        String msg = "";
+        final StringBuilder msg = new StringBuilder();
         for (Band srcBand : sourceProduct.getBands()) {
             final PolynomialModel warpData = warpDataMap.get(srcBand);
             if (warpData != null && !warpData.isValid()) {
-                msg += srcBand.getName() + " does not have enough valid GCPs for the warp\n";
+                msg.append(srcBand.getName()).append(" (").append(getGCPGroup(srcBand).getNodeCount())
+                        .append(" GCPs)\n");
                 openResidualsFile = true;
             }
         }
-        if (!msg.isEmpty()) {
-            SystemUtils.LOG.warning(msg);
+        if (msg.length() > 0) {
+            throw new OperatorException("Warp: not enough valid GCPs to compute a warp model for\n" + msg +
+                    "Cross-Correlation found too few matching GCPs, or too many were rejected as outliers. " +
+                    "For temporally decorrelated SLC pairs, lower the Cross-Correlation coherence threshold or " +
+                    "switch off 'Apply Fine Registration' to coregister on amplitude only; otherwise increase " +
+                    "the number of GCPs or the registration window size.");
         }
     }
 

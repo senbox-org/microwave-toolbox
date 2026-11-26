@@ -15,19 +15,15 @@
  */
 package org.csa.rstb.io.rcm;
 
-import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.ProductValidator;
 import eu.esa.sar.commons.test.ReaderTest;
 import eu.esa.sar.commons.test.TestData;
-import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
-import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -45,15 +41,9 @@ public class TestEODMSRCMProductReader extends ReaderTest {
     private final static File eodmsGRCFolder = new File(TestData.inputSAR +"RCM/EODMS/GCD/RCM2_OK1028884_PK1029284_2_16M12_20191214_111155_HH_HV_GCD");
     private final static File eodmsGRCManifest = new File(TestData.inputSAR +"RCM/EODMS/GCD/RCM2_OK1028884_PK1029284_2_16M12_20191214_111155_HH_HV_GCD/manifest.safe");
 
-    private final static File eodmsScanSAR_CX_SLCZip = new File(TestData.inputSAR +"RCM/EODMS/SLC/RCM1_OK1683816_PK1836418_1_SC30MCPB_20211026_112824_CH_CV_SLC.zip");
-
-    private final static File eodmsQP_SLCZip = new File(TestData.inputSAR +"RCM/EODMS/SLC/RCM1_OK1925486_PK1946630_1_QP8_20220103_110328_HH_VV_HV_VH_SLC.zip");
-
+    // The slow SLC/GCC/GRC products are covered by TestEODMSRCMProductReaderLongTest
     private final static File inputQP_SLC = new File(TestData.inputSAR + "RCM/OpenData/Quebec City/RCM3_OK1050546_PK1050547_1_QP8_20191229_110339_HH_VV_HV_VH_SLC");
 
-    private final static File inputCP_SLC = new File(TestData.inputSAR + "RCM/OpenData/Winnipeg/RCM1_OK1050595_PK1051816_1_3MCP24_20200219_123901_CH_CV_SLC");
-    private final static File inputCP_GCC = new File(TestData.inputSAR + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052794_1_3MCP24_20200219_123901_CH_CV_GCC");
-    private final static File inputCP_GRC = new File(TestData.inputSAR + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052795_1_3MCP24_20200219_123901_CH_CV_GRC");
     private final static File inputCP_GRD = new File(TestData.inputSAR + "RCM/OpenData/Winnipeg/RCM1_OK1052791_PK1052796_1_3MCP24_20200219_123901_CH_CV_GCD");
 
     public TestEODMSRCMProductReader() {
@@ -69,14 +59,9 @@ public class TestEODMSRCMProductReader extends ReaderTest {
 
         assumeTrue(eodmsGRCFolder + " not found", eodmsGRCFolder.exists());
         assumeTrue(eodmsGRCManifest + " not found", eodmsGRCManifest.exists());
-
-        //assumeTrue(eodmsScanSAR_CX_SLCZip + " not found", eodmsScanSAR_CX_SLCZip.exists());
-        assumeTrue(eodmsQP_SLCZip + " not found", eodmsQP_SLCZip.exists());
+        assumeTrue(eodmsGRCZip + " not found", eodmsGRCZip.exists());
 
         assumeTrue(inputQP_SLC + " not found", inputQP_SLC.exists());
-        assumeTrue(inputCP_SLC + " not found", inputCP_SLC.exists());
-        assumeTrue(inputCP_GCC + " not found", inputCP_GCC.exists());
-        assumeTrue(inputCP_GRC + " not found", inputCP_GRC.exists());
         assumeTrue(inputCP_GRD + " not found", inputCP_GRD.exists());
     }
 
@@ -130,26 +115,6 @@ public class TestEODMSRCMProductReader extends ReaderTest {
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH", "Amplitude_HV","Intensity_HV"});
     }
 
-//    @Test
-//    public void testOpeningScanSAR_CX_SLCZip() throws Exception {
-//        Product prod = testReader(eodmsScanSAR_CX_SLCZip.toPath());
-//
-//        final ProductValidator validator = new ProductValidator(prod);
-//        validator.validateProduct();
-//        validator.validateMetadata();
-//        validator.validateBands(new String[] {"i_RCH","q_RCH","Intensity_RCH","i_RCV","q_RCV","Intensity_RCV"});
-//    }
-
-    @Test
-    public void testOpeningQP_SLCZip() throws Exception {
-        Product prod = testReader(eodmsQP_SLCZip.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH", "i_HV","q_HV","Intensity_HV","i_VV","q_VV","Intensity_VV", "i_VH","q_VH","Intensity_VH"});
-    }
-
     @Test
     public void testOpeningQP_SLC() throws Exception {
         Product prod = testReader(inputQP_SLC.toPath());
@@ -158,41 +123,6 @@ public class TestEODMSRCMProductReader extends ReaderTest {
         validator.validateProduct();
         validator.validateMetadata();
         validator.validateBands(new String[] {"i_HH","q_HH","Intensity_HH", "i_HV","q_HV","Intensity_HV","i_VV","q_VV","Intensity_VV", "i_VH","q_VH","Intensity_VH"});
-    }
-
-    @Test
-    public void testOpeningCP_SLC() throws Exception {
-        Product prod = testReader(inputCP_SLC.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_RCH","q_RCH","Intensity_RCH","i_RCV","q_RCV","Intensity_RCV"});
-    }
-
-    @Test
-    public void testOpeningCP_GCC() throws Exception {
-        Product prod = testReader(inputCP_GCC.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"Amplitude_RCH","Intensity_RCH","Amplitude_RCV","Intensity_RCV"});
-    }
-
-    @Test
-    @STTM("SNAP-3547")
-    public void testOpeningCP_GRC() throws Exception {
-        Product prod = testReader(inputCP_GRC.toPath());
-
-        final ProductValidator validator = new ProductValidator(prod);
-        validator.validateProduct();
-        validator.validateMetadata();
-        validator.validateBands(new String[] {"i_RCH","q_RCH","Intensity_RCH","i_RCV","q_RCV","Intensity_RCV"});
-
-        MetadataElement absRoot = AbstractMetadata.getAbstractedMetadata(prod);
-        String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE);
-        assertEquals("Stripmap", mode);
     }
 
     @Test

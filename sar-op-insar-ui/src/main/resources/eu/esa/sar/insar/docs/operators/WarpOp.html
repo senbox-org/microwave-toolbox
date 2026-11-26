@@ -64,11 +64,12 @@ The RMS rule needs more GCPs than the polynomial has coefficients (3, 6 and 10 f
 also after it has removed GCPs: a fit through exactly as many GCPs passes through all of them, so its zero
 residuals would say nothing about the warp. Otherwise the order is lowered for that Secondary until the
 remaining GCPs over-determine it.
-With 3 GCPs or fewer no warp is possible: the Secondary's bands are then filled with no-data.<br>
+With 3 GCPs or fewer no warp is possible, and Warp fails, naming the Secondary bands and their GCP counts
+(a Secondary without a warp is not written as zeros in a coregistered product).<br>
 Each warped band records in its <code>WarpData</code> metadata element how it was warped:
 <code>warpMethod</code> (CPM, Polynomial or None), <code>warpDegree</code> (the polynomial order used,
 0 for none), <code>demRefined</code> (1 when the DEM refinement was applied) and <code>warpValid</code>
-(1, or 0 when the band holds no-data).
+(1 for a valid warp).
 &nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp; The WARP polynomial order is specified by user in the dialog box.<br>
 <ul>
     <li>The valid values for the&nbsp;polynomial order are
@@ -86,7 +87,7 @@ Each warped band records in its <code>WarpData</code> metadata element how it wa
     </li>
     <li>If a Secondary is warped with a lower order than selected, Warp logs "&lt;band&gt; warped with a
         degree &lt;n&gt; polynomial"; if even order 1 is not possible, it logs "&lt;n&gt; GCPs are too few to
-        warp &lt;band&gt;" and the band is filled with no-data.
+        warp &lt;band&gt;" and the run fails with "not enough valid GCPs to compute a warp model".
     </li>
 </ul>
 <h4>Generate Co-Registered Image</h4>&nbsp;&nbsp;&nbsp;With the

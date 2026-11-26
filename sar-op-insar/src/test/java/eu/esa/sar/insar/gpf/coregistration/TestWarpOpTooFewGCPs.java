@@ -23,6 +23,7 @@ import org.esa.snap.core.datamodel.Placemark;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.datamodel.ProductNodeGroup;
+import org.esa.snap.core.gpf.OperatorException;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.util.TestUtils;
@@ -31,11 +32,12 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Secondaries whose complex polynomial model (CPM) cannot be used: too few GCPs for it, or an estimation that
  * fails. Only that Secondary falls back, to a plain polynomial fit whose degree is lowered until the GCPs
- * over-determine it; with fewer than 4 GCPs there is no warp at all and the band must be no-data. The method and
+ * over-determine it; with fewer than 4 GCPs there is no warp at all and the run must fail. The method and
  * degree used are recorded per band in the metadata.
  */
 public class TestWarpOpTooFewGCPs {
@@ -197,18 +199,21 @@ public class TestWarpOpTooFewGCPs {
         assertEquals("Polynomial 1", warpMethod(target, SEC2_I));
     }
 
-    /** 2 GCPs: no warp is possible; the band must be no-data, not a valid-looking zero image. */
-    @Test
-    public void testSecondaryWithoutWarpIsNoData() throws Exception {
-        final Product target = warp(stack(2));
-        final float[] out = new float[W * H];
-        target.getBand(SEC_I).readPixels(0, 0, W, H, out);
-        for (float v : out) {
-            assertEquals(NO_DATA, v, 0.0);
+    /** The run must fail naming the band, not write a valid-looking zero image. */
+    private static void assertWarpFails(final Product target, final String band) throws Exception {
+        try {
+            target.getBand(band).readPixels(0, 0, W, H, new float[W * H]);
+            fail("expected an OperatorException for " + band);
+        } catch (OperatorException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("not enough valid GCPs"));
+            assertTrue(expected.getMessage(), expected.getMessage().contains(band));
         }
-        assertTrue(target.getBand(SEC_I).isNoDataValueUsed());
-        assertEquals(0, warpValid(target, SEC_I));
-        assertEquals("None 0", warpMethod(target, SEC_I));
+    }
+
+    /** 2 GCPs: no warp is possible. */
+    @Test
+    public void testSecondaryWithoutWarpFails() throws Exception {
+        assertWarpFails(warp(stack(2)), SEC_I);
     }
 
     /**
@@ -310,13 +315,9 @@ public class TestWarpOpTooFewGCPs {
         assertEquals(0, warpData(target, "Amplitude_VV_sec1_13Jan2020").getAttributeInt("demRefined"));
     }
 
-    /** 3 GCPs determine a degree-1 fit exactly: nothing checks it, so the band has no warp. */
+    /** 3 GCPs determine a degree-1 fit exactly: nothing checks it, so there is no warp. */
     @Test
     public void testThreeGcpsGiveNoWarp() throws Exception {
-        final Product target = warp(detectedStack(3));
-        final float[] out = new float[W * H];
-        target.getBand("Amplitude_VV_sec1_13Jan2020").readPixels(0, 0, W, H, out);
-        assertEquals(NO_DATA, out[W + 1], 0.0);
-        assertEquals("None 0", warpMethod(target, "Amplitude_VV_sec1_13Jan2020"));
+        assertWarpFails(warp(detectedStack(3)), "Amplitude_VV_sec1_13Jan2020");
     }
 }

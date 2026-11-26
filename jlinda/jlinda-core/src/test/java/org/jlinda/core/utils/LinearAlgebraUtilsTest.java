@@ -6,7 +6,6 @@ import org.jblas.DoubleMatrix;
 import org.jlinda.core.Window;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class LinearAlgebraUtilsTest {
@@ -136,7 +135,6 @@ public class LinearAlgebraUtilsTest {
     }
 
     @Test
-    @Ignore
     public void testSolve33() throws Exception {
         double[] SOL_33_ACTUAL = LinearAlgebraUtils.solve33(A_PASCAL_33.toArray2(), X_33);
         Assert.assertArrayEquals(SOL_33_EXPECTED, SOL_33_ACTUAL, DELTA);
@@ -152,7 +150,8 @@ public class LinearAlgebraUtilsTest {
 
     @Test
     public void testAbsMatrix_Arrays() throws Exception {
-        double[][] SOL_33_EXPECTED_TEMP = new double[][]{SOL_33_EXPECTED, SOL_33_EXPECTED};
+        // absMatrix(double[][]) works in place: pass copies so the shared SOL_33_EXPECTED is not modified
+        double[][] SOL_33_EXPECTED_TEMP = new double[][]{SOL_33_EXPECTED.clone(), SOL_33_EXPECTED.clone()};
         double[][] SOL_33_EXPECTED_ABS_TEMP = new double[][]{SOL_33_EXPECTED_ABS, SOL_33_EXPECTED_ABS};
 
         double[][] SOL_33_ACTUAL_ABS = LinearAlgebraUtils.absMatrix(SOL_33_EXPECTED_TEMP);

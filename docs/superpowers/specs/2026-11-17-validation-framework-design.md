@@ -1,7 +1,7 @@
 # Validation Framework: Design
 
 **Date:** 2026-11-17
-**Status:** proposed
+**Status:** proposed. **§6 (T3) superseded 2026-11-20** by [`2026-11-20-snap-validation-design.md`](2026-11-20-snap-validation-design.md): the repo is `snap-validation`, not `microwave-validation`. T1 (§4) is still to be reviewed with the user before its plan; it is scheduled after snap-validation (roadmap §9.0).
 **Roadmap:** [§9 Validation framework](../../roadmap.md#9-validation-framework-workstream)
 **Owner:** microwave-toolbox. The T2 changes land in snap-gpt-tests and snap-reader-tests; T3 is a new repository.
 **Companion:** [Memory efficiency design](2026-11-17-memory-efficiency-design.md). The memory guard rails reuse the T1 and T2 machinery defined here.
@@ -38,7 +38,7 @@ The evidence must be re-runnable, tied to an identified SNAP build, and publishe
 | Reader acceptance tests | **snap-reader-tests** (`ProductReaderAcceptanceTest`) consumes `<PlugIn>-data.json` descriptors from each reader module's test resources (`snap.reader.tests.data.dir`) | **23 descriptors covering 22 of the 39 readers**, about 66 product ids. They check band names, sizes, no-data, geo-coordinates and sampled pixels with a relative tolerance of 1e-6 (`ContentAssert.computeAssertDelta`) |
 | gpt graph tests | **snap-gpt-tests** `gpt-tests-resources/tests/s1tbx/` | 35 JSON test files (Standard, InSAR, PolSAR, FeatureExtraction, Writers, missions/Sentinel1). The expected outputs use the same `ExpectedContent` JSON as the reader tests. They have per-test `configVM` and a performance DB with `memory_max` |
 | Cross-tool harness | `microwave-toolbox/validation/` (not a Maven module) | Docker engines for ISCE3/COMPASS, Dolphin and InSAR.dev; native `gpt` as the SNAP engine; `compare/` metrics; 8 YAML cases (Venezuela orbit 106, ETAD) |
-| Corner-reflector validation | `sar-test-stacks` `CRValidation{Rosamond,Surat}{GRD,SLC}Test` | Excluded by default; run with `-Pcorner-reflectors` |
+| Corner-reflector validation | `sar-test-stacks` `CRValidation{Rosamond,Surat}{GRD,SLC}Test` | (done 2026-11-21: moved to snap-validation; see 2026-11-20 design) (was: excluded by default, run with `-Pcorner-reflectors`; tests and profile now removed) |
 | Truth datasets | Campi Flegrei P-SBAS; the Venezuela 3-day fixture | Used in the GSLC campaign |
 
 **Main gaps:**
@@ -186,8 +186,10 @@ The `heapSweep` field and the `memory` scope are defined in the memory spec §5.
 
 ## 6. T3: scientific validation (`microwave-validation` repository)
 
+Superseded in part: the T3 repo is now `snap-validation`; see `docs/superpowers/specs/2026-11-20-snap-validation-design.md`.
+
 ### 6.1 Layout
-The existing `validation/` layout is kept and extended:
+(done 2026-11-21: moved to snap-validation; see 2026-11-20 design) The existing `validation/` layout is kept and extended:
 
 ```
 engines/     snap (native gpt), isce3, dolphin, insardev  ← moved from microwave-toolbox/validation
@@ -241,9 +243,9 @@ The thresholds here are **proposals**. Each one must be justified in the registe
 - Archived per release; this is the deliverable for ESA reviews.
 
 ### 6.5 Migration
-1. Create the `microwave-validation` repo. Move `validation/` across with its history (`git filter-repo --subdirectory-filter validation`), then remove it from microwave-toolbox and leave a README pointer.
-2. Move `sar-test-stacks` `CRValidation*` into `cases/` as T3 cases. Port `FindCRPosition` and `Plot` into `compare/` and `truth/cr`. The Java CR tests stay until the ported cases reproduce their numbers.
-3. Update `validation/README.md`'s rationale section to the §3.2 reasoning.
+1. (done 2026-11-21: moved to snap-validation; see 2026-11-20 design) Create the `microwave-validation` repo. Move `validation/` across with its history (`git filter-repo --subdirectory-filter validation`), then remove it from microwave-toolbox and leave a README pointer.
+2. (done 2026-11-21: moved to snap-validation; see 2026-11-20 design) Move `sar-test-stacks` `CRValidation*` into `cases/` as T3 cases. Port `FindCRPosition` and `Plot` into `compare/` and `truth/cr`. The Java CR tests stay until the ported cases reproduce their numbers.
+3. (done 2026-11-21: moved to snap-validation; see 2026-11-20 design) Update `validation/README.md`'s rationale section to the §3.2 reasoning.
 
 ## 7. Validation register
 

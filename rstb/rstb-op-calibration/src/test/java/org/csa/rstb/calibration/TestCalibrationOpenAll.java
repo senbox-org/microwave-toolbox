@@ -24,6 +24,7 @@ import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.engine_utilities.gpf.TestProcessor;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -46,15 +47,15 @@ public class TestCalibrationOpenAll extends ProcessorTest {
             testProcessor = SARTests.createTestProcessor();
 
             // If any of the file does not exist: the test will be ignored
-            assumeTrue(TestData.inputRS2_SQuad + "not found", TestData.inputRS2_SQuad.exists());
+            assumeTrue(TestData.inputRS2_SQuad + " not found", TestData.inputRS2_SQuad.exists());
         } catch (Exception e) {
             TestUtils.skipTest(this, e.getMessage());
             throw e;
         }
     }
 
-    //@Test
-    //@Ignore
+    @Test
+    @Ignore("SNAP has no RADARSAT-1 calibrator: CalibrationOp refuses mission RS1 (see docs/roadmap.md)")
     public void testProcessAllRadarsat1() throws Exception {
         testProcessor.testProcessAllInPath(spi, SARTests.rootPathsRadarsat1, "RADARSAT-1", productTypeExemptions, null);
     }

@@ -27,7 +27,7 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Decision]** Terrain Flattening `externalDEMApplyEGM` defaults to false, while Terrain Correction and the other DEM operators default to true. Pick one default.
 - [ ] **[Decision]** Terrain Flattening ACE2_5Min resolution handling: the code tests for 10000 m but uses 1000 m. Switching to 10000 m makes each tile about 100× slower; keeping 1000 m leaves holes in the output.
 - [ ] **[Decision]** Warp default threshold 0.05 on detected stacks. It acts as a 0.05-pixel RMS cut, too tight for the half-pixel coarse GCPs. Consider a separate default for detected stacks (e.g. 0.5) and one consistent label: the dialog says "RMS Threshold (pixel accuracy)", the parameter says "Significance Level".
-- [x] **[Decision]** Warp falls back silently to the legacy RMS rule for all Secondaries when the CPM w-test fit throws. Make it a clearer log message, a warning in the product metadata, or a failure. *Decided and fixed 2026-11-25: a Secondary whose CPM cannot be used (no redundant GCP, or any estimation failure such as the overall model test) falls back alone to the RMS-rule polynomial fit, and the other Secondaries keep their CPM. The fallback lowers the polynomial order until there are more GCPs than coefficients, because an exactly determined fit has zero residuals whatever the warp; with 3 GCPs or fewer the band is no-data. Each band's `WarpData` metadata records `warpMethod` (CPM, Polynomial or None), `warpDegree` and `warpValid`, and the log names the Secondary. The same order rule applies on detected stacks. Tests in TestWarpOpTooFewGCPs (per-Secondary isolation, an estimation failure, the Q band, 4 and 6 GCPs). Help page updated. Review round 4 (2026-11-25): the RMS rule removes GCPs as it iterates and could stop at exactly as many as coefficients, a zero-residual fit marked valid (often keeping the outlier); the fit now needs more GCPs than coefficients after the removal, else the order is lowered. On a complex stack whose threshold is a significance level (0.001, 0.05 or 0.1) the fallback reads it as a cut of at least 0.05 pixel (0.001 px removed good GCPs until no fit was left); other values keep the user's pixel cut. A band borrows a sibling band's GCPs while it has 3 or fewer (was fewer than 3). Metadata also records `demRefined`; the fallback logs one line (the stack trace at FINE) and, when the CPM failed with an exception, says that it drops the DEM refinement (not when the CPM had too few GCPs); the residual file names the degree of each attempt. The dialog sent order 1 by default (the order combo was set with an Integer and matched none of its String items). New tests: noisy GCPs with an outlier over 20 seeds (fails on the round-3 code), a detected stack, and 3 GCPs. **Review round 5 (2026-11-25), fixed:** the 0.05-pixel floor was still too strict for the GCPs that reach the fallback (the CPM fails its overall model test at roughly 0.3-0.5 px noise): in the branch's own test 12 of 20 seeds give no warp, against 0 of 20 at 0.5 px; with 0.4 px noise and 12 GCPs about 74% of Secondaries become no-data at 0.05 px. Not a regression (master applied the raw 0.001/0.05 to every Secondary). The fallback cut is now at least 0.5 pixel (with a significance level, always 0.5). The redundancy test now requires a valid warp without the outlier for all 20 seeds, and a new test at 0.001 with 0.3 px noise does the same over 10 seeds; both fail with the 0.05 floor. Still open: "N GCPs are too few" is logged with the original count even when the RMS rule removed most of them; the residual file now lists only the Secondaries that fell back, so StatResiduals no longer shows the CPM Secondaries' residuals.*
+- [x] **[Decision]** Warp falls back silently to the legacy RMS rule for all Secondaries when the CPM w-test fit throws. Make it a clearer log message, a warning in the product metadata, or a failure. *Decided and fixed 2026-11-25: a Secondary whose CPM cannot be used (no redundant GCP, or any estimation failure such as the overall model test) falls back alone to the RMS-rule polynomial fit, and the other Secondaries keep their CPM. The fallback lowers the polynomial order until there are more GCPs than coefficients, because an exactly determined fit has zero residuals whatever the warp; with 3 GCPs or fewer the band is no-data (since the 2026-11-25 merge with master: the run fails, see below). Each band's `WarpData` metadata records `warpMethod` (CPM, Polynomial or None), `warpDegree` and `warpValid`, and the log names the Secondary. The same order rule applies on detected stacks. Tests in TestWarpOpTooFewGCPs (per-Secondary isolation, an estimation failure, the Q band, 4 and 6 GCPs). Help page updated. Review round 4 (2026-11-25): the RMS rule removes GCPs as it iterates and could stop at exactly as many as coefficients, a zero-residual fit marked valid (often keeping the outlier); the fit now needs more GCPs than coefficients after the removal, else the order is lowered. On a complex stack whose threshold is a significance level (0.001, 0.05 or 0.1) the fallback reads it as a cut of at least 0.05 pixel (0.001 px removed good GCPs until no fit was left); other values keep the user's pixel cut. A band borrows a sibling band's GCPs while it has 3 or fewer (was fewer than 3). Metadata also records `demRefined`; the fallback logs one line (the stack trace at FINE) and, when the CPM failed with an exception, says that it drops the DEM refinement (not when the CPM had too few GCPs); the residual file names the degree of each attempt. The dialog sent order 1 by default (the order combo was set with an Integer and matched none of its String items). New tests: noisy GCPs with an outlier over 20 seeds (fails on the round-3 code), a detected stack, and 3 GCPs. **Review round 5 (2026-11-25), fixed:** the 0.05-pixel floor was still too strict for the GCPs that reach the fallback (the CPM fails its overall model test at roughly 0.3-0.5 px noise): in the branch's own test 12 of 20 seeds give no warp, against 0 of 20 at 0.5 px; with 0.4 px noise and 12 GCPs about 74% of Secondaries become no-data at 0.05 px. Not a regression (master applied the raw 0.001/0.05 to every Secondary). The fallback cut is now at least 0.5 pixel (with a significance level, always 0.5). The redundancy test now requires a valid warp without the outlier for all 20 seeds, and a new test at 0.001 with 0.3 px noise does the same over 10 seeds; both fail with the 0.05 floor. Still open: "N GCPs are too few" is logged with the original count even when the RMS rule removed most of them; the residual file now lists only the Secondaries that fell back, so StatResiduals no longer shows the CPM Secondaries' residuals. **Merge with master (2026-11-25):** master (`6a42f2d90`) makes Warp fail the run, naming the bands and their GCP counts, when a Secondary has no valid warp; that replaces the no-data band of this branch (decision 2026-11-25). The no-data and 3-GCP tests now expect the failure.*
 - [ ] **[Decision]** Phase Linking default SHP window is 21 az × 7 rg (about 290 m × 26 m on S1 IW). It may be transposed; the help advises 7 × 21.
 - [ ] **[Decision]** Cross-Correlation: the Coherence Window, sliding-window and Powell (coherence) fine-registration path cannot be reached, and "Coherence Threshold" actually thresholds an amplitude NCC. Restore a reachable coherence mode, or rename and remove the dead parameters.
 - [ ] **[Decision]** RangeFilterOp `fftLength` has no effect because it is overwritten by the tile width. Wire it in (Doris suggests 64) or hide it.
@@ -80,8 +80,10 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Bug]** Coherence pairs are ordered by orbit string.
 - [ ] **[Bug]** MultiMasterOp metadata issues (see the Phase 2 ledger notes).
 - [ ] **[Bug]** BIOMASS Precise (MAAP) orbit option is unreachable, and it throws on non-BIOMASS products.
+- [ ] **[Bug]** SliceAssembly declares stripmap (SM) support, but crashes on stripmap SLC slices. `getSwathFromBandName` takes `substring(2, 5)` of TOPS band names (`i_IW1_VV`); a stripmap `i_VV` throws StringIndexOutOfBoundsException in `determineSliceBurstDimension`. Found by snap-validation `orbit_nigeria_sm_assembled` (2026-11-25), present on master.
 - [ ] **[Bug]** The shipped TOPS coregistration/interferogram graphs lack ESD, the Deformation/DEM-generation graphs lack Multilook, and the graphs hard-code Sentinel precise orbits.
 - [ ] **[Bug]** WarpOp LUT: table rows are built at f = i/127 but JAI reads them at i/128, up to 1/128 pixel off.
+- [ ] **[Decision]** Cross-Correlation on temporally decorrelated SLC pairs (added 2026-11-25). The fine-step amplitude NCC is often 0.1–0.3 (RS2 Manitoba cropland, 24 and 96 days), so the default Coherence Threshold of 0.6 rejects almost every GCP. Warp now stops with "not enough valid GCPs" instead of writing zero Secondaries, and `applyFineRegistration=false` is now honoured for SLCs. Open: an automatic fallback to the coarse GCPs, or a threshold derived from the NCC distribution. Regression data: `SAR/RS2/Manitoba/subsets` (`TestCoregistrationDecorrelatedPair`).
 
 ### Polarimetry and soil moisture
 - [ ] **[Bug]** Polarimetric Calibration does not estimate cross-pol imbalance. The co-pol imbalance estimate assumes equal HH/VV power, and arg f is ambiguous by π. A design note is in the P8-rstb report.
@@ -89,6 +91,8 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Bug]** The PolarimetricDecomposition dialog has no OAC (orientation-angle correction) checkbox.
 - [ ] **[Bug]** The soil-moisture graphs save the ellipsoid incidence angle, not the local one.
 - [ ] **[Bug]** SAOCOM thermal noise removal: the noise LUT may be power while the data are amplitude (per the CONAE spec). Fix this in the reader's intensity labelling once confirmed.
+- [ ] **[Decision]** Polarimetric Box Car treats image edges differently by input type (added 2026-11-25). Quad-pol input averages over the window clipped to the image (`getMeanCoherencyMatrix`); C3/T3/C4/T4 input replicates the edge pixels (`BoxCar.getNeighborValues`). In the 2-pixel border the results differ (35 % at the corner pixel of the QuadPolStack fixture). Pick one convention; `TestPolarimetricSpeckleFilterOp` excludes the border until then.
+- [ ] **[Decision]** The polarimetric tools reject Create-Stack-only stacks (added 2026-11-25). `PolBandUtils.getSourceBands` groups bands by date only when `coregistered_stack=1` (set by Warp); a Create Stack product without Warp has `collocated_stack=1`, so all dates are treated as one acquisition and the operators fail with "A full polarization product is expected as input".
 
 ### Change detection and feature extraction
 - [ ] **[Bug]** LogRatio change detection zeroes dB input and applies ±2 thresholds to every output.
@@ -116,6 +120,56 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Bug]** ETAD reader geocoding is a simple lat/lon box.
 - [ ] **[Bug]** CIMR reader has no fallback for an unknown `format_version`.
 - [ ] **[Bug]** No reader for ESA's reprocessed ERS-1/2 and Envisat ASAR heritage products, if they are distributed in a new format.
+- [ ] **[Bug]** NISAR GCOV reader cannot feed the polarimetric tools (added 2026-11-24, [SNAP-4384](https://senbox.atlassian.net/browse/SNAP-4384)). Spec: [`superpowers/specs/2026-11-24-nisar-gcov-reader-design.md`](superpowers/specs/2026-11-24-nisar-gcov-reader-design.md).
+  - Off-diagonal covariance terms (`HHHV`, `HHVV`, `HVVV`, …) are complex but read as one `INTENSITY` band holding the real part only.
+  - Compact-pol terms `RHRH`/`RHRV`/`RVRV` are not read at all.
+  - GCOV is not exposed as C3/C2 (no `C11`… bands, no `polsar_data`/`compact_mode`), so decompositions, H/A/α, speckle filters and Wishart refuse it.
+  - `mask`, `numberOfLooks` and the RTC γ⁰→σ⁰ factor are not exposed. No-data is 0 but GCOV fill is NaN.
+  - Latent: `PolBandUtils.getSourceProductType` would misdetect `RHRH` as raw `RCHCP` (substring match on `RH`).
+  - Phases P1–P4 in the spec. Tested on real dual-pol (DHDH) and quad-pol (QPDH) products and on synthetic fixtures for every term layout; no real compact-pol GCOV yet (spec §9 Q2).
+  - **Status 2026-11-24:** P1–P4 done on branch `SNAP-4384-nisar-gcov` (not yet merged). The branch also fixes three L2 bugs found on current ASF products: the wrong L2 geocoding (taken from the 500 m metadata cube; up to ~2.7 km error), the unset `radar_frequency` (every SAR operator rejected L2 products), and dual-frequency GSLCs failing to open. P4 added the `gcov_valid` mask (`mask > 0 && mask < 255`, not applied as the bands' valid-pixel expression because mask-0 samples hold data, ~20% of the footprint) and the GCOV section of the NISAR reader help.
+  - **Status 2026-11-25:** ready for review. Committed on branch `SNAP-4384-nisar-gcov` (`e7d708789`, with master merged in); the PR is not yet opened or merged.
+    - Two adversarial review rounds, all findings fixed (see the frequency B item below). The GCOV fixtures now also cover VV/VH dual-pol (conjugate `VHVV`), left-circular compact-pol, quad-pol with VH only, and quad-pol without `HVVH` (no matrix).
+    - Regression: sar-commons, sar-io, sar-op-calibration, sar-op-utilities, rstb-op-polarimetric-tools and rstb-op-classification with the real test data, 981 tests, 0 failures. The new tests carry `@STTM("SNAP-4384")`.
+    - Changes for users, noted on the help page: GSLC `PhaseHH` is now `Phase_HH` (as RSLC; kept, no alias); GCOV off-diagonal terms are `<term>_real`/`_imag`; the GUNW `wrappedInterferogram` is a virtual phase band over new `i_`/`q_` bands; RIFG/RUNW coherence no-data is NaN.
+    - Depends on [SNAP-4385](https://senbox.atlassian.net/browse/SNAP-4385) in snap-engine for subsets that leave out the `_S` tie-point grids; until it is merged the help page tells users to keep them.
+  - Open: compact-pol chirality (spec Q2) is inferred from the term name only. Verify it on a real compact-pol GCOV once one is distributed (none on ASF as of 2026-11-24).
+- [ ] **[Feature]** NISAR frequency B (the narrow second band, `_S` bands) support and testing (added 2026-11-24). Many current products carry it (modes 2005/4005, e.g. DHDH, QPDH, SHSH); some carry only B (e.g. the NASV RSLC).
+  - [x] Geocoding (done 2026-11-24 on branch `SNAP-4384-nisar-gcov`).
+    - Before the fix, the `_S` bands had no geocoding of their own and fell back to frequency A's. They were off by hundreds of metres on L2 products (4× coarser grid) and by about 16 km on L1 products (4× coarser range).
+    - L2 `_S` bands and masks now get a CrsGeoCoding from B's own `xCoordinates`/`yCoordinates`.
+    - L1 `_S` bands get a tie-point geocoding placed on B's own range axis. Its grids (`latitude_S`, `longitude_S`) are in the product under their own names, so the geocoding survives Subset and BEAM-DIMAP. A first version shared A's grid names and SNAP rebound B to A's grids on copy, 65–135 km off.
+    - Generalised (2026-11-25): every band whose own axes differ from the scene's gets its own geocoding, found from the `xCoordinates`/`yCoordinates` or `slantRange`/`zeroDopplerTime` nearest its variable. This also fixed two pre-existing bugs: the GUNW 20 m `wrappedInterferogram` was on the 80 m scene geocoding (200–700 km off), and the RIFG/RUNW `pixelOffsets` were about 35 km off. The GUNW wrapped interferogram now reads both parts (`i_`/`q_` plus a virtual phase band), and RIFG/RUNW gain their `digitalElevationModel` band.
+    - Tests: `TestNisarGCOVRealProducts`, `TestNisarL1Geolocation` (with subset and DIMAP round trip), `TestNisarBandGeocoding`, and the Rosamond corner-reflector test on GSLC `HH_S`. That test found 17 reflectors, with a mean offset of 1.7 m W / 0.7 m S (limit 4 m). Single reflectors fall within about 20 m along range, given B's ~50 m ground-range resolution.
+    - Open, SNAP limitation: BEAM-DIMAP does not persist a tie-point grid's own geocoding. A multi-size subset of a re-opened DIMAP therefore cuts `latitude_S` with A's region and misplaces B. A fix belongs in snap-engine (`DimapHeaderWriter` writes per-band geocodings for bands only).
+    - Second review round (2026-11-25), fixed:
+      - Subsampled or strip-crossing complex reads left lines zero-filled (`readComplexBandTile`, older bug; also RSLC/GSLC).
+      - Frequency B calibration used A's incidence angle (0.6 dB at far range). Each own grid now has `incident_angle` + its tag (`incident_angle_S`), L1 and L2, and `NisarCalibrator` picks the band's grid.
+      - Band Select of B-only bands kept A's scene geocoding (`BandSelectOp`).
+      - Silent km-scale fallbacks are now logged; time units with a `T` separator are matched.
+      - Quad-pol GCOV without HVVH no longer becomes C2.
+      - The `_imag` display statistics are fixed, and the GUNW 20 m coherence and the RIFG/RUNW pixel-offset DEM are exposed.
+    - SNAP fix pending merge: SubsetOp crashed (NPE in `SceneFactory.transferGeoCodingBandwise`) when the `_S` tie-point grids were deselected. Fixed under [SNAP-4385](https://senbox.atlassian.net/browse/SNAP-4385) in snap-engine branch `fix/subset-band-tpg-region` (worktree `E:\ESA\snap-engine-wt\subset-band-tpg`), with a test; committed, not yet merged.
+  - [x] Found on the way, fixed for both frequencies (same branch): the L1 geolocation grid was misplaced in two ways.
+    - It was stretched over the image, although it covers more than the image (2.5 km more range on current RSLCs).
+    - It was read at its −500 m height layer.
+    - Together these put the current RSLC about 3.5 km off and the simulated RSLC about 260 m off.
+    - The grid is now placed by its `zeroDopplerTime`/`slantRange` axes and read at its 0 m layer.
+  - GCOV polarimetry: the C3/C2 matrix is built for frequency A only (spec Q4), because `PolBandUtils` finds matrix bands by name and two sets would be ambiguous. Options: a reader option to pick the frequency, or `_S` matrix bands plus suffix-aware `PolBandUtils`.
+  - Operators on multi-size products: decide whether the readers should offer per-frequency products (as the S1 reader does per swath) so operators that reject multi-size input work without Resample or Band Select first.
+  - Metadata: `radar_frequency`, range spacing and bandwidth in the abstracted metadata describe frequency A. Expose B's own parameters, so that Calibration and Terrain Correction work on a B-only subset. On the Rosamond GSLC, B differs from A in:
+    - centre frequency: 1293.5 MHz vs 1239 MHz;
+    - bandwidth: 5 MHz vs 40 MHz;
+    - slant-range spacing: 25 m vs 3.1 m.
+  - Testing still to do: run RSLC frequency B through Calibration and Terrain Correction; this needs the metadata item first.
+  - Test products in `E:\TestData\s1tbx\SAR\NISAR\`: the DHDH/QPDH GCOV, the Rosamond GSLC, and the dual-frequency RSLC `..._RSLC_036_083_D_080_2005_SHSH_...` (A+B).
+- [ ] **[Bug]** NISAR L1 RIFG/RUNW/ROFF have no geocoding for polar products (added 2026-11-24). The tie-point path in `NisarSubReader` converts with `UTM2LatLon` only, so EPSG 3413 (north polar stereographic) and 3031 (south) get none. Fix: transform any EPSG with GeoTools. Test products in `E:\TestData\s1tbx\SAR\NISAR\` (`..._RIFG_035_056_...`, `..._RUNW_035_056_...`, `..._ROFF_033_044_...`); `TestNisarCurrentProducts` marks them as known issues.
+- [ ] **[Bug]** NISAR SME2 reader fails on current products (added 2026-11-24): NPE, no raster variables. The operational (provisional) SME2 layout changed completely: layers are now under `grids/algorithmCandidates/{DSG,PMI,TSR}/` (`soilMoisture`, `soilMoistureUncertainty`, `retrievalQualityFlag`, …), while the reader expects the pre-launch `Waterbody_fraction`/`Landcover`. Needs a redesign of `NisarSMEProductReader`. Test product: `NISAR_L3_PR_SME2_033_137_D_116_...h5`.
+- [ ] **[Bug]** NISAR readers log about 50 "Error reading metadata Unknown type. Cannot create product data instance" warnings per current product (added 2026-11-24). Some HDF5 attribute or dataset types are not mapped to `ProductData`, so those metadata items are dropped. Find which types and map them.
+
+- [ ] **[Bug]** RCM burst-mode (ScanSAR) SLC products are not supported (added 2026-11-25). They deliver one image per burst (`imagery/<id>_<pol>_<burst>.tif`); the reader assumes one per polarisation. It now refuses them with a clear message instead of failing on a duplicate band name (`TestEODMSRCMProductReaderLongTest.testScanSAR_CX_SLCZipIsRefusedClearly`; test product `RCM/EODMS/SLC/RCM1_OK1683816_..._SC30MCPB_..._CH_CV_SLC.zip`).
+- [ ] **[Bug]** **[Cross-repo]** Subsetting the ALOS test products fails (added 2026-11-25): `ArrayIndexOutOfBoundsException: Index 9 out of bounds for length 9` from `ProductSubsetBuilder` via snap-engine `TestProcessor.createSubsetProduct`, so all 9 `testProcessAllALOS` tests in sar-op-sar-processing error. Not investigated; possibly the tie-point-grid subset (compare the ApplyOrbit→Subset stale-TPG bug found in snap-gpt-tests).
+- [ ] **[Bug]** There is no RADARSAT-1 calibrator (added 2026-11-25): Calibration refuses mission RS1. `TestCalibrationOpenAll.testProcessAllRadarsat1` is ignored until one exists. (The RS1 ScanSAR Wide read failure it also hit is fixed.)
 
 ## 5. Hygiene: labels, comments and tests
 
@@ -128,6 +182,11 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
 - [ ] **[Hygiene]** GSLC: write explicit stamps for tide and troposphere instead of relying on the Processing_Graph record that Create Stack reads (prerequisite for §7.2 items B and C).
 - [ ] **[Hygiene]** Create Stack bias estimation still uses a hard-coded Copernicus DEM (see §7.2 D).
 - [ ] **[Hygiene]** HorizontalVerticalMotion uses (0, 0) as the default reference pixel (see §7.3: a no-data reference is accepted). *2026-11-20: a no-data reference is now refused (§7.3), so the default fails loudly instead of silently.*
+- [ ] **[Hygiene]** Soil moisture: `TestIEMMultiPolInverOp` still has its value check commented out (since SNAP-3562). Rebuild it like `TestIEMHybridInverOp` / `TestIEMMultiAngleInverOp` (added 2026-11-25): inputs copied from shipped-LUT rows, N=1 must return that row, plus an N=5 reference. Note the javaml KDTree keeps only the first of duplicate keys.
+- [ ] **[Hygiene]** jLinda: 15 test classes and 5 RangeFilterTest methods are ignored because they need Doris `.res` files and Doris-produced binaries from the original developer's `/d2/…` tree, which cannot be regenerated without Doris (added 2026-11-25): BaselineTest, OrbitTest, SLCImageTest, AzimuthFilterTest, PhaseFilterTest, RangeFilterTest, DInSARTest, Slant2HeightTest, DemTileTest, TopoPhaseTest, FlatBinaryDoubleTest, SnaphuConfigFileTest, SarUtilsTest, TriangleInterpolatorTest, GeoUtilsTest. Rewrite them on synthetic data or SNAP-produced fixtures (raw ASAR Bam and ERS Etna scenes are in the test data), or delete them.
+- [ ] **[Hygiene]** jLinda `SpectralUtils.fft2D_inplace(DoubleMatrix)` calls `realForwardFull` on a rows×cols buffer (it needs 2×rows×cols) and has no callers: fix or remove (added 2026-11-25).
+- [ ] **[Hygiene]** rstb data-dependent tests check every fixture file in a class-level `@Before`, so one missing file skips the whole class, including tests that need no data (added 2026-11-25). Move the `assumeTrue` calls into the tests that use each file.
+- [ ] **[Hygiene]** Tests added in the 2026-11-25 rstb/jLinda test review have no `@STTM` ticket tag (the work was on master without a ticket).
 
 ## 6. Verification still to do before release
 
@@ -200,6 +259,12 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 
 **Spec:** [`superpowers/specs/2026-11-17-memory-efficiency-design.md`](superpowers/specs/2026-11-17-memory-efficiency-design.md) covers the metric definitions, the workflow suite W1–W7, the measurement architecture, the suspect table with fixes and tests, the phases P0–P4 and the guard rails.
 
+**Update 2026-11-20.**
+- The release-time minimum-heap and wall-time measurement (the "heap sweep") is now built in **`snap-validation`**, not snap-gpt-tests. The initial pass covers S1 only, for the four scorecard features (W1 GRD→TC, W2 TOPS InSAR, GSLC).
+- W3 (S1 stack) and W5 (SBAS) can be added later as efficiency-only rows. W4 and W6 (non-S1) wait until those missions join. W7 (Desktop) stays here.
+- The P2 local fixes come after the T1 contract scaffold exists, because they use its tile-size invariance check.
+- See §9.0 for the overall order.
+
 **Problem.** Users report that SNAP needs too much memory, and that this hurts performance: GC thrash, swapping, OOM on 16 GB laptops. Today nothing measures it. `microwavetbx-benchmark` records only time. `snap-gpt-tests` records process `memory_max`, but under a fixed `-Xmx` the RSS reflects the heap setting, not what the workflow needs.
 
 **Metric.** The number that matches the complaint is the **minimum heap a standard workflow completes in**, plus the wall time at 4, 8 and 16 GB. Track both per release, and treat any increase as a regression.
@@ -212,7 +277,7 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
   4. An RS2/RCM quad-pol → Decomposition → Wishart classification.
   5. SBAS on 100 dates.
   6. Open a large product in SNAP Desktop, then view and pan it.
-- [ ] Add a **heap sweep** runner: run each workflow at `-Xmx` 2/3/4/6/8/12/16 GB and record pass/fail, wall time and GC time (from `-Xlog:gc`). Then find the minimum heap by bisection. M.
+- [ ] Add a **heap sweep** runner: run each workflow at `-Xmx` 2/3/4/6/8/12/16 GB and record pass/fail, wall time and GC time (from `-Xlog:gc`). Then find the minimum heap by bisection. M. **Now built in `snap-validation`** (plan Tasks 6, 7 and 11): a 256 MB ladder from 1 GB, starting at the baseline's value, with an output-equality check per rung.
 - [ ] Add peak heap-after-GC, allocation rate and GC-pause share to `microwavetbx-benchmark` (`Benchmark.java` currently writes runtimes only). Use the `GarbageCollectorMXBean` and `MemoryPoolMXBean` peak usage. S.
 - [ ] Profile every suite workflow once with **JFR** (allocation profiling, old-object sample) and take a heap dump at peak. Rank the retainers by class and owner (operator, reader, cache, metadata). This ranking replaces guesswork. M.
 
@@ -241,9 +306,154 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
 
 **Spec:** [`superpowers/specs/2026-11-17-validation-framework-design.md`](superpowers/specs/2026-11-17-validation-framework-design.md) covers the tier model and placement, the contract checks C1–C9 and R1–R8, the fixture registry, the T2 tolerance model, the T3 repository layout and case schema, the register schema and the phases V0–V4.
 
+### 9.0 Status and order of work (updated 2026-11-20)
+
+**T3 and the release efficiency measurement are now a new Python repo, `snap-validation`.** It is on GitHub, cloned to `E:\ESA\snap-validation`.
+- **Design (approved):** [`superpowers/specs/2026-11-20-snap-validation-design.md`](superpowers/specs/2026-11-20-snap-validation-design.md).
+  - It replaces §6 of the 2026-11-17 validation spec.
+  - It also takes over the release heap sweep from §5.2 of the memory spec, which had placed it in snap-gpt-tests.
+- **Report mockup:** [`superpowers/specs/2026-11-20-snap-validation-report-mockup.html`](superpowers/specs/2026-11-20-snap-validation-report-mockup.html).
+- **Implementation plan:** [`superpowers/plans/2026-11-20-snap-validation-plan.md`](superpowers/plans/2026-11-20-snap-validation-plan.md). It has 20 tasks in phases A–E and is executed subagent-driven.
+
+**Decisions taken 2026-11-20**
+- **Repo and runtime:**
+  - `snap-validation` is written in Python. It tests the installed SNAP through `gpt`; the peer tools run in Docker.
+  - Microwave Toolbox comes first; optical may join later.
+  - It runs on the user's Windows workstation before each release, started manually. It is built to run on AWS, but that path is not implemented.
+- **Initial pass:** Sentinel-1 only, for both correctness and memory. Four scorecard features:
+  - S1 Calibration;
+  - S1 GRD → Terrain Correction;
+  - S1 TOPS InSAR (the classical chain);
+  - GSLC.
+- **Report:**
+  - The front page is a scorecard table with pass/fail, accuracy, peer agreement, and speed and minimum heap compared with the last release. Each row links to a detail page per feature.
+  - It uses the SNAP house palette with modern cards and charts.
+  - Toolbox test results are not included.
+- **Test data:** the S3 copy is `s3://skywatch-image-processing-test/SNAPTestData/`, holding only what the first-wave cases need. The data is *not* in `skywatch-image-processing`; only `E:\TestData\s1tbx\SAR` syncs to OVH `snap-s3`.
+- **Corner reflectors:** the user-facing corner reflector and point-target tools will live in microwave-toolbox. They are deferred and out of scope for `snap-validation`.
+- **`sar-test-stacks`:** the CR tests move to `snap-validation`, and are deleted only after the Python port reproduces them within 0.1 px. The stack tests stay.
+- **`microwavetbx-benchmark`:** stays as a developer profiling tool. It is switched on by `-Dbenchmark.enable`, and gains `MemoryProbe`.
+
+**Order of work**
+1. **`snap-validation`**: the plan above. The initial S1 pass was built by 2026-11-24 and is waiting for the user's review and commit. The next work is the expansion projects in §9.0.1.
+2. **T1 contract tier (`sar-contract-tests`, §9.2)**, *after snap-validation*.
+   - It gets its own brainstorm, then its own plan. Review §9.2 and the 2026-11-17 spec's T1 sections first: they were written before the user confirmed anything.
+   - Open question: does it run in the default build from day one, or stay opt-in until the known-failures list is short?
+   - Move `MemoryProbe` somewhere both can use (e.g. `sar-commons` test-jar), so check C8 (bounded allocation) can reuse it.
+   - Expect a long first-run failure list that maps onto §3–§7. Triaging it is the main work of V1.
+3. **§8 memory fixes (P2)**, *after T1 V0 exists*. The Wishart and ForestArea fixes use T1's tile-size invariance check as their test. P0 measurement for S1 comes from `snap-validation`'s efficiency pass.
+4. **T2 additions in snap-gpt-tests (§9.3)**, independent. The heap-sweep item there is superseded.
+
+### 9.0.1 snap-validation expansion projects (added 2026-11-24)
+
+**Intent (user, 2026-11-24).** Extend `snap-validation` past Sentinel-1, as was done for S1. For each sensor and topic, the report must show two things:
+- the standard processing is **correct** against an independent reference;
+- **performance and memory** improvements are real.
+
+"SNAP opens the product" is not a report row: T1 and T2 already cover it, and a processing case fails anyway if the reader fails.
+
+**Survey finding.** No microwave-toolbox test checks a value against an independent source. Their golden values are earlier SNAP output. The exceptions are a few closed-form synthetic tests: `TestDecompositionFormulas`, `TestPolarimetricParametersOp`, the `SpeckleFilterOperatorTest` ramps, the ICEYE calibration identities and the RCM noise model. So every project below needs a reference from outside SNAP:
+- the provider's own higher-level product of the same acquisition;
+- a peer tool;
+- a synthetic input with a known answer;
+- corner reflectors.
+
+**How each project runs.** One project per sensor or topic. Each gets its own brainstorm, then its own design and plan. The order is not decided yet.
+
+**Data.** Many inputs are only in `E:\EO`. Today's manifest roots are `testdata` and `scenes`, and `E:\EO` is neither. It also does not sync to OVH. Each project must either copy its inputs into `E:\TestData` or add a manifest root, and must upload them to the S3 `SNAPTestData/` copy for cloud runs.
+
+- [ ] **P0 Improvement detection (cross-cutting; do this before the sensor projects' efficiency rows).**
+  - Today's grading flags only regressions. The report must also confirm a real, significant improvement.
+  - Repeat wall and heap measurements enough to put a noise band on each feature. The S1 tops_insar minimum heap ranges 7680–8448 MB over 4 runs.
+  - Mark an improvement only outside that band.
+  - Record heap as a range for noisy features (already deferred from the S1 work).
+  - Decide how the report adds a sensor dimension next to the topic pages (Calibration, Terrain Correction, InSAR).
+- [ ] **Apply-Orbit (added 2026-11-24; used by most chains).**
+  - **Status 2026-11-25:** designed and built as feature `orbit_accuracy` in snap-validation (design `docs/2026-11-24-orbit-accuracy-design.md` there). It measures the error SNAP adds in three steps (Apply-Orbit's 1 s vectors, `OrbitStateVectors`, jlinda `Orbit`) against ISCE3, with a 1 cm bar. User decisions: measure only, no file-choice check, no RESORB, reference bound 5 mm. The first run on installed SNAP 15 (modules 2026-11-19) found that Apply-Orbit followed by any operator saved the annotation orbit (fixed on master in 6751fc23b), plus the SliceAssembly stripmap bug (§7). Sentinel-1 numbers wait on a run of a build with the fix.
+  - Reference 1, interpolation: the precise orbit files themselves. ESA POD accuracy is about 5 cm.
+    - Withhold state vectors from a POEORB file and compare SNAP's interpolated position and velocity at those epochs.
+    - Compare the orbit SNAP writes into the product against an independent interpolator (ISCE3/s1-reader) at the same epochs.
+  - Reference 2, geolocation: corner-reflector position error at Rosamond and Surat with the annotated orbit, RESORB and POEORB. That shows the orbit's effect on the final product.
+  - Reference 3, file choice: the right orbit file is picked, and RESORB is used when POEORB is missing. The rival-rule check from the S1 orbit staging work can be reused.
+  - Other missions with orbit files in SNAP: BIOMASS POD (the MAAP option is unreachable today, see §7), ENVISAT DORIS and ERS.
+  - Data: `E:\TestData\orbits` (S1A, S1B and S1C POEORB) and `SAR/Orbits` (2014 POEORB/RESORB).
+  - Efficiency: seconds per product, so not a row of its own. It is timed inside the chains that use it.
+  - Known defect to cover: ApplyOrbit → Subset keeps a stale tie-point grid (found in the snap-gpt-tests run).
+- [ ] **Coregistration (added 2026-11-24; used by InSAR, multi-temporal speckle, polarimetric stacks and change detection).**
+  - S1 TOPS (Back-Geocoding + ESD):
+    - residual offset after coregistration, by sub-pixel cross-correlation of the coregistered pair, against the 0.001 px azimuth requirement for TOPS interferometry;
+    - the ESD residual (already in the tops_insar case);
+    - agreement with COMPASS coregistered CSLCs (the Docker peer exists).
+  - Stripmap and other sensors (CreateStack + Cross-Correlation + Warp, and DEM-Assisted Coregistration):
+    - recover a known synthetic shift or warp applied to a real SLC (analytic truth);
+    - compare with NISAR's ISCE3 offset products (ROFF/GOFF from the simulated 2008 set and the S-band set);
+    - compare with the ESA-coregistered BIOMASS L1C STA stack;
+    - check the residual offset after coregistration.
+  - Data:
+    - Venezuela S1 pair;
+    - ETAD SM stack (`E:\EO\S1\ETAD\SM`);
+    - RCM BC Border 3 dates;
+    - BIOMASS simulated INT set;
+    - NISAR simulated RSLC pair with ROFF;
+    - RS2 Manitoba 5-date quad stack;
+    - the ICEYE Turkey/Syria SM dates (check that the geometry repeats).
+  - Efficiency: Back-Geocoding on a stack; the memory spec's W3 (10-date S1 stack) and W5 (100-date SBAS); CreateStack + CC + Warp on a stripmap stack.
+  - Known defect to cover: Warp silently falls back to the legacy RMS rule when the CPM fit throws (§2 decision item).
+- [ ] **ETAD (S1).**
+  - Data: ESA's ETAD InSAR test set, `E:\EO\S1\ETAD\snap_test_data`. It has differential interferograms made with and without ETAD, and the correction phase screens `int_<id>_geco_phase.tiff`. The SM stack's primary SLC (20200920) and the 20201002 and 20201014 SLCs are on disk with their ETAD products, in `E:\EO\S1\ETAD\SM`. Of the IW stack only 20201014 is on disk.
+  - Case 1: SNAP's phase-correction mode against ESA's phase screen and corrected interferogram. This closes the README's phase-correction coverage gap.
+  - Case 2: classical TOPS geometric ETAD on Surat. Compare corner-reflector position error with and without ETAD, using the IW SLC and ETAD product already in the manifest.
+  - Efficiency: ETAD on an IW SLC pair.
+  - The ESA corner-reflector sites (Côte d'Azur, Metsähovi, Wettzell, Yarragadee) have ETAD products only. Their SLCs would have to be downloaded.
+- [ ] **Speckle filtering.**
+  - Reference: a synthetic speckle field with known reflectivity and a known number of looks (gamma-distributed multiplicative noise). Measure ENL gain, mean bias and edge and point preservation per filter (Lee, Lee Sigma, Refined Lee, Frost, Gamma Map, IDAN, Boxcar, Median).
+  - Also measure the peak loss of the Rosamond and Surat corner reflectors after filtering.
+  - Efficiency: each filter on a full S1 GRD.
+  - No ENL test exists in the Java tests today.
+- [ ] **Polarimetry.**
+  - References:
+    - closed-form synthetic matrices (van Zyl, Cameron, Krogager, H/A/α, Span/RVI);
+    - PolSARpro in Docker as the peer tool, already named in the design (C3/T3, decompositions, polarimetric speckle filters, Wishart);
+    - CP Stokes closed forms for compact-pol.
+  - Data: RS2 FQ14 quad (`SAR/RS2`), the RS2 Manitoba 5-date FQ10W stack, RCM QP (`SAR/RCM/QP`, `OpenData/Quebec City`, `EODMS/SLC` QP8), RCM CP (Winnipeg 3MCP24, BC Border 3MCP30), CSG quad (`SAR/Cosmo/QUAD POL`).
+  - Efficiency: memory-spec W4 (quad-pol → T3 → decomposition → Wishart).
+  - NISAR polarimetry: SNAP-4384 exposes GCOV as C3/C2 (branch `SNAP-4384-nisar-gcov`, not yet merged). `TestNisarGCOVPolarimetry` already runs the polarimetric operators on GCOV fixtures; a comparison with a peer tool on a real GCOV is still to do.
+- [ ] **NISAR.**
+  - References: NISAR's own processor (built on ISCE3) made the RIFG/RUNW, GCOV and GSLC products. Compare SNAP's interferogram from the RSLC pair, SNAP's RTC and SNAP's geocoding against them.
+  - The simulated 2008 L-band set (`SAR/NISAR`, track 005 frame 219, lat 34.24–35.36, lon −118.48 to −117.47) covers the Rosamond corner-reflector site. Check whether reflectors are visible in that 2008 data.
+  - Data: a real 12-day pair, RSLC + GSLC 20260108/20260120, track 162 frame 24, Ontario, in `E:\EO\NISAR\NISAR`. Also a real RUNW and a real GCOV in `E:\EO\NISAR\Real`, and the S-band simulated set with a 2026 "New" RSLC/RIFG/GSLC.
+  - Efficiency: RSLC → calibration → terrain correction, and pair InSAR on full-size products.
+  - Gaps: SNAP-4384 adds numeric geolocation checks (L1 grid references, the Rosamond corner reflectors on a GSLC, frequency A and B) and a frequency B calibration test (`TestCalibrationNisarFrequencyB`, incidence angle only). There is still no calibrated-value check against NISAR's own products, and no RTC or interferogram comparison.
+- [ ] **BIOMASS.**
+  - References: ESA's documented gamma0 processor (`E:\ESA\biomass_gamma0_allpol.txt`, PFD v1.6.1 §4.3.2) for calibration. The ESA-coregistered L1C STA stack (`SAR/BIOMASS/L1C_INT_phase`) for coregistration.
+  - Data:
+    - the simulated 3-date SCS interferometric set (`SAR/BIOMASS/L1A_INT_phase`);
+    - real June 2025 DGM/SCS in `E:\EO\BIOMASS\Real`, with repeat passes F308 and F158 on 6 and 9 June;
+    - real L2A (FD/FH/GN) in `E:\EO\BIOMASS\L2`.
+  - Efficiency: DGM → calibration → terrain correction; SCS pair InSAR.
+- [ ] **RCM.**
+  - References: RCM's own GRD/GRC/GCD of the same acquisition, against SNAP's SLC → multilook → terrain correction. Analytic thermal-noise model (already in T1).
+  - Data:
+    - `SAR/RCM/QP` and `CP`, simulated 2011, each at SLC/GRD/GRC;
+    - Winnipeg 3MCP24 at SLC/GRC/GCC/GCD;
+    - EODMS GRD/GCD/SLC.
+  - Polarimetric cases join the Polarimetry project.
+- [ ] **ICEYE.**
+  - References: ICEYE's GRD of the same acquisition. The published calibration σ⁰ = cf·amp².
+  - Data: SLC+GRD pairs in `SAR/Iceye` and `E:\EO\Iceye` (Brawley, Copeland, Corpus Christi, London, Escondida, Houston Dwell and others); the 15.8 GB Open Data SLC.
+  - No corner reflectors, so geometric truth needs a reflector-site acquisition.
+  - Efficiency: memory-spec W6 (large SLC → calibrate → multilook → terrain correction) and the large-product reader.
+- [ ] **COSMO-SkyMed / CSG.**
+  - References: the provider's DGM, for SNAP's detection and multilook. The provider's GEC, for SNAP's terrain-correction geolocation.
+  - Data: CSG SCS/DGM/GEC of the same acquisitions (`SAR/Cosmo/NG`, `STRIPMAP`, `SCANSAR-1`, CSK level1B); the 2026 two-frame DGM larger than 2^31 pixels (`E:\EO\Cosmo`).
+  - Efficiency: W6 and the large-product read path.
+  - No corner reflectors on disk.
+
 **Goal.** Show for every feature (reader, operator, shipped graph) that it (a) runs correctly, (b) is comparable to or better than other tools, and (c) is scientifically correct. Publish the evidence per release.
 
 ### 9.1 Three tiers, three homes
+
+T3 design (repo layout, cases, per-release scorecard): see `docs/superpowers/specs/2026-11-20-snap-validation-design.md`.
 
 These are three different questions. Each needs different data and a different runtime, so each lives where its runtime already is.
 
@@ -251,7 +461,7 @@ These are three different questions. Each needs different data and a different r
 |---|---|---|---|---|
 | **T1 Contract** | Does it behave correctly on known input? | Synthetic plus tiny committed fixtures | Every commit (CI) | **microwave-toolbox** (unit tests plus long-gated integration tests, as now) |
 | **T2 Regression** | Does the shipped build give the same answer on real data, through gpt and graphs? | Real products, GB scale, on the test-data server | Nightly / per RC | **snap-gpt-tests** (already ESA's gpt runner; already has `s1tbx/` tests, expected outputs and a performance DB) |
-| **T3 Scientific** | Is it right against ground truth, and how does it compare with peer tools? | Reference sites, truth data, peer-tool outputs | Per release / quarterly | **New repo `microwave-validation`**: move `microwave-toolbox/validation/` there, plus the corner-reflector tests from `sar-test-stacks` |
+| **T3 Scientific** | Is it right against ground truth, and how does it compare with peer tools? | Reference sites, truth data, peer-tool outputs | Per release / quarterly | **New repo `snap-validation`** (renamed from `microwave-validation`, 2026-11-20; see §9.0): move `microwave-toolbox/validation/` there, plus the corner-reflector tests from `sar-test-stacks` |
 
 Why a separate repo for T3: it is Python and Docker (ISCE3, Dolphin, MintPy, PolSARpro), needs multi-GB truth data, runs on a release cadence rather than per commit, and has a different audience (ESA reviewers, users). It tests the **installed** build, not the source tree, so pinning a SNAP build version in each report is enough. The single-commit argument in `validation/README.md` no longer holds once reports record the SNAP version and git hash. Keep T1 and T2 out of it; a validation repo that also does regression testing becomes a second gpt-tests.
 
@@ -280,9 +490,11 @@ These parametrised tests run over **every** registered plug-in, so new readers a
 - [ ] Add a gpt test for **every shipped graph**: 97 graph XMLs under the `*-ui` modules' `graphs/` resources, against about 35 tests in `tests/s1tbx` today; the §3 bug "shipped TOPS graphs lack ESD" shows that the graphs themselves are untested.
 - [ ] Add per-mission reader-to-Calibration-to-Terrain-Correction tests for each supported mission (S1, RS2, RCM, CSK/CSG, TSX/PAZ, ICEYE, Capella, SAOCOM, ALOS-2, NISAR, BIOMASS, ERS/ASAR). Today `missions/` holds only Sentinel1.
 - [ ] Compare with tolerances, not MD5. Use per-band statistics plus sampled pixels with an explicit tolerance per test, so a legitimate change can be accepted deliberately (regenerate with a reason recorded).
-- [ ] Wire the §8 heap sweep into the existing performance database (it already has `memory_max`; add `min_heap_mb` and `gc_time`).
+- [x] ~~Wire the §8 heap sweep into the existing performance database (it already has `memory_max`; add `min_heap_mb` and `gc_time`).~~ Superseded 2026-11-20: the release heap sweep runs in `snap-validation` (§9.0).
 
-### 9.4 T3: scientific validation (microwave-validation repo)
+### 9.4 T3: scientific validation (`snap-validation` repo; tracked by its plan, see §9.0)
+
+T3 design (repo layout, cases, per-release scorecard): see `docs/superpowers/specs/2026-11-20-snap-validation-design.md`.
 Each feature gets a **reference** (ground truth or peer tool), a **metric** and an **acceptance threshold** taken from mission requirements or the literature. Examples:
 
 | Area | Reference | Metric / threshold |
@@ -297,8 +509,8 @@ Each feature gets a **reference** (ground truth or peer tool), a **metric** and 
 | Noise removal | S1 NESZ annotations; RCM noise | Residual noise floor; scalloping |
 | Ocean (wind, ships) | ECMWF/ASCAT wind; AIS | Wind RMSE in m/s; detection probability / false-alarm rate |
 
-- [ ] Move `microwave-toolbox/validation/` into `microwave-validation`, keeping the engines/compare/cases layout. Add `truth/` adapters (CR, GNSS, AIS).
-- [ ] Move the corner-reflector tests (`sar-test-stacks` `CRValidation*`) into it as T3 cases. They are already excluded from the default build (`-Pcorner-reflectors`).
+- [x] (done 2026-11-21: moved to snap-validation; see 2026-11-20 design) Move `microwave-toolbox/validation/` into `snap-validation`, keeping the engines/compare/cases layout. Add `truth/` adapters (CR, GNSS, AIS). This is plan Task 1. The first wave needs only the CR and OPERA adapters; GNSS and AIS come later.
+- [x] (done 2026-11-21: moved to snap-validation; see 2026-11-20 design) Move the corner-reflector tests (`sar-test-stacks` `CRValidation*`) into it as T3 cases. The Java CR tests, their resources and the `-Pcorner-reflectors` profile were deleted.
 - [ ] Generate a **per-release validation report** (HTML/PDF): a pass/fail scorecard per feature, plots, the SNAP build and the peer-tool versions. This is the artifact for ESA and users.
 
 ### 9.5 Validation register

@@ -55,6 +55,22 @@ public class PolBandUtils {
     }
 
     /**
+     * True when one of the '_'-separated parts of the band name equals one of the tokens, e.g.
+     * i_RCH or q_RCH_mst_01Jan2020 for RCH. A substring test would also match NISAR GCOV
+     * covariance terms such as RHRH or RHRV_real.
+     */
+    private static boolean hasToken(final String bandName, final String... tokens) {
+        for (String part : bandName.split("_")) {
+            for (String token : tokens) {
+                if (part.equals(token)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Check input product format, get source product type.
      *
      * @param sourceProduct The source product
@@ -76,9 +92,9 @@ public class PolBandUtils {
                 isT3 = true;
             } else if (name.contains("C22")) {
                 isC2 = true;
-            } else if (name.contains("LH") || name.contains("LCH") || name.contains("LCV")) {
+            } else if (hasToken(name, "LH", "LCH", "LCV")) {
                 isLCHS2 = true;
-            } else if (name.contains("RH") || name.contains("RCH") || name.contains("RCV")) {
+            } else if (hasToken(name, "RH", "RCH", "RCV")) {
                 isRCHS2 = true;
             } else if (name.contains("_HH")) {
                 isHH = true;

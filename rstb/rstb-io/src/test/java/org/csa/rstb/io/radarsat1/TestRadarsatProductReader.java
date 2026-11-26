@@ -73,4 +73,18 @@ public class TestRadarsatProductReader extends ReaderTest  {
         validator.validateMetadata();
         validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
     }
+
+    /** ScanSAR Wide: the scene record is in the trailer file, not the leader. */
+    @Test
+    public void testOpeningScanSARVolFile() throws Exception {
+        final File scanSAR = new File(TestData.inputSAR +
+                "RS1/RS1_A0631591_SCWA_20130328_113301_HH_SCW01f/RS1_A0631591_SCWA_20130328_113301_HH_SCW.vol");
+        assumeTrue(scanSAR + " not found", scanSAR.exists());
+        Product prod = testReader(scanSAR.toPath());
+
+        final ProductValidator validator = new ProductValidator(prod);
+        validator.validateProduct();
+        validator.validateMetadata();
+        validator.validateBands(new String[] {"Amplitude_HH","Intensity_HH"});
+    }
 }
