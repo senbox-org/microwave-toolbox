@@ -86,6 +86,7 @@ public class TestSliceAssembly {
     }
 
     @Test
+    @STTM("SNAP-4388")
     public void testOnlyTopsSlcIsAssembledByBurst() {
         assertTrue(SliceAssemblyOp.isTOPSBurstProduct("SLC", "IW"));
         assertTrue(SliceAssemblyOp.isTOPSBurstProduct("SLC", "EW"));

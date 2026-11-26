@@ -15,6 +15,7 @@
  */
 package eu.esa.sar.sentinel1.gpf;
 
+import com.bc.ceres.annotation.STTM;
 import com.bc.ceres.test.LongTestRunner;
 import eu.esa.sar.commons.test.TestData;
 import org.esa.snap.core.datamodel.Band;
@@ -74,6 +75,7 @@ public class TestSliceAssemblyStripmap {
     }
 
     @Test
+    @STTM("SNAP-4388")
     public void testAssembleThreeStripmapSlcSlices() throws Exception {
         final Product[] slices = new Product[sliceFiles.length];
         try {
