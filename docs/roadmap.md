@@ -115,6 +115,11 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
   - Latent: `PolBandUtils.getSourceProductType` would misdetect `RHRH` as raw `RCHCP` (substring match on `RH`).
   - Phases P1–P4 in the spec. Tested on real dual-pol (DHDH) and quad-pol (QPDH) products and on synthetic fixtures for every term layout; no real compact-pol GCOV yet (spec §9 Q2).
   - **Status 2026-11-24:** P1–P4 done on branch `SNAP-4384-nisar-gcov` (not yet merged). The branch also fixes three L2 bugs found on current ASF products: the wrong L2 geocoding (taken from the 500 m metadata cube; up to ~2.7 km error), the unset `radar_frequency` (every SAR operator rejected L2 products), and dual-frequency GSLCs failing to open. P4 added the `gcov_valid` mask (`mask > 0 && mask < 255`, not applied as the bands' valid-pixel expression because mask-0 samples hold data, ~20% of the footprint) and the GCOV section of the NISAR reader help.
+  - **Status 2026-11-25:** ready for review. Committed on branch `SNAP-4384-nisar-gcov` (`e7d708789`, with master merged in); the PR is not yet opened or merged.
+    - Two adversarial review rounds, all findings fixed (see the frequency B item below). The GCOV fixtures now also cover VV/VH dual-pol (conjugate `VHVV`), left-circular compact-pol, quad-pol with VH only, and quad-pol without `HVVH` (no matrix).
+    - Regression: sar-commons, sar-io, sar-op-calibration, sar-op-utilities, rstb-op-polarimetric-tools and rstb-op-classification with the real test data, 981 tests, 0 failures. The new tests carry `@STTM("SNAP-4384")`.
+    - Changes for users, noted on the help page: GSLC `PhaseHH` is now `Phase_HH` (as RSLC; kept, no alias); GCOV off-diagonal terms are `<term>_real`/`_imag`; the GUNW `wrappedInterferogram` is a virtual phase band over new `i_`/`q_` bands; RIFG/RUNW coherence no-data is NaN.
+    - Depends on [SNAP-4385](https://senbox.atlassian.net/browse/SNAP-4385) in snap-engine for subsets that leave out the `_S` tie-point grids; until it is merged the help page tells users to keep them.
   - Open: compact-pol chirality (spec Q2) is inferred from the term name only. Verify it on a real compact-pol GCOV once one is distributed (none on ASF as of 2026-11-24).
 - [ ] **[Feature]** NISAR frequency B (the narrow second band, `_S` bands) support and testing (added 2026-11-24). Many current products carry it (modes 2005/4005, e.g. DHDH, QPDH, SHSH); some carry only B (e.g. the NASV RSLC).
   - [x] Geocoding (done 2026-11-24 on branch `SNAP-4384-nisar-gcov`).
@@ -131,7 +136,7 @@ Sources: [`docs/reviews/javahelp-2026-11-12/phase8-parked-and-release-notes.md`]
       - Silent km-scale fallbacks are now logged; time units with a `T` separator are matched.
       - Quad-pol GCOV without HVVH no longer becomes C2.
       - The `_imag` display statistics are fixed, and the GUNW 20 m coherence and the RIFG/RUNW pixel-offset DEM are exposed.
-    - SNAP fix pending merge: SubsetOp crashed (NPE in `SceneFactory.transferGeoCodingBandwise`) when the `_S` tie-point grids were deselected. Fixed under SNAP-4385 in snap-engine branch `fix/subset-band-tpg-region` (worktree `E:\ESA\snap-engine-wt\subset-band-tpg`), with a test; committed, not yet merged.
+    - SNAP fix pending merge: SubsetOp crashed (NPE in `SceneFactory.transferGeoCodingBandwise`) when the `_S` tie-point grids were deselected. Fixed under [SNAP-4385](https://senbox.atlassian.net/browse/SNAP-4385) in snap-engine branch `fix/subset-band-tpg-region` (worktree `E:\ESA\snap-engine-wt\subset-band-tpg`), with a test; committed, not yet merged.
   - [x] Found on the way, fixed for both frequencies (same branch): the L1 geolocation grid was misplaced in two ways.
     - It was stretched over the image, although it covers more than the image (2.5 km more range on current RSLCs).
     - It was read at its −500 m height layer.
@@ -390,13 +395,13 @@ The full evidence (file:line, approach, regression risk) is in the "Fixability" 
     - CP Stokes closed forms for compact-pol.
   - Data: RS2 FQ14 quad (`SAR/RS2`), the RS2 Manitoba 5-date FQ10W stack, RCM QP (`SAR/RCM/QP`, `OpenData/Quebec City`, `EODMS/SLC` QP8), RCM CP (Winnipeg 3MCP24, BC Border 3MCP30), CSG quad (`SAR/Cosmo/QUAD POL`).
   - Efficiency: memory-spec W4 (quad-pol → T3 → decomposition → Wishart).
-  - Blocker for NISAR polarimetry: SNAP-4384 (GCOV is not exposed as C2/C3).
+  - NISAR polarimetry: SNAP-4384 exposes GCOV as C3/C2 (branch `SNAP-4384-nisar-gcov`, not yet merged). `TestNisarGCOVPolarimetry` already runs the polarimetric operators on GCOV fixtures; a comparison with a peer tool on a real GCOV is still to do.
 - [ ] **NISAR.**
   - References: NISAR's own processor (built on ISCE3) made the RIFG/RUNW, GCOV and GSLC products. Compare SNAP's interferogram from the RSLC pair, SNAP's RTC and SNAP's geocoding against them.
   - The simulated 2008 L-band set (`SAR/NISAR`, track 005 frame 219, lat 34.24–35.36, lon −118.48 to −117.47) covers the Rosamond corner-reflector site. Check whether reflectors are visible in that 2008 data.
   - Data: a real 12-day pair, RSLC + GSLC 20260108/20260120, track 162 frame 24, Ontario, in `E:\EO\NISAR\NISAR`. Also a real RUNW and a real GCOV in `E:\EO\NISAR\Real`, and the S-band simulated set with a 2026 "New" RSLC/RIFG/GSLC.
   - Efficiency: RSLC → calibration → terrain correction, and pair InSAR on full-size products.
-  - Gaps: no numeric NISAR assertion and no calibration test exist today.
+  - Gaps: SNAP-4384 adds numeric geolocation checks (L1 grid references, the Rosamond corner reflectors on a GSLC, frequency A and B) and a frequency B calibration test (`TestCalibrationNisarFrequencyB`, incidence angle only). There is still no calibrated-value check against NISAR's own products, and no RTC or interferogram comparison.
 - [ ] **BIOMASS.**
   - References: ESA's documented gamma0 processor (`E:\ESA\biomass_gamma0_allpol.txt`, PFD v1.6.1 §4.3.2) for calibration. The ESA-coregistered L1C STA stack (`SAR/BIOMASS/L1C_INT_phase`) for coregistration.
   - Data:

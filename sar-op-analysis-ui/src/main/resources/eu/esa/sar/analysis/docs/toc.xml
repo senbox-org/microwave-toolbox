@@ -9,6 +9,11 @@
             <tocitem text="Radar Tool Windows">
                 <tocitem text="Time Series Analysis" target="TimeSeries"/>
             </tocitem>
+            <tocitem text="SAR Applications">
+                <tocitem text="Ocean Tools">
+                    <tocitem text="Ocean Swell Polar View" target="polarView"/>
+                </tocitem>
+            </tocitem>
         </tocitem>
     </tocitem>
 </toc>
