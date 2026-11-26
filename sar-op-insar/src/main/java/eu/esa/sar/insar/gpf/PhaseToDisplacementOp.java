@@ -144,6 +144,8 @@ public final class PhaseToDisplacementOp extends Operator {
 
         final Band targetBand = new Band("displacement", ProductData.TYPE_FLOAT32, sourceImageWidth, sourceImageHeight);
         targetBand.setUnit(Unit.METERS);
+        targetBand.setNoDataValue(Double.NaN);
+        targetBand.setNoDataValueUsed(true);
         targetProduct.addBand(targetBand);
     }
 
@@ -177,12 +179,18 @@ public final class PhaseToDisplacementOp extends Operator {
             final int h = targetRectangle.height;
 
             final double wavelengthOver4PI = wavelength / (4.0*Math.PI);
+            final boolean srcNoDataUsed = sourceBand.isNoDataValueUsed();
+            final double srcNoData = sourceBand.getNoDataValue();
             for (int y = y0; y < y0 + h; y++) {
                 srcIndex.calculateStride(y);
                 trgIndex.calculateStride(y);
                 for (int x = x0; x < x0 + w; x++) {
 
                     final double phase = sourceData.getElemDoubleAt(srcIndex.getIndex(x));
+                    if (Double.isNaN(phase) || (srcNoDataUsed && phase == srcNoData)) {
+                        targetData.setElemDoubleAt(trgIndex.getIndex(x), Double.NaN);
+                        continue;
+                    }
                     final double displacement = -wavelengthOver4PI*phase;
                     targetData.setElemDoubleAt(trgIndex.getIndex(x), displacement);
                 }

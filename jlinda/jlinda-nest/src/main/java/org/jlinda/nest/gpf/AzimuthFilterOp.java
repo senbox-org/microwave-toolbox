@@ -297,13 +297,14 @@ public class AzimuthFilterOp extends Operator {
         }
     }
 
-    private static boolean isSentinel1TOPSMode(final MetadataElement absRoot) {
+    private static boolean isTOPSMode(final MetadataElement absRoot) {
         if (absRoot == null) {
             return false;
         }
         final String mission = absRoot.getAttributeString(AbstractMetadata.MISSION, "");
         final String mode = absRoot.getAttributeString(AbstractMetadata.ACQUISITION_MODE, "");
-        return mission.startsWith("SENTINEL-1") && (mode.equals("IW") || mode.equals("EW"));
+        // SAOCOM writes TOPSARNarrow / TOPSARWide
+        return (mission.startsWith("SENTINEL-1") && (mode.equals("IW") || mode.equals("EW"))) || mode.startsWith("TOPS");
     }
 
     private void checkUserInput() throws OperatorException {
@@ -313,7 +314,7 @@ public class AzimuthFilterOp extends Operator {
         validator.checkIfSLC();
         // the filter uses one Doppler centroid per image; TOPS steers the Doppler centroid within each burst
         // band-name check misses TOPSAR-Merge output (swath tags dropped), so also check the abstracted metadata
-        if (validator.isTOPSARProduct() || isSentinel1TOPSMode(AbstractMetadata.getAbstractedMetadata(sourceProduct))) {
+        if (validator.isTOPSARProduct() || isTOPSMode(AbstractMetadata.getAbstractedMetadata(sourceProduct))) {
             throw new OperatorException("Azimuth Filtering does not support TOPS (IW/EW) products: " +
                     "it assumes a constant Doppler centroid, which TOPS sweeps within each burst.");
         }
