@@ -1,5 +1,6 @@
 package org.jlinda.core;
 
+import com.bc.ceres.annotation.STTM;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -70,6 +71,7 @@ public class OrbitInterpolationTest {
     }
 
     @Test
+    @STTM("SNAP-4389")
     public void degree3OnApplyOrbitSpan() {
         // Sentinel-1 IW product after Apply-Orbit: 1 s vectors over the product +- 10 s
         final double[][] sv = stateVectors(50, 1.0);
@@ -77,6 +79,7 @@ public class OrbitInterpolationTest {
     }
 
     @Test
+    @STTM("SNAP-4389")
     public void degree4OnLongSpan() {
         // BIOMASS annotation: 261 vectors at 1 s for a 21 s product
         final double[][] sv = stateVectors(261, 1.0);
@@ -85,6 +88,7 @@ public class OrbitInterpolationTest {
     }
 
     @Test
+    @STTM("SNAP-4389")
     public void tenSecondSpacing() {
         // Sentinel-1 annotation / POEORB spacing
         final double[][] sv = stateVectors(21, 10.0);
@@ -92,6 +96,7 @@ public class OrbitInterpolationTest {
     }
 
     @Test
+    @STTM("SNAP-4389")
     public void anyDegreeGivesTheSameOrbit() {
         final double[][] sv = stateVectors(50, 1.0);
         final Orbit ref = new Orbit(sv, 3);
@@ -104,6 +109,7 @@ public class OrbitInterpolationTest {
     }
 
     @Test
+    @STTM("SNAP-4389")
     public void fewVectorsPassThroughTheNodes() {
         final double[][] sv = stateVectors(5, 10.0);
         final Orbit orbit = new Orbit(sv, 3);
@@ -113,6 +119,7 @@ public class OrbitInterpolationTest {
     }
 
     @Test
+    @STTM("SNAP-4389")
     public void repeatedVectorIsTolerated() {
         final double[][] base = stateVectors(50, 1.0);
         final double[][] sv = new double[51][];
@@ -123,6 +130,7 @@ public class OrbitInterpolationTest {
     }
 
     @Test
+    @STTM("SNAP-4389")
     public void satPosAgreesWithTheSeparateAccessors() {
         final double[][] sv = stateVectors(50, 1.0);
         final Orbit orbit = new Orbit(sv, 3);
@@ -135,6 +143,7 @@ public class OrbitInterpolationTest {
     }
 
     @Test
+    @STTM("SNAP-4389")
     public void setOrbitThenComputeCoefficients() {
         // the ResFile path: setOrbit(...) and computeCoefficients(degree) separately
         final double[][] sv = stateVectors(50, 1.0);
