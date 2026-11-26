@@ -4,7 +4,6 @@ import org.jblas.ComplexDoubleMatrix;
 import org.jblas.DoubleMatrix;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class SpectralUtilsTest {
@@ -246,7 +245,6 @@ public class SpectralUtilsTest {
 
 
     @Test
-    @Ignore
     public void testFft2D() throws Exception {
         ComplexDoubleMatrix fftMatrix_2D_ACTUAL = SpectralUtils.fft2D(complexMatrix_EXPECTED);
         Assert.assertEquals(fftMatrix_2D_EXPECTED, fftMatrix_2D_ACTUAL);
@@ -257,7 +255,6 @@ public class SpectralUtilsTest {
     }
 
     @Test
-    @Ignore
     public void testFft2D_inplace() throws Exception {
         ComplexDoubleMatrix fftMatrix_2D_ACTUAL = complexMatrix_EXPECTED.dup();
         SpectralUtils.fft2D_inplace(fftMatrix_2D_ACTUAL);

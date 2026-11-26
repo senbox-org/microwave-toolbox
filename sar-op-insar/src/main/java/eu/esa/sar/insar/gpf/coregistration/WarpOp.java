@@ -835,17 +835,26 @@ public class WarpOp extends Operator {
         return new File(ResourceUtils.getReportFolder(), fileName);
     }
 
+    /**
+     * A Secondary band without a valid warp model cannot be resampled; it used to be written as zeros in a product
+     * flagged as coregistered. Fail instead, naming the bands and the usual remedies.
+     */
     private void announceGCPWarning() {
-        String msg = "";
+        final StringBuilder msg = new StringBuilder();
         for (Band srcBand : sourceProduct.getBands()) {
             final PolynomialModel warpData = warpDataMap.get(srcBand);
             if (warpData != null && !warpData.isValid()) {
-                msg += srcBand.getName() + " does not have enough valid GCPs for the warp\n";
+                msg.append(srcBand.getName()).append(" (").append(getGCPGroup(srcBand).getNodeCount())
+                        .append(" GCPs)\n");
                 openResidualsFile = true;
             }
         }
-        if (!msg.isEmpty()) {
-            SystemUtils.LOG.warning(msg);
+        if (msg.length() > 0) {
+            throw new OperatorException("Warp: not enough valid GCPs to compute a warp model for\n" + msg +
+                    "Cross-Correlation found too few matching GCPs, or too many were rejected as outliers. " +
+                    "For temporally decorrelated SLC pairs, lower the Cross-Correlation coherence threshold or " +
+                    "switch off 'Apply Fine Registration' to coregister on amplitude only; otherwise increase " +
+                    "the number of GCPs or the registration window size.");
         }
     }
 

@@ -36,8 +36,8 @@
       <columnInterpFactor>4</columnInterpFactor>
       <maxIteration>2</maxIteration>
       <gcpTolerance>0.25</gcpTolerance>
-      <applyFineRegistration>false</applyFineRegistration>
-      <inSAROptimized>false</inSAROptimized>
+      <applyFineRegistration>true</applyFineRegistration>
+      <inSAROptimized>true</inSAROptimized>
       <fineRegistrationWindowWidth>64</fineRegistrationWindowWidth>
       <fineRegistrationWindowHeight>64</fineRegistrationWindowHeight>
       <fineRegistrationWindowAccAzimuth>16</fineRegistrationWindowAccAzimuth>

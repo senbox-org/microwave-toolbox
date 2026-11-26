@@ -52,9 +52,10 @@ input also by fine registration:
 runs. The shift is the peak of the upsampled cross-correlation, so it is
 quantised to 1/(Row or Column Interpolation Factor) of a pixel: 0.5 pixel
 with the default factor 2.</li>
-  <li><b>Complex input</b> (i/q bands): "Apply Fine Registration" and
-"Optimize for InSAR" are always switched on, whatever the dialog shows. Coarse
-registration is followed by the fine step described below.</li>
+  <li><b>Complex input</b> (i/q bands): coarse registration is followed by
+the fine step described below when "Apply Fine Registration" is on (the
+default). Switch it off to coregister on amplitude alone, for example for
+temporally decorrelated pairs where the fine step rejects most GCPs.</li>
 </ul>
 The Coregistration graph in the menu sets both interpolation factors to 4
 and GCP Tolerance to 0.25.<br>
@@ -106,16 +107,19 @@ factor; the oversampled peak gives the sub-pixel shift.</li>
 
 &nbsp;&nbsp;
 "Coherence Threshold" therefore thresholds an amplitude NCC between the
-imagettes, not the interferometric coherence. The fine step cannot be
-switched off for complex input.<br>
+imagettes, not the interferometric coherence. Over temporally decorrelated
+scenes (for example cropland between acquisitions weeks apart) this NCC is
+often 0.1&ndash;0.3, so with the default threshold of 0.6 almost every GCP is
+rejected and Warp stops with "not enough valid GCPs". Lower the threshold or
+switch off "Apply Fine Registration".<br>
 
-<h4>Unused coherence options</h4>
+<h4>Coherence maximisation</h4>
 
-&nbsp;&nbsp;The code also contains a coherence-maximisation path that
-searches the sub-pixel shift with Powell's method [1], using Coherence Window
-Size and "Use coherence sliding window". Because complex input always runs the
-NCC step above, this path cannot be reached from the operator. Coherence
-Window Size and "Use coherence sliding window" have no effect.<br>
+&nbsp;&nbsp;With "Optimize for InSAR" switched off, the fine step instead
+searches the sub-pixel shift that maximises the coherence, with Powell's
+method [1], using Coherence Window Size and "Use coherence sliding window".
+These two options have no effect while "Optimize for InSAR" is on (the
+default).<br>
 
 <h4> Parameters Used</h4>
 
@@ -135,17 +139,20 @@ in&nbsp;cross correlation operation. It must be power of 2. </li>
   <li>Max Iterations: The maximum number of iterations for computing
 coarse secondary GCP position. </li>
   <li>GCP Tolerance: The stopping criterion for secondary GCP selection.</li>
-  <li>Apply Fine Registration / Optimize for InSAR: always on for complex
-input, whatever the checkboxes show; detected input has no fine step.</li>
-  <li>Coherence Window Size: no effect (see Unused coherence options).</li>
+  <li>Apply Fine Registration: refine each coarse GCP by fine registration
+(complex input only; default on). Detected input has no fine step.</li>
+  <li>Optimize for InSAR: fine registration by oversampled amplitude
+cross-correlation (on, the default) or by coherence maximisation (off).</li>
+  <li>Coherence Window Size: used only when "Optimize for InSAR" is off (see
+Coherence maximisation).</li>
   <li>Coherence Threshold: GCPs whose fine-step amplitude NCC is below
 this threshold are dropped. </li>
   <li>Fine Registration Window Width: The window width of the fine
 amplitude correlation. It must be power of 2. </li>
   <li>Fine Registration Window Height: The window height of the fine
 amplitude correlation. It must be power of 2. </li>
-  <li>Use coherence sliding window: no effect (see Unused coherence
-options). </li>
+  <li>Use coherence sliding window: used only when "Optimize for InSAR" is
+off (see Coherence maximisation). </li>
 </ol>
 
 <br>
@@ -174,8 +181,8 @@ options). </li>
 <tr><td><code>columnInterpFactor</code></td><td>String</td><td>2</td><td>2, 4, 8, 16</td><td>&nbsp;</td><td>Column Interpolation Factor</td></tr>
 <tr><td><code>maxIteration</code></td><td>int</td><td>10</td><td>(1, 10]</td><td>&nbsp;</td><td>The maximum number of iterations</td></tr>
 <tr><td><code>gcpTolerance</code></td><td>double</td><td>0.5</td><td>(0, *)</td><td>&nbsp;</td><td>Tolerance in secondary GCP validation check</td></tr>
-<tr><td><code>applyFineRegistration</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Apply Fine Registration</td></tr>
-<tr><td><code>inSAROptimized</code></td><td>boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Optimize for InSAR</td></tr>
+<tr><td><code>applyFineRegistration</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>For complex (SLC) data, refine each coarse GCP by fine registration. Switch off to keep the coarse GCPs only, e.g. for temporally decorrelated pairs</td></tr>
+<tr><td><code>inSAROptimized</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Fine registration by oversampled cross-correlation (true) or by coherence maximisation (false)</td></tr>
 <tr><td><code>fineRegistrationWindowWidth</code></td><td>String</td><td>32</td><td>8, 16, 32, 64, 128, 256, 512</td><td>&nbsp;</td><td>Fine Registration Window Width</td></tr>
 <tr><td><code>fineRegistrationWindowHeight</code></td><td>String</td><td>32</td><td>8, 16, 32, 64, 128, 256, 512</td><td>&nbsp;</td><td>Fine Registration Window Height</td></tr>
 <tr><td><code>fineRegistrationWindowAccAzimuth</code></td><td>String</td><td>16</td><td>2, 4, 8, 16, 32, 64</td><td>&nbsp;</td><td>Search Window Accuracy in Azimuth Direction</td></tr>

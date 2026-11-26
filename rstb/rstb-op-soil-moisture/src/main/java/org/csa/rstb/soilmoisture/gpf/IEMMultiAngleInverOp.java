@@ -263,8 +263,9 @@ public class IEMMultiAngleInverOp extends IEMInverBase {
 
                     // It is IMPORTANT that the values are not converted at this point because their
                     // validity is being checked against whatever the bands say is the "no data value".
-                    if (isValidSigmaHH(sigma1, 0) && isValidTheta(theta1, 0) &&
-                            isValidSigmaHH(sigma2, 1) && isValidTheta(theta2, 1)) {
+                    // check each sigma against the no-data value of its own polarisation (pol 0 = HH, 1 = VV)
+                    if (isValidSigma(sigma1, 0) && isValidTheta(theta1, 0) &&
+                            isValidSigma(sigma2, 1) && isValidTheta(theta2, 1)) {
 
                         sigma[0] = sigmaUnitIsDecibels[0] ? sigma1 : toDecibels(sigma1);
                         sigma[1] = sigmaUnitIsDecibels[1] ? sigma2 : toDecibels(sigma2);
@@ -458,6 +459,11 @@ public class IEMMultiAngleInverOp extends IEMInverBase {
      */
     public void setLUTFile(final String lutFilePath) {
         lutFile = new File(lutFilePath);
+    }
+
+    /** Validity of the sigma of image {@code imageIdx}, against the no-data value of its selected polarisation. */
+    private boolean isValidSigma(final double sigma, final int imageIdx) {
+        return pol[imageIdx] == 0 ? isValidSigmaHH(sigma, imageIdx) : isValidSigmaVV(sigma, imageIdx);
     }
 
     /**

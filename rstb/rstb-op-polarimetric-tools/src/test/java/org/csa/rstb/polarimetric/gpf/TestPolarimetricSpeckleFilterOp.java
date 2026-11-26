@@ -28,6 +28,9 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.STACK_DATES;
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.assertSameBands;
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.assertStackBandsPerDate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeTrue;
@@ -93,14 +96,14 @@ public class TestPolarimetricSpeckleFilterOp {
     @Before
     public void setUp() {
         // If any of the file does not exist: the test will be ignored
-        assumeTrue(inputPathQuad + "not found", new File(inputPathQuad).exists());
-        assumeTrue(inputQuadFullStack + "not found", new File(inputQuadFullStack).exists());
-        assumeTrue(inputC3Stack + "not found", new File(inputC3Stack).exists());
-        assumeTrue(inputT3Stack + "not found", new File(inputT3Stack).exists());
+        assumeTrue(inputPathQuad + " not found", new File(inputPathQuad).exists());
+        assumeTrue(inputQuadFullStack + " not found", new File(inputQuadFullStack).exists());
+        assumeTrue(inputC3Stack + " not found", new File(inputC3Stack).exists());
+        assumeTrue(inputT3Stack + " not found", new File(inputT3Stack).exists());
 
-        assumeTrue(expectedBoxCar + "not found", new File(expectedBoxCar).exists());
-        assumeTrue(expectedRefinedLee + "not found", new File(expectedRefinedLee).exists());
-        assumeTrue(expectedIDAN + "not found", new File(expectedIDAN).exists());
+        assumeTrue(expectedBoxCar + " not found", new File(expectedBoxCar).exists());
+        assumeTrue(expectedRefinedLee + " not found", new File(expectedRefinedLee).exists());
+        assumeTrue(expectedIDAN + " not found", new File(expectedIDAN).exists());
     }
 
     private Product runFilter(final PolarimetricSpeckleFilterOp op,
@@ -128,8 +131,7 @@ public class TestPolarimetricSpeckleFilterOp {
 
         final PolarimetricSpeckleFilterOp op = (PolarimetricSpeckleFilterOp) spi.createOperator();
         final Product targetProduct = runFilter(op, PolarimetricSpeckleFilterOp.BOXCAR_SPECKLE_FILTER, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedBoxCar, null);
+        TestUtils.compareProducts(targetProduct, expectedBoxCar, null);
     }
 
     /**
@@ -142,8 +144,7 @@ public class TestPolarimetricSpeckleFilterOp {
 
         final PolarimetricSpeckleFilterOp op = (PolarimetricSpeckleFilterOp) spi.createOperator();
         final Product targetProduct = runFilter(op, PolarimetricSpeckleFilterOp.REFINED_LEE_FILTER, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedRefinedLee, null);
+        TestUtils.compareProducts(targetProduct, expectedRefinedLee, null);
     }
 
     /**
@@ -156,48 +157,53 @@ public class TestPolarimetricSpeckleFilterOp {
 
         final PolarimetricSpeckleFilterOp op = (PolarimetricSpeckleFilterOp) spi.createOperator();
         final Product targetProduct = runFilter(op, PolarimetricSpeckleFilterOp.IDAN_FILTER, inputPathQuad);
-        if (targetProduct != null)
-            TestUtils.compareProducts(targetProduct, expectedIDAN, null);
+        TestUtils.compareProducts(targetProduct, expectedIDAN, null);
     }
 
     // Stack
+    // Every acquisition date must get the same filtered matrix bands as a single-date product of the same matrix
+    // type, and since RS2-T3-Stack is the T3 of RS2-Quad_Pol_Stack, filtering either must give the same values.
+
+    private Product filter(final String filterName, final Product source) {
+        final PolarimetricSpeckleFilterOp op = (PolarimetricSpeckleFilterOp) spi.createOperator();
+        op.setSourceProduct(source);
+        op.SetFilter(filterName);
+        return op.getTargetProduct();
+    }
+
+    private void assertStackFilter(final String filterName) throws Exception {
+        final Product quad = loadCached(new File(inputPathQuad));
+        final PolarimetricMatricesOp toC3 = new PolarimetricMatricesOp();
+        toC3.setSourceProduct(quad);
+        toC3.SetMatrixType(PolarimetricMatricesOp.C3);
+
+        final Product singleT3 = filter(filterName, quad);
+        final Product singleC3 = filter(filterName, toC3.getTargetProduct());
+
+        final Product fromQuad = runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(), filterName, inputQuadFullStack);
+        final Product fromT3 = runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(), filterName, inputT3Stack);
+        assertStackBandsPerDate(singleT3, fromQuad, STACK_DATES);
+        assertStackBandsPerDate(singleT3, fromT3, STACK_DATES);
+        assertStackBandsPerDate(singleC3, runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(), filterName, inputC3Stack), STACK_DATES);
+
+        // The T3 stack is stored as float32: 0.1% relative, or 1% of the band's mean magnitude near zero.
+        // The 2-pixel image border (half the default 5x5 window) is excluded: Box Car averages the window clipped
+        // to the image for quad-pol input but replicates edge pixels for C3/T3 input, so border values differ.
+        assertSameBands(filterName + " quad vs T3 stack", fromQuad, fromT3, 1e-3, 1e-2, 0.0, 2);
+    }
 
     @Test
     public void testBoxCarStack() throws Exception {
-
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.BOXCAR_SPECKLE_FILTER, inputPathQuad);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.BOXCAR_SPECKLE_FILTER, inputQuadFullStack);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.BOXCAR_SPECKLE_FILTER, inputC3Stack);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.BOXCAR_SPECKLE_FILTER, inputT3Stack);
+        assertStackFilter(PolarimetricSpeckleFilterOp.BOXCAR_SPECKLE_FILTER);
     }
 
     @Test
     public void testRefinedLeeStack() throws Exception {
-
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.REFINED_LEE_FILTER, inputPathQuad);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.REFINED_LEE_FILTER, inputQuadFullStack);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.REFINED_LEE_FILTER, inputC3Stack);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.REFINED_LEE_FILTER, inputT3Stack);
+        assertStackFilter(PolarimetricSpeckleFilterOp.REFINED_LEE_FILTER);
     }
 
     @Test
     public void testIDANStack() throws Exception {
-
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.IDAN_FILTER, inputPathQuad);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.IDAN_FILTER, inputQuadFullStack);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.IDAN_FILTER, inputC3Stack);
-        runFilter((PolarimetricSpeckleFilterOp) spi.createOperator(),
-                PolarimetricSpeckleFilterOp.IDAN_FILTER, inputT3Stack);
+        assertStackFilter(PolarimetricSpeckleFilterOp.IDAN_FILTER);
     }
 }

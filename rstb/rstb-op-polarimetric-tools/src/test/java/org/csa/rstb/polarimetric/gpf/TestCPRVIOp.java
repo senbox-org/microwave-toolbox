@@ -26,8 +26,11 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.assertAllFinite;
+import static org.csa.rstb.polarimetric.gpf.PolTestAssertions.readBand;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -61,7 +64,7 @@ public class TestCPRVIOp {
     @Before
     public void setUp() {
         // If any of the file does not exist: the test will be ignored
-        assumeTrue(inputPath + "not found", new File(inputPath).exists());
+        assumeTrue(inputPath + " not found", new File(inputPath).exists());
     }
 
 
@@ -78,10 +81,26 @@ public class TestCPRVIOp {
         return targetProduct;
     }
 
+    /**
+     * CpRVI (Mandal et al. 2020) = (1 - 3/2 GD) * (min(SC,OC)/max(SC,OC))^(3 GD), with GD the geodesic distance
+     * to the ideal depolarizer, is a vegetation index defined on [0, 1]. On a real compact-pol scene it must be
+     * finite everywhere, stay within that range and vary spatially.
+     */
     @Test
     @STTM("SNAP-3710")
     public void testCPRVIOp() throws Exception {
 
-        runCPRVIOp((CPRVIOp) spi.createOperator(), inputPath);
+        final Product target = runCPRVIOp((CPRVIOp) spi.createOperator(), inputPath);
+        final double[] rvi = readBand(target, "CpRVI");
+        assertAllFinite("CpRVI", rvi);
+
+        double min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
+        for (double v : rvi) {
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+        }
+        assertTrue("CpRVI min " + min + " < 0", min >= 0.0);
+        assertTrue("CpRVI max " + max + " > 1", max <= 1.0);
+        assertTrue("CpRVI is constant (" + min + ")", max - min > 0.1);
     }
 }

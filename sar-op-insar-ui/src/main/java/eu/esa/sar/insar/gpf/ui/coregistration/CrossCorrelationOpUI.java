@@ -322,7 +322,7 @@ public class CrossCorrelationOpUI extends BaseOperatorUI {
     /**
      * Gray the SLC controls only when the source product is known NOT to be complex. With no
      * source product the answer is unknown, and the operator re-derives it from the product at
-     * initialize() anyway (CrossCorrelationOp forces applyFineRegistration for complex input),
+     * initialize() anyway (CrossCorrelationOp only applies fine registration to complex input),
      * so leaving them enabled cannot produce a wrong result.
      */
     private boolean isComplexOrUnknown() {

@@ -33,7 +33,7 @@
       <columnInterpFactor>2</columnInterpFactor>
       <maxIteration>2</maxIteration>
       <gcpTolerance>0.5</gcpTolerance>
-      <applyFineRegistration>false</applyFineRegistration>
+      <applyFineRegistration>true</applyFineRegistration>
       <fineRegistrationWindowWidth>64</fineRegistrationWindowWidth>
       <fineRegistrationWindowHeight>64</fineRegistrationWindowHeight>
       <coherenceWindowSize>3</coherenceWindowSize>
