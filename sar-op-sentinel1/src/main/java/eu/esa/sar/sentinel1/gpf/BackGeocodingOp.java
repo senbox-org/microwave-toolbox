@@ -48,6 +48,7 @@ import org.esa.snap.engine_utilities.datamodel.Unit;
 import org.esa.snap.engine_utilities.eo.Constants;
 import org.esa.snap.engine_utilities.eo.GeoUtils;
 import org.esa.snap.engine_utilities.gpf.*;
+import org.jlinda.core.delaunay.GridTriangleInterpolator;
 import org.jlinda.core.delaunay.TriangleInterpolator;
 
 import java.awt.*;
@@ -137,6 +138,24 @@ public final class BackGeocodingOp extends Operator {
     private static final String PRODUCT_SUFFIX = "_Stack";
 
     private boolean outputDEM = false;
+
+    /**
+     * System property selecting how the DEM-grid positions are interpolated onto the radar grid:
+     * "grid" (default) triangulates the DEM grid cells directly, "delaunay" builds a Delaunay triangulation of
+     * the projected DEM points (the original method).
+     */
+    static final String INTERPOLATION_PROPERTY = "sar.backgeocoding.interpolation";
+
+    private final boolean useDelaunay =
+            "delaunay".equalsIgnoreCase(System.getProperty(INTERPOLATION_PROPERTY, "grid").trim());
+
+    /** Test hook: receives the inputs of every DEM-to-radar-grid interpolation. */
+    interface TileGridListener {
+        void onTileGrid(double[][] referenceAz, double[][] referenceRg, TriangleInterpolator.ZData[] dataList,
+                        org.jlinda.core.Window tileWindow, double rgAzRatio);
+    }
+
+    static volatile TileGridListener tileGridListener = null;
 
     /**
      * Default constructor. The graph processing framework
@@ -615,8 +634,7 @@ public final class BackGeocodingOp extends Operator {
                 new TriangleInterpolator.ZData(lon, lonArray)
         };
 
-        TriangleInterpolator.gridDataLinear(referenceAz, referenceRg, dataList,
-                tileWindow, rgAzRatio, 1, 1, invalidIndex, 0);
+        interpolateToTile(referenceAz, referenceRg, dataList, tileWindow, rgAzRatio);
 
         final PixelPos[][] secondaryBurstPointPos = new PixelPos[refBurst.azimuthExtent][refBurst.rangeExtent];
         for(int yy = 0; yy < refBurst.azimuthExtent; ++yy) {
@@ -1584,8 +1602,7 @@ public final class BackGeocodingOp extends Operator {
                     new TriangleInterpolator.ZData(lon, lonArray)
             };
 
-            TriangleInterpolator.gridDataLinear(referenceAz, referenceRg, dataList,
-                    tileWindow, rgAzRatio, 1, 1, invalidIndex, 0);
+            interpolateToTile(referenceAz, referenceRg, dataList, tileWindow, rgAzRatio);
 
             boolean allElementsAreNull = true;
             // Reuse one GeoPos for the entire w*h DEM sweep instead of allocating per pixel.
@@ -1622,6 +1639,27 @@ public final class BackGeocodingOp extends Operator {
         }
 
         return false;
+    }
+
+    /**
+     * Linearly interpolate the quantities in dataList, known at the DEM grid points whose reference image
+     * positions are referenceAz/referenceRg, onto the pixels of tileWindow.
+     */
+    private void interpolateToTile(final double[][] referenceAz, final double[][] referenceRg,
+                                   final TriangleInterpolator.ZData[] dataList,
+                                   final org.jlinda.core.Window tileWindow, final double rgAzRatio) throws Exception {
+
+        final TileGridListener listener = tileGridListener;
+        if (listener != null) {
+            listener.onTileGrid(referenceAz, referenceRg, dataList, tileWindow, rgAzRatio);
+        }
+        if (useDelaunay) {
+            TriangleInterpolator.gridDataLinear(referenceAz, referenceRg, dataList,
+                    tileWindow, rgAzRatio, 1, 1, invalidIndex, 0);
+        } else {
+            GridTriangleInterpolator.gridDataLinear(referenceAz, referenceRg, dataList,
+                    tileWindow, rgAzRatio, 1, 1, invalidIndex, 0);
+        }
     }
 
     /**
