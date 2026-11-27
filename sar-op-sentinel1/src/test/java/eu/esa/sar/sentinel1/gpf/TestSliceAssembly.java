@@ -17,9 +17,11 @@ package eu.esa.sar.sentinel1.gpf;
 
 import com.bc.ceres.annotation.STTM;
 import eu.esa.sar.commons.test.TestData;
+import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.Product;
 import org.esa.snap.core.gpf.OperatorSpi;
 import org.esa.snap.core.gpf.annotations.OperatorMetadata;
+import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.util.TestUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -93,6 +95,32 @@ public class TestSliceAssembly {
         assertFalse(SliceAssemblyOp.isTOPSBurstProduct("SLC", "SM"));
         assertFalse(SliceAssemblyOp.isTOPSBurstProduct("GRD", "IW"));
         assertFalse(SliceAssemblyOp.isTOPSBurstProduct("GRD", "SM"));
+    }
+
+    @Test
+    @STTM("SNAP-4388")
+    public void testAssembledGrdCornersSpanAllSlices() throws Exception {
+        try(final Product product1 = TestUtils.readSourceProduct(S1_IW_GRD1)) {
+            try(final Product product2 = TestUtils.readSourceProduct(S1_IW_GRD2)) {
+                final SliceAssemblyOp op = new SliceAssemblyOp();
+                op.setSourceProducts(product2, product1);
+                final Product target = op.getTargetProduct();
+
+                final MetadataElement absTgt = AbstractMetadata.getAbstractedMetadata(target);
+                final MetadataElement absFirst = AbstractMetadata.getAbstractedMetadata(product1);
+                final MetadataElement absLast = AbstractMetadata.getAbstractedMetadata(product2);
+
+                // first-line corners come from the first slice, last-line corners from the last slice
+                for (String c : new String[]{AbstractMetadata.first_near_lat, AbstractMetadata.first_near_long,
+                        AbstractMetadata.first_far_lat, AbstractMetadata.first_far_long}) {
+                    assertEquals(c, absFirst.getAttributeDouble(c), absTgt.getAttributeDouble(c), 1e-9);
+                }
+                for (String c : new String[]{AbstractMetadata.last_near_lat, AbstractMetadata.last_near_long,
+                        AbstractMetadata.last_far_lat, AbstractMetadata.last_far_long}) {
+                    assertEquals(c, absLast.getAttributeDouble(c), absTgt.getAttributeDouble(c), 1e-9);
+                }
+            }
+        }
     }
 
     @Test

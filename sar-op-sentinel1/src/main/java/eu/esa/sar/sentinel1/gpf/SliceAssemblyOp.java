@@ -1835,8 +1835,8 @@ public final class SliceAssemblyOp extends Operator {
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.num_output_lines, targetHeight);
         AbstractMetadata.setAttribute(absTgt, AbstractMetadata.num_samples_per_line, targetWidth);
 
-        if (!isBurstProduct && "SLC".equals(absTgt.getAttributeString(AbstractMetadata.PRODUCT_TYPE))) {
-            // Stripmap SLC: the last-line corners are those of the last slice
+        if (!isBurstProduct) {
+            // GRD and Stripmap SLC: the last-line corners are those of the last slice
             // (multi-swath TOPS SLC sets them in createLatLonTiePointGridsForSLC)
             for (String corner : new String[]{AbstractMetadata.last_near_lat, AbstractMetadata.last_near_long,
                     AbstractMetadata.last_far_lat, AbstractMetadata.last_far_long}) {

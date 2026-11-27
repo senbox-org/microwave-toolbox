@@ -51,12 +51,11 @@
 
 <p>
     This operator performs without any parameters, all the necessary processing information is constructed using
-    product metadata. The only input parameter is the control flag for the degree of the orbit interpolator.
+    product metadata.
 </p>
 <ol>
     <li>
-        <b>Orbit interpolation degree:</b> Degree of the polynomial used to interpolate the orbit state vectors; 2 to 10, default 3.
-        It has to be smaller than or equal to (number of state vectors)-1.
+        <b>Orbit interpolation degree:</b> has no effect. Between two state vectors the orbit is interpolated with a local 8-point Lagrange polynomial through the nearest vectors, and velocities are its derivative. The parameter is kept so that existing graphs still load.
     </li>
 </ol>
 
@@ -96,7 +95,7 @@
 <p>GPT operator: <code>Three-passDInSAR</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
 <table border="1" cellpadding="3" cellspacing="0">
 <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
-<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>(1, 10]</td><td>&nbsp;</td><td>Degree of orbit interpolation polynomial</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>(1, 10]</td><td>&nbsp;</td><td>Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.</td></tr>
 </table>
 <!-- params:end -->
 <!-- footer:begin -->

@@ -100,15 +100,7 @@ The following parameters are used by this operator:
         The degree of 2D flat-earth polynomial. Recommended degree, appropriate for most usage cases is 5th degree.
     </li>
     <li>
-        Orbit interpolation degree. Degree of the polynomial used to interpolate the orbit state vectors;
-        values 1 to 5, default 3. The degree has
-        to be smaller or equal to (number of state vectors)-1. The positions of state vectors (x,y,z) are
-        independently interpolated, the velocities are estimated from the position. The annotated
-        velocities, if available, will be used in the interpolation and not computed from the positions.
-        NOTE: It is not recommended to use a degree smaller
-        than the maximum possible, except if it gets too large to avoid oscillations. However, depending on
-        the temporal posting of the state vectors and their accuracy different interpolation strategies can
-        give better results.
+        Orbit interpolation degree: has no effect. Between two state vectors the orbit is interpolated with a local 8-point Lagrange polynomial through the nearest vectors, and velocities are its derivative. The parameter is kept so that existing graphs still load.
     </li>
     <li>
         Flag for estimating and subtracting the reference (flat-earth) phase (default on).</li><li>Flag for subtracting topographic phase</li><li>DEM to be used for subtracting topographic phase</li><li>Extension of tile (%) for DEM simulation (optimization parameter)</li><li>Flag for outputting elevation (if topographic phase subtraction is chosen)</li><li>Flag for outputting orthorectified latitudes and longitudes&nbsp;(if topographic phase subtraction is chosen)</li><li>
@@ -142,7 +134,7 @@ The following parameters are used by this operator:
 <tr><td><code>subtractFlatEarthPhase</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Subtract flat-earth phase</td></tr>
 <tr><td><code>srpPolynomialDegree</code></td><td>int</td><td>5</td><td>1, 2, 3, 4, 5, 6, 7, 8</td><td>&nbsp;</td><td>Order of 'Flat earth phase' polynomial</td></tr>
 <tr><td><code>srpNumberPoints</code></td><td>int</td><td>501</td><td>301, 401, 501, 601, 701, 801, 901, 1001</td><td>&nbsp;</td><td>Number of points for the 'flat earth phase' polynomial estimation</td></tr>
-<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of orbit (polynomial) interpolator</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.</td></tr>
 <tr><td><code>includeCoherence</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Output coherence estimation</td></tr>
 <tr><td><code>cohWinAz</code></td><td>int</td><td>10</td><td>&nbsp;</td><td>&nbsp;</td><td>Size of coherence estimation window in Azimuth direction</td></tr>
 <tr><td><code>cohWinRg</code></td><td>int</td><td>10</td><td>&nbsp;</td><td>&nbsp;</td><td>Size of coherence estimation window in Range direction</td></tr>

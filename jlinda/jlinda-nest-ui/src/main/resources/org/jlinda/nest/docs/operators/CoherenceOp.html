@@ -69,8 +69,7 @@
     <li><b>Number of "Flat Earth" estimation points</b> (<code>srpNumberPoints</code>): number of
         points at which the flat-earth phase is computed for the polynomial fit; values 301, 401,
         ..., 1001, default 501.</li>
-    <li><b>Orbit interpolation degree</b> (<code>orbitDegree</code>): degree of the orbit
-        interpolation polynomial; values 1&ndash;5, default 3.</li>
+    <li><b>Orbit interpolation degree</b> (<code>orbitDegree</code>): has no effect. Between two state vectors the orbit is interpolated with a local 8-point Lagrange polynomial through the nearest vectors, and velocities are its derivative. The parameter is kept so that existing graphs still load.</li>
     <li><b>Subtract topographic phase</b> (<code>subtractTopographicPhase</code>): simulate the
         topographic phase from a DEM and remove it before estimating coherence. Default: on.
         Complex data only.</li>
@@ -117,7 +116,7 @@
 <tr><td><code>subtractFlatEarthPhase</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Subtract flat-earth phase in coherence phase</td></tr>
 <tr><td><code>srpPolynomialDegree</code></td><td>int</td><td>5</td><td>1, 2, 3, 4, 5, 6, 7, 8</td><td>&nbsp;</td><td>Order of 'Flat earth phase' polynomial</td></tr>
 <tr><td><code>srpNumberPoints</code></td><td>int</td><td>501</td><td>301, 401, 501, 601, 701, 801, 901, 1001</td><td>&nbsp;</td><td>Number of points for the 'flat earth phase' polynomial estimation</td></tr>
-<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of orbit (polynomial) interpolator</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.</td></tr>
 <tr><td><code>squarePixel</code></td><td>Boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Use ground square pixel</td></tr>
 <tr><td><code>subtractTopographicPhase</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Subtract topographic phase</td></tr>
 <tr><td><code>correctCoherenceBias</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Correct Coherence Bias</td></tr>

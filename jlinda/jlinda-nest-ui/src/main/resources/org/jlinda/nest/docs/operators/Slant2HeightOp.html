@@ -66,8 +66,7 @@
         <b>Degree of 2D polynomial:</b> Degree of the two-dimensional polynomial to fit the reference phase through.
     </li>
     <li>
-        <b>Orbit interpolation degree:</b> Degree of the polynomial used to interpolate the orbit state vectors; values 2 to 5, default 3.
-        It has to be smaller than or equal to (number of state vectors)-1.
+        <b>Orbit interpolation degree:</b> has no effect. Between two state vectors the orbit is interpolated with a local 8-point Lagrange polynomial through the nearest vectors, and velocities are its derivative. The parameter is kept so that existing graphs still load.
     </li>
 </ol>
 
@@ -98,7 +97,7 @@
 <tr><td><code>nHeights</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Number of height samples in range [0,5000)</td></tr>
 <tr><td><code>degree1D</code></td><td>int</td><td>2</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of the 1D polynomial to fit reference phase through.</td></tr>
 <tr><td><code>degree2D</code></td><td>int</td><td>5</td><td>1, 2, 3, 4, 5, 6, 7, 8</td><td>&nbsp;</td><td>Degree of the 2D polynomial to fit reference phase through.</td></tr>
-<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of orbit (polynomial) interpolator</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.</td></tr>
 </table>
 <!-- params:end -->
 <!-- footer:begin -->

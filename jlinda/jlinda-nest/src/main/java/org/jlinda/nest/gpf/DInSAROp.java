@@ -61,7 +61,7 @@ public class DInSAROp extends Operator {
     private Product targetProduct;
 
     @Parameter(interval = "(1, 10]",
-            description = "Degree of orbit interpolation polynomial",
+            description = "Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.",
             defaultValue = "3",
             label = "Orbit Interpolation Degree")
     private int orbitDegree = 3;

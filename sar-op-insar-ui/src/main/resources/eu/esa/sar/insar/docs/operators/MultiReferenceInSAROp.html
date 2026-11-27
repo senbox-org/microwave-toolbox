@@ -91,7 +91,7 @@
 <ul>
     <img alt="" src="images/mm.png"><br>
     <h5>Configuration parameters</h5>
-    <li>Orbit interpolation degree: degree for polynomial interpolation of orbit.
+    <li>Orbit interpolation degree: has no effect. Between two state vectors the orbit is interpolated with a local 8-point Lagrange polynomial through the nearest vectors, and velocities are its derivative. The parameter is kept so that existing graphs still load.
     </li>
     <li>Coherence range window size: number of pixels for coherence estimation.
     </li>
@@ -138,7 +138,7 @@ It is recommended to use the Graph Builder for quickly generating the pairs (by 
 <p>GPT operator: <code>MultiMasterInSAR</code>. Generated from the operator source; parameter names are those used in GPT and graph XML.</p>
 <table border="1" cellpadding="3" cellspacing="0">
 <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
-<tr><td><code>orbitDegree</code></td><td>int</td><td>4</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of orbit (polynomial) interpolator</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>4</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.</td></tr>
 <tr><td><code>pairs</code></td><td>String[]</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>List of interferometric pairs</td></tr>
 <tr><td><code>includeWavenumber</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Include wavenumber</td></tr>
 <tr><td><code>includeIncidenceAngle</code></td><td>boolean</td><td>true</td><td>&nbsp;</td><td>&nbsp;</td><td>Include incidence angle</td></tr>
