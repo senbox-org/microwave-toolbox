@@ -122,7 +122,7 @@ public final class PhaseToElevationOp extends Operator {
 
     @Parameter(valueSet = {"2", "3", "4", "5"}, defaultValue = "3",
             label = "Orbit interpolation degree",
-            description = "Degree of the polynomial orbit interpolator.")
+            description = "Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.")
     private int orbitDegree = 3;
 
     private ElevationModel dem = null;

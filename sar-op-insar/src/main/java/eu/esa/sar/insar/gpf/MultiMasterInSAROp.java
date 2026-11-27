@@ -70,7 +70,7 @@ public class MultiMasterInSAROp extends Operator {
     private Product targetProduct;
 
     @Parameter(valueSet = {"1", "2", "3", "4", "5"},
-            description = "Degree of orbit (polynomial) interpolator",
+            description = "Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.",
             defaultValue = "4",
             label = "Orbit interpolation degree")
     private int orbitDegree = 4;

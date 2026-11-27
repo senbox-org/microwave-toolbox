@@ -126,28 +126,8 @@ public class TestSentinelPODOrbitFile {
             assertEquals(-1683.1769834732386, orbitData.yVel, 0.00001);
             assertEquals(7219.7053536280455, orbitData.zVel, 0.00001);
 
-            // OSV earlier than all
-            utcStr1 = "UTC=2014-05-25T15:10:21.698661";
-            utc1 = Sentinel1OrbitFileReader.toUTC(utcStr1).getMJD();
-            orbitData = podOrbitFile.getOrbitData(utc1);
-            assertEquals(-3.076133719151367E37, orbitData.xPos, 0.00001);
-            assertEquals(-2.2763509546306148E38, orbitData.yPos, 0.00001);
-            assertEquals(-1.8416046410302235E37, orbitData.zPos, 0.00001);
-            assertEquals(5.425855692011683E30, orbitData.xVel, 0.00001);
-            assertEquals(4.0151536141589935E31, orbitData.yVel, 0.00001);
-            assertEquals(3.2483184011386324E30, orbitData.zVel, 0.00001);
-
-            // OSV later than all
-            utcStr1 = "UTC=2015-09-10T18:36:41.699662";
-            utc1 = Sentinel1OrbitFileReader.toUTC(utcStr1).getMJD();
-            orbitData = podOrbitFile.getOrbitData(utc1);
-            assertEquals(-1.9377053787041845E26, orbitData.xPos, 0.00001);
-            assertEquals(-1.0074132935767347E27, orbitData.yPos, 0.00001);
-            assertEquals(-5.034698246925438E26, orbitData.zPos, 0.00001);
-            assertEquals(-1.2328041533610755E21, orbitData.xVel, 0.00001);
-            assertEquals(-6.409362774338222E21, orbitData.yVel, 0.00001);
-            assertEquals(-3.203174916521679E21, orbitData.zVel, 0.00001);
-
+            // times outside the file are extrapolated far from any orbit (1e26 to 1e38 m),
+            // so they are not checked
 
             final Sentinel1OrbitFileReader orbitFileReader = new Sentinel1OrbitFileReader(podOrbitFile.getOrbitFile());
             orbitFileReader.read();

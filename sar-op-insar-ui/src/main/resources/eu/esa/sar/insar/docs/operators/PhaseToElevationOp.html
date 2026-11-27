@@ -70,7 +70,7 @@
 1):<br>
 <ul>
     <li>Method: <code>DEM Seed</code> or <code>Schwabisch</code> (the Schw&auml;bisch method), as described above.</li>
-    <li>Orbit Interpolation Degree: Degree of the polynomial orbit interpolator.</li>
+    <li>Orbit Interpolation Degree: has no effect. Between two state vectors the orbit is interpolated with a local 8-point Lagrange polynomial through the nearest vectors, and velocities are its derivative. The parameter is kept so that existing graphs still load.</li>
 </ul>
 &nbsp;&nbsp; DEM Seed only:
 <ul>
@@ -113,7 +113,7 @@ Figure 1. Phase to Elevation operator UI<br>
 <tr><td><code>nHeights</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Schwabisch only: number of height samples in the range [0, 5000) m.</td></tr>
 <tr><td><code>degree1D</code></td><td>int</td><td>2</td><td>1, 2, 3, 4, 5</td><td>&nbsp;</td><td>Schwabisch only: degree of the 1D polynomial fitting height against reference phase.</td></tr>
 <tr><td><code>degree2D</code></td><td>int</td><td>5</td><td>1, 2, 3, 4, 5, 6, 7, 8</td><td>&nbsp;</td><td>Schwabisch only: degree of the 2D polynomial fitting the 1D coefficients across the scene.</td></tr>
-<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Degree of the polynomial orbit interpolator.</td></tr>
+<tr><td><code>orbitDegree</code></td><td>int</td><td>3</td><td>2, 3, 4, 5</td><td>&nbsp;</td><td>Has no effect. The orbit is interpolated between state vectors with a local 8-point Lagrange polynomial; the parameter is kept so that existing graphs still load.</td></tr>
 </table>
 <!-- params:end -->
 <!-- footer:begin -->
