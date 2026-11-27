@@ -72,7 +72,9 @@ Ecosystem, from where it can be downloaded and placed in the local orbit folder.
         For BIOMASS products the orbit state vectors already come from the product annotation, so the operator passes
         such a product through unchanged.
     </li>
-    <li>Polynomial Degree (default 3): The polynomial degree used for the interpolation.
+    <li>Polynomial Degree (default 3): The polynomial degree used to interpolate Kompsat-5 and BIOMASS orbits.
+        Sentinel-1 orbits are always interpolated with an 8-point Lagrange polynomial through the positions,
+        the velocity being its derivative, and do not use this parameter.
     </li>
     <li>Do not fail if new orbit file is not found (default: off): If this option is selected, the operator will not
         fail if the orbit file is not found. The operator will continue to process the product with the original
@@ -96,7 +98,7 @@ Ecosystem, from where it can be downloaded and placed in the local orbit folder.
 <table border="1" cellpadding="3" cellspacing="0">
 <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Allowed values</th><th>Unit</th><th>Description</th></tr>
 <tr><td><code>orbitType</code></td><td>String</td><td>Sentinel Precise (Auto Download)</td><td>Sentinel Precise (Auto Download), Sentinel Restituted (Auto Download), DORIS Preliminary POR (ENVISAT), DORIS Precise VOR (ENVISAT) (Auto Download), DELFT Precise (ENVISAT, ERS1&amp;2) (Auto Download), PRARE Precise (ERS1&amp;2) (Auto Download), Kompsat5 Precise, Biomass Precise (MAAP) (Auto Download)</td><td>&nbsp;</td><td>Orbit State Vectors</td></tr>
-<tr><td><code>polyDegree</code></td><td>int</td><td>3</td><td>&nbsp;</td><td>&nbsp;</td><td>Polynomial Degree</td></tr>
+<tr><td><code>polyDegree</code></td><td>int</td><td>3</td><td>&nbsp;</td><td>&nbsp;</td><td>Polynomial degree for Kompsat-5 and BIOMASS orbit interpolation. Sentinel-1 orbits are interpolated with an 8-point Lagrange polynomial and do not use it.</td></tr>
 <tr><td><code>continueOnFail</code></td><td>Boolean</td><td>false</td><td>&nbsp;</td><td>&nbsp;</td><td>Do not fail if new orbit file is not found</td></tr>
 </table>
 <!-- params:end -->

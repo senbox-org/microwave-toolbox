@@ -96,7 +96,9 @@ public final class ApplyOrbitFileOp extends Operator {
             defaultValue = SentinelPODOrbitFile.PRECISE + " (Auto Download)", label = "Orbit State Vectors")
     private String orbitType = null;
 
-    @Parameter(label = "Polynomial Degree", defaultValue = "3")
+    @Parameter(label = "Polynomial Degree", defaultValue = "3",
+            description = "Polynomial degree for Kompsat-5 and BIOMASS orbit interpolation. Sentinel-1 orbits"
+                    + " are interpolated with an 8-point Lagrange polynomial and do not use it.")
     private int polyDegree = 3;
 
     @Parameter(label = "Do not fail if new orbit file is not found", defaultValue = "false")
