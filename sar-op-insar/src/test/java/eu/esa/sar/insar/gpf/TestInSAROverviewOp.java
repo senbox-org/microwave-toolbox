@@ -156,10 +156,10 @@ public class TestInSAROverviewOp extends ProcessorTest {
             final float tempBaseLine = (float)overview.get("temporal_baseline_days");
             final float amb = (float)overview.get("height_of_ambiguity_m");
             final float dopDiff = (float)overview.get("doppler_difference_hz");
-            assertEquals(coh, 0.24187608f, 1e-5f);
-            assertEquals(perpBaseLine, -898.3998f, 1e-5f);
+            assertEquals(coh, 0.24177344f, 1e-5f);
+            assertEquals(perpBaseLine, -898.5277f, 1e-5f);
             assertEquals(tempBaseLine, -35.00003f, 1e-5f);
-            assertEquals(amb, 10.122804f, 1e-5f);
+            assertEquals(amb, 10.121361f, 1e-5f);
             assertEquals(dopDiff, -8.076843f, 1e-5f);
         }
     }

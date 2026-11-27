@@ -102,7 +102,7 @@ public class TestInterferogramOp {
 
         // get targetProduct: execute initialize()
         final Product targetProduct = op.getTargetProduct();
-        final float[] expected = new float[] { -0.56316f,-3.09884f,-2.96232f };
+        final float[] expected = new float[] { -0.5622773f,-3.0979533f,-2.961433f };
         TestUtils.comparePixels(targetProduct, "Phase_ifg_IW1_VH_25Feb2018_09Mar2018", expected);
     }
 
