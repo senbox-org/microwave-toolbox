@@ -15,19 +15,18 @@
  */
 package eu.esa.sar.orbits.io.sentinel1;
 
-import Jama.Matrix;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import eu.esa.sar.orbits.io.BaseOrbitFile;
 import eu.esa.sar.orbits.io.OrbitFile;
+import eu.esa.sar.orbits.io.OrbitInterpolation;
 import org.esa.snap.core.datamodel.MetadataElement;
 import org.esa.snap.core.datamodel.ProductData;
 import org.esa.snap.core.util.StringUtils;
 import org.esa.snap.core.util.SystemUtils;
 import org.esa.snap.engine_utilities.datamodel.AbstractMetadata;
 import org.esa.snap.engine_utilities.datamodel.Orbits;
-import org.esa.snap.engine_utilities.util.Maths;
 import org.esa.snap.engine_utilities.util.Settings;
 
 import java.io.*;
@@ -51,8 +50,6 @@ public class SentinelPODOrbitFile extends BaseOrbitFile implements OrbitFile {
     public final static String RESTITUTED = "Sentinel Restituted";
     public final static String PRECISE = "Sentinel Precise";
 
-    private final int polyDegree;
-
     private List<Orbits.OrbitVector> osvList = new ArrayList<>();
     private String fileVersion;
 
@@ -60,7 +57,6 @@ public class SentinelPODOrbitFile extends BaseOrbitFile implements OrbitFile {
 
     public SentinelPODOrbitFile(final MetadataElement absRoot, final int polyDegree) {
         super(absRoot);
-        this.polyDegree = polyDegree;
     }
 
     public String[] getAvailableOrbitTypes() {
@@ -194,71 +190,15 @@ public class SentinelPODOrbitFile extends BaseOrbitFile implements OrbitFile {
     }
 
     /**
-     * Get orbit state vector for given time using polynomial fitting.
+     * Get the orbit state vector at the given time: 8-point Lagrange interpolation of the positions,
+     * velocity = derivative of the position (see {@link OrbitInterpolation}). The polynomial degree
+     * given to the constructor is no longer used.
      *
      * @param utc The UTC in days.
      * @return The orbit state vector.
      */
     public Orbits.OrbitVector getOrbitData(final double utc) {
-
-        final int numVectors = osvList.size();
-        final double t0 = osvList.get(0).utcMJD;
-        final double tN = osvList.get(numVectors - 1).utcMJD;
-
-        final int numVecPolyFit = polyDegree + 1; //4;
-        final int halfNumVecPolyFit = numVecPolyFit / 2;
-        final int[] vectorIndices = new int[numVecPolyFit];
-
-        final int vecIdx = (int) ((utc - t0) / (tN - t0) * (numVectors - 1));
-        if (vecIdx <= halfNumVecPolyFit - 1) {
-            for (int i = 0; i < numVecPolyFit; i++) {
-                vectorIndices[i] = i;
-            }
-        } else if (vecIdx >= numVectors - halfNumVecPolyFit) {
-            for (int i = 0; i < numVecPolyFit; i++) {
-                vectorIndices[i] = numVectors - numVecPolyFit + i;
-            }
-        } else {
-            for (int i = 0; i < numVecPolyFit; i++) {
-                vectorIndices[i] = vecIdx - halfNumVecPolyFit + 1 + i;
-            }
-        }
-
-        double[] timeArray = new double[numVecPolyFit];
-        double[] xPosArray = new double[numVecPolyFit];
-        double[] yPosArray = new double[numVecPolyFit];
-        double[] zPosArray = new double[numVecPolyFit];
-        double[] xVelArray = new double[numVecPolyFit];
-        double[] yVelArray = new double[numVecPolyFit];
-        double[] zVelArray = new double[numVecPolyFit];
-
-        for (int i = 0; i < numVecPolyFit; i++) {
-            timeArray[i] = osvList.get(vectorIndices[i]).utcMJD - t0;
-            xPosArray[i] = osvList.get(vectorIndices[i]).xPos;
-            yPosArray[i] = osvList.get(vectorIndices[i]).yPos;
-            zPosArray[i] = osvList.get(vectorIndices[i]).zPos;
-            xVelArray[i] = osvList.get(vectorIndices[i]).xVel;
-            yVelArray[i] = osvList.get(vectorIndices[i]).yVel;
-            zVelArray[i] = osvList.get(vectorIndices[i]).zVel;
-        }
-
-        final Matrix A = Maths.createVandermondeMatrix(timeArray, polyDegree);
-        final double[] xPosCoeff = Maths.polyFit(A, xPosArray);
-        final double[] yPosCoeff = Maths.polyFit(A, yPosArray);
-        final double[] zPosCoeff = Maths.polyFit(A, zPosArray);
-        final double[] xVelCoeff = Maths.polyFit(A, xVelArray);
-        final double[] yVelCoeff = Maths.polyFit(A, yVelArray);
-        final double[] zVelCoeff = Maths.polyFit(A, zVelArray);
-
-        final double normalizedTime = utc - t0;
-
-        return new Orbits.OrbitVector(utc,
-                Maths.polyVal(normalizedTime, xPosCoeff),
-                Maths.polyVal(normalizedTime, yPosCoeff),
-                Maths.polyVal(normalizedTime, zPosCoeff),
-                Maths.polyVal(normalizedTime, xVelCoeff),
-                Maths.polyVal(normalizedTime, yVelCoeff),
-                Maths.polyVal(normalizedTime, zVelCoeff));
+        return OrbitInterpolation.interpolate(osvList, utc);
     }
 
     private void readOrbitFile() throws Exception {
